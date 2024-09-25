@@ -299,7 +299,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
     <!-- Header -->
     <div
-      data-keep-inspection-in-base="true"
+      data-keep-inspection-in-base-view="true"
       class="group flex w-full max-w-full flex-row pl-2 pr-3"
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
@@ -350,11 +350,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
               <div
                 class="h-full rounded transition-colors duration-75"
                 :class="
-                  inspectionPtr?.id == block?.id
+                  canvas.isInspected(block)
                     ? 'bg-primary-900'
-                    : focusedNodePtr?.id == block?.id
-                      ? 'bg-gray-300'
-                      : 'bg-transparent group-hover/block-line:bg-gray-200'
+                    : canvas.isHighlighted(block)
+                      ? 'bg-primary-400'
+                      : focusedNodePtr?.id == block?.id
+                        ? 'bg-gray-300'
+                        : 'bg-transparent group-hover/block-line:bg-gray-200'
                 "
                 :style="{ width: HANDLE_WIDTH + 'px' }"
               />
@@ -386,7 +388,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   ...getAnchorPositionStyle(anchor as 'start' | 'end', i, SEPARATOR_WIDTH),
                   height: `${SEPARATOR_WIDTH}px`,
                 }"
-                data-keep-inspection-in-base="true"
+                data-keep-inspection-in-base-view="true"
               >
                 <!-- Line with a gap for the button -->
                 <div class="relative">
@@ -430,32 +432,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
               :style="{ width: widths.gutter, marginTop: SEPARATOR_WIDTH + 'px' }"
             >
-              <!-- Messages -->
-              <button
-                v-if="false /* NOTE :Incomplete: Messages */"
-                v-menu="
-                  (context: PopoverContext): PopoverInfoIn => ({
-                    component: ViewType.CHAT,
-                    placement: 'bottom',
-                    container: 'containingRoot',
-                    containerMargin: 12,
-                    props: {
-                      variant: Variant.COMPACT,
-                      nodePtr: toNodeRefOneOf(threadsByBlockId[block.id!]?.at(-1)!) ?? block,
-                    },
-                  })
-                "
-                class="rounded transition-colors duration-75 hover:text-primary-900 data-[popover=true]:text-primary-900"
-                :class="[
-                  inspectionPtr?.id == block?.id || threadsByBlockId[block.id!]?.length
-                    ? ''
-                    : 'opacity-0 group-hover/block-line:opacity-100',
-                  threadsByBlockId[block.id!]?.length ? 'text-gray-700' : 'text-gray-400',
-                ]"
-                data-keep-inspection-in-base="true"
-              >
-                <i class="fas fa-message w-5 text-center" />
-              </button>
+              <!--  NOTE :Incomplete: Messages  -->
             </div>
           </div>
 
@@ -470,7 +447,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <div
           v-if="page != null"
           class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded border border-gray-200 bg-white px-2 py-1"
-          data-keep-inspection-in-base="true"
+          data-keep-inspection-in-base-view="true"
         >
           <template
             v-for="blockType in [

@@ -2,7 +2,7 @@
 import { NAME_CONSTRAINT } from "@/language/const";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName } from "@/language/node";
-import { ColorShade, ColorType, NodeType, PipeType, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeType, PortType, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
@@ -27,14 +27,25 @@ const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path, sourcePort, targetPort } = state;
 const pathSvg = computed(() => (path.value != null ? pathToSvg(path.value.points) : undefined));
 const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S600));
+const pathBackgroundColorHex = computed(() => {
+  return getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S500);
+});
 
-const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value);
+const isInspected = computed(() => canvas.isInspected(pipePtr.value));
+const isHighlighted = computed(
+  () =>
+    canvas.isHighlighted(pipePtr.value) ||
+    (pipe.value?.sourcePort?.type == PortType.FIELD &&
+      (canvas.isHighlighted(pipe.value.sourcePort.fieldPtr) || canvas.isInspected(pipe.value.sourcePort.fieldPtr))) ||
+    (pipe.value?.targetPort?.type == PortType.FIELD &&
+      (canvas.isHighlighted(pipe.value.targetPort.fieldPtr) || canvas.isInspected(pipe.value.targetPort.fieldPtr))),
+);
+const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
 const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName(pipe.value.metatype, pipe.value.name));
+
 //
 // Interaction
 //
-
-const isInspected = computed(() => inspectionPtr.value?.id == pipePtr.value?.id);
 
 // actions
 const actions: Partial<ActionMapImplementation<"common" | "pipe">> = {
@@ -61,22 +72,23 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
       class="absolute cursor-pointer overflow-visible blur-sm transition-colors duration-150"
-      :class="isInspected ? 'opacity-80' : pipe.isHidden ? 'opacity-0' : 'opacity-0 hover:opacity-50'"
-      :style="{ color: pathColorHex }"
+      :class="isInspected || isHighlighted ? 'opacity-100' : pipe.isHidden ? 'opacity-0' : 'opacity-0 hover:opacity-50'"
+      :style="{ color: pathBackgroundColorHex }"
     >
       <path
         :stroke-width="PIPE_WIDTH + 2"
         stroke-linecap="round"
-        stroke-linejoin="bevel"
+        stroke-linejoin="round"
         stroke="currentColor"
         fill="none"
         :d="pathSvg"
       />
     </svg>
+
     <!-- Primary path -->
     <svg
       class="pointer-events-none absolute overflow-visible transition-colors duration-150"
-      :class="pipe.isHidden ? (isInspected ? 'opacity-70' : 'opacity-0') : 'opacity-100'"
+      :class="pipe.isHidden ? (isInspected || isHighlighted ? 'opacity-80' : 'opacity-0') : 'opacity-100'"
       :style="{ color: pathColorHex }"
     >
       <path
@@ -85,29 +97,30 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :stroke-dasharray="pipe.type === PipeType.DATA ? `${1},${PIPE_WIDTH * 2}` : undefined"
+        :stroke-dasharray="pipe.type === PipeType.DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : undefined"
         :d="pathSvg"
       />
     </svg>
+
     <!-- Midpoint stuff -->
     <div
       v-if="!isHidden"
       class="absolute select-none transition-colors duration-150"
       :class="[
-        path.isMidpointHorizontal ? '-translate-x-1/2 -translate-y-1/2 pb-5' : '-translate-x-1/2 -translate-y-1/2',
-        isGeneratedName && !isInspected ? 'opacity-0' : 'opacity-100',
-        isInspected || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
+        path.isMidpointHorizontal ? '-translate-x-1/2 -translate-y-5' : '-translate-x-1/2 -translate-y-1/2',
+        isGeneratedName && !isInspected && !isHighlighted ? 'opacity-0' : pipe.isHidden ? 'opacity-80' : 'opacity-100',
+        isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
       ]"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
     >
       <input
         ref="nameRef"
         type="text"
-        class="w-fit min-w-fit max-w-fit rounded border-0 bg-transparent text-xs font-medium outline-none ring-0 focus:ring-0"
+        class="w-fit min-w-fit max-w-fit border-0 bg-transparent text-center font-medium outline-none ring-0 focus:ring-0"
         spellcheck="false"
         data-suppress-drag="true"
         :value="pipe.name"
-        :size="Math.max(pipe.name.length, 3)"
+        :size="pipe.name.length + 3"
         v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
         @input="
           guardNativeNameInput($event, pipe!.name, (newValue) =>

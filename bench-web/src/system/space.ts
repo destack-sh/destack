@@ -1,3 +1,5 @@
+import { SOURCE_NODE_TYPES } from "@/language/const";
+import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
 import { getHostClient } from "@/proto/services";
 import { Anchor, BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
@@ -7,17 +9,15 @@ import {
   typeNodeReference,
   typeNodeReferenceMaybe,
   unwrapSomeNode,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
-import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
-import { SOURCE_NODE_TYPES } from "@/language/const";
+import { createDesktopDefaultSpace, createEmptySpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
+import { setCanvas as _setCanvas } from "@/utils/globals";
 import { log } from "@/utils/log";
-import { SpaceCanvas, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import { computed, nextTick, watch } from "vue";
-import { setCanvas } from "@/utils/globals";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetConnection(
@@ -55,19 +55,21 @@ pkgConnection.onError((e) => {
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER });
 export const space = spaceGraph.getRef(local.spacePtr);
-export const inspectionPtr = computed(() => space.value?.inspectionPtr);
-export const inspectionBasePtr = computed(() => space.value?.basePtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
   isRequired: false,
 });
 export const canvas = new SpaceCanvas(local.spacePtr, spaceGraph, () =>
   spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
 );
-setCanvas(canvas);
+_setCanvas(canvas);
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
 export const ownedSpacesInPkg = computed(() =>
   local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),
 );
+
+// selection
+export const inspectionPtr = computed(() => space.value?.inspectionPtr);
+export const inspectionBasePtr = computed(() => space.value?.basePtr);
 
 // spaceGraph should point to current space
 watch(

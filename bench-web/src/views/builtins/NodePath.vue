@@ -35,7 +35,13 @@ const path = computed(() => {
       <button
         class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
         role="button"
-        :class="node.id == container?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
+        :class="
+          node.id == container?.id || node.id == focus?.id || canvas.isInspected(node)
+            ? 'text-primary-900'
+            : canvas.isHighlighted(node)
+              ? 'text-primary-700'
+              : 'text-gray-600'
+        "
         :draggable="true"
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
