@@ -68,6 +68,7 @@ import {
   onBeforeUnmount,
   onMounted,
   onUpdated,
+  ref,
   shallowRef,
   triggerRef,
   watch,
@@ -105,6 +106,9 @@ export class SpaceCanvas {
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
   focusedViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
 
+  // selection
+  highlightedPtr = ref<SomeNodeReferenceData | null>(null);
+
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
     graph: ReadNodeGraph,
@@ -136,6 +140,31 @@ export class SpaceCanvas {
         this.onComponentFocused(e.target as HTMLElement);
       }
     });
+    // track currently hovered node for highlighting
+    useEventListener(document, "mousemove", (e) => {
+      const nodePtr = this.getNodeAt(e.target as HTMLElement);
+      if (nodePtr?.id != this.highlightedPtr.value?.id) {
+        this.highlightedPtr.value = nodePtr;
+      }
+    });
+  }
+
+  /** Whether the node is currently inspected. */
+  isInspected(node: AnyNodeData | SomeNodeReferenceData | null | undefined): boolean {
+    return (
+      node != null &&
+      inspectionPtr.value != null &&
+      (inspectionPtr.value.id == node.id || inspectionPtr.value.ck == (node as any).ck)
+    );
+  }
+
+  /** Whether the node is currently highlighted. */
+  isHighlighted(node: AnyNodeData | SomeNodeReferenceData | null | undefined): boolean {
+    return (
+      node != null &&
+      this.highlightedPtr.value != null &&
+      (this.highlightedPtr.value.id == node.id || this.highlightedPtr.value.ck == (node as any).ck)
+    );
   }
 
   /** Whether there are any active views here */
@@ -182,6 +211,36 @@ export class SpaceCanvas {
     return component?.exposed.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
   }
 
+  /** Gets the node at the given element. */
+  getNodeAt(el: HTMLElement | SVGElement): SomeNodeReferenceData | null {
+    // traverse upwards until we find some node ptr or a component that gives us a node ptr
+    while (el != null) {
+      if (el.dataset["nodeId"] != null) {
+        // annotated element
+        const nodePtr = {
+          metatype: ObjectType.NODE_REFERENCE,
+          type: Number(el.dataset["nodeType"]),
+          id: el.dataset["nodeId"],
+          ck: el.dataset["nodeCk"],
+        };
+        return nodePtr;
+      } else if ((el as any).__viewComponent != null) {
+        // view component
+        const component = (el as any).__viewComponent as ViewComponent;
+        if (component.exposed.mapToNode != null) {
+          const nodePtr = component.exposed.mapToNode(el);
+          if (nodePtr != null) return nodePtr;
+        } else if (component.props.nodePtr?.oneofKind != null) {
+          const nodePtr = unwrapProtoOneOf(component.props.nodePtr);
+          if (nodePtr != null) return nodePtr;
+        }
+      }
+      // up we go
+      el = el.parentElement!;
+    }
+    return null;
+  }
+
   /** Updates our internal focus state in response to a browser event */
   private onComponentFocused(element: ViewComponent | HTMLElement | SVGElement | null) {
     const component =
@@ -215,7 +274,7 @@ export class SpaceCanvas {
       if (nodePtr != null) break;
     }
     const keepInspectionInBase =
-      getElement(element)?.closest?.("[data-keep-inspection-in-base]") != null &&
+      getElement(element)?.closest?.("[data-keep-inspection-in-base-view]") != null &&
       inspectionBasePtr.value != null &&
       nodePtr != null &&
       isDescendantOf(this.graph, inspectionBasePtr.value, nodePtr);
@@ -224,7 +283,7 @@ export class SpaceCanvas {
       baseView != null &&
       !HELPER_VIEW_TYPES.has(baseView.type) &&
       nodePtr != null &&
-      nodePtr.id != inspectionPtr.value?.id
+      !this.isInspected(nodePtr)
     ) {
       this.inspect({ node: nodePtr, view: this.focusedViewPtr.value! });
     }

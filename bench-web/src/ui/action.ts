@@ -3,29 +3,22 @@ import { getEditStack } from "@/language/edit";
 import { getAllTransactionBuffers } from "@/language/transaction";
 import { packBuiltinObjectJson } from "@/language/value";
 import {
-  BlockData,
-  BlockType,
-  EnumType,
-  FieldZone,
-  NodeType,
   ObjectType,
   TreeViewPreset,
   ViewType,
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
-  type TextData,
+  type TextData
 } from "@/proto/wire";
-import { describeNode, isNode, toPlainNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
-import { isDeveloperMode, packagePtr } from "@/system/client";
-import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
+import { describeNode, type AnyNodeReferenceData } from "@/proto/wiring";
+import { isDeveloperMode } from "@/system/client";
+import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
-import { getRandomEnumOption } from "@/ui/inspect";
 import { keytrap, type KeySignature } from "@/ui/keymap";
 import { clearSpace, createDesktopAdvancedSpace, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp, SPACE_DEFAULT_BAR_POSITION } from "@/ui/view";
-import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -200,9 +193,6 @@ export const ACTION_BUILTIN_IDS = [
   "developer.developerMode",
   "developer.tx.retryAllFailed",
   "developer.view.addEmptyView",
-  "developer.create.addRootPages",
-  "developer.create.addRandomBlocks",
-  "developer.create.addRandomFields",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -1142,98 +1132,6 @@ contributeActionMap<"developer">({
     action: () => {
       const name = toCasing(generateRandomName().toUpperCase(), Casing.CAMEL, true);
       canvas.addView({ type: ViewType.EMPTY, name, title: name });
-    },
-  },
-  "developer.create.addRootPages": {
-    isEnabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
-    icon: "fas fa-folder-plus",
-    title: "Add Root Pages",
-    text: "Add some root pages to the space",
-    action: () => {
-      const tx = pkgConnection.tx;
-      const pages: BlockData[] = [];
-      const existingRootNames = pkgGraph.getChildren(packagePtr.value!, NodeType.BLOCK).map((b) => b.name);
-      for (const [pageName, icon] of [
-        ["System", "fas fa-gear"],
-        ["Library", "fas fa-cubes"],
-        ["Mirror", "fas fa-map"],
-        ["Applications", "fas fa-compass-drafting"],
-        ["Sandbox", "fas fa-game-board"],
-      ]) {
-        if (existingRootNames.includes(pageName)) continue;
-        const page = tx.create({
-          metatype: NodeType.BLOCK,
-          parentPtr: packagePtr.value!,
-          packagePtr: packagePtr.value!,
-          type: BlockType.PAGE,
-          name: pageName,
-          orderKey: generateOrderKey(pages[pages.length - 1]?.orderKey ?? null, null),
-          icon: makeIcon({ faName: icon }),
-        });
-        pages.push(page);
-      }
-    },
-  },
-  "developer.create.addRandomBlocks": {
-    isEnabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
-    icon: "fas fa-cube",
-    title: "Add Random Blocks",
-    text: "Add some random blocks to the space",
-    action: () => {
-      const tx = pkgConnection.tx;
-      const existingNodes = pkgGraph.nodes.filter(
-        (n) => n.metatype == ObjectType.BLOCK || n.metatype == ObjectType.PACKAGE,
-      );
-      for (let i = 0; i < 10; i++) {
-        const name = generateRandomName();
-        const parent = existingNodes[Math.floor(Math.random() * existingNodes.length)];
-        const existingChildren = pkgGraph.getChildren(parent, NodeType.BLOCK);
-        const prevOrderKey = (existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null;
-        const type = getRandomEnumOption(EnumType.BLOCK_TYPE);
-        const node = tx.create({
-          metatype: NodeType.BLOCK,
-          parentPtr: toPlainNodeRef(parent),
-          packagePtr: packagePtr.value!,
-          type,
-          name,
-          orderKey: generateOrderKey(prevOrderKey, null),
-        });
-      }
-    },
-  },
-  "developer.create.addRandomFields": {
-    isEnabled: computed(() => isDeveloperMode.value && hasLocalBench.value),
-    icon: "fas fa-cube",
-    title: "Add Random Fields",
-    text: "Add some random fields to this block",
-    action: () => {
-      const tx = pkgConnection.tx;
-      const block = pkgGraph.getMaybe(inspectionPtr.value);
-      if (!isNode(block, NodeType.BLOCK)) return false;
-      for (let i = 0; i < 5; i++) {
-        const name = generateRandomName();
-        let zone: FieldZone;
-        if (block.type == BlockType.CLASS) {
-          zone = FieldZone.MEMBER;
-        } else if (block.type == BlockType.CHOICE) {
-          zone = FieldZone.OPTION;
-        } else {
-          zone = getRandomEnumOption(EnumType.FIELD_ZONE);
-        }
-        const existingChildren = pkgGraph.getChildren(block, NodeType.FIELD);
-        const field = tx.create({
-          metatype: NodeType.FIELD,
-          parentPtr: toPlainNodeRef(block),
-          packagePtr: packagePtr.value!,
-          name,
-          zone,
-          benchType: getRandomEnumOption(EnumType.BENCH_TYPE),
-          isList: Math.random() > 0.5,
-          isRequired: Math.random() > 0.4,
-          isSecret: Math.random() > 0.8,
-          orderKey: generateOrderKey((existingChildren[existingChildren.length - 1] as any)?.orderKey ?? null, null),
-        });
-      }
     },
   },
 });

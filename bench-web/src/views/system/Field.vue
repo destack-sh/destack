@@ -1,18 +1,18 @@
 <script lang="ts" setup>
+import { NAME_CONSTRAINT } from "@/language/const";
 import { NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { canvas } from "@/system/space";
+import type { ActionMapImplementation } from "@/ui/action";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import { NAME_CONSTRAINT } from "@/language/const";
-import { canvas, inspectionPtr } from "@/system/space";
-import { getNativeConstraintProps, guardNativeInput, guardNativeNameInput } from "@/ui/view";
 import { type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
+import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
-import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -30,6 +30,8 @@ const nameRef = ref<HTMLElement | null>(null);
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.FIELD>);
 const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
 const field = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
+const isInspected = computed(() => canvas.isInspected(nodePtr.value));
+const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 
 // actions
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"type"> = {
@@ -74,7 +76,15 @@ defineExpose<ViewExposed>({ self, id, actions });
     :class="[
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
       variant != Variant.STEALTH ? 'border border-gray-200 bg-gray-100' : 'hover:bg-gray-100',
-      inspectionPtr?.id == field.id ? (variant != Variant.STEALTH ? 'border-primary-900' : 'text-primary-900') : '',
+      isInspected
+        ? variant != Variant.STEALTH
+          ? 'border-primary-900'
+          : 'text-primary-900'
+        : isHighlighted
+          ? variant != Variant.STEALTH
+            ? 'border-primary-400'
+            : 'text-primary-700'
+          : '',
     ]"
   >
     <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->
@@ -91,7 +101,13 @@ defineExpose<ViewExposed>({ self, id, actions });
       "
       v-bind="getNodeIcon(field)"
       class="w-5 rounded p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-      :class="inspectionPtr?.id == field.id && variant == Variant.STEALTH ? 'text-primary-900' : 'text-gray-700'"
+      :class="
+        isInspected && variant == Variant.STEALTH
+          ? 'text-primary-900'
+          : isHighlighted && variant == Variant.STEALTH
+            ? 'text-primary-700'
+            : 'text-gray-700'
+      "
     />
     <input
       ref="nameRef"

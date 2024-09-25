@@ -436,6 +436,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
               };
             }
           "
+          :data-node-id="node.id"
+          :data-node-ck="(node as any).ck"
+          :data-node-type="node.metatype"
           class="group relative mx-1 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
           :class="[
             (focusedNode?.id == node.id && isFocusAbsolute) ||
@@ -478,7 +481,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
             v-bind="getNodeIcon(node)"
             class="mr-1.5 w-5 flex-shrink-0"
             :class="[
-              isFocused(node) ? 'text-primary-900' : 'text-gray-700 group-hover:text-primary-900',
+              isFocused(node) || canvas.isInspected(node)
+                ? 'text-primary-900'
+                : canvas.isHighlighted(node)
+                  ? 'text-primary-700 group-hover:text-primary-900'
+                  : 'text-gray-700 group-hover:text-primary-900',
               hasChildren ? '' : 'ml-6',
             ]"
           />
@@ -504,7 +511,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <span
             v-else
             class="select-none truncate group-hover:text-primary-900"
-            :class="isFocused(node) ? 'text-primary-900' : ''"
+            :class="
+              isFocused(node) || canvas.isInspected(node)
+                ? 'text-primary-900'
+                : canvas.isHighlighted(node)
+                  ? 'text-primary-700'
+                  : ''
+            "
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
           />
           <!-- Meta -->

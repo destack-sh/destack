@@ -7,6 +7,7 @@ import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
+import { canvas } from "@/utils/globals";
 import { computed, ref } from "vue";
 
 const props = defineProps<{

@@ -21,7 +21,7 @@ import {
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
-import { canvas, inspectionPtr } from "@/system/space";
+import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { onMouseReleasedOnce } from "@/ui/layout";
@@ -76,6 +76,8 @@ const hasFunctionFields = computed(
     fields.value.some((f) => f.zone == FieldZone.INPUT || f.zone == FieldZone.OUTPUT),
 );
 const forceShowText: Ref<boolean> = ref(false);
+const isInspected = computed(() => canvas.isInspected(nodePtr.value));
+const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 
 //
 // Interaction
@@ -139,7 +141,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     class="group/block relative rounded"
     :class="[
       borderless || variant == Variant.STEALTH ? '' : 'border',
-      nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : ['border-gray-200 px-2 py-1.5 hover:border-gray-200'],
+      isInspected || isHighlighted ? 'border-primary-900' : ['border-gray-200 px-2 py-1.5 hover:border-gray-200'],
     ]"
   >
     <!-- Header -->
@@ -191,7 +193,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <span
           class="flex flex-row gap-x-0.5 transition-colors duration-75"
           :class="[
-            nodePtr?.id == inspectionPtr?.id
+            isInspected
               ? 'text-gray-400'
               : [
                   variant != Variant.STEALTH ? '' : 'opacity-0 group-hover/block:opacity-100',

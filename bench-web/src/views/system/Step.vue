@@ -57,6 +57,8 @@ const stepPtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeRefer
 const flowCtx = useFlowContext();
 const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
 const { step, fields, nodePtr, node, nodeFields, ports } = stepState;
+const isInspected = computed(() => canvas.isInspected(stepPtr.value));
+const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
 
 const nameRef: Ref<HTMLInputElement | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
@@ -203,7 +205,13 @@ defineExpose<ViewExposed>({ self, id, actions });
     v-if="step"
     ref="containerRef"
     class="group/step rounded border bg-white transition-colors duration-150"
-    :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300']"
+    :class="[
+      isInspected
+        ? 'border-primary-900'
+        : isHighlighted
+          ? 'border-primary-400'
+          : 'border-gray-200 hover:border-gray-300',
+    ]"
     :style="{
       borderColor: lastRunStatusColor != null ? getColorHex(lastRunStatusColor, ColorShade.S600) : undefined,
     }"
@@ -263,24 +271,24 @@ defineExpose<ViewExposed>({ self, id, actions });
           leave-to-class="opacity-0"
           appear
         >
-          <span 
-            v-if="lastRun" class="px-1 flex-shrink-0 truncate"
-            :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]"
-          >
+          <span v-if="lastRun" class="flex-shrink-0 truncate px-1" :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]">
             <!-- Duration -->
             <span v-if="lastRun.startedAt" class="mr-1">
               {{
                 formatDuration(
                   lastRun.duration ??
-                    getDurationFromNow(lastRun.startedAt, {  updateInterval: TimeUpdateInterval.MILLISECOND }),
-                  { minUnit: "s"}
+                    getDurationFromNow(lastRun.startedAt, { updateInterval: TimeUpdateInterval.MILLISECOND }),
+                  { minUnit: "s" },
                 )
               }}
             </span>
             <!-- Icon -->
             <IconInline
               class="w-5 text-center"
-              :class="[ACCENT_COLOR_BY_RUN_STATUS[lastRun.status], lastRun.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+              :class="[
+                ACCENT_COLOR_BY_RUN_STATUS[lastRun.status],
+                lastRun.status == RunStatus.RUNNING ? 'animate-spin' : '',
+              ]"
               v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
             />
           </span>
@@ -382,7 +390,11 @@ defineExpose<ViewExposed>({ self, id, actions });
             <button
               class="absolute cursor-crosshair rounded-sm border bg-white transition-colors duration-150 focus:outline-none"
               :class="[
-                stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:bg-gray-100 ',
+                isInspected
+                  ? 'border-primary-900'
+                  : isHighlighted
+                    ? 'border-primary-400'
+                    : 'border-gray-200 hover:bg-gray-100',
                 'hover:border-primary-900 hover:bg-gray-100',
               ]"
               :style="{
