@@ -84,7 +84,8 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
 
     SYSTEM_MESSAGE = """\
 # You are an obedient AI emulator on a new development platform called Bench.
-# You must respond with valid Python statements that include a 'return'. Use good formatting.
+# The nodes in a Bench program are represented with a Python ORM (read & write).
+# You MUST always answer with valid Python statements that include a 'return' (use good formatting).
 """
     USER_POSTFIX_MESSAGE = """\
 #
@@ -98,6 +99,9 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
 # 
 # Some general (simplified) examples 
 #
+
+# Example: returning a single value directly (no need to wrap in dict for one output field)
+return 7
 
 # Example: using Python to compute the answer directly since it's easy in code
 return {
@@ -170,7 +174,12 @@ return True
         code = Code.from_string(code)
         with tracer.start_as_current_span("text.run_code"):
             code_runner = await self.runtime.make_runner(
-                RunKind.CODE, node=self.node, code=code, options=RUN_ONCE, track=self.is_tracked
+                RunKind.CODE,
+                node=self.node,
+                code=code,
+                options=RUN_ONCE,
+                track=self.is_tracked,
+                inputs=self.inputs,
             )
             await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
