@@ -203,7 +203,7 @@ export class PipeState {
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, this.targetPort.value);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
       const path = this.flow.computePath(
-        this.pipe.value?.isHidden ? "direct" : "manhattan",
+        this.pipe.value?.isHidden ? "manhattan" : "manhattan",
         sourcePortPosition,
         this.sourcePort.value.side,
         targetPortPosition,
@@ -784,7 +784,7 @@ export class FlowContext {
         return { points, midpoint, isMidpointHorizontal: isHorizontal };
       } else {
         const premidPoint = points[points.length / 2 - 1];
-        const postmidPoint = points[points.length / 2 + 1];
+        const postmidPoint = points[points.length / 2];
         const midpoint = { x: (premidPoint.x + postmidPoint.x) / 2, y: (premidPoint.y + postmidPoint.y) / 2 };
         const isHorizontal = premidPoint.y == postmidPoint.y;
         return { points, midpoint, isMidpointHorizontal: isHorizontal };
@@ -1160,7 +1160,7 @@ function pathfind(
     openSet.sort((a, b) => a.f - b.f);
     const current = openSet.shift()!;
 
-    if (Math.abs(target.x - current.x) <= options.step && target.y == current.y) {
+    if (Math.abs(target.x - current.x) <= 1 && Math.abs(target.y - current.y) <= 1) {
       // path found, reconstruct and return it
       const path: Vector2[] = [];
       let node: AStarNode | null = current;

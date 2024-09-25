@@ -71,12 +71,12 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
-      class="absolute cursor-pointer overflow-visible blur-sm transition-colors duration-150"
+      class="blur-xs absolute cursor-pointer overflow-visible transition-colors duration-150"
       :class="isInspected || isHighlighted ? 'opacity-100' : pipe.isHidden ? 'opacity-0' : 'opacity-0 hover:opacity-50'"
       :style="{ color: pathBackgroundColorHex }"
     >
       <path
-        :stroke-width="PIPE_WIDTH + 2"
+        :stroke-width="PIPE_WIDTH * 2"
         stroke-linecap="round"
         stroke-linejoin="round"
         stroke="currentColor"
