@@ -251,3 +251,51 @@ export function immediateStopWatch(
   callback(stop);
   return stop;
 }
+
+type ProxyHandler<T> = {
+  get(target: any, prop: PropertyKey, receiver: any): any;
+  set(target: any, prop: PropertyKey, value: any): boolean;
+  // You can extend with other traps if needed
+};
+
+/** Creates a proxy that defers to a real object so we can pass it around typesafe even when not fully initialized. */
+export function createDeferredProxy<T>(): {
+  proxy: T;
+  setRealObject: (obj: T) => void;
+} {
+  let realObject: T | null = null;
+  let isInitialized = false;
+
+  const handler: ProxyHandler<T> = {
+    get(target, prop, receiver) {
+      if (realObject) {
+        const value = Reflect.get(realObject, prop, receiver);
+        // If the property is a function, bind it to realObject to preserve 'this'
+        if (typeof value === "function") {
+          return value.bind(realObject);
+        }
+        return value;
+      }
+      throw new Error("Proxy has not been initialized yet.");
+    },
+    set(target, prop, value) {
+      if (realObject) {
+        return Reflect.set(realObject, prop, value);
+      }
+      throw new Error("Proxy has not been initialized yet.");
+    },
+    // Optionally handle other traps like 'has', 'deleteProperty', etc.
+  };
+
+  const proxy = new Proxy({}, handler) as T;
+
+  function setRealObject(obj: T): void {
+    if (isInitialized) {
+      throw new Error("Proxy has already been initialized.");
+    }
+    realObject = obj;
+    isInitialized = true;
+  }
+
+  return { proxy, setRealObject };
+}

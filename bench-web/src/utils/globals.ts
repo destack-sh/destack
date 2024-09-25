@@ -1,4 +1,5 @@
-import { pretendReadonly } from "@/utils/ref";
+import { SpaceCanvas } from "@/ui/space";
+import { createDeferredProxy, pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
 export const VERSION = "2024.09.10.1";
@@ -14,5 +15,7 @@ export const DISCORD_URL = import.meta.env.VITE_DISCORD_URL || "https://discord.
 export const GRPC_KEEPALIVE_INTERVAL = 60;
 export const IP_API_KEY = IP_API_KEY_B64 ? atob(IP_API_KEY_B64) : null;
 export const IS_DEV = ENV == null || ENV == "dev";
-// actually synced from local, but we want a global we can safely import
+
+// hoisted globals for safe importing
 export const isDeveloperMode = pretendReadonly(ref(IS_DEV));
+export const { proxy: canvas, setRealObject: setCanvas } = createDeferredProxy<SpaceCanvas>();

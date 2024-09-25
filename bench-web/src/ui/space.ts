@@ -91,7 +91,7 @@ const activeElement = useActiveElement();
 /**
  * Canvas for Views and their components in a Space.
  * Some of our View components may not have an associated View, so we track them with a derived id.
- * NOTE: ViewCanvas is effectively a global singleton (currently).
+ * NOTE: SpaceCanvas is effectively a global singleton (currently).
  */
 export class SpaceCanvas {
   spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;

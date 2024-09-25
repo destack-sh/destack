@@ -17,6 +17,7 @@ import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
 import { SpaceCanvas, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import { computed, nextTick, watch } from "vue";
+import { setCanvas } from "@/utils/globals";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetConnection(
@@ -62,6 +63,7 @@ export const { connection: spaceConnection } = useExistingConnection(local.space
 export const canvas = new SpaceCanvas(local.spacePtr, spaceGraph, () =>
   spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
 );
+setCanvas(canvas);
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
 export const ownedSpacesInPkg = computed(() =>
   local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),

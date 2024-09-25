@@ -1,5 +1,5 @@
 import { estimateCodeHeight } from "@/language/code";
-import { BOUNDARY_STEP_TYPES, INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
+import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName } from "@/language/node";
 import { estimateTextHeight } from "@/language/text";
@@ -33,6 +33,7 @@ import { toaster } from "@/ui/toast";
 import { addTransform, addVector2, VIEW_DEFAULT_HEADER_HEIGHT, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
+import { canvas } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
 import type Step from "@/views/system/Step.vue";
@@ -102,6 +103,8 @@ export function getPortKey(port: PortId): PortKeyData {
 
 export type PipePath = {
   points: Vector2[];
+  midpoint: Vector2;
+  isMidpointHorizontal: boolean;
 };
 
 export type BoundingBox = { x1: number; y1: number; x2: number; y2: number; width: number; height: number };
@@ -111,7 +114,7 @@ export type FlowThing =
   | { kind: "step"; step: StepData }
   | { kind: "pipe"; pipe: PipeData }
   | { kind: "step-port"; step: StepData; port: Port; cursorWorldPos?: { x: number; y: number } };
-// | { // TODO :UX: reconnect pipes (support pipe-port)
+// | { // NOTE :Incomplete :UX: reconnect pipes (support pipe-port)
 //     kind: "pipe-port";
 //     pipe: PipeData;
 //     port: Port;
@@ -200,6 +203,7 @@ export class PipeState {
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, this.targetPort.value);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
       const path = this.flow.computePath(
+        this.pipe.value?.isHidden ? "direct" : "manhattan",
         sourcePortPosition,
         this.sourcePort.value.side,
         targetPortPosition,
@@ -668,12 +672,15 @@ export class FlowContext {
           isHidden = true;
           type = PipeType.DATA;
         }
-        createPipe(this.tx, this.graph, {
+        const pipe = createPipe(this.tx, this.graph, {
           parent: this.flow.value,
           pipe: { type, isHidden },
           source: sourcePort,
           target: targetPort,
         });
+        if (this.view.value != null) {
+          canvas.inspect({ node: pipe, view: this.view.value });
+        }
       }
     } catch (e) {
       toaster.error({ title: "Invalid Pipe", text: (e as any)?.message ?? "Cannot pipe like that." });
@@ -712,8 +719,10 @@ export class FlowContext {
   }
 
   /**
-   * Computes the manhattan path for a pipe (in world coordinates, without considering other pipes).
-   * Pathfinding has a few key objectives:
+   * Computes a path for a pipe a pipe (in world coordinates, without considering other pipes).
+   *
+   * Direct paths just ignore Step bounding boxes and connect ports with a straight line.
+   * Manhatten pathfinding has a few key objectives:
    *  0. We start at the source port and want to reach the target port (if we can't, return null).
    *  1. Pipes are always exactly on the grid; ports are always connected horizontally.
    *  2. Unless directly at a port, we must stay at least one step away from any step.
@@ -721,39 +730,68 @@ export class FlowContext {
    *  4. Path computation must be very fast (we're doing it on every mouse move and state change).
    * NOTE :UX: improve pipe paths (better pathfinding, coordinate pipe paths, ...)
    * */
-  computePath(source: Vector2, sourceSide: PortSide, target: Vector2, targetSide: PortSide): PipePath | null {
+  computePath(
+    pathType: "direct" | "manhattan",
+    source: Vector2,
+    sourceSide: PortSide,
+    target: Vector2,
+    targetSide: PortSide,
+  ): PipePath | null {
     // swap it so that source is always outgoing
     if (sourceSide != PortSide.OUTGOING) {
       [source, target] = [target, source];
       [sourceSide, targetSide] = [targetSide, sourceSide];
     }
 
-    // 'collision' detection
-    const stepBoundingBoxes: BoundingBox[] = Object.values(this.stepsStates.value)
-      .map((s) => s.boundingBox.value)
-      .filter((s) => s != null) as BoundingBox[];
-    function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
-      for (const box of stepBoundingBoxes) {
-        if (box.x1 <= vec.x && vec.x <= box.x2 && box.y1 <= vec.y && vec.y <= box.y2) {
-          return box;
+    if (pathType == "direct") {
+      // direct path
+      const path: PipePath = {
+        points: [source, target],
+        midpoint: { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 },
+        isMidpointHorizontal: true,
+      };
+      return path;
+    } else if (pathType == "manhattan") {
+      // manhattan path
+
+      // 'collision' detection
+      const stepBoundingBoxes: BoundingBox[] = Object.values(this.stepsStates.value)
+        .map((s) => s.boundingBox.value)
+        .filter((s) => s != null) as BoundingBox[];
+      function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
+        for (const box of stepBoundingBoxes) {
+          if (box.x1 <= vec.x && vec.x <= box.x2 && box.y1 <= vec.y && vec.y <= box.y2) {
+            return box;
+          }
         }
+        return undefined;
       }
-      return undefined;
+
+      // pathfind between point right next to port
+      source = snapVec(source);
+      target = snapVec(target);
+      const innerPoints = pathfind(
+        { x: source.x + FLOW_GRID_STEP, y: source.y },
+        { x: target.x - FLOW_GRID_STEP, y: target.y },
+        { step: FLOW_GRID_STEP, maxIterations: 1000, hit: hitStep },
+      );
+      if (innerPoints == null) return null; // no path found
+      const points = [source, ...innerPoints, target]; // add source/target port back in
+      if (points.length % 2 == 1) {
+        const midpointIdx = Math.floor(points.length / 2);
+        const midpoint = points[midpointIdx];
+        const isHorizontal = points[midpointIdx - 1].y == points[midpointIdx + 1].y;
+        return { points, midpoint, isMidpointHorizontal: isHorizontal };
+      } else {
+        const premidPoint = points[points.length / 2 - 1];
+        const postmidPoint = points[points.length / 2 + 1];
+        const midpoint = { x: (premidPoint.x + postmidPoint.x) / 2, y: (premidPoint.y + postmidPoint.y) / 2 };
+        const isHorizontal = premidPoint.y == postmidPoint.y;
+        return { points, midpoint, isMidpointHorizontal: isHorizontal };
+      }
+    } else {
+      assertNever(pathType);
     }
-
-    // pathfind between point right next to port
-    source = snapVec(source);
-    target = snapVec(target);
-    const innerPoints = pathfind(
-      { x: source.x + FLOW_GRID_STEP, y: source.y },
-      { x: target.x - FLOW_GRID_STEP, y: target.y },
-      { step: FLOW_GRID_STEP, maxIterations: 1000, hit: hitStep },
-    );
-    if (innerPoints == null) return null; // no path found
-    const points = [source, ...innerPoints, target]; // add source/target port back in
-
-    const path: PipePath = { points };
-    return path;
   }
 
   /** Gets the bounding box for a pipe path (in world coordinates). */
