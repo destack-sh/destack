@@ -71,7 +71,7 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath = computed(() => {
   if (flowCtx.draggable?.kind != "step-port") return null;
   return flowCtx.computePath(
-    "direct",
+    "manhattan",
     flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port)!,
     flowCtx.draggable.port.side,
     flowCtx.draggable.cursorWorldPos!,

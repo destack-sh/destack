@@ -25,7 +25,7 @@ const name = computed(() => (props.node as any).name);
 const editingName = ref(false);
 </script>
 <template>
-  <div>
+  <div :data-node-id="node.id" :data-node-ck="(node as any).ck" :data-node-type="node.metatype">
     <!-- NOTE :UX: hover preview for node references (files, pages, databases, ...) :NodePreviews -->
     <!-- Icon -->
     <IconInline

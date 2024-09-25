@@ -41,6 +41,9 @@ export default {
         90: "90",
         100: "100",
       },
+      blur: {
+        xs: "2px",
+      },
       screens: {
         "-2xl": { max: "1535px" },
         "-xl": { max: "1279px" },
