@@ -146,7 +146,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
         />
         <!-- Add to list-->
         <button
-          v-else
+          v-else-if="!isDisabled"
           class="mr-2 self-center text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="addNewValue(), $nextTick(() => inputRef?.focus())"
         >

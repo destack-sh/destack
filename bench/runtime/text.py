@@ -93,7 +93,8 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
 #  - You MUST NOT attempt to generalize over inputs; return the answer for the specific inputs only.
 #  - You SHOULD solve math, simple string operations and such in Python when appropriate, but nothing fancy.
 #  - You MUST use your native capabilities (NOT Python) to emulate AI stuff (like image processing or summarization).
-#  - You MAY `raise ModelIncapableError("<reason>")` if an output for the given inputs is impossible.
+#  - You SHOULD `raise ModelIncapableError("<reason>")` IF an output for the given inputs is impossible.
+#    (e.g., error if the given output Field's type don't agree with their names/descriptions or instructions)
 # 
 
 # 

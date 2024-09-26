@@ -88,7 +88,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <span class="ml-1.5 text-gray-400 group-hover:text-gray-700">Select Color</span>
       </template>
       <!-- Controls -->
-      <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
+      <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->
         <button
           v-if="modelValue != null && !valueType?.isRequired"

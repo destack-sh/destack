@@ -321,8 +321,16 @@ class TypeInfoBase(BuiltinObject):
         if self.condition is not None:
             info_str += f" [{self.condition}]"
 
-        flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
-        if flags:
+        flags = []
+        if self.is_list:
+            flags.append("is_list")
+        else:
+            flags.append("is_scalar")
+        if self.is_required:
+            flags.append("is_required")
+        if self.is_secret:
+            flags.append("is_secret")
+        if len(flags) > 0:
             info_str += f" ({', '.join(flags)})"
         if self._from_property:
             info_str += f" from {self._from_property!s}"
@@ -422,6 +430,11 @@ class TypeInfoBase(BuiltinObject):
             return True
         else:
             return False
+
+    @property
+    def is_scalar(self) -> bool:
+        """Whether this type is a scalar (not a list)."""
+        return not self.is_list
 
     @property
     def identity_key(self) -> str:
