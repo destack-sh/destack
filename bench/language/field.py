@@ -82,11 +82,17 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.PRIMITIVE: "p",
     TypeKind.STRUCT: "s",
     TypeKind.NODE: "n",
+    TypeKind.BASED_NODE: "n",  # overlap with TypeKind.NODE
     TypeKind.ENUM: "e",
-    TypeKind.BASED_NODE: "b",
     TypeKind.OBJECT: "o",
 }
-TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {v: k for k, v in LETTER_BY_TYPE_KIND.items()}
+TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
+    "p": TypeKind.PRIMITIVE,
+    "s": TypeKind.STRUCT,
+    "n": TypeKind.NODE,
+    "e": TypeKind.ENUM,
+    "o": TypeKind.OBJECT,
+}
 
 
 def get_implied_type_kind(typ: "TypeInfoBase") -> TypeKind | None:
@@ -120,13 +126,11 @@ def encode_type_identity(typ: "TypeInfoBase") -> str | None:
     if typ.kind == TypeKind.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
         value = encode_b64vlq(typ.primitive_type.id)
-    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+        value = ""  # joint type identity for nodes
+    elif typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         value = encode_b64vlq(typ.bench_type.id)
-    elif typ.kind == TypeKind.BASED_NODE:
-        assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
-        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
-        value = f"{get_tk_b64_from_ptr(typ.base_type_ptr)}{encode_b64vlq(typ.bench_type.id)}"
     elif typ.kind == TypeKind.OBJECT:
         assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
         value = get_tk_b64_from_ptr(typ.base_type_ptr)
@@ -165,25 +169,13 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
             is_list=is_list,
             is_secret=is_secret,
         )
-    elif (
-        kind == TypeKind.NODE.value or kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value
-    ):
+    elif kind == TypeKind.STRUCT.value or kind == TypeKind.ENUM.value:
         bench_type = BenchType(decode_b64vlq(value))  # type: ignore
         return TypeInfo(
             kind=TypeKind(kind), bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
-    elif kind == TypeKind.BASED_NODE.value:
-        base_type_ptr = NodeReference(
-            type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
-        )
-        bench_type = BenchType(decode_b64vlq(value[TK_LENGTH_B64:]))  # type: ignore
-        return TypeInfo(
-            kind=TypeKind.BASED_NODE,
-            base_type_ptr=base_type_ptr,
-            bench_type=bench_type,
-            is_list=is_list,
-            is_secret=is_secret,
-        )
+    elif kind == TypeKind.NODE or kind == TypeKind.BASED_NODE.value:
+        return TypeInfo(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.OBJECT.value:
         base_type_ptr = NodeReference(
             type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
@@ -220,10 +212,11 @@ class TypeConstraint(Struct):
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
     # node-ish (these should probably be lists?)
-    block_types: list["BlockType"] = p_regular(70, array=True)
-    step_types: list["StepType"] = p_regular(71, array=True)
-    file_types: list["FileType"] = p_regular(72, array=True)
-    file_formats: list["FileFormat"] = p_regular(73, array=True)
+    node_types: list["NodeType"] = p_regular(70, array=True)
+    block_types: list["BlockType"] = p_regular(71, array=True)
+    step_types: list["StepType"] = p_regular(72, array=True)
+    file_types: list["FileType"] = p_regular(73, array=True)
+    file_formats: list["FileFormat"] = p_regular(74, array=True)
     ...
 
 
@@ -239,7 +232,7 @@ class TypeInfoBase(BuiltinObject):
        1. Primitive (= column type, value is scalar, like int32, string, bool, datetime, ...)
           [primitive_type] | [base_type = Block aliased to primitive_type]
        2. Node (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-          [bench_type~NodeType]
+          [bench_type~NodeType | None]
        3. Struct (value is 'robust json', like Expression, File, Path, Text, Code, ...)
           [bench_type~StructType]
        4. Enum (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
@@ -552,6 +545,8 @@ def to_type_scalar(
                 return TypeInfo(kind=TypeKind.STRUCT, bench_type=bench_type)
             elif is_enum_type(bench_type):
                 return TypeInfo(kind=TypeKind.ENUM, bench_type=bench_type)
+        elif typ == Node:
+            return TypeInfo(kind=TypeKind.NODE)
 
     raise ValueError(f"unsupported type {typ!r}")
 

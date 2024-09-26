@@ -19,7 +19,14 @@ import {
 } from "@/proto/wire";
 import { isNode, toNodeRef, toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
-import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, DEFAULT_MISSING_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
+import {
+  AVAILABLE_FA_ICONS,
+  DEFAULT_ENUM_ICON,
+  DEFAULT_MISSING_ICON,
+  getNodeIcon,
+  ICON_BY_TYPE_KIND,
+  type IconMetadata,
+} from "@/ui/icon";
 import { EnumOption, getEnumOptions } from "@/ui/inspect";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
@@ -295,6 +302,19 @@ export function typeIndex(idx: {
   skipDepth?: number;
   maxDepth?: number;
 }): SearchIndex<TypeItem> {
+  const ANY_NODE_TYPE: TypeItem = {
+    metatype: "type",
+    kind: TypeKind.NODE,
+    id: "node",
+    itemId: `${idx.id}-node`,
+    title: "Node",
+    icon: ICON_BY_TYPE_KIND[TypeKind.NODE],
+    isRequired: false,
+    isList: false,
+    isSecret: false,
+    constraint: undefined,
+  };
+
   function mapFromValue(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
       const nodeItem = itemFromNode(idx.id, idx.graph, value.baseTypePtr);
@@ -304,7 +324,9 @@ export function typeIndex(idx: {
       if (option != null) return mapFromIntrinsicOption(EnumType.PRIMITIVE_TYPE, option);
     } else if (value.benchType != null) {
       if (value.constraint?.fileTypes?.length == 1) {
-        const option = getEnumOptions(EnumType.FILE_TYPE).find((option) => option.value == value.constraint!.fileTypes[0]);
+        const option = getEnumOptions(EnumType.FILE_TYPE).find(
+          (option) => option.value == value.constraint!.fileTypes[0],
+        );
         if (option != null) return mapFromIntrinsicOption(EnumType.FILE_TYPE, option);
       } else if (value.constraint?.blockTypes?.length == 1) {
         const option = getEnumOptions(EnumType.BLOCK_TYPE).find(
@@ -314,11 +336,12 @@ export function typeIndex(idx: {
       }
       const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
       if (option != null) return mapFromIntrinsicOption(EnumType.BENCH_TYPE, option);
+    } else if (value.kind == TypeKind.NODE) {
+      return ANY_NODE_TYPE;
     }
     return null;
   }
 
-  const intrinsicEnumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.FILE_TYPE, EnumType.BLOCK_TYPE, EnumType.OBJECT_TYPE];
   function mapFromIntrinsicOption(enumType: EnumType, option: EnumOption): TypeItem {
     const item: TypeItem = {
       kind: TypeKind.LITERAL,
@@ -335,7 +358,7 @@ export function typeIndex(idx: {
     if (enumType == EnumType.PRIMITIVE_TYPE) {
       item.primitiveType = option.value as PrimitiveType;
       item.kind = TypeKind.PRIMITIVE;
-    } else if (enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE) {
+    } else if (enumType == EnumType.NODE_TYPE || enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE) {
       item.benchType = option.value as BenchType;
       item.kind = isStructType(option.value) ? TypeKind.STRUCT : TypeKind.NODE;
     } else if (enumType == EnumType.FILE_TYPE) {
@@ -352,6 +375,10 @@ export function typeIndex(idx: {
       throw new Error(`unexpected enum type: ${enumType} (${option.value})`);
     }
     return item;
+  }
+
+  function getIntrinsicOptions(enumType: EnumType) {
+    return getEnumOptions(enumType).map((option) => mapFromIntrinsicOption(enumType, option));
   }
 
   function mapFromNode(nodeItem: NodeItem): TypeItem {
@@ -372,10 +399,11 @@ export function typeIndex(idx: {
     toValue: (candidate: TypeItem) => candidate,
     valueEquals: typeIdentityEquals,
     candidates: () => {
-      // intrinsic types
-      const enumItems: TypeItem[] = intrinsicEnumTypes.flatMap((enumType) =>
-        getEnumOptions(enumType).map((option) => mapFromIntrinsicOption(enumType, option)),
-      );
+      // primitives
+      const primitiveItems = getIntrinsicOptions(EnumType.PRIMITIVE_TYPE);
+      const fileItems = getIntrinsicOptions(EnumType.FILE_TYPE);
+      const blockItems = getIntrinsicOptions(EnumType.BLOCK_TYPE);
+      const nodeItems = getIntrinsicOptions(EnumType.BENCH_TYPE);
 
       // and any type definitions from blocks
       const graphItems: TypeItem[] = walkGraph({
@@ -390,7 +418,7 @@ export function typeIndex(idx: {
         maxDepth: idx.maxDepth,
       }).map(mapFromNode);
 
-      return [...enumItems, ...graphItems];
+      return [...primitiveItems, ...fileItems, ...blockItems, ANY_NODE_TYPE, ...nodeItems, ...graphItems];
     },
   };
   return markRaw(index);

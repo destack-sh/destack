@@ -1064,6 +1064,7 @@ class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PRIMITIVE_TYPE_BYTES: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_VECTOR: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_DATETIME: _ClassVar[PrimitiveType]
+    PRIMITIVE_TYPE_TIME: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_INTERVAL: _ClassVar[PrimitiveType]
 
 class ReadType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2398,6 +2399,7 @@ PRIMITIVE_TYPE_JSON: PrimitiveType
 PRIMITIVE_TYPE_BYTES: PrimitiveType
 PRIMITIVE_TYPE_VECTOR: PrimitiveType
 PRIMITIVE_TYPE_DATETIME: PrimitiveType
+PRIMITIVE_TYPE_TIME: PrimitiveType
 PRIMITIVE_TYPE_INTERVAL: PrimitiveType
 READ_TYPE_UNSPECIFIED: ReadType
 READ_TYPE_GET: ReadType
@@ -4454,6 +4456,7 @@ class TypeConstraintData(_message.Message):
         "regex",
         "starts_with",
         "ends_with",
+        "node_types",
         "block_types",
         "step_types",
         "file_types",
@@ -4468,6 +4471,7 @@ class TypeConstraintData(_message.Message):
     REGEX_FIELD_NUMBER: _ClassVar[int]
     STARTS_WITH_FIELD_NUMBER: _ClassVar[int]
     ENDS_WITH_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
     BLOCK_TYPES_FIELD_NUMBER: _ClassVar[int]
     STEP_TYPES_FIELD_NUMBER: _ClassVar[int]
     FILE_TYPES_FIELD_NUMBER: _ClassVar[int]
@@ -4481,6 +4485,7 @@ class TypeConstraintData(_message.Message):
     regex: str
     starts_with: str
     ends_with: str
+    node_types: _containers.RepeatedScalarFieldContainer[NodeType]
     block_types: _containers.RepeatedScalarFieldContainer[BlockType]
     step_types: _containers.RepeatedScalarFieldContainer[StepType]
     file_types: _containers.RepeatedScalarFieldContainer[FileType]
@@ -4496,6 +4501,7 @@ class TypeConstraintData(_message.Message):
         regex: _Optional[str] = ...,
         starts_with: _Optional[str] = ...,
         ends_with: _Optional[str] = ...,
+        node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ...,
         block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ...,
         step_types: _Optional[_Iterable[_Union[StepType, str]]] = ...,
         file_types: _Optional[_Iterable[_Union[FileType, str]]] = ...,

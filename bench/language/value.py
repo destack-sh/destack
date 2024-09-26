@@ -599,10 +599,14 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
                 invalid(value, f"not of type, is {value.metatype}", typ)
         elif isinstance(value, NodeReferenceBase):
             # also accept node references in case this is a wired value or a rich reference
-            if value.type != typ.bench_type and (
-                typ._from_property is None
-                # special case :FakeNodePropertyUnion for reference properties
-                or value.type not in (typ._from_property.reference_nodes or ())
+            if (
+                typ.bench_type is not None
+                and value.type != typ.bench_type
+                and (
+                    typ._from_property is None
+                    # special case :FakeNodePropertyUnion for reference properties
+                    or value.type not in (typ._from_property.reference_nodes or ())
+                )
             ):
                 invalid(value, f"not of type, is {value.type}", typ)
         else:

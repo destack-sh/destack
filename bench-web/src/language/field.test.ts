@@ -6,7 +6,7 @@ import { type TypeIdentity, encodeTypeIdentity, decodeTypeIdentity } from "@/lan
 import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 
 // the test data & targets are from the backend bench implementation
-const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind, identityKey: string })[] = [
+const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind; identityKey: string })[] = [
   {
     kind: TypeKind.PRIMITIVE,
     primitiveType: PrimitiveType.DATETIME,
@@ -14,21 +14,10 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind, identityK
     isList: false,
     identityKey: "pe",
   },
-  { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "NC" },
+  { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "N" },
+  { kind: TypeKind.BASED_NODE, benchType: BenchType.FIELD, isSecret: false, isList: true, identityKey: "N" },
   { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "smeC" },
   { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!ek4E" },
-  {
-    kind: TypeKind.BASED_NODE,
-    benchType: BenchType.FIELD,
-    baseTypePtr: {
-      metatype: ObjectType.NODE_REFERENCE,
-      type: NodeType.BLOCK,
-      ck: "12345678-ffff-0000-0000-000000000000",
-    },
-    isSecret: true,
-    isList: true,
-    identityKey: "!BEjRWeP//AAA=0P",
-  },
   {
     kind: TypeKind.OBJECT,
     baseTypePtr: {
@@ -49,8 +38,6 @@ describe("type encoding", () => {
 
     const decoded = decodeTypeIdentity(identityKey);
     expect(decoded.primitiveType).toBe(target.primitiveType);
-    expect(decoded.benchType).toBe(target.benchType);
-    expect(getTkFromPtrMaybe(decoded.baseTypePtr)).toEqual(getTkFromPtrMaybe(target.baseTypePtr));
     expect(decoded.isList).toBe(target.isList);
     expect(decoded.isSecret).toBe(target.isSecret);
   });

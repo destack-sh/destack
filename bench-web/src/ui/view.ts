@@ -238,8 +238,8 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
   if (type.kind == TypeKind.OBJECT) {
     // object
     return { type: ViewType.OBJECT, valueType: type as TypeInfoData };
-  } else if (type.benchType != null) {
-    if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
+  } else if (type.benchType != null || type.kind == TypeKind.NODE) {
+    if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType!] != null) {
       if (
         type.benchType == BenchType.FILE &&
         type.constraint?.fileTypes?.length == 1 &&
@@ -257,7 +257,7 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
       }
 
       // specific bench type view
-      return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]!, valueType: makeTypeInfo(type) };
+      return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType!]!, valueType: makeTypeInfo(type) };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
       if (!type.isList && getEnumOptions(type.benchType).length <= 5 && ICONS_BY_ENUM_TYPE[type.benchType] != null) {
@@ -268,7 +268,7 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
         // regular picker
         return { type: ViewType.PICKER, valueType: makeTypeInfo(type) };
       }
-    } else if (isNodeType(type.benchType)) {
+    } else if (type.kind == TypeKind.NODE || isNodeType(type.benchType)) {
       // node picker
       return { type: ViewType.PICKER, valueType: makeTypeInfo(type) };
     }

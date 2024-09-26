@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict
 
 import regex
 
-from bench.language.const import BenchError, BlockType
+from bench.language.const import BenchError, BlockType, NodeType
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -74,6 +74,7 @@ class TypeConstraintIn:
     starts_with: str | None = None
     ends_with: str | None = None
     # node-ish
+    node_types: "list[NodeType]" = dataclasses.field(default_factory=list)
     block_types: "list[BlockType]" = dataclasses.field(default_factory=list)
     step_types: "list[StepType]" = dataclasses.field(default_factory=list)
     file_types: "list[FileType]" = dataclasses.field(default_factory=list)
@@ -91,6 +92,7 @@ class TypeConstraintIn:
             regex=self.regex,
             starts_with=self.starts_with,
             ends_with=self.ends_with,
+            node_types=self.node_types,
             block_types=self.block_types,
             step_types=self.step_types,
             file_types=self.file_types,
@@ -124,6 +126,7 @@ def constraint(
     regex: str | None = None,
     starts_with: str | None = None,
     ends_with: str | None = None,
+    node_types: "list[NodeType] | None" = None,
     block_types: "list[BlockType] | None" = None,
     step_types: "list[StepType] | None" = None,
     file_types: "list[FileType] | None" = None,
@@ -138,6 +141,7 @@ def constraint(
         regex=regex,
         starts_with=starts_with,
         ends_with=ends_with,
+        node_types=node_types if node_types is not None else [],
         block_types=block_types if block_types is not None else [],
         step_types=step_types if step_types is not None else [],
         file_types=file_types if file_types is not None else [],

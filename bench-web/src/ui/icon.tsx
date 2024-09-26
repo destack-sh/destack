@@ -402,6 +402,18 @@ export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
   [Anchor.BOTTOM]: "fas fa-align-bottom",
 });
 
+export const ICON_BY_TYPE_KIND: Partial<Record<TypeKind, IconData>> = _makeIcons({
+  [TypeKind.PRIMITIVE]: "fas fa-circle-dot",
+  [TypeKind.STRUCT]: "fas fa-circle-dot",
+  [TypeKind.NODE]: "fas fa-circle-nodes",
+  [TypeKind.BASED_NODE]: "fas fa-circle-nodes",
+  [TypeKind.ENUM]: "fas fa-list-ul",
+  [TypeKind.OBJECT]: "fas fa-shapes",
+  [TypeKind.LITERAL]: "fas fa-circle-dot",
+  [TypeKind.UNION]: "fas fa-circle-dot",
+  [TypeKind.ALIAS]: "fas fa-circle-dot",
+});
+
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
   [PrimitiveType.BOOLEAN]: "fas fa-toggle-large-on",
   [PrimitiveType.INT16]: "fas fa-tally-4",
@@ -546,6 +558,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
+  [EnumType.TYPE_KIND]: ICON_BY_TYPE_KIND,
   [EnumType.FILE_TYPE]: ICON_BY_FILE_TYPE,
   [EnumType.FILE_FORMAT]: ICON_BY_FILE_FORMAT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
