@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.26.0"  # auto change via version script
+VERSION = "2024.09.26.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -845,8 +845,10 @@ class PrimitiveType(IdEnum):
     JSON = 22
     BYTES = 25
     VECTOR = 26
+    # time
     DATETIME = 30
-    INTERVAL = 31
+    TIME = 32
+    INTERVAL = 33
 
     @property
     def is_numeric(self) -> bool:

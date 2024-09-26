@@ -1067,7 +1067,8 @@ enum PrimitiveType {
   PRIMITIVE_TYPE_BYTES = 25;
   PRIMITIVE_TYPE_VECTOR = 26;
   PRIMITIVE_TYPE_DATETIME = 30;
-  PRIMITIVE_TYPE_INTERVAL = 31;
+  PRIMITIVE_TYPE_TIME = 32;
+  PRIMITIVE_TYPE_INTERVAL = 33;
 }
 
 // Ways to read nodes.
@@ -2213,10 +2214,11 @@ message TypeConstraintData {
   optional string regex = 60;
   optional string starts_with = 61;
   optional string ends_with = 62;
-  repeated BlockType block_types = 70;
-  repeated StepType step_types = 71;
-  repeated FileType file_types = 72;
-  repeated FileFormat file_formats = 73;
+  repeated NodeType node_types = 70;
+  repeated BlockType block_types = 71;
+  repeated StepType step_types = 72;
+  repeated FileType file_types = 73;
+  repeated FileFormat file_formats = 74;
 }
 
 // A type in the type system.
@@ -3191,7 +3193,7 @@ message StepData {
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
   optional NodeReferenceData node_ptr = 43;
-  optional CodeData code = 44;
+  optional CodeData code = 45;
   repeated NodeReferenceData roles_ptr = 46;
   optional NodeReferenceData identity_ptr = 47;
   optional Vector2Data position = 80;

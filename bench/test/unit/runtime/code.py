@@ -2,6 +2,7 @@ import asyncio
 
 from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
+from bench.language.node import Node
 from bench.language.run import Run, RunErrorType, RunKind, RunOptions
 from bench.language.value import ValueObject
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
@@ -305,6 +306,22 @@ return {"Color": Color.Red}
 
     runner = await local_runtime.run(Function)
     assert runner.outputs and runner.outputs.Color == Color.fields.Red
+
+
+async def test_run_code_function_output_generic_node(local_runtime: RuntimeHandle):
+    """ "Run a code function that outputs a generic node field."""
+    Function = Block.new_code(
+        "Function",
+        fields=[Field.output("Output", Node, is_list=True)],
+        code=code("""\
+return [self]
+"""),
+    )
+    local_runtime.page().blocks.extend(Function)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Function)
+    assert runner.outputs
 
 
 async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):

@@ -14,8 +14,8 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, IconInline, makeIcon } from "@/ui/icon";
-import { isEnumType, isNodeType } from "@/language/const";
+import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
+import { isEnumType, isNodeType, toCamelName } from "@/language/const";
 import type { NodeItem, SearchItem, TypeItem } from "@/ui/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { canvas, pkgGraph } from "@/system/space";
@@ -78,6 +78,8 @@ const facetIcon = computed(() => {
     return ICON_BY_BLOCK_TYPE[baseType.value.type];
   } else if (props.valueType?.benchType != null) {
     return ICON_BY_BENCH_TYPE[props.valueType.benchType];
+  } else if (props.valueType?.kind != null) {
+    return ICON_BY_TYPE_KIND[props.valueType.kind];
   } else {
     return null;
   }
@@ -87,6 +89,8 @@ const facetName = computed(() => {
     return baseType.value.name;
   } else if (props.valueType?.benchType != null) {
     return getConstrainedTypeName(props.valueType);
+  } else if (props.valueType?.kind == TypeKind.NODE) {
+    return toCamelName(TypeKind, props.valueType.kind);
   } else {
     return null;
   }
@@ -114,7 +118,7 @@ const index: Ref<SearchIndex<any>> = computed(() => {
     return props.customIndex;
   } else if (isEnumType(props.valueType?.benchType)) {
     return enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] });
-  } else if (isNodeType(props.valueType?.benchType)) {
+  } else if (props.valueType?.kind == TypeKind.NODE || isNodeType(props.valueType?.benchType)) {
     let roots: AnyNodeData[] | undefined = undefined;
     if (props.valueType.baseTypePtr != null) {
       // based node
@@ -124,7 +128,10 @@ const index: Ref<SearchIndex<any>> = computed(() => {
     return graphIndex({
       id: "graph",
       graph: pkgGraph,
-      metatypes: [props.valueType.benchType],
+      metatypes:
+        props.valueType.benchType != null
+          ? [props.valueType.benchType as unknown as NodeType]
+          : [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW],
       roots,
       skipDepth: roots != null ? 0 : 2,
       filter:

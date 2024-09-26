@@ -188,7 +188,7 @@ const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
   [TypeKind.STRUCT]: "s",
   [TypeKind.NODE]: "n",
   [TypeKind.ENUM]: "e",
-  [TypeKind.BASED_NODE]: "b",
+  [TypeKind.BASED_NODE]: "n", // shared with node
   [TypeKind.OBJECT]: "o",
 };
 const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
@@ -196,7 +196,6 @@ const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
   s: TypeKind.STRUCT,
   n: TypeKind.NODE,
   e: TypeKind.ENUM,
-  b: TypeKind.BASED_NODE,
   o: TypeKind.OBJECT,
 };
 
@@ -206,13 +205,13 @@ const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
  * :TypeInfoEncoding
  */
 export function encodeTypeIdentity(type: TypeIdentity): string {
-  let value: string | null = null;
+  let value: string;
   if (type.kind == TypeKind.PRIMITIVE) {
     value = encodeB64VLQ(type.primitiveType!);
-  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.STRUCT || type.kind == TypeKind.ENUM) {
+  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
+    value = ""; // joint identity for nodes
+  } else if (type.kind == TypeKind.STRUCT || type.kind == TypeKind.ENUM) {
     value = encodeB64VLQ(type.benchType!);
-  } else if (type.kind == TypeKind.BASED_NODE) {
-    value = `${getTkB64FromPtr(type.baseTypePtr!)}${encodeB64VLQ(type.benchType!)}`;
   } else if (type.kind == TypeKind.OBJECT) {
     value = getTkB64FromPtr(type.baseTypePtr!);
   } else {
@@ -246,16 +245,10 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
 
   if (kind === TypeKind.PRIMITIVE) {
     return { kind, primitiveType: decodeB64VLQ(value) as PrimitiveType, isRequired: false, isList, isSecret };
-  } else if (kind === TypeKind.NODE || kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
+  } else if (kind == TypeKind.NODE || kind == TypeKind.BASED_NODE) {
+    return { kind, isRequired: false, isList, isSecret };
+  } else if (kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
     return { kind, benchType: decodeB64VLQ(value) as BenchType, isRequired: false, isList, isSecret };
-  } else if (kind === TypeKind.BASED_NODE) {
-    const baseTypePtr = {
-      metatype: ObjectType.NODE_REFERENCE,
-      type: NodeType.BLOCK,
-      ck: padCkFromTkB64(value.slice(0, TK_LENGTH_B64)),
-    };
-    const benchType = decodeB64VLQ(value.slice(TK_LENGTH_B64)) as BenchType;
-    return { kind, baseTypePtr, benchType, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.OBJECT) {
     const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, type: NodeType.BLOCK, ck: padCkFromTkB64(value) };
     return { kind, baseTypePtr, isRequired: false, isList, isSecret };
@@ -369,8 +362,10 @@ function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): 
       return getEnumTitle(EnumType.FILE_FORMAT, field.constraint.fileFormats[0]);
     } else if (field.benchType == BenchType.FILE && field.constraint?.fileTypes?.length == 1) {
       return getEnumTitle(EnumType.FILE_TYPE, field.constraint.fileTypes[0]);
+    } else if (field.benchType != null) {
+      return getEnumTitle(EnumType.BENCH_TYPE, field.benchType);
     } else {
-      return getEnumTitle(EnumType.BENCH_TYPE, field.benchType!);
+      return getEnumTitle(EnumType.TYPE_KIND, field.kind);
     }
   } else if (field.kind == TypeKind.BASED_NODE || field.kind == TypeKind.OBJECT || field.kind == TypeKind.ALIAS) {
     if (field?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(field)}`);
