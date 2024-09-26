@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict
 
 import regex
 
-from bench.language.const import BenchError, BlockType, NodeType
+from bench.language.const import BenchError, BlockType, NodeType, TypeFormat
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -110,6 +110,12 @@ NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=12
 TITLE_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
+URL_REGEX = rf"^(https?://)?([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2, 5}(:[0-9]{1, 5})?([/?#]([\-_.!~*'()a-zA-Z0-9;=:@&=+$,]|%[0-9a-fA-F]{2})*)?)$"
+URL_CONSTRAINT = TypeConstraintIn(regex=URL_REGEX)
+PHONE_NUMBER_REGEX = rf"^\+?[0-9]{1, 3}[-. ]?[0-9]{3}[-. ]?[0-9]{4}$"
+PHONE_NUMBER_CONSTRAINT = TypeConstraintIn(regex=PHONE_NUMBER_REGEX)
+EMOJI_REGEX = r"[\U0001f600-\U0001f64f\U0001f300-\U0001f5ff\U0001f680-\U0001f6ff\U0001f1e0-\U0001f1ff\U00002702-\U000027b0\U000024c2-\U0001f251]+"
+EMOJI_CONSTRAINT = TypeConstraintIn(regex=EMOJI_REGEX)
 
 
 def clean_name(name: str, sub="-") -> str:
@@ -147,3 +153,12 @@ def constraint(
         file_types=file_types if file_types is not None else [],
         file_formats=file_formats if file_formats is not None else [],
     )
+
+
+TYPE_CONSTRAINT_BY_FORMAT: dict[TypeFormat, TypeConstraintIn] = {  # :TypeFormat
+    TypeFormat.URL: TypeConstraintIn(regex=URL_REGEX),
+    TypeFormat.EMAIL: TypeConstraintIn(regex=EMAIL_REGEX),
+    TypeFormat.EMOJI: TypeConstraintIn(regex=EMOJI_REGEX),
+    TypeFormat.PHONE_NUMBER: TypeConstraintIn(regex=PHONE_NUMBER_REGEX),
+    TypeFormat.SLUG: TypeConstraintIn(regex=SLUG_REGEX),
+}

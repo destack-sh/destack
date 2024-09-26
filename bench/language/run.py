@@ -58,6 +58,8 @@ if TYPE_CHECKING:
         ValueObject,
     )
 
+RunnableNode = Union["Block", "Step"]
+
 
 # pyright: reportIncompatibleVariableOverride=false
 @enum_(EnumType.RUN_KIND)
@@ -119,17 +121,27 @@ class RunOptions(Struct):
     """
 
     # general
-    max_runs: Optional[int] = p_regular(30, constraint=TypeConstraintIn(min_value=0))
-    max_concurrency: Optional[int] = p_regular(31, constraint=TypeConstraintIn(min_value=0))
-    max_attempts: Optional[int] = p_regular(32, constraint=TypeConstraintIn(min_value=-1))
-    timeout: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=0))
-    suppress_failure: Optional[bool] = p_regular(34, default=None)
+    max_attempts: Optional[int] = p_regular(
+        30, constraint=TypeConstraintIn(min_value=-1), description="Maximum retry attempts per Run"
+    )
+    max_concurrency: Optional[int] = p_regular(
+        31,
+        constraint=TypeConstraintIn(min_value=0),
+        description="Maximum concurrent Runs (per context)",
+    )
+    max_runs: Optional[int] = p_regular(
+        32,
+        constraint=TypeConstraintIn(min_value=0),
+        description="Maximum number of Runs (incl. nested, per context)",
+    )
+    timeout: Optional[float] = p_regular(35, constraint=TypeConstraintIn(min_value=0))
 
     # retry
     retry_interval: Optional[float] = p_regular(40, constraint=TypeConstraintIn(min_value=0))
     backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
     max_retry_interval: Optional[float] = p_regular(42, constraint=TypeConstraintIn(min_value=0))
     retry_on: list["RunErrorType"] = p_regular(44, array=True)
+    suppress_failure: Optional[bool] = p_regular(45, default=None)
 
     # debug
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
@@ -477,14 +489,12 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
             invalid(self, "root points to self", (Run.root, Run.id))
 
     @staticmethod
-    def from_runnable(
-        node: "Block | Step", *, inputs: Any | None = None, parent: "Run | None" = None
+    def new(
+        node: RunnableNode, *, inputs: Any | None = None, parent: "Run | None" = None, **kwargs
     ) -> "Run":
         """Creates a Run from a Block."""
         from bench.language import Block, Step
         from bench.language.value import coerce_value_object
-
-        assert node.package is not None, f"no package for {node!r}"
 
         if isinstance(node, Block):
             step = None
@@ -502,5 +512,8 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         if inputs is None:
             inputs = {}
         if run.input_type is not None:
-            run.inputs = coerce_value_object(run.input_type, inputs)
+            inputs = coerce_value_object(run.input_type, inputs)
+            run.inputs = inputs
+            if kwargs:
+                inputs.update(kwargs)
         return run

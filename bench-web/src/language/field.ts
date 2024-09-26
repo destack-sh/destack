@@ -74,6 +74,8 @@ export type TypeIdentity = Pick<
   | "isRequired"
   | "isList"
   | "isSecret"
+  | "format"
+  | "condition"
   | "constraint"
 > & { id?: any; ck?: string };
 
@@ -95,6 +97,7 @@ export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>):
 /** Checks whether the type identity contents are equal. */
 export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
   if (a.primitiveType != null) {
+    if (a.format != b.format) return false;
     return a.primitiveType === b.primitiveType;
   } else if (a.baseTypePtr != null) {
     return a.baseTypePtr.id === b.baseTypePtr?.id && a.benchType == b.benchType;
@@ -356,6 +359,9 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
 function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): string {
   if (field == null) throw new Error(`missing type for field in ${describeNode(field)}`);
   if (field.kind == TypeKind.PRIMITIVE) {
+    if (field.format != null) {
+      return getEnumTitle(EnumType.TYPE_FORMAT, field.format);
+    }
     return getEnumTitle(EnumType.PRIMITIVE_TYPE, field.primitiveType!);
   } else if (field.kind == TypeKind.STRUCT || field.kind == TypeKind.NODE || field.kind == TypeKind.ENUM) {
     if (field.benchType == BenchType.FILE && field.constraint?.fileFormats?.length == 1) {
@@ -502,7 +508,15 @@ export function createField(
 export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: FieldData, type: TypeIdentity | null) {
   const update: Partial<FieldData> = {};
   // update changed properties
-  for (const key of ["kind", "primitiveType", "benchType", "baseTypePtr", "constraint"] as (keyof TypeIdentity)[]) {
+  for (const key of [
+    "kind",
+    "primitiveType",
+    "benchType",
+    "baseTypePtr",
+    "format",
+    "condition",
+    "constraint",
+  ] as (keyof TypeIdentity)[]) {
     if (field[key] != type?.[key]) {
       update[key] = type?.[key];
     }

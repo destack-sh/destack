@@ -28,6 +28,7 @@ from bench.language.const import (
     PrimitiveType,
     PrimitiveValue,
     StructType,
+    TypeFormat,
     TypeKind,
     is_enum_type,
     is_node_type,
@@ -220,9 +221,6 @@ class TypeConstraint(Struct):
     ...
 
 
-DEFAULT_CONSTRAINT = TypeConstraint()
-
-
 @object_()
 class TypeInfoBase(BuiltinObject):
     """
@@ -277,9 +275,10 @@ class TypeInfoBase(BuiltinObject):
         same_bench=True,
     )
 
-    # + bonus info/constraints
+    # metadata
     default_packed: Optional[Any] = p_value_packed(50)
     default = p_value_runtime(packed=50, typ=lambda self: cast("TypeInfoBase", self))
+    format: Optional["TypeFormat"] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
         54, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
@@ -491,6 +490,7 @@ TypeIn = Union[
     "Step",
     "PrimitiveType",
     "BenchType",
+    "TypeFormat",
     "FileType",
     "FileFormat",
     Type[Struct],
@@ -521,6 +521,8 @@ def to_type_scalar(
             return TypeInfo(kind=TypeKind.STRUCT, bench_type=typ)
         elif is_enum_type(typ):
             return TypeInfo(kind=TypeKind.ENUM, bench_type=typ)
+    elif isinstance(typ, TypeFormat):
+        return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=typ.primitive_type, format=typ)
     elif isinstance(typ, FileType):
         return TypeInfo(
             kind=TypeKind.NODE,
@@ -574,13 +576,15 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
     """Reverses a TypeInfo into a TypeIn as closely as possible."""
     if typ.kind == TypeKind.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
+        if typ.format is not None:
+            return typ.format
         primitive_cls = PY_TYPE_BY_PRIMITIVE_TYPE.get(typ.primitive_type)
         if primitive_cls and PRIMITIVE_TYPE_BY_PY_TYPE.get(primitive_cls) == typ.primitive_type:
             return primitive_cls
         else:
             return typ.primitive_type
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
-        if typ.constraint:
+        if typ.constraint is not None:
             if len(typ.constraint.file_formats) == 1:
                 return typ.constraint.file_formats[0]
             elif len(typ.constraint.file_types) == 1:

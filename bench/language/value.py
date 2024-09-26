@@ -40,7 +40,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.setup import ENUM_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
-from bench.language.validation import NAME_CONSTRAINT, on_invalid_raise
+from bench.language.validation import NAME_CONSTRAINT, TYPE_CONSTRAINT_BY_FORMAT, on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -51,6 +51,8 @@ if TYPE_CHECKING:
         Node,
         Struct,
         Text,
+        TypeConstraint,
+        TypeConstraintIn,
         TypeInfo,
         TypeInfoBase,
     )
@@ -180,8 +182,7 @@ class ValueObject(Mapping[str, Any]):
         else:
             return value
 
-    def __setitem__(self, item: "str | Field", value: SomeValue) -> None:
-        # set field value
+    def _do_set(self, item: "str | Field", value: SomeValue, validate: bool = False) -> None:
         if isinstance(item, str):
             field: Field | None = self._type._get_field(item)
             if field is None:
@@ -200,10 +201,13 @@ class ValueObject(Mapping[str, Any]):
             parent_prop=field,
             ancestor_prop=self.ancestor_prop,
         )
-        check_value(value, field_type, invalid=on_invalid_raise)
+        if validate:
+            check_value(value, field_type, invalid=on_invalid_raise)
         if self._value is None:
             self._value = {}
         self._value[field.storage_key] = value
+
+    __setitem__ = _do_set
 
     def __setattr__(self, item: str, value: SomeValue) -> None:
         # NOTE: __setattr__ is also called for slots so we have to bypass those
@@ -268,6 +272,14 @@ class ValueObject(Mapping[str, Any]):
     def clone(self) -> "ValueObject":
         """Clones this object."""
         return ValueObject.new({**self._value} if self._value is not None else None, self._type)
+
+    def update(self, value: Mapping[str, Any] | None = None, **kwargs):
+        """Updates this object with the given value."""
+        if value is not None:
+            for key, v in value.items():
+                self._do_set(key, v, validate=True)
+        for key, v in kwargs.items():
+            self._do_set(key, v, validate=True)
 
     @staticmethod
     def new(
@@ -539,6 +551,32 @@ MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
 }
 
 
+def check_value_scalar_constraint(
+    value: SomeValue,
+    typ: "TypeInfoBase",
+    constraint: "TypeConstraint | TypeConstraintIn",
+    invalid: "ValidationHandler",
+) -> None:
+    if type(value) is int or type(value) is float:
+        if constraint.min_value is not None and value < constraint.min_value:
+            invalid(value, "too small", typ)
+        if constraint.max_value is not None and value > constraint.max_value:
+            invalid(value, "too large", typ)
+        if constraint.step_value is not None and abs(value % constraint.step_value) > FLOAT_EPSILON:
+            invalid(value, f"not a multiple of {constraint.step_value}", typ)
+    if type(value) is str:
+        if constraint.min_length is not None and len(value) < constraint.min_length:
+            invalid(value, "too short", typ)
+        if constraint.max_length is not None and len(value) > constraint.max_length:
+            invalid(value, "too long", typ)
+        if constraint.regex is not None and not regex.match(constraint.regex, value):
+            raise TypeError(f"{value!r} does not match {constraint.regex!r}", typ)
+        if constraint.starts_with is not None and not value.startswith(constraint.starts_with):
+            invalid(value, f"does not start with {constraint.starts_with}", typ)
+        if constraint.ends_with is not None and not value.endswith(constraint.ends_with):
+            invalid(value, f"does not end with {constraint.ends_with}", typ)
+
+
 def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
     """Checks whether the given scalar value has the expected type."""
     if typ.kind == TypeKind.PRIMITIVE:
@@ -550,33 +588,11 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
             return  # also nothing to do
         # check constraint
         if typ.constraint is not None:
-            if type(value) is int or type(value) is float:
-                if typ.constraint.min_value is not None and value < typ.constraint.min_value:
-                    invalid(value, "too small", typ)
-                if typ.constraint.max_value is not None and value > typ.constraint.max_value:
-                    invalid(value, "too large", typ)
-                if (
-                    typ.constraint.step_value is not None
-                    and abs(value % typ.constraint.step_value) > FLOAT_EPSILON
-                ):
-                    invalid(value, f"not a multiple of {typ.constraint.step_value}", typ)
-            if type(value) is str:
-                if typ.constraint.min_length is not None and len(value) < typ.constraint.min_length:
-                    invalid(value, "too short", typ)
-                if typ.constraint.max_length is not None and len(value) > typ.constraint.max_length:
-                    invalid(value, "too long", typ)
-                if typ.constraint.regex is not None and not regex.match(
-                    typ.constraint.regex, value
-                ):
-                    raise TypeError(f"{value!r} does not match {typ.constraint.regex!r}", typ)
-                if typ.constraint.starts_with is not None and not value.startswith(
-                    typ.constraint.starts_with
-                ):
-                    invalid(value, f"does not start with {typ.constraint.starts_with}", typ)
-                if typ.constraint.ends_with is not None and not value.endswith(
-                    typ.constraint.ends_with
-                ):
-                    invalid(value, f"does not end with {typ.constraint.ends_with}", typ)
+            check_value_scalar_constraint(value, typ, typ.constraint, invalid)
+        if typ.format is not None:
+            check_value_scalar_constraint(
+                value, typ, TYPE_CONSTRAINT_BY_FORMAT[typ.format], invalid
+            )
         # strings cannot be empty (because we use protobuf and have to disambiguate unset from empty)
         if type(value) is str and len(value) == 0:
             invalid(value, "empty string", typ)

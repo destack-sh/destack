@@ -569,7 +569,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(FlowBlock)
     await local_runtime.commit()
 
-    run = Run.from_runnable(FlowBlock)
+    run = Run.new(FlowBlock)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)

@@ -400,7 +400,7 @@ async def test_run_code_abort(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()
 
-    run = Run.from_runnable(CodeBlock)
+    run = Run.new(CodeBlock)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)

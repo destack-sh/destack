@@ -12,6 +12,7 @@ import {
   NodeType,
   ObjectType,
   PrimitiveType,
+  TypeFormat,
   TypeKind,
   type AnyNodeData,
   type IconData,
@@ -320,6 +321,10 @@ export function typeIndex(idx: {
       const nodeItem = itemFromNode(idx.id, idx.graph, value.baseTypePtr);
       if (nodeItem != null) return mapFromNode(nodeItem);
     } else if (value.primitiveType != null) {
+      if (value.format != null) {
+        const option = getEnumOptions(EnumType.TYPE_FORMAT).find((option) => option.value == value.format);
+        if (option != null) return mapFromIntrinsicOption(EnumType.TYPE_FORMAT, option);
+      }
       const option = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
       if (option != null) return mapFromIntrinsicOption(EnumType.PRIMITIVE_TYPE, option);
     } else if (value.benchType != null) {
@@ -358,6 +363,11 @@ export function typeIndex(idx: {
     if (enumType == EnumType.PRIMITIVE_TYPE) {
       item.primitiveType = option.value as PrimitiveType;
       item.kind = TypeKind.PRIMITIVE;
+    } else if (enumType == EnumType.TYPE_FORMAT) {
+      // :TypeFormat
+      item.primitiveType = Math.floor((option.value as number) / 100) as PrimitiveType;
+      item.kind = TypeKind.PRIMITIVE;
+      item.format = option.value as TypeFormat;
     } else if (enumType == EnumType.NODE_TYPE || enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE) {
       item.benchType = option.value as BenchType;
       item.kind = isStructType(option.value) ? TypeKind.STRUCT : TypeKind.NODE;
@@ -401,6 +411,7 @@ export function typeIndex(idx: {
     candidates: () => {
       // primitives
       const primitiveItems = getIntrinsicOptions(EnumType.PRIMITIVE_TYPE);
+      const typeFormatItems = getIntrinsicOptions(EnumType.TYPE_FORMAT);
       const fileItems = getIntrinsicOptions(EnumType.FILE_TYPE);
       const blockItems = getIntrinsicOptions(EnumType.BLOCK_TYPE);
       const nodeItems = getIntrinsicOptions(EnumType.BENCH_TYPE);
@@ -418,7 +429,16 @@ export function typeIndex(idx: {
         maxDepth: idx.maxDepth,
       }).map(mapFromNode);
 
-      return [...primitiveItems, ...fileItems, ...blockItems, ANY_NODE_TYPE, ...nodeItems, ...graphItems];
+      const allItems = [
+        ...primitiveItems,
+        ...typeFormatItems,
+        ...fileItems,
+        ...blockItems,
+        ANY_NODE_TYPE,
+        ...nodeItems,
+        ...graphItems,
+      ];
+      return allItems;
     },
   };
   return markRaw(index);

@@ -35,7 +35,7 @@ def test_evaluate_conditional_stringy(session: Session):
 def test_evaluate_conditional_node(session: Session, package: Package):
     Code1 = Block.new_code("Code1", "pass")
     package.blocks.append(Code1)
-    Run1 = Run.from_runnable(Code1)
+    Run1 = Run.new(Code1)
 
     cond = Run.get_property("block").is_equal(Code1)
     assert evaluate_conditional(cond, Run1) is True

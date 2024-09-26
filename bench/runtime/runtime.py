@@ -364,7 +364,7 @@ class Runtime:
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime. Returns on halt or termination."""
         if not isinstance(run, Run):
-            run = Run.from_runnable(run, inputs=inputs, parent=self.active_run)
+            run = Run.new(run, inputs=inputs, parent=self.active_run)
         runner = None
         async with self.session.active():
             try:
