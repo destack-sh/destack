@@ -604,7 +604,7 @@ class BlockType(IdEnum):
     CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
     SIGNAL = 12  # define a signal type with fields
     NOTIFICATION = 13  # define a new notification type
-    # PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
+    # PROTOCOL/TRAIT, TAG, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
     TEXT = 20  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)

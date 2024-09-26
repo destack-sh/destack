@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { NAME_CONSTRAINT } from "@/language/const";
+import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName } from "@/language/node";
-import { ColorShade, ColorType, NodeType, PipeType, PortType, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeFilterType, PipeType, PortType, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
+import { ICON_BY_PIPE_FILTER_TYPE, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
@@ -102,21 +103,26 @@ defineExpose<ViewExposed>({ self, id, actions });
       />
     </svg>
 
-    <!-- Midpoint stuff -->
+    <!-- Midpoint meta -->
     <div
       v-if="!isHidden"
-      class="absolute select-none transition-colors duration-150"
-      :class="[
-        path.isMidpointHorizontal ? '-translate-x-1/2 -translate-y-5' : '-translate-x-1/2 -translate-y-1/2',
-        isGeneratedName && !isInspected && !isHighlighted ? 'opacity-0' : pipe.isHidden ? 'opacity-80' : 'opacity-100',
-        isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
-      ]"
+      class="absolute flex -translate-x-1/2 select-none items-center gap-x-1 transition-colors duration-150"
+      :class="path.isMidpointHorizontal ? '-translate-y-1/2 flex-row' : '-translate-y-[80%] flex-col'"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
     >
+      <!-- Name -->
       <input
         ref="nameRef"
         type="text"
         class="w-fit min-w-fit max-w-fit border-0 bg-transparent text-center font-medium outline-none ring-0 focus:ring-0"
+        :class="[
+          isGeneratedName && !isInspected && !isHighlighted
+            ? 'opacity-0'
+            : pipe.isHidden
+              ? 'opacity-80'
+              : 'opacity-100',
+          isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
+        ]"
         spellcheck="false"
         data-suppress-drag="true"
         :value="pipe.name"
@@ -127,6 +133,13 @@ defineExpose<ViewExposed>({ self, id, actions });
             flowCtx.tx.update(pipe!, { name: newValue }, { debounce: 'long' }),
           )
         "
+      />
+      <!-- Filter/Mapping -->
+      <IconInline
+        v-if="pipe.filterType != null"
+        v-tooltip="{ title: toCamelName(PipeFilterType, pipe.filterType), small: true }"
+        v-bind="ICON_BY_PIPE_FILTER_TYPE[pipe.filterType]"
+        class="w-fit rounded bg-white text-center text-gray-700"
       />
     </div>
   </div>
