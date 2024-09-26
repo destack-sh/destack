@@ -136,10 +136,9 @@ const dockActions: Ref<Action[]> = computed(
       [
         "space.omnibar.actions",
         "space.omnibar.space",
-        "space.edit.inspect",
-        "space.launch.create",
-        "space.launch.chat",
-        "space.launch.docs",
+        "space.launch.explorer",
+        "space.launch.outline",
+        "space.launch.discord",
       ] as ActionBuiltinId[]
     )
       .map((id) => DECLARED_ACTIONS_BY_ID.value[id])

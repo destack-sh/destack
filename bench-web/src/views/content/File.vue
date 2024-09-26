@@ -218,7 +218,7 @@ defineExpose<ViewExposed>({ self, id });
       </span>
       <!-- Controls -->
       <div
-        v-if="!props.isDisabled && props.isInput"
+        v-if="!isDisabled && isInput"
         class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1 pl-1.5"
       >
         <!-- Clear -->

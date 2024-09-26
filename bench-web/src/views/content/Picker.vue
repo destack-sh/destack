@@ -221,6 +221,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         (): PopoverInfoIn => ({
           component: ViewType.PICKER,
           placement: 'inside-top-left',
+          isEnabled: !isDisabled && isInput,
           referenceMargin: 0,
           props: {
             ...(props as ViewProps),
@@ -253,13 +254,13 @@ defineExpose<ViewExposed>({ self, id, focus });
       </div>
       <!-- Add -->
       <button
-        v-if="valueType?.isList"
+        v-if="!isDisabled && isInput && valueType?.isList"
         class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
       >
         <i class="fas fa-plus" />
       </button>
       <!-- Controls -->
-      <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
+      <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->
         <button
           v-if="hasValue && !valueType?.isRequired"
@@ -275,7 +276,7 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Inline Multi-Toggle -->
     <div
       v-else-if="variant == Variant.COMPACT || variant == Variant.STEALTH"
-      class="flex h-7 w-full flex-row items-center justify-between gap-x-2 truncate rounded bg-gray-100 px-2"
+      class="flex h-7 w-full flex-row items-center justify-between gap-x-1 truncate rounded bg-gray-100 px-0.5"
     >
       <!-- Inline choice -->
       <button
@@ -284,7 +285,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         v-tooltip="{ icon: item.icon, title: item.title, small: true, group: 'picker' }"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
-        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium shadow-gray-200 hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
+        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-50 hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
         @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
       >
         <IconInline
@@ -314,7 +315,11 @@ defineExpose<ViewExposed>({ self, id, focus });
             <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
             <span class="truncate">{{ v.title ?? "???" }}</span>
             <!-- Deselect -->
-            <button class="ml-1.5 text-gray-400 hover:text-primary-900" @click.stop="deselect(i)">
+            <button
+              v-if="!isDisabled && isInput"
+              class="ml-1.5 text-gray-400 hover:text-primary-900"
+              @click.stop="deselect(i)"
+            >
               <i class="fas fa-xmark" />
             </button>
           </button>

@@ -145,7 +145,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
         >
           <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
-          <span class="max-w-20 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
+          <span class="max-w-28 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
         </button>
       </template>
       <div v-else class="mr-2">
@@ -154,14 +154,14 @@ defineExpose<ViewExposed>({ self, id, focus });
       </div>
       <!-- Add -->
       <button
-        v-if="valueType?.isList"
+        v-if="!isDisabled && isInput && valueType?.isList"
         class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
         @click.stop="add"
       >
         <i class="fas fa-plus" />
       </button>
       <!-- Controls -->
-      <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-2">
+      <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-2">
         <!-- Clear -->
         <button
           v-if="hasValue && !valueType?.isRequired"
@@ -193,12 +193,12 @@ defineExpose<ViewExposed>({ self, id, focus });
               class="mr-1.5 w-5 text-center"
               :class="activeValueIdx == i ? 'text-primary-900' : 'text-gray-700'"
             />
-            <span class="max-w-20 truncate" :class="activeValueIdx == i ? 'text-primary-900' : 'text-gray-900'">
+            <span class="max-w-28 truncate" :class="activeValueIdx == i ? 'text-primary-900' : 'text-gray-900'">
               {{ v.title ?? facetName ?? "???" }}
             </span>
             <!-- Remove -->
             <button
-              v-if="valueType?.isList"
+              v-if="!isDisabled && isInput && valueType?.isList"
               class="ml-1.5 text-gray-400 hover:text-primary-900"
               @click.stop="remove(i)"
             >
@@ -208,14 +208,18 @@ defineExpose<ViewExposed>({ self, id, focus });
         </template>
         <template v-else>
           <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-400" />
-          <span class="max-w-20 truncate text-gray-400">{{ facetName ?? "???" }}</span>
+          <span class="max-w-28 truncate text-gray-400">{{ facetName ?? "???" }}</span>
         </template>
         <!-- Add -->
-        <button v-if="valueType?.isList" class="mr-2 text-gray-400 hover:text-primary-900" @click.stop="add">
+        <button
+          v-if="!isDisabled && isInput && valueType?.isList"
+          class="mr-2 text-gray-400 hover:text-primary-900"
+          @click.stop="add"
+        >
           <i class="fas fa-plus" />
         </button>
         <!-- Controls -->
-        <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-2 pr-2">
+        <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-2 pr-2">
           <!-- Clear -->
           <button class="mr-2 text-gray-400 hover:text-primary-900" @click.stop="clear">
             <i class="fas fa-xmark" />

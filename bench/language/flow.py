@@ -333,11 +333,14 @@ class Step(SourceNode[StepData]):
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41)
     value: Any = p_value_runtime(41, typ=lambda self: cast("Step", self).value_type)
-    node: Union["Block", "Step", "Trigger", None] = p_regular(
-        43, require=False, references=(NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER)
+    node: Union["Block", "Trigger", None] = p_regular(
+        43,
+        require=False,
+        references=(NodeType.BLOCK, NodeType.TRIGGER),
+        constraint=constraint(block_types=[BlockType.CODE, BlockType.FLOW]),
     )
     code: Optional["Code"] = p_regular(
-        44, default=None, require=False, array=False, struct=StructType.CODE
+        45, default=None, require=False, array=False, struct=StructType.CODE
     )
     roles: list["Block"] = p_regular(
         46,

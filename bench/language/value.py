@@ -421,7 +421,8 @@ def coerce_value_object_scalar(
             return value
     else:
         # coerce
-        assert isinstance(value, dict), f"{value!r} is not a dict (expected {typ!r})"
+        if not isinstance(value, dict):
+            raise TypeError(f"{value!r} is a {type(value)} (expected {typ!r})")
         value_coerced = {}
         for field in typ._base_fields:
             field_type = field._to_resolved()
@@ -459,9 +460,8 @@ def coerce_value(
     ancestor_prop: "Property | None" = None,
 ) -> SomeValue:
     """
-    Coerces the given value to the expected type (recursively). Returns value as is if already of correct type.
-    To maintain clarity, we try tdio coerce as little as possible outside the typical python cases.
-    Raises TypeError if not possible.
+    Coerces the given value to the expected type (recursively).
+    Returns value as is if already of correct type, raises TypeError if coercion is not possible.
     NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """
     if typ.kind == TypeKind.OBJECT:
