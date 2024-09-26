@@ -12,7 +12,7 @@ import structlog
 import typer
 
 from bench.language import Node
-from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION
+from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION, TypeFormat
 from bench.language.field import TypeConstraint
 from bench.language.file import FILE_FORMAT_BY_EXTENSION, FILE_FORMAT_BY_MIME_TYPE
 from bench.language.node import NODE_REFERENCE_TYPES
@@ -30,6 +30,7 @@ from bench.language.setup import (
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
 )
+from bench.language.validation import TYPE_CONSTRAINT_BY_FORMAT, TypeConstraintIn
 from bench.proto.engine import generate_proto_schema
 from bench.utils.string import Casing, to_casing
 
@@ -95,6 +96,18 @@ def _render_js_value(value: Any) -> str:
         return f"{value.__class__.__name__}.{value.name}"
     else:
         raise RuntimeError(f"unexpected value: {value}")
+
+
+def _render_js_constraint(constraint: TypeConstraint | TypeConstraintIn) -> str:
+    constraint_parts = []
+    for p in TypeConstraint.__declared_properties__.values():
+        p_value = getattr(constraint, p.name)
+        if p_value is not None:
+            constraint_parts.append(
+                f"{to_casing(p.name, Casing.LOWER_CAMEL)}: {_render_js_value(p_value)}"
+            )
+    constraint_js = "{ " + ", ".join(constraint_parts) + " }"
+    return constraint_js
 
 
 def _build_proto(schema_str: str) -> None:
@@ -377,14 +390,7 @@ export type PropertyInfo = {
             if prop.default is not None and prop.default is not UNSET:
                 prop_info_parts["default"] = _render_js_value(prop.default)
             if prop.constraint:
-                constraint_parts = []
-                for p in TypeConstraint.__declared_properties__.values():
-                    p_value = getattr(prop.constraint, p.name)
-                    if p_value is not None:
-                        constraint_parts.append(
-                            f"{to_casing(p.name, Casing.LOWER_CAMEL)}: {_render_js_value(p_value)}"
-                        )
-                prop_info_parts["constraint"] = "{ " + ", ".join(constraint_parts) + " }"
+                prop_info_parts["constraint"] = _render_js_constraint(prop.constraint)
 
             for flag in (
                 "isList",
@@ -482,6 +488,17 @@ export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Obj
 {file_format_by_mime_type_str}
 """
 
+    # type formats :TypeFormat
+    type_formats_str_inner = "\n".join(
+        f"  [TypeFormat.{t.name.upper()}]: {_render_js_constraint(TYPE_CONSTRAINT_BY_FORMAT[t])},"
+        for t in TypeFormat
+    )
+    type_formats_str = f"""
+export const TYPE_FORMAT_BY_PRIMITIVE_TYPE: Partial<Record<TypeFormat, TypeConstraintIn>> = {{
+{type_formats_str_inner}
+}}
+"""
+
     patch_postfix_code = f"""
 //
 // Extra utility types
@@ -523,8 +540,9 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {object_info_definitions_str}
 {object_info_map_str}
 
-// Assorted enums
+// Misc
 {file_mapping_enums_str}
+{type_formats_str}
     """
     lang_ts = Path(TEMP_TS_DIR + "/proto/lang.ts").read_text()
     Path(TEMP_TS_DIR + "/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)

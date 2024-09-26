@@ -30,6 +30,7 @@ import {
   RunStatus,
   StepType,
   StructType,
+  TypeFormat,
   TypeKind,
   ViewType,
   type AnyNodeData,
@@ -429,6 +430,14 @@ export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = 
   [PrimitiveType.INTERVAL]: "fas fa-calendar",
 });
 
+export const ICON_BY_TYPE_FORMAT: Partial<Record<TypeFormat, IconData>> = _makeIcons({
+  [TypeFormat.URL]: "fas fa-link",
+  [TypeFormat.EMAIL]: "fas fa-at",
+  [TypeFormat.EMOJI]: "fas fa-smile",
+  [TypeFormat.PHONE_NUMBER]: "fas fa-phone",
+  [TypeFormat.SLUG]: "fas fa-hashtag",
+});
+
 export const ICON_BY_FILE_TYPE: Partial<Record<FileType, IconData>> = _makeIcons({
   [FileType.TEXT]: "fas fa-file-lines",
   [FileType.CODE]: "fas fa-file-code",
@@ -559,6 +568,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.TYPE_KIND]: ICON_BY_TYPE_KIND,
+  [EnumType.TYPE_FORMAT]: ICON_BY_TYPE_FORMAT,
   [EnumType.FILE_TYPE]: ICON_BY_FILE_TYPE,
   [EnumType.FILE_FORMAT]: ICON_BY_FILE_FORMAT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
@@ -575,6 +585,10 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
   if ((node as FieldData).zone == FieldZone.OPTION) {
     return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
   } else if (node.primitiveType != null) {
+    if (node.format != null) {
+      const icon = ICON_BY_TYPE_FORMAT[node.format];
+      if (icon != null) return icon;
+    }
     const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType];
     if (icon != null) return icon;
   } else if (node.kind == TypeKind.BASED_NODE && node.benchType == BenchType.FIELD) {
@@ -584,6 +598,8 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
   } else if (node.benchType != null) {
     const icon = ICON_BY_BENCH_TYPE[node.benchType];
     if (icon != null) return icon;
+  } else if (node.kind == TypeKind.NODE) {
+    return ICON_BY_TYPE_KIND[node.kind];
   }
   return undefined;
 }

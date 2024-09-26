@@ -1435,25 +1435,21 @@ export interface RunOptionsData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 max_runs = 30;
+     * @generated from protobuf field: optional int32 max_attempts = 30;
      */
-    maxRuns?: number;
+    maxAttempts?: number;
     /**
      * @generated from protobuf field: optional int32 max_concurrency = 31;
      */
     maxConcurrency?: number;
     /**
-     * @generated from protobuf field: optional int32 max_attempts = 32;
+     * @generated from protobuf field: optional int32 max_runs = 32;
      */
-    maxAttempts?: number;
+    maxRuns?: number;
     /**
-     * @generated from protobuf field: optional float timeout = 33;
+     * @generated from protobuf field: optional float timeout = 35;
      */
     timeout?: number;
-    /**
-     * @generated from protobuf field: optional bool suppress_failure = 34;
-     */
-    suppressFailure?: boolean;
     /**
      * @generated from protobuf field: optional float retry_interval = 40;
      */
@@ -1470,6 +1466,10 @@ export interface RunOptionsData {
      * @generated from protobuf field: repeated symbolx.bench.RunErrorType retry_on = 44;
      */
     retryOn: RunErrorType[];
+    /**
+     * @generated from protobuf field: optional bool suppress_failure = 45;
+     */
+    suppressFailure?: boolean;
     /**
      * @generated from protobuf field: repeated symbolx.bench.BreakpointData breakpoints = 50;
      */
@@ -2107,6 +2107,10 @@ export interface TypeInfoData {
      * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
      */
     defaultPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TypeFormat format = 53;
+     */
+    format?: TypeFormat;
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 54;
      */
@@ -3213,6 +3217,10 @@ export interface FieldData {
      * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
      */
     defaultPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TypeFormat format = 53;
+     */
+    format?: TypeFormat;
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 54;
      */
@@ -7153,9 +7161,13 @@ export enum BenchType {
      */
     TYPE_KIND = 20083,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 20384;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_FORMAT = 20384;
      */
-    BLOCK_TYPE = 20384,
+    TYPE_FORMAT = 20384,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 20390;
+     */
+    BLOCK_TYPE = 20390,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 20100;
      */
@@ -8124,9 +8136,13 @@ export enum EnumType {
      */
     TYPE_KIND = 20083,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 20384;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_FORMAT = 20384;
      */
-    BLOCK_TYPE = 20384,
+    TYPE_FORMAT = 20384,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 20390;
+     */
+    BLOCK_TYPE = 20390,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 20100;
      */
@@ -10226,6 +10242,10 @@ export enum PrimitiveType {
      */
     DATETIME = 30,
     /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATE = 31;
+     */
+    DATE = 31,
+    /**
      * @generated from protobuf enum value: PRIMITIVE_TYPE_TIME = 32;
      */
     TIME = 32,
@@ -11397,6 +11417,37 @@ export enum TriggerType {
      * @generated from protobuf enum value: TRIGGER_TYPE_SIGNAL = 2;
      */
     SIGNAL = 2
+}
+/**
+ * The fine-grained format of some Type.
+ *
+ * @generated from protobuf enum symbolx.bench.TypeFormat
+ */
+export enum TypeFormat {
+    /**
+     * @generated from protobuf enum value: TYPE_FORMAT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TYPE_FORMAT_URL = 2000;
+     */
+    URL = 2000,
+    /**
+     * @generated from protobuf enum value: TYPE_FORMAT_EMAIL = 2001;
+     */
+    EMAIL = 2001,
+    /**
+     * @generated from protobuf enum value: TYPE_FORMAT_EMOJI = 2002;
+     */
+    EMOJI = 2002,
+    /**
+     * @generated from protobuf enum value: TYPE_FORMAT_PHONE_NUMBER = 2003;
+     */
+    PHONE_NUMBER = 2003,
+    /**
+     * @generated from protobuf enum value: TYPE_FORMAT_SLUG = 2004;
+     */
+    SLUG = 2004
 }
 /**
  * The 'kind' of a Type.
@@ -15471,15 +15522,15 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
     constructor() {
         super("symbolx.bench.RunOptionsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "max_runs", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "max_concurrency", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 33, name: "timeout", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 34, name: "suppress_failure", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 32, name: "max_runs", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "timeout", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 40, name: "retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 41, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 42, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 44, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
+            { no: 45, name: "suppress_failure", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 50, name: "breakpoints", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BreakpointData },
             { no: 70, name: "cache_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.CacheMode", CacheMode, "CACHE_MODE_"] },
             { no: 71, name: "cache_expiry", kind: "message", T: () => Duration },
@@ -15504,20 +15555,17 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 max_runs */ 30:
-                    message.maxRuns = reader.int32();
+                case /* optional int32 max_attempts */ 30:
+                    message.maxAttempts = reader.int32();
                     break;
                 case /* optional int32 max_concurrency */ 31:
                     message.maxConcurrency = reader.int32();
                     break;
-                case /* optional int32 max_attempts */ 32:
-                    message.maxAttempts = reader.int32();
+                case /* optional int32 max_runs */ 32:
+                    message.maxRuns = reader.int32();
                     break;
-                case /* optional float timeout */ 33:
+                case /* optional float timeout */ 35:
                     message.timeout = reader.float();
-                    break;
-                case /* optional bool suppress_failure */ 34:
-                    message.suppressFailure = reader.bool();
                     break;
                 case /* optional float retry_interval */ 40:
                     message.retryInterval = reader.float();
@@ -15534,6 +15582,9 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                             message.retryOn.push(reader.int32());
                     else
                         message.retryOn.push(reader.int32());
+                    break;
+                case /* optional bool suppress_failure */ 45:
+                    message.suppressFailure = reader.bool();
                     break;
                 case /* repeated symbolx.bench.BreakpointData breakpoints */ 50:
                     message.breakpoints.push(BreakpointData.internalBinaryRead(reader, reader.uint32(), options));
@@ -15565,21 +15616,18 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 max_runs = 30; */
-        if (message.maxRuns !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.maxRuns);
+        /* optional int32 max_attempts = 30; */
+        if (message.maxAttempts !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.maxAttempts);
         /* optional int32 max_concurrency = 31; */
         if (message.maxConcurrency !== undefined)
             writer.tag(31, WireType.Varint).int32(message.maxConcurrency);
-        /* optional int32 max_attempts = 32; */
-        if (message.maxAttempts !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.maxAttempts);
-        /* optional float timeout = 33; */
+        /* optional int32 max_runs = 32; */
+        if (message.maxRuns !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.maxRuns);
+        /* optional float timeout = 35; */
         if (message.timeout !== undefined)
-            writer.tag(33, WireType.Bit32).float(message.timeout);
-        /* optional bool suppress_failure = 34; */
-        if (message.suppressFailure !== undefined)
-            writer.tag(34, WireType.Varint).bool(message.suppressFailure);
+            writer.tag(35, WireType.Bit32).float(message.timeout);
         /* optional float retry_interval = 40; */
         if (message.retryInterval !== undefined)
             writer.tag(40, WireType.Bit32).float(message.retryInterval);
@@ -15596,6 +15644,9 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 writer.int32(message.retryOn[i]);
             writer.join();
         }
+        /* optional bool suppress_failure = 45; */
+        if (message.suppressFailure !== undefined)
+            writer.tag(45, WireType.Varint).bool(message.suppressFailure);
         /* repeated symbolx.bench.BreakpointData breakpoints = 50; */
         for (let i = 0; i < message.breakpoints.length; i++)
             BreakpointData.internalBinaryWrite(message.breakpoints[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -17115,6 +17166,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
             { no: 60, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -17161,6 +17213,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                     break;
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
+                    break;
+                case /* optional symbolx.bench.TypeFormat format */ 53:
+                    message.format = reader.int32();
                     break;
                 case /* optional symbolx.bench.ExpressionData condition */ 54:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
@@ -17213,6 +17268,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TypeFormat format = 53; */
+        if (message.format !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.format);
         /* optional symbolx.bench.ExpressionData condition = 54; */
         if (message.condition)
             ExpressionData.internalBinaryWrite(message.condition, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
@@ -19444,6 +19502,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
             { no: 60, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -19573,6 +19632,9 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
+                case /* optional symbolx.bench.TypeFormat format */ 53:
+                    message.format = reader.int32();
+                    break;
                 case /* optional symbolx.bench.ExpressionData condition */ 54:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
@@ -19697,6 +19759,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TypeFormat format = 53; */
+        if (message.format !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.format);
         /* optional symbolx.bench.ExpressionData condition = 54; */
         if (message.condition)
             ExpressionData.internalBinaryWrite(message.condition, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
@@ -26796,6 +26861,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldZone,
   [EnumType.TYPE_KIND]: TypeKind,
+  [EnumType.TYPE_FORMAT]: TypeFormat,
   [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.TIME_INTERVAL]: TimeInterval,
@@ -27091,6 +27157,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldZone,
   [EnumType.TYPE_KIND]: TypeKind,
+  [EnumType.TYPE_FORMAT]: TypeFormat,
   [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.TIME_INTERVAL]: TimeInterval,
@@ -27741,6 +27808,7 @@ export enum FieldProperty {
   baseFieldZone = 44,
   oneofPtr = 45,
   defaultPacked = 50,
+  format = 53,
   condition = 54,
   constraint = 55,
   isRequired = 60,
@@ -28385,6 +28453,7 @@ export enum TypeInfoProperty {
   baseFieldZone = 44,
   oneofPtr = 45,
   defaultPacked = 50,
+  format = 53,
   condition = 54,
   constraint = 55,
   isRequired = 60,
@@ -28594,15 +28663,15 @@ export enum RunErrorProperty {
 
 export enum RunOptionsProperty {
   metatype = 1,
-  maxRuns = 30,
+  maxAttempts = 30,
   maxConcurrency = 31,
-  maxAttempts = 32,
-  timeout = 33,
-  suppressFailure = 34,
+  maxRuns = 32,
+  timeout = 35,
   retryInterval = 40,
   backoff = 41,
   maxRetryInterval = 42,
   retryOn = 44,
+  suppressFailure = 45,
   breakpoints = 50,
   cacheMode = 70,
   cacheExpiry = 71,
@@ -29233,6 +29302,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.oneofPtr]: { id: 45, name: 'oneof_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TypeInfoProperty.format]: { id: 53, name: 'format', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [TypeInfoProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
   [TypeInfoProperty.isRequired]: { id: 60, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -29422,15 +29492,15 @@ export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
 }
 export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunOptionsProperty.maxRuns]: { id: 30, name: 'max_runs', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.maxAttempts]: { id: 30, name: 'max_attempts', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxConcurrency]: { id: 31, name: 'max_concurrency', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.maxAttempts]: { id: 32, name: 'max_attempts', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.timeout]: { id: 33, name: 'timeout', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.suppressFailure]: { id: 34, name: 'suppress_failure', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.maxRuns]: { id: 32, name: 'max_runs', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.timeout]: { id: 35, name: 'timeout', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryInterval]: { id: 40, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.backoff]: { id: 41, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryOn]: { id: 44, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.suppressFailure]: { id: 45, name: 'suppress_failure', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.breakpoints]: { id: 50, name: 'breakpoints', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BREAKPOINT },
   [RunOptionsProperty.cacheMode]: { id: 70, name: 'cache_mode', component: ObjectType.RUN_OPTIONS, enumType: EnumType.CACHE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.cacheExpiry]: { id: 71, name: 'cache_expiry', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
@@ -29716,7 +29786,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.26.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29745,7 +29815,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.26.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29771,7 +29841,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.26.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30143,6 +30213,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.oneofPtr]: { id: 45, name: 'oneof_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FieldProperty.format]: { id: 53, name: 'format', component: ObjectType.FIELD, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.condition]: { id: 54, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [FieldProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
   [FieldProperty.isRequired]: { id: 60, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -30644,7 +30715,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
 }
 
 
-// Assorted enums
+// Misc
 
 
 export const FILE_FORMAT_BY_EXTENSION: Record<string, FileFormat> = {
@@ -30867,5 +30938,14 @@ export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Obj
     Object.entries(FILE_FORMAT_BY_MIME_TYPE).map(([k, v]) => [v, k]),
 );
 
+
+
+export const TYPE_FORMAT_BY_PRIMITIVE_TYPE: Partial<Record<TypeFormat, TypeConstraintIn>> = {
+  [TypeFormat.URL]: { regex: "^(https?://)?([a-z0-9]+([\\-\\.]1[a-z0-9]+)*\\.[a-z](2, 5)(:[0-9](1, 5))?([/?#]([\\-_.!~*'()a-zA-Z0-9;=:@&=+$,]|%[0-9a-fA-F]2)*)?)$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] },
+  [TypeFormat.EMAIL]: { regex: "^[a-zA-Z0-9_.+\\-]+@[a-zA-Z0-9\\-]+\\.[a-zA-Z0-9\\-.]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] },
+  [TypeFormat.EMOJI]: { regex: "[\\U0001f600-\\U0001f64f\\U0001f300-\\U0001f5ff\\U0001f680-\\U0001f6ff\\U0001f1e0-\\U0001f1ff\\U00002702-\\U000027b0\\U000024c2-\\U0001f251]+", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] },
+  [TypeFormat.PHONE_NUMBER]: { regex: "^\\+?[0-9](1, 3)[-. ]?[0-9]3[-. ]?[0-9]4$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] },
+  [TypeFormat.SLUG]: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [] },
+}
 
     

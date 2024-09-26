@@ -8,13 +8,11 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.block import Block
 from bench.language.code import Code
 from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
-from bench.language.flow import Step
 from bench.language.log import LogInfo
-from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
+from bench.language.run import Run, RunAttempt, RunError, RunKind, RunnableNode, RunOptions
 from bench.language.text import Text
 from bench.language.value import ValueObject
 
@@ -24,8 +22,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-RunnableNode = Block | Step
 
 
 @dataclass(slots=True)

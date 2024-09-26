@@ -221,6 +221,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_PRIMITIVE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_TYPE_FORMAT: _ClassVar[BenchType]
     BENCH_TYPE_BLOCK_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
@@ -487,6 +488,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_KIND: _ClassVar[EnumType]
+    ENUM_TYPE_TYPE_FORMAT: _ClassVar[EnumType]
     ENUM_TYPE_BLOCK_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SCHEDULE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TIME_INTERVAL: _ClassVar[EnumType]
@@ -1064,6 +1066,7 @@ class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PRIMITIVE_TYPE_BYTES: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_VECTOR: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_DATETIME: _ClassVar[PrimitiveType]
+    PRIMITIVE_TYPE_DATE: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_TIME: _ClassVar[PrimitiveType]
     PRIMITIVE_TYPE_INTERVAL: _ClassVar[PrimitiveType]
 
@@ -1399,6 +1402,15 @@ class TriggerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRIGGER_TYPE_SCHEDULE: _ClassVar[TriggerType]
     TRIGGER_TYPE_SIGNAL: _ClassVar[TriggerType]
 
+class TypeFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TYPE_FORMAT_UNSPECIFIED: _ClassVar[TypeFormat]
+    TYPE_FORMAT_URL: _ClassVar[TypeFormat]
+    TYPE_FORMAT_EMAIL: _ClassVar[TypeFormat]
+    TYPE_FORMAT_EMOJI: _ClassVar[TypeFormat]
+    TYPE_FORMAT_PHONE_NUMBER: _ClassVar[TypeFormat]
+    TYPE_FORMAT_SLUG: _ClassVar[TypeFormat]
+
 class TypeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TYPE_KIND_UNSPECIFIED: _ClassVar[TypeKind]
@@ -1697,6 +1709,7 @@ BENCH_TYPE_CLIENT_TYPE: BenchType
 BENCH_TYPE_PRIMITIVE_TYPE: BenchType
 BENCH_TYPE_FIELD_ZONE: BenchType
 BENCH_TYPE_TYPE_KIND: BenchType
+BENCH_TYPE_TYPE_FORMAT: BenchType
 BENCH_TYPE_BLOCK_TYPE: BenchType
 BENCH_TYPE_SCHEDULE_TYPE: BenchType
 BENCH_TYPE_TIME_INTERVAL: BenchType
@@ -1915,6 +1928,7 @@ ENUM_TYPE_CLIENT_TYPE: EnumType
 ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_FIELD_ZONE: EnumType
 ENUM_TYPE_TYPE_KIND: EnumType
+ENUM_TYPE_TYPE_FORMAT: EnumType
 ENUM_TYPE_BLOCK_TYPE: EnumType
 ENUM_TYPE_SCHEDULE_TYPE: EnumType
 ENUM_TYPE_TIME_INTERVAL: EnumType
@@ -2399,6 +2413,7 @@ PRIMITIVE_TYPE_JSON: PrimitiveType
 PRIMITIVE_TYPE_BYTES: PrimitiveType
 PRIMITIVE_TYPE_VECTOR: PrimitiveType
 PRIMITIVE_TYPE_DATETIME: PrimitiveType
+PRIMITIVE_TYPE_DATE: PrimitiveType
 PRIMITIVE_TYPE_TIME: PrimitiveType
 PRIMITIVE_TYPE_INTERVAL: PrimitiveType
 READ_TYPE_UNSPECIFIED: ReadType
@@ -2655,6 +2670,12 @@ TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
 TRIGGER_TYPE_UNSPECIFIED: TriggerType
 TRIGGER_TYPE_SCHEDULE: TriggerType
 TRIGGER_TYPE_SIGNAL: TriggerType
+TYPE_FORMAT_UNSPECIFIED: TypeFormat
+TYPE_FORMAT_URL: TypeFormat
+TYPE_FORMAT_EMAIL: TypeFormat
+TYPE_FORMAT_EMOJI: TypeFormat
+TYPE_FORMAT_PHONE_NUMBER: TypeFormat
+TYPE_FORMAT_SLUG: TypeFormat
 TYPE_KIND_UNSPECIFIED: TypeKind
 TYPE_KIND_PRIMITIVE: TypeKind
 TYPE_KIND_STRUCT: TypeKind
@@ -3930,15 +3951,15 @@ class RunFrameData(_message.Message):
 class RunOptionsData(_message.Message):
     __slots__ = (
         "metatype",
-        "max_runs",
-        "max_concurrency",
         "max_attempts",
+        "max_concurrency",
+        "max_runs",
         "timeout",
-        "suppress_failure",
         "retry_interval",
         "backoff",
         "max_retry_interval",
         "retry_on",
+        "suppress_failure",
         "breakpoints",
         "cache_mode",
         "cache_expiry",
@@ -3946,30 +3967,30 @@ class RunOptionsData(_message.Message):
         "model_type",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    MAX_RUNS_FIELD_NUMBER: _ClassVar[int]
-    MAX_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
     MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
+    MAX_RUNS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_FIELD_NUMBER: _ClassVar[int]
-    SUPPRESS_FAILURE_FIELD_NUMBER: _ClassVar[int]
     RETRY_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     BACKOFF_FIELD_NUMBER: _ClassVar[int]
     MAX_RETRY_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     RETRY_ON_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESS_FAILURE_FIELD_NUMBER: _ClassVar[int]
     BREAKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CACHE_MODE_FIELD_NUMBER: _ClassVar[int]
     CACHE_EXPIRY_FIELD_NUMBER: _ClassVar[int]
     MODEL_PROVIDER_FIELD_NUMBER: _ClassVar[int]
     MODEL_TYPE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    max_runs: int
-    max_concurrency: int
     max_attempts: int
+    max_concurrency: int
+    max_runs: int
     timeout: float
-    suppress_failure: bool
     retry_interval: float
     backoff: float
     max_retry_interval: float
     retry_on: _containers.RepeatedScalarFieldContainer[RunErrorType]
+    suppress_failure: bool
     breakpoints: _containers.RepeatedCompositeFieldContainer[BreakpointData]
     cache_mode: CacheMode
     cache_expiry: _duration_pb2.Duration
@@ -3978,15 +3999,15 @@ class RunOptionsData(_message.Message):
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        max_runs: _Optional[int] = ...,
-        max_concurrency: _Optional[int] = ...,
         max_attempts: _Optional[int] = ...,
+        max_concurrency: _Optional[int] = ...,
+        max_runs: _Optional[int] = ...,
         timeout: _Optional[float] = ...,
-        suppress_failure: bool = ...,
         retry_interval: _Optional[float] = ...,
         backoff: _Optional[float] = ...,
         max_retry_interval: _Optional[float] = ...,
         retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ...,
+        suppress_failure: bool = ...,
         breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ...,
         cache_mode: _Optional[_Union[CacheMode, str]] = ...,
         cache_expiry: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
@@ -4518,6 +4539,7 @@ class TypeInfoData(_message.Message):
         "base_field_zone",
         "oneof_ptr",
         "default_packed",
+        "format",
         "condition",
         "constraint",
         "is_required",
@@ -4532,6 +4554,7 @@ class TypeInfoData(_message.Message):
     BASE_FIELD_ZONE_FIELD_NUMBER: _ClassVar[int]
     ONEOF_PTR_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_PACKED_FIELD_NUMBER: _ClassVar[int]
+    FORMAT_FIELD_NUMBER: _ClassVar[int]
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
     IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
@@ -4545,6 +4568,7 @@ class TypeInfoData(_message.Message):
     base_field_zone: FieldZone
     oneof_ptr: NodeReferenceData
     default_packed: _struct_pb2.Struct
+    format: TypeFormat
     condition: ExpressionData
     constraint: TypeConstraintData
     is_required: bool
@@ -4560,6 +4584,7 @@ class TypeInfoData(_message.Message):
         base_field_zone: _Optional[_Union[FieldZone, str]] = ...,
         oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         default_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
+        format: _Optional[_Union[TypeFormat, str]] = ...,
         condition: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ...,
         is_required: bool = ...,
@@ -5527,6 +5552,7 @@ class FieldData(_message.Message):
         "base_field_zone",
         "oneof_ptr",
         "default_packed",
+        "format",
         "condition",
         "constraint",
         "is_required",
@@ -5564,6 +5590,7 @@ class FieldData(_message.Message):
     BASE_FIELD_ZONE_FIELD_NUMBER: _ClassVar[int]
     ONEOF_PTR_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_PACKED_FIELD_NUMBER: _ClassVar[int]
+    FORMAT_FIELD_NUMBER: _ClassVar[int]
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
     IS_REQUIRED_FIELD_NUMBER: _ClassVar[int]
@@ -5600,6 +5627,7 @@ class FieldData(_message.Message):
     base_field_zone: FieldZone
     oneof_ptr: NodeReferenceData
     default_packed: _struct_pb2.Struct
+    format: TypeFormat
     condition: ExpressionData
     constraint: TypeConstraintData
     is_required: bool
@@ -5638,6 +5666,7 @@ class FieldData(_message.Message):
         base_field_zone: _Optional[_Union[FieldZone, str]] = ...,
         oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         default_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
+        format: _Optional[_Union[TypeFormat, str]] = ...,
         condition: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ...,
         is_required: bool = ...,

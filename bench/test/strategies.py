@@ -22,7 +22,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.field import DEFAULT_CONSTRAINT, Field, TypeInfo, TypeInfoBase
+from bench.language.field import Field, TypeConstraint, TypeInfo, TypeInfoBase
 from bench.language.node import BuiltinObject
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationError
@@ -106,7 +106,7 @@ def properties(object_type: ObjectType | None = None):
 @defines_strategy()
 def from_type_info_scalar(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
     """Turns a type into a strategy for a scalar. Considers constraints. See check_value_scalar."""
-    constraint = typ.constraint or DEFAULT_CONSTRAINT
+    constraint = typ.constraint or TypeConstraint()
     if typ.kind == TypeKind.PRIMITIVE:
         # apply constraints to primitive types
         assert typ.primitive_type is not None, f"{typ!r} has no primitive type"
@@ -180,7 +180,7 @@ def wrap_value_scalar(
 @defines_strategy()
 def from_type_info(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
     value_st = from_type_info_scalar(typ)
-    constraint = typ.constraint or DEFAULT_CONSTRAINT
+    constraint = typ.constraint or TypeConstraint()
     return wrap_value_scalar(
         value_st,
         is_required=typ.is_required,

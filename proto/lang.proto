@@ -208,7 +208,8 @@ enum BenchType {
   BENCH_TYPE_PRIMITIVE_TYPE = 20080;
   BENCH_TYPE_FIELD_ZONE = 20082;
   BENCH_TYPE_TYPE_KIND = 20083;
-  BENCH_TYPE_BLOCK_TYPE = 20384;
+  BENCH_TYPE_TYPE_FORMAT = 20384;
+  BENCH_TYPE_BLOCK_TYPE = 20390;
   BENCH_TYPE_SCHEDULE_TYPE = 20100;
   BENCH_TYPE_TIME_INTERVAL = 20101;
   BENCH_TYPE_DAY = 20102;
@@ -484,7 +485,8 @@ enum EnumType {
   ENUM_TYPE_PRIMITIVE_TYPE = 20080;
   ENUM_TYPE_FIELD_ZONE = 20082;
   ENUM_TYPE_TYPE_KIND = 20083;
-  ENUM_TYPE_BLOCK_TYPE = 20384;
+  ENUM_TYPE_TYPE_FORMAT = 20384;
+  ENUM_TYPE_BLOCK_TYPE = 20390;
   ENUM_TYPE_SCHEDULE_TYPE = 20100;
   ENUM_TYPE_TIME_INTERVAL = 20101;
   ENUM_TYPE_DAY = 20102;
@@ -1067,6 +1069,7 @@ enum PrimitiveType {
   PRIMITIVE_TYPE_BYTES = 25;
   PRIMITIVE_TYPE_VECTOR = 26;
   PRIMITIVE_TYPE_DATETIME = 30;
+  PRIMITIVE_TYPE_DATE = 31;
   PRIMITIVE_TYPE_TIME = 32;
   PRIMITIVE_TYPE_INTERVAL = 33;
 }
@@ -1410,6 +1413,16 @@ enum TriggerType {
   TRIGGER_TYPE_UNSPECIFIED = 0;
   TRIGGER_TYPE_SCHEDULE = 1;
   TRIGGER_TYPE_SIGNAL = 2;
+}
+
+// The fine-grained format of some Type.
+enum TypeFormat {
+  TYPE_FORMAT_UNSPECIFIED = 0;
+  TYPE_FORMAT_URL = 2000;
+  TYPE_FORMAT_EMAIL = 2001;
+  TYPE_FORMAT_EMOJI = 2002;
+  TYPE_FORMAT_PHONE_NUMBER = 2003;
+  TYPE_FORMAT_SLUG = 2004;
 }
 
 // The 'kind' of a Type.
@@ -2024,15 +2037,15 @@ message RunFrameData {
 // Options for running something.
 message RunOptionsData {
   ObjectType metatype = 1;
-  optional int32 max_runs = 30;
+  optional int32 max_attempts = 30;
   optional int32 max_concurrency = 31;
-  optional int32 max_attempts = 32;
-  optional float timeout = 33;
-  optional bool suppress_failure = 34;
+  optional int32 max_runs = 32;
+  optional float timeout = 35;
   optional float retry_interval = 40;
   optional float backoff = 41;
   optional float max_retry_interval = 42;
   repeated RunErrorType retry_on = 44;
+  optional bool suppress_failure = 45;
   repeated BreakpointData breakpoints = 50;
   optional CacheMode cache_mode = 70;
   optional google.protobuf.Duration cache_expiry = 71;
@@ -2231,6 +2244,7 @@ message TypeInfoData {
   optional FieldZone base_field_zone = 44;
   optional NodeReferenceData oneof_ptr = 45;
   optional google.protobuf.Struct default_packed = 50;
+  optional TypeFormat format = 53;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
   bool is_required = 60;
@@ -2542,6 +2556,7 @@ message FieldData {
   optional FieldZone base_field_zone = 44;
   optional NodeReferenceData oneof_ptr = 45;
   optional google.protobuf.Struct default_packed = 50;
+  optional TypeFormat format = 53;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
   bool is_required = 60;

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.26.1"  # auto change via version script
+VERSION = "2024.09.26.3"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -102,7 +102,8 @@ class EnumType(IdEnum):
     PRIMITIVE_TYPE = 20080
     FIELD_ZONE = 20082
     TYPE_KIND = 20083
-    BLOCK_TYPE = 20384
+    TYPE_FORMAT = 20384
+    BLOCK_TYPE = 20390
 
     # basic
     SCHEDULE_TYPE = 20100
@@ -847,6 +848,7 @@ class PrimitiveType(IdEnum):
     VECTOR = 26
     # time
     DATETIME = 30
+    DATE = 31
     TIME = 32
     INTERVAL = 33
 
@@ -888,6 +890,22 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     timedelta: PrimitiveType.INTERVAL,
     UUID: PrimitiveType.UUID,
 }
+
+
+@enum_(EnumType.TYPE_FORMAT)
+class TypeFormat(IdEnum):  # :TypeFormat
+    """The fine-grained format of some Type."""
+
+    # strings
+    URL = 2000
+    EMAIL = 2001
+    EMOJI = 2002
+    PHONE_NUMBER = 2003
+    SLUG = 2004
+
+    @property
+    def primitive_type(self) -> PrimitiveType:
+        return PrimitiveType(self // 100)
 
 
 @enum_(EnumType.TYPE_KIND)
