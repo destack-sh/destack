@@ -780,7 +780,8 @@ export class FlowContext {
       if (points.length % 2 == 1) {
         const midpointIdx = Math.floor(points.length / 2);
         const midpoint = points[midpointIdx];
-        const isHorizontal = points[midpointIdx - 1].y == points[midpointIdx + 1].y;
+        const isHorizontal =
+          points[midpointIdx - 1].y == points[midpointIdx].y && points[midpointIdx + 1].y == points[midpointIdx].y;
         return { points, midpoint, isMidpointHorizontal: isHorizontal };
       } else {
         const premidPoint = points[points.length / 2 - 1];
