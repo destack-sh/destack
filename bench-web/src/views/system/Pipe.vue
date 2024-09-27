@@ -114,8 +114,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Midpoint meta -->
     <div
       v-if="!isHidden"
-      class="absolute flex -translate-x-1/2 select-none items-center gap-x-1 transition-colors duration-150"
-      :class="path.isMidpointHorizontal && false ? '-translate-y-1/2 flex-row' : '-translate-y-[80%] flex-col'"
+      class="absolute flex -translate-x-1/2 -translate-y-[75%] select-none flex-col items-center gap-x-1 transition-colors duration-150"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
     >
       <!-- Name -->

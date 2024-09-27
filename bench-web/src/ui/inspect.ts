@@ -252,7 +252,8 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       if (node.type == StepType.TEXT) {
         runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
       }
-      runOptionProperties.push(RunOptionsProperty.suppressFailure);
+      runOptionProperties.push(RunOptionsProperty.suppressFail);
+      runOptionProperties.push(RunOptionsProperty.suppressAbort);
       runOptionProperties
         .map((p) =>
           getNestedInspectedProperty(stepProperties[StepProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),

@@ -311,7 +311,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 if run.status == RunStatus.ABORTED:
                     continue  # ignore aborted runs
                 elif run.status == RunStatus.FAILED and not (
-                    step.run_options and step.run_options.suppress_failure
+                    step.run_options and step.run_options.suppress_fail
                 ):
                     assert run.error is not None, f"{run!r} has no error"
                     self._fail(run.error)

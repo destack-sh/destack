@@ -731,12 +731,3 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         **kwargs,
     ) -> "Field":
         return Field.new(name, typ, zone=FieldZone.OUTPUT, constraint=constraint, **kwargs)
-
-    @staticmethod
-    def runtime(
-        name: str,
-        typ: TypeIn,
-        constraint: TypeConstraintIn | TypeConstraint | None = None,
-        **kwargs,
-    ) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.RUNTIME, constraint=constraint, **kwargs)

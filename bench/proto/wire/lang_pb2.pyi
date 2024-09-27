@@ -605,7 +605,6 @@ class FieldZone(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FIELD_ZONE_INPUT: _ClassVar[FieldZone]
     FIELD_ZONE_OUTPUT: _ClassVar[FieldZone]
     FIELD_ZONE_OPTION: _ClassVar[FieldZone]
-    FIELD_ZONE_RUNTIME: _ClassVar[FieldZone]
 
 class FileFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2036,7 +2035,6 @@ FIELD_ZONE_MEMBER: FieldZone
 FIELD_ZONE_INPUT: FieldZone
 FIELD_ZONE_OUTPUT: FieldZone
 FIELD_ZONE_OPTION: FieldZone
-FIELD_ZONE_RUNTIME: FieldZone
 FILE_FORMAT_UNSPECIFIED: FileFormat
 FILE_FORMAT_TXT: FileFormat
 FILE_FORMAT_MARKDOWN: FileFormat
@@ -3959,7 +3957,8 @@ class RunOptionsData(_message.Message):
         "backoff",
         "max_retry_interval",
         "retry_on",
-        "suppress_failure",
+        "suppress_fail",
+        "suppress_abort",
         "breakpoints",
         "cache_mode",
         "cache_expiry",
@@ -3975,7 +3974,8 @@ class RunOptionsData(_message.Message):
     BACKOFF_FIELD_NUMBER: _ClassVar[int]
     MAX_RETRY_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     RETRY_ON_FIELD_NUMBER: _ClassVar[int]
-    SUPPRESS_FAILURE_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESS_FAIL_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESS_ABORT_FIELD_NUMBER: _ClassVar[int]
     BREAKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CACHE_MODE_FIELD_NUMBER: _ClassVar[int]
     CACHE_EXPIRY_FIELD_NUMBER: _ClassVar[int]
@@ -3990,7 +3990,8 @@ class RunOptionsData(_message.Message):
     backoff: float
     max_retry_interval: float
     retry_on: _containers.RepeatedScalarFieldContainer[RunErrorType]
-    suppress_failure: bool
+    suppress_fail: bool
+    suppress_abort: bool
     breakpoints: _containers.RepeatedCompositeFieldContainer[BreakpointData]
     cache_mode: CacheMode
     cache_expiry: _duration_pb2.Duration
@@ -4007,7 +4008,8 @@ class RunOptionsData(_message.Message):
         backoff: _Optional[float] = ...,
         max_retry_interval: _Optional[float] = ...,
         retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ...,
-        suppress_failure: bool = ...,
+        suppress_fail: bool = ...,
+        suppress_abort: bool = ...,
         breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ...,
         cache_mode: _Optional[_Union[CacheMode, str]] = ...,
         cache_expiry: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,

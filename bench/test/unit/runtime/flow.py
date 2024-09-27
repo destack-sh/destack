@@ -212,7 +212,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
         StepType.CODE,
         "Code1",
         code=code("raise ValueError('error')"),
-        run_options=RunOptions(suppress_failure=True),
+        run_options=RunOptions(suppress_fail=True),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Code1, Complete)

@@ -293,7 +293,9 @@ class Renderer:
             field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
             field_value_repr = self.render_value_expr(field_value, field_type)
-            repr_by_name[field.name] = field_value_repr
+            field_code_name = field.code_name
+            assert field_code_name, f"{field!r} has no code name"
+            repr_by_name[field_code_name] = field_value_repr
         return (
             f"{typ.base_type.code_name}({', '.join(f'{k}={v}' for k, v in repr_by_name.items())})"
         )

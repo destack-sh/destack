@@ -603,7 +603,6 @@ enum FieldZone {
   FIELD_ZONE_INPUT = 3;
   FIELD_ZONE_OUTPUT = 4;
   FIELD_ZONE_OPTION = 5;
-  FIELD_ZONE_RUNTIME = 6;
 }
 
 // The format of a file (roughly an extension).
@@ -2045,7 +2044,8 @@ message RunOptionsData {
   optional float backoff = 41;
   optional float max_retry_interval = 42;
   repeated RunErrorType retry_on = 44;
-  optional bool suppress_failure = 45;
+  optional bool suppress_fail = 45;
+  optional bool suppress_abort = 46;
   repeated BreakpointData breakpoints = 50;
   optional CacheMode cache_mode = 70;
   optional google.protobuf.Duration cache_expiry = 71;

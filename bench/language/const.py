@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.27.4"  # auto change via version script
+VERSION = "2024.09.27.5"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -932,7 +932,6 @@ class FieldZone(IdEnum):
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
-    RUNTIME = 6
 
 
 @enum_(EnumType.TRIGGER_TYPE)
