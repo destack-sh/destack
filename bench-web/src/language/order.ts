@@ -2,6 +2,20 @@ import type { Transaction } from "@/language/transaction";
 import type { AnyNodeData, AnyStructData } from "@/proto/wire";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 
+/** Sorts the nodes using createdAt, then id. */
+export function timesortNode<T extends AnyNodeData>(nodes: T[]): void {
+  nodes.sort((a, b) => {
+    if (a.createdAt != null && b.createdAt != null) {
+      if (a.createdAt.seconds != b.createdAt.seconds) {
+        return Number(a.createdAt.seconds - b.createdAt.seconds);
+      } else if (a.createdAt.nanos != b.createdAt.nanos) {
+        return Number(a.createdAt.nanos - b.createdAt.nanos);
+      }
+    }
+    return a.id > b.id ? 1 : -1;
+  });
+}
+
 /** Sorts the given nodes using explicit order keys if available, createdAt otherwise, then id. */
 export function defaultSortNode<T extends AnyNodeData>(nodes: T[]): void {
   nodes.sort((a, b) => {
