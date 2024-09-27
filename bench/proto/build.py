@@ -103,9 +103,8 @@ def _render_js_constraint(constraint: TypeConstraint | TypeConstraintIn) -> str:
     for p in TypeConstraint.__declared_properties__.values():
         p_value = getattr(constraint, p.name)
         if p_value is not None:
-            constraint_parts.append(
-                f"{to_casing(p.name, Casing.LOWER_CAMEL)}: {_render_js_value(p_value)}"
-            )
+            js_value = _render_js_value(p_value)
+            constraint_parts.append(f"{to_casing(p.name, Casing.LOWER_CAMEL)}: {js_value}")
     constraint_js = "{ " + ", ".join(constraint_parts) + " }"
     return constraint_js
 
@@ -494,7 +493,7 @@ export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Obj
         for t in TypeFormat
     )
     type_formats_str = f"""
-export const TYPE_FORMAT_BY_PRIMITIVE_TYPE: Partial<Record<TypeFormat, TypeConstraintIn>> = {{
+export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstraintIn>> = {{
 {type_formats_str_inner}
 }}
 """

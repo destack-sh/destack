@@ -32,6 +32,8 @@ import {
 import { describeNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
 
+export const FLOAT_EPSILON = 1e-6;
+
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
 export const STRUCT_TYPES = Object.values(StructType).filter((v) => typeof v == "number" && v > 0) as StructType[];

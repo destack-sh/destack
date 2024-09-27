@@ -1,3 +1,4 @@
+import { FLOAT_EPSILON } from "@/language/const";
 import {
   describeTypeIdentity,
   encodeTypeIdentity,
@@ -15,7 +16,9 @@ import {
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
   Struct as ProtoStruct,
+  TYPE_CONSTRAINT_BY_FORMAT,
   Timestamp,
+  TypeConstraintIn,
   TypeKind,
   type AnyNodeData,
   type AnyStructData,
@@ -35,6 +38,10 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 export type PrimitiveValue = JsonPrimitive | bigint | Timestamp;
 export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
+
+//
+// Packing/unpacking
+//
 
 // TODO :Architecture :Performance: encode/decode protoStruct/Json in „connections (at the fetch/commit boundary) :ProtoStructMapping
 //  Could either fork protobuf-ts or just switch to ts-proto?
@@ -402,5 +409,65 @@ export function unpackValue(
       }
       return value.map((v: any) => unpackValueScalar(v, type));
     }
+  }
+}
+
+//
+// Type checking :TypeChecking
+// NOTE :Architecture :Cleanup: run type-checking via :BenchWebRuntime if available?
+//
+
+type ValidationHandler = (value: any, message: string, type: TypeIdentity) => void;
+
+/** Checks a scalar value against the given type constraint. :TypeChecking */
+export function checkValueScalarConstraint(
+  value: any,
+  type: TypeIdentity,
+  constraint: TypeConstraintIn,
+  invalid: ValidationHandler,
+): void {
+  if (typeof value == "bigint") value = Number(value);
+  if (typeof value == "number") {
+    if (constraint.minValue != null && value < constraint.minValue) {
+      invalid(value, "too small", type);
+    }
+    if (constraint.maxValue != null && value > constraint.maxValue) {
+      invalid(value, "too large", type);
+    }
+    if (constraint.stepValue != null && Math.abs(value % constraint.stepValue) > FLOAT_EPSILON) {
+      invalid(value, `not a multiple ${constraint.stepValue}`, type);
+    }
+  } else if (typeof value == "string") {
+    if (constraint.minLength != null && value.length < constraint.minLength) {
+      invalid(value, "too short", type);
+    }
+    if (constraint.maxLength != null && value.length > constraint.maxLength) {
+      invalid(value, "too long", type);
+    }
+    if (constraint.regex != null && !new RegExp(constraint.regex, "u").test(value)) {
+      invalid(value, `does not match regex`, type);
+    }
+    if (constraint.startsWith != null && !value.startsWith(constraint.startsWith)) {
+      invalid(value, `does not start with ${constraint.startsWith}`, type);
+    }
+    if (constraint.endsWith != null && !value.endsWith(constraint.endsWith)) {
+      invalid(value, `does not end with ${constraint.endsWith}`, type);
+    }
+  }
+}
+
+export function checkValueScalar(value: any, type: TypeIdentity, invalid: ValidationHandler): void {
+  if (type.kind == TypeKind.PRIMITIVE) {
+    if (type.constraint != null) {
+      checkValueScalarConstraint(value, type, type.constraint, invalid);
+    }
+    if (type.format != null && TYPE_CONSTRAINT_BY_FORMAT[type.format] != null) {
+      checkValueScalarConstraint(value, type, TYPE_CONSTRAINT_BY_FORMAT[type.format]!, invalid);
+    }
+    if (typeof value == "string" && value.length == 0) {
+      invalid(value, "empty string", type);
+    }
+  } else {
+    // NOTE :Incomplete: checkValueScalar for Node/Struct/Enum
   }
 }

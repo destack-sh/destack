@@ -2,7 +2,7 @@ import { isEnumType, isNodeType, NAME_CONSTRAINT } from "@/language/const";
 import { getPropertyType, getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { type DebounceLevel, type Transaction } from "@/language/transaction";
-import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
+import { checkValueScalar, checkValueScalarConstraint, packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 import {
   Anchor,
   BenchType,
@@ -338,6 +338,8 @@ export function getNativeConstraintProps(constraint?: Partial<TypeConstraintData
 /**
  * Guards and coerces an event listener with a constraint.
  * Forward the value if it passes, otherwise revert the event target to the old value
+ * NOTE :UX: guardNativeInput behavior is annoying (forbids temporarily invalid values)
+ *  (our use of native input for many things is annoying anyway because we can't size its width to fit the content)
  */
 export function guardNativeInput<T extends string | number | bigint>(
   type: TypeIdentity,
@@ -348,7 +350,7 @@ export function guardNativeInput<T extends string | number | bigint>(
 ) {
   // coerce
   let newValue: string | number | undefined = (event.target as HTMLInputElement).value ?? "";
-  if (newValue == "") newValue = undefined; // nocheckin: guardNativeInput is broken (undefined, constraint validation, ...)
+  if (newValue == "") newValue = undefined;
   if (
     newValue != undefined &&
     [
@@ -365,31 +367,19 @@ export function guardNativeInput<T extends string | number | bigint>(
     }
   }
 
-  if (constraint == null) {
-    // nothing to check
-    onAccept(newValue);
-    return;
-  }
-
   // check
-  let isValid = true;
-  if (typeof newValue == "string") {
-    if (constraint.minLength != null && newValue.length < constraint.minLength) {
-      isValid = false;
-    } else if (constraint.maxLength != null && newValue.length > constraint.maxLength) {
-      isValid = false;
-    } else if (constraint.regex != null && !new RegExp(constraint.regex, "u").test(newValue)) {
-      isValid = false;
+  const errors = [];
+  if (newValue == null) {
+    if (type.isRequired) {
+      errors.push("missing value");
+    }
+  } else {
+    checkValueScalar(newValue, type, (v, m, t) => errors.push(m));
+    if (constraint != null) {
+      checkValueScalarConstraint(newValue, type, constraint, (v, m, t) => errors.push(m));
     }
   }
-  if (typeof newValue == "number") {
-    if (constraint.minValue != null && newValue < constraint.minValue) {
-      isValid = false;
-    } else if (constraint.maxValue != null && newValue > constraint.maxValue) {
-      isValid = false;
-    }
-  }
-  if (!isValid) {
+  if (errors.length > 0) {
     const input = event.target as HTMLInputElement;
     input.value = oldValue?.toString() ?? "";
   } else {
