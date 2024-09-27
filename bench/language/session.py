@@ -79,11 +79,13 @@ if TYPE_CHECKING:
         Machine,
         NodeReference,
         Package,
+        Pipe,
         QueryBuilder,
         Run,
         Server,
         Step,
         User,
+        View,
     )
     from bench.runtime.runtime import Runtime
 
@@ -858,29 +860,33 @@ class HasSessionContext(BuiltinObject):
     # NOTE :Security: session context properties are p_internal, not p_system so we can update
     #   them in all clients. But this also means users can mess with them if they really want to.
     # :SessionContext
+    # where
     block: Optional["Block"] = p_internal(70, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(71, require=False, array=False, references=NodeType.STEP)
+    pipe: Optional["Pipe"] = p_internal(72, require=False, array=False, references=NodeType.PIPE)
+    view: Optional["View"] = p_internal(73, require=False, array=False, references=NodeType.VIEW)
+    # context
     session: Optional["Session"] = p_internal(
-        72, require=False, array=False, references=NodeType.SESSION, same_bench=True
+        80, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     run: Optional["Run"] = p_internal(
-        73, require=False, array=False, references=NodeType.RUN, same_bench=True
+        81, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     run_root: Optional["Run"] = p_internal(
-        74, require=False, array=False, references=NodeType.RUN, same_bench=True
+        82, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     client: Optional["Client"] = p_internal(
-        75, require=False, array=False, references=NodeType.CLIENT, same_bench=True
+        83, require=False, array=False, references=NodeType.CLIENT, same_bench=True
     )
     machine: Optional["Machine"] = p_internal(
-        76, require=False, array=False, references=NodeType.MACHINE, same_bench=True
+        84, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
     server: Optional["Server"] = p_internal(
-        77, require=False, array=False, references=NodeType.SERVER, same_bench=True
+        85, require=False, array=False, references=NodeType.SERVER, same_bench=True
     )
-    user: Optional["User"] = p_internal(78, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_internal(86, require=False, array=False, references=NodeType.USER)
     identity: Optional["Block"] = p_internal(
-        79,
+        87,
         require=False,
         array=False,
         references=NodeType.BLOCK,

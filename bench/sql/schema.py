@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.27.0"
+VERSION = "2024.09.27.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1300,6 +1300,12 @@ RUN_TABLE = Table(
         Column("step_id", PrimitiveType.UUID, is_nullable=True),
         Column("step_ck", PrimitiveType.UUID, is_nullable=True),
         Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("view_id", PrimitiveType.UUID, is_nullable=True),
+        Column("view_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("view_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1353,6 +1359,12 @@ SIGNAL_TABLE = Table(
         Column("step_id", PrimitiveType.UUID, is_nullable=True),
         Column("step_ck", PrimitiveType.UUID, is_nullable=True),
         Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("view_id", PrimitiveType.UUID, is_nullable=True),
+        Column("view_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("view_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1419,6 +1431,12 @@ LOG_TABLE = Table(
         Column("step_id", PrimitiveType.UUID, is_nullable=True),
         Column("step_ck", PrimitiveType.UUID, is_nullable=True),
         Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("view_id", PrimitiveType.UUID, is_nullable=True),
+        Column("view_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("view_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
