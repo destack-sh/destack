@@ -477,7 +477,6 @@ export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIco
   [FieldZone.INPUT]: "fas fa-arrow-down-right",
   [FieldZone.OUTPUT]: "fas fa-arrow-up-right",
   [FieldZone.OPTION]: "fas fa-circle-small",
-  [FieldZone.RUNTIME]: "fas fa-play",
 });
 
 export const ICON_BY_LOG_LEVEL: Record<LogLevel, IconData> = {

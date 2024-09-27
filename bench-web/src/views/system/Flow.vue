@@ -94,7 +94,7 @@ const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData 
   const thing = things.value[thingIdx];
   return { thing, idx: thingIdx };
 };
-const actions: Partial<ActionMapImplementation<"common">> = {
+const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   // create
   "common.create.step": (action, context) => {
     if (flow.value == null) return false;

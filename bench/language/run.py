@@ -141,7 +141,8 @@ class RunOptions(Struct):
     backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
     max_retry_interval: Optional[float] = p_regular(42, constraint=TypeConstraintIn(min_value=0))
     retry_on: list["RunErrorType"] = p_regular(44, array=True)
-    suppress_failure: Optional[bool] = p_regular(45, default=None)
+    suppress_fail: Optional[bool] = p_regular(45, default=None)
+    suppress_abort: Optional[bool] = p_regular(46, default=None)
 
     # debug
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
