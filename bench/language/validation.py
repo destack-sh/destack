@@ -111,15 +111,15 @@ EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
 NAME_REGEX_CHAR = r"\p{L}0-9 _,;.\-'`˚ "
 NAME_REGEX_INLINE = rf"[{NAME_REGEX_CHAR}]+"
 NAME_REGEX = rf"^{NAME_REGEX_INLINE}$"
+URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
+PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
+EMOJI_REGEX = r"\p{Emoji_Presentation}"
 NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=128)
 TITLE_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
-URL_REGEX = rf"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2, }(?:\/\S*)?$"
 URL_CONSTRAINT = TypeConstraintIn(regex=URL_REGEX)
-PHONE_NUMBER_REGEX = rf"^\+?[0-9]{1, 3}[-. ]?[0-9]{3}[-. ]?[0-9]{4}$"
 PHONE_NUMBER_CONSTRAINT = TypeConstraintIn(regex=PHONE_NUMBER_REGEX)
-EMOJI_REGEX = r"[\U0001f600-\U0001f64f\U0001f300-\U0001f5ff\U0001f680-\U0001f6ff\U0001f1e0-\U0001f1ff\U00002702-\U000027b0\U000024c2-\U0001f251]+"
 EMOJI_CONSTRAINT = TypeConstraintIn(regex=EMOJI_REGEX)
 
 

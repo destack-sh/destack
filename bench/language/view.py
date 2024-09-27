@@ -20,7 +20,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import NAME_CONSTRAINT, TITLE_CONSTRAINT
+from bench.language.validation import EMOJI_CONSTRAINT, NAME_CONSTRAINT, TITLE_CONSTRAINT
 from bench.proto.wire import SpaceData, ViewData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -595,7 +595,7 @@ class Icon(Struct):
 
     kind: IconKind = p_internal(30, default=False)
     # content
-    emoji: Optional[str] = p_internal(31, require=False)
+    emoji: Optional[str] = p_internal(31, require=False, constraint=EMOJI_CONSTRAINT)
     fa_name: Optional[str] = p_internal(33, require=False)
     vsc_name: Optional[str] = p_internal(34, require=False)
     # style
