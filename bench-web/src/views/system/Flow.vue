@@ -309,7 +309,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     >
       <!-- Node path -->
       <NodePath
-        v-if="variant != Variant.COMPACT"
+        v-if="variant != Variant.COMPACT && flowCtx.flow.value != null"
         class="pointer-events-auto flex-shrink-0 border border-gray-200 bg-white px-2"
         :container="nodePtr"
         :focus="props.focus?.nodesPtr[0]"

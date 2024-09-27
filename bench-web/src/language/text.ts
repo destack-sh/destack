@@ -143,6 +143,14 @@ export function isTextEmpty(text: TextData | null | undefined): boolean {
 /** Rough estimate of the height of a Text */
 export function estimateTextHeight(text: TextData, width?: number): number {
   if (width == null) width = 800;
-  const height = text.lines.length * 24;
+  const charactersPerLine = 37;
+  const lineHeight = 24;
+  let height = 10;
+  for (const line of text.lines) {
+    const characters = line.spans.reduce((acc, span) => acc + (span.content?.length ?? 0), 0);
+    if (characters == 0) height += lineHeight;
+    else height += Math.ceil(characters / charactersPerLine) * lineHeight;
+  }
+  height *= 1.1; // padding for justify
   return height;
 }

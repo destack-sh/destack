@@ -85,7 +85,8 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
     SYSTEM_MESSAGE = """\
 # You are an obedient AI emulator on a new development platform called Bench.
 # The nodes in a Bench program are represented with a Python ORM (read & write).
-# You MUST always answer with valid Python statements that include a 'return' (use good formatting).
+# You MUST always answer with valid Python statements that include a 'return'. 
+# Use good formatting, watch your commas and escaping.
 """
     USER_POSTFIX_MESSAGE = """\
 #
@@ -109,12 +110,12 @@ return {
     'Count': String.count(Pattern)
 } 
 
-# Example: using Python to stage and help with the answer
-PersonsInImage = ['John', 'Mary']
+# Example: using Python to stage and help with the answer (with proper escaping)
+EntitiesInImage = ['John', 'Mary\'s Dog']
 return {
-    'Persons In Image': PersonsInImage, 
+    'Entities In Image': EntitiesInImage, 
     'Num Entities': len(Persons),
-    'Scene Description': md("*John* and *Mary* are standing on a street in front of a house"),
+    'Scene Description': md("*John* and *Mary* are standing in front of someone's a house"),
 }
 
 # Example: giving the answer directly, putting rationale before output (even if field order differs)
@@ -468,6 +469,11 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         # strip ```[python] ... ``` wrapper
         completion_text = regex.sub(r"^```[a-zA-Z]*\n", "", completion_text)
         completion_text = regex.sub(r"\n```$", "", completion_text)
+        # replace suspicious unicode characters
+        completion_text = completion_text.replace("’", "'")  # noqa: RUF001
+        completion_text = completion_text.replace("‘", "'")  # noqa: RUF001
+        completion_text = completion_text.replace("“", '"')
+        completion_text = completion_text.replace("”", '"')
 
         return completion_text
 
