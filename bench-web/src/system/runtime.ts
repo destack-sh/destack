@@ -1,6 +1,7 @@
 import { ACTIVE_RUN_STATUSES } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
+import { timesortNode } from "@/language/order";
 import { makeRun, type RunnableObject } from "@/language/session";
 import type { Transaction } from "@/language/transaction";
 import {
@@ -65,6 +66,10 @@ export class RunTree {
           runByBaseCk[base.ck].push(run);
         }
       }
+      // sort ascending
+      for (const runBaseCk of Object.keys(runByBaseCk)) {
+        timesortNode(runByBaseCk[runBaseCk]);
+      }
       return runByBaseCk;
     });
   }
@@ -91,7 +96,8 @@ export class RunTree {
 
   /** Gets the last (active) Run for the given base node. */
   getLastActiveRun(base: { ck?: string }): RunData | null {
-    return this.runsByBaseCk.value[base.ck!]?.[0] ?? null;
+    const runs = this.runsByBaseCk.value[base.ck!];
+    return runs?.[runs.length - 1] ?? null;
   }
 }
 

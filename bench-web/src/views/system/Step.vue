@@ -72,6 +72,7 @@ function toPortId(port: Port): string {
 }
 
 // run
+const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: stepPtr.value?.ck }));
 const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: stepPtr.value?.ck }));
 const lastRunStatusColor = computed(() =>
   lastRun.value?.status != null ? COLOR_BY_RUN_STATUS[lastRun.value.status] : null,
@@ -261,6 +262,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Controls/Meta -->
       <div class="ml-auto flex flex-row pl-2 pr-0.5">
         <!-- Status -->
+        <!-- NOTE :UX: indicate Step/Flow Run statuses better (show all Runs on hover, total runtime, ...) -->
         <Transition
           enter-active-class="transition-opacity duration-75"
           enter-from-class="opacity-0"
@@ -272,6 +274,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           appear
         >
           <span v-if="lastRun" class="flex-shrink-0 truncate px-1" :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]">
+            <span v-if="lastRuns.length > 1"> {{ lastRuns.length }}x </span>
             <!-- Duration -->
             <span v-if="lastRun.startedAt" class="mr-1">
               {{

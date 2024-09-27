@@ -348,7 +348,7 @@ export function guardNativeInput<T extends string | number | bigint>(
 ) {
   // coerce
   let newValue: string | number | undefined = (event.target as HTMLInputElement).value ?? "";
-  if (newValue == "") newValue = undefined;
+  if (newValue == "") newValue = undefined; // nocheckin: guardNativeInput is broken (undefined, constraint validation, ...)
   if (
     newValue != undefined &&
     [
