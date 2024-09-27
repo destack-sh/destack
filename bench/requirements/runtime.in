@@ -8,7 +8,6 @@ beautifulsoup4==4.11.1
 black==23.7.0
 dateparser==1.1.8
 dropbox==11.36.2
-duckdb==1.0.0
 feedparser==6.0.10
 gitpython==3.1.32
 google-api-python-client==2.129.0

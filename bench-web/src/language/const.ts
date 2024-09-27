@@ -238,6 +238,7 @@ export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
 
 // NOTE: we soft-limit the subset of available enum options in bench-web
 //  (in code and backend the entire ranges are available)
+export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [
   BlockType.PAGE,
   BlockType.CLASS,
@@ -310,6 +311,7 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
+  [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
   [EnumType.STEP_TYPE]: EXPOSED_STEP_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,

@@ -4477,11 +4477,13 @@ class TypeConstraintData(_message.Message):
         "regex",
         "starts_with",
         "ends_with",
+        "node_is_attached",
         "node_types",
         "block_types",
         "step_types",
         "file_types",
         "file_formats",
+        "view_types",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -4492,11 +4494,13 @@ class TypeConstraintData(_message.Message):
     REGEX_FIELD_NUMBER: _ClassVar[int]
     STARTS_WITH_FIELD_NUMBER: _ClassVar[int]
     ENDS_WITH_FIELD_NUMBER: _ClassVar[int]
+    NODE_IS_ATTACHED_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
     BLOCK_TYPES_FIELD_NUMBER: _ClassVar[int]
     STEP_TYPES_FIELD_NUMBER: _ClassVar[int]
     FILE_TYPES_FIELD_NUMBER: _ClassVar[int]
     FILE_FORMATS_FIELD_NUMBER: _ClassVar[int]
+    VIEW_TYPES_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     min_value: float
     max_value: float
@@ -4506,11 +4510,13 @@ class TypeConstraintData(_message.Message):
     regex: str
     starts_with: str
     ends_with: str
+    node_is_attached: bool
     node_types: _containers.RepeatedScalarFieldContainer[NodeType]
     block_types: _containers.RepeatedScalarFieldContainer[BlockType]
     step_types: _containers.RepeatedScalarFieldContainer[StepType]
     file_types: _containers.RepeatedScalarFieldContainer[FileType]
     file_formats: _containers.RepeatedScalarFieldContainer[FileFormat]
+    view_types: _containers.RepeatedScalarFieldContainer[ViewType]
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -4522,11 +4528,13 @@ class TypeConstraintData(_message.Message):
         regex: _Optional[str] = ...,
         starts_with: _Optional[str] = ...,
         ends_with: _Optional[str] = ...,
+        node_is_attached: bool = ...,
         node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ...,
         block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ...,
         step_types: _Optional[_Iterable[_Union[StepType, str]]] = ...,
         file_types: _Optional[_Iterable[_Union[FileType, str]]] = ...,
         file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ...,
+        view_types: _Optional[_Iterable[_Union[ViewType, str]]] = ...,
     ) -> None: ...
 
 class TypeInfoData(_message.Message):
