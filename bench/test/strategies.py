@@ -384,6 +384,7 @@ def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
             combined_dict[key] = type_info_base_dict[key]
         else:
             combined_dict[key] = draw(naive_base_dict[key])
+    combined_dict["is_list"] = False
     return Field(**combined_dict)
 
 

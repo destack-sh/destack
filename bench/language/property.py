@@ -301,12 +301,12 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if isinstance(self.constraint, TypeConstraintIn):
             constraint = self.constraint.into()
         else:
-            constraint = self.constraint
+            constraint = self.constraint or TypeConstraintIn()
 
         if self.reference_nodes and not self.reference_source:
             kind = TypeKind.NODE
-            # don't have unions yet so we special case this in validation :FakeNodePropertyUnion
-            bench_type = self.reference_nodes[0]
+            bench_type = None
+            constraint.node_types = list(self.reference_nodes)
             primitive_type = None
         elif self.reference_struct:
             kind = TypeKind.STRUCT
@@ -334,7 +334,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             is_list=self.is_list,
             # NOTE: we ignore is_required if deferred as it's unclear what to do with unloaded properties
             is_required=self.is_required and not self.is_deferred,
-            constraint=constraint,
+            constraint=constraint.into()
+            if isinstance(constraint, TypeConstraintIn)
+            else constraint,
             _from_property=self,
         )
         typ._resolve_type()  # pre-resolve

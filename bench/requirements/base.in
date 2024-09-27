@@ -9,6 +9,7 @@ black==23.7.0
 cachetools==5.2.0
 certifi==2024.7.4
 croniter==1.4.1
+duckdb==1.1.1
 googleapis-common-protos==1.63.0
 google-generativeai==0.7.2
 grpclib==0.4.7
@@ -26,10 +27,11 @@ pillow==10.3.0
 protobuf==4.24.3
 proto-plus==1.24.0
 python-dotenv>=1.0.1
+python-dateutil==2.9.0.post0
 pytz==2024.1
 regex==2024.7.24
 rich==13.7.1
 sentry-sdk==2.2.0
 structlog==24.2.0
-sqlglot==25.10.0
+sqlglot==25.24.0
 typer==0.12.3

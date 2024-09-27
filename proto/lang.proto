@@ -2227,11 +2227,13 @@ message TypeConstraintData {
   optional string regex = 60;
   optional string starts_with = 61;
   optional string ends_with = 62;
-  repeated NodeType node_types = 70;
-  repeated BlockType block_types = 71;
-  repeated StepType step_types = 72;
-  repeated FileType file_types = 73;
-  repeated FileFormat file_formats = 74;
+  optional bool node_is_attached = 70;
+  repeated NodeType node_types = 71;
+  repeated BlockType block_types = 80;
+  repeated StepType step_types = 81;
+  repeated FileType file_types = 82;
+  repeated FileFormat file_formats = 83;
+  repeated ViewType view_types = 84;
 }
 
 // A type in the type system.

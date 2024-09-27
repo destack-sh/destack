@@ -71,7 +71,17 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression, FileFormat, FileType, Icon, Step, StepType, Text
+    from bench.language import (
+        Block,
+        Expression,
+        FileFormat,
+        FileType,
+        Icon,
+        Step,
+        StepType,
+        Text,
+        ViewType,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -197,28 +207,30 @@ def encode_storage_key(field: "Field") -> str:
 @struct_(StructType.TYPE_CONSTRAINT)
 class TypeConstraint(Struct):
     """
-    A simple constraint on the values of a type. :TypeConstraint
-    Basically a more restricted form of a condition Expression.
+    A constraint on the values of a type. :TypeConstraint
+    Basically, a TypeConstraint is a more restricted form of a condition Expression.
     """
 
     # numeric
     min_value: Optional[float] = p_regular(40, require=False, default=None)
     max_value: Optional[float] = p_regular(41, require=False, default=None)
     step_value: Optional[float] = p_regular(42, require=False, default=None)
-    # list-ish
+    # sequence-ish
     min_length: Optional[int] = p_regular(50, require=False, default=None)
     max_length: Optional[int] = p_regular(51, require=False, default=None)
     # string-ish
     regex: Optional[str] = p_regular(60, require=False, default=None)
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
-    # node-ish (these should probably be lists?)
-    node_types: list["NodeType"] = p_regular(70, array=True)
-    block_types: list["BlockType"] = p_regular(71, array=True)
-    step_types: list["StepType"] = p_regular(72, array=True)
-    file_types: list["FileType"] = p_regular(73, array=True)
-    file_formats: list["FileFormat"] = p_regular(74, array=True)
-    ...
+    # node-ish
+    node_is_attached: Optional[bool] = p_regular(70, require=False, default=None)
+    node_types: list["NodeType"] = p_regular(71, array=True)
+    # specific node-ish
+    block_types: list["BlockType"] = p_regular(80, array=True)
+    step_types: list["StepType"] = p_regular(81, array=True)
+    file_types: list["FileType"] = p_regular(82, array=True)
+    file_formats: list["FileFormat"] = p_regular(83, array=True)
+    view_types: list["ViewType"] = p_regular(84, array=True)
 
 
 @object_()

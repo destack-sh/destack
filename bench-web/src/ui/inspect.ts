@@ -49,6 +49,7 @@ import {
   StructType,
   TypeConstraintProperty,
   TypeInfoProperty,
+  TypeKind,
   ViewProperty,
   ViewType,
   type AnyNodeData,
@@ -172,6 +173,10 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       typeConstraintProperties.push(TypeConstraintProperty.startsWith);
       typeConstraintProperties.push(TypeConstraintProperty.endsWith);
     }
+    if (node.kind == TypeKind.NODE && node.benchType == null) {
+      typeConstraintProperties.push(TypeConstraintProperty.nodeIsAttached);
+      typeConstraintProperties.push(TypeConstraintProperty.nodeTypes);
+    }
     if (node.benchType == BenchType.BLOCK) {
       typeConstraintProperties.push(TypeConstraintProperty.blockTypes);
     }
@@ -181,6 +186,9 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
     if (node.benchType == BenchType.FILE) {
       typeConstraintProperties.push(TypeConstraintProperty.fileTypes);
       typeConstraintProperties.push(TypeConstraintProperty.fileFormats);
+    }
+    if (node.benchType == BenchType.VIEW) {
+      typeConstraintProperties.push(TypeConstraintProperty.viewTypes);
     }
     if (node.primitiveType == PrimitiveType.STRING || node.isList) {
       typeConstraintProperties.push(TypeConstraintProperty.minLength);

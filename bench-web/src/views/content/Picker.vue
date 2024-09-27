@@ -125,13 +125,18 @@ const index: Ref<SearchIndex<any>> = computed(() => {
       const base = pkgGraph.get(props.valueType.baseTypePtr);
       if (base != null) roots = [base];
     }
+    let metatypes: NodeType[];
+    if (props.valueType.benchType != null) {
+      metatypes = [props.valueType.benchType as unknown as NodeType];
+    } else if ((props.valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
+      metatypes = props.valueType.constraint!.nodeTypes;
+    } else {
+      metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+    }
     return graphIndex({
       id: "graph",
       graph: pkgGraph,
-      metatypes:
-        props.valueType.benchType != null
-          ? [props.valueType.benchType as unknown as NodeType]
-          : [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW],
+      metatypes,
       roots,
       skipDepth: roots != null ? 0 : 2,
       filter:
@@ -175,6 +180,7 @@ function select(option: string | PickerItem | undefined) {
     } else if (!isSelected(option)) {
       apply([...((props.modelValue as any[]) ?? []), value]);
     }
+    query.value = '';
   }
 }
 function deselect(option: PickerItem | number) {

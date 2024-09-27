@@ -557,6 +557,7 @@ def check_value_scalar_constraint(
     constraint: "TypeConstraint | TypeConstraintIn",
     invalid: "ValidationHandler",
 ) -> None:
+    """Checks whether the given value satisfies the given scalar constraint."""
     if type(value) is int or type(value) is float:
         if constraint.min_value is not None and value < constraint.min_value:
             invalid(value, "too small", typ)
@@ -606,24 +607,18 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         from bench.language.node import Node, NodeReferenceBase
 
+        if typ.bench_type is not None:
+            allowed_types = (typ.bench_type,)
+        elif typ.constraint is not None and typ.constraint.node_types:
+            allowed_types = typ.constraint.node_types
+        else:
+            allowed_types = None
+
         if isinstance(value, Node):
-            if value.metatype != typ.bench_type and (
-                typ._from_property is None
-                # special case :FakeNodePropertyUnion for reference properties
-                or value.metatype not in (typ._from_property.reference_nodes or ())
-            ):
+            if allowed_types and value.metatype not in allowed_types:
                 invalid(value, f"not of type, is {value.metatype}", typ)
         elif isinstance(value, NodeReferenceBase):
-            # also accept node references in case this is a wired value or a rich reference
-            if (
-                typ.bench_type is not None
-                and value.type != typ.bench_type
-                and (
-                    typ._from_property is None
-                    # special case :FakeNodePropertyUnion for reference properties
-                    or value.type not in (typ._from_property.reference_nodes or ())
-                )
-            ):
+            if allowed_types and value.type not in allowed_types:
                 invalid(value, f"not of type, is {value.type}", typ)
         else:
             invalid(value, "not a Node", typ)

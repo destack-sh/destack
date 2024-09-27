@@ -14,6 +14,7 @@ if TYPE_CHECKING:
         StepType,
         TypeConstraint,
         TypeInfoBase,
+        ViewType,
     )
     from bench.language.value import SomeValue
 
@@ -66,7 +67,7 @@ class TypeConstraintIn:
     min_value: float | None = None
     max_value: float | None = None
     step_value: float | None = None
-    # list-ish
+    # sequence-ish
     min_length: int | None = None
     max_length: int | None = None
     # string-ish
@@ -74,11 +75,14 @@ class TypeConstraintIn:
     starts_with: str | None = None
     ends_with: str | None = None
     # node-ish
+    node_is_attached: bool | None = None
+    # specific node-ish
     node_types: "list[NodeType]" = dataclasses.field(default_factory=list)
     block_types: "list[BlockType]" = dataclasses.field(default_factory=list)
     step_types: "list[StepType]" = dataclasses.field(default_factory=list)
     file_types: "list[FileType]" = dataclasses.field(default_factory=list)
     file_formats: "list[FileFormat]" = dataclasses.field(default_factory=list)
+    view_types: "list[ViewType]" = dataclasses.field(default_factory=list)
 
     def into(self) -> "TypeConstraint":
         from bench.language.field import TypeConstraint
@@ -92,6 +96,7 @@ class TypeConstraintIn:
             regex=self.regex,
             starts_with=self.starts_with,
             ends_with=self.ends_with,
+            node_is_attached=self.node_is_attached,
             node_types=self.node_types,
             block_types=self.block_types,
             step_types=self.step_types,
@@ -132,11 +137,13 @@ def constraint(
     regex: str | None = None,
     starts_with: str | None = None,
     ends_with: str | None = None,
+    node_is_attached: bool | None = None,
     node_types: "list[NodeType] | None" = None,
     block_types: "list[BlockType] | None" = None,
     step_types: "list[StepType] | None" = None,
     file_types: "list[FileType] | None" = None,
     file_formats: "list[FileFormat] | None" = None,
+    view_types: "list[ViewType] | None" = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -147,11 +154,13 @@ def constraint(
         regex=regex,
         starts_with=starts_with,
         ends_with=ends_with,
+        node_is_attached=node_is_attached,
         node_types=node_types if node_types is not None else [],
         block_types=block_types if block_types is not None else [],
         step_types=step_types if step_types is not None else [],
         file_types=file_types if file_types is not None else [],
         file_formats=file_formats if file_formats is not None else [],
+        view_types=view_types if view_types is not None else [],
     )
 
 
