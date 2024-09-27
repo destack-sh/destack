@@ -529,7 +529,7 @@ def coerce_value(
 
 
 #
-# Type checking
+# Type checking :TypeChecking
 #
 
 # bounds checking
@@ -557,7 +557,7 @@ def check_value_scalar_constraint(
     constraint: "TypeConstraint | TypeConstraintIn",
     invalid: "ValidationHandler",
 ) -> None:
-    """Checks whether the given value satisfies the given scalar constraint."""
+    """Checks whether the given value satisfies the given scalar constraint."""  # :TypeChecking
     if type(value) is int or type(value) is float:
         if constraint.min_value is not None and value < constraint.min_value:
             invalid(value, "too small", typ)
@@ -565,13 +565,13 @@ def check_value_scalar_constraint(
             invalid(value, "too large", typ)
         if constraint.step_value is not None and abs(value % constraint.step_value) > FLOAT_EPSILON:
             invalid(value, f"not a multiple of {constraint.step_value}", typ)
-    if type(value) is str:
+    elif type(value) is str:
         if constraint.min_length is not None and len(value) < constraint.min_length:
             invalid(value, "too short", typ)
         if constraint.max_length is not None and len(value) > constraint.max_length:
             invalid(value, "too long", typ)
         if constraint.regex is not None and not regex.match(constraint.regex, value):
-            raise TypeError(f"{value!r} does not match {constraint.regex!r}", typ)
+            invalid(value, "does not match regex", typ)
         if constraint.starts_with is not None and not value.startswith(constraint.starts_with):
             invalid(value, f"does not start with {constraint.starts_with}", typ)
         if constraint.ends_with is not None and not value.endswith(constraint.ends_with):
@@ -579,7 +579,7 @@ def check_value_scalar_constraint(
 
 
 def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
-    """Checks whether the given scalar value has the expected type."""
+    """Checks whether the given scalar value has the expected type."""  # :TypeChecking
     if typ.kind == TypeKind.PRIMITIVE:
         expected_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
         if expected_type is None:
