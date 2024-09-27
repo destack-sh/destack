@@ -91,7 +91,7 @@ defineExpose<ViewExposed>({ self });
           v-for="(
             { title, protoName, category, property, viewType, props: viewProps, isFullWidth, read, write }, i
           ) of inspectionLayout.properties"
-          :key="property.id"
+          :key="i"
         >
           <!-- Category Header -->
           <template v-if="i != 0 && inspectionLayout.properties[i - 1].category != category">

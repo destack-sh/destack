@@ -29,6 +29,12 @@ export function mapPmDocToCode(doc: PmText, prev: CodeData | undefined): CodeDat
 /** Rough estimate of the height of a Code */
 export function estimateCodeHeight(code: CodeData, width?: number): number {
   if (width == null) width = 800;
-  const height = code.lines.length * 20 + 10;
+  const lineHeight = 20;
+  const charactersPerLine = 27;
+  let height = 10;
+  for (const line of code.lines) {
+    if (line.content == null || line.content.length == 0) height += lineHeight;
+    else height += Math.ceil((line.content ?? "").length / charactersPerLine) * lineHeight;
+  }
   return height;
 }
