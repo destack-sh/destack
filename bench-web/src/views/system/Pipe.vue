@@ -1,16 +1,16 @@
 <script lang="ts" setup>
-import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
+import { toCamelName } from "@/language/const";
+import { NAME_TYPE } from "@/language/field";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName } from "@/language/node";
-import { ColorShade, ColorType, NodeType, PipeFilterType, PipeType, PortType, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeFilterType, PipeType, PortType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { canvas, inspectionPtr } from "@/system/space";
+import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_PIPE_FILTER_TYPE, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
-import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
-import { assertNever } from "@/utils/functools";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, toRef } from "vue";
 
 const props = defineProps<
@@ -72,8 +72,16 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
-      class="blur-xs absolute cursor-pointer overflow-visible transition-colors duration-150"
-      :class="isInspected || isHighlighted ? 'opacity-100' : pipe.isHidden ? 'opacity-0' : 'opacity-0 hover:opacity-50'"
+      class="absolute cursor-pointer overflow-visible blur-xs transition-colors duration-150"
+      :class="
+        isInspected || isHighlighted
+          ? pipe.isHidden
+            ? 'opacity-80'
+            : 'opacity-100'
+          : pipe.isHidden
+            ? 'opacity-0'
+            : 'opacity-0 hover:opacity-50'
+      "
       :style="{ color: pathBackgroundColorHex }"
     >
       <path
@@ -111,10 +119,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
     >
       <!-- Name -->
-      <input
+      <NativeInput
         ref="nameRef"
-        type="text"
-        class="w-fit min-w-fit max-w-fit border-0 bg-transparent text-center font-medium outline-none ring-0 focus:ring-0"
+        class="flex-shrink-0 font-medium transition-colors duration-150"
         :class="[
           isGeneratedName && !isInspected && !isHighlighted
             ? 'opacity-0'
@@ -123,16 +130,11 @@ defineExpose<ViewExposed>({ self, id, actions });
               : 'opacity-100',
           isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
         ]"
-        spellcheck="false"
-        data-suppress-drag="true"
-        :value="pipe.name"
-        :size="pipe.name.length + 3"
-        v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
-        @input="
-          guardNativeNameInput($event, pipe!.name, (newValue) =>
-            flowCtx.tx.update(pipe!, { name: newValue }, { debounce: 'long' }),
-          )
-        "
+        is-input
+        :value-type="NAME_TYPE"
+        :variant="Variant.STEALTH"
+        :model-value="pipe.name"
+        @update:model-value="(newValue) => flowCtx.tx.update(pipe!, { name: newValue }, { debounce: 'long' })"
       />
       <!-- Filter/Mapping -->
       <IconInline

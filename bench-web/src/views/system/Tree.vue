@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { createBlock, useHierarchicalNodeMoveActions } from "@/language/block";
-import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/language/const";
+import { PAGE_BLOCK_TYPES, toCamelName } from "@/language/const";
+import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
 import { cloneNode, moveNode } from "@/language/node";
 import {
@@ -13,6 +14,7 @@ import {
   ObjectType,
   Orientation,
   TreeViewPreset,
+  Variant,
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
@@ -30,16 +32,15 @@ import {
   VIEW_DEFAULT_HEADER_HEIGHT,
   VIEW_DEFAULT_MAX_WIDTH,
   VIEW_DEFAULT_MIN_WIDTH,
-  getNativeConstraintProps,
-  guardNativeNameInput,
   makeSelection,
   useViewExpansion,
-  useViewState,
+  useViewState
 } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
@@ -162,7 +163,7 @@ const focusedNode = computed(() => focusedItem.value?.node);
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
-const editingNameRef: Ref<HTMLInputElement[]> = ref([]);
+const editingNameRef: Ref<InstanceType<typeof NativeInput>[]> = ref([]);
 
 function cancelRename() {
   editingNodePtr.value = null;
@@ -490,35 +491,32 @@ defineExpose<ViewExposed>({ self, actions, focus });
             ]"
           />
           <!-- Name (editable) if editing -->
-          <input
+          <NativeInput
             v-if="node.id == editingNodePtr?.id"
             ref="editingNameRef"
             v-outside.mousedown.stop="cancelRename"
-            class="flex-1 rounded border-0 bg-transparent outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-            spellcheck="false"
-            :value="(node as any).name"
-            v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
-            @click.stop
+            class="flex-shrink-0 transition-colors duration-150"
+            is-input
+            :value-type="NAME_TYPE"
+            :variant="Variant.STEALTH"
+            :model-value="(node as any).name"
             @keydown.enter.stop.prevent="cancelRename"
             @keydown.escape.stop.prevent="cancelRename"
-            @input="
-              guardNativeNameInput($event, (node as any).name, (newValue) => {
-                pkgConnection.tx.update(node!, { name: newValue }, { debounce: 'long' });
-              })
-            "
+            @update:model-value="(newValue) => pkgConnection.tx.update(node, { name: newValue }, { debounce: 'long' })"
           />
           <!-- Name otherwise -->
           <span
             v-else
             class="select-none truncate group-hover:text-primary-900"
-            :class="
+            :class="[
               isFocused(node) || canvas.isInspected(node)
                 ? 'text-primary-900'
                 : canvas.isHighlighted(node)
                   ? 'text-primary-700'
-                  : ''
-            "
-            v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
+                  : '',
+              (node as any).name != null ? '' : 'italic',
+            ]"
+            v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />
           <!-- Meta -->
           <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[3px]">

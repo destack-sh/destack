@@ -115,7 +115,7 @@ NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=12
 TITLE_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
-URL_REGEX = rf"^(https?://)?([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2, 5}(:[0-9]{1, 5})?([/?#]([\-_.!~*'()a-zA-Z0-9;=:@&=+$,]|%[0-9a-fA-F]{2})*)?)$"
+URL_REGEX = rf"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2, }(?:\/\S*)?$"
 URL_CONSTRAINT = TypeConstraintIn(regex=URL_REGEX)
 PHONE_NUMBER_REGEX = rf"^\+?[0-9]{1, 3}[-. ]?[0-9]{3}[-. ]?[0-9]{4}$"
 PHONE_NUMBER_CONSTRAINT = TypeConstraintIn(regex=PHONE_NUMBER_REGEX)

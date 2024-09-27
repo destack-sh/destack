@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
-import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, type TypeIdentity } from "@/language/field";
+import { OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
+import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
 import {
   FLOW_GRID_STEP,
   FLOW_PORT_SIZE,
@@ -27,18 +27,19 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
-import { canvas, inspectionPtr } from "@/system/space";
+import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
 import { getNodeIcon, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import { ACCENT_COLOR_BY_RUN_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
+import { focusInElement } from "@/ui/view";
 import { formatDuration, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
 import Field from "@/views/system/Field.vue";
 import { useElementSize } from "@vueuse/core";
@@ -60,7 +61,7 @@ const { step, fields, nodePtr, node, nodeFields, ports } = stepState;
 const isInspected = computed(() => canvas.isInspected(stepPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
 
-const nameRef: Ref<HTMLInputElement | null> = ref(null);
+const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
@@ -168,7 +169,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   // common
   "common.edit.rename": {
     action: () => {
-      nextTick(() => nameRef.value!.focus());
+      nextTick(() => focusInElement(nameRef.value!));
     },
   },
   "common.create.above": (action, ctx) => {
@@ -228,37 +229,29 @@ defineExpose<ViewExposed>({ self, id, actions });
       }"
     >
       <!-- Icon/Name -->
-      <div class="flex-shrink-0">
-        <IconInline
-          v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
-          v-menu="
-            (): PopoverInfoIn => ({
-              component: Icon,
-              placement: 'bottom-right',
-              offset: '-referenceWidth',
-              props: { modelValue: step!.icon, isInput: true },
-              onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
-            })
-          "
-          v-bind="getNodeIcon(step)"
-          class="w-5 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-        />
-        <input
-          ref="nameRef"
-          type="text"
-          class="ml-0.5 w-fit min-w-fit max-w-fit rounded border-0 bg-transparent px-1 font-medium text-gray-700 outline-none ring-0 transition-colors duration-150 hover:bg-gray-100 focus:ring-0"
-          spellcheck="false"
-          data-suppress-drag="true"
-          :value="step.name"
-          :size="Math.max(step.name.length, 3)"
-          v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
-          @input="
-            guardNativeNameInput($event, step!.name, (newValue) =>
-              flowCtx.tx.update(step!, { name: newValue }, { debounce: 'long' }),
-            )
-          "
-        />
-      </div>
+      <IconInline
+        v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
+        v-menu="
+          (): PopoverInfoIn => ({
+            component: Icon,
+            placement: 'bottom-right',
+            offset: '-referenceWidth',
+            props: { modelValue: step!.icon, isInput: true },
+            onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
+          })
+        "
+        v-bind="getNodeIcon(step)"
+        class="w-5 flex-shrink-0 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      />
+      <NativeInput
+        ref="nameRef"
+        class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+        is-input
+        :value-type="NAME_TYPE"
+        :variant="Variant.STEALTH"
+        :model-value="step.name"
+        @update:model-value="(newValue) => flowCtx.tx.update(step!, { name: newValue }, { debounce: 'long' })"
+      />
       <!-- Controls/Meta -->
       <div class="ml-auto flex flex-row pl-2 pr-0.5">
         <!-- Status -->

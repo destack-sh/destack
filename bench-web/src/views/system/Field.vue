@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NAME_CONSTRAINT } from "@/language/const";
+import { NAME_TYPE } from "@/language/field";
 import { NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -8,10 +8,11 @@ import type { ActionMapImplementation } from "@/ui/action";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
+import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
@@ -25,7 +26,7 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const fieldRef = ref<HTMLElement | null>(null);
-const nameRef = ref<HTMLElement | null>(null);
+const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
 
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.FIELD>);
 const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
@@ -38,7 +39,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   // common
   "common.edit.rename": {
     action: () => {
-      nextTick(() => nameRef.value!.focus());
+      nextTick(() => focusInElement(nameRef.value!));
     },
   },
   // type
@@ -109,20 +110,15 @@ defineExpose<ViewExposed>({ self, id, actions });
             : 'text-gray-700'
       "
     />
-    <input
+    <NativeInput
       ref="nameRef"
-      type="text"
-      class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-      :class="orientation == Orientation.HORIZONTAL_REVERSED ? 'text-right' : ''"
-      spellcheck="false"
-      :value="field.name"
-      :size="(field.name?.length ?? 0) + 3"
-      v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
-      @input="
-        guardNativeNameInput($event, field.name, (newValue) =>
-          pkgConnection.tx.update(field!, { name: newValue }, { debounce: 'long' }),
-        )
-      "
+      class="flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+      :orientation="orientation"
+      is-input
+      :value-type="NAME_TYPE"
+      :variant="Variant.STEALTH"
+      :model-value="field.name"
+      @update:model-value="(newValue) => pkgConnection.tx.update(field!, { name: newValue }, { debounce: 'long' })"
     />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="pkgConnection" />

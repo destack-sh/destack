@@ -24,6 +24,7 @@ import {
   SignalData,
   StepType,
   StructType,
+  TypeFormat,
   ViewDataInfo,
   ViewProperty,
   ViewType,
@@ -332,6 +333,9 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
     [PrimitiveType.UUID]: "UUID",
     [PrimitiveType.JSON]: "JSON",
     [PrimitiveType.DATETIME]: "Date",
+  },
+  [EnumType.TYPE_FORMAT]: {
+    [TypeFormat.URL]: "URL",
   },
   [EnumType.MODEL_PROVIDER]: {
     [ModelProvider.OPENAI]: "OpenAI",
