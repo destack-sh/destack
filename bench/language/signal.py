@@ -43,7 +43,7 @@ class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
     )
 
     # context
-    # ...HasSessionContext[70-79]
+    # ...HasSessionContext[70-89]
 
     @property
     def value_type(self) -> "TypeInfoBase | None":

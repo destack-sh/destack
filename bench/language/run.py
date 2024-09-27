@@ -413,7 +413,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
     events: list["RunEvent"] = p_internal(67, array=True, struct=StructType.RUN_EVENT)
 
-    # ...HasSessionContext[70-79]
+    # ...HasSessionContext[70-89]
 
     runs: list["Run"] = p_node_children(NodeType.RUN)
 

@@ -182,7 +182,10 @@ return True
                 track=self.is_tracked,
                 inputs=self.inputs,
             )
-            await self.runtime.run_runner(code_runner)
+            try:
+                await self.runtime.run_runner(code_runner)
+            except Exception as e:
+                raise ModelFailedError(f"failed to run code: {e}") from e
         self.outputs = code_runner.outputs
 
     async def render_system_message(

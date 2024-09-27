@@ -4156,6 +4156,8 @@ class SessionContextData(_message.Message):
         "metatype",
         "block_ptr",
         "step_ptr",
+        "pipe_ptr",
+        "view_ptr",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -4168,6 +4170,8 @@ class SessionContextData(_message.Message):
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STEP_PTR_FIELD_NUMBER: _ClassVar[int]
+    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4179,6 +4183,8 @@ class SessionContextData(_message.Message):
     metatype: ObjectType
     block_ptr: NodeReferenceData
     step_ptr: NodeReferenceData
+    pipe_ptr: NodeReferenceData
+    view_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -4192,6 +4198,8 @@ class SessionContextData(_message.Message):
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -6016,6 +6024,8 @@ class LogData(_message.Message):
         "vignette",
         "block_ptr",
         "step_ptr",
+        "pipe_ptr",
+        "view_ptr",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -6056,6 +6066,8 @@ class LogData(_message.Message):
     VIGNETTE_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STEP_PTR_FIELD_NUMBER: _ClassVar[int]
+    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6095,6 +6107,8 @@ class LogData(_message.Message):
     vignette: ChangeVignetteData
     block_ptr: NodeReferenceData
     step_ptr: NodeReferenceData
+    pipe_ptr: NodeReferenceData
+    view_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -6136,6 +6150,8 @@ class LogData(_message.Message):
         vignette: _Optional[_Union[ChangeVignetteData, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -7107,6 +7123,8 @@ class RunData(_message.Message):
         "events",
         "block_ptr",
         "step_ptr",
+        "pipe_ptr",
+        "view_ptr",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -7157,6 +7175,8 @@ class RunData(_message.Message):
     EVENTS_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STEP_PTR_FIELD_NUMBER: _ClassVar[int]
+    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -7206,6 +7226,8 @@ class RunData(_message.Message):
     events: _containers.RepeatedCompositeFieldContainer[RunEventData]
     block_ptr: NodeReferenceData
     step_ptr: NodeReferenceData
+    pipe_ptr: NodeReferenceData
+    view_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -7257,6 +7279,8 @@ class RunData(_message.Message):
         events: _Optional[_Iterable[_Union[RunEventData, _Mapping]]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -7593,6 +7617,8 @@ class SignalData(_message.Message):
         "value_packed",
         "block_ptr",
         "step_ptr",
+        "pipe_ptr",
+        "view_ptr",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -7621,6 +7647,8 @@ class SignalData(_message.Message):
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STEP_PTR_FIELD_NUMBER: _ClassVar[int]
+    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -7648,6 +7676,8 @@ class SignalData(_message.Message):
     value_packed: _struct_pb2.Struct
     block_ptr: NodeReferenceData
     step_ptr: NodeReferenceData
+    pipe_ptr: NodeReferenceData
+    view_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -7677,6 +7707,8 @@ class SignalData(_message.Message):
         value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,

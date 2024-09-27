@@ -594,7 +594,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
             check_value_scalar_constraint(
                 value, typ, TYPE_CONSTRAINT_BY_FORMAT[typ.format], invalid
             )
-        # strings cannot be empty (because we use protobuf and have to disambiguate unset from empty)
+        # strings cannot be empty (because of protobuf we must disambiguate unset from empty)
         if type(value) is str and len(value) == 0:
             invalid(value, "empty string", typ)
         # check bounds
@@ -884,6 +884,10 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
     elif typ.kind == TypeKind.STRUCT:
         if isinstance(value, BuiltinObject):
             value = value._to_data()
+        else:
+            assert hasattr(
+                value, "metatype"
+            ), f"unexpected value {value!r} ({type(value)!r}) for {typ!r}"
         return pack_builtin_object_data(cast(AnyStructData | AnyNodeData, value))
     else:
         raise TypeError(f"cannot pack value of type {typ!r}")
