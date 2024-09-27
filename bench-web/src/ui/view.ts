@@ -1,12 +1,11 @@
-import { isEnumType, isNodeType, NAME_CONSTRAINT } from "@/language/const";
-import { getPropertyType, getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
+import { isEnumType, isNodeType } from "@/language/const";
+import { getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { type DebounceLevel, type Transaction } from "@/language/transaction";
-import { checkValueScalar, checkValueScalarConstraint, packBuiltinObject, unpackBuiltinObject } from "@/language/value";
+import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 import {
   Anchor,
   BenchType,
-  BlockProperty,
   FieldData,
   FieldZone,
   FileType,
@@ -14,7 +13,6 @@ import {
   NodeType,
   ObjectType,
   PrimitiveType,
-  PROPERTY_INFOS_BY_TYPE,
   SelectionData,
   SelectionKind,
   SelectionTarget,
@@ -28,11 +26,10 @@ import {
   Vector3Data,
   Vector4Data,
   ViewData,
-  ViewProperty,
   ViewType,
   type AnyNodeData,
   type AnyNodeReferenceData,
-  type AnyTypeMapping,
+  type AnyTypeMapping
 } from "@/proto/wire";
 import {
   isNodeRef,
@@ -333,76 +330,6 @@ export function getNativeConstraintProps(constraint?: Partial<TypeConstraintData
     props.max = constraint.maxValue.toString();
   }
   return props;
-}
-
-/**
- * Guards and coerces an event listener with a constraint.
- * Forward the value if it passes, otherwise revert the event target to the old value
- * NOTE :UX: guardNativeInput behavior is annoying (forbids temporarily invalid values)
- *  (our use of native input for many things is annoying anyway because we can't size its width to fit the content)
- */
-export function guardNativeInput<T extends string | number | bigint>(
-  type: TypeIdentity,
-  constraint: Partial<TypeConstraintData> | undefined,
-  event: Event,
-  oldValue: T | undefined,
-  onAccept: (T: string | number | undefined) => void,
-) {
-  // coerce
-  let newValue: string | number | undefined = (event.target as HTMLInputElement).value ?? "";
-  if (newValue == "") newValue = undefined;
-  if (
-    newValue != undefined &&
-    [
-      PrimitiveType.INT16,
-      PrimitiveType.INT32,
-      PrimitiveType.INT64,
-      PrimitiveType.FLOAT32,
-      PrimitiveType.FLOAT64,
-    ].includes(type.primitiveType!)
-  ) {
-    newValue = parseFloat(newValue);
-    if (isNaN(newValue)) {
-      newValue = 0;
-    }
-  }
-
-  // check
-  const errors = [];
-  if (newValue == null) {
-    if (type.isRequired) {
-      errors.push("missing value");
-    }
-  } else {
-    checkValueScalar(newValue, type, (v, m, t) => errors.push(m));
-    if (constraint != null) {
-      checkValueScalarConstraint(newValue, type, constraint, (v, m, t) => errors.push(m));
-    }
-  }
-  if (errors.length > 0) {
-    const input = event.target as HTMLInputElement;
-    input.value = oldValue?.toString() ?? "";
-  } else {
-    onAccept(newValue);
-  }
-}
-export function guardNativeNameInput(event: Event, oldValue: string | undefined, onAccept: (name: string) => void) {
-  return guardNativeInput(
-    getPropertyType(PROPERTY_INFOS_BY_TYPE[ObjectType.BLOCK][BlockProperty.name]),
-    NAME_CONSTRAINT,
-    event,
-    oldValue,
-    (newValue: any) => onAccept(newValue as string),
-  );
-}
-export function guardNativeTitleInput(event: Event, oldValue: string | undefined, onAccept: (title: string) => void) {
-  return guardNativeInput(
-    getPropertyType(PROPERTY_INFOS_BY_TYPE[ObjectType.VIEW][ViewProperty.title]),
-    NAME_CONSTRAINT,
-    event,
-    oldValue,
-    (newValue: any) => onAccept(newValue as string),
-  );
 }
 
 /** Set or unset the pinned 'nodePtr' for a Helper View (they normally default to some active node or some other empty state). */

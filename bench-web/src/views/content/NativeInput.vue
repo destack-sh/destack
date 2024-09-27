@@ -1,12 +1,13 @@
 <script lang="ts" setup>
-import { ColorShade, ColorType, NodeType, Variant, ViewType, type ViewData } from "@/proto/wire";
+import { STRING_TYPE, typeIsNumeric } from "@/language/field";
+import { checkValueScalar, checkValueScalarConstraint } from "@/language/value";
+import { ColorShade, NodeType, Orientation, Variant, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
-import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { computed, Ref, ref, toRef } from "vue";
-import { STRING_TYPE_IDENTITY } from "@/language/field";
+import { IconInline } from "@/ui/icon";
+import { getNativeConstraintProps } from "@/ui/view";
+import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
@@ -18,6 +19,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const valueType = computed(() => props.valueType ?? STRING_TYPE);
 const modelValue = defineModel<string | number | bigint | Array<string | number | bigint>>();
 const hasValue = computed(() => {
   if (modelValue.value == null) return false;
@@ -29,7 +31,6 @@ const values = computed(() => {
   else if (props.valueType?.isList) return modelValue.value as any[];
   else return [modelValue.value];
 });
-const addingValue: Ref<string | number | bigint | null> = ref(null);
 const inputRef = ref<HTMLInputElement | null>(null);
 const inputType = computed(() => {
   if (props.valueType?.isSecret) return "password";
@@ -37,17 +38,56 @@ const inputType = computed(() => {
   else return "text";
 });
 
+// sync currentValue (may be invalid) with modelValue
+const currentValue: Ref<string | null | undefined> = ref(null);
+watch(
+  modelValue,
+  (newValue) => (currentValue.value = Array.isArray(newValue) ? currentValue.value : newValue?.toString()),
+  {
+    immediate: true,
+  },
+);
+const validationError: Ref<string | null> = ref(null);
+watch(currentValue, (newValue) => {
+  let value: any = newValue;
+  if (typeIsNumeric(valueType.value)) {
+    value = parseFloat(newValue as string);
+    if (isNaN(value)) {
+      value = null;
+    }
+  }
+
+  // check
+  const errors = [];
+  if (value == null) {
+    if (valueType.value.isRequired) {
+      errors.push("missing value");
+    }
+  } else {
+    checkValueScalar(value, valueType.value, (v, m, t) => errors.push(m));
+    if (valueType.value.constraint != null) {
+      checkValueScalarConstraint(value, valueType.value, valueType.value.constraint, (v, m, t) => errors.push(m));
+    }
+  }
+  validationError.value = errors.length > 0 ? errors[0] : null;
+
+  // auto-sync with modelValue for scalars (lists are added on demand)
+  if (errors.length == 0 && !valueType.value.isList) {
+    emit("update:modelValue", value);
+  }
+});
+
 function addNewValue() {
   if (!props.valueType?.isList) throw new Error(`cannot add to non-list`);
-  if (addingValue.value != null) return;
-  if (props.type == ViewType.NUMBER) addingValue.value = 0;
-  else addingValue.value = "";
+  if (currentValue.value != null) return;
+  currentValue.value = "";
 }
 function addCurrentValue() {
   if (!props.valueType?.isList) throw new Error(`cannot add to non-list`);
-  if (addingValue.value == null) return;
-  emit("update:modelValue", ((modelValue.value as any[]) ?? []).concat(addingValue.value));
-  addingValue.value = null;
+  if (currentValue.value == null) return;
+  if (validationError.value != null) return; // invalid
+  emit("update:modelValue", ((modelValue.value as any[]) ?? []).concat(currentValue.value));
+  currentValue.value = null;
 }
 function clear() {
   if (!props.valueType?.isList) emit("update:modelValue", undefined);
@@ -63,17 +103,29 @@ function remove(idx: number) {
 
 const id = makeViewId(props);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
+defineExpose<ViewExposed & { select: () => void }>({
+  self,
+  id,
+  focus: () => inputRef.value,
+  select: () => {
+    if (inputRef.value != null) inputRef.value.select();
+  },
+});
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
     <!-- Input -->
     <div
       v-if="isInput"
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-300"
       :class="[
-        isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
-        variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1' : '',
+        isDisabled
+          ? 'bg-gray-100 text-gray-700'
+          : variant != Variant.STEALTH
+            ? 'bg-white text-gray-900'
+            : 'text-gray-900',
+        variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1 outline-1 focus-within:outline' : '',
+        validationError != null ? 'outline-danger-600' : 'outline-primary-900',
       ]"
     >
       <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S400" class="mr-0.5 w-5" />
@@ -82,28 +134,22 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
         <!-- Scalar -->
         <input
           ref="inputRef"
-          :value="modelValue"
+          :value="currentValue"
           spellcheck="false"
           :type="inputType"
-          class="flex-1 border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
+          class="flex-1 border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 focus:ring-0"
+          :class="[
+            orientation == Orientation.HORIZONTAL_REVERSED ? 'text-right' : '',
+            validationError != null ? 'text-danger-600' : '',
+          ]"
+          :size="variant == Variant.STEALTH ? ((currentValue as string)?.length ?? 0) + 1 : undefined"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :disabled="isDisabled"
-          @input="
-            guardNativeInput(
-              valueType ?? STRING_TYPE_IDENTITY,
-              valueType?.constraint,
-              $event,
-              values[0],
-              (newValue) => {
-                console.log(valueType, $event, newValue)
-                emit('update:modelValue', newValue);
-              },
-            )
-          "
+          @input="currentValue = ($event.target as HTMLInputElement).value"
         />
         <!-- Clear -->
         <button
-          v-if="!isDisabled && !valueType?.isRequired && hasValue"
+          v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"
           class="ml-auto pl-1 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="clear"
         >
@@ -125,24 +171,17 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
         </div>
         <!-- New value -->
         <input
-          v-if="addingValue != null"
+          v-if="currentValue != null"
           ref="inputRef"
-          :value="addingValue"
+          :value="currentValue"
           spellcheck="false"
           :type="inputType"
           class="rounded border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-900 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
+          :size="variant == Variant.STEALTH ? ((currentValue as string)?.length ?? 0) + 1 : undefined"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
-          @input="
-            guardNativeInput(
-              valueType ?? STRING_TYPE_IDENTITY,
-              valueType?.constraint,
-              $event,
-              values[0],
-              (newValue) => (addingValue = newValue ?? null),
-            )
-          "
+          @input="currentValue = ($event.target as HTMLInputElement).value"
         />
         <!-- Add to list-->
         <button
@@ -162,7 +201,9 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
     >
       <template v-if="!valueType?.isList">
         <!-- Scalar -->
-        <span class="text-left">{{ modelValue }}</span>
+        <span :class="orientation == Orientation.HORIZONTAL_REVERSED ? 'text-right' : 'text-left'">
+          {{ modelValue }}
+        </span>
       </template>
       <template v-else>
         <!-- List -->

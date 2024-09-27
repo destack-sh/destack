@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
+import { toCamelName } from "@/language/const";
+import { NAME_TYPE } from "@/language/field";
 import { getNodeType } from "@/language/node";
-import { ObjectType, PROPERTY_ENUM_BY_TYPE, ViewType, type AnyNodeData } from "@/proto/wire";
+import { ObjectType, PROPERTY_ENUM_BY_TYPE, Variant, ViewType, type AnyNodeData } from "@/proto/wire";
 import { describeNode, isNode, type SomeNodeReferenceData } from "@/proto/wiring";
 import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
-import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
-import { canvas } from "@/utils/globals";
+import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
@@ -22,10 +22,14 @@ const nodeTypeName = computed(() => (nodeType.value != null ? toCamelName(Object
 const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY_TYPE[nodeType.value] : null));
 const hasName = computed(() => nodeProperties.value != null && "name" in nodeProperties.value);
 const name = computed(() => (props.node as any).name);
-const editingName = ref(false);
 </script>
 <template>
-  <div :data-node-id="node.id" :data-node-ck="(node as any).ck" :data-node-type="node.metatype">
+  <div
+    :data-node-id="node.id"
+    :data-node-ck="(node as any).ck"
+    :data-node-type="node.metatype"
+    class="flex flex-row items-center"
+  >
     <!-- NOTE :UX: hover preview for node references (files, pages, databases, ...) :NodePreviews -->
     <!-- Icon -->
     <IconInline
@@ -47,30 +51,16 @@ const editingName = ref(false);
       :class="isInput ? 'cursor-pointer' : ''"
     />
     <!-- Name (editable & has name) -->
-    <input
-      v-if="hasName && editingName"
-      ref="inputRef"
-      v-outside.mousedown="{ callback: () => (editingName = false), delay: 100 }"
-      class="ml-1 truncate rounded border-0 bg-gray-100 px-1 py-0.5 outline-none ring-0 focus:ring-0"
-      spellcheck="false"
-      :value="name ?? nodeTypeName"
-      v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
-      :size="(name?.length ?? nodeTypeName.length) + 3"
-      @keydown.enter.stop.prevent="editingName = false"
-      @input="
-        guardNativeNameInput($event, (node as any).name, (newValue) => {
-          if (!isNode(node)) throw new Error(`unexpected node: ${describeNode(node)}`);
-          connection.tx.update(node!, { name: newValue }, { debounce: 'long' });
-        })
+    <NativeInput
+      ref="nameRef"
+      class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+      :is-input="hasName && isInput"
+      :value-type="NAME_TYPE"
+      :variant="Variant.STEALTH"
+      :model-value="(node as any).name ?? (node as any).title ?? '???'"
+      @update:model-value="
+        (newValue) => isNode(node) && connection.tx.update(node, { name: newValue }, { debounce: 'long' })
       "
     />
-    <button
-      v-else
-      :disabled="!isInput"
-      class="ml-1 cursor-text truncate rounded px-1 py-0.5 hover:bg-gray-100"
-      @click.stop.prevent="(editingName = true), $nextTick(() => inputRef?.focus())"
-    >
-      {{ (node as any).name ?? (node as any).title ?? "???" }}
-    </button>
   </div>
 </template>

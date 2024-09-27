@@ -2,6 +2,7 @@ import {
   CLASSY_BLOCK_TYPES,
   getTkB64FromCk,
   getTkB64FromPtr,
+  NAME_CONSTRAINT,
   padCkFromTkB64,
   RUNNABLE_BLOCK_TYPES,
   TK_LENGTH_B64,
@@ -129,7 +130,17 @@ export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): 
   return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_INFO });
 }
 
-export const STRING_TYPE_IDENTITY = makeTypeInfo({ kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.STRING });
+export const STRING_TYPE = makeTypeInfo({ kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.STRING });
+export const NAME_TYPE = makeTypeInfo({
+  kind: TypeKind.PRIMITIVE,
+  primitiveType: PrimitiveType.STRING,
+  constraint: makeTypeConstraint(NAME_CONSTRAINT),
+});
+export const TITLE_TYPE = makeTypeInfo({
+  kind: TypeKind.PRIMITIVE,
+  primitiveType: PrimitiveType.STRING,
+  constraint: makeTypeConstraint(NAME_CONSTRAINT),
+});
 
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};
 

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { TITLE_CONSTRAINT, toCamelName } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
+import { toCamelName } from "@/language/const";
+import { makeTypeInfo, TITLE_TYPE } from "@/language/field";
 import { emptyText, isTextEmpty, trimText } from "@/language/text";
 import {
   BenchType,
@@ -34,7 +34,7 @@ import { DEFAULT_USER_ICON, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import { graphIndex } from "@/ui/search";
-import { getNativeConstraintProps, guardNativeInput, guardNativeNameInput, makeSelection } from "@/ui/view";
+import { makeSelection } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { generateRandomName } from "@/utils/naming";
 import { computedValue } from "@/utils/ref";
@@ -43,6 +43,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -343,20 +344,13 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             class="fas fa-message mr-1.5 w-5 text-center"
             :class="[thread == null ? 'text-gray-400' : 'text-gray-700']"
           />
-          <input
-            class="truncate rounded border-0 bg-transparent py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-            :class="[thread == null ? 'text-gray-400' : 'text-gray-900', thread?.title != null ? 'font-medium' : '']"
-            spellcheck="false"
-            :value="thread?.title"
-            :size="(thread?.title?.length ?? 10) + 1"
-            :disabled="thread == null"
-            :placeholder="thread == null ? 'New Thread' : 'Untitled Thread'"
-            v-bind="getNativeConstraintProps(TITLE_CONSTRAINT)"
-            @input="
-              guardNativeNameInput($event, thread?.title, (newValue) =>
-                pkgConnection.tx.update(node!, { title: newValue }, { debounce: 'long' }),
-              )
-            "
+          <NativeInput
+            class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+            is-input
+            :value-type="TITLE_TYPE"
+            :variant="Variant.STEALTH"
+            :model-value="thread?.title"
+            @update:model-value="(newValue) => pkgConnection.tx.update(node!, { name: newValue }, { debounce: 'long' })"
           />
           <!-- Select thread -->
           <button

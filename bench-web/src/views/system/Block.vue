@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
-import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
+import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
+import { createField, makeTypeInfo, NAME_TYPE, resolveType, type TypeIdentity } from "@/language/field";
 import { isGeneratedNodeName } from "@/language/node";
 import { isRunnable } from "@/language/session";
 import { packValue, unpackValue } from "@/language/value";
@@ -23,15 +23,16 @@ import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import { IconInline, getNodeIcon } from "@/ui/icon";
+import { getNodeIcon, IconInline } from "@/ui/icon";
 import { onMouseReleasedOnce } from "@/ui/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
+import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
 import Flow from "@/views/system/Flow.vue";
@@ -50,7 +51,7 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const blockRef = ref<HTMLElement | null>(null);
-const nameRef = ref<HTMLElement | null>(null);
+const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
@@ -120,7 +121,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   // common
   "common.edit.rename": {
     action: () => {
-      nextTick(() => nameRef.value!.focus());
+      nextTick(() => focusInElement(nameRef.value!));
     },
   },
 };
@@ -149,6 +150,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div class="flex flex-row">
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <div
+        class="flex flex-shrink-0 flex-row"
         @mousedown="
           () =>
             blockRef!.draggable ||
@@ -170,21 +172,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="w-5 rounded py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
           :class="isQuasiAnonymous ? 'text-gray-400' : 'text-gray-700'"
         />
-        <input
+        <NativeInput
           ref="nameRef"
-          type="text"
-          class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 transition-colors duration-75 hover:bg-gray-100 focus:ring-0"
-          :class="[isQuasiAnonymous ? 'px-0.5 text-gray-400' : 'ml-0.5 px-1 font-medium']"
-          data-suppress-drag="true"
-          spellcheck="false"
-          :value="block.name"
-          :size="block.name.length + 3"
-          v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
-          @input="
-            guardNativeNameInput($event, block!.name, (newValue) =>
-              pkgConnection.tx.update(block!, { name: newValue }, { debounce: 'long' }),
-            )
-          "
+          class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+          is-input
+          :value-type="NAME_TYPE"
+          :variant="Variant.STEALTH"
+          :model-value="block.name"
+          @update:model-value="(newValue) => pkgConnection.tx.update(block!, { name: newValue }, { debounce: 'long' })"
         />
       </div>
       <!-- Tags, triggers, roles, queries, etc. -->
