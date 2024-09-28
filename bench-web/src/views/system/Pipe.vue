@@ -3,11 +3,11 @@ import { toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName } from "@/language/node";
-import { ColorShade, ColorType, NodeType, PipeFilterType, PipeType, PortType, Variant, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeFilter, PipeType, PortType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
-import { ICON_BY_PIPE_FILTER_TYPE, IconInline } from "@/ui/icon";
+import { ICON_BY_PIPE_FILTER, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -137,9 +137,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       />
       <!-- Filter/Mapping -->
       <IconInline
-        v-if="pipe.filterType != null"
-        v-tooltip="{ title: toCamelName(PipeFilterType, pipe.filterType), small: true }"
-        v-bind="ICON_BY_PIPE_FILTER_TYPE[pipe.filterType]"
+        v-if="pipe.filter != null"
+        v-tooltip="{ title: toCamelName(PipeFilter, pipe.filter), small: true }"
+        v-bind="ICON_BY_PIPE_FILTER[pipe.filter]"
         class="w-fit rounded bg-white text-center text-gray-700"
       />
     </div>

@@ -99,8 +99,8 @@ def test_node_pointers_consistency(session: "Session"):
     assert block_a_1.to_ref().equals(
         NodeReference(type=NodeType.BLOCK, id=block_a_1.id, ck=block_a_1.ck, bench_id=bench_a.id)
     )
-    block_a_2 = package_a.blocks.create(type=BlockType.CODE)
-    block_a_1.bases = [block_a_2]
+    block_a_2 = package_a.blocks.create(type=BlockType.ROLE)
+    block_a_1.roles = [block_a_2]
 
     # based pointers
     signal_a = Signal(parent=package_a, type=block_a_1)
@@ -125,8 +125,8 @@ def test_node_pointers_consistency(session: "Session"):
     package_b = branch_b.packages.create()
     block_b = package_b.blocks.create(type=BlockType.CODE, bases=[block_a_1])
     assert block_b.bench_id == bench_b.id
-    assert block_b.bases
-    assert block_b.bases[0].bench_id == bench_a.id
+    assert block_b.roles
+    assert block_b.roles[0].bench_id == bench_a.id
     signal_b = Signal(parent=package_b, type=block_a_1)
     assert signal_b.bench_id == bench_b.id
     assert signal_b.to_ref().equals(

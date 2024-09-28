@@ -408,8 +408,10 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     outputs: "ValueObject | None" = p_value_runtime(
         61, typ=lambda self: cast("Run", self).output_type
     )
-    value_packed: Any = p_value_packed(62)
-    value: "ValueObject | None" = p_value_runtime(62, typ=None)  # freely typed
+    variables_packed: Any = p_value_packed(62)
+    variables: "ValueObject | None" = p_value_runtime(
+        62, typ=lambda self: cast("Run", self).variable_type
+    )
     logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
     events: list["RunEvent"] = p_internal(67, array=True, struct=StructType.RUN_EVENT)
@@ -431,13 +433,22 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         return self.status not in TERMINAL_RUN_STATUSES
 
     @property
+    def variable_type(self) -> "TypeInfoBase | None":
+        if self.step is not None:
+            return self.step.variable_type
+        elif self.block is not None:
+            return self.block.variable_type
+        else:
+            return None
+
+    @property
     def input_type(self) -> "TypeInfoBase | None":
         if self.step is not None:
             return self.step.input_type
         elif self.block is not None:
             return self.block.input_type
         else:
-            return None  # freely typed
+            return None
 
     @property
     def output_type(self) -> "TypeInfoBase | None":
@@ -446,7 +457,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         elif self.block is not None:
             return self.block.output_type
         else:
-            return None  # freely typed
+            return None
 
     @property
     def base(self) -> Optional["Step | Block"]:

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast, final
 from uuid import UUID
 
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
         Box,
         Code,
         Color,
+        Expression,
         Field,
         Icon,
         Line,
@@ -42,101 +44,12 @@ if TYPE_CHECKING:
         RunOptions,
         Text,
         Trigger,
+        TypeConstraint,
         TypeInfo,
         Vector2,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@enum_(EnumType.PIPE_TYPE)
-class PipeType(IdEnum):
-    CONTROL_AND_DATA = 1  # then: value + fire
-    DATA = 2  # with: value
-
-
-@enum_(EnumType.PIPE_FILTER_TYPE)
-class PipeFilterType(IdEnum):
-    # positive
-    IS_NON_EMPTY = 1  # drop empty (None, empty, False, 0, ...)
-    IS_TRUTHY = 2  # drop falsy (None, empty, False, 0, ...)
-    # IS_VALID = 3  # keep valid (drop invalid)
-    # negative
-    IS_EMPTY = 50  # keep empty only (None, empty, "", ...)
-    IS_FALSY = 51  # keep falsy only (None, empty, False, 0, ...)
-    # IS_INVALID doesn't make sense? (would need to know: valid for what target port?)
-    # other
-    HAS_ERROR = 100  # keep if run failed
-
-
-@local_node_(NodeType.PIPE)
-class Pipe(SourceNode[PipeData]):
-    """
-    A connection between two Steps in a Flow (source = outgoing, target = incoming).
-    Pipes are stored in the containing Flow or containing Step.
-    """
-
-    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
-
-    # connection
-    type: PipeType = p_internal(30)
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
-    source: "Step" = p_regular(35, require=True, references=NodeType.STEP)
-    source_port: "PortKey" = p_regular(36, require=True, struct=StructType.PORT_KEY)
-    target: "Step" = p_regular(37, require=True, references=NodeType.STEP)
-    target_port: "PortKey" = p_regular(38, require=True, struct=StructType.PORT_KEY)
-    if TYPE_CHECKING:
-        source_ptr: Optional[NodeReference] = None
-        target_ptr: Optional[NodeReference] = None
-
-    # filter
-    filter_type: PipeFilterType | None = p_regular(50, default=None)
-    # filter_constraint, filter_condition, ...
-    ...
-
-    # mapping/casting
-    ...
-
-    # view
-    line: Optional["Line"] = p_regular(
-        80,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.LINE,
-        description="Line points to cover.",
-    )
-    color: Optional["Color"] = p_regular(
-        81, default=None, require=False, array=False, struct=StructType.COLOR
-    )
-    is_hidden: bool = p_regular(82, default=False)
-
-    def __content_str__(self) -> str:
-        if self.type == PipeType.CONTROL_AND_DATA:
-            arrow_str = "->"
-        elif self.type == PipeType.DATA:
-            arrow_str = "-"
-        else:
-            assert_never(self.type)
-        if self.filter_type:
-            arrow_str += f"?[{self.filter_type.bench_name}]"
-        source = self.source
-        target = self.target
-        return f"{source.absolute_path if source else '???'}:{self.source_port} {arrow_str} {target.absolute_path if target else '???'}:{self.target_port}"
-
-    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):
-        # source and target must be distinct
-        if (
-            self.source == self.target
-            and self.source_port.field_ptr is not None
-            and self.source_port.field_ck == self.target_port.field_ck
-        ):
-            invalid(self, "source and target must be distinct", (Pipe.source, Pipe.target))
-
-    @staticmethod
-    def new(type: PipeType, name: str, **kwargs) -> "Pipe":
-        return Pipe(type=type, name=name, **kwargs)
 
 
 @enum_(EnumType.PORT_SIDE)
@@ -228,17 +141,121 @@ def to_port_key(port: PortIn, *, side: PortSide) -> PortKey:
         assert_never(port)
 
 
-@struct_(StructType.PORT)
-class Port(Struct, PortKeyBase):
+@enum_(EnumType.PIPE_TYPE)
+class PipeType(IdEnum):
+    CONTROL_AND_DATA = 1  # then: value + fire
+    DATA = 2  # with: value
+
+
+@enum_(EnumType.PIPE_FILTER)
+class PipeFilter(IdEnum):
+    # positive
+    IS_NON_EMPTY = 1  # drop empty (None, empty, False, 0, ...)
+    IS_TRUTHY = 2  # drop falsy (None, empty, False, 0, ...)
+    # IS_VALID = 3  # keep valid (drop invalid)
+    # negative
+    IS_EMPTY = 10  # keep empty only (None, empty, "", ...)
+    IS_FALSY = 11  # keep falsy only (None, empty, False, 0, ...)
+    # IS_INVALID doesn't make sense? (would need to know: valid for what target port?)
+    # run
+    HAS_ERROR = 20  # keep if run failed
+
+
+@enum_(EnumType.PIPE_MAPPING)
+class PipeMapping(IdEnum):
+    AUTO = 1
+
+
+@enum_(EnumType.PIPE_MODULATION)
+class PipeModulation(IdEnum):
+    FLATTEN = 10
+    ACCUMULATE = 11
+    WINDOW = 12
+    DEBOUNCE = 20
+    DELAY = 21
+
+
+@enum_(EnumType.PIPE_COMBINATOR)
+class PipeCombinator(IdEnum):
+    ZIP = 1
+    PRODUCT = 2
+
+
+@local_node_(NodeType.PIPE)
+class Pipe(SourceNode[PipeData]):
     """
-    Extra configuration for a port (key) on a Step with some value.
-    Not all ports need a Port, just if there is extra behavior to define.
+    A connection between two Steps in a Flow (source = outgoing, target = incoming).
+    Pipes are stored in the containing Flow or containing Step.
     """
 
-    # static/initial value
-    value_type: Optional["TypeInfo"] = p_regular(50, default=None, struct=StructType.TYPE_INFO)
-    value_packed: Any = p_value_packed(51)
-    value: Any = p_value_runtime(51, typ=None)
+    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
+
+    # connection
+    type: PipeType = p_internal(30)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
+    source: "Step" = p_regular(35, require=True, references=NodeType.STEP)
+    source_port: "PortKey" = p_regular(36, require=True, struct=StructType.PORT_KEY)
+    target: "Step" = p_regular(37, require=True, references=NodeType.STEP)
+    target_port: "PortKey" = p_regular(38, require=True, struct=StructType.PORT_KEY)
+    if TYPE_CHECKING:
+        source_ptr: Optional[NodeReference] = None
+        target_ptr: Optional[NodeReference] = None
+
+    # filter (on source side)
+    filter: PipeFilter | None = p_regular(50, default=None)
+    constraint: Optional["TypeConstraint"] = p_regular(
+        51, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
+    )
+    condition: Optional["Expression"] = p_regular(
+        52, default=None, array=False, struct=StructType.EXPRESSION
+    )
+
+    # mapping
+    mapping: PipeMapping | None = p_regular(60, default=None)
+    modulation: PipeModulation | None = p_regular(61, default=None)
+    delay: Optional[timedelta] = p_regular(65, default=None)
+    size: Optional[int] = p_regular(66, default=None)
+
+    # view
+    line: Optional["Line"] = p_regular(
+        80,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.LINE,
+        description="Line points to cover for the path.",
+    )
+    color: Optional["Color"] = p_regular(
+        81, default=None, require=False, array=False, struct=StructType.COLOR
+    )
+    is_hidden: bool = p_regular(82, default=False)
+
+    def __content_str__(self) -> str:
+        if self.type == PipeType.CONTROL_AND_DATA:
+            arrow_str = "->"
+        elif self.type == PipeType.DATA:
+            arrow_str = "-"
+        else:
+            assert_never(self.type)
+        if self.filter:
+            arrow_str += f"?[{self.filter.bench_name}]"
+        source = self.source
+        target = self.target
+        return f"{source.absolute_path if source else '???'}:{self.source_port} {arrow_str} {target.absolute_path if target else '???'}:{self.target_port}"
+
+    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):
+        # source and target must be distinct
+        if (
+            self.source == self.target
+            and self.source_port.field_ptr is not None
+            and self.source_port.field_ck == self.target_port.field_ck
+        ):
+            invalid(self, "source and target must be distinct", (Pipe.source, Pipe.target))
+
+    @staticmethod
+    def new(type: PipeType, name: str, **kwargs) -> "Pipe":
+        return Pipe(type=type, name=name, **kwargs)
 
 
 @enum_(EnumType.STEP_TYPE)
@@ -254,31 +271,15 @@ class StepType(IdEnum):
     BLOCK = 51  # run a runnable block
     TEXT = 54  # run text
     CODE = 55  # run code
-    SEND = 56  # emit signal/notification
     # YIELD # to other program/human
-    # APPLY, CREATE, PASS?
+    # SEND, APPLY, CREATE, PASS?
 
     # state
-    VALUE = 100  # read/write value
-
-    # flow
-    # NOTE :Architecture: could the special flow Steps be factored into general Pipe behaviors?
-    #  (for instance, flatten/accumulate could be special incoming and outgoing pipe mappings)
-    # MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
-    # FILTER = 101  # X -> | X -> bool | -> X if true
-    # MERGE = 102  # X1, X2, ... -> X
-    # FLATTEN = 103  # X[] -> X
-    # ACCUMULATE = 104  # X -> X[]
-    # REDUCE = 105  # X[] -> Y
-    # ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
-    # JOIN = 107  # X1, X2, ... -> (X1, X2, ...)
-    # WAIT/DELAY?, DEBOUNCE?, TELEPORT?, THROTTLE?
+    VALUE = 100  # read (and write?) value
 
     # containers
     GROUP = 500  # sub-flow
-    LOOP = 501  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
-    REPEAT = 502  # repeat X N times / until some condition
-    # SHIELD?
+    # LOOP, REPEAT, ...?
 
     @property
     def is_boundary(self) -> bool:
@@ -360,6 +361,9 @@ class Step(SourceNode[StepData]):
         roles_ptr: tuple["NodeReference", ...] = ()
         identity_ptr: Optional["NodeReference"] = None
 
+    # config
+    combinator: PipeCombinator = p_regular(50, default=PipeCombinator.PRODUCT)
+
     # view
     position: Optional["Vector2"] = p_regular(
         80, default=None, require=False, array=False, struct=StructType.VECTOR2
@@ -396,7 +400,7 @@ class Step(SourceNode[StepData]):
         name: str | None = None,
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
-        filter_type: PipeFilterType | None = None,
+        filter_type: PipeFilter | None = None,
         parent: Union["Block", "Step", None] = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
@@ -419,7 +423,7 @@ class Step(SourceNode[StepData]):
             source_port=to_port_key(source_port, side=PortSide.OUTGOING),
             target=self,
             target_port=to_port_key(target_port, side=PortSide.INCOMING),
-            filter_type=filter_type,
+            filter=filter_type,
             parent=parent,
         )
         parent.pipes.append(pipe)
@@ -432,7 +436,7 @@ class Step(SourceNode[StepData]):
         name: str | None = None,
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
-        filter_type: PipeFilterType | None = None,
+        filter_type: PipeFilter | None = None,
         parent: Union["Block", "Step", None] = None,
     ) -> "Step":
         """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
@@ -454,7 +458,7 @@ class Step(SourceNode[StepData]):
         name: str | None = None,
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
-        filter_type: PipeFilterType | None = None,
+        filter_type: PipeFilter | None = None,
         parent: Union["Block", "Step", None] = None,
     ) -> "Step":
         """Connects a source Step to this Step as a With. Returns the target Step (for chaining)."""
@@ -491,6 +495,10 @@ class Step(SourceNode[StepData]):
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone)
             typ._resolve_type()  # auto resolve type
             return typ
+
+    @property
+    def variable_type(self) -> "TypeInfoBase":
+        return self.to_type(as_object=True, zone=FieldZone.VARIABLE)
 
     @property
     def input_type(self) -> "TypeInfoBase":

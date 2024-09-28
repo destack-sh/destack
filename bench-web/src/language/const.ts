@@ -15,7 +15,8 @@ import {
   NodeType,
   NotificationData,
   ObjectType,
-  PipeFilterType,
+  PipeFilter,
+  PipeModulation,
   PrimitiveType,
   PropertyInfo,
   RecordData,
@@ -304,7 +305,8 @@ export const EXPOSED_ANCHORS = [
   Anchor.RIGHT,
   Anchor.BOTTOM,
 ];
-export const EXPOSED_PIPE_FILTER_TYPES = [PipeFilterType.IS_TRUTHY, PipeFilterType.IS_FALSY, PipeFilterType.HAS_ERROR];
+export const EXPOSED_PIPE_FILTERS = [PipeFilter.IS_TRUTHY, PipeFilter.IS_FALSY, PipeFilter.HAS_ERROR];
+export const EXPOSED_PIPE_MODULATORS = [PipeModulation.FLATTEN, PipeModulation.ACCUMULATE];
 export const EXPOSED_MODEL_TYPES = [
   // :ModelType
   ModelType.OPENAI_GPT4_0,
@@ -322,7 +324,8 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
-  [EnumType.PIPE_FILTER_TYPE]: EXPOSED_PIPE_FILTER_TYPES,
+  [EnumType.PIPE_FILTER]: EXPOSED_PIPE_FILTERS,
+  [EnumType.PIPE_MODULATION]: EXPOSED_PIPE_MODULATORS,
   [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
 };
 

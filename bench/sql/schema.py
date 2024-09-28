@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.27.5"
+VERSION = "2024.09.28.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -798,11 +798,9 @@ BLOCK_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("bases_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("bases_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("bases_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
@@ -892,7 +890,6 @@ FIELD_TABLE = Table(
         Column("zone", PrimitiveType.INT16, default="1"),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
         Column("primitive_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_type", PrimitiveType.INT16, is_nullable=True),
@@ -1055,6 +1052,7 @@ STEP_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("combinator", PrimitiveType.INT16, default="2"),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("size", PrimitiveType.JSON, is_nullable=True),
     ),
@@ -1098,7 +1096,13 @@ PIPE_TABLE = Table(
         Column("target_ck", PrimitiveType.UUID),
         Column("target_bench_id", PrimitiveType.UUID),
         Column("target_port", PrimitiveType.JSON),
-        Column("filter_type", PrimitiveType.INT16, is_nullable=True),
+        Column("filter", PrimitiveType.INT16, is_nullable=True),
+        Column("constraint", PrimitiveType.JSON, is_nullable=True),
+        Column("condition", PrimitiveType.JSON, is_nullable=True),
+        Column("mapping", PrimitiveType.INT16, is_nullable=True),
+        Column("modulation", PrimitiveType.INT16, is_nullable=True),
+        Column("delay", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("size", PrimitiveType.INT32, is_nullable=True),
         Column("line", PrimitiveType.JSON, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
@@ -1290,7 +1294,7 @@ RUN_TABLE = Table(
         Column("terminated_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
         Column("logs", PrimitiveType.JSON, is_array=True),
         Column("spans", PrimitiveType.JSON, is_array=True),
         Column("events", PrimitiveType.JSON, is_array=True),

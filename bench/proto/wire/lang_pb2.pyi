@@ -170,7 +170,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CODE: _ClassVar[BenchType]
     BENCH_TYPE_CODE_LINE: _ClassVar[BenchType]
     BENCH_TYPE_PORT_KEY: _ClassVar[BenchType]
-    BENCH_TYPE_PORT: _ClassVar[BenchType]
     BENCH_TYPE_RUN_ERROR: _ClassVar[BenchType]
     BENCH_TYPE_RUN_OPTIONS: _ClassVar[BenchType]
     BENCH_TYPE_RUN_ATTEMPT: _ClassVar[BenchType]
@@ -257,10 +256,13 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STEP_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PIPE_FILTER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PORT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
+    BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_PIPE_FILTER: _ClassVar[BenchType]
+    BENCH_TYPE_PIPE_MAPPING: _ClassVar[BenchType]
+    BENCH_TYPE_PIPE_MODULATION: _ClassVar[BenchType]
+    BENCH_TYPE_PIPE_COMBINATOR: _ClassVar[BenchType]
     BENCH_TYPE_NOTIFICATION_LEVEL: _ClassVar[BenchType]
     BENCH_TYPE_SPACE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_VIEW_TYPE: _ClassVar[BenchType]
@@ -524,10 +526,13 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STEP_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_PIPE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_PIPE_FILTER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PORT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PORT_SIDE: _ClassVar[EnumType]
+    ENUM_TYPE_PIPE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_PIPE_FILTER: _ClassVar[EnumType]
+    ENUM_TYPE_PIPE_MAPPING: _ClassVar[EnumType]
+    ENUM_TYPE_PIPE_MODULATION: _ClassVar[EnumType]
+    ENUM_TYPE_PIPE_COMBINATOR: _ClassVar[EnumType]
     ENUM_TYPE_NOTIFICATION_LEVEL: _ClassVar[EnumType]
     ENUM_TYPE_SPACE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_VIEW_TYPE: _ClassVar[EnumType]
@@ -965,7 +970,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_CODE: _ClassVar[ObjectType]
     OBJECT_TYPE_CODE_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_PORT_KEY: _ClassVar[ObjectType]
-    OBJECT_TYPE_PORT: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_ERROR: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_OPTIONS: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_ATTEMPT: _ClassVar[ObjectType]
@@ -1015,14 +1019,34 @@ class PathTokenType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PATH_TOKEN_TYPE_UNIQUE: _ClassVar[PathTokenType]
     PATH_TOKEN_TYPE_FIELD: _ClassVar[PathTokenType]
 
-class PipeFilterType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class PipeCombinator(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    PIPE_FILTER_TYPE_UNSPECIFIED: _ClassVar[PipeFilterType]
-    PIPE_FILTER_TYPE_IS_NON_EMPTY: _ClassVar[PipeFilterType]
-    PIPE_FILTER_TYPE_IS_TRUTHY: _ClassVar[PipeFilterType]
-    PIPE_FILTER_TYPE_IS_EMPTY: _ClassVar[PipeFilterType]
-    PIPE_FILTER_TYPE_IS_FALSY: _ClassVar[PipeFilterType]
-    PIPE_FILTER_TYPE_HAS_ERROR: _ClassVar[PipeFilterType]
+    PIPE_COMBINATOR_UNSPECIFIED: _ClassVar[PipeCombinator]
+    PIPE_COMBINATOR_ZIP: _ClassVar[PipeCombinator]
+    PIPE_COMBINATOR_PRODUCT: _ClassVar[PipeCombinator]
+
+class PipeFilter(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PIPE_FILTER_UNSPECIFIED: _ClassVar[PipeFilter]
+    PIPE_FILTER_IS_NON_EMPTY: _ClassVar[PipeFilter]
+    PIPE_FILTER_IS_TRUTHY: _ClassVar[PipeFilter]
+    PIPE_FILTER_IS_EMPTY: _ClassVar[PipeFilter]
+    PIPE_FILTER_IS_FALSY: _ClassVar[PipeFilter]
+    PIPE_FILTER_HAS_ERROR: _ClassVar[PipeFilter]
+
+class PipeMapping(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PIPE_MAPPING_UNSPECIFIED: _ClassVar[PipeMapping]
+    PIPE_MAPPING_AUTO: _ClassVar[PipeMapping]
+
+class PipeModulation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PIPE_MODULATION_UNSPECIFIED: _ClassVar[PipeModulation]
+    PIPE_MODULATION_FLATTEN: _ClassVar[PipeModulation]
+    PIPE_MODULATION_ACCUMULATE: _ClassVar[PipeModulation]
+    PIPE_MODULATION_WINDOW: _ClassVar[PipeModulation]
+    PIPE_MODULATION_DEBOUNCE: _ClassVar[PipeModulation]
+    PIPE_MODULATION_DELAY: _ClassVar[PipeModulation]
 
 class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1290,11 +1314,8 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_BLOCK: _ClassVar[StepType]
     STEP_TYPE_TEXT: _ClassVar[StepType]
     STEP_TYPE_CODE: _ClassVar[StepType]
-    STEP_TYPE_SEND: _ClassVar[StepType]
     STEP_TYPE_VALUE: _ClassVar[StepType]
     STEP_TYPE_GROUP: _ClassVar[StepType]
-    STEP_TYPE_LOOP: _ClassVar[StepType]
-    STEP_TYPE_REPEAT: _ClassVar[StepType]
 
 class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1339,7 +1360,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_CODE: _ClassVar[StructType]
     STRUCT_TYPE_CODE_LINE: _ClassVar[StructType]
     STRUCT_TYPE_PORT_KEY: _ClassVar[StructType]
-    STRUCT_TYPE_PORT: _ClassVar[StructType]
     STRUCT_TYPE_RUN_ERROR: _ClassVar[StructType]
     STRUCT_TYPE_RUN_OPTIONS: _ClassVar[StructType]
     STRUCT_TYPE_RUN_ATTEMPT: _ClassVar[StructType]
@@ -1657,7 +1677,6 @@ BENCH_TYPE_COMPUTED_VALUE: BenchType
 BENCH_TYPE_CODE: BenchType
 BENCH_TYPE_CODE_LINE: BenchType
 BENCH_TYPE_PORT_KEY: BenchType
-BENCH_TYPE_PORT: BenchType
 BENCH_TYPE_RUN_ERROR: BenchType
 BENCH_TYPE_RUN_OPTIONS: BenchType
 BENCH_TYPE_RUN_ATTEMPT: BenchType
@@ -1744,10 +1763,13 @@ BENCH_TYPE_CODE_TYPE: BenchType
 BENCH_TYPE_MODEL_PROVIDER: BenchType
 BENCH_TYPE_MODEL_TYPE: BenchType
 BENCH_TYPE_STEP_TYPE: BenchType
-BENCH_TYPE_PIPE_TYPE: BenchType
-BENCH_TYPE_PIPE_FILTER_TYPE: BenchType
 BENCH_TYPE_PORT_TYPE: BenchType
 BENCH_TYPE_PORT_SIDE: BenchType
+BENCH_TYPE_PIPE_TYPE: BenchType
+BENCH_TYPE_PIPE_FILTER: BenchType
+BENCH_TYPE_PIPE_MAPPING: BenchType
+BENCH_TYPE_PIPE_MODULATION: BenchType
+BENCH_TYPE_PIPE_COMBINATOR: BenchType
 BENCH_TYPE_NOTIFICATION_LEVEL: BenchType
 BENCH_TYPE_SPACE_TYPE: BenchType
 BENCH_TYPE_VIEW_TYPE: BenchType
@@ -1963,10 +1985,13 @@ ENUM_TYPE_CODE_TYPE: EnumType
 ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_MODEL_TYPE: EnumType
 ENUM_TYPE_STEP_TYPE: EnumType
-ENUM_TYPE_PIPE_TYPE: EnumType
-ENUM_TYPE_PIPE_FILTER_TYPE: EnumType
 ENUM_TYPE_PORT_TYPE: EnumType
 ENUM_TYPE_PORT_SIDE: EnumType
+ENUM_TYPE_PIPE_TYPE: EnumType
+ENUM_TYPE_PIPE_FILTER: EnumType
+ENUM_TYPE_PIPE_MAPPING: EnumType
+ENUM_TYPE_PIPE_MODULATION: EnumType
+ENUM_TYPE_PIPE_COMBINATOR: EnumType
 ENUM_TYPE_NOTIFICATION_LEVEL: EnumType
 ENUM_TYPE_SPACE_TYPE: EnumType
 ENUM_TYPE_VIEW_TYPE: EnumType
@@ -2338,7 +2363,6 @@ OBJECT_TYPE_COMPUTED_VALUE: ObjectType
 OBJECT_TYPE_CODE: ObjectType
 OBJECT_TYPE_CODE_LINE: ObjectType
 OBJECT_TYPE_PORT_KEY: ObjectType
-OBJECT_TYPE_PORT: ObjectType
 OBJECT_TYPE_RUN_ERROR: ObjectType
 OBJECT_TYPE_RUN_OPTIONS: ObjectType
 OBJECT_TYPE_RUN_ATTEMPT: ObjectType
@@ -2378,12 +2402,23 @@ PATH_TOKEN_TYPE_CHILD: PathTokenType
 PATH_TOKEN_TYPE_CONTAINER: PathTokenType
 PATH_TOKEN_TYPE_UNIQUE: PathTokenType
 PATH_TOKEN_TYPE_FIELD: PathTokenType
-PIPE_FILTER_TYPE_UNSPECIFIED: PipeFilterType
-PIPE_FILTER_TYPE_IS_NON_EMPTY: PipeFilterType
-PIPE_FILTER_TYPE_IS_TRUTHY: PipeFilterType
-PIPE_FILTER_TYPE_IS_EMPTY: PipeFilterType
-PIPE_FILTER_TYPE_IS_FALSY: PipeFilterType
-PIPE_FILTER_TYPE_HAS_ERROR: PipeFilterType
+PIPE_COMBINATOR_UNSPECIFIED: PipeCombinator
+PIPE_COMBINATOR_ZIP: PipeCombinator
+PIPE_COMBINATOR_PRODUCT: PipeCombinator
+PIPE_FILTER_UNSPECIFIED: PipeFilter
+PIPE_FILTER_IS_NON_EMPTY: PipeFilter
+PIPE_FILTER_IS_TRUTHY: PipeFilter
+PIPE_FILTER_IS_EMPTY: PipeFilter
+PIPE_FILTER_IS_FALSY: PipeFilter
+PIPE_FILTER_HAS_ERROR: PipeFilter
+PIPE_MAPPING_UNSPECIFIED: PipeMapping
+PIPE_MAPPING_AUTO: PipeMapping
+PIPE_MODULATION_UNSPECIFIED: PipeModulation
+PIPE_MODULATION_FLATTEN: PipeModulation
+PIPE_MODULATION_ACCUMULATE: PipeModulation
+PIPE_MODULATION_WINDOW: PipeModulation
+PIPE_MODULATION_DEBOUNCE: PipeModulation
+PIPE_MODULATION_DELAY: PipeModulation
 PIPE_TYPE_UNSPECIFIED: PipeType
 PIPE_TYPE_CONTROL_AND_DATA: PipeType
 PIPE_TYPE_DATA: PipeType
@@ -2573,11 +2608,8 @@ STEP_TYPE_TRIGGER: StepType
 STEP_TYPE_BLOCK: StepType
 STEP_TYPE_TEXT: StepType
 STEP_TYPE_CODE: StepType
-STEP_TYPE_SEND: StepType
 STEP_TYPE_VALUE: StepType
 STEP_TYPE_GROUP: StepType
-STEP_TYPE_LOOP: StepType
-STEP_TYPE_REPEAT: StepType
 STRUCT_TYPE_UNSPECIFIED: StructType
 STRUCT_TYPE_SESSION_CONTEXT: StructType
 STRUCT_TYPE_EDIT_CONTEXT: StructType
@@ -2619,7 +2651,6 @@ STRUCT_TYPE_COMPUTED_VALUE: StructType
 STRUCT_TYPE_CODE: StructType
 STRUCT_TYPE_CODE_LINE: StructType
 STRUCT_TYPE_PORT_KEY: StructType
-STRUCT_TYPE_PORT: StructType
 STRUCT_TYPE_RUN_ERROR: StructType
 STRUCT_TYPE_RUN_OPTIONS: StructType
 STRUCT_TYPE_RUN_ATTEMPT: StructType
@@ -3716,30 +3747,6 @@ class PolicyRuleData(_message.Message):
         object_properties_is_system: bool = ...,
         object_properties_is_sensitive: bool = ...,
         object_properties_is_kernel: bool = ...,
-    ) -> None: ...
-
-class PortData(_message.Message):
-    __slots__ = ("metatype", "type", "side", "field_ptr", "value_type", "value_packed")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    SIDE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    VALUE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: PortType
-    side: PortSide
-    field_ptr: NodeReferenceData
-    value_type: TypeInfoData
-    value_packed: _struct_pb2.Struct
-    def __init__(
-        self,
-        metatype: _Optional[_Union[ObjectType, str]] = ...,
-        type: _Optional[_Union[PortType, str]] = ...,
-        side: _Optional[_Union[PortSide, str]] = ...,
-        field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ...,
-        value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
     ) -> None: ...
 
 class PortKeyData(_message.Message):
@@ -4950,9 +4957,9 @@ class BlockData(_message.Message):
         "type",
         "name",
         "order_key",
-        "bases_ptr",
         "text",
         "icon",
+        "variables_packed",
         "value_type",
         "value_packed",
         "code",
@@ -4985,9 +4992,9 @@ class BlockData(_message.Message):
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    BASES_PTR_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
+    VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
     VALUE_TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -5019,9 +5026,9 @@ class BlockData(_message.Message):
     type: BlockType
     name: str
     order_key: str
-    bases_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     text: TextData
     icon: IconData
+    variables_packed: _struct_pb2.Struct
     value_type: TypeInfoData
     value_packed: _struct_pb2.Struct
     code: CodeData
@@ -5055,9 +5062,9 @@ class BlockData(_message.Message):
         type: _Optional[_Union[BlockType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
-        bases_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         icon: _Optional[_Union[IconData, _Mapping]] = ...,
+        variables_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
         value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
@@ -5562,7 +5569,6 @@ class FieldData(_message.Message):
         "zone",
         "text",
         "icon",
-        "value_packed",
         "kind",
         "primitive_type",
         "bench_type",
@@ -5600,7 +5606,6 @@ class FieldData(_message.Message):
     ZONE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
-    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     PRIMITIVE_TYPE_FIELD_NUMBER: _ClassVar[int]
     BENCH_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5637,7 +5642,6 @@ class FieldData(_message.Message):
     zone: FieldZone
     text: TextData
     icon: IconData
-    value_packed: _struct_pb2.Struct
     kind: TypeKind
     primitive_type: PrimitiveType
     bench_type: BenchType
@@ -5676,7 +5680,6 @@ class FieldData(_message.Message):
         zone: _Optional[_Union[FieldZone, str]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         icon: _Optional[_Union[IconData, _Mapping]] = ...,
-        value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
         kind: _Optional[_Union[TypeKind, str]] = ...,
         primitive_type: _Optional[_Union[PrimitiveType, str]] = ...,
         bench_type: _Optional[_Union[BenchType, str]] = ...,
@@ -6808,7 +6811,13 @@ class PipeData(_message.Message):
         "source_port",
         "target_ptr",
         "target_port",
-        "filter_type",
+        "filter",
+        "constraint",
+        "condition",
+        "mapping",
+        "modulation",
+        "delay",
+        "size",
         "line",
         "color",
         "is_hidden",
@@ -6838,7 +6847,13 @@ class PipeData(_message.Message):
     SOURCE_PORT_FIELD_NUMBER: _ClassVar[int]
     TARGET_PTR_FIELD_NUMBER: _ClassVar[int]
     TARGET_PORT_FIELD_NUMBER: _ClassVar[int]
-    FILTER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
+    CONDITION_FIELD_NUMBER: _ClassVar[int]
+    MAPPING_FIELD_NUMBER: _ClassVar[int]
+    MODULATION_FIELD_NUMBER: _ClassVar[int]
+    DELAY_FIELD_NUMBER: _ClassVar[int]
+    SIZE_FIELD_NUMBER: _ClassVar[int]
     LINE_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_HIDDEN_FIELD_NUMBER: _ClassVar[int]
@@ -6867,7 +6882,13 @@ class PipeData(_message.Message):
     source_port: PortKeyData
     target_ptr: NodeReferenceData
     target_port: PortKeyData
-    filter_type: PipeFilterType
+    filter: PipeFilter
+    constraint: TypeConstraintData
+    condition: ExpressionData
+    mapping: PipeMapping
+    modulation: PipeModulation
+    delay: _duration_pb2.Duration
+    size: int
     line: LineData
     color: ColorData
     is_hidden: bool
@@ -6898,7 +6919,13 @@ class PipeData(_message.Message):
         source_port: _Optional[_Union[PortKeyData, _Mapping]] = ...,
         target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         target_port: _Optional[_Union[PortKeyData, _Mapping]] = ...,
-        filter_type: _Optional[_Union[PipeFilterType, str]] = ...,
+        filter: _Optional[_Union[PipeFilter, str]] = ...,
+        constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ...,
+        condition: _Optional[_Union[ExpressionData, _Mapping]] = ...,
+        mapping: _Optional[_Union[PipeMapping, str]] = ...,
+        modulation: _Optional[_Union[PipeModulation, str]] = ...,
+        delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
+        size: _Optional[int] = ...,
         line: _Optional[_Union[LineData, _Mapping]] = ...,
         color: _Optional[_Union[ColorData, _Mapping]] = ...,
         is_hidden: bool = ...,
@@ -7119,7 +7146,7 @@ class RunData(_message.Message):
         "terminated_epoch",
         "inputs_packed",
         "outputs_packed",
-        "value_packed",
+        "variables_packed",
         "logs",
         "spans",
         "events",
@@ -7171,7 +7198,7 @@ class RunData(_message.Message):
     TERMINATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
     OUTPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
-    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
     LOGS_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]
@@ -7222,7 +7249,7 @@ class RunData(_message.Message):
     terminated_epoch: int
     inputs_packed: _struct_pb2.Struct
     outputs_packed: _struct_pb2.Struct
-    value_packed: _struct_pb2.Struct
+    variables_packed: _struct_pb2.Struct
     logs: _containers.RepeatedCompositeFieldContainer[LogInfoData]
     spans: _containers.RepeatedCompositeFieldContainer[RunSpanData]
     events: _containers.RepeatedCompositeFieldContainer[RunEventData]
@@ -7275,7 +7302,7 @@ class RunData(_message.Message):
         terminated_epoch: _Optional[int] = ...,
         inputs_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
         outputs_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
-        value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
+        variables_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
         logs: _Optional[_Iterable[_Union[LogInfoData, _Mapping]]] = ...,
         spans: _Optional[_Iterable[_Union[RunSpanData, _Mapping]]] = ...,
         events: _Optional[_Iterable[_Union[RunEventData, _Mapping]]] = ...,
@@ -7931,6 +7958,7 @@ class StepData(_message.Message):
         "code",
         "roles_ptr",
         "identity_ptr",
+        "combinator",
         "position",
         "size",
     )
@@ -7964,6 +7992,7 @@ class StepData(_message.Message):
     CODE_FIELD_NUMBER: _ClassVar[int]
     ROLES_PTR_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_PTR_FIELD_NUMBER: _ClassVar[int]
+    COMBINATOR_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -7996,6 +8025,7 @@ class StepData(_message.Message):
     code: CodeData
     roles_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     identity_ptr: NodeReferenceData
+    combinator: PipeCombinator
     position: Vector2Data
     size: BoxData
     def __init__(
@@ -8030,6 +8060,7 @@ class StepData(_message.Message):
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
         roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        combinator: _Optional[_Union[PipeCombinator, str]] = ...,
         position: _Optional[_Union[Vector2Data, _Mapping]] = ...,
         size: _Optional[_Union[BoxData, _Mapping]] = ...,
     ) -> None: ...

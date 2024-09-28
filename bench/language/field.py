@@ -359,8 +359,8 @@ class TypeInfoBase(BuiltinObject):
                     isinstance(base_type, Block) and base_type.type.is_classy
                 ):
                     resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=base_type)
-                elif base_type.metatype == NodeType.BLOCK and base_type.value_type is not None:
-                    resolved_type = base_type.value_type
+                elif base_type.metatype == NodeType.BLOCK and base_type.variable_type is not None:
+                    resolved_type = base_type.variable_type
 
         self._resolved_type = resolved_type
         self._resolved_identity_key = encode_type_identity(resolved_type)
@@ -627,8 +627,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
-    value_packed: Any | None = p_value_packed(35)
-    value: Any = p_value_runtime(35, typ=None)  # freely typed?
 
     # type identity
     # ...TypeInfo[40-69]
