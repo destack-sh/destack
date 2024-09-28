@@ -709,6 +709,7 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
 #
 
 SAMPLE_VALUE_BY_PROPERTY: dict[str, SomeValue] = {
+    "emoji": "😀",
     "order_key": INTEGER_ZERO,
     "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
 }

@@ -22,6 +22,7 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
+    TypeKind,
     enum_,
 )
 from bench.language.node import (
@@ -606,7 +607,10 @@ def _check_type_supports(typ: "TypeInfoBase", op: ExpressionOp):
                 typ.primitive_type is not None
                 and op in SUPPORTED_PRIMITIVE_OPS.get(typ.primitive_type, _EMPTY_SET)
             )
-            or (typ.bench_type is not None and op in SUPPORTED_NODE_OPS)
+            or (
+                (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE)
+                and op in SUPPORTED_NODE_OPS
+            )
         ):
             return
     raise UnsupportedExpressionError(typ, op)

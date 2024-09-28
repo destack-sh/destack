@@ -177,7 +177,9 @@ class Block(SourceNode[BlockData]):
             raise BenchError(f"{self!r} is not callable")
 
     @cachetools.cached({})  # :CachedTypeInfo
-    def to_type(self, *, as_object: bool = False, zone: FieldZone | None = None) -> "TypeInfoBase":
+    def to_type(
+        self, *, as_object: bool = False, zone: FieldZone | None = None
+    ) -> "TypeInfoBase | None":
         """Get a type represented by this Block (if any)"""
         from bench.language.field import TypeInfo
 
@@ -200,8 +202,8 @@ class Block(SourceNode[BlockData]):
                     kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone or FieldZone.MEMBER
                 )
         elif self.type == BlockType.VALUE:
-            assert self.variable_type is not None, f"{self!r} has no builtin base"
-            return self.variable_type._to_resolved()
+            assert self.value_type is not None, f"{self!r} has no builtin base"
+            return self.value_type._to_resolved()
         elif self.type == BlockType.DATABASE:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
@@ -215,20 +217,27 @@ class Block(SourceNode[BlockData]):
             else:
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone)
         else:
-            raise ValueError(f"{self!r} has no type")
+            return None
         typ._resolve_type()  # pre-resolve
         return typ
 
     @property
-    def variable_type(self) -> "TypeInfoBase":
+    def as_type(self) -> "TypeInfoBase":
+        """Gets a type represented by this Block (if any)"""
+        typ = self.to_type(as_object=True)
+        assert typ is not None, f"{self!r} has no type"
+        return typ
+
+    @property
+    def variable_type(self) -> "TypeInfoBase | None":
         return self.to_type(as_object=True, zone=FieldZone.VARIABLE)
 
     @property
-    def input_type(self) -> "TypeInfoBase":
+    def input_type(self) -> "TypeInfoBase | None":
         return self.to_type(as_object=True, zone=FieldZone.INPUT)
 
     @property
-    def output_type(self) -> "TypeInfoBase":
+    def output_type(self) -> "TypeInfoBase | None":
         return self.to_type(as_object=True, zone=FieldZone.OUTPUT)
 
     @staticmethod

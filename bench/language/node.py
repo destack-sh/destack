@@ -1258,7 +1258,14 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
         for prop in self.__declared_properties__.values():
             prop_value = getattr(self, prop.name)
             if prop_value is not None and not (isinstance(prop_value, list) and not prop_value):
-                value_strs.append(f"{prop.name}={prop_value!r}")
+                if prop.is_enum:
+                    if prop.is_list:
+                        prop_value_str = "|".join(p.bench_name for p in prop_value)
+                    else:
+                        prop_value_str = prop_value.bench_name  # type: ignore
+                else:
+                    prop_value_str = repr(prop_value)
+                value_strs.append(f"{prop.name}={prop_value_str}")
         return ", ".join(value_strs)
 
     @final

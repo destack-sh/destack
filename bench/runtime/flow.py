@@ -114,6 +114,7 @@ class StepState:
     def from_step(step: Step) -> "StepState":
         """Wrap a Step in a StepState."""
         input_type = step.input_type
+        assert input_type is not None, f"{step!r} has no input type"
         inputs = ValueObject.new({}, input_type)
 
         # add incoming ports to unset (except optional fields)
