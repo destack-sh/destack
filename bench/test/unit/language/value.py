@@ -114,6 +114,7 @@ def test_roundtrip_nested_value(session: Session, package: Package):
     value.Field4 = cast(ValueObject, class2())
 
     class1_type = class1.to_type(as_object=True)
+    assert class1_type is not None, f"{class1!r} has no type"
     value_packed = pack_value(value, class1_type)
     unpacked_value = unpack_value(value_packed, class1_type)
     assert unpacked_value == value
@@ -184,5 +185,5 @@ def test_sample_choice_block(session: Session, package: Package):
         fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
     )
     page.blocks.append(choice)
-    sampled_field = sample_value(choice.to_type())
+    sampled_field = sample_value(choice.as_type)
     assert sampled_field in choice.fields

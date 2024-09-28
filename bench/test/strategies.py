@@ -396,7 +396,7 @@ def icons(draw: st.DrawFn):
     elif kind == IconKind.FONT_AWESOME:
         return Icon.new("fas fa-circle-dot")
     elif kind == IconKind.VS_CODE:
-        return Icon.new("file_type_ada")
+        return Icon(kind=IconKind.VS_CODE, fa_name="file_type_ada")
     else:
         assert_never(kind)
 

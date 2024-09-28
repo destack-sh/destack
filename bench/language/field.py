@@ -233,6 +233,9 @@ class TypeConstraint(Struct):
     view_types: list["ViewType"] = p_regular(84, array=True)
 
 
+constraint = TypeConstraint
+
+
 @object_()
 class TypeInfoBase(BuiltinObject):
     """
@@ -336,10 +339,14 @@ class TypeInfoBase(BuiltinObject):
             flags.append("is_secret")
         if len(flags) > 0:
             info_str += f" ({', '.join(flags)})"
-        if self._from_property:
-            info_str += f" from {self._from_property!s}"
         if self.base_field_zone:
             info_str += f" [{self.base_field_zone.bench_name}]"
+        if self.constraint is not None:
+            constraint_str = self.constraint.__content_str__()
+            if constraint_str:
+                info_str += f" [{constraint_str}]"
+        if self._from_property:
+            info_str += f" from {self._from_property!s}"
 
         return info_str
 

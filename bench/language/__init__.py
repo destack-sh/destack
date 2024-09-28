@@ -65,7 +65,16 @@ from .const import (
     TriggerType,
 )
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
-from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase, to_type, to_type_scalar
+from .field import (
+    Field,
+    FieldZone,
+    TypeConstraint,
+    TypeInfo,
+    TypeInfoBase,
+    constraint,
+    to_type,
+    to_type_scalar,
+)
 from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
 from .flow import Pipe, PipeType, PortKey, PortKeyBase, Step, StepType
 from .graph import (
@@ -126,7 +135,7 @@ from .text import Text, TextSpan, md, text
 from .transaction import Change, ChangeCategory, ChangeVignette, Edit, Transaction
 from .trigger import Trigger, TriggerBase, TriggerInfo
 from .user import Handle, Organization, User
-from .validation import TypeConstraintIn, ValidationError, constraint
+from .validation import TypeConstraintIn, ValidationError
 from .value import Value, ValueObject
 from .view import (
     Alignment,

@@ -612,7 +612,7 @@ IconIn = Icon | str
 def to_icon(icon: IconIn) -> Icon:
     """Turn something that could be an Icon into an Icon."""
     if isinstance(icon, str):
-        if icon.startswith("fa-"):
+        if icon.startswith("fa"):
             return Icon(kind=IconKind.FONT_AWESOME, fa_name=icon)
         else:
             return Icon(kind=IconKind.EMOJI, emoji=icon)

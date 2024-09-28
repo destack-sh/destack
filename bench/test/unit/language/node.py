@@ -123,7 +123,7 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b.main_drive = bench_b.drives.create(name="Drive")
     branch_b = bench_b.branches.create(name="main b")
     package_b = branch_b.packages.create()
-    block_b = package_b.blocks.create(type=BlockType.CODE, bases=[block_a_1])
+    block_b = package_b.blocks.create(type=BlockType.CODE, roles=[block_a_1])
     assert block_b.bench_id == bench_b.id
     assert block_b.roles
     assert block_b.roles[0].bench_id == bench_a.id

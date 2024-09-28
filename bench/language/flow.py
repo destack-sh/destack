@@ -474,7 +474,9 @@ class Step(SourceNode[StepData]):
         return target
 
     @cachetools.cached({})  # :CachedTypeInfo
-    def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
+    def to_type(
+        self, as_object: bool = True, zone: FieldZone | None = None
+    ) -> "TypeInfoBase | None":
         """Gets a type represented by this Step (if any)"""
         from bench.language.block import Block
         from bench.language.field import TypeInfo
@@ -497,31 +499,35 @@ class Step(SourceNode[StepData]):
             return typ
 
     @property
-    def variable_type(self) -> "TypeInfoBase":
+    def variable_type(self) -> "TypeInfoBase | None":
         return self.to_type(as_object=True, zone=FieldZone.VARIABLE)
 
     @property
-    def input_type(self) -> "TypeInfoBase":
+    def input_type(self) -> "TypeInfoBase | None":
         return self.to_type(as_object=True, zone=FieldZone.INPUT)
 
     @property
-    def output_type(self) -> "TypeInfoBase":
+    def output_type(self) -> "TypeInfoBase | None":
         return self.to_type(as_object=True, zone=FieldZone.OUTPUT)
 
     @property
     def incoming_ports(self) -> list[PortKey]:
         ports: list[PortKey] = []  # no dynamic ports yet :StaticSteps
-        for field in self.input_type._fields:
-            port = PortKey(type=PortType.FIELD, side=PortSide.INCOMING, field=field)
-            ports.append(port)
+        input_type = self.input_type
+        if input_type is not None:
+            for field in input_type._fields:
+                port = PortKey(type=PortType.FIELD, side=PortSide.INCOMING, field=field)
+                ports.append(port)
         return ports
 
     @property
     def outgoing_ports(self) -> list[PortKey]:
         ports: list[PortKey] = []  # no dynamic ports yet :StaticSteps
-        for field in self.output_type._fields:
-            port = PortKey(type=PortType.FIELD, side=PortSide.OUTGOING, field=field)
-            ports.append(port)
+        output_type = self.output_type
+        if output_type is not None:
+            for field in output_type._fields:
+                port = PortKey(type=PortType.FIELD, side=PortSide.OUTGOING, field=field)
+                ports.append(port)
         return ports
 
     @staticmethod
