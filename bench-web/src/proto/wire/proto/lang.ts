@@ -1147,38 +1147,6 @@ export interface PolicyRuleData {
     objectPropertiesIsKernel?: boolean;
 }
 /**
- * Extra configuration for a port (key) on a Step with some value.
- * Not all ports need a Port, just if there is extra behavior to define.
- *
- * @generated from protobuf message symbolx.bench.PortData
- */
-export interface PortData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PortType type = 40;
-     */
-    type: PortType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PortSide side = 41;
-     */
-    side: PortSide;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 42;
-     */
-    fieldPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 50;
-     */
-    valueType?: TypeInfoData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 51;
-     */
-    valuePacked?: Struct;
-}
-/**
  * An identifier for a port on a Step.
  *
  * @generated from protobuf message symbolx.bench.PortKeyData
@@ -2586,10 +2554,6 @@ export interface BlockData {
      */
     orderKey: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases_ptr = 35;
-     */
-    basesPtr: NodeReferenceData[];
-    /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 36;
      */
     text?: TextData;
@@ -2597,6 +2561,10 @@ export interface BlockData {
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 37;
      */
     icon?: IconData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct variables_packed = 38;
+     */
+    variablesPacked?: Struct;
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 39;
      */
@@ -3205,10 +3173,6 @@ export interface FieldData {
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 35;
-     */
-    valuePacked?: Struct;
     /**
      * @generated from protobuf field: symbolx.bench.TypeKind kind = 40;
      */
@@ -4465,9 +4429,33 @@ export interface PipeData {
      */
     targetPort?: PortKeyData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.PipeFilterType filter_type = 50;
+     * @generated from protobuf field: optional symbolx.bench.PipeFilter filter = 50;
      */
-    filterType?: PipeFilterType;
+    filter?: PipeFilter;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 51;
+     */
+    constraint?: TypeConstraintData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 52;
+     */
+    condition?: ExpressionData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PipeMapping mapping = 60;
+     */
+    mapping?: PipeMapping;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PipeModulation modulation = 61;
+     */
+    modulation?: PipeModulation;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration delay = 65;
+     */
+    delay?: Duration;
+    /**
+     * @generated from protobuf field: optional int32 size = 66;
+     */
+    size?: number;
     /**
      * @generated from protobuf field: optional symbolx.bench.LineData line = 80;
      */
@@ -4807,9 +4795,9 @@ export interface RunData {
      */
     outputsPacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 62;
+     * @generated from protobuf field: optional google.protobuf.Struct variables_packed = 62;
      */
-    valuePacked?: Struct;
+    variablesPacked?: Struct;
     /**
      * @generated from protobuf field: repeated symbolx.bench.LogInfoData logs = 65;
      */
@@ -5617,6 +5605,10 @@ export interface StepData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 47;
      */
     identityPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.PipeCombinator combinator = 50;
+     */
+    combinator: PipeCombinator;
     /**
      * @generated from protobuf field: optional symbolx.bench.Vector2Data position = 80;
      */
@@ -7001,10 +6993,6 @@ export enum BenchType {
      */
     PORT_KEY = 10450,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT = 10451;
-     */
-    PORT = 10451,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 10500;
      */
     RUN_ERROR = 10500,
@@ -7349,25 +7337,37 @@ export enum BenchType {
      */
     STEP_TYPE = 20600,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20601;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_TYPE = 20601;
      */
-    PIPE_TYPE = 20601,
+    PORT_TYPE = 20601,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_FILTER_TYPE = 20602;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 20602;
      */
-    PIPE_FILTER_TYPE = 20602,
+    PORT_SIDE = 20602,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_TYPE = 20603;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20605;
      */
-    PORT_TYPE = 20603,
+    PIPE_TYPE = 20605,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 20604;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_FILTER = 20606;
      */
-    PORT_SIDE = 20604,
+    PIPE_FILTER = 20606,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 20610;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_MAPPING = 20607;
      */
-    NOTIFICATION_LEVEL = 20610,
+    PIPE_MAPPING = 20607,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_MODULATION = 20608;
+     */
+    PIPE_MODULATION = 20608,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_COMBINATOR = 20609;
+     */
+    PIPE_COMBINATOR = 20609,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 20650;
+     */
+    NOTIFICATION_LEVEL = 20650,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 21000;
      */
@@ -8324,25 +8324,37 @@ export enum EnumType {
      */
     STEP_TYPE = 20600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20601;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20601;
      */
-    PIPE_TYPE = 20601,
+    PORT_TYPE = 20601,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_FILTER_TYPE = 20602;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 20602;
      */
-    PIPE_FILTER_TYPE = 20602,
+    PORT_SIDE = 20602,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20603;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20605;
      */
-    PORT_TYPE = 20603,
+    PIPE_TYPE = 20605,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 20604;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_FILTER = 20606;
      */
-    PORT_SIDE = 20604,
+    PIPE_FILTER = 20606,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 20610;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_MAPPING = 20607;
      */
-    NOTIFICATION_LEVEL = 20610,
+    PIPE_MAPPING = 20607,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_MODULATION = 20608;
+     */
+    PIPE_MODULATION = 20608,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_COMBINATOR = 20609;
+     */
+    PIPE_COMBINATOR = 20609,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 20650;
+     */
+    NOTIFICATION_LEVEL = 20650,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 21000;
      */
@@ -9940,10 +9952,6 @@ export enum ObjectType {
      */
     PORT_KEY = 10450,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PORT = 10451;
-     */
-    PORT = 10451,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 10500;
      */
     RUN_ERROR = 10500,
@@ -10118,33 +10126,92 @@ export enum PathTokenType {
     FIELD = 10
 }
 /**
- * @generated from protobuf enum symbolx.bench.PipeFilterType
+ * @generated from protobuf enum symbolx.bench.PipeCombinator
  */
-export enum PipeFilterType {
+export enum PipeCombinator {
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: PIPE_COMBINATOR_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_NON_EMPTY = 1;
+     * @generated from protobuf enum value: PIPE_COMBINATOR_ZIP = 1;
+     */
+    ZIP = 1,
+    /**
+     * @generated from protobuf enum value: PIPE_COMBINATOR_PRODUCT = 2;
+     */
+    PRODUCT = 2
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PipeFilter
+ */
+export enum PipeFilter {
+    /**
+     * @generated from protobuf enum value: PIPE_FILTER_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PIPE_FILTER_IS_NON_EMPTY = 1;
      */
     IS_NON_EMPTY = 1,
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_TRUTHY = 2;
+     * @generated from protobuf enum value: PIPE_FILTER_IS_TRUTHY = 2;
      */
     IS_TRUTHY = 2,
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_EMPTY = 50;
+     * @generated from protobuf enum value: PIPE_FILTER_IS_EMPTY = 10;
      */
-    IS_EMPTY = 50,
+    IS_EMPTY = 10,
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_FALSY = 51;
+     * @generated from protobuf enum value: PIPE_FILTER_IS_FALSY = 11;
      */
-    IS_FALSY = 51,
+    IS_FALSY = 11,
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_TYPE_HAS_ERROR = 100;
+     * @generated from protobuf enum value: PIPE_FILTER_HAS_ERROR = 20;
      */
-    HAS_ERROR = 100
+    HAS_ERROR = 20
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PipeMapping
+ */
+export enum PipeMapping {
+    /**
+     * @generated from protobuf enum value: PIPE_MAPPING_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PIPE_MAPPING_AUTO = 1;
+     */
+    AUTO = 1
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PipeModulation
+ */
+export enum PipeModulation {
+    /**
+     * @generated from protobuf enum value: PIPE_MODULATION_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PIPE_MODULATION_FLATTEN = 10;
+     */
+    FLATTEN = 10,
+    /**
+     * @generated from protobuf enum value: PIPE_MODULATION_ACCUMULATE = 11;
+     */
+    ACCUMULATE = 11,
+    /**
+     * @generated from protobuf enum value: PIPE_MODULATION_WINDOW = 12;
+     */
+    WINDOW = 12,
+    /**
+     * @generated from protobuf enum value: PIPE_MODULATION_DEBOUNCE = 20;
+     */
+    DEBOUNCE = 20,
+    /**
+     * @generated from protobuf enum value: PIPE_MODULATION_DELAY = 21;
+     */
+    DELAY = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.PipeType
@@ -11051,25 +11118,13 @@ export enum StepType {
      */
     CODE = 55,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_SEND = 56;
-     */
-    SEND = 56,
-    /**
      * @generated from protobuf enum value: STEP_TYPE_VALUE = 100;
      */
     VALUE = 100,
     /**
      * @generated from protobuf enum value: STEP_TYPE_GROUP = 500;
      */
-    GROUP = 500,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_LOOP = 501;
-     */
-    LOOP = 501,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_REPEAT = 502;
-     */
-    REPEAT = 502
+    GROUP = 500
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -11239,10 +11294,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_PORT_KEY = 10450;
      */
     PORT_KEY = 10450,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PORT = 10451;
-     */
-    PORT = 10451,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 10500;
      */
@@ -14791,90 +14842,6 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
  */
 export const PolicyRuleData = new PolicyRuleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PortData$Type extends MessageType<PortData> {
-    constructor() {
-        super("symbolx.bench.PortData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.PortType", PortType, "PORT_TYPE_"] },
-            { no: 41, name: "side", kind: "enum", T: () => ["symbolx.bench.PortSide", PortSide, "PORT_SIDE_"] },
-            { no: 42, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 51, name: "value_packed", kind: "message", T: () => Struct }
-        ]);
-    }
-    create(value?: PartialMessage<PortData>): PortData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.side = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PortData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PortData): PortData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.PortType type */ 40:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.PortSide side */ 41:
-                    message.side = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 42:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
-                    break;
-                case /* optional symbolx.bench.TypeInfoData value_type */ 50:
-                    message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
-                    break;
-                case /* optional google.protobuf.Struct value_packed */ 51:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PortData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PortType type = 40; */
-        if (message.type !== 0)
-            writer.tag(40, WireType.Varint).int32(message.type);
-        /* symbolx.bench.PortSide side = 41; */
-        if (message.side !== 0)
-            writer.tag(41, WireType.Varint).int32(message.side);
-        /* optional symbolx.bench.NodeReferenceData field_ptr = 42; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeInfoData value_type = 50; */
-        if (message.valueType)
-            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 51; */
-        if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PortData
- */
-export const PortData = new PortData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class PortKeyData$Type extends MessageType<PortKeyData> {
     constructor() {
         super("symbolx.bench.PortKeyData", [
@@ -18238,9 +18205,9 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 36, name: "text", kind: "message", T: () => TextData },
             { no: 37, name: "icon", kind: "message", T: () => IconData },
+            { no: 38, name: "variables_packed", kind: "message", T: () => Struct },
             { no: 39, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 42, name: "code", kind: "message", T: () => CodeData },
@@ -18265,7 +18232,6 @@ class BlockData$Type extends MessageType<BlockData> {
         message.type = 0;
         message.name = "";
         message.orderKey = "";
-        message.basesPtr = [];
         message.rolesPtr = [];
         message.policies = [];
         message.delegatedPolicies = [];
@@ -18347,14 +18313,14 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData bases_ptr */ 35:
-                    message.basesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
                 case /* optional symbolx.bench.TextData text */ 36:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional symbolx.bench.IconData icon */ 37:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional google.protobuf.Struct variables_packed */ 38:
+                    message.variablesPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.variablesPacked);
                     break;
                 case /* optional symbolx.bench.TypeInfoData value_type */ 39:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
@@ -18465,15 +18431,15 @@ class BlockData$Type extends MessageType<BlockData> {
         /* string order_key = 33; */
         if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated symbolx.bench.NodeReferenceData bases_ptr = 35; */
-        for (let i = 0; i < message.basesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.basesPtr[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 36; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.IconData icon = 37; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct variables_packed = 38; */
+        if (message.variablesPacked)
+            Struct.internalBinaryWrite(message.variablesPacked, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeInfoData value_type = 39; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
@@ -19578,7 +19544,6 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 32, name: "zone", kind: "enum", T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "value_packed", kind: "message", T: () => Struct },
             { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.TypeKind", TypeKind, "TYPE_KIND_"] },
             { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
@@ -19691,9 +19656,6 @@ class FieldData$Type extends MessageType<FieldData> {
                     break;
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional google.protobuf.Struct value_packed */ 35:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* symbolx.bench.TypeKind kind */ 40:
                     message.kind = reader.int32();
@@ -19819,9 +19781,6 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 35; */
-        if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.TypeKind kind = 40; */
         if (message.kind !== 0)
             writer.tag(40, WireType.Varint).int32(message.kind);
@@ -22287,7 +22246,13 @@ class PipeData$Type extends MessageType<PipeData> {
             { no: 36, name: "source_port", kind: "message", T: () => PortKeyData },
             { no: 37, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 38, name: "target_port", kind: "message", T: () => PortKeyData },
-            { no: 50, name: "filter_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeFilterType", PipeFilterType, "PIPE_FILTER_TYPE_"] },
+            { no: 50, name: "filter", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeFilter", PipeFilter, "PIPE_FILTER_"] },
+            { no: 51, name: "constraint", kind: "message", T: () => TypeConstraintData },
+            { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 60, name: "mapping", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeMapping", PipeMapping, "PIPE_MAPPING_"] },
+            { no: 61, name: "modulation", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeModulation", PipeModulation, "PIPE_MODULATION_"] },
+            { no: 65, name: "delay", kind: "message", T: () => Duration },
+            { no: 66, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 80, name: "line", kind: "message", T: () => LineData },
             { no: 81, name: "color", kind: "message", T: () => ColorData },
             { no: 82, name: "is_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
@@ -22394,8 +22359,26 @@ class PipeData$Type extends MessageType<PipeData> {
                 case /* symbolx.bench.PortKeyData target_port */ 38:
                     message.targetPort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.targetPort);
                     break;
-                case /* optional symbolx.bench.PipeFilterType filter_type */ 50:
-                    message.filterType = reader.int32();
+                case /* optional symbolx.bench.PipeFilter filter */ 50:
+                    message.filter = reader.int32();
+                    break;
+                case /* optional symbolx.bench.TypeConstraintData constraint */ 51:
+                    message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
+                    break;
+                case /* optional symbolx.bench.ExpressionData condition */ 52:
+                    message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
+                    break;
+                case /* optional symbolx.bench.PipeMapping mapping */ 60:
+                    message.mapping = reader.int32();
+                    break;
+                case /* optional symbolx.bench.PipeModulation modulation */ 61:
+                    message.modulation = reader.int32();
+                    break;
+                case /* optional google.protobuf.Duration delay */ 65:
+                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
+                    break;
+                case /* optional int32 size */ 66:
+                    message.size = reader.int32();
                     break;
                 case /* optional symbolx.bench.LineData line */ 80:
                     message.line = LineData.internalBinaryRead(reader, reader.uint32(), options, message.line);
@@ -22497,9 +22480,27 @@ class PipeData$Type extends MessageType<PipeData> {
         /* symbolx.bench.PortKeyData target_port = 38; */
         if (message.targetPort)
             PortKeyData.internalBinaryWrite(message.targetPort, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.PipeFilterType filter_type = 50; */
-        if (message.filterType !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.filterType);
+        /* optional symbolx.bench.PipeFilter filter = 50; */
+        if (message.filter !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.filter);
+        /* optional symbolx.bench.TypeConstraintData constraint = 51; */
+        if (message.constraint)
+            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData condition = 52; */
+        if (message.condition)
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.PipeMapping mapping = 60; */
+        if (message.mapping !== undefined)
+            writer.tag(60, WireType.Varint).int32(message.mapping);
+        /* optional symbolx.bench.PipeModulation modulation = 61; */
+        if (message.modulation !== undefined)
+            writer.tag(61, WireType.Varint).int32(message.modulation);
+        /* optional google.protobuf.Duration delay = 65; */
+        if (message.delay)
+            Duration.internalBinaryWrite(message.delay, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 size = 66; */
+        if (message.size !== undefined)
+            writer.tag(66, WireType.Varint).int32(message.size);
         /* optional symbolx.bench.LineData line = 80; */
         if (message.line)
             LineData.internalBinaryWrite(message.line, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
@@ -22957,7 +22958,7 @@ class RunData$Type extends MessageType<RunData> {
             { no: 54, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "inputs_packed", kind: "message", T: () => Struct },
             { no: 61, name: "outputs_packed", kind: "message", T: () => Struct },
-            { no: 62, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 62, name: "variables_packed", kind: "message", T: () => Struct },
             { no: 65, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogInfoData },
             { no: 66, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunSpanData },
             { no: 67, name: "events", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunEventData },
@@ -23107,8 +23108,8 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional google.protobuf.Struct outputs_packed */ 61:
                     message.outputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsPacked);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 62:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Struct variables_packed */ 62:
+                    message.variablesPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.variablesPacked);
                     break;
                 case /* repeated symbolx.bench.LogInfoData logs */ 65:
                     message.logs.push(LogInfoData.internalBinaryRead(reader, reader.uint32(), options));
@@ -23276,9 +23277,9 @@ class RunData$Type extends MessageType<RunData> {
         /* optional google.protobuf.Struct outputs_packed = 61; */
         if (message.outputsPacked)
             Struct.internalBinaryWrite(message.outputsPacked, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 62; */
-        if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct variables_packed = 62; */
+        if (message.variablesPacked)
+            Struct.internalBinaryWrite(message.variablesPacked, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.LogInfoData logs = 65; */
         for (let i = 0; i < message.logs.length; i++)
             LogInfoData.internalBinaryWrite(message.logs[i], writer.tag(65, WireType.LengthDelimited).fork(), options).join();
@@ -24687,6 +24688,7 @@ class StepData$Type extends MessageType<StepData> {
             { no: 45, name: "code", kind: "message", T: () => CodeData },
             { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 47, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "combinator", kind: "enum", T: () => ["symbolx.bench.PipeCombinator", PipeCombinator, "PIPE_COMBINATOR_"] },
             { no: 80, name: "position", kind: "message", T: () => Vector2Data },
             { no: 81, name: "size", kind: "message", T: () => BoxData }
         ]);
@@ -24704,6 +24706,7 @@ class StepData$Type extends MessageType<StepData> {
         message.name = "";
         message.orderKey = "";
         message.rolesPtr = [];
+        message.combinator = 0;
         if (value !== undefined)
             reflectionMergePartial<StepData>(this, message, value);
         return message;
@@ -24806,6 +24809,9 @@ class StepData$Type extends MessageType<StepData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 47:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
+                    break;
+                case /* symbolx.bench.PipeCombinator combinator */ 50:
+                    message.combinator = reader.int32();
                     break;
                 case /* optional symbolx.bench.Vector2Data position */ 80:
                     message.position = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -24919,6 +24925,9 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.NodeReferenceData identity_ptr = 47; */
         if (message.identityPtr)
             NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PipeCombinator combinator = 50; */
+        if (message.combinator !== 0)
+            writer.tag(50, WireType.Varint).int32(message.combinator);
         /* optional symbolx.bench.Vector2Data position = 80; */
         if (message.position)
             Vector2Data.internalBinaryWrite(message.position, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
@@ -26591,10 +26600,10 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | VaultData | CacheData | FileData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | SignalData | LogData | NotificationData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | PortData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof VaultData | typeof CacheData | typeof FileData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof PortData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -26831,7 +26840,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.PORT_KEY]: PortKeyData,
-  [ObjectType.PORT]: PortData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RUN_ATTEMPT]: RunAttemptData,
@@ -26932,7 +26940,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
   ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
   ["symbolx.bench.PortKeyData"]: ObjectType.PORT_KEY,
-  ["symbolx.bench.PortData"]: ObjectType.PORT,
   ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
   ["symbolx.bench.RunOptionsData"]: ObjectType.RUN_OPTIONS,
   ["symbolx.bench.RunAttemptData"]: ObjectType.RUN_ATTEMPT,
@@ -27023,10 +27030,13 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.STEP_TYPE]: StepType,
-  [EnumType.PIPE_TYPE]: PipeType,
-  [EnumType.PIPE_FILTER_TYPE]: PipeFilterType,
   [EnumType.PORT_TYPE]: PortType,
   [EnumType.PORT_SIDE]: PortSide,
+  [EnumType.PIPE_TYPE]: PipeType,
+  [EnumType.PIPE_FILTER]: PipeFilter,
+  [EnumType.PIPE_MAPPING]: PipeMapping,
+  [EnumType.PIPE_MODULATION]: PipeModulation,
+  [EnumType.PIPE_COMBINATOR]: PipeCombinator,
   [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
@@ -27089,7 +27099,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.CODE]: CodeData,
   [StructType.CODE_LINE]: CodeLineData,
   [StructType.PORT_KEY]: PortKeyData,
-  [StructType.PORT]: PortData,
   [StructType.RUN_ERROR]: RunErrorData,
   [StructType.RUN_OPTIONS]: RunOptionsData,
   [StructType.RUN_ATTEMPT]: RunAttemptData,
@@ -27228,7 +27237,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.PORT_KEY]: PortKeyData,
-  [ObjectType.PORT]: PortData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RUN_ATTEMPT]: RunAttemptData,
@@ -27319,10 +27327,13 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.STEP_TYPE]: StepType,
-  [EnumType.PIPE_TYPE]: PipeType,
-  [EnumType.PIPE_FILTER_TYPE]: PipeFilterType,
   [EnumType.PORT_TYPE]: PortType,
   [EnumType.PORT_SIDE]: PortSide,
+  [EnumType.PIPE_TYPE]: PipeType,
+  [EnumType.PIPE_FILTER]: PipeFilter,
+  [EnumType.PIPE_MAPPING]: PipeMapping,
+  [EnumType.PIPE_MODULATION]: PipeModulation,
+  [EnumType.PIPE_COMBINATOR]: PipeCombinator,
   [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
@@ -27859,9 +27870,9 @@ export enum BlockProperty {
   type = 30,
   name = 32,
   orderKey = 33,
-  basesPtr = 35,
   text = 36,
   icon = 37,
+  variablesPacked = 38,
   valueType = 39,
   valuePacked = 40,
   code = 42,
@@ -27926,7 +27937,6 @@ export enum FieldProperty {
   zone = 32,
   text = 33,
   icon = 34,
-  valuePacked = 35,
   kind = 40,
   primitiveType = 41,
   benchType = 42,
@@ -28048,6 +28058,7 @@ export enum StepProperty {
   code = 45,
   rolesPtr = 46,
   identityPtr = 47,
+  combinator = 50,
   position = 80,
   size = 81,
 }
@@ -28078,7 +28089,13 @@ export enum PipeProperty {
   sourcePort = 36,
   targetPtr = 37,
   targetPort = 38,
-  filterType = 50,
+  filter = 50,
+  constraint = 51,
+  condition = 52,
+  mapping = 60,
+  modulation = 61,
+  delay = 65,
+  size = 66,
   line = 80,
   color = 81,
   isHidden = 82,
@@ -28218,7 +28235,7 @@ export enum RunProperty {
   terminatedEpoch = 54,
   inputsPacked = 60,
   outputsPacked = 61,
-  valuePacked = 62,
+  variablesPacked = 62,
   logs = 65,
   spans = 66,
   events = 67,
@@ -28778,15 +28795,6 @@ export enum PortKeyProperty {
   fieldPtr = 42,
 }
 
-export enum PortProperty {
-  metatype = 1,
-  type = 40,
-  side = 41,
-  fieldPtr = 42,
-  valueType = 50,
-  valuePacked = 51,
-}
-
 export enum RunErrorProperty {
   metatype = 1,
   kind = 30,
@@ -28974,11 +28982,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -29058,7 +29066,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.PORT_KEY]: PortKeyProperty,
-  [ObjectType.PORT]: PortProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RUN_ATTEMPT]: RunAttemptProperty,
@@ -29159,7 +29166,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.PORT_KEY]: PortKeyProperty,
-  [ObjectType.PORT]: PortProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RUN_ATTEMPT]: RunAttemptProperty,
@@ -29613,14 +29619,6 @@ export const PortKeyDataInfo: Record<PortKeyProperty, PropertyInfo> = {
   [PortKeyProperty.type]: { id: 40, name: 'type', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PortKeyProperty.side]: { id: 41, name: 'side', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PortKeyProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.PORT_KEY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const PortDataInfo: Record<PortProperty, PropertyInfo> = {
-  [PortProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PortProperty.type]: { id: 40, name: 'type', component: ObjectType.PORT, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PortProperty.side]: { id: 41, name: 'side', component: ObjectType.PORT, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PortProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.PORT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [PortProperty.valueType]: { id: 50, name: 'value_type', component: ObjectType.PORT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [PortProperty.valuePacked]: { id: 51, name: 'value_packed', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30282,9 +30280,9 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.type]: { id: 30, name: 'type', component: ObjectType.BLOCK, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.name]: { id: 32, name: 'name', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.basesPtr]: { id: 35, name: 'bases_ptr', component: ObjectType.BLOCK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.text]: { id: 36, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlockProperty.icon]: { id: 37, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [BlockProperty.variablesPacked]: { id: 38, name: 'variables_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BlockProperty.valueType]: { id: 39, name: 'value_type', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
@@ -30347,7 +30345,6 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.zone]: { id: 32, name: 'zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.text]: { id: 33, name: 'text', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FieldProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [FieldProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [FieldProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FIELD, enumType: EnumType.TYPE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -30466,6 +30463,7 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.code]: { id: 45, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [StepProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [50], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.combinator]: { id: 50, name: 'combinator', component: ObjectType.STEP, enumType: EnumType.PIPE_COMBINATOR, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.position]: { id: 80, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [StepProperty.size]: { id: 81, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
 }
@@ -30495,7 +30493,13 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.sourcePort]: { id: 36, name: 'source_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
   [PipeProperty.targetPtr]: { id: 37, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.targetPort]: { id: 38, name: 'target_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
-  [PipeProperty.filterType]: { id: 50, name: 'filter_type', component: ObjectType.PIPE, enumType: EnumType.PIPE_FILTER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.filter]: { id: 50, name: 'filter', component: ObjectType.PIPE, enumType: EnumType.PIPE_FILTER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.constraint]: { id: 51, name: 'constraint', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
+  [PipeProperty.condition]: { id: 52, name: 'condition', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [PipeProperty.mapping]: { id: 60, name: 'mapping', component: ObjectType.PIPE, enumType: EnumType.PIPE_MAPPING, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.modulation]: { id: 61, name: 'modulation', component: ObjectType.PIPE, enumType: EnumType.PIPE_MODULATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.delay]: { id: 65, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.size]: { id: 66, name: 'size', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.line]: { id: 80, name: 'line', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LINE },
   [PipeProperty.color]: { id: 81, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [PipeProperty.isHidden]: { id: 82, name: 'is_hidden', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -30630,7 +30634,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.terminatedEpoch]: { id: 54, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.inputsPacked]: { id: 60, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 61, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.valuePacked]: { id: 62, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.variablesPacked]: { id: 62, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.logs]: { id: 65, name: 'logs', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LOG_INFO },
   [RunProperty.spans]: { id: 66, name: 'spans', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_SPAN },
   [RunProperty.events]: { id: 67, name: 'events', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_EVENT },
@@ -30802,7 +30806,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.CODE]: CodeDataInfo,
   [ObjectType.CODE_LINE]: CodeLineDataInfo,
   [ObjectType.PORT_KEY]: PortKeyDataInfo,
-  [ObjectType.PORT]: PortDataInfo,
   [ObjectType.RUN_ERROR]: RunErrorDataInfo,
   [ObjectType.RUN_OPTIONS]: RunOptionsDataInfo,
   [ObjectType.RUN_ATTEMPT]: RunAttemptDataInfo,

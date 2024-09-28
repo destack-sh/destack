@@ -67,7 +67,7 @@ from .const import (
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase, to_type, to_type_scalar
 from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
-from .flow import Pipe, PipeType, Port, PortKey, PortKeyBase, Step, StepType
+from .flow import Pipe, PipeType, PortKey, PortKeyBase, Step, StepType
 from .graph import (
     NodeDataDict,
     NodeDataGraph,
@@ -262,7 +262,6 @@ __all__ = [
     "Policy",
     "PolicyEffect",
     "PolicyRule",
-    "Port",
     "PortKey",
     "PortKeyBase",
     "PrimitiveType",

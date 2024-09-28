@@ -4,7 +4,7 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
-from bench.language.flow import PipeFilterType, PortType, Step, StepType
+from bench.language.flow import PipeFilter, PortType, Step, StepType
 from bench.language.run import Run, RunErrorType, RunOptions
 from bench.language.text import md
 from bench.test.unit.conftest import RuntimeHandle
@@ -220,7 +220,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
         Complete,
         source_port=PortType.RUN,
         target_port=PortType.RUN,
-        filter_type=PipeFilterType.HAS_ERROR,
+        filter_type=PipeFilter.HAS_ERROR,
     )
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
@@ -381,7 +381,7 @@ async def test_run_flow_pipe_filter_positive(local_runtime: RuntimeHandle):
         Complete,
         source_port=Code1.fields.Output1,
         target_port=PortType.RUN,
-        filter_type=PipeFilterType.IS_TRUTHY,
+        filter_type=PipeFilter.IS_TRUTHY,
     )
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
@@ -405,7 +405,7 @@ async def test_run_flow_pipe_filter_negative(local_runtime: RuntimeHandle):
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Code1, Complete)
-    Start.then(Code1).then(Complete, filter_type=PipeFilterType.IS_FALSY)
+    Start.then(Code1).then(Complete, filter_type=PipeFilter.IS_FALSY)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -464,14 +464,14 @@ return Input1, Input1 < 10, Input1 > 10
         MultiplyLarge,
         source_port=Switch.fields.IsLarge,
         target_port=PortType.RUN,
-        filter_type=PipeFilterType.IS_TRUTHY,
+        filter_type=PipeFilter.IS_TRUTHY,
     )
     # Switch > DivideSmall
     Switch.then(
         DivideSmall,
         source_port=Switch.fields.IsSmall,
         target_port=PortType.RUN,
-        filter_type=PipeFilterType.IS_TRUTHY,
+        filter_type=PipeFilter.IS_TRUTHY,
     )
     # Start - MultiplyLarge
     Start.with_(MultiplyLarge)
@@ -538,14 +538,14 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
         Complete,
         source_port=Verifier.fields.IsGood,
         target_port=PortType.RUN,
-        filter_type=PipeFilterType.IS_TRUTHY,
+        filter_type=PipeFilter.IS_TRUTHY,
     )
     # Verifier.IsGood?[IsFalsy] > Generator
     Verifier.then(
         Generator,
         source_port=Verifier.fields.IsGood,
         target_port=PortType.RUN,
-        filter_type=PipeFilterType.IS_FALSY,
+        filter_type=PipeFilter.IS_FALSY,
     )
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()

@@ -161,7 +161,7 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
             },
           }),
         },
-        { from: 33, to: 43, excluding: [FieldProperty.valuePacked] },
+        { from: 33, to: 43 },
         { from: 60 },
       ],
       Constraint: [],
@@ -259,13 +259,14 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
           getNestedInspectedProperty(stepProperties[StepProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),
         )
         .forEach((p) => properties.Run.push(p));
+      properties.Run.push(StepProperty.combinator);
     }
     return properties;
   } else if (isNode(node, NodeType.PIPE)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [PipeProperty.type, PipeProperty.color, PipeProperty.isHidden],
-      Filter: [PipeProperty.filterType],
-      Mapping: [],
+      Filter: [PipeProperty.filter],
+      Mapping: [PipeProperty.modulation],
     };
     return properties;
   } else if (isNode(node, NodeType.VIEW)) {

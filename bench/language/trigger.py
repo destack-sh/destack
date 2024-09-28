@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-# :TriggerSchedule
+# NOTE :UX :Architecture: check out iCalendar spec / dateutil for Schedule
 
 
 @struct_(StructType.SCHEDULE)

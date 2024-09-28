@@ -14,7 +14,7 @@ from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
 from bench.language.flow import (
     Pipe,
-    PipeFilterType,
+    PipeFilter,
     PipeType,
     PortKey,
     PortSide,
@@ -39,23 +39,23 @@ def to_port_id(port: PortKey) -> PortId:
 
 def evaluate_pipe_filter(pipe: "Pipe", value: Any) -> bool:
     """Evaluate whether the filter is True for the given value."""
-    if pipe.filter_type is None:
+    if pipe.filter is None:
         return True
     # positive
-    elif pipe.filter_type == PipeFilterType.IS_NON_EMPTY:
+    elif pipe.filter == PipeFilter.IS_NON_EMPTY:
         return value is not None and (not isinstance(value, Collection) or len(value) > 0)
-    elif pipe.filter_type == PipeFilterType.IS_TRUTHY:
+    elif pipe.filter == PipeFilter.IS_TRUTHY:
         return bool(value)
     # negative
-    elif pipe.filter_type == PipeFilterType.IS_EMPTY:
+    elif pipe.filter == PipeFilter.IS_EMPTY:
         return value is None or (isinstance(value, Collection) and len(value) == 0)
-    elif pipe.filter_type == PipeFilterType.IS_FALSY:
+    elif pipe.filter == PipeFilter.IS_FALSY:
         return not bool(value)
     # other
-    elif pipe.filter_type == PipeFilterType.HAS_ERROR:
+    elif pipe.filter == PipeFilter.HAS_ERROR:
         return not isinstance(value, Run) or value.status != RunStatus.FAILED
     else:
-        assert_never(pipe.filter_type)
+        assert_never(pipe.filter)
 
 
 class FireType(IntEnum):

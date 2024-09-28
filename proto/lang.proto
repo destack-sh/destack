@@ -157,7 +157,6 @@ enum BenchType {
   BENCH_TYPE_CODE = 10400;
   BENCH_TYPE_CODE_LINE = 10401;
   BENCH_TYPE_PORT_KEY = 10450;
-  BENCH_TYPE_PORT = 10451;
   BENCH_TYPE_RUN_ERROR = 10500;
   BENCH_TYPE_RUN_OPTIONS = 10501;
   BENCH_TYPE_RUN_ATTEMPT = 10502;
@@ -244,11 +243,14 @@ enum BenchType {
   BENCH_TYPE_MODEL_PROVIDER = 20570;
   BENCH_TYPE_MODEL_TYPE = 20571;
   BENCH_TYPE_STEP_TYPE = 20600;
-  BENCH_TYPE_PIPE_TYPE = 20601;
-  BENCH_TYPE_PIPE_FILTER_TYPE = 20602;
-  BENCH_TYPE_PORT_TYPE = 20603;
-  BENCH_TYPE_PORT_SIDE = 20604;
-  BENCH_TYPE_NOTIFICATION_LEVEL = 20610;
+  BENCH_TYPE_PORT_TYPE = 20601;
+  BENCH_TYPE_PORT_SIDE = 20602;
+  BENCH_TYPE_PIPE_TYPE = 20605;
+  BENCH_TYPE_PIPE_FILTER = 20606;
+  BENCH_TYPE_PIPE_MAPPING = 20607;
+  BENCH_TYPE_PIPE_MODULATION = 20608;
+  BENCH_TYPE_PIPE_COMBINATOR = 20609;
+  BENCH_TYPE_NOTIFICATION_LEVEL = 20650;
   BENCH_TYPE_SPACE_TYPE = 21000;
   BENCH_TYPE_VIEW_TYPE = 21001;
   BENCH_TYPE_VARIANT = 21002;
@@ -521,11 +523,14 @@ enum EnumType {
   ENUM_TYPE_MODEL_PROVIDER = 20570;
   ENUM_TYPE_MODEL_TYPE = 20571;
   ENUM_TYPE_STEP_TYPE = 20600;
-  ENUM_TYPE_PIPE_TYPE = 20601;
-  ENUM_TYPE_PIPE_FILTER_TYPE = 20602;
-  ENUM_TYPE_PORT_TYPE = 20603;
-  ENUM_TYPE_PORT_SIDE = 20604;
-  ENUM_TYPE_NOTIFICATION_LEVEL = 20610;
+  ENUM_TYPE_PORT_TYPE = 20601;
+  ENUM_TYPE_PORT_SIDE = 20602;
+  ENUM_TYPE_PIPE_TYPE = 20605;
+  ENUM_TYPE_PIPE_FILTER = 20606;
+  ENUM_TYPE_PIPE_MAPPING = 20607;
+  ENUM_TYPE_PIPE_MODULATION = 20608;
+  ENUM_TYPE_PIPE_COMBINATOR = 20609;
+  ENUM_TYPE_NOTIFICATION_LEVEL = 20650;
   ENUM_TYPE_SPACE_TYPE = 21000;
   ENUM_TYPE_VIEW_TYPE = 21001;
   ENUM_TYPE_VARIANT = 21002;
@@ -965,7 +970,6 @@ enum ObjectType {
   OBJECT_TYPE_CODE = 10400;
   OBJECT_TYPE_CODE_LINE = 10401;
   OBJECT_TYPE_PORT_KEY = 10450;
-  OBJECT_TYPE_PORT = 10451;
   OBJECT_TYPE_RUN_ERROR = 10500;
   OBJECT_TYPE_RUN_OPTIONS = 10501;
   OBJECT_TYPE_RUN_ATTEMPT = 10502;
@@ -1017,13 +1021,33 @@ enum PathTokenType {
   PATH_TOKEN_TYPE_FIELD = 10;
 }
 
-enum PipeFilterType {
-  PIPE_FILTER_TYPE_UNSPECIFIED = 0;
-  PIPE_FILTER_TYPE_IS_NON_EMPTY = 1;
-  PIPE_FILTER_TYPE_IS_TRUTHY = 2;
-  PIPE_FILTER_TYPE_IS_EMPTY = 50;
-  PIPE_FILTER_TYPE_IS_FALSY = 51;
-  PIPE_FILTER_TYPE_HAS_ERROR = 100;
+enum PipeCombinator {
+  PIPE_COMBINATOR_UNSPECIFIED = 0;
+  PIPE_COMBINATOR_ZIP = 1;
+  PIPE_COMBINATOR_PRODUCT = 2;
+}
+
+enum PipeFilter {
+  PIPE_FILTER_UNSPECIFIED = 0;
+  PIPE_FILTER_IS_NON_EMPTY = 1;
+  PIPE_FILTER_IS_TRUTHY = 2;
+  PIPE_FILTER_IS_EMPTY = 10;
+  PIPE_FILTER_IS_FALSY = 11;
+  PIPE_FILTER_HAS_ERROR = 20;
+}
+
+enum PipeMapping {
+  PIPE_MAPPING_UNSPECIFIED = 0;
+  PIPE_MAPPING_AUTO = 1;
+}
+
+enum PipeModulation {
+  PIPE_MODULATION_UNSPECIFIED = 0;
+  PIPE_MODULATION_FLATTEN = 10;
+  PIPE_MODULATION_ACCUMULATE = 11;
+  PIPE_MODULATION_WINDOW = 12;
+  PIPE_MODULATION_DEBOUNCE = 20;
+  PIPE_MODULATION_DELAY = 21;
 }
 
 enum PipeType {
@@ -1301,11 +1325,8 @@ enum StepType {
   STEP_TYPE_BLOCK = 51;
   STEP_TYPE_TEXT = 54;
   STEP_TYPE_CODE = 55;
-  STEP_TYPE_SEND = 56;
   STEP_TYPE_VALUE = 100;
   STEP_TYPE_GROUP = 500;
-  STEP_TYPE_LOOP = 501;
-  STEP_TYPE_REPEAT = 502;
 }
 
 enum StructType {
@@ -1350,7 +1371,6 @@ enum StructType {
   STRUCT_TYPE_CODE = 10400;
   STRUCT_TYPE_CODE_LINE = 10401;
   STRUCT_TYPE_PORT_KEY = 10450;
-  STRUCT_TYPE_PORT = 10451;
   STRUCT_TYPE_RUN_ERROR = 10500;
   STRUCT_TYPE_RUN_OPTIONS = 10501;
   STRUCT_TYPE_RUN_ATTEMPT = 10502;
@@ -1941,17 +1961,6 @@ message PolicyRuleData {
   optional bool object_properties_is_kernel = 84;
 }
 
-// Extra configuration for a port (key) on a Step with some value.
-// Not all ports need a Port, just if there is extra behavior to define.
-message PortData {
-  ObjectType metatype = 1;
-  PortType type = 40;
-  PortSide side = 41;
-  optional NodeReferenceData field_ptr = 42;
-  optional TypeInfoData value_type = 50;
-  optional google.protobuf.Struct value_packed = 51;
-}
-
 // An identifier for a port on a Step.
 message PortKeyData {
   ObjectType metatype = 1;
@@ -2382,9 +2391,9 @@ message BlockData {
   BlockType type = 30;
   string name = 32;
   string order_key = 33;
-  repeated NodeReferenceData bases_ptr = 35;
   optional TextData text = 36;
   optional IconData icon = 37;
+  optional google.protobuf.Struct variables_packed = 38;
   optional TypeInfoData value_type = 39;
   optional google.protobuf.Struct value_packed = 40;
   optional CodeData code = 42;
@@ -2552,7 +2561,6 @@ message FieldData {
   FieldZone zone = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
-  optional google.protobuf.Struct value_packed = 35;
   TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
@@ -2899,7 +2907,13 @@ message PipeData {
   PortKeyData source_port = 36;
   NodeReferenceData target_ptr = 37;
   PortKeyData target_port = 38;
-  optional PipeFilterType filter_type = 50;
+  optional PipeFilter filter = 50;
+  optional TypeConstraintData constraint = 51;
+  optional ExpressionData condition = 52;
+  optional PipeMapping mapping = 60;
+  optional PipeModulation modulation = 61;
+  optional google.protobuf.Duration delay = 65;
+  optional int32 size = 66;
   optional LineData line = 80;
   optional ColorData color = 81;
   bool is_hidden = 82;
@@ -2992,7 +3006,7 @@ message RunData {
   optional int32 terminated_epoch = 54;
   optional google.protobuf.Struct inputs_packed = 60;
   optional google.protobuf.Struct outputs_packed = 61;
-  optional google.protobuf.Struct value_packed = 62;
+  optional google.protobuf.Struct variables_packed = 62;
   repeated LogInfoData logs = 65;
   repeated RunSpanData spans = 66;
   repeated RunEventData events = 67;
@@ -3221,6 +3235,7 @@ message StepData {
   optional CodeData code = 45;
   repeated NodeReferenceData roles_ptr = 46;
   optional NodeReferenceData identity_ptr = 47;
+  PipeCombinator combinator = 50;
   optional Vector2Data position = 80;
   optional BoxData size = 81;
 }

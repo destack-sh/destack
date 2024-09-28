@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 #   auto-naming currently only works in NodeList where we know the siblings).
 #  see :AutoNaming
 
-# NOTE :Architecture: blocks will probably eventually also need type-specific info :NodeInheritance
+# NOTE :Architecture: blocks should be factored into type-specific info :NodeInheritance
 
 
 @local_node_(NodeType.BLOCK, passthrough=("value", "fields"))
@@ -66,13 +66,14 @@ class Block(SourceNode[BlockData]):
     type: BlockType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    bases: list["Block"] = p_regular(35, require=False, array=True, references=NodeType.BLOCK)
     text: Optional["Text"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(
         37, default=None, require=False, array=False, struct=StructType.ICON
     )
+    variables_packed: Any = p_value_packed(38)
+    variables: Any = p_value_runtime(38, typ=lambda self: cast("Block", self).variable_type)
     value_type: Optional["TypeInfo"] = p_regular(39, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(40)
     value: Any = p_value_runtime(40, typ=lambda self: cast("Block", self).value_type)
@@ -199,8 +200,8 @@ class Block(SourceNode[BlockData]):
                     kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone or FieldZone.MEMBER
                 )
         elif self.type == BlockType.VALUE:
-            assert self.value_type is not None, f"{self!r} has no builtin base"
-            return self.value_type._to_resolved()
+            assert self.variable_type is not None, f"{self!r} has no builtin base"
+            return self.variable_type._to_resolved()
         elif self.type == BlockType.DATABASE:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
@@ -217,6 +218,10 @@ class Block(SourceNode[BlockData]):
             raise ValueError(f"{self!r} has no type")
         typ._resolve_type()  # pre-resolve
         return typ
+
+    @property
+    def variable_type(self) -> "TypeInfoBase":
+        return self.to_type(as_object=True, zone=FieldZone.VARIABLE)
 
     @property
     def input_type(self) -> "TypeInfoBase":
