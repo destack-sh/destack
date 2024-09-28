@@ -1046,7 +1046,7 @@ class PipeModulation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PIPE_MODULATION_ACCUMULATE: _ClassVar[PipeModulation]
     PIPE_MODULATION_WINDOW: _ClassVar[PipeModulation]
     PIPE_MODULATION_DEBOUNCE: _ClassVar[PipeModulation]
-    PIPE_MODULATION_DELAY: _ClassVar[PipeModulation]
+    PIPE_MODULATION_THROTTLE: _ClassVar[PipeModulation]
 
 class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1070,7 +1070,6 @@ class PortType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PORT_TYPE_UNSPECIFIED: _ClassVar[PortType]
     PORT_TYPE_RUN: _ClassVar[PortType]
-    PORT_TYPE_OBJECT: _ClassVar[PortType]
     PORT_TYPE_FIELD: _ClassVar[PortType]
 
 class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1314,6 +1313,7 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_BLOCK: _ClassVar[StepType]
     STEP_TYPE_TEXT: _ClassVar[StepType]
     STEP_TYPE_CODE: _ClassVar[StepType]
+    STEP_TYPE_SEND: _ClassVar[StepType]
     STEP_TYPE_VALUE: _ClassVar[StepType]
     STEP_TYPE_GROUP: _ClassVar[StepType]
 
@@ -2418,7 +2418,7 @@ PIPE_MODULATION_FLATTEN: PipeModulation
 PIPE_MODULATION_ACCUMULATE: PipeModulation
 PIPE_MODULATION_WINDOW: PipeModulation
 PIPE_MODULATION_DEBOUNCE: PipeModulation
-PIPE_MODULATION_DELAY: PipeModulation
+PIPE_MODULATION_THROTTLE: PipeModulation
 PIPE_TYPE_UNSPECIFIED: PipeType
 PIPE_TYPE_CONTROL_AND_DATA: PipeType
 PIPE_TYPE_DATA: PipeType
@@ -2430,7 +2430,6 @@ PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
 PORT_TYPE_UNSPECIFIED: PortType
 PORT_TYPE_RUN: PortType
-PORT_TYPE_OBJECT: PortType
 PORT_TYPE_FIELD: PortType
 PRIMITIVE_TYPE_UNSPECIFIED: PrimitiveType
 PRIMITIVE_TYPE_BOOLEAN: PrimitiveType
@@ -2608,6 +2607,7 @@ STEP_TYPE_TRIGGER: StepType
 STEP_TYPE_BLOCK: StepType
 STEP_TYPE_TEXT: StepType
 STEP_TYPE_CODE: StepType
+STEP_TYPE_SEND: StepType
 STEP_TYPE_VALUE: StepType
 STEP_TYPE_GROUP: StepType
 STRUCT_TYPE_UNSPECIFIED: StructType
@@ -3992,10 +3992,10 @@ class RunOptionsData(_message.Message):
     max_attempts: int
     max_concurrency: int
     max_runs: int
-    timeout: float
-    retry_interval: float
+    timeout: _duration_pb2.Duration
+    retry_interval: _duration_pb2.Duration
     backoff: float
-    max_retry_interval: float
+    max_retry_interval: _duration_pb2.Duration
     retry_on: _containers.RepeatedScalarFieldContainer[RunErrorType]
     suppress_fail: bool
     suppress_abort: bool
@@ -4010,10 +4010,10 @@ class RunOptionsData(_message.Message):
         max_attempts: _Optional[int] = ...,
         max_concurrency: _Optional[int] = ...,
         max_runs: _Optional[int] = ...,
-        timeout: _Optional[float] = ...,
-        retry_interval: _Optional[float] = ...,
+        timeout: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
+        retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         backoff: _Optional[float] = ...,
-        max_retry_interval: _Optional[float] = ...,
+        max_retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ...,
         suppress_fail: bool = ...,
         suppress_abort: bool = ...,
@@ -6816,6 +6816,7 @@ class PipeData(_message.Message):
         "condition",
         "mapping",
         "modulation",
+        "combinator",
         "delay",
         "size",
         "line",
@@ -6852,6 +6853,7 @@ class PipeData(_message.Message):
     CONDITION_FIELD_NUMBER: _ClassVar[int]
     MAPPING_FIELD_NUMBER: _ClassVar[int]
     MODULATION_FIELD_NUMBER: _ClassVar[int]
+    COMBINATOR_FIELD_NUMBER: _ClassVar[int]
     DELAY_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
     LINE_FIELD_NUMBER: _ClassVar[int]
@@ -6887,6 +6889,7 @@ class PipeData(_message.Message):
     condition: ExpressionData
     mapping: PipeMapping
     modulation: PipeModulation
+    combinator: PipeCombinator
     delay: _duration_pb2.Duration
     size: int
     line: LineData
@@ -6924,6 +6927,7 @@ class PipeData(_message.Message):
         condition: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         mapping: _Optional[_Union[PipeMapping, str]] = ...,
         modulation: _Optional[_Union[PipeModulation, str]] = ...,
+        combinator: _Optional[_Union[PipeCombinator, str]] = ...,
         delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         size: _Optional[int] = ...,
         line: _Optional[_Union[LineData, _Mapping]] = ...,
@@ -7958,7 +7962,6 @@ class StepData(_message.Message):
         "code",
         "roles_ptr",
         "identity_ptr",
-        "combinator",
         "position",
         "size",
     )
@@ -7992,7 +7995,6 @@ class StepData(_message.Message):
     CODE_FIELD_NUMBER: _ClassVar[int]
     ROLES_PTR_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_PTR_FIELD_NUMBER: _ClassVar[int]
-    COMBINATOR_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -8025,7 +8027,6 @@ class StepData(_message.Message):
     code: CodeData
     roles_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     identity_ptr: NodeReferenceData
-    combinator: PipeCombinator
     position: Vector2Data
     size: BoxData
     def __init__(
@@ -8060,7 +8061,6 @@ class StepData(_message.Message):
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
         roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        combinator: _Optional[_Union[PipeCombinator, str]] = ...,
         position: _Optional[_Union[Vector2Data, _Mapping]] = ...,
         size: _Optional[_Union[BoxData, _Mapping]] = ...,
     ) -> None: ...

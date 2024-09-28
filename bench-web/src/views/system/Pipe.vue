@@ -3,11 +3,21 @@ import { toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName } from "@/language/node";
-import { ColorShade, ColorType, NodeType, PipeFilter, PipeType, PortType, Variant, ViewData } from "@/proto/wire";
+import {
+  ColorShade,
+  ColorType,
+  NodeType,
+  PipeFilter,
+  PipeModulation,
+  PipeType,
+  PortType,
+  Variant,
+  ViewData,
+} from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
-import { ICON_BY_PIPE_FILTER, IconInline } from "@/ui/icon";
+import { ICON_BY_PIPE_FILTER, ICON_BY_PIPE_MODULATION, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -114,7 +124,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Midpoint meta -->
     <div
       v-if="!isHidden"
-      class="absolute flex -translate-x-1/2 -translate-y-[75%] select-none flex-col items-center gap-x-1 transition-colors duration-150"
+      class="absolute flex -translate-x-1/2 -translate-y-[80%] select-none flex-col items-center gap-x-1 transition-colors duration-150"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
     >
       <!-- Name -->
@@ -135,11 +145,17 @@ defineExpose<ViewExposed>({ self, id, actions });
         :model-value="pipe.name"
         @update:model-value="(newValue) => flowCtx.tx.update(pipe!, { name: newValue }, { debounce: 'long' })"
       />
-      <!-- Filter/Mapping -->
+      <!-- Filter/Mapping/... -->
       <IconInline
         v-if="pipe.filter != null"
         v-tooltip="{ title: toCamelName(PipeFilter, pipe.filter), small: true }"
         v-bind="ICON_BY_PIPE_FILTER[pipe.filter]"
+        class="w-fit rounded bg-white text-center text-gray-700"
+      />
+      <IconInline
+        v-if="pipe.modulation != null"
+        v-tooltip="{ title: toCamelName(PipeModulation, pipe.modulation), small: true }"
+        v-bind="ICON_BY_PIPE_MODULATION[pipe.modulation]"
         class="w-fit rounded bg-white text-center text-gray-700"
       />
     </div>

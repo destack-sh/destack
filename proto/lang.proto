@@ -1047,7 +1047,7 @@ enum PipeModulation {
   PIPE_MODULATION_ACCUMULATE = 11;
   PIPE_MODULATION_WINDOW = 12;
   PIPE_MODULATION_DEBOUNCE = 20;
-  PIPE_MODULATION_DELAY = 21;
+  PIPE_MODULATION_THROTTLE = 21;
 }
 
 enum PipeType {
@@ -1071,7 +1071,6 @@ enum PortSide {
 enum PortType {
   PORT_TYPE_UNSPECIFIED = 0;
   PORT_TYPE_RUN = 1;
-  PORT_TYPE_OBJECT = 10;
   PORT_TYPE_FIELD = 11;
 }
 
@@ -1325,6 +1324,7 @@ enum StepType {
   STEP_TYPE_BLOCK = 51;
   STEP_TYPE_TEXT = 54;
   STEP_TYPE_CODE = 55;
+  STEP_TYPE_SEND = 56;
   STEP_TYPE_VALUE = 100;
   STEP_TYPE_GROUP = 500;
 }
@@ -2048,10 +2048,10 @@ message RunOptionsData {
   optional int32 max_attempts = 30;
   optional int32 max_concurrency = 31;
   optional int32 max_runs = 32;
-  optional float timeout = 35;
-  optional float retry_interval = 40;
+  optional google.protobuf.Duration timeout = 35;
+  optional google.protobuf.Duration retry_interval = 40;
   optional float backoff = 41;
-  optional float max_retry_interval = 42;
+  optional google.protobuf.Duration max_retry_interval = 42;
   repeated RunErrorType retry_on = 44;
   optional bool suppress_fail = 45;
   optional bool suppress_abort = 46;
@@ -2912,6 +2912,7 @@ message PipeData {
   optional ExpressionData condition = 52;
   optional PipeMapping mapping = 60;
   optional PipeModulation modulation = 61;
+  optional PipeCombinator combinator = 62;
   optional google.protobuf.Duration delay = 65;
   optional int32 size = 66;
   optional LineData line = 80;
@@ -3235,7 +3236,6 @@ message StepData {
   optional CodeData code = 45;
   repeated NodeReferenceData roles_ptr = 46;
   optional NodeReferenceData identity_ptr = 47;
-  PipeCombinator combinator = 50;
   optional Vector2Data position = 80;
   optional BoxData size = 81;
 }

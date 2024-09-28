@@ -1415,21 +1415,21 @@ export interface RunOptionsData {
      */
     maxRuns?: number;
     /**
-     * @generated from protobuf field: optional float timeout = 35;
+     * @generated from protobuf field: optional google.protobuf.Duration timeout = 35;
      */
-    timeout?: number;
+    timeout?: Duration;
     /**
-     * @generated from protobuf field: optional float retry_interval = 40;
+     * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 40;
      */
-    retryInterval?: number;
+    retryInterval?: Duration;
     /**
      * @generated from protobuf field: optional float backoff = 41;
      */
     backoff?: number;
     /**
-     * @generated from protobuf field: optional float max_retry_interval = 42;
+     * @generated from protobuf field: optional google.protobuf.Duration max_retry_interval = 42;
      */
-    maxRetryInterval?: number;
+    maxRetryInterval?: Duration;
     /**
      * @generated from protobuf field: repeated symbolx.bench.RunErrorType retry_on = 44;
      */
@@ -4449,6 +4449,10 @@ export interface PipeData {
      */
     modulation?: PipeModulation;
     /**
+     * @generated from protobuf field: optional symbolx.bench.PipeCombinator combinator = 62;
+     */
+    combinator?: PipeCombinator;
+    /**
      * @generated from protobuf field: optional google.protobuf.Duration delay = 65;
      */
     delay?: Duration;
@@ -5605,10 +5609,6 @@ export interface StepData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 47;
      */
     identityPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.PipeCombinator combinator = 50;
-     */
-    combinator: PipeCombinator;
     /**
      * @generated from protobuf field: optional symbolx.bench.Vector2Data position = 80;
      */
@@ -10209,9 +10209,9 @@ export enum PipeModulation {
      */
     DEBOUNCE = 20,
     /**
-     * @generated from protobuf enum value: PIPE_MODULATION_DELAY = 21;
+     * @generated from protobuf enum value: PIPE_MODULATION_THROTTLE = 21;
      */
-    DELAY = 21
+    THROTTLE = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.PipeType
@@ -10276,10 +10276,6 @@ export enum PortType {
      * @generated from protobuf enum value: PORT_TYPE_RUN = 1;
      */
     RUN = 1,
-    /**
-     * @generated from protobuf enum value: PORT_TYPE_OBJECT = 10;
-     */
-    OBJECT = 10,
     /**
      * @generated from protobuf enum value: PORT_TYPE_FIELD = 11;
      */
@@ -11117,6 +11113,10 @@ export enum StepType {
      * @generated from protobuf enum value: STEP_TYPE_CODE = 55;
      */
     CODE = 55,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_SEND = 56;
+     */
+    SEND = 56,
     /**
      * @generated from protobuf enum value: STEP_TYPE_VALUE = 100;
      */
@@ -15532,10 +15532,10 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
             { no: 30, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 31, name: "max_concurrency", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "max_runs", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 35, name: "timeout", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 40, name: "retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 35, name: "timeout", kind: "message", T: () => Duration },
+            { no: 40, name: "retry_interval", kind: "message", T: () => Duration },
             { no: 41, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 42, name: "max_retry_interval", kind: "message", T: () => Duration },
             { no: 44, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
             { no: 45, name: "suppress_fail", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 46, name: "suppress_abort", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -15572,17 +15572,17 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 case /* optional int32 max_runs */ 32:
                     message.maxRuns = reader.int32();
                     break;
-                case /* optional float timeout */ 35:
-                    message.timeout = reader.float();
+                case /* optional google.protobuf.Duration timeout */ 35:
+                    message.timeout = Duration.internalBinaryRead(reader, reader.uint32(), options, message.timeout);
                     break;
-                case /* optional float retry_interval */ 40:
-                    message.retryInterval = reader.float();
+                case /* optional google.protobuf.Duration retry_interval */ 40:
+                    message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
                     break;
                 case /* optional float backoff */ 41:
                     message.backoff = reader.float();
                     break;
-                case /* optional float max_retry_interval */ 42:
-                    message.maxRetryInterval = reader.float();
+                case /* optional google.protobuf.Duration max_retry_interval */ 42:
+                    message.maxRetryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.maxRetryInterval);
                     break;
                 case /* repeated symbolx.bench.RunErrorType retry_on */ 44:
                     if (wireType === WireType.LengthDelimited)
@@ -15636,18 +15636,18 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* optional int32 max_runs = 32; */
         if (message.maxRuns !== undefined)
             writer.tag(32, WireType.Varint).int32(message.maxRuns);
-        /* optional float timeout = 35; */
-        if (message.timeout !== undefined)
-            writer.tag(35, WireType.Bit32).float(message.timeout);
-        /* optional float retry_interval = 40; */
-        if (message.retryInterval !== undefined)
-            writer.tag(40, WireType.Bit32).float(message.retryInterval);
+        /* optional google.protobuf.Duration timeout = 35; */
+        if (message.timeout)
+            Duration.internalBinaryWrite(message.timeout, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Duration retry_interval = 40; */
+        if (message.retryInterval)
+            Duration.internalBinaryWrite(message.retryInterval, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional float backoff = 41; */
         if (message.backoff !== undefined)
             writer.tag(41, WireType.Bit32).float(message.backoff);
-        /* optional float max_retry_interval = 42; */
-        if (message.maxRetryInterval !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.maxRetryInterval);
+        /* optional google.protobuf.Duration max_retry_interval = 42; */
+        if (message.maxRetryInterval)
+            Duration.internalBinaryWrite(message.maxRetryInterval, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.RunErrorType retry_on = 44; */
         if (message.retryOn.length) {
             writer.tag(44, WireType.LengthDelimited).fork();
@@ -22251,6 +22251,7 @@ class PipeData$Type extends MessageType<PipeData> {
             { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 60, name: "mapping", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeMapping", PipeMapping, "PIPE_MAPPING_"] },
             { no: 61, name: "modulation", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeModulation", PipeModulation, "PIPE_MODULATION_"] },
+            { no: 62, name: "combinator", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeCombinator", PipeCombinator, "PIPE_COMBINATOR_"] },
             { no: 65, name: "delay", kind: "message", T: () => Duration },
             { no: 66, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 80, name: "line", kind: "message", T: () => LineData },
@@ -22374,6 +22375,9 @@ class PipeData$Type extends MessageType<PipeData> {
                 case /* optional symbolx.bench.PipeModulation modulation */ 61:
                     message.modulation = reader.int32();
                     break;
+                case /* optional symbolx.bench.PipeCombinator combinator */ 62:
+                    message.combinator = reader.int32();
+                    break;
                 case /* optional google.protobuf.Duration delay */ 65:
                     message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
                     break;
@@ -22495,6 +22499,9 @@ class PipeData$Type extends MessageType<PipeData> {
         /* optional symbolx.bench.PipeModulation modulation = 61; */
         if (message.modulation !== undefined)
             writer.tag(61, WireType.Varint).int32(message.modulation);
+        /* optional symbolx.bench.PipeCombinator combinator = 62; */
+        if (message.combinator !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.combinator);
         /* optional google.protobuf.Duration delay = 65; */
         if (message.delay)
             Duration.internalBinaryWrite(message.delay, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
@@ -24688,7 +24695,6 @@ class StepData$Type extends MessageType<StepData> {
             { no: 45, name: "code", kind: "message", T: () => CodeData },
             { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 47, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "combinator", kind: "enum", T: () => ["symbolx.bench.PipeCombinator", PipeCombinator, "PIPE_COMBINATOR_"] },
             { no: 80, name: "position", kind: "message", T: () => Vector2Data },
             { no: 81, name: "size", kind: "message", T: () => BoxData }
         ]);
@@ -24706,7 +24712,6 @@ class StepData$Type extends MessageType<StepData> {
         message.name = "";
         message.orderKey = "";
         message.rolesPtr = [];
-        message.combinator = 0;
         if (value !== undefined)
             reflectionMergePartial<StepData>(this, message, value);
         return message;
@@ -24809,9 +24814,6 @@ class StepData$Type extends MessageType<StepData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 47:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
-                    break;
-                case /* symbolx.bench.PipeCombinator combinator */ 50:
-                    message.combinator = reader.int32();
                     break;
                 case /* optional symbolx.bench.Vector2Data position */ 80:
                     message.position = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.position);
@@ -24925,9 +24927,6 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.NodeReferenceData identity_ptr = 47; */
         if (message.identityPtr)
             NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PipeCombinator combinator = 50; */
-        if (message.combinator !== 0)
-            writer.tag(50, WireType.Varint).int32(message.combinator);
         /* optional symbolx.bench.Vector2Data position = 80; */
         if (message.position)
             Vector2Data.internalBinaryWrite(message.position, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
@@ -28058,7 +28057,6 @@ export enum StepProperty {
   code = 45,
   rolesPtr = 46,
   identityPtr = 47,
-  combinator = 50,
   position = 80,
   size = 81,
 }
@@ -28094,6 +28092,7 @@ export enum PipeProperty {
   condition = 52,
   mapping = 60,
   modulation = 61,
+  combinator = 62,
   delay = 65,
   size = 66,
   line = 80,
@@ -29634,10 +29633,10 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.maxAttempts]: { id: 30, name: 'max_attempts', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxConcurrency]: { id: 31, name: 'max_concurrency', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxRuns]: { id: 32, name: 'max_runs', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.timeout]: { id: 35, name: 'timeout', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.retryInterval]: { id: 40, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.timeout]: { id: 35, name: 'timeout', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.retryInterval]: { id: 40, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.backoff]: { id: 41, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryOn]: { id: 44, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.suppressFail]: { id: 45, name: 'suppress_fail', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.suppressAbort]: { id: 46, name: 'suppress_abort', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
@@ -29926,7 +29925,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.27.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29955,7 +29954,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.27.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29981,7 +29980,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.27.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30463,7 +30462,6 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.code]: { id: 45, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [StepProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [50], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.combinator]: { id: 50, name: 'combinator', component: ObjectType.STEP, enumType: EnumType.PIPE_COMBINATOR, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.position]: { id: 80, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [StepProperty.size]: { id: 81, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
 }
@@ -30498,6 +30496,7 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.condition]: { id: 52, name: 'condition', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [PipeProperty.mapping]: { id: 60, name: 'mapping', component: ObjectType.PIPE, enumType: EnumType.PIPE_MAPPING, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.modulation]: { id: 61, name: 'modulation', component: ObjectType.PIPE, enumType: EnumType.PIPE_MODULATION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.combinator]: { id: 62, name: 'combinator', component: ObjectType.PIPE, enumType: EnumType.PIPE_COMBINATOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.delay]: { id: 65, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.size]: { id: 66, name: 'size', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.line]: { id: 80, name: 'line', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LINE },
