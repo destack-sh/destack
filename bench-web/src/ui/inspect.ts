@@ -259,14 +259,13 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
           getNestedInspectedProperty(stepProperties[StepProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),
         )
         .forEach((p) => properties.Run.push(p));
-      properties.Run.push(StepProperty.combinator);
     }
     return properties;
   } else if (isNode(node, NodeType.PIPE)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [PipeProperty.type, PipeProperty.color, PipeProperty.isHidden],
       Filter: [PipeProperty.filter],
-      Mapping: [PipeProperty.modulation],
+      Mapping: [PipeProperty.modulation, PipeProperty.combinator],
     };
     return properties;
   } else if (isNode(node, NodeType.VIEW)) {

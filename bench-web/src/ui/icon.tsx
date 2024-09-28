@@ -309,7 +309,7 @@ export const ICON_BY_PIPE_MODULATION: Partial<Record<PipeModulation, IconData>> 
   [PipeModulation.ACCUMULATE]: "fas fa-angles-left",
   [PipeModulation.WINDOW]: "fas fa-crop-simple",
   [PipeModulation.DEBOUNCE]: "fas fa-stopwatch",
-  [PipeModulation.DELAY]: "fas fa-timer",
+  [PipeModulation.THROTTLE]: "fas fa-stopwatch",
 });
 
 export const ICON_BY_PIPE_COMBINATOR: Partial<Record<PipeCombinator, IconData>> = _makeIcons<PipeCombinator>({

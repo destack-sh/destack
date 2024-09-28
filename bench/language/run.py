@@ -134,12 +134,12 @@ class RunOptions(Struct):
         constraint=TypeConstraintIn(min_value=0),
         description="Maximum number of Runs (incl. nested, per context)",
     )
-    timeout: Optional[float] = p_regular(35, constraint=TypeConstraintIn(min_value=0))
+    timeout: Optional[timedelta] = p_regular(35)
 
     # retry
-    retry_interval: Optional[float] = p_regular(40, constraint=TypeConstraintIn(min_value=0))
+    retry_interval: Optional[timedelta] = p_regular(40)
     backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
-    max_retry_interval: Optional[float] = p_regular(42, constraint=TypeConstraintIn(min_value=0))
+    max_retry_interval: Optional[timedelta] = p_regular(42)
     retry_on: list["RunErrorType"] = p_regular(44, array=True)
     suppress_fail: Optional[bool] = p_regular(45, default=None)
     suppress_abort: Optional[bool] = p_regular(46, default=None)
@@ -159,9 +159,11 @@ class RunOptions(Struct):
         """Turns the options into our RetryOptions."""
         return RetryOptions(
             max_attempts=self.max_attempts or 1,
-            retry_interval=self.retry_interval or 1,
+            retry_interval=self.retry_interval.total_seconds() if self.retry_interval else 1,
             backoff=self.backoff or 2,
-            max_retry_interval=self.max_retry_interval or 30,
+            max_retry_interval=self.max_retry_interval.total_seconds()
+            if self.max_retry_interval
+            else 30,
             # retry_on is handled separately in runtime because we need the specific RunErrorType
         )
 

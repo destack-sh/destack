@@ -4,7 +4,7 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
-from bench.language.flow import PipeFilter, PortType, Step, StepType
+from bench.language.flow import PipeFilter, PipeModulation, PortType, Step, StepType
 from bench.language.run import Run, RunErrorType, RunOptions
 from bench.language.text import md
 from bench.test.unit.conftest import RuntimeHandle
@@ -220,7 +220,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
         Complete,
         source_port=PortType.RUN,
         target_port=PortType.RUN,
-        filter_type=PipeFilter.HAS_ERROR,
+        filter=PipeFilter.HAS_ERROR,
     )
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
@@ -381,7 +381,7 @@ async def test_run_flow_pipe_filter_positive(local_runtime: RuntimeHandle):
         Complete,
         source_port=Code1.fields.Output1,
         target_port=PortType.RUN,
-        filter_type=PipeFilter.IS_TRUTHY,
+        filter=PipeFilter.IS_TRUTHY,
     )
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
@@ -405,7 +405,7 @@ async def test_run_flow_pipe_filter_negative(local_runtime: RuntimeHandle):
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Code1, Complete)
-    Start.then(Code1).then(Complete, filter_type=PipeFilter.IS_FALSY)
+    Start.then(Code1).then(Complete, filter=PipeFilter.IS_FALSY)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -464,14 +464,14 @@ return Input1, Input1 < 10, Input1 > 10
         MultiplyLarge,
         source_port=Switch.fields.IsLarge,
         target_port=PortType.RUN,
-        filter_type=PipeFilter.IS_TRUTHY,
+        filter=PipeFilter.IS_TRUTHY,
     )
     # Switch > DivideSmall
     Switch.then(
         DivideSmall,
         source_port=Switch.fields.IsSmall,
         target_port=PortType.RUN,
-        filter_type=PipeFilter.IS_TRUTHY,
+        filter=PipeFilter.IS_TRUTHY,
     )
     # Start - MultiplyLarge
     Start.with_(MultiplyLarge)
@@ -538,14 +538,14 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
         Complete,
         source_port=Verifier.fields.IsGood,
         target_port=PortType.RUN,
-        filter_type=PipeFilter.IS_TRUTHY,
+        filter=PipeFilter.IS_TRUTHY,
     )
     # Verifier.IsGood?[IsFalsy] > Generator
     Verifier.then(
         Generator,
         source_port=Verifier.fields.IsGood,
         target_port=PortType.RUN,
-        filter_type=PipeFilter.IS_FALSY,
+        filter=PipeFilter.IS_FALSY,
     )
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
@@ -556,7 +556,7 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
 
 async def test_run_flow_abort(local_runtime: RuntimeHandle):
     """Run a long async flow script and abort it. All pending steps should be aborted."""
-    FlowBlock = Block.new(BlockType.FLOW, "Flow1")
+    Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(
         StepType.CODE,
@@ -564,12 +564,12 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
         code=code("await asyncio.sleep(5)"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    FlowBlock.steps.extend(Start, Code1, Complete)
+    Flow.steps.extend(Start, Code1, Complete)
     Start.then(Code1).then(Complete)
-    local_runtime.page().blocks.append(FlowBlock)
+    local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
-    run = Run.new(FlowBlock)
+    run = Run.new(Flow)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
@@ -580,3 +580,49 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     assert runner.run and runner.run.duration and runner.run.duration < 1
     # code step should also be aborted
     assert runner.runs[1].node == Code1 and runner.runs[1].status == RunStatus.ABORTED
+
+
+async def test_run_flow_flatten_accumulate(local_runtime: RuntimeHandle):
+    """Run a flow with a pipe with a flatten and accumulate modulation."""
+    Flow = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=[
+            Field.input("Strings", str, is_list=True, is_required=True),
+            Field.output("Total", int),
+        ],
+    )
+    Start = Step.new(StepType.START, "Start")
+    Measure = Step.new(
+        StepType.CODE,
+        "Measure",
+        code=code("pass return len(Input1)"),
+        fields=[Field.input("String", str), Field.output("Length", int)],
+    )
+    Reduce = Step.new(
+        StepType.CODE,
+        "Reduce",
+        code=code("return sum(Lengths)"),
+        fields=[
+            Field.input("Lengths", int, is_list=True, is_required=True),
+            Field.output("Total", int),
+        ],
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow.steps.extend(Start, Measure, Reduce, Complete)
+    Start.then(
+        Measure,
+        source_port=Flow.fields.Strings,
+        target_port=Measure.fields.String,
+        modulation=PipeModulation.FLATTEN,
+    ).then(
+        Reduce,
+        source_port=Measure.fields.Length,
+        target_port=Reduce.fields.Lengths,
+        modulation=PipeModulation.ACCUMULATE,
+    ).then(Complete, source_port=Reduce.fields.Total, target_port=Flow.fields.Total)
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow, inputs={"Strings": ["a", "bb", "ccc"]})
+    assert runner.outputs and runner.outputs.Total == 6

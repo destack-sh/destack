@@ -61,7 +61,6 @@ class PortSide(IdEnum):
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
     RUN = 1  # fire only (no content, just the Run)
-    OBJECT = 10  # fire with full input/output/... value (depending on side)
     FIELD = 11  # fire with specific field (depending on side & type)
 
     @property
@@ -74,8 +73,8 @@ class PortType(IdEnum):
 
 
 PORT_TYPES_BY_SIDE: dict[PortSide, tuple[PortType, ...]] = {
-    PortSide.INCOMING: (PortType.RUN, PortType.OBJECT, PortType.FIELD),
-    PortSide.OUTGOING: (PortType.RUN, PortType.OBJECT, PortType.FIELD),
+    PortSide.INCOMING: (PortType.RUN, PortType.FIELD),
+    PortSide.OUTGOING: (PortType.RUN, PortType.FIELD),
 }
 FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldZone, ...]] = {
     PortSide.INCOMING: (FieldZone.VARIABLE, FieldZone.INPUT),
@@ -99,8 +98,6 @@ class PortKeyBase(BuiltinObject):
     def __content_str__(self) -> str:
         if self.type == PortType.RUN:
             return f"[{self.type.bench_name}]"
-        elif self.type == PortType.OBJECT:
-            return f".*[{self.side.bench_name}]"
         elif self.type == PortType.FIELD:
             field = self.field
             return f".{field.code_name if field else '???'}"
@@ -172,7 +169,7 @@ class PipeModulation(IdEnum):
     ACCUMULATE = 11
     WINDOW = 12
     DEBOUNCE = 20
-    DELAY = 21
+    THROTTLE = 21
 
 
 @enum_(EnumType.PIPE_COMBINATOR)
@@ -214,6 +211,7 @@ class Pipe(SourceNode[PipeData]):
     # mapping
     mapping: PipeMapping | None = p_regular(60, default=None)
     modulation: PipeModulation | None = p_regular(61, default=None)
+    combinator: PipeCombinator | None = p_regular(62, default=None)
     delay: Optional[timedelta] = p_regular(65, default=None)
     size: Optional[int] = p_regular(66, default=None)
 
@@ -271,6 +269,7 @@ class StepType(IdEnum):
     BLOCK = 51  # run a runnable block
     TEXT = 54  # run text
     CODE = 55  # run code
+    SEND = 56  # send a message/signal/notification/...
     # YIELD # to other program/human
     # SEND, APPLY, CREATE, PASS?
 
@@ -361,9 +360,6 @@ class Step(SourceNode[StepData]):
         roles_ptr: tuple["NodeReference", ...] = ()
         identity_ptr: Optional["NodeReference"] = None
 
-    # config
-    combinator: PipeCombinator = p_regular(50, default=PipeCombinator.PRODUCT)
-
     # view
     position: Optional["Vector2"] = p_regular(
         80, default=None, require=False, array=False, struct=StructType.VECTOR2
@@ -398,9 +394,15 @@ class Step(SourceNode[StepData]):
         source: "Step",
         *,
         name: str | None = None,
-        source_port: "PortIn" = PortType.OBJECT,
-        target_port: "PortIn" = PortType.OBJECT,
-        filter_type: PipeFilter | None = None,
+        source_port: "PortIn" = PortType.RUN,
+        target_port: "PortIn" = PortType.RUN,
+        filter: PipeFilter | None = None,
+        constraint: "TypeConstraint | None" = None,
+        condition: "Expression | None" = None,
+        mapping: PipeMapping | None = None,
+        modulation: PipeModulation | None = None,
+        delay: timedelta | None = None,
+        size: int | None = None,
         parent: Union["Block", "Step", None] = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
@@ -423,7 +425,13 @@ class Step(SourceNode[StepData]):
             source_port=to_port_key(source_port, side=PortSide.OUTGOING),
             target=self,
             target_port=to_port_key(target_port, side=PortSide.INCOMING),
-            filter=filter_type,
+            filter=filter,
+            constraint=constraint,
+            condition=condition,
+            mapping=mapping,
+            modulation=modulation,
+            delay=delay,
+            size=size,
             parent=parent,
         )
         parent.pipes.append(pipe)
@@ -434,9 +442,15 @@ class Step(SourceNode[StepData]):
         target: "Step",
         *,
         name: str | None = None,
-        source_port: "PortIn" = PortType.OBJECT,
-        target_port: "PortIn" = PortType.OBJECT,
-        filter_type: PipeFilter | None = None,
+        source_port: "PortIn" = PortType.RUN,
+        target_port: "PortIn" = PortType.RUN,
+        filter: PipeFilter | None = None,
+        constraint: "TypeConstraint | None" = None,
+        condition: "Expression | None" = None,
+        mapping: PipeMapping | None = None,
+        modulation: PipeModulation | None = None,
+        delay: timedelta | None = None,
+        size: int | None = None,
         parent: Union["Block", "Step", None] = None,
     ) -> "Step":
         """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
@@ -446,7 +460,13 @@ class Step(SourceNode[StepData]):
             source=self,
             source_port=source_port,
             target_port=target_port,
-            filter_type=filter_type,
+            filter=filter,
+            constraint=constraint,
+            condition=condition,
+            mapping=mapping,
+            modulation=modulation,
+            delay=delay,
+            size=size,
             parent=parent,
         )
         return target
@@ -456,9 +476,15 @@ class Step(SourceNode[StepData]):
         target: "Step",
         *,
         name: str | None = None,
-        source_port: "PortIn" = PortType.OBJECT,
-        target_port: "PortIn" = PortType.OBJECT,
-        filter_type: PipeFilter | None = None,
+        source_port: "PortIn" = PortType.RUN,
+        target_port: "PortIn" = PortType.RUN,
+        filter: PipeFilter | None = None,
+        constraint: "TypeConstraint | None" = None,
+        condition: "Expression | None" = None,
+        mapping: PipeMapping | None = None,
+        modulation: PipeModulation | None = None,
+        delay: timedelta | None = None,
+        size: int | None = None,
         parent: Union["Block", "Step", None] = None,
     ) -> "Step":
         """Connects a source Step to this Step as a With. Returns the target Step (for chaining)."""
@@ -468,7 +494,13 @@ class Step(SourceNode[StepData]):
             source=self,
             source_port=source_port,
             target_port=target_port,
-            filter_type=filter_type,
+            filter=filter,
+            constraint=constraint,
+            condition=condition,
+            mapping=mapping,
+            modulation=modulation,
+            delay=delay,
+            size=size,
             parent=parent,
         )
         return target
