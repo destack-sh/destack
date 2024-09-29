@@ -1045,7 +1045,7 @@ enum PipeModulation {
   PIPE_MODULATION_UNSPECIFIED = 0;
   PIPE_MODULATION_FLATTEN = 10;
   PIPE_MODULATION_ACCUMULATE = 11;
-  PIPE_MODULATION_WINDOW = 12;
+  PIPE_MODULATION_BUFFER = 12;
   PIPE_MODULATION_DEBOUNCE = 20;
   PIPE_MODULATION_THROTTLE = 21;
 }
@@ -2048,6 +2048,7 @@ message RunOptionsData {
   optional int32 max_attempts = 30;
   optional int32 max_concurrency = 31;
   optional int32 max_runs = 32;
+  optional int32 max_inner_runs = 33;
   optional google.protobuf.Duration timeout = 35;
   optional google.protobuf.Duration retry_interval = 40;
   optional float backoff = 41;
@@ -2912,9 +2913,9 @@ message PipeData {
   optional ExpressionData condition = 52;
   optional PipeMapping mapping = 60;
   optional PipeModulation modulation = 61;
-  optional PipeCombinator combinator = 62;
   optional google.protobuf.Duration delay = 65;
   optional int32 size = 66;
+  optional int32 repeat = 67;
   optional LineData line = 80;
   optional ColorData color = 81;
   bool is_hidden = 82;
@@ -3236,6 +3237,7 @@ message StepData {
   optional CodeData code = 45;
   repeated NodeReferenceData roles_ptr = 46;
   optional NodeReferenceData identity_ptr = 47;
+  optional PipeCombinator combinator = 60;
   optional Vector2Data position = 80;
   optional BoxData size = 81;
 }

@@ -1,19 +1,22 @@
 import asyncio
 import dataclasses
 from dataclasses import dataclass
-from enum import IntEnum
-from typing import Any, Collection, Literal, assert_never, override
+from typing import Any, Collection, Literal, Mapping, NamedTuple, assert_never, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
+from sortedcontainers import SortedDict
 
 from bench.language.block import Block
 from bench.language.const import RunStatus
-from bench.language.field import TypeInfoBase
+from bench.language.field import Field, TypeInfoBase
 from bench.language.flow import (
     Pipe,
+    PipeCombinator,
     PipeFilter,
+    PipeModulation,
+    PipeType,
     PortKey,
     PortSide,
     PortType,
@@ -24,15 +27,22 @@ from bench.language.run import Run, RunError, RunKind
 from bench.language.value import ValueObject
 from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
 from bench.runtime.runner import Runner, RunnerCache
+from bench.utils.func import dict_product, dict_zip_latest
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-PortId = tuple[PortSide, PortType, UUID | None]
+
+class PortId(NamedTuple):
+    side: PortSide
+    type: PortType
+    field_id: UUID | None
 
 
 def to_port_id(port: PortKey) -> PortId:
-    return (port.side, port.type, port.field.id if port.field is not None else None)
+    return PortId(
+        side=port.side, type=port.type, field_id=port.field.id if port.field is not None else None
+    )
 
 
 def evaluate_pipe_filter_type(filter: PipeFilter, value: Any) -> bool:
@@ -60,9 +70,43 @@ def evaluate_pipe_filter(pipe: "Pipe", value: Any) -> bool:
     )
 
 
-class FireType(IntEnum):
-    PARTIAL = 1
-    FULL = 2
+def port_to_incoming_values(
+    step: Step,
+    port: PortId | PortKey,
+    value: ValueObject | Run | Any,
+    *,
+    values: dict[Field, Any] | None = None,
+) -> dict[Field, Any]:
+    """Get the values on the incoming side from a value set on a port."""
+    values = values if values is not None else {}
+    if port.type == PortType.RUN:
+        if isinstance(value, Run):
+            value = value.outputs
+        if not isinstance(value, ValueObject):
+            raise ValueError(f"expected inputs for {step!r}, got {value!r}")
+        # set all field ports
+        input_type = step.input_type
+        assert input_type is not None, f"{step!r} has no input type"
+        for output_field in value.fields:
+            input_field = input_type._get_field(output_field.name)
+            if input_field is None:
+                continue  # ignore unknown field
+            # set port
+            field_value = value.get(output_field.name)
+            if field_value is not None:
+                values[input_field] = field_value
+    elif port.type == PortType.FIELD:
+        # set specific field port
+        if not isinstance(value, PortKey):
+            assert port.field_id is not None, f"{port!r} has no field id"
+            field = step.fields.get(port.field_id)
+        else:
+            field = value.field
+        assert field is not None, f"{port!r} has no field"
+        values[field] = value
+    else:
+        assert_never(port.type)
+    return values
 
 
 @dataclass(slots=True, repr=False)
@@ -70,9 +114,11 @@ class PipeState:
     """The state of a Pipe in a Flow."""
 
     pipe: Pipe
-    source: "StepState"
-    target: "StepState"
-    value: Any
+    values: dict[float, list[Any]]  # currently in the pipe
+
+    @classmethod
+    def from_pipe(cls, pipe: Pipe) -> "PipeState":
+        return cls(pipe=pipe, values=SortedDict())
 
 
 @dataclass(slots=True, repr=False)
@@ -82,43 +128,18 @@ class StepState:
     step: Step
     input_type: TypeInfoBase
     inputs: ValueObject
-    unset_ports: dict[PortId, PortKey]
     runners: list["StepRunner"]
 
     def __str__(self) -> str:
-        return f"{self.step!r}, inputs={self.inputs!r}, runners={len(self.runners)}, unset_ports={len(self.unset_ports)}"
+        return f"{self.step!r}, inputs={self.inputs!r}, runners={len(self.runners)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self}>"
 
-    @property
-    def is_ready(self) -> bool:
-        return len(self.unset_ports) == 0
-
-    def set_port(self, port: PortKey, value: ValueObject | Run | RunError | Any) -> None:
+    def set_port(self, port: PortKey, value: ValueObject | Run | Any) -> None:
         """Sets the value of an incoming port (marking it as ready)."""
-        if port.type == PortType.RUN:
-            if not isinstance(value, ValueObject):
-                raise ValueError(f"expected inputs for {self.step!r}, got {value!r}")
-            # set all field ports
-            for output_field in value.fields:
-                input_field = self.input_type._get_field(output_field.name)
-                if input_field is None:
-                    continue  # ignore unknown field
-                # set port
-                field_value = value.get(output_field.name)
-                if field_value is not None:
-                    self.inputs[input_field] = field_value
-                field_port_id = (PortSide.INCOMING, PortType.FIELD, input_field.id)
-                self.unset_ports.pop(field_port_id, None)
-        elif port.type == PortType.FIELD:
-            # set specific field port
-            assert port.field is not None, f"{port!r} has no field"
-            field_port_id = to_port_id(port)
-            self.unset_ports.pop(field_port_id, None)
-            self.inputs[port.field] = value
-        else:
-            assert_never(port.type)
+        values = port_to_incoming_values(self.step, port, value)
+        self.inputs.update(values)
 
     @staticmethod
     def from_step(step: Step) -> "StepState":
@@ -126,35 +147,16 @@ class StepState:
         input_type = step.input_type
         assert input_type is not None, f"{step!r} has no input type"
         inputs = ValueObject.new({}, input_type)
-
-        # add required incoming ports to unset
-        unset_ports = {}
-        for port in step.incoming_ports:
-            port_id = to_port_id(port)
-            port_field = port.field
-            if port_field is None or port_field.is_required:
-                unset_ports[port_id] = port
-        return StepState(
-            step=step, input_type=input_type, inputs=inputs, unset_ports=unset_ports, runners=[]
-        )
+        return StepState(step=step, input_type=input_type, inputs=inputs, runners=[])
 
 
 @dataclass(slots=True, repr=False)
-class FlowTickPipe:
+class FlowTick:
     "Tick a set of inputs to some Pipes from Step outputs."
 
+    id: int
+    now: float
     values: dict[Pipe, Any]
-
-
-@dataclass(slots=True, repr=False)
-class FlowTickStep:
-    "Tick a set of inputs to some Steps from Pipe outputs." ""
-
-    step: Step
-    values: dict[PortKey, Any]
-
-
-FlowTick = FlowTickPipe | FlowTickStep
 
 
 @dataclass(slots=True, repr=False)
@@ -166,7 +168,26 @@ class FlowRunner(Runner[RunnerCache, Block]):
     _active_steps: dict[Run, "StepRunner"] = dataclasses.field(default_factory=dict)
     _force_complete: ValueObject | Literal[True] | None = None
     _force_fail: RunError | None = None
+    _tick_id: int = 0
     _tick_queue: asyncio.Queue[FlowTick] = dataclasses.field(default_factory=asyncio.Queue)
+
+    def _get_tick_id(self) -> int:
+        self._tick_id += 1
+        return self._tick_id
+
+    def _get_step_state(self, step: Step) -> "StepState":
+        state = self._step_states.get(step)
+        if state is None:
+            state = StepState.from_step(step)
+            self._step_states[step] = state
+        return state
+
+    def _get_pipe_state(self, pipe: Pipe) -> "PipeState":
+        state = self._pipe_states.get(pipe)
+        if state is None:
+            state = PipeState.from_pipe(pipe)
+            self._pipe_states[pipe] = state
+        return state
 
     def _abort(self):
         """Abort any (non-boundary) running steps."""
@@ -203,14 +224,22 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if pipe.source_ptr and pipe.source_ptr.id == step.id:
                 yield pipe
 
-    async def _make_runner(self, step_state: StepState) -> "StepRunner":
+    async def _make_runner(
+        self, step_state: StepState, values: Mapping[PortId, Any]
+    ) -> "StepRunner":
         """Make a new StepRunner for the given Step."""
+        inputs = step_state.inputs.clone()
+        inputs_override: dict[Field, Any] = {}
+        for port_id, value in values.items():
+            port_values = port_to_incoming_values(step_state.step, port_id, value)
+            inputs_override.update(port_values)
+        inputs.update(inputs_override)
         runner = await self.runtime.make_runner(
             kind=RunKind.STEP,
             node=step_state.step,
             code=step_state.step.code,
             text=step_state.step.text,
-            inputs=step_state.inputs.clone(),
+            inputs=inputs,
             options=RUN_ONCE,
             track=True,
         )
@@ -222,6 +251,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
     async def _start_step(self, state: StepState, runner: "StepRunner") -> None:
         """Run a Step in the Flow (actual run is started as a task and not directly awaited)."""
         assert runner.run is not None, f"{runner!r} has no Run"
+        # add to active step (immediately)
         self._active_steps[runner.run] = runner
         logger.debug("step.start", step=state.step, run=runner.run)
         runner.outer_task = asyncio.create_task(self._do_run_step(runner))
@@ -247,41 +277,106 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 values[pipe] = value
 
             # schedule pipe tick
-            tick = FlowTickPipe(values=values)
+            now = runner.run.terminated_at or runner.run.halted_at
+            assert now is not None, f"{runner!r} has no terminated_at or halted_at"
+            tick = FlowTick(id=self._get_tick_id(), now=now.timestamp(), values=values)
             self._tick_queue.put_nowait(tick)
             logger.trace("step.terminated", step=runner.node, runner=runner)
+
+            # remove from active steps
             if runner.run in self._active_steps:
                 del self._active_steps[runner.run]
 
-    async def _tick_pipes(self, tick: FlowTickPipe):
+    async def _tick(self, tick: FlowTick) -> list[tuple[Step, dict[PortId, Any]]]:
         """
-        Tick the given Pipes.
-        Stuff the values into the given Pipes.
-        For flattening, we split the value into multiple values (with their own tick).
-        If multiple control pipes lead to the same target pipe, we only tick once per value.
+        Tick all Pipes, pushing new values in the given Pipes.
         """
-        ...
 
-    async def _tick_steps(self, tick: FlowTickStep):
-        """
-        Tick the given Steps.
-        """
-        ...
+        # push new values into pipes
+        for pipe, value in tick.values.items():
+            pipe_state = self._get_pipe_state(pipe)
+
+            # map/filter values
+            if pipe.modulation == PipeModulation.FLATTEN:  # noqa: SIM108
+                values = value
+            else:
+                values = [value]
+            if pipe.filter is not None or pipe.constraint is not None or pipe.condition is not None:
+                values = [v for v in values if evaluate_pipe_filter(pipe, v)]
+            if len(values) == 0:
+                continue
+            if pipe.repeat:
+                values *= pipe.repeat
+
+            # push into pipe
+            ts = tick.now
+            if pipe.delay:
+                ts += pipe.delay.total_seconds()
+            pipe_state.values[ts] = values
+
+        # collect ready values from pipes
+        ready_values: dict[Pipe, list[Any]] = {}
+        for pipe in self.node.pipes:
+            pipe_state = self._get_pipe_state(pipe)
+            if not pipe_state.values:
+                continue
+            for ts in tuple(pipe_state.values.keys()):
+                values = pipe_state.values[ts]
+                if ts <= tick.now:
+                    if pipe not in ready_values:
+                        ready_values[pipe] = []
+                    ready_values[pipe].extend(values)
+                    del pipe_state.values[ts]
+                # nocheckin: accumulate pipes
+                # nocheckin: tick after delay
+
+        # collect control pipe values by target
+        control_values: dict[Step, dict[PortId, list[Any]]] = {}
+        for pipe, values in ready_values.items():
+            target_step = pipe.target
+            if target_step is None:
+                continue
+            target_state = self._get_step_state(target_step)
+            if pipe.type == PipeType.CONTROL_AND_DATA:
+                if target_step not in control_values:
+                    control_values[target_step] = {}
+                target_port_id = to_port_id(pipe.target_port)
+                if target_port_id not in control_values[target_step]:
+                    control_values[target_step][target_port_id] = []
+                control_values[target_step][target_port_id].extend(values)
+
+            # and set input ports for all pipes to latest value
+            target_state.set_port(pipe.target_port, values[-1])
+
+        # combine control values into step runs
+        steps_to_start: list[tuple[Step, dict[PortId, Any]]] = []
+        for step, values_by_port in control_values.items():
+            combinator = step.combinator or PipeCombinator.PRODUCT
+            if combinator == PipeCombinator.ZIP:  # cycle zip
+                combinations = dict_zip_latest(values_by_port)
+            elif combinator == PipeCombinator.PRODUCT:
+                combinations = dict_product(values_by_port)
+            else:
+                assert_never(combinator)
+            for combination in combinations:
+                steps_to_start.append((step, combination))
+
+        return steps_to_start
 
     @override
     async def run_once(self) -> None:
         assert self.inputs is not None, f"{self!r} has no inputs"
-        # init steps
-        steps = self.node.steps.tolist()
-        for step in steps:
+        # init steps/pipes
+        for step in self.node.steps:
             self._step_states[step] = StepState.from_step(step)
+        for pipe in self.node.pipes:
+            self._pipe_states[pipe] = PipeState.from_pipe(pipe)
 
         # fire initial steps
         for step_state in self._step_states.values():
             if step_state.step.type == StepType.START:
                 step_state.inputs = self.inputs
-                step_state.unset_ports.clear()
-                runner = await self._make_runner(step_state)
+                runner = await self._make_runner(step_state, {})
                 await self._start_step(step_state, runner)
 
         # run until completed or halted
@@ -289,7 +384,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             while (
                 not self._force_complete
                 and not self._force_fail
-                and (self._active_steps or not self._tick_queue.empty())
+                and (len(self._active_steps) > 0 or not self._tick_queue.empty())
             ):
                 # wait for next tick
                 logger.trace(
@@ -301,14 +396,14 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 tick = await self._tick_queue.get()
 
                 # do tick
-                if isinstance(tick, FlowTickPipe):
-                    await self._tick_pipes(tick)
-                elif isinstance(tick, FlowTickStep):
-                    await self._tick_steps(tick)
-                else:
-                    assert_never(tick)
+                steps_to_start = await self._tick(tick)
+                for step, values in steps_to_start:
+                    step_state = self._step_states[step]
+                    runner = await self._make_runner(step_state, values)
+                    await self._start_step(step_state, runner)
+                logger.trace("flow.tick", flow=self, tick=tick.id)
 
-            # set forced output/error
+            # done, set forced output/error if any
             if isinstance(self._force_complete, ValueObject):
                 self.outputs = self._force_complete
             elif self._force_fail:
