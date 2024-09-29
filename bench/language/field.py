@@ -661,6 +661,8 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def __eq__(self, other):  # type: ignore
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
 
+    __hash__ = SourceNode.__hash__  # type: ignore (avoid ambiguity)
+
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:

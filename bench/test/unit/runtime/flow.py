@@ -105,7 +105,7 @@ async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Complete)
-    Start.then(Complete, source_port=PortType.RUN, target_port=PortType.RUN)
+    Start.then(Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -123,7 +123,7 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     Code1 = Step.new(StepType.CODE, "Code1", fields=(Field.input("Input1", str, is_required=True),))
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Code1, Complete)
-    Start.then(Code1, source_port=PortType.RUN, target_port=PortType.RUN).then(Code1).then(Complete)
+    Start.then(Code1).then(Code1).then(Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -596,7 +596,7 @@ async def test_run_flow_flatten_accumulate(local_runtime: RuntimeHandle):
     Measure = Step.new(
         StepType.CODE,
         "Measure",
-        code=code("pass return len(Input1)"),
+        code=code("return len(String)"),
         fields=[Field.input("String", str), Field.output("Length", int)],
     )
     Reduce = Step.new(

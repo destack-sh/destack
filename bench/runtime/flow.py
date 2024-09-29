@@ -58,14 +58,14 @@ def evaluate_pipe_filter_type(filter: PipeFilter, value: Any) -> bool:
         return not bool(value)
     # other
     elif filter == PipeFilter.HAS_ERROR:
-        return not isinstance(value, Run) or value.status != RunStatus.FAILED
+        return isinstance(value, Run) and value.status == RunStatus.FAILED
     else:
         assert_never(filter)
 
 
 def evaluate_pipe_filter(pipe: "Pipe", value: Any) -> bool:
     """Evaluate whether the filter matches the given value."""
-    return (pipe.filter is None or evaluate_pipe_filter_type(pipe.filter, value)) or (
+    return (pipe.filter is None or evaluate_pipe_filter_type(pipe.filter, value)) and (
         pipe.constraint is None or pipe.constraint.matches(value)
     )
 
@@ -83,7 +83,7 @@ def port_to_incoming_values(
         if isinstance(value, Run):
             value = value.outputs
         if not isinstance(value, ValueObject):
-            raise ValueError(f"expected inputs for {step!r}, got {value!r}")
+            return values  # no outputs
         # set all field ports
         input_type = step.input_type
         assert input_type is not None, f"{step!r} has no input type"
@@ -158,6 +158,12 @@ class FlowTick:
     now: float
     values: dict[Pipe, Any]
 
+    def __str__(self) -> str:
+        return f"{self.id}:{self.now} {self.values}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self}>"
+
 
 @dataclass(slots=True, repr=False)
 class FlowRunner(Runner[RunnerCache, Block]):
@@ -175,16 +181,20 @@ class FlowRunner(Runner[RunnerCache, Block]):
         self._tick_id += 1
         return self._tick_id
 
-    def _get_step_state(self, step: Step) -> "StepState":
+    def _get_step_state(self, step: Step) -> "StepState | None":
         state = self._step_states.get(step)
         if state is None:
+            if not step._is_attached:
+                return None
             state = StepState.from_step(step)
             self._step_states[step] = state
         return state
 
-    def _get_pipe_state(self, pipe: Pipe) -> "PipeState":
+    def _get_pipe_state(self, pipe: Pipe) -> "PipeState | None":
         state = self._pipe_states.get(pipe)
         if state is None:
+            if not pipe._is_attached:
+                return None
             state = PipeState.from_pipe(pipe)
             self._pipe_states[pipe] = state
         return state
@@ -224,10 +234,10 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if pipe.source_ptr and pipe.source_ptr.id == step.id:
                 yield pipe
 
-    async def _make_runner(
+    async def _start_step(
         self, step_state: StepState, values: Mapping[PortId, Any]
     ) -> "StepRunner":
-        """Make a new StepRunner for the given Step."""
+        """Make a new StepRunner for the given Step and start it (async)."""
         inputs = step_state.inputs.clone()
         inputs_override: dict[Field, Any] = {}
         for port_id, value in values.items():
@@ -240,21 +250,19 @@ class FlowRunner(Runner[RunnerCache, Block]):
             code=step_state.step.code,
             text=step_state.step.text,
             inputs=inputs,
-            options=RUN_ONCE,
+            options=RUN_ONCE.override(step_state.step.run_options),
             track=True,
         )
         assert isinstance(runner, StepRunner), f"unexpected runner: {runner!r}"
         runner.flow = self
         step_state.runners.append(runner)
-        return runner
 
-    async def _start_step(self, state: StepState, runner: "StepRunner") -> None:
-        """Run a Step in the Flow (actual run is started as a task and not directly awaited)."""
         assert runner.run is not None, f"{runner!r} has no Run"
         # add to active step (immediately)
         self._active_steps[runner.run] = runner
-        logger.debug("step.start", step=state.step, run=runner.run)
+        logger.debug("step.start", step=step_state.step, run=runner.run)
         runner.outer_task = asyncio.create_task(self._do_run_step(runner))
+        return runner
 
     async def _do_run_step(self, runner: "StepRunner") -> None:
         """Wraps a StepRunner in a task and awaits it."""
@@ -262,26 +270,32 @@ class FlowRunner(Runner[RunnerCache, Block]):
         try:
             await self.runtime.run_runner(runner)
         finally:
-            # assemble values for all outgoing pipes
+            logger.trace("step.terminated", step=runner.node, runner=runner)
+            if runner.status == RunStatus.FAILED:
+                assert runner.error is not None, f"{runner!r} has no error"
+                if not runner.options.suppress_fail:
+                    self._fail(runner.error)
+
+            # prepare values for outgoing pipes
             values: dict[Pipe, Any] = {}
-            for pipe in self._get_outgoing_pipes_for(runner.node):
-                if pipe.source_port.type == PortType.RUN:
-                    value = runner.run
-                elif pipe.source_port.type == PortType.FIELD:
-                    assert pipe.source_port.field is not None, f"{pipe!r} has no field"
-                    if runner.outputs is None:
-                        continue
-                    value = runner.outputs[pipe.source_port.field]
-                else:
-                    assert_never(pipe.source_port.type)
-                values[pipe] = value
+            if runner.status != RunStatus.ABORTED:
+                for pipe in self._get_outgoing_pipes_for(runner.node):
+                    if pipe.source_port.type == PortType.RUN:
+                        value = runner.run
+                    elif pipe.source_port.type == PortType.FIELD:
+                        assert pipe.source_port.field is not None, f"{pipe!r} has no field"
+                        if runner.outputs is None:
+                            continue
+                        value = runner.outputs[pipe.source_port.field]
+                    else:
+                        assert_never(pipe.source_port.type)
+                    values[pipe] = value
 
             # schedule pipe tick
             now = runner.run.terminated_at or runner.run.halted_at
             assert now is not None, f"{runner!r} has no terminated_at or halted_at"
             tick = FlowTick(id=self._get_tick_id(), now=now.timestamp(), values=values)
             self._tick_queue.put_nowait(tick)
-            logger.trace("step.terminated", step=runner.node, runner=runner)
 
             # remove from active steps
             if runner.run in self._active_steps:
@@ -295,13 +309,15 @@ class FlowRunner(Runner[RunnerCache, Block]):
         # push new values into pipes
         for pipe, value in tick.values.items():
             pipe_state = self._get_pipe_state(pipe)
+            if pipe_state is None:
+                continue
 
             # map/filter values
             if pipe.modulation == PipeModulation.FLATTEN:  # noqa: SIM108
                 values = value
             else:
                 values = [value]
-            if pipe.filter is not None or pipe.constraint is not None or pipe.condition is not None:
+            if pipe.has_filter:
                 values = [v for v in values if evaluate_pipe_filter(pipe, v)]
             if len(values) == 0:
                 continue
@@ -318,7 +334,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
         ready_values: dict[Pipe, list[Any]] = {}
         for pipe in self.node.pipes:
             pipe_state = self._get_pipe_state(pipe)
-            if not pipe_state.values:
+            if pipe_state is None or not pipe_state.values:
                 continue
             for ts in tuple(pipe_state.values.keys()):
                 values = pipe_state.values[ts]
@@ -327,8 +343,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
                         ready_values[pipe] = []
                     ready_values[pipe].extend(values)
                     del pipe_state.values[ts]
-                # nocheckin: accumulate pipes
-                # nocheckin: tick after delay
+                # nocheckin: pipe modulation
+                # nocheckin: tick (again) after delay
 
         # collect control pipe values by target
         control_values: dict[Step, dict[PortId, list[Any]]] = {}
@@ -337,6 +353,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if target_step is None:
                 continue
             target_state = self._get_step_state(target_step)
+            if target_state is None:
+                continue
             if pipe.type == PipeType.CONTROL_AND_DATA:
                 if target_step not in control_values:
                     control_values[target_step] = {}
@@ -376,8 +394,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
         for step_state in self._step_states.values():
             if step_state.step.type == StepType.START:
                 step_state.inputs = self.inputs
-                runner = await self._make_runner(step_state, {})
-                await self._start_step(step_state, runner)
+                _ = await self._start_step(step_state, {})
 
         # run until completed or halted
         try:
@@ -394,14 +411,17 @@ class FlowRunner(Runner[RunnerCache, Block]):
                     active_steps=self._active_steps.values(),
                 )
                 tick = await self._tick_queue.get()
+                if self._force_complete or self._force_fail:
+                    break  # stop ticking
 
                 # do tick
                 steps_to_start = await self._tick(tick)
                 for step, values in steps_to_start:
                     step_state = self._step_states[step]
-                    runner = await self._make_runner(step_state, values)
-                    await self._start_step(step_state, runner)
-                logger.trace("flow.tick", flow=self, tick=tick.id)
+                    _ = await self._start_step(step_state, values)
+                logger.trace(
+                    "flow.tick", flow=self, tick=tick.id, steps_to_start=len(steps_to_start)
+                )
 
             # done, set forced output/error if any
             if isinstance(self._force_complete, ValueObject):

@@ -229,6 +229,8 @@ class Runtime:
                             terminated_at = self.oracle.utc()
                         if runner.output_type is not None:
                             with tracer.start_as_current_span("runtime.check_outputs"):
+                                if runner.outputs is None:
+                                    runner.outputs = ValueObject.new({}, runner.output_type)
                                 check_value(runner.outputs, runner.output_type, on_invalid_raise)
                         attempt._do_set("status", RunStatus.COMPLETED, validate=False)
                         log.debug("runtime.attempt", attempt=attempt, span="current")
