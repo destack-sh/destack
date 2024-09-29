@@ -256,6 +256,10 @@ class Pipe(SourceNode[PipeData]):
         ):
             invalid(self, "source and target must be distinct", (Pipe.source, Pipe.target))
 
+    @property
+    def has_filter(self) -> bool:
+        return self.filter is not None or self.constraint is not None or self.condition is not None
+
     @staticmethod
     def new(type: PipeType, name: str, **kwargs) -> "Pipe":
         return Pipe(type=type, name=name, **kwargs)
