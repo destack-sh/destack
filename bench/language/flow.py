@@ -25,7 +25,12 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
+from bench.language.validation import (
+    NAME_CONSTRAINT,
+    TypeConstraintIn,
+    ValidationHandler,
+    constraint,
+)
 from bench.proto.wire import PipeData, StepData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -167,15 +172,15 @@ class PipeMapping(IdEnum):
 class PipeModulation(IdEnum):
     FLATTEN = 10
     ACCUMULATE = 11
-    WINDOW = 12
+    BUFFER = 12
     DEBOUNCE = 20
     THROTTLE = 21
 
 
 @enum_(EnumType.PIPE_COMBINATOR)
 class PipeCombinator(IdEnum):
-    ZIP = 1
-    PRODUCT = 2
+    PRODUCT = 1
+    ZIP = 2
 
 
 @local_node_(NodeType.PIPE)
@@ -199,7 +204,7 @@ class Pipe(SourceNode[PipeData]):
         source_ptr: Optional[NodeReference] = None
         target_ptr: Optional[NodeReference] = None
 
-    # filter (on source side)
+    # filter
     filter: PipeFilter | None = p_regular(50, default=None)
     constraint: Optional["TypeConstraint"] = p_regular(
         51, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
@@ -211,9 +216,9 @@ class Pipe(SourceNode[PipeData]):
     # mapping
     mapping: PipeMapping | None = p_regular(60, default=None)
     modulation: PipeModulation | None = p_regular(61, default=None)
-    combinator: PipeCombinator | None = p_regular(62, default=None)
     delay: Optional[timedelta] = p_regular(65, default=None)
     size: Optional[int] = p_regular(66, default=None)
+    repeat: Optional[int] = p_regular(67, default=None, constraint=TypeConstraintIn(min_value=1))
 
     # view
     line: Optional["Line"] = p_regular(
@@ -360,6 +365,9 @@ class Step(SourceNode[StepData]):
         roles_ptr: tuple["NodeReference", ...] = ()
         identity_ptr: Optional["NodeReference"] = None
 
+    # control
+    combinator: PipeCombinator | None = p_regular(60, default=None)
+
     # view
     position: Optional["Vector2"] = p_regular(
         80, default=None, require=False, array=False, struct=StructType.VECTOR2
@@ -471,7 +479,7 @@ class Step(SourceNode[StepData]):
         )
         return target
 
-    def with_(
+    def to(
         self,
         target: "Step",
         *,

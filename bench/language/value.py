@@ -273,10 +273,17 @@ class ValueObject(Mapping[str, Any]):
         """Clones this object."""
         return ValueObject.new({**self._value} if self._value is not None else None, self._type)
 
-    def update(self, value: Mapping[str, Any] | None = None, **kwargs):
+    def update(
+        self,
+        values: Mapping["str | Field", Any]
+        | Mapping[str, Any]
+        | Mapping["Field", Any]
+        | None = None,
+        **kwargs,
+    ):
         """Updates this object with the given value."""
-        if value is not None:
-            for key, v in value.items():
+        if values is not None:
+            for key, v in values.items():
                 self._do_set(key, v, validate=True)
         for key, v in kwargs.items():
             self._do_set(key, v, validate=True)

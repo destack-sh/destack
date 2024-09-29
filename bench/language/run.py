@@ -132,7 +132,12 @@ class RunOptions(Struct):
     max_runs: Optional[int] = p_regular(
         32,
         constraint=TypeConstraintIn(min_value=0),
-        description="Maximum number of Runs (incl. nested, per context)",
+        description="Maximum number of Runs of this runnable (per context)",
+    )
+    max_inner_runs: Optional[int] = p_regular(
+        33,
+        constraint=TypeConstraintIn(min_value=0),
+        description="Maximum number of Runs inside this Run (per context)",
     )
     timeout: Optional[timedelta] = p_regular(35)
 

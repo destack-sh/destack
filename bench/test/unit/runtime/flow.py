@@ -185,7 +185,7 @@ async def test_run_flow_multi_port(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow, inputs={"Input1": 1})
-    assert runner.run and len(runner.run.runs) == 2  # Start and Code1
+    assert runner.run and len(runner.run.runs) == 2  # Start and Code1 (once)
 
 
 async def test_run_flow_error(local_runtime: RuntimeHandle):
@@ -474,9 +474,9 @@ return Input1, Input1 < 10, Input1 > 10
         filter=PipeFilter.IS_TRUTHY,
     )
     # Start - MultiplyLarge
-    Start.with_(MultiplyLarge)
+    Start.to(MultiplyLarge)
     # Start - DivideSmall
-    Start.with_(DivideSmall)
+    Start.to(DivideSmall)
     # MultiplyLarge -> Complete
     MultiplyLarge.then(Complete)
     # DivideSmall -> Complete
@@ -528,11 +528,11 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
     # Start.Num -> Generator.Seed
     Start.then(Generator, source_port=Flow1.fields.NumIn, target_port=Generator.fields.Seed)
     # Generator.Num - Generator.Seed
-    Generator.with_(Generator, source_port=Generator.fields.Num, target_port=Generator.fields.Seed)
+    Generator.to(Generator, source_port=Generator.fields.Num, target_port=Generator.fields.Seed)
     # Generator.Num -> Verifier.Num
     Generator.then(Verifier, source_port=Generator.fields.Num, target_port=Verifier.fields.Num)
     # Generator.Num - Complete.NumOut
-    Generator.with_(Complete, source_port=Generator.fields.Num, target_port=Flow1.fields.NumOut)
+    Generator.to(Complete, source_port=Generator.fields.Num, target_port=Flow1.fields.NumOut)
     # Verifier.IsGood?[IsTruthy] > Complete
     Verifier.then(
         Complete,

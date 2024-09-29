@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.28.2"
+VERSION = "2024.09.29.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1052,6 +1052,7 @@ STEP_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("combinator", PrimitiveType.INT16, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("size", PrimitiveType.JSON, is_nullable=True),
     ),
@@ -1100,9 +1101,9 @@ PIPE_TABLE = Table(
         Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("mapping", PrimitiveType.INT16, is_nullable=True),
         Column("modulation", PrimitiveType.INT16, is_nullable=True),
-        Column("combinator", PrimitiveType.INT16, is_nullable=True),
         Column("delay", PrimitiveType.INTERVAL, is_nullable=True),
         Column("size", PrimitiveType.INT32, is_nullable=True),
+        Column("repeat", PrimitiveType.INT32, is_nullable=True),
         Column("line", PrimitiveType.JSON, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),

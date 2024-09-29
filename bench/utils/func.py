@@ -9,7 +9,7 @@ import traceback
 import types
 import typing
 from collections import OrderedDict
-from itertools import filterfalse, tee
+from itertools import cycle, filterfalse, islice, product, tee
 from os import urandom
 from sys import intern
 from time import time_ns
@@ -146,6 +146,68 @@ def group_by[K, V](iterable: Collection[V], key: typing.Callable[[V], K]) -> dic
     for item in iterable:
         result.setdefault(key(item), []).append(item)
     return result
+
+
+def dict_product[K, V](input_dict: dict[K, list[V]]) -> list[dict[K, V]]:
+    """
+    Generate all possible combinations of key-value pairs from a dictionary
+    where each key maps to a list of possible values.
+    """
+    if not input_dict:
+        return []
+    keys, values_lists = zip(*input_dict.items())
+    if any(len(values) == 0 for values in values_lists):
+        return []
+    # Cartesian product of all value lists
+    all_combinations = product(*values_lists)
+    combination_dicts = [dict(zip(keys, combination)) for combination in all_combinations]
+    return combination_dicts
+
+
+def dict_zip_cycle[K, V](input_dict: dict[K, list[V]]) -> list[dict[K, V]]:
+    """
+    Zip the dictionary's value lists, cycling through shorter lists to match the length of the longest list.
+    """
+    if not input_dict:
+        return []
+    keys, values_lists = zip(*input_dict.items())
+    if any(len(values) == 0 for values in values_lists):
+        return []
+    max_length = max(len(values) for values in values_lists)
+    # make iterators for each list, cycling if necessary
+    cycled_lists = []
+    for values in values_lists:
+        cycled = cycle(values)
+        cycled_lists.append(islice(cycled, max_length))
+    # zip the cycled lists and create dictionaries
+    zipped = zip(*cycled_lists)
+    combination_dicts = [dict(zip(keys, combination)) for combination in zipped]
+    return combination_dicts
+
+
+def dict_zip_latest[K, V](input_dict: dict[K, list[V]]) -> list[dict[K, V]]:
+    """
+    Zip the dictionary's value lists, using the last value of shorter lists to pad them up to the longest list.
+    """
+    if not input_dict:
+        return []
+    keys, values_lists = zip(*input_dict.items())
+    if any(len(values) == 0 for values in values_lists):
+        return []
+    max_length = max(len(values) for values in values_lists)
+    # pad
+    padded_lists = []
+    for values in values_lists:
+        if len(values) < max_length:
+            # Extend the list by repeating the last element
+            extended = values + [values[-1]] * (max_length - len(values))
+            padded_lists.append(extended)
+        else:
+            padded_lists.append(values)
+    # zip the padded lists and create dictionaries
+    zipped = zip(*padded_lists)
+    combination_dicts = [dict(zip(keys, combination)) for combination in zipped]
+    return combination_dicts
 
 
 def try_tuple[T](obj: tuple[T, ...] | T | None) -> tuple[T, ...] | None:
