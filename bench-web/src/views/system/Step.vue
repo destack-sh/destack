@@ -245,7 +245,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       />
       <NativeInput
         ref="nameRef"
-        class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+        class="ml-1.5 truncate font-medium text-gray-700 transition-colors duration-150"
         is-input
         :value-type="NAME_TYPE"
         :variant="Variant.STEALTH"
