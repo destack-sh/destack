@@ -661,7 +661,9 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def __eq__(self, other):  # type: ignore
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
 
-    __hash__ = SourceNode.__hash__  # type: ignore (avoid ambiguity)
+    __hash__ = SourceNode.__hash__  # type: ignore
+    # (not entirely sure why we need to override Field.__hash__ but not for any other node, maybe
+    #  one of the base structs takes precende for some reason (but SourceNode is first in MRO...))
 
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler

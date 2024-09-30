@@ -177,7 +177,7 @@ class Expression(Struct):
 
     def __invert__(self):
         if self.kind != ExpressionKind.CONDITIONAL:
-            raise TypeError(f"cannot invert {self!r} (expected Conditional, got {self.kind})")
+            raise TypeError(f"cannot invert {self!r}, expected Conditional, got {self.kind}")
         elif self.op == ConditionalOp.NOT:
             assert (
                 self.clauses is not None and len(self.clauses) == 1
@@ -436,14 +436,14 @@ def _lower_expression_value(prop: Property, value: Any) -> Any:
         elif isinstance(value, datetime.datetime):
             value = value.timestamp() * 1e9
         else:
-            raise ValueError(f"unexpected value type: {type(value)}")
+            raise ValueError(f"unexpected value type: {type(value).__name__}")
     elif prop.primitive_type == PrimitiveType.INTERVAL:
         if isinstance(value, Duration):
             value = value.seconds + value.nanos / 1e9
         elif isinstance(value, datetime.timedelta):
             value = value.total_seconds()
         else:
-            raise ValueError(f"unexpected value type: {type(value)}")
+            raise ValueError(f"unexpected value type: {type(value).__name__}")
 
     return value
 

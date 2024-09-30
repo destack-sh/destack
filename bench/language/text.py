@@ -269,7 +269,7 @@ def _mention_to_url(node: Node) -> str:
             elif type(value) is UUID:
                 value = b64encode(value.bytes).decode("ascii")
             else:
-                raise ValueError(f"unexpected value type: {type(value)}")
+                raise ValueError(f"unexpected value type: {value!r} ({type(value).__name__})")
             url_parts.append(f"{key}={value}")
     if isinstance(node, BenchNode) and node.bench:
         return f"bench://{node.bench.slug}/node?{'&'.join(url_parts)}"

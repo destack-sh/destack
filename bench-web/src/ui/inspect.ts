@@ -260,12 +260,15 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
         )
         .forEach((p) => properties.Run.push(p));
     }
+    if (node.type != StepType.START) {
+      properties.Run.push(StepProperty.combinator);
+    }
     return properties;
   } else if (isNode(node, NodeType.PIPE)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [PipeProperty.type, PipeProperty.color, PipeProperty.isHidden],
       Filter: [PipeProperty.filter],
-      Mapping: [PipeProperty.modulation, PipeProperty.combinator],
+      Mapping: [PipeProperty.modulation],
     };
     return properties;
   } else if (isNode(node, NodeType.VIEW)) {
