@@ -188,7 +188,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         ),
       })
     "
-    class="group/flow relative w-full"
+    class="group/flow relative w-full select-none"
     :class="[
       variant == Variant.COMPACT ? 'rounded border border-gray-200' : 'h-full',
       flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',

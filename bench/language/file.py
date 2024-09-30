@@ -741,6 +741,8 @@ class FileInfoBase(BuiltinObject):
                 (new_width, new_height), Image.Resampling.LANCZOS
             )
             buffer = io.BytesIO()
+            if optimized_image.mode in ("RGBA", "P"):
+                optimized_image = optimized_image.convert("RGB")
             optimized_image.save(buffer, format="JPEG", subsampling=0, quality=100)
             content = buffer.getvalue()
         else:

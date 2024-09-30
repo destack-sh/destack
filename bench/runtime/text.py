@@ -405,7 +405,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
             return {
                 "role": "system",
                 "content": "\n\n".join(
-                    cast(ChatMessageTextContent, c).text for c in message.content
+                    cast(ChatMessageTextContent, c).text.strip() for c in message.content
                 ),
             }
         elif message.role == "assistant":
@@ -414,7 +414,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
             return {
                 "role": "assistant",
                 "content": "\n\n".join(
-                    cast(ChatMessageTextContent, c).text for c in message.content
+                    cast(ChatMessageTextContent, c).text.strip() for c in message.content
                 ),
             }
         elif message.role == "user":
@@ -423,12 +423,12 @@ class OpenaiModelRunner(ChatModelRunnerBase):
                 if isinstance(content, ChatMessageTextContent):
                     if not content.text:
                         continue
-                    contents.append({"type": "text", "text": content.text})
+                    contents.append({"type": "text", "text": content.text.strip()})
                 elif isinstance(content, ChatMessageFileContent):
                     if content.file.coarse_type in (FileType.TEXT, FileType.CODE):
                         if not content.file.text:
                             continue
-                        contents.append({"type": "text", "text": content.file.text})
+                        contents.append({"type": "text", "text": content.file.text.strip()})
                     elif content.file.coarse_type == FileType.IMAGE:
                         contents.append(
                             {
@@ -520,12 +520,12 @@ class AnthropicModelRunner(ChatModelRunnerBase):
             if isinstance(content, ChatMessageTextContent):
                 if not content.text:
                     continue
-                contents.append({"type": "text", "text": content.text})
+                contents.append({"type": "text", "text": content.text.strip()})
             elif isinstance(content, ChatMessageFileContent):
                 if content.file.coarse_type in (FileType.TEXT, FileType.CODE):
                     if not content.file.text:
                         continue
-                    contents.append({"type": "text", "text": content.file.text})
+                    contents.append({"type": "text", "text": content.file.text.strip()})
                 elif content.file.coarse_type == FileType.IMAGE:
                     contents.append(
                         {

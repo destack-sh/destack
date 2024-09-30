@@ -112,8 +112,11 @@ class ValueObject(Mapping[str, Any]):
         self.parent = parent
         self.parent_prop = parent_prop
         self.ancestor_prop = ancestor_prop
-        if self.parent is not None and self.ancestor_prop is None:
-            assert isinstance(self.parent_prop, Property), f"{self.parent_prop!r} is not a Property"
+        if (
+            self.parent is not None
+            and self.ancestor_prop is None
+            and isinstance(self.parent_prop, Property)
+        ):
             self.ancestor_prop = self.parent_prop
 
     def __str__(self) -> str:
@@ -1266,7 +1269,10 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
     elif isinstance(value_raw, dict):
         coerced = ValueObject(typ, value={})
         for field in fields:
-            coerced[field] = value_raw.get(field.name)
+            field_value_raw = value_raw.get(field.name)
+            if field_value_raw is None:
+                field_value_raw = value_raw.get(field.code_name)
+            coerced[field] = field_value_raw
     elif isinstance(value_raw, ValueObject) and value_raw._type == typ:
         coerced = value_raw
     else:
