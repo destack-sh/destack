@@ -665,16 +665,14 @@ export class FlowContext {
         const targetPort = at.port;
         if (portIdEquals(sourcePort, targetPort)) return; // no-op
         log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
-        // if both ports are field ports, make it a data pipe and hide by default
-        let isHidden: boolean = false;
+        // if both ports are field ports, make it a data pipe by default
         let type = PipeType.CONTROL_AND_DATA;
         if (sourcePort.type == PortType.FIELD && targetPort.type == PortType.FIELD) {
-          isHidden = true;
           type = PipeType.DATA;
         }
         const pipe = createPipe(this.tx, this.graph, {
           parent: this.flow.value,
-          pipe: { type, isHidden },
+          pipe: { type },
           source: sourcePort,
           target: targetPort,
         });

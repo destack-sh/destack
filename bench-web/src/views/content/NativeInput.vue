@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import { STRING_TYPE, typeIsNumeric } from "@/language/field";
 import { checkValueScalar, checkValueScalarConstraint } from "@/language/value";
-import { ColorShade, NodeType, Orientation, Variant, ViewType, type ViewData } from "@/proto/wire";
+import { Alignment, ColorShade, NodeType, Orientation, Variant, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { getNativeConstraintProps } from "@/ui/view";
+import { getNativeConstraintProps, TEXT_DIRECTION_BY_ALIGNMENT } from "@/ui/view";
 import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
@@ -13,7 +13,7 @@ const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
     Pick<
       ViewData,
-      "type" | "name" | "title" | "text" | "icon" | "variant" | "valueType" | "orientation" | "isInput" | "isDisabled"
+      "type" | "name" | "title" | "text" | "icon" | "variant" | "valueType" | "alignment" | "isInput" | "isDisabled"
     >
   >
 >();
@@ -139,7 +139,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           :type="inputType"
           class="flex-1 border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 focus:ring-0"
           :class="[
-            orientation == Orientation.HORIZONTAL_REVERSED ? 'text-right' : '',
+            TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
             validationError != null ? 'text-danger-600' : '',
           ]"
           :size="variant == Variant.STEALTH ? ((currentValue as string)?.length ?? 0) + 1 : undefined"
@@ -201,7 +201,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     >
       <template v-if="!valueType?.isList">
         <!-- Scalar -->
-        <span :class="orientation == Orientation.HORIZONTAL_REVERSED ? 'text-right' : 'text-left'">
+        <span :class="[TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '']">
           {{ modelValue }}
         </span>
       </template>

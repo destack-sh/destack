@@ -4,6 +4,7 @@ import { NAME_TYPE } from "@/language/field";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName } from "@/language/node";
 import {
+  Alignment,
   ColorShade,
   ColorType,
   NodeType,
@@ -12,7 +13,7 @@ import {
   PipeType,
   PortType,
   Variant,
-  ViewData,
+  ViewData
 } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
@@ -141,6 +142,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         ]"
         is-input
         :value-type="NAME_TYPE"
+        :alignment="Alignment.MIDDLE"
         :variant="Variant.STEALTH"
         :model-value="pipe.name"
         @update:model-value="(newValue) => flowCtx.tx.update(pipe!, { name: newValue }, { debounce: 'long' })"

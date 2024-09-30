@@ -620,7 +620,6 @@ async def test_run_flow_flatten_accumulate(local_runtime: RuntimeHandle):
         source_port=Measure.fields.Length,
         target_port=Reduce.fields.Lengths,
         modulation=PipeModulation.ACCUMULATE,
-        size=3,  # nocheckin
     ).then(Complete, source_port=Reduce.fields.Total, target_port=Flow.fields.Total)
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
