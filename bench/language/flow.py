@@ -172,7 +172,7 @@ class PipeMapping(IdEnum):
 class PipeModulation(IdEnum):
     FLATTEN = 10
     ACCUMULATE = 11
-    # BUFFER, DEBOUNCE, THROTTLE?
+    # SCAN, BUFFER, DEBOUNCE, THROTTLE?
 
 
 @enum_(EnumType.PIPE_COMBINATOR)
@@ -217,6 +217,7 @@ class Pipe(SourceNode[PipeData]):
     delay: Optional[timedelta] = p_regular(65, default=None)
     size: Optional[int] = p_regular(66, default=None, constraint=TypeConstraintIn(min_value=1))
     repeat: Optional[int] = p_regular(67, default=None, constraint=TypeConstraintIn(min_value=1))
+    # volume? (max total values)
 
     # view
     line: Optional["Line"] = p_regular(

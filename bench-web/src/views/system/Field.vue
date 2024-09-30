@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
-import { NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { Alignment, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -113,7 +113,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <NativeInput
       ref="nameRef"
       class="flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
-      :orientation="orientation"
+      :alignment="orientation == Orientation.HORIZONTAL_REVERSED ? Alignment.END : Alignment.START"
       is-input
       :value-type="NAME_TYPE"
       :variant="Variant.STEALTH"

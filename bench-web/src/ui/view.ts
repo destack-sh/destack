@@ -4,6 +4,7 @@ import type { ReadNodeGraph } from "@/language/graph";
 import { type DebounceLevel, type Transaction } from "@/language/transaction";
 import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 import {
+  Alignment,
   Anchor,
   BenchType,
   FieldData,
@@ -55,6 +56,12 @@ export const SPACE_DEFAULT_BAR_POSITION = Anchor.TOP;
 export const VIEW_DEFAULT_HEADER_HEIGHT = 36;
 export const VIEW_DEFAULT_MIN_WIDTH = 320;
 export const VIEW_DEFAULT_MAX_WIDTH = 800;
+
+export const TEXT_DIRECTION_BY_ALIGNMENT: Partial<Record<Alignment, string>> = {
+  [Alignment.START]: "text-left",
+  [Alignment.MIDDLE]: "text-center",
+  [Alignment.END]: "text-right",
+}
 
 export type Vector2 = Omit<Vector2Data, "metatype">;
 export type Vector3 = Omit<Vector3Data, "metatype">;

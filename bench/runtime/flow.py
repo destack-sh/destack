@@ -65,9 +65,7 @@ def evaluate_pipe_filter_type(filter: PipeFilter, value: Any) -> bool:
 
 def evaluate_pipe_filter(pipe: "Pipe", value: Any) -> bool:
     """Evaluate whether the filter matches the given value."""
-    return (pipe.filter is None or evaluate_pipe_filter_type(pipe.filter, value)) and (
-        pipe.constraint is None or pipe.constraint.matches(value)
-    )
+    return pipe.filter is None or evaluate_pipe_filter_type(pipe.filter, value)
 
 
 def port_to_incoming_values(
@@ -121,6 +119,10 @@ class PipeState:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self}>"
+
+    @property
+    def has_values(self) -> bool:
+        return len(self.values) > 0
 
     def take_values(self, until: float, n: int | None) -> list[Any] | None:
         """
@@ -183,14 +185,23 @@ class StepState:
 
     step: Step
     input_type: TypeInfoBase
-    inputs: ValueObject
-    runners: list["StepRunner"]
+    inputs: ValueObject  # last set values :RunContext
+    runners: list["StepRunner"] = dataclasses.field(default_factory=list)
+    active_runners: list["StepRunner"] = dataclasses.field(default_factory=list)
 
     def __str__(self) -> str:
         return f"{self.step!r}, inputs={self.inputs!r}, runners={len(self.runners)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self}>"
+
+    @property
+    def has_runners(self) -> bool:
+        return len(self.runners) > 0
+
+    @property
+    def has_active_runners(self) -> bool:
+        return len(self.active_runners) > 0
 
     def set_port(self, port: PortKey, value: ValueObject | Run | Any) -> None:
         """Sets the value of an incoming port (marking it as ready)."""
@@ -203,7 +214,7 @@ class StepState:
         input_type = step.input_type
         assert input_type is not None, f"{step!r} has no input type"
         inputs = ValueObject.new({}, input_type)
-        return StepState(step=step, input_type=input_type, inputs=inputs, runners=[])
+        return StepState(step=step, input_type=input_type, inputs=inputs)
 
 
 @dataclass(slots=True, repr=False)
@@ -316,11 +327,12 @@ class FlowRunner(Runner[RunnerCache, Block]):
         assert runner.run is not None, f"{runner!r} has no Run"
         # add to active step (immediately)
         self._active_steps[runner.run] = runner
+        step_state.active_runners.append(runner)
         logger.debug("step.start", step=step_state.step, run=runner.run)
-        runner.outer_task = asyncio.create_task(self._do_run_step(runner))
+        runner.outer_task = asyncio.create_task(self._do_run_step(step_state, runner))
         return runner
 
-    async def _do_run_step(self, runner: "StepRunner") -> None:
+    async def _do_run_step(self, step_state: StepState, runner: "StepRunner") -> None:
         """Wraps a StepRunner in a task and awaits it."""
         assert runner.run is not None, f"{runner!r} has no Run"
         try:
@@ -356,6 +368,51 @@ class FlowRunner(Runner[RunnerCache, Block]):
             # remove from active steps
             if runner.run in self._active_steps:
                 del self._active_steps[runner.run]
+                step_state.active_runners.remove(runner)
+
+    def _get_incoming_flow(self, thing: Pipe | Step) -> tuple[list[Step], list[Pipe]]:
+        """Gets the incoming 'flow' into a Step."""
+        # index pipes by step
+        incoming_pipes_by_step: dict[Step, list[Pipe]] = {}
+        for pipe in self.node.pipes:
+            target_step = pipe.target
+            if target_step is None:
+                continue
+            incoming_pipes_by_step.setdefault(target_step, []).append(pipe)
+
+        # collect all incoming steps/pipes
+        incoming_steps: list[Step] = []
+        incoming_pipes: list[Pipe] = []
+        next_incoming_steps: list[Step] = []
+        if isinstance(thing, Pipe):
+            next_incoming_steps.append(thing.source)
+            incoming_pipes.append(thing)
+        else:
+            next_incoming_steps.append(thing)
+        while next_incoming_steps:
+            step = next_incoming_steps.pop()
+            if step in incoming_steps:
+                continue
+            incoming_steps.append(step)
+            for pipe in incoming_pipes_by_step.get(step, []):
+                incoming_pipes.append(pipe)
+                source = pipe.source
+                if source not in incoming_steps:
+                    next_incoming_steps.append(source)
+        return incoming_steps, incoming_pipes
+
+    def _has_unprocessed_incoming(self, thing: Step | Pipe) -> bool:
+        """Whether there are any incoming pipes/steps that are active (and not yet processed)."""
+        steps, pipes = self._get_incoming_flow(thing)
+        for step in steps:
+            step_state = self._step_states[step]
+            if step_state.has_active_runners:
+                return True
+        for tick in self._tick_queue._queue:  # type: ignore
+            for pipe in pipes:
+                if pipe in tick.values:
+                    return True
+        return False
 
     async def _tick(self, tick: FlowTick) -> list[tuple[Step, dict[PortId, Any]]]:
         """
@@ -383,11 +440,10 @@ class FlowRunner(Runner[RunnerCache, Block]):
             # push into pipe
             ts = tick.now
             if pipe.delay:
-                ts += pipe.delay.total_seconds()
+                raise NotImplementedError("delay not yet supported")
             pipe_state.values[ts] = values
 
         # collect ready values from pipes
-        # nocheckin: tick (again) after delay
         ready_values: dict[Pipe, list[Any]] = {}
         for pipe in self.node.pipes:
             pipe_state = self._get_pipe_state(pipe)
@@ -401,9 +457,14 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 if pipe.size:
                     # ready if batches of exactly n are ready
                     values = pipe_state.take_values(until=tick.now, n=pipe.size)
+                elif not self._has_unprocessed_incoming(pipe):
+                    # default: ready if all incoming pipes/steps are inactive
+                    # NOTE :Performance: checking for active in-flow on every tick seems inefficient?
+                    #  (Also, checking for *any* incoming seems generally fragaile, should limit
+                    #   to the relevant :RunContext somehow so we're done once the 'source' is done)
+                    values = [pipe_state.take_values(until=tick.now, n=None)]
                 else:
-                    # ready if all incoming pipes/steps are inactive
-                    raise NotImplementedError("nocheckin")
+                    continue  # not ready yet
             else:
                 assert_never(pipe.modulation)
             if values:
@@ -427,6 +488,9 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 control_values[target_step][target_port_id].extend(values)
 
             # and set input ports for all pipes to latest value
+            # NOTE :Incomplete: the :RunContext should fork for every value combination to
+            #  enable tracking the specific (separate!) source values for all downstream steps.
+            #  (This also enables more precise/useful accumulation pipes, see above)
             target_state.set_port(pipe.target_port, values[-1])
 
         # combine control values into step runs

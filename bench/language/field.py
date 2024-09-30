@@ -232,10 +232,6 @@ class TypeConstraint(Struct):
     file_formats: list["FileFormat"] = p_regular(83, array=True)
     view_types: list["ViewType"] = p_regular(84, array=True)
 
-    def matches(self, value: Any) -> bool:
-        """Whether the given value matches the constraint."""
-        raise NotImplementedError("nocheckin")
-
 
 constraint = TypeConstraint
 

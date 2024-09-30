@@ -248,27 +248,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
         }"
       >
-        <!-- Steps -->
-        <Step
-          v-for="step in steps"
-          :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
-          :key="step.id"
-          v-contextmenu="
-            (context: PopoverContext): PopoverInfo => ({
-              kind: 'menu',
-              placement: 'bottom-right',
-              items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { ...context, triggerNode: step } }),
-            })
-          "
-          class="absolute"
-          :style="{
-            width: getStepWidth(step) + 'px',
-            left: (step.position?.x ?? 0) + 'px',
-            top: (step.position?.y ?? 0) + 'px',
-          }"
-          :node-ptr="toNodeRefOneOf(step)"
-          @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
-        />
         <!-- Pipes -->
         <Pipe
           v-for="pipe in pipes"
@@ -300,6 +279,27 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             />
           </svg>
         </div>
+        <!-- Steps -->
+        <Step
+          v-for="step in steps"
+          :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
+          :key="step.id"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-right',
+              items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { ...context, triggerNode: step } }),
+            })
+          "
+          class="absolute"
+          :style="{
+            width: getStepWidth(step) + 'px',
+            left: (step.position?.x ?? 0) + 'px',
+            top: (step.position?.y ?? 0) + 'px',
+          }"
+          :node-ptr="toNodeRefOneOf(step)"
+          @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
+        />
       </div>
     </div>
 
