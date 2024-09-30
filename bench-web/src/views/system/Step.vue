@@ -222,7 +222,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Header (:StepHeight) -->
     <div
       ref="headerRef"
-      class="flex w-full flex-row items-center border-b border-gray-200 px-2 transition-colors duration-150 group-hover/step:border-gray-300"
+      class="flex w-full flex-row items-center rounded-t border-b border-gray-200 px-2 transition-colors duration-150 group-hover/step:border-gray-300"
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
         backgroundColor: lastRunStatusColor != null ? getColorHex(lastRunStatusColor, ColorShade.S50) : undefined,
