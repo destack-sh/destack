@@ -147,7 +147,9 @@ def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSup
         else:
             return value
     except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack value {type(value)}: {value!r} for {prop!r}") from e
+        raise ValueError(
+            f"could not unpack value {type(value).__name__}: {value!r} for {prop!r}"
+        ) from e
 
 
 def unpack_object_prop(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
@@ -168,7 +170,7 @@ def get_rich_reference_prop_name(prop: Property, value: Any) -> str:
     elif isinstance(value, NodeReferenceData):
         return f"{prop.name}_node"
     else:
-        raise ValueError(f"unexpected rich reference value {type(value)}: {value!r}")
+        raise ValueError(f"unexpected rich reference value {type(value).__name__}: {value!r}")
 
 
 def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> Any:

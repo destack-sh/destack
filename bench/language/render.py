@@ -269,7 +269,7 @@ class Renderer:
         elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
             assert isinstance(
                 value, (Node, NodeReferenceBase)
-            ), f"{value!r} is not a node or node reference (expected {typ!r})"
+            ), f"{value!r} is not a node or node reference, expected {typ!r}"
             return self.render_node_ref(value)
         elif typ.kind == TypeKind.ENUM:
             enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]

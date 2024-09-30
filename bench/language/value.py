@@ -441,7 +441,7 @@ def coerce_value_object_scalar(
     else:
         # coerce
         if not isinstance(value, dict):
-            raise TypeError(f"{value!r} is a {type(value)} (expected {typ!r})")
+            raise TypeError(f"{value!r} is a {type(value).__name__}, expected {typ!r}")
         value_coerced = {}
         for field in typ._base_fields:
             field_type = field._to_resolved()
@@ -495,7 +495,9 @@ def coerce_value(
             )
         else:
             if not isinstance(value, Sequence):
-                raise TypeError(f"{value!r} ({type(value)}) is not a sequence (expected {typ!r})")
+                raise TypeError(
+                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
+                )
             return [
                 coerce_value_object_scalar(
                     cast(dict, element),
@@ -521,7 +523,9 @@ def coerce_value(
             )
         else:
             if not isinstance(value, Sequence):
-                raise TypeError(f"{value!r} ({type(value)}) is not a sequence (expected {typ!r})")
+                raise TypeError(
+                    f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
+                )
             return [
                 _coerce_value_scalar(
                     element,
@@ -895,7 +899,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
         else:
             assert hasattr(
                 value, "metatype"
-            ), f"unexpected value {value!r} ({type(value)!r}) for {typ!r}"
+            ), f"unexpected value {value!r} ({type(value).__name__ }) for {typ!r}"
         return pack_builtin_object_data(cast(AnyStructData | AnyNodeData, value))
     else:
         raise TypeError(f"cannot pack value of type {typ!r}")
@@ -924,7 +928,7 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
     elif typ.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT):
         from bench.proto import wiring
 
-        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
+        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
         value_struct = unpack_builtin_object_data(value_packed)
         # TODO :Broken: pass in proper supergraph to values (and structs in values)
         return wiring.unpack_object(cast(AnyStructData, value_struct), supergraph=None)
@@ -961,7 +965,7 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
         return enum_cls(cast(int, value_packed))
     elif typ.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT):
-        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict (expected {typ!r})"
+        assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
         return unpack_builtin_object_data(value_packed)
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
@@ -1053,7 +1057,7 @@ def pack_value_object(value: ValueObject, typ: "TypeInfoBase") -> dict[str, Json
         else:  # scalar list
             assert isinstance(
                 field_value, list
-            ), f"{field_value!r} is not a list (expected {field!r})"
+            ), f"{field_value!r} is not a list, expected {field!r}"
             value_packed[field.storage_key] = [
                 pack_value_scalar(element, field_type) for element in field_value
             ]
@@ -1085,7 +1089,7 @@ def unpack_value_object(
         else:  # scalar list
             assert isinstance(
                 field_value_packed, list
-            ), f"{field_value_packed!r} is not a list (expected {field!r})"
+            ), f"{field_value_packed!r} is not a list, expected {field!r}"
             field_value = [
                 unpack_value_scalar(element, field_type) for element in field_value_packed
             ]
@@ -1112,13 +1116,13 @@ def pack_value(
         # nested object
         if not typ.is_list:
             if type(value) is not ValueObject:
-                raise TypeError(f"{value!r} is not an Object (expected {typ!r})")
+                raise TypeError(f"{value!r} is not an Object, expected {typ!r}")
             return pack_value_object(value, typ)
         else:
             value_packed: JsonValue = []
             for element in cast(Collection[SomeValue], value):
                 if type(element) is not ValueObject:
-                    raise TypeError(f"{element!r} is not an Object (expected {typ!r})")
+                    raise TypeError(f"{element!r} is not an Object, expected {typ!r}")
                 inner_value_packed = pack_value_object(element, typ)
                 value_packed.append(inner_value_packed)
             return value_packed
@@ -1173,7 +1177,7 @@ def unpack_value(
         # nested object
         if not typ.is_list:
             if not isinstance(value_packed, dict):
-                raise TypeError(f"{value_packed!r} is not a dict (expected {typ!r})")
+                raise TypeError(f"{value_packed!r} is not a dict, expected {typ!r}")
             return unpack_value_object(
                 value_packed=value_packed,
                 typ=typ,
@@ -1183,7 +1187,7 @@ def unpack_value(
             )
         else:
             if not isinstance(value_packed, list):
-                raise TypeError(f"{value_packed!r} is not a list (expected {typ!r})")
+                raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
             return [
                 unpack_value_object(
                     value_packed=cast(dict[str, JsonValue], element),
@@ -1204,7 +1208,7 @@ def unpack_value(
             return unpack_value_scalar(value_packed, typ)
         else:
             if not isinstance(value_packed, list):
-                raise TypeError(f"{value_packed!r} is not a list (expected {typ!r})")
+                raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
             return [unpack_value_scalar(element, typ) for element in value_packed]
 
 

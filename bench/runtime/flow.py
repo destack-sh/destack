@@ -116,6 +116,62 @@ class PipeState:
     pipe: Pipe
     values: dict[float, list[Any]]  # currently in the pipe
 
+    def __str__(self) -> str:
+        return f"{self.pipe!r}, {self.values}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self}>"
+
+    def take_values(self, until: float, n: int | None) -> list[Any] | None:
+        """
+        Takes values that are ready up to the given time (inclusive).
+        If n is given, return a list of batches with exactly size n.
+        """
+        if not any(ts <= until for ts in self.values):
+            return None
+        if n is None:
+            # greedy take all
+            values: list[Any] = []
+            for split_ts, v in tuple(self.values.items()):
+                if split_ts > until:
+                    break
+                values.extend(v)
+                del self.values[split_ts]
+            return values
+        else:
+            # batch n-sized batches (leaving remainder in .values)
+            values_lists: list[list[Any]] | None = None
+            while True:
+                split_ts, split_i = self._index(until, n)
+                if split_ts is None:
+                    break
+                values: list[Any] = []
+                for ts, v in tuple(self.values.items()):
+                    if ts > split_ts:
+                        break
+                    elif ts == split_ts and split_i is not None:
+                        values.extend(v[:split_i])
+                        self.values[ts] = v[split_i:]
+                    else:
+                        values.extend(v)
+                        del self.values[ts]
+                if values_lists is None:
+                    values_lists = []
+                values_lists.append(values)
+            return values_lists
+
+    def _index(self, until: float, n: int):
+        """Find the index (ts, i) where |values| == n [ts <= until]."""
+        count = 0
+        for ts, v in self.values.items():
+            if ts > until:
+                break
+            if count + len(v) >= n:
+                i = (n - count - len(v)) or None
+                return ts, i
+            count += len(v)
+        return None, None
+
     @classmethod
     def from_pipe(cls, pipe: Pipe) -> "PipeState":
         return cls(pipe=pipe, values=SortedDict())
@@ -331,22 +387,29 @@ class FlowRunner(Runner[RunnerCache, Block]):
             pipe_state.values[ts] = values
 
         # collect ready values from pipes
+        # nocheckin: tick (again) after delay
         ready_values: dict[Pipe, list[Any]] = {}
         for pipe in self.node.pipes:
             pipe_state = self._get_pipe_state(pipe)
             if pipe_state is None or not pipe_state.values:
                 continue
-            for ts in tuple(pipe_state.values.keys()):
-                values = pipe_state.values[ts]
-                if ts <= tick.now:
-                    if pipe not in ready_values:
-                        ready_values[pipe] = []
-                    ready_values[pipe].extend(values)
-                    del pipe_state.values[ts]
-                # nocheckin: pipe modulation
-                # nocheckin: tick (again) after delay
+            if pipe.modulation is None or pipe.modulation == PipeModulation.FLATTEN:
+                # get all ready values until now
+                values = pipe_state.take_values(until=tick.now, n=None)
+            elif pipe.modulation == PipeModulation.ACCUMULATE:
+                # accumulate values into lists
+                if pipe.size:
+                    # ready if batches of exactly n are ready
+                    values = pipe_state.take_values(until=tick.now, n=pipe.size)
+                else:
+                    # ready if all incoming pipes/steps are inactive
+                    raise NotImplementedError("nocheckin")
+            else:
+                assert_never(pipe.modulation)
+            if values:
+                ready_values[pipe] = values
 
-        # collect control pipe values by target
+        # collect control values by target
         control_values: dict[Step, dict[PortId, list[Any]]] = {}
         for pipe, values in ready_values.items():
             target_step = pipe.target
@@ -369,7 +432,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
         # combine control values into step runs
         steps_to_start: list[tuple[Step, dict[PortId, Any]]] = []
         for step, values_by_port in control_values.items():
-            combinator = step.combinator or PipeCombinator.PRODUCT
+            combinator = step.combinator or PipeCombinator.ZIP
             if combinator == PipeCombinator.ZIP:  # cycle zip
                 combinations = dict_zip_latest(values_by_port)
             elif combinator == PipeCombinator.PRODUCT:

@@ -307,9 +307,6 @@ export const ICON_BY_PIPE_FILTER: Partial<Record<PipeFilter, IconData>> = _makeI
 export const ICON_BY_PIPE_MODULATION: Partial<Record<PipeModulation, IconData>> = _makeIcons<PipeModulation>({
   [PipeModulation.FLATTEN]: "fas fa-angles-right",
   [PipeModulation.ACCUMULATE]: "fas fa-angles-left",
-  [PipeModulation.WINDOW]: "fas fa-crop-simple",
-  [PipeModulation.DEBOUNCE]: "fas fa-stopwatch",
-  [PipeModulation.THROTTLE]: "fas fa-stopwatch",
 });
 
 export const ICON_BY_PIPE_COMBINATOR: Partial<Record<PipeCombinator, IconData>> = _makeIcons<PipeCombinator>({

@@ -82,7 +82,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
-      class="absolute cursor-pointer overflow-visible blur-xs transition-colors duration-150"
+      class="absolute cursor-pointer overflow-visible transition-colors duration-150"
       :class="
         isInspected || isHighlighted
           ? pipe.isHidden
@@ -150,13 +150,13 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-if="pipe.filter != null"
         v-tooltip="{ title: toCamelName(PipeFilter, pipe.filter), small: true }"
         v-bind="ICON_BY_PIPE_FILTER[pipe.filter]"
-        class="w-fit rounded bg-white text-center text-gray-700"
+        class="w-5 rounded bg-white text-center text-gray-700"
       />
       <IconInline
         v-if="pipe.modulation != null"
         v-tooltip="{ title: toCamelName(PipeModulation, pipe.modulation), small: true }"
         v-bind="ICON_BY_PIPE_MODULATION[pipe.modulation]"
-        class="w-fit rounded bg-white text-center text-gray-700"
+        class="w-5 rounded bg-white text-center text-gray-700"
       />
     </div>
   </div>
