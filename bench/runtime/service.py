@@ -66,9 +66,9 @@ class ManagedRun:
         self.run.status = status
         self.run.terminated_at = self.service.oracle.utc()
         if self.run.started_at:
-            self.run.duration = (self.run.terminated_at - self.run.started_at).total_seconds()
+            self.run.duration = self.run.terminated_at - self.run.started_at
         elif self.started_at:
-            self.run.duration = (self.run.terminated_at - self.started_at).total_seconds()
+            self.run.duration = self.run.terminated_at - self.started_at
 
 
 class ManagedThread:

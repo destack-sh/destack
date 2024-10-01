@@ -558,6 +558,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                       formatDuration(
                         item.it.duration ??
                           getDurationFromNow(item.it.startedAt, { updateInterval: TimeUpdateInterval.MILLISECOND }),
+                        { minUnit: "s" },
                       )
                     }}
                   </span>

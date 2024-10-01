@@ -1,7 +1,7 @@
 import asyncio
 import contextvars
 from contextlib import asynccontextmanager, suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -122,7 +122,7 @@ class Session(RuntimeNode[SessionData]):
 
     # status
     status: SessionStatus = p_system(40, default=SessionStatus.PENDING, index_in_pg=True)
-    duration: Optional[float] = p_system(41, default=None)
+    duration: Optional[timedelta] = p_system(41, default=None)
     opened_at: Optional[datetime] = p_system(42, default=None)
     closed_at: Optional[datetime] = p_system(43, default=None)
 
@@ -202,7 +202,8 @@ class Session(RuntimeNode[SessionData]):
         if self._is_suspended:
             status_strs.append("suspended")
         if self.duration is not None:
-            return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}, duration={self.duration:.3f}s"
+            duration_str = f"{self.duration.total_seconds():.3f}s"
+            return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}, duration={duration_str}s"
         else:
             return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
 
@@ -422,7 +423,7 @@ class Session(RuntimeNode[SessionData]):
 
         # close session
         self.closed_at = self._oracle.utc()
-        self.duration = (self.closed_at - self.opened_at).total_seconds()
+        self.duration = self.closed_at - self.opened_at
         for token in self._active_session_token:
             with suppress(ValueError):  # ignore error if token is from other context
                 _active_session.reset(token)

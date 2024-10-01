@@ -652,9 +652,9 @@ export interface FileInfoData {
      */
     codec?: string;
     /**
-     * @generated from protobuf field: optional float duration = 60;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 60;
      */
-    duration?: number;
+    duration?: Duration;
     /**
      * @generated from protobuf field: optional int32 bitrate = 61;
      */
@@ -755,9 +755,9 @@ export interface FileReferenceData {
      */
     codec?: string;
     /**
-     * @generated from protobuf field: optional float duration = 60;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 60;
      */
-    duration?: number;
+    duration?: Duration;
     /**
      * @generated from protobuf field: optional int32 bitrate = 61;
      */
@@ -1283,9 +1283,9 @@ export interface RunAttemptData {
      */
     status: RunStatus;
     /**
-     * @generated from protobuf field: optional float duration = 31;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 31;
      */
-    duration?: number;
+    duration?: Duration;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 32;
      */
@@ -1468,7 +1468,7 @@ export interface RunOptionsData {
     modelType?: ModelType;
 }
 /**
- * A span in a Run (a sort of sub-Run).
+ * A span in a Run (a sort of mini-Run inside a tracked Run).
  *
  * @generated from protobuf message symbolx.bench.RunSpanData
  */
@@ -1506,9 +1506,9 @@ export interface RunSpanData {
      */
     endedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional float duration = 42;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 42;
      */
-    duration?: number;
+    duration?: Duration;
 }
 /**
  * A stacktrace for a Run.
@@ -3361,9 +3361,9 @@ export interface FileData {
      */
     codec?: string;
     /**
-     * @generated from protobuf field: optional float duration = 60;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 60;
      */
-    duration?: number;
+    duration?: Duration;
     /**
      * @generated from protobuf field: optional int32 bitrate = 61;
      */
@@ -4743,13 +4743,13 @@ export interface RunData {
      */
     status: RunStatus;
     /**
-     * @generated from protobuf field: optional float duration = 41;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 41;
      */
-    duration?: number;
+    duration?: Duration;
     /**
-     * @generated from protobuf field: optional float cached_duration = 42;
+     * @generated from protobuf field: optional google.protobuf.Duration cached_duration = 42;
      */
-    cachedDuration?: number;
+    cachedDuration?: Duration;
     /**
      * @generated from protobuf field: repeated symbolx.bench.RunAttemptData attempts = 43;
      */
@@ -5148,9 +5148,9 @@ export interface SessionData {
      */
     status: SessionStatus;
     /**
-     * @generated from protobuf field: optional float duration = 41;
+     * @generated from protobuf field: optional google.protobuf.Duration duration = 41;
      */
-    duration?: number;
+    duration?: Duration;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp opened_at = 42;
      */
@@ -11750,10 +11750,6 @@ export enum ViewType {
      */
     TYPE = 208,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VARIABLE = 209;
-     */
-    VARIABLE = 209,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 210;
      */
     OBJECT = 210,
@@ -13552,7 +13548,7 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
             { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 58, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 60, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "duration", kind: "message", T: () => Duration },
             { no: 61, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 62, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 63, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
@@ -13616,8 +13612,8 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
                 case /* optional string codec */ 58:
                     message.codec = reader.string();
                     break;
-                case /* optional float duration */ 60:
-                    message.duration = reader.float();
+                case /* optional google.protobuf.Duration duration */ 60:
+                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
                 case /* optional int32 bitrate */ 61:
                     message.bitrate = reader.int32();
@@ -13682,9 +13678,9 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
         /* optional string codec = 58; */
         if (message.codec !== undefined)
             writer.tag(58, WireType.LengthDelimited).string(message.codec);
-        /* optional float duration = 60; */
-        if (message.duration !== undefined)
-            writer.tag(60, WireType.Bit32).float(message.duration);
+        /* optional google.protobuf.Duration duration = 60; */
+        if (message.duration)
+            Duration.internalBinaryWrite(message.duration, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
         /* optional int32 bitrate = 61; */
         if (message.bitrate !== undefined)
             writer.tag(61, WireType.Varint).int32(message.bitrate);
@@ -13728,7 +13724,7 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 58, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 60, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "duration", kind: "message", T: () => Duration },
             { no: 61, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 62, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 63, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
@@ -13811,8 +13807,8 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* optional string codec */ 58:
                     message.codec = reader.string();
                     break;
-                case /* optional float duration */ 60:
-                    message.duration = reader.float();
+                case /* optional google.protobuf.Duration duration */ 60:
+                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
                 case /* optional int32 bitrate */ 61:
                     message.bitrate = reader.int32();
@@ -13895,9 +13891,9 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* optional string codec = 58; */
         if (message.codec !== undefined)
             writer.tag(58, WireType.LengthDelimited).string(message.codec);
-        /* optional float duration = 60; */
-        if (message.duration !== undefined)
-            writer.tag(60, WireType.Bit32).float(message.duration);
+        /* optional google.protobuf.Duration duration = 60; */
+        if (message.duration)
+            Duration.internalBinaryWrite(message.duration, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
         /* optional int32 bitrate = 61; */
         if (message.bitrate !== undefined)
             writer.tag(61, WireType.Varint).int32(message.bitrate);
@@ -15193,7 +15189,7 @@ class RunAttemptData$Type extends MessageType<RunAttemptData> {
         super("symbolx.bench.RunAttemptData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
-            { no: 31, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "duration", kind: "message", T: () => Duration },
             { no: 32, name: "started_at", kind: "message", T: () => Timestamp },
             { no: 33, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 35, name: "terminated_at", kind: "message", T: () => Timestamp },
@@ -15220,8 +15216,8 @@ class RunAttemptData$Type extends MessageType<RunAttemptData> {
                 case /* symbolx.bench.RunStatus status */ 30:
                     message.status = reader.int32();
                     break;
-                case /* optional float duration */ 31:
-                    message.duration = reader.float();
+                case /* optional google.protobuf.Duration duration */ 31:
+                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
                 case /* optional google.protobuf.Timestamp started_at */ 32:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
@@ -15256,9 +15252,9 @@ class RunAttemptData$Type extends MessageType<RunAttemptData> {
         /* symbolx.bench.RunStatus status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
-        /* optional float duration = 31; */
-        if (message.duration !== undefined)
-            writer.tag(31, WireType.Bit32).float(message.duration);
+        /* optional google.protobuf.Duration duration = 31; */
+        if (message.duration)
+            Duration.internalBinaryWrite(message.duration, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp started_at = 32; */
         if (message.startedAt)
             Timestamp.internalBinaryWrite(message.startedAt, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -15701,7 +15697,7 @@ class RunSpanData$Type extends MessageType<RunSpanData> {
             { no: 35, name: "text_plain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "started_at", kind: "message", T: () => Timestamp },
             { no: 41, name: "ended_at", kind: "message", T: () => Timestamp },
-            { no: 42, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 42, name: "duration", kind: "message", T: () => Duration }
         ]);
     }
     create(value?: PartialMessage<RunSpanData>): RunSpanData {
@@ -15742,8 +15738,8 @@ class RunSpanData$Type extends MessageType<RunSpanData> {
                 case /* optional google.protobuf.Timestamp ended_at */ 41:
                     message.endedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.endedAt);
                     break;
-                case /* optional float duration */ 42:
-                    message.duration = reader.float();
+                case /* optional google.protobuf.Duration duration */ 42:
+                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15781,9 +15777,9 @@ class RunSpanData$Type extends MessageType<RunSpanData> {
         /* optional google.protobuf.Timestamp ended_at = 41; */
         if (message.endedAt)
             Timestamp.internalBinaryWrite(message.endedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional float duration = 42; */
-        if (message.duration !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.duration);
+        /* optional google.protobuf.Duration duration = 42; */
+        if (message.duration)
+            Duration.internalBinaryWrite(message.duration, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19868,7 +19864,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 58, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 60, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "duration", kind: "message", T: () => Duration },
             { no: 61, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 62, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 63, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -19998,8 +19994,8 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional string codec */ 58:
                     message.codec = reader.string();
                     break;
-                case /* optional float duration */ 60:
-                    message.duration = reader.float();
+                case /* optional google.protobuf.Duration duration */ 60:
+                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
                 case /* optional int32 bitrate */ 61:
                     message.bitrate = reader.int32();
@@ -20125,9 +20121,9 @@ class FileData$Type extends MessageType<FileData> {
         /* optional string codec = 58; */
         if (message.codec !== undefined)
             writer.tag(58, WireType.LengthDelimited).string(message.codec);
-        /* optional float duration = 60; */
-        if (message.duration !== undefined)
-            writer.tag(60, WireType.Bit32).float(message.duration);
+        /* optional google.protobuf.Duration duration = 60; */
+        if (message.duration)
+            Duration.internalBinaryWrite(message.duration, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
         /* optional int32 bitrate = 61; */
         if (message.bitrate !== undefined)
             writer.tag(61, WireType.Varint).int32(message.bitrate);
@@ -22953,8 +22949,8 @@ class RunData$Type extends MessageType<RunData> {
             { no: 36, name: "code", kind: "message", T: () => CodeData },
             { no: 38, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
-            { no: 41, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "cached_duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 41, name: "duration", kind: "message", T: () => Duration },
+            { no: 42, name: "cached_duration", kind: "message", T: () => Duration },
             { no: 43, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunAttemptData },
             { no: 44, name: "error", kind: "message", T: () => RunErrorData },
             { no: 45, name: "scheduled_at", kind: "message", T: () => Timestamp },
@@ -23073,11 +23069,11 @@ class RunData$Type extends MessageType<RunData> {
                 case /* symbolx.bench.RunStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional float duration */ 41:
-                    message.duration = reader.float();
+                case /* optional google.protobuf.Duration duration */ 41:
+                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional float cached_duration */ 42:
-                    message.cachedDuration = reader.float();
+                case /* optional google.protobuf.Duration cached_duration */ 42:
+                    message.cachedDuration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.cachedDuration);
                     break;
                 case /* repeated symbolx.bench.RunAttemptData attempts */ 43:
                     message.attempts.push(RunAttemptData.internalBinaryRead(reader, reader.uint32(), options));
@@ -23242,12 +23238,12 @@ class RunData$Type extends MessageType<RunData> {
         /* symbolx.bench.RunStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional float duration = 41; */
-        if (message.duration !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.duration);
-        /* optional float cached_duration = 42; */
-        if (message.cachedDuration !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.cachedDuration);
+        /* optional google.protobuf.Duration duration = 41; */
+        if (message.duration)
+            Duration.internalBinaryWrite(message.duration, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Duration cached_duration = 42; */
+        if (message.cachedDuration)
+            Duration.internalBinaryWrite(message.cachedDuration, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.RunAttemptData attempts = 43; */
         for (let i = 0; i < message.attempts.length; i++)
             RunAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
@@ -23816,7 +23812,7 @@ class SessionData$Type extends MessageType<SessionData> {
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.SessionStatus", SessionStatus, "SESSION_STATUS_"] },
-            { no: 41, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 41, name: "duration", kind: "message", T: () => Duration },
             { no: 42, name: "opened_at", kind: "message", T: () => Timestamp },
             { no: 43, name: "closed_at", kind: "message", T: () => Timestamp },
             { no: 61, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23895,8 +23891,8 @@ class SessionData$Type extends MessageType<SessionData> {
                 case /* symbolx.bench.SessionStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional float duration */ 41:
-                    message.duration = reader.float();
+                case /* optional google.protobuf.Duration duration */ 41:
+                    message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
                 case /* optional google.protobuf.Timestamp opened_at */ 42:
                     message.openedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.openedAt);
@@ -23980,9 +23976,9 @@ class SessionData$Type extends MessageType<SessionData> {
         /* symbolx.bench.SessionStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional float duration = 41; */
-        if (message.duration !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.duration);
+        /* optional google.protobuf.Duration duration = 41; */
+        if (message.duration)
+            Duration.internalBinaryWrite(message.duration, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp opened_at = 42; */
         if (message.openedAt)
             Timestamp.internalBinaryWrite(message.openedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -29507,7 +29503,7 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.codec]: { id: 58, name: 'codec', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.bitrate]: { id: 61, name: 'bitrate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.channels]: { id: 62, name: 'channels', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.sampleRate]: { id: 63, name: 'sample_rate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -29533,7 +29529,7 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.codec]: { id: 58, name: 'codec', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.bitrate]: { id: 61, name: 'bitrate', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.channels]: { id: 62, name: 'channels', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.sampleRate]: { id: 63, name: 'sample_rate', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -29662,7 +29658,7 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
 export const RunAttemptDataInfo: Record<RunAttemptProperty, PropertyInfo> = {
   [RunAttemptProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ATTEMPT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [RunAttemptProperty.status]: { id: 30, name: 'status', component: ObjectType.RUN_ATTEMPT, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunAttemptProperty.duration]: { id: 31, name: 'duration', component: ObjectType.RUN_ATTEMPT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunAttemptProperty.duration]: { id: 31, name: 'duration', component: ObjectType.RUN_ATTEMPT, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunAttemptProperty.startedAt]: { id: 32, name: 'started_at', component: ObjectType.RUN_ATTEMPT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunAttemptProperty.startedEpoch]: { id: 33, name: 'started_epoch', component: ObjectType.RUN_ATTEMPT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunAttemptProperty.terminatedAt]: { id: 35, name: 'terminated_at', component: ObjectType.RUN_ATTEMPT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -29685,7 +29681,7 @@ export const RunSpanDataInfo: Record<RunSpanProperty, PropertyInfo> = {
   [RunSpanProperty.textPlain]: { id: 35, name: 'text_plain', component: ObjectType.RUN_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [RunSpanProperty.startedAt]: { id: 40, name: 'started_at', component: ObjectType.RUN_SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [RunSpanProperty.endedAt]: { id: 41, name: 'ended_at', component: ObjectType.RUN_SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunSpanProperty.duration]: { id: 42, name: 'duration', component: ObjectType.RUN_SPAN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunSpanProperty.duration]: { id: 42, name: 'duration', component: ObjectType.RUN_SPAN, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
 }
 export const RunEventDataInfo: Record<RunEventProperty, PropertyInfo> = {
   [RunEventProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_EVENT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29938,7 +29934,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.30.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29967,7 +29963,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.30.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29993,7 +29989,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.30.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30103,7 +30099,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.codec]: { id: 58, name: 'codec', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.bitrate]: { id: 61, name: 'bitrate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.channels]: { id: 62, name: 'channels', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.sampleRate]: { id: 63, name: 'sample_rate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -30603,7 +30599,7 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SESSION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [SessionProperty.status]: { id: 40, name: 'status', component: ObjectType.SESSION, enumType: EnumType.SESSION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.openedAt]: { id: 42, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.closedAt]: { id: 43, name: 'closed_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.clientPtr]: { id: 61, name: 'client_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
@@ -30632,8 +30628,8 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.code]: { id: 36, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [RunProperty.options]: { id: 38, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.cachedDuration]: { id: 42, name: 'cached_duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.cachedDuration]: { id: 42, name: 'cached_duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.attempts]: { id: 43, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ATTEMPT },
   [RunProperty.error]: { id: 44, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
   [RunProperty.scheduledAt]: { id: 45, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },

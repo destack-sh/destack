@@ -265,8 +265,7 @@ class Runtime:
                         attempt._do_set("terminated_at", terminated_at, validate=False)
                         attempt._do_set("terminated_epoch", self.session.epoch, validate=False)
                         if started_at is not None:
-                            duration = (terminated_at - started_at).total_seconds()
-                            attempt._do_set("duration", duration, validate=False)
+                            attempt._do_set("duration", terminated_at - started_at, validate=False)
             else:
                 raise retry.to_error()  # give up
         finally:
@@ -326,12 +325,12 @@ class Runtime:
                     run._do_set("duration", last_attempt.duration, validate=False)
             elif run.terminated_at is not None:
                 # didn't make an attempt, but we have a terminated_at
-                run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
+                run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
             elif run.status.is_terminal:
                 # didn't make an attempt
                 run._do_set("terminated_at", self.oracle.utc(), validate=False)
                 run._do_set("terminated_epoch", self.session.epoch, validate=False)
-                run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
+                run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
 
             # commit intermediate session edits
             self.session.commit_optimistic()

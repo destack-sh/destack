@@ -1505,7 +1505,6 @@ enum ViewType {
   VIEW_TYPE_FLOW = 206;
   VIEW_TYPE_STEP = 207;
   VIEW_TYPE_TYPE = 208;
-  VIEW_TYPE_VARIABLE = 209;
   VIEW_TYPE_OBJECT = 210;
   VIEW_TYPE_RUN = 211;
   VIEW_TYPE_LOG = 212;
@@ -1771,7 +1770,7 @@ message FileInfoData {
   optional int32 height = 56;
   optional float aspect_ratio = 57;
   optional string codec = 58;
-  optional float duration = 60;
+  optional google.protobuf.Duration duration = 60;
   optional int32 bitrate = 61;
   optional int32 channels = 62;
   optional int32 sample_rate = 63;
@@ -1799,7 +1798,7 @@ message FileReferenceData {
   optional int32 height = 56;
   optional float aspect_ratio = 57;
   optional string codec = 58;
-  optional float duration = 60;
+  optional google.protobuf.Duration duration = 60;
   optional int32 bitrate = 61;
   optional int32 channels = 62;
   optional int32 sample_rate = 63;
@@ -2003,7 +2002,7 @@ message ReadOptionsData {
 message RunAttemptData {
   ObjectType metatype = 1;
   RunStatus status = 30;
-  optional float duration = 31;
+  optional google.protobuf.Duration duration = 31;
   optional google.protobuf.Timestamp started_at = 32;
   optional int32 started_epoch = 33;
   optional google.protobuf.Timestamp terminated_at = 35;
@@ -2060,7 +2059,7 @@ message RunOptionsData {
   optional ModelType model_type = 81;
 }
 
-// A span in a Run (a sort of sub-Run).
+// A span in a Run (a sort of mini-Run inside a tracked Run).
 message RunSpanData {
   ObjectType metatype = 1;
   RunSpanType type = 30;
@@ -2070,7 +2069,7 @@ message RunSpanData {
   optional string text_plain = 35;
   optional google.protobuf.Timestamp started_at = 40;
   optional google.protobuf.Timestamp ended_at = 41;
-  optional float duration = 42;
+  optional google.protobuf.Duration duration = 42;
 }
 
 // A stacktrace for a Run.
@@ -2607,7 +2606,7 @@ message FileData {
   optional int32 height = 56;
   optional float aspect_ratio = 57;
   optional string codec = 58;
-  optional float duration = 60;
+  optional google.protobuf.Duration duration = 60;
   optional int32 bitrate = 61;
   optional int32 channels = 62;
   optional int32 sample_rate = 63;
@@ -2990,8 +2989,8 @@ message RunData {
   optional CodeData code = 36;
   optional RunOptionsData options = 38;
   RunStatus status = 40;
-  optional float duration = 41;
-  optional float cached_duration = 42;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Duration cached_duration = 42;
   repeated RunAttemptData attempts = 43;
   optional RunErrorData error = 44;
   optional google.protobuf.Timestamp scheduled_at = 45;
@@ -3101,7 +3100,7 @@ message SessionData {
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
   SessionStatus status = 40;
-  optional float duration = 41;
+  optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp opened_at = 42;
   optional google.protobuf.Timestamp closed_at = 43;
   optional NodeReferenceData client_ptr = 61;

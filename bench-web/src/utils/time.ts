@@ -1,6 +1,7 @@
 import type { Timestamp } from "@/proto/wire";
 import { DateTime, Duration } from "luxon";
 import { ref, type Ref } from "vue";
+import { Duration as ProtoDuration } from "@/proto/wire/google/protobuf/duration";
 
 export enum TimeUpdateInterval {
   MILLISECOND = 50, // ms-ish
@@ -85,9 +86,14 @@ type FormatDurationOptions = {
  * Formats a duration into the nearest (ideally >1, less then <1 of next available unit)
  * Like 3.7s, 48m, 2d, 1w, 3y.
  */
-export function formatDuration(duration: Duration | number, options?: FormatDurationOptions): string {
+export function formatDuration(duration: ProtoDuration | Duration, options?: FormatDurationOptions): string {
   const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", short = true } = options ?? {};
-  const durationMs = typeof duration == "number" ? duration * 1000 : duration.as("milliseconds");
+  let durationMs: number;
+  if (duration instanceof Duration) {
+    durationMs = duration.as("milliseconds");
+  } else {
+    durationMs = Number(duration.seconds) * 1000 + duration.nanos / 1e6;
+  }
 
   // find largest unit that fits
   let currentUnit: TimeUnit = minUnit;

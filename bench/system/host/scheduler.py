@@ -155,7 +155,7 @@ class ProcessRunPlugin(HostPlugin[Run]):
                 if run.started_at is None:
                     run.started_at = run.terminated_at
                 if run.started_at is not None:
-                    run.duration = (run.terminated_at - run.started_at).total_seconds()
+                    run.duration = run.terminated_at - run.started_at
         elif not op.retry.should_retry:
             # give up
             error = RunError(
