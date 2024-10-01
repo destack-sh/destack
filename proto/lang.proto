@@ -2055,7 +2055,7 @@ message RunOptionsData {
   optional bool suppress_abort = 46;
   repeated BreakpointData breakpoints = 50;
   optional CacheMode cache_mode = 70;
-  optional google.protobuf.Duration cache_expiry = 71;
+  optional google.protobuf.Duration cache_retention = 71;
   optional ModelProvider model_provider = 80;
   optional ModelType model_type = 81;
 }

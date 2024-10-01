@@ -154,7 +154,7 @@ class RunOptions(Struct):
 
     # cache
     cache_mode: Optional["CacheMode"] = p_regular(70)
-    cache_expiry: Optional[timedelta] = p_regular(71)
+    cache_retention: Optional[timedelta] = p_regular(71)
 
     # model
     model_provider: Optional["ModelProvider"] = p_regular(80)

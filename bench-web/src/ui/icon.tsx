@@ -332,7 +332,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.FLOW]: "fas fa-project-diagram",
   [ViewType.DATABASE]: "fas fa-database",
   [ViewType.TYPE]: "fas fa-objects-column",
-  [ViewType.VARIABLE]: "fas fa-sliders",
+  [ViewType.RUN]: "fas fa-play",
   // helpers
   [ViewType.TREE]: "fas fa-list-tree",
   [ViewType.INSPECT]: "fas fa-eye",

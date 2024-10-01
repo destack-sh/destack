@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
+import { Anchor, ClientType, NodeType, Orientation, ViewType } from "@/proto/wire";
 import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/ui/action";
 import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
 import { DEFAULT_USER_ICON, getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
@@ -17,6 +17,7 @@ import { computed, ref, type Ref } from "vue";
 import ConnectionStatus from "./ConnectionStatus.vue";
 import { runtime } from "@/system/runtime";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
+import { toNodeRefOneOf } from "@/proto/wiring";
 
 const props = defineProps<{
   anchor: Anchor;
@@ -225,8 +226,9 @@ const dockActions: Ref<Action[]> = computed(
       <!-- NOTE :UX: add proper active run / run control menu (should probably be a real view.. Feed?) -->
       <div
         v-if="runtime?.focusedRun"
-        class="flex items-center gap-1 rounded px-1.5 py-0.5"
+        class="group flex items-center gap-1 rounded px-1.5 py-0.5 hover:cursor-pointer"
         :class="[orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col']"
+        @click="canvas.goToNode(runtime.focusedRun)"
       >
         <!-- Status -->
         <IconInline
@@ -235,12 +237,12 @@ const dockActions: Ref<Action[]> = computed(
           v-bind="ICON_BY_RUN_STATUS[runtime.focusedRun.status]"
         />
         <!-- Node -->
-        <button @click="canvas.goToNode(runtime.focusedRunBase)">
+        <button>
           <IconInline
             v-bind="runtime.focusedRunBase ? getNodeIcon(runtime.focusedRunBase) : makeIcon('fas fa-lambda')"
             class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
           />
-          <span>{{ runtime.focusedRunBase?.name ?? "Lambda" }}</span>
+          <span class="underline-offset-3 group-hover:underline">{{ runtime.focusedRunBase?.name ?? "Lambda" }}</span>
         </button>
       </div>
       <!-- Connection -->

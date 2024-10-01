@@ -57,7 +57,7 @@ const name = computed(() => (props.node as any).name);
       :is-input="hasName && isInput"
       :value-type="NAME_TYPE"
       :variant="Variant.STEALTH"
-      :model-value="(node as any).name ?? (node as any).title ?? '???'"
+      :model-value="(node as any).name ?? (node as any).title ?? nodeTypeName"
       @update:model-value="
         (newValue) => isNode(node) && connection.tx.update(node, { name: newValue }, { debounce: 'long' })
       "
