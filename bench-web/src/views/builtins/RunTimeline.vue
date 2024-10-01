@@ -27,7 +27,7 @@ const run = runTree.runRef;
     <div>
       <div v-for="run in runTree.runs" :key="run.id">
         {{ run.id }}
-        {{ run.duration }}
+        {{ run.duration?.seconds }} {{ run.duration?.nanos }}
       </div>
     </div>
   </div>

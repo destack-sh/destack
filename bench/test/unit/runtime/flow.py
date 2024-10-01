@@ -577,7 +577,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED
-    assert runner.run and runner.run.duration and runner.run.duration < 1
+    assert runner.run and runner.run.duration and runner.run.duration.total_seconds() < 1
     # code step should also be aborted
     assert runner.runs[1].node == Code1 and runner.runs[1].status == RunStatus.ABORTED
 

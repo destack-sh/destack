@@ -408,4 +408,4 @@ async def test_run_code_abort(local_runtime: RuntimeHandle):
     runner = await run_task
     # run should be aborted
     assert runner.status == RunStatus.ABORTED
-    assert runner.run and runner.run.duration and runner.run.duration < 1
+    assert runner.run and runner.run.duration and runner.run.duration.total_seconds() < 1

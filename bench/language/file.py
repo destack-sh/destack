@@ -2,7 +2,7 @@ import base64
 import hashlib
 import io
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
     Collection,
@@ -507,7 +507,7 @@ class FileInfoBase(BuiltinObject):
     height: Optional[int] = p_internal(56, default=None)
     aspect_ratio: Optional[float] = p_internal(57, default=None)
     codec: Optional[str] = p_internal(58, default=None)
-    duration: Optional[float] = p_internal(60, default=None)
+    duration: Optional[timedelta] = p_internal(60, default=None)
     bitrate: Optional[int] = p_internal(61, default=None)
     channels: Optional[int] = p_internal(62, default=None)
     sample_rate: Optional[int] = p_internal(63, default=None)
@@ -530,7 +530,8 @@ class FileInfoBase(BuiltinObject):
         if self.width and self.height:
             content_parts.append(f"{self.width}x{self.height}")
         if self.duration:
-            content_parts.append(f"{self.duration:.3f}s")
+            duration_str = f"{self.duration.total_seconds():.3f}s"
+            content_parts.append(f"{duration_str}s")
         return ", ".join(content_parts)
 
     def get_original(self) -> "File | FileReference | None":

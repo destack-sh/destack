@@ -63,7 +63,6 @@ class ViewType(IdEnum):
     FLOW = 206
     STEP = 207
     TYPE = 208
-    VARIABLE = 209
     OBJECT = 210
     RUN = 211
     LOG = 212

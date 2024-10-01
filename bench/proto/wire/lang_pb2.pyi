@@ -1488,7 +1488,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_FLOW: _ClassVar[ViewType]
     VIEW_TYPE_STEP: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
-    VIEW_TYPE_VARIABLE: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
     VIEW_TYPE_RUN: _ClassVar[ViewType]
     VIEW_TYPE_LOG: _ClassVar[ViewType]
@@ -2743,7 +2742,6 @@ VIEW_TYPE_VIEW: ViewType
 VIEW_TYPE_FLOW: ViewType
 VIEW_TYPE_STEP: ViewType
 VIEW_TYPE_TYPE: ViewType
-VIEW_TYPE_VARIABLE: ViewType
 VIEW_TYPE_OBJECT: ViewType
 VIEW_TYPE_RUN: ViewType
 VIEW_TYPE_LOG: ViewType
@@ -3332,7 +3330,7 @@ class FileInfoData(_message.Message):
     height: int
     aspect_ratio: float
     codec: str
-    duration: float
+    duration: _duration_pb2.Duration
     bitrate: int
     channels: int
     sample_rate: int
@@ -3352,7 +3350,7 @@ class FileInfoData(_message.Message):
         height: _Optional[int] = ...,
         aspect_ratio: _Optional[float] = ...,
         codec: _Optional[str] = ...,
-        duration: _Optional[float] = ...,
+        duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         bitrate: _Optional[int] = ...,
         channels: _Optional[int] = ...,
         sample_rate: _Optional[int] = ...,
@@ -3429,7 +3427,7 @@ class FileReferenceData(_message.Message):
     height: int
     aspect_ratio: float
     codec: str
-    duration: float
+    duration: _duration_pb2.Duration
     bitrate: int
     channels: int
     sample_rate: int
@@ -3455,7 +3453,7 @@ class FileReferenceData(_message.Message):
         height: _Optional[int] = ...,
         aspect_ratio: _Optional[float] = ...,
         codec: _Optional[str] = ...,
-        duration: _Optional[float] = ...,
+        duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         bitrate: _Optional[int] = ...,
         channels: _Optional[int] = ...,
         sample_rate: _Optional[int] = ...,
@@ -3866,7 +3864,7 @@ class RunAttemptData(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     status: RunStatus
-    duration: float
+    duration: _duration_pb2.Duration
     started_at: _timestamp_pb2.Timestamp
     started_epoch: int
     terminated_at: _timestamp_pb2.Timestamp
@@ -3876,7 +3874,7 @@ class RunAttemptData(_message.Message):
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         status: _Optional[_Union[RunStatus, str]] = ...,
-        duration: _Optional[float] = ...,
+        duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         started_epoch: _Optional[int] = ...,
         terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -4051,7 +4049,7 @@ class RunSpanData(_message.Message):
     text_plain: str
     started_at: _timestamp_pb2.Timestamp
     ended_at: _timestamp_pb2.Timestamp
-    duration: float
+    duration: _duration_pb2.Duration
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -4062,7 +4060,7 @@ class RunSpanData(_message.Message):
         text_plain: _Optional[str] = ...,
         started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         ended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        duration: _Optional[float] = ...,
+        duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
     ) -> None: ...
 
 class RunTraceData(_message.Message):
@@ -5801,7 +5799,7 @@ class FileData(_message.Message):
     height: int
     aspect_ratio: float
     codec: str
-    duration: float
+    duration: _duration_pb2.Duration
     bitrate: int
     channels: int
     sample_rate: int
@@ -5840,7 +5838,7 @@ class FileData(_message.Message):
         height: _Optional[int] = ...,
         aspect_ratio: _Optional[float] = ...,
         codec: _Optional[str] = ...,
-        duration: _Optional[float] = ...,
+        duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         bitrate: _Optional[int] = ...,
         channels: _Optional[int] = ...,
         sample_rate: _Optional[int] = ...,
@@ -7236,8 +7234,8 @@ class RunData(_message.Message):
     code: CodeData
     options: RunOptionsData
     status: RunStatus
-    duration: float
-    cached_duration: float
+    duration: _duration_pb2.Duration
+    cached_duration: _duration_pb2.Duration
     attempts: _containers.RepeatedCompositeFieldContainer[RunAttemptData]
     error: RunErrorData
     scheduled_at: _timestamp_pb2.Timestamp
@@ -7289,8 +7287,8 @@ class RunData(_message.Message):
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
         options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
         status: _Optional[_Union[RunStatus, str]] = ...,
-        duration: _Optional[float] = ...,
-        cached_duration: _Optional[float] = ...,
+        duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
+        cached_duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         attempts: _Optional[_Iterable[_Union[RunAttemptData, _Mapping]]] = ...,
         error: _Optional[_Union[RunErrorData, _Mapping]] = ...,
         scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -7593,7 +7591,7 @@ class SessionData(_message.Message):
     updated_by_ptr: NodeReferenceData
     set_properties: _containers.RepeatedScalarFieldContainer[int]
     status: SessionStatus
-    duration: float
+    duration: _duration_pb2.Duration
     opened_at: _timestamp_pb2.Timestamp
     closed_at: _timestamp_pb2.Timestamp
     client_ptr: NodeReferenceData
@@ -7618,7 +7616,7 @@ class SessionData(_message.Message):
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         set_properties: _Optional[_Iterable[int]] = ...,
         status: _Optional[_Union[SessionStatus, str]] = ...,
-        duration: _Optional[float] = ...,
+        duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         opened_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,

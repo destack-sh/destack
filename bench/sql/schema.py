@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.30.2"
+VERSION = "2024.10.01.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -508,7 +508,7 @@ FILE_TABLE = Table(
         Column("height", PrimitiveType.INT32, is_nullable=True),
         Column("aspect_ratio", PrimitiveType.FLOAT32, is_nullable=True),
         Column("codec", PrimitiveType.STRING, is_nullable=True),
-        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("bitrate", PrimitiveType.INT32, is_nullable=True),
         Column("channels", PrimitiveType.INT32, is_nullable=True),
         Column("sample_rate", PrimitiveType.INT32, is_nullable=True),
@@ -1230,7 +1230,7 @@ SESSION_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
-        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
@@ -1280,8 +1280,8 @@ RUN_TABLE = Table(
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
-        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
-        Column("cached_duration", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("cached_duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("attempts", PrimitiveType.JSON, is_array=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),

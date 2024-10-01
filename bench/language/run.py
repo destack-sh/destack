@@ -211,7 +211,7 @@ class RunAttempt(Struct):
     """A single attempt at a Run."""
 
     status: RunStatus = p_internal(30, default=RunStatus.SCHEDULED)
-    duration: Optional[float] = p_internal(31, default=None)
+    duration: Optional[timedelta] = p_internal(31, default=None)
     started_at: Optional[datetime] = p_internal(32, default=None)
     started_epoch: Optional[int] = p_internal(33, default=None)
     terminated_at: Optional[datetime] = p_internal(35, default=None)
@@ -222,7 +222,8 @@ class RunAttempt(Struct):
 
     def __content_str__(self) -> str:
         if self.duration is not None:
-            return f"{self.status.bench_name}, {self.duration:.3f}s"
+            duration_str = f"{self.duration.total_seconds():.3f}s"
+            return f"{self.status.bench_name}, {duration_str}s"
         else:
             return f"{self.status.bench_name}"
 
@@ -248,7 +249,7 @@ class RunSpanType(IdEnum):
 
 @struct_(StructType.RUN_SPAN)
 class RunSpan(Struct):
-    """A span in a Run (a sort of sub-Run)."""
+    """A span in a Run (a sort of mini-Run inside a tracked Run)."""
 
     type: RunSpanType = p_regular(30, default=RunSpanType.CUSTOM)
     name: str = p_regular(32, default=None)
@@ -256,8 +257,8 @@ class RunSpan(Struct):
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     text_plain: Optional[str] = p_regular(35, default=None)
     started_at: Optional[datetime] = p_regular(40, default=None)
-    ended_at: Optional[datetime] = p_regular(41, default=None)
-    duration: Optional[float] = p_regular(42, default=None)
+    terminated_at: Optional[datetime] = p_regular(41, default=None)
+    duration: Optional[timedelta] = p_regular(42, default=None)
 
 
 @enum_(EnumType.RUN_EVENT_TYPE)
@@ -381,12 +382,12 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     # status (overall)
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)  # desired status
-    duration: Optional[float] = p_internal(
+    duration: Optional[timedelta] = p_internal(
         41,
         default=None,
-        description="Duration in seconds from first attempt start to last attempt termination.",
+        description="Duration from first attempt start to last attempt termination.",
     )
-    cached_duration: Optional[float] = p_internal(
+    cached_duration: Optional[timedelta] = p_internal(
         42,
         default=None,
         description="Total original duration of contained Run cache hits.",
