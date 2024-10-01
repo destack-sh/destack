@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { TERMINAL_RUN_STATUSES } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import { makeTypeInfo } from "@/language/field";
 import { isRunnable, type RunnableNode } from "@/language/session";
-import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 import {
   BoxData,
+  ChangeCategory,
   ExpressionOp,
   FeedViewStateData,
   FieldZone,
@@ -13,11 +13,11 @@ import {
   ObjectType,
   Orientation,
   RunProperty,
-  RunStatus,
   StepType,
+  Timestamp,
   TypeKind,
   Variant,
-  ViewData,
+  ViewData
 } from "@/proto/wire";
 import {
   isNode,
@@ -32,25 +32,20 @@ import {
 import { useExistingConnection, useNode } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
-import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { getRunColorHex } from "@/ui/style";
 import { toggleHelperViewPin, useViewState, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
-import { tsToDt } from "@/utils/time";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Text from "@/views/content/Text.vue";
-import Feed from "@/views/system/Feed.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
-const MAX_WIDTH = 800;
+const MAX_WIDTH = 1200;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -79,7 +74,7 @@ const {
 const runPtr = useViewStateProp(canvas.tx, "runPtr", undefined) as Ref<
   TypedNodeReferenceData<NodeType.RUN> | undefined
 >;
-const { node: someRun } = useNode({
+const { node: someRun, connection: runConnection } = useNode({
   name: "start.run",
   live: true,
   nodePtr: runPtr,
@@ -163,7 +158,7 @@ defineExpose<ViewExposed>({ self });
   <div v-if="lastRunnableNode" class="h-full w-full">
     <!-- NOTE :UX: start view is ugly -->
     <!-- Header -->
-    <div class="group mx-auto flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
+    <div class="group  flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center pl-2 pr-2.5"
         :style="{ minWidth: MIN_WIDTH + 'px' }"
@@ -181,7 +176,8 @@ defineExpose<ViewExposed>({ self });
           <i class="fas mr-1.5" :class="nodePtr == null ? 'fa-unlock' : 'fa-lock'" />
         </button>
         <!-- Meta & Controls -->
-        <div class="ml-auto flex flex-row items-center pl-1.5">
+        <div class="ml-auto flex flex-row items-center gap-x-2 pl-1.5">
+          <!-- Start -->
           <button
             :disabled="lastRunnableNode == null"
             class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
@@ -189,6 +185,19 @@ defineExpose<ViewExposed>({ self });
           >
             <i class="fas fa-play w-5 text-center" />
             <span class="ml-1">Start</span>
+          </button>
+          <!-- Stop -->
+          <button
+            :disabled="lastRunnableNode == null || run == null || TERMINAL_RUN_STATUSES.includes(run.status)"
+            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
+            @click="
+              () =>
+                run &&
+                runConnection.tx.with({ category: ChangeCategory.SESSION }).update(run, { killedAt: Timestamp.now() })
+            "
+          >
+            <i class="fas fa-stop w-5 text-center" />
+            <span class="ml-1">Stop</span>
           </button>
         </div>
       </div>
@@ -200,9 +209,12 @@ defineExpose<ViewExposed>({ self });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <div class="mx-auto px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+      <div
+        class="mx-auto flex flex-col gap-y-2 px-5 pb-5"
+        :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
+      >
         <!-- Inputs -->
-        <div class="mx-auto">
+        <div class="flex-1">
           <h4 class="font-semibold">Inputs</h4>
           <ValueObject
             class="w-full py-2"
@@ -214,10 +226,8 @@ defineExpose<ViewExposed>({ self });
             @update:model-value="(value) => (inputsPacked = value)"
           />
         </div>
-        <!-- Divider -->
-        <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Outputs (last run) -->
-        <div v-if="run?.outputsPacked != null" class="mx-auto mt-1 py-3">
+        <div v-if="run?.outputsPacked != null" class="flex-1">
           <h4 class="font-semibold">Outputs</h4>
           <ValueObject
             class="w-full py-2"
@@ -228,68 +238,17 @@ defineExpose<ViewExposed>({ self });
           />
         </div>
         <!-- Error (last run) -->
-        <div v-else-if="run?.error != null" class="mx-auto mt-1 py-3">
+        <div v-else-if="run?.error != null" class="flex-1">
           <h4 class="font-semibold">Error</h4>
           <RunError class="mt-2" :run="run" :error="run.error" />
         </div>
-        <!-- No terminated last run yet -->
-        <div v-else-if="variant != Variant.COMPACT" class="mx-auto mt-1 py-3">
-          <h4 class="font-semibold">Outputs</h4>
+        <div v-else class="flex-1 text-center">
           <!-- Placeholder -->
-          <div class="mt-2 w-full">
-            <span v-if="run != null">
-              <IconInline
-                :class="[run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
-                :style="{ color: getRunColorHex(run.status) }"
-                v-bind="ICON_BY_RUN_STATUS[run.status]"
-              />
-              <span class="ml-1.5" :style="{ color: getRunColorHex(run.status) }">
-                {{ toCamelName(RunStatus, run.status) }}
-              </span>
-            </span>
-            <span v-else>
-              <i class="fas fa-circle-dot w-5 text-gray-400" />
-              <span class="ml-1">Not yet run</span>
-            </span>
-          </div>
         </div>
-        <!-- Divider -->
-        <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
-        <!-- Logs (last run) -->
-        <div v-if="run?.logs != null && run.logs.length > 0" class="mt-1 flex flex-col gap-y-1 py-3">
-          <h4 class="mb-2 font-semibold">Logs</h4>
-          <div v-for="(log, i) in run.logs" :key="i" class="flex flex-row text-gray-900">
-            <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
-            <pre v-if="log.textPlain" class="w-fit">{{ log.textPlain }}</pre>
-            <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />
-          </div>
-        </div>
-        <RunTimeline v-if="runPtr" :node-ptr="runPtr" />
-        <!-- Past runs -->
-        <div class="mx-auto mt-1 py-3">
-          <h4 class="font-semibold">Runs</h4>
-          <Feed
-            is-inline
-            :value-packed="packProtoJson(packBuiltinObject(feedState))"
-            :expansion="expansion"
-            :focus="focus"
-            @update:self="
-              (update) => {
-                if ('expansion' in update) {
-                  const selfNode = spaceGraph.getOrError(self);
-                  canvas.tx().update(selfNode, { expansion: update.expansion });
-                }
-                if ('valuePacked' in update) {
-                  updateState(canvas.tx(), {
-                    feed: {
-                      ...unpackBuiltinObject(unpackProtoJson(update.valuePacked), ObjectType.FEED_VIEW_STATE),
-                      filter: undefined,
-                    },
-                  });
-                }
-              }
-            "
-          />
+        <!-- Timeline -->
+        <div v-if="runPtr && run != null">
+          <h4 class="font-semibold">Timeline</h4>
+          <RunTimeline :node-ptr="runPtr" class="mt-2" />
         </div>
       </div>
     </Scroll>
