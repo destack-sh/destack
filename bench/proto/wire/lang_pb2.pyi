@@ -4029,7 +4029,7 @@ class RunSpanData(_message.Message):
         "text",
         "text_plain",
         "started_at",
-        "ended_at",
+        "terminated_at",
         "duration",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4039,7 +4039,7 @@ class RunSpanData(_message.Message):
     TEXT_FIELD_NUMBER: _ClassVar[int]
     TEXT_PLAIN_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
-    ENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: RunSpanType
@@ -4048,7 +4048,7 @@ class RunSpanData(_message.Message):
     text: TextData
     text_plain: str
     started_at: _timestamp_pb2.Timestamp
-    ended_at: _timestamp_pb2.Timestamp
+    terminated_at: _timestamp_pb2.Timestamp
     duration: _duration_pb2.Duration
     def __init__(
         self,
@@ -4059,7 +4059,7 @@ class RunSpanData(_message.Message):
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         text_plain: _Optional[str] = ...,
         started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        ended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
     ) -> None: ...
 
@@ -7133,6 +7133,7 @@ class RunData(_message.Message):
         "status",
         "duration",
         "cached_duration",
+        "active_duration",
         "attempts",
         "error",
         "scheduled_at",
@@ -7140,8 +7141,6 @@ class RunData(_message.Message):
         "started_at",
         "started_epoch",
         "killed_at",
-        "halted_at",
-        "halted_epoch",
         "terminated_at",
         "terminated_epoch",
         "inputs_packed",
@@ -7185,6 +7184,7 @@ class RunData(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     CACHED_DURATION_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DURATION_FIELD_NUMBER: _ClassVar[int]
     ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     SCHEDULED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -7192,8 +7192,6 @@ class RunData(_message.Message):
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     STARTED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     KILLED_AT_FIELD_NUMBER: _ClassVar[int]
-    HALTED_AT_FIELD_NUMBER: _ClassVar[int]
-    HALTED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
     TERMINATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
@@ -7236,6 +7234,7 @@ class RunData(_message.Message):
     status: RunStatus
     duration: _duration_pb2.Duration
     cached_duration: _duration_pb2.Duration
+    active_duration: _duration_pb2.Duration
     attempts: _containers.RepeatedCompositeFieldContainer[RunAttemptData]
     error: RunErrorData
     scheduled_at: _timestamp_pb2.Timestamp
@@ -7243,8 +7242,6 @@ class RunData(_message.Message):
     started_at: _timestamp_pb2.Timestamp
     started_epoch: int
     killed_at: _timestamp_pb2.Timestamp
-    halted_at: _timestamp_pb2.Timestamp
-    halted_epoch: int
     terminated_at: _timestamp_pb2.Timestamp
     terminated_epoch: int
     inputs_packed: _struct_pb2.Struct
@@ -7289,6 +7286,7 @@ class RunData(_message.Message):
         status: _Optional[_Union[RunStatus, str]] = ...,
         duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         cached_duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
+        active_duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         attempts: _Optional[_Iterable[_Union[RunAttemptData, _Mapping]]] = ...,
         error: _Optional[_Union[RunErrorData, _Mapping]] = ...,
         scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -7296,8 +7294,6 @@ class RunData(_message.Message):
         started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         started_epoch: _Optional[int] = ...,
         killed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        halted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        halted_epoch: _Optional[int] = ...,
         terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         terminated_epoch: _Optional[int] = ...,
         inputs_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,

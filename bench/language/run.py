@@ -392,20 +392,23 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         default=None,
         description="Total original duration of contained Run cache hits.",
     )
-    attempts: list[RunAttempt] = p_internal(43, array=True, struct=StructType.RUN_ATTEMPT)
-    error: Optional["RunError"] = p_internal(
-        44, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+    active_duration: Optional[timedelta] = p_internal(
+        43,
+        default=None,
+        description="Total duration of direct (or contained) Run activity.",
     )
-    scheduled_at: Optional[datetime] = p_system(45, default=None)
-    scheduled_epoch: Optional[int] = p_system(46, default=None)
-    started_at: Optional[datetime] = p_internal(47, default=None)
-    started_epoch: Optional[int] = p_internal(48, default=None)
-    killed_at: Optional[datetime] = p_internal(49, default=None)
-    halted_at: Optional[datetime] = p_internal(50, default=None)
-    halted_epoch: Optional[int] = p_internal(51, default=None)
-    # halted_on_trigger: ...
-    terminated_at: Optional[datetime] = p_internal(53, default=None)
-    terminated_epoch: Optional[int] = p_internal(54, default=None)
+    attempts: list[RunAttempt] = p_internal(44, array=True, struct=StructType.RUN_ATTEMPT)
+    error: Optional["RunError"] = p_internal(
+        45, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+    )
+    scheduled_at: Optional[datetime] = p_system(46, default=None)
+    scheduled_epoch: Optional[int] = p_system(47, default=None)
+    started_at: Optional[datetime] = p_internal(48, default=None)
+    started_epoch: Optional[int] = p_internal(49, default=None)
+    killed_at: Optional[datetime] = p_internal(50, default=None)
+    # halted/... ...
+    terminated_at: Optional[datetime] = p_internal(55, default=None)
+    terminated_epoch: Optional[int] = p_internal(56, default=None)
 
     # content
     inputs_packed: Any = p_value_packed(60)

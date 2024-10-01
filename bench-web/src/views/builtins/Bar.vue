@@ -1,23 +1,22 @@
 <script lang="ts" setup>
-import { Anchor, ClientType, NodeType, Orientation, ViewType } from "@/proto/wire";
-import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/ui/action";
-import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
-import { DEFAULT_USER_ICON, getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
 import { toCamelName } from "@/language/const";
+import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
+import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
+import { runtime } from "@/system/runtime";
 import { bench, canvas, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
+import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/ui/action";
+import { DEFAULT_USER_ICON, getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
+import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/ui/popover";
+import { getRunColorHex } from "@/ui/style";
+import { tooltipFromAction } from "@/ui/tooltip";
 import type { FloatingPlacement } from "@/utils/floating";
 import { COMMIT, ENV, VERSION } from "@/utils/globals";
-import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/ui/popover";
-import { tooltipFromAction } from "@/ui/tooltip";
 import Menu from "@/views/builtins/Menu.vue";
 import Popover from "@/views/builtins/Popover.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 import ConnectionStatus from "./ConnectionStatus.vue";
-import { runtime } from "@/system/runtime";
-import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
-import { toNodeRefOneOf } from "@/proto/wiring";
 
 const props = defineProps<{
   anchor: Anchor;
@@ -233,7 +232,7 @@ const dockActions: Ref<Action[]> = computed(
         <!-- Status -->
         <IconInline
           class="w-5"
-          :class="ACCENT_COLOR_BY_RUN_STATUS[runtime.focusedRun.status]"
+          :class="getRunColorHex(runtime.focusedRun.status)"
           v-bind="ICON_BY_RUN_STATUS[runtime.focusedRun.status]"
         />
         <!-- Node -->

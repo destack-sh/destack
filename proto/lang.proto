@@ -2068,7 +2068,7 @@ message RunSpanData {
   optional TextData text = 34;
   optional string text_plain = 35;
   optional google.protobuf.Timestamp started_at = 40;
-  optional google.protobuf.Timestamp ended_at = 41;
+  optional google.protobuf.Timestamp terminated_at = 41;
   optional google.protobuf.Duration duration = 42;
 }
 
@@ -2991,17 +2991,16 @@ message RunData {
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Duration cached_duration = 42;
-  repeated RunAttemptData attempts = 43;
-  optional RunErrorData error = 44;
-  optional google.protobuf.Timestamp scheduled_at = 45;
-  optional int32 scheduled_epoch = 46;
-  optional google.protobuf.Timestamp started_at = 47;
-  optional int32 started_epoch = 48;
-  optional google.protobuf.Timestamp killed_at = 49;
-  optional google.protobuf.Timestamp halted_at = 50;
-  optional int32 halted_epoch = 51;
-  optional google.protobuf.Timestamp terminated_at = 53;
-  optional int32 terminated_epoch = 54;
+  optional google.protobuf.Duration active_duration = 43;
+  repeated RunAttemptData attempts = 44;
+  optional RunErrorData error = 45;
+  optional google.protobuf.Timestamp scheduled_at = 46;
+  optional int32 scheduled_epoch = 47;
+  optional google.protobuf.Timestamp started_at = 48;
+  optional int32 started_epoch = 49;
+  optional google.protobuf.Timestamp killed_at = 50;
+  optional google.protobuf.Timestamp terminated_at = 55;
+  optional int32 terminated_epoch = 56;
   optional google.protobuf.Struct inputs_packed = 60;
   optional google.protobuf.Struct outputs_packed = 61;
   optional google.protobuf.Struct variables_packed = 62;

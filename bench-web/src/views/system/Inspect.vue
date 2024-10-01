@@ -7,12 +7,7 @@ import { canvas, inspectionPtr } from "@/system/space";
 import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { getInspectionLayout } from "@/ui/inspect";
 import { ScrollbarWidth } from "@/ui/layout";
-import {
-  toggleHelperViewPin,
-  VIEW_DEFAULT_HEADER_HEIGHT,
-  VIEW_DEFAULT_MAX_WIDTH,
-  VIEW_DEFAULT_MIN_WIDTH,
-} from "@/ui/view";
+import { toggleHelperViewPin, VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -21,7 +16,7 @@ import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
+const MIN_WIDTH = 400;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<

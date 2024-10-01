@@ -34,12 +34,13 @@ import { runtime } from "@/system/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
+import { getRunColorHex } from "@/ui/style";
 import { toggleHelperViewPin, useViewState, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
 import { tsToDt } from "@/utils/time";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
+import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Text from "@/views/content/Text.vue";
@@ -238,10 +239,11 @@ defineExpose<ViewExposed>({ self });
           <div class="mt-2 w-full">
             <span v-if="run != null">
               <IconInline
-                :class="[ACCENT_COLOR_BY_RUN_STATUS[run.status], run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+                :class="[run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+                :style="{ color: getRunColorHex(run.status) }"
                 v-bind="ICON_BY_RUN_STATUS[run.status]"
               />
-              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[run.status]">
+              <span class="ml-1.5" :style="{ color: getRunColorHex(run.status) }">
                 {{ toCamelName(RunStatus, run.status) }}
               </span>
             </span>
@@ -262,6 +264,7 @@ defineExpose<ViewExposed>({ self });
             <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />
           </div>
         </div>
+        <RunTimeline v-if="runPtr" :node-ptr="runPtr" />
         <!-- Past runs -->
         <div class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Runs</h4>

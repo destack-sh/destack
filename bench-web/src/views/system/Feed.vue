@@ -56,7 +56,6 @@ import { getElement } from "@/utils/element";
 import { humanizeNumber } from "@/utils/string";
 import { ScrollbarWidth } from "@/ui/layout";
 import { computedValue } from "@/utils/ref";
-import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
 import { formatDuration, formatRelativeDate, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
@@ -67,6 +66,7 @@ import { computed, ref, toRef, type Ref } from "vue";
 import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/language/const";
 import { makeEditFromLog } from "@/language/edit";
 import { useViewExpansion, useViewState } from "@/ui/view";
+import { getRunColorHex } from "@/ui/style";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -526,10 +526,8 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <!-- Status -->
                 <IconInline
                   class="w-5"
-                  :class="[
-                    ACCENT_COLOR_BY_RUN_STATUS[item.it.status],
-                    item.it.status == RunStatus.RUNNING ? 'animate-spin' : '',
-                  ]"
+                  :class="[item.it.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+                  :style="{ color: getRunColorHex(item.it.status) }"
                   v-bind="ICON_BY_RUN_STATUS[item.it.status]"
                 />
                 <!-- Node -->

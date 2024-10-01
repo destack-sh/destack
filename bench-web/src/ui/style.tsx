@@ -1,29 +1,6 @@
 import { ColorData, ColorShade, ColorType, LogLevel, ObjectType, RunStatus } from "@/proto/wire";
 import { Casing, toCasing } from "@/utils/string";
 
-export const ACCENT_COLOR_BY_LOG_LEVEL: Record<LogLevel, string> = {
-  [LogLevel.UNSPECIFIED]: "text-gray-700",
-  [LogLevel.TRACE]: "text-gray-700",
-  [LogLevel.DEBUG]: "text-gray-700",
-  [LogLevel.INFO]: "text-hint-700",
-  [LogLevel.WARNING]: "text-warning-600",
-  [LogLevel.ERROR]: "text-danger-700",
-  [LogLevel.CRITICAL]: "text-danger-700",
-};
-
-export const ACCENT_COLOR_BY_RUN_STATUS: Record<RunStatus, string> = {
-  [RunStatus.UNSPECIFIED]: "text-gray-500",
-  [RunStatus.SCHEDULED]: "text-gray-500",
-  [RunStatus.QUEUED]: "text-gray-500",
-  [RunStatus.RUNNING]: "text-gray-700",
-  [RunStatus.PAUSED]: "text-gray-700",
-  [RunStatus.SUSPENDED]: "text-gray-700",
-  [RunStatus.COMPLETED]: "text-success-700",
-  [RunStatus.CANCELLED]: "text-warning-600",
-  [RunStatus.ABORTED]: "text-warning-600",
-  [RunStatus.FAILED]: "text-danger-600",
-};
-
 export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
   [LogLevel.UNSPECIFIED]: ColorType.GRAY,
   [LogLevel.TRACE]: ColorType.GRAY,
@@ -123,6 +100,14 @@ export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): s
   } else {
     return undefined;
   }
+}
+
+export function getRunColorHex(status: RunStatus, shade?: ColorShade): string | undefined {
+  return getColorHex(COLOR_BY_RUN_STATUS[status], shade);
+}
+
+export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | undefined {
+  return getColorHex(COLOR_BY_LOG_LEVEL[level], shade);
 }
 
 export function getColorTitle(color: ColorType | ColorData): string | null {

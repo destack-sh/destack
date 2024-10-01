@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { ICON_BY_LOG_LEVEL, IconInline } from "@/ui/icon";
+import { getLogColorHex } from "@/ui/style";
 import { toaster, type ToastAnchor } from "@/ui/toast";
 import { assertNever } from "@/utils/functools";
-import { ACCENT_COLOR_BY_LOG_LEVEL } from "@/ui/style";
 import { computed } from "vue";
 
 const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: number; width: number; height: number } }>();
@@ -78,7 +78,7 @@ const absoluteStyle = computed(() => {
             v-bind="toast.icon ?? ICON_BY_LOG_LEVEL[toast.level]"
             force-color="inherit"
             class="mt-0.5"
-            :class="[ACCENT_COLOR_BY_LOG_LEVEL[toast.level]]"
+            :style="{ color: getLogColorHex(toast.level) }"
           />
         </div>
         <div class="ml-2.5">

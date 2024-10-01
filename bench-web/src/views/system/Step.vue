@@ -32,7 +32,7 @@ import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
 import { getNodeIcon, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { ACCENT_COLOR_BY_RUN_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
+import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import { formatDuration, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
@@ -266,7 +266,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           leave-to-class="opacity-0"
           appear
         >
-          <span v-if="lastRun" class="flex-shrink-0 truncate px-1" :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]">
+          <span v-if="lastRun" class="flex-shrink-0 truncate px-1" :style="{ color: getRunColorHex(lastRun.status) }">
             <span v-if="lastRuns.length > 1"> {{ lastRuns.length }}x </span>
             <!-- Duration -->
             <span v-if="lastRun.startedAt" class="mr-1">
@@ -281,10 +281,8 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Icon -->
             <IconInline
               class="w-5 text-center"
-              :class="[
-                ACCENT_COLOR_BY_RUN_STATUS[lastRun.status],
-                lastRun.status == RunStatus.RUNNING ? 'animate-spin' : '',
-              ]"
+              :class="[lastRun.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+              :style="{ color: getRunColorHex(lastRun.status) }"
               v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
             />
           </span>
