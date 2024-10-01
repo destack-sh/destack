@@ -32,6 +32,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.CHAT]: () => import("@/views/system/Chat.vue"),
   [ViewType.START]: () => import("@/views/system/Start.vue"),
   [ViewType.FEED]: () => import("@/views/system/Feed.vue"),
+  [ViewType.RUN]: () => import("@/views/system/Run.vue"),
 
   // containers
   [ViewType.WINDOW]: () => import("@/views/containers/Split.vue"), // shared with Split

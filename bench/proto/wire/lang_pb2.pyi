@@ -3963,7 +3963,7 @@ class RunOptionsData(_message.Message):
         "suppress_abort",
         "breakpoints",
         "cache_mode",
-        "cache_expiry",
+        "cache_retention",
         "model_provider",
         "model_type",
     )
@@ -3981,7 +3981,7 @@ class RunOptionsData(_message.Message):
     SUPPRESS_ABORT_FIELD_NUMBER: _ClassVar[int]
     BREAKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CACHE_MODE_FIELD_NUMBER: _ClassVar[int]
-    CACHE_EXPIRY_FIELD_NUMBER: _ClassVar[int]
+    CACHE_RETENTION_FIELD_NUMBER: _ClassVar[int]
     MODEL_PROVIDER_FIELD_NUMBER: _ClassVar[int]
     MODEL_TYPE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -3998,7 +3998,7 @@ class RunOptionsData(_message.Message):
     suppress_abort: bool
     breakpoints: _containers.RepeatedCompositeFieldContainer[BreakpointData]
     cache_mode: CacheMode
-    cache_expiry: _duration_pb2.Duration
+    cache_retention: _duration_pb2.Duration
     model_provider: ModelProvider
     model_type: ModelType
     def __init__(
@@ -4017,7 +4017,7 @@ class RunOptionsData(_message.Message):
         suppress_abort: bool = ...,
         breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ...,
         cache_mode: _Optional[_Union[CacheMode, str]] = ...,
-        cache_expiry: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
+        cache_retention: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         model_provider: _Optional[_Union[ModelProvider, str]] = ...,
         model_type: _Optional[_Union[ModelType, str]] = ...,
     ) -> None: ...

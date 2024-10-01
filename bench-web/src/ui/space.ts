@@ -23,6 +23,7 @@ import {
 } from "@/proto/wire";
 import {
   describeNode,
+  describeScope,
   isNode,
   isNodeRef,
   makeStruct,
@@ -710,10 +711,13 @@ export class SpaceCanvas {
     const nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     const graph = options?.graph ?? this.graph;
     log.debug("canvas.goToNode", node);
-    node = graph.get(nodePtr);
+    if (graph.has(nodePtr)) {
+      // reload from graph
+      node = graph.get(nodePtr);
+    }
     if (node == null) {
       // not found
-      return;
+      throw new Error(`node not found in ${describeScope(graph.scope)}: ${describeNode(nodePtr)}`);
     } else if (nodePtr.type == NodeType.VIEW && this.isInSpace(node)) {
       // just focus directly
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
@@ -758,6 +762,16 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
+    } else if (isNode(node, NodeType.RUN)) {
+      const view = this.addView(
+        {
+          type: ViewType.RUN,
+          nodePtr: toNodeRefOneOf(node),
+          title: `Run ${node.id!.replace(/[^\w]/g, "").slice(20)}`,
+          ...options?.props,
+        },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
     } else {
       throw new Error(`cannot go to node: ${describeNode(node)}`);
     }

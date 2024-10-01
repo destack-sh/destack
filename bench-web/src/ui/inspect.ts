@@ -336,9 +336,7 @@ export function getInspectionLayout(node: AnyNodeData, options?: { exclude?: str
   const inspectedProperties: InspectedProperty[] = [];
   const excluded = EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
 
-  const categories: Record<string, InspectionCategory> = getInspectionInfo(node) ?? {
-    Common: [{ from: undefined, to: undefined }],
-  };
+  const categories: Record<string, InspectionCategory> = getInspectionInfo(node) ?? {};
   for (const category of Object.keys(categories)) {
     const categoryProperties = categories[category as keyof typeof categories];
     // assemble all properties in category

@@ -11,6 +11,7 @@ import RunError from "@/views/builtins/RunError.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, toRef, type Ref } from "vue";
+import RunTimeline from "@/views/builtins/RunTimeline.vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
@@ -26,13 +27,7 @@ const { graph: runGraph, connection: runConnection } =
   props.preparedConnection ??
   useGetConnection(
     { name: `log.${nodePtr.value?.id}` },
-    computed(() => ({
-      scope: PACKAGE_SCOPE.value,
-      roots: [nodePtr.value!],
-      isEnabled: nodePtr.value != null,
-      ancestorTypes: [NodeType.RUN],
-      descendantTypes: [NodeType.RUN],
-    })),
+    computed(() => ({ scope: PACKAGE_SCOPE.value, roots: [nodePtr.value!], isEnabled: nodePtr.value != null })),
   );
 const run = runGraph.getRef(nodePtr.value, { ignoreAncestors: true }) as Ref<RunData | undefined>;
 const basePtr = computed(() => run.value?.stepPtr ?? run.value?.blockPtr);
@@ -57,7 +52,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="run">
+  <div v-if="run" class="h-full w-full">
     <!-- NOTE :Incomplete :UX: Run View is currently only intended for inline display in Feed -->
     <!-- Header -->
     <!-- ... -->
@@ -82,6 +77,8 @@ defineExpose<ViewExposed>({ self, id });
       />
     </div>
     <Inaccessible v-else :node="basePtr" :connection="pkgConnection" />
+
+    <RunTimeline v-if="nodePtr" :node-ptr="nodePtr" />
 
     <!-- Error -->
     <RunError v-if="run?.error" class="mt-2" :run="run" :error="run.error" />

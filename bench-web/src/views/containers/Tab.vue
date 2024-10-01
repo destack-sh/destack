@@ -40,9 +40,8 @@ const tabsTitles = computed(() => {
     const tab = tabs.value[tabIdx];
     if (tab.title) {
       tabsTitles.push(tab.title);
-    } else if (tab.nodePtr?.oneofKind != null) {
-      const tabNode = tabsNodes.value[tabIdx];
-      tabsTitles.push((tabNode as any)?.name ?? "???");
+    } else if (tab.nodePtr?.oneofKind != null && (tabsNodes.value[tabIdx] as any)?.name != null) {
+      tabsTitles.push((tabsNodes.value[tabIdx] as any)?.name ?? "???");
     } else {
       tabsTitles.push(tab.name);
     }

@@ -40,7 +40,7 @@ export class RunTree {
       computed(() => ({
         scope: graph.scope,
         roots: [this.runPtr.value!],
-        options: { descendantTypes: [NodeType.RUN] },
+        options: { ancestorTypes: [NodeType.RUN], descendantTypes: [NodeType.RUN] },
         isOptional: true,
         isEnabled: this.runPtr.value != null,
       })),
