@@ -12,7 +12,7 @@ import { computed, ref } from "vue";
 
 const props = defineProps<{
   node: AnyNodeData | SomeNodeReferenceData;
-  connection: Connection<"get", any>;
+  connection: Connection<"get" | "search", any>;
   isInput?: boolean;
 }>();
 

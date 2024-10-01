@@ -16,14 +16,21 @@ import { canvas, pkgGraph } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import { durationToMs, formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
-import { computed, Ref, toRef } from "vue";
+import { useElementSize } from "@vueuse/core";
+import { computed, ref, Ref, toRef } from "vue";
 
+const TREE_WIDTH = 280;
 const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
 const BAR_PADDING = 4;
+const MIN_SPAN_WIDTH = 2;
 
 const props = defineProps<{ nodePtr: SomeNodeReferenceData } & Pick<ViewData, "size">>();
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
+
+const containerRef = ref<HTMLElement | null>(null);
+const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
+const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH);
 
 //
 // Run
@@ -126,37 +133,43 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
   walkRun(runTree.run, null, 0);
   return spans;
 });
-
-// nocheckin: RunTimeline
 </script>
 <template>
   <div class="flex w-full flex-row gap-x-2">
     <!-- Timeline -->
+    <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
     <!-- Spans -->
-    <div class="flex flex-1 flex-col">
+    <div ref="containerRef" class="flex flex-1 flex-col">
       <!-- Span -->
       <div
         v-for="span in spans"
         :key="span.id"
-        class="group flex w-full flex-row items-center rounded hover:bg-gray-100"
+        class="group/span relative flex w-full flex-row items-center rounded hover:bg-gray-100"
+        :style="{
+          height: ROW_HEIGHT + 'px',
+        }"
       >
         <!-- Tree  -->
         <div
-          class="flex w-[320px] flex-shrink-0 flex-row items-center pr-2"
+          class="flex flex-shrink-0 flex-row items-center pr-2"
           :style="{
             paddingLeft: 8 + span.depth * DEPTH_OFFSET + 'px',
+            width: TREE_WIDTH + 'px',
           }"
         >
           <!-- Node -->
-          <span class="hover:cursor-pointer" @click="isNode(span.baseNode) && canvas.goToNode(span.baseNode)">
+          <span
+            class="group/node truncate hover:cursor-pointer"
+            @click="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
+          >
             <IconInline
               v-bind="span.icon ?? ICON_BY_NODE_TYPE[NodeType.RUN]"
-              class="mr-1 w-5 text-center transition-colors duration-75"
+              class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
             />
-            <span>{{ span.title }}</span>
+            <span class="truncate underline-offset-3 group-hover/node:underline">{{ span.title }}</span>
           </span>
           <!-- Meta -->
-          <div class="ml-auto">
+          <div class="ml-auto flex-shrink-0 pl-1.5">
             <!-- Duration -->
             <span class="ml-auto mr-1.5 text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
             <!-- Status -->
@@ -171,13 +184,12 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
         </div>
         <!-- Timeline -->
         <div
-          class="transform rounded transition-all duration-150"
+          class="absolute transform rounded transition-all duration-100"
           :style="{
             height: ROW_HEIGHT - 2 * BAR_PADDING + 'px',
-            marginTop: BAR_PADDING + 'px',
-            marginBottom: BAR_PADDING + 'px',
-            width: span.widthRelative * 100 + '%',
-            marginLeft: span.offsetRelative * 100 + '%',
+            top: BAR_PADDING + 'px',
+            width: Math.max(MIN_SPAN_WIDTH, span.widthRelative * spanContainerWidth) + 'px',
+            left: TREE_WIDTH + 8 + span.offsetRelative * spanContainerWidth + 'px',
             backgroundColor: span.color,
           }"
         ></div>

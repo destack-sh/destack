@@ -1,21 +1,26 @@
 <script lang="ts" setup>
 import { makeTypeInfo } from "@/language/field";
-import { unpackProtoJson } from "@/proto/wiring";
 import { FieldZone, NodeType, RunData, TypeKind, Variant, ViewData } from "@/proto/wire";
-import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { unpackProtoJson, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
-import { canvas, pkgConnection } from "@/system/space";
+import { canvas } from "@/system/space";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
+import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, toRef, type Ref } from "vue";
-import RunTimeline from "@/views/builtins/RunTimeline.vue";
+
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const MIN_WIDTH = 320;
+const MAX_WIDTH = 1200;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "isInline" | "variant">
+    Pick<ViewData, "name" | "title" | "text" | "icon" | "size" | "nodePtr" | "isInline" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -52,39 +57,64 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="run" class="h-full w-full">
-    <!-- NOTE :Incomplete :UX: Run View is currently only intended for inline display in Feed -->
+  <div v-if="run != null">
     <!-- Header -->
-    <!-- ... -->
-    <!--  (also :Architecture views like Run should respond to their size) -->
-    <!-- IO -->
-    <div v-if="runnableNode">
-      <!-- Inputs -->
-      <ValueObject
-        class="w-full py-2"
-        :model-value="inputsPacked"
-        :value-type="inputType"
-        is-inline
-        :variant="Variant.STEALTH"
-      />
-      <!-- Output -->
-      <ValueObject
-        class="mt-2 w-full py-2"
-        :model-value="outputsPacked"
-        :value-type="outputType"
-        is-inline
-        :variant="Variant.STEALTH"
-      />
+    <div
+      v-if="variant != Variant.COMPACT"
+      class="group mx-auto flex w-full flex-row items-center"
+      :style="{ height: HEADER_HEIGHT + 'px' }"
+    >
+      <div
+        class="mx-auto flex w-full max-w-full flex-row items-center pl-2 pr-2.5"
+        :style="{ minWidth: MIN_WIDTH + 'px' }"
+      >
+        <!-- Runnable -->
+        <NodeReference class="font-medium" :node="run" :connection="runConnection" />
+      </div>
     </div>
-    <Inaccessible v-else :node="basePtr" :connection="pkgConnection" />
 
-    <RunTimeline v-if="nodePtr" :node-ptr="nodePtr" />
-
-    <!-- Error -->
-    <RunError v-if="run?.error" class="mt-2" :run="run" :error="run.error" />
-
-    <!-- Logs/Spans/Events/Attempts/Timeline/... -->
-    <!-- ... -->
+    <!-- Body -->
+    <div
+      class="flex flex-col gap-y-2"
+      :class="variant != Variant.COMPACT ? 'mx-auto px-5 pb-5' : ''"
+      :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
+    >
+      <!-- Inputs -->
+      <div class="flex-1">
+        <h4 class="font-semibold">Inputs</h4>
+        <ValueObject
+          class="w-full py-2"
+          :value-type="inputType"
+          is-inline
+          :variant="Variant.STEALTH"
+          :model-value="inputsPacked"
+        />
+      </div>
+      <!-- Outputs (last run) -->
+      <div v-if="outputsPacked != null" class="flex-1">
+        <h4 class="font-semibold">Outputs</h4>
+        <ValueObject
+          class="w-full py-2"
+          :value-type="outputType"
+          is-inline
+          :variant="Variant.STEALTH"
+          :model-value="outputsPacked"
+        />
+      </div>
+      <!-- Error (last run) -->
+      <div v-else-if="run?.error != null" class="flex-1">
+        <h4 class="font-semibold">Error</h4>
+        <RunError class="mt-2" :run="run" :error="run.error" />
+      </div>
+      <div v-else class="flex-1 text-center">
+        <!-- Placeholder -->
+      </div>
+      <!-- Timeline -->
+      <div v-if="nodePtr && run != null">
+        <h4 class="font-semibold">Timeline</h4>
+        <RunTimeline :node-ptr="nodePtr" class="mt-2" />
+      </div>
+    </div>
   </div>
   <Inaccessible v-else :node="nodePtr" :connection="runConnection" />
 </template>
