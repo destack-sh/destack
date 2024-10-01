@@ -54,7 +54,7 @@ import { computed, toRef, type ComponentInstance, type MaybeRef, type Ref } from
 
 export const SPACE_DEFAULT_BAR_POSITION = Anchor.TOP;
 export const VIEW_DEFAULT_HEADER_HEIGHT = 36;
-export const VIEW_DEFAULT_MIN_WIDTH = 320;
+export const VIEW_DEFAULT_MIN_WIDTH = 240;
 export const VIEW_DEFAULT_MAX_WIDTH = 800;
 
 export const TEXT_DIRECTION_BY_ALIGNMENT: Partial<Record<Alignment, string>> = {

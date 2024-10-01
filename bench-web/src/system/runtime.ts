@@ -23,7 +23,7 @@ import { computed, watchEffect, type Ref } from "vue";
 
 /** A reactive Run with all its descendants */
 export class RunTree {
-  graph: ReadNodeGraph;
+  runGraph: ReadNodeGraph;
   runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
   runRef: Ref<RunData | null>;
   runsRef: Ref<RunData[]>;
@@ -33,7 +33,6 @@ export class RunTree {
   runsByBaseCk: Ref<Record<string, RunData[]>>;
 
   constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
-    this.graph = graph;
     this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
     const { graph: runGraph, connection: runConnection } = useGetConnection(
       { name: "runtime.run", live: true },
@@ -45,6 +44,7 @@ export class RunTree {
         isEnabled: this.runPtr.value != null,
       })),
     );
+    this.runGraph = runGraph;
     this.runRef = runGraph.getRef(this.runPtr);
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
     this.runBasePtr = computedValue(

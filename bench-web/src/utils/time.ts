@@ -80,17 +80,42 @@ type FormatDurationOptions = {
   tooSmall?: string;
   maxUnit?: TimeUnit;
   short?: boolean;
+  digits?: number;
 };
+
+/** Converts a duration to milliseconds. */
+export function durationToMs(duration: ProtoDuration | Duration): number {
+  let durationMs: number;
+  if (duration instanceof Duration) {
+    durationMs = duration.as("milliseconds");
+  } else {
+    durationMs = Number(duration.seconds) * 1000 + duration.nanos / 1e6;
+  }
+  return durationMs;
+}
+
+/** Converts a timestamp to milliseconds. */
+export function timestampToMs(timestamp: Timestamp | DateTime): number {
+  let timestampMs: number;
+  if (timestamp instanceof DateTime) {
+    timestampMs = timestamp.toMillis();
+  } else {
+    timestampMs = Number(timestamp.seconds) * 1000 + timestamp.nanos / 1e6;
+  }
+  return timestampMs;
+}
 
 /**
  * Formats a duration into the nearest (ideally >1, less then <1 of next available unit)
  * Like 3.7s, 48m, 2d, 1w, 3y.
  */
-export function formatDuration(duration: ProtoDuration | Duration, options?: FormatDurationOptions): string {
+export function formatDuration(duration: number | ProtoDuration | Duration, options?: FormatDurationOptions): string {
   const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", short = true } = options ?? {};
   let durationMs: number;
   if (duration instanceof Duration) {
     durationMs = duration.as("milliseconds");
+  } else if (typeof duration == "number") {
+    durationMs = duration;
   } else {
     durationMs = Number(duration.seconds) * 1000 + duration.nanos / 1e6;
   }
@@ -112,9 +137,10 @@ export function formatDuration(duration: ProtoDuration | Duration, options?: For
   // convert/round
   let roundedValue: string;
   const unitValue = durationMs / TIME_UNIT_MILLIS[currentUnit];
-  if (DIGITS_PER_UNIT[currentUnit] != null) {
+  const digits = options?.digits ?? DIGITS_PER_UNIT[currentUnit];
+  if (digits != null) {
     const numDigits = Math.round(unitValue).toString().length;
-    const precision = Math.max(0, DIGITS_PER_UNIT[currentUnit]! - numDigits);
+    const precision = Math.max(0, digits - numDigits);
     roundedValue = unitValue.toFixed(precision);
   } else {
     roundedValue = unitValue.toFixed(0);

@@ -72,7 +72,7 @@ watch(currentValue, (newValue) => {
   validationError.value = errors.length > 0 ? errors[0] : null;
 
   // auto-sync with modelValue for scalars (lists are added on demand)
-  if (errors.length == 0 && !valueType.value.isList) {
+  if (errors.length == 0 && !valueType.value.isList && value != modelValue.value) {
     emit("update:modelValue", value);
   }
 });
