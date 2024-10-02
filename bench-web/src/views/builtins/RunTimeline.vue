@@ -30,7 +30,7 @@ const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.R
 
 const containerRef = ref<HTMLElement | null>(null);
 const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
-const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH);
+const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH - 16);
 
 //
 // Run
@@ -158,16 +158,16 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
           }"
         >
           <!-- Node -->
-          <span
+          <button
             class="group/node truncate hover:cursor-pointer"
-            @click="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
+            @click.stop="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
           >
             <IconInline
               v-bind="span.icon ?? ICON_BY_NODE_TYPE[NodeType.RUN]"
               class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
             />
             <span class="truncate underline-offset-3 group-hover/node:underline">{{ span.title }}</span>
-          </span>
+          </button>
           <!-- Meta -->
           <div class="ml-auto flex-shrink-0 pl-1.5">
             <!-- Duration -->
@@ -192,6 +192,7 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
             left: TREE_WIDTH + 8 + span.offsetRelative * spanContainerWidth + 'px',
             backgroundColor: span.color,
           }"
+          @click.stop="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
         ></div>
       </div>
     </div>

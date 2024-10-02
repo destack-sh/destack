@@ -232,7 +232,7 @@ const dockActions: Ref<Action[]> = computed(
         <!-- Status -->
         <IconInline
           class="w-5"
-          :class="getRunColorHex(runtime.focusedRun.status)"
+          :style="{ color: getRunColorHex(runtime.focusedRun.status) }"
           v-bind="ICON_BY_RUN_STATUS[runtime.focusedRun.status]"
         />
         <!-- Node -->

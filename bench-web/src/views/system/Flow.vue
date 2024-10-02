@@ -13,7 +13,17 @@ import {
   STEP_CONTEXT_ACTIONS,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
-import { NodeReferenceData, NodeType, PipeData, PortSide, StepData, StepType, Variant, ViewData } from "@/proto/wire";
+import {
+  ChangeCategory,
+  NodeReferenceData,
+  NodeType,
+  PipeData,
+  PortSide,
+  StepData,
+  StepType,
+  Variant,
+  ViewData,
+} from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -53,7 +63,7 @@ const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
-  spaceTx: () => spaceConnection.tx,
+  spaceTx: () => spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
   graph: pkgGraph,
   tx: () => pkgConnection.tx,
   view: selfView,
