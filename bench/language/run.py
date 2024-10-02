@@ -435,7 +435,10 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         node = self.step or self.block
         path = node.absolute_path if node else "<lambda>"
         if self.duration is not None:
-            return f"{self.kind.bench_name}:{path}, {self.status.bench_name}, duration={self.duration:.3f}s"
+            duration_str = f"{self.duration.total_seconds():.3f}s"
+            return (
+                f"{self.kind.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}s"
+            )
         else:
             return f"{self.kind.bench_name}:{path}, {self.status.bench_name}"
 

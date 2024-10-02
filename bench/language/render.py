@@ -239,14 +239,14 @@ class Renderer:
             if self._options.simplify_paths:
                 # simplify path for use in Code (which treats references as unique get_node)
                 if len(path) == 1 and path[0].type in (PathTokenType.UNIQUE, PathTokenType.CHILD):
-                    assert path[0].name is not None, f"no name for {path[0]!r}"
-                    return path[0].name
+                    assert path[0].code_name is not None, f"no name for {path[0]!r}"
+                    return path[0].code_name
                 elif (
                     len(path) == 2
                     and path[0].type in (PathTokenType.UNIQUE, PathTokenType.CHILD)
                     and path[1].type == PathTokenType.FIELD
                 ):
-                    return f"{path[0].name}.{path[1].name}"
+                    return f"{path[0].name}.{path[1].code_name}"
             return f"get_node({rendered_path!r})"
         else:
             # create new alias

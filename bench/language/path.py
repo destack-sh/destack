@@ -19,6 +19,7 @@ from bench.language.property import p_regular
 from bench.language.validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
 from bench.language.view import View
 from bench.utils.func import IdEnum
+from bench.utils.string import to_code_name
 
 if TYPE_CHECKING:
     from bench.language.field import Field
@@ -62,6 +63,13 @@ class PathToken(Struct):
 
     type: PathTokenType = p_regular(31)
     name: Optional[str] = p_regular(32, default=None)
+
+    @property
+    def code_name(self) -> str | None:
+        if self.name is None:
+            return None
+        else:
+            return to_code_name(self.name)
 
     def __content_str__(self) -> str:
         if self.name:
@@ -220,18 +228,18 @@ def render_path(path: Path) -> str:
         elif token.type == PathTokenType.PARENT:
             path_parts.append("..")
         elif token.type == PathTokenType.BENCH:
-            path_parts.append(f"@{token.name}")
+            path_parts.append(f"@{token.code_name}")
         elif token.type == PathTokenType.CONTAINER:
-            path_parts.append(f"~{token.name or ''}")
+            path_parts.append(f"~{token.code_name or ''}")
         elif token.type == PathTokenType.UNIQUE:
-            path_parts.append(f"^{token.name or ''}")
+            path_parts.append(f"^{token.code_name or ''}")
         elif token.type == PathTokenType.CHILD:
-            path_parts.append(token.name)
+            path_parts.append(token.code_name)
         elif token.type == PathTokenType.FIELD:
             if path_parts:
-                path_parts[-1] += f".{token.name}"
+                path_parts[-1] += f".{token.code_name}"
             else:  # property shorthand
-                path_parts.append(f".{token.name}")
+                path_parts.append(f".{token.code_name}")
         else:
             assert_never(token.type)
     return "/".join(path_parts)
