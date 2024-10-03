@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import structlog
 
@@ -6,11 +6,14 @@ from bench.language.const import NodeType
 from bench.language.field import TypeInfoBase
 from bench.language.node import HasNodeBase, StateNode, local_node_
 from bench.language.property import (
+    p_internal,
+    p_node_ancestor,
     p_node_parent,
     p_value_packed,
     p_value_runtime,
 )
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import describe_type
 
 if TYPE_CHECKING:
@@ -24,15 +27,17 @@ logger = structlog.get_logger(__name__)
 @local_node_(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
 class Record(StateNode[RecordData], HasNodeBase):
     """
-    A record in a DatabaseBlock.
-    If the block is_materialized, the backing table is a real Postgres table.
+    A Record in a DatabaseBlock.
     """
 
-    # :RecordSchema
-    parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
-    value_packed: Any = p_value_packed(30)
+    parent: Union["Block", "Record", None] = p_node_parent(4, NodeType.BLOCK, NodeType.BLOCK)
+    block: "Block" = p_node_ancestor(30, NodeType.BLOCK, wire=True)
+    order_key: str | None = p_internal(31, default=INTEGER_ZERO)
+
+    # value
+    value_packed: Any = p_value_packed(40)
     value: "ValueObject | None" = p_value_runtime(
-        30, typ=lambda self: cast("Record", self).value_type
+        40, typ=lambda self: cast("Record", self).value_type
     )
 
     def __content_str__(self):
@@ -40,16 +45,16 @@ class Record(StateNode[RecordData], HasNodeBase):
 
     @property
     def value_type(self) -> "TypeInfoBase | None":
-        parent = self.parent
-        return parent.to_type(as_object=True) if parent is not None else None
+        block = self.block
+        return block.to_type(as_object=True) if block is not None else None
 
     @property
     def base(self) -> "Block | None":
-        return self.parent
+        return self.block
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return data.parent_ptr
+        return cast(RecordData, data).block_ptr
 
     @property
     def _type(self) -> "TypeInfo":

@@ -54,7 +54,7 @@ from bench.language.const import (
 from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node, SomeNodeReferenceData
-from bench.language.query import FILTER_VISIBLE, SELECT_ALL_PROPERTIES, ReadOptions
+from bench.language.query import FILTER_VISIBLE, ReadOptions
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES_IN_STORE,
     HAS_CHILD_NODE_TYPES,
@@ -884,8 +884,7 @@ async def pg_insert(
     ctx: Context,
     table: Table,
     rows: Collection[RowIn],
-    returning: Collection[Column] | None = None,
-) -> tuple[RowOut, ...] | list[RowOut] | None:
+) -> None:
     """Inserts into the given table. Expects rows to be adapted and wrapped."""
     statement = sqlstr("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sqlident(table.name),
@@ -894,10 +893,6 @@ async def pg_insert(
             ", ", (_pg_wrap_write_column(c, sqlstr(f"%({c.name})s")) for c in table.columns)
         ),
     )
-    if returning:
-        statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
-        )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace("postgres.insert", table=table, cur=cur, query=query_str, span="current")
@@ -909,11 +904,9 @@ async def pg_insert(
     else:
         templated_values = rows
     try:
-        await _pg_executemany(cur, statement, templated_values, returning=bool(returning))
+        await _pg_executemany(cur, statement, templated_values)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
-    if returning:
-        return await _pg_fetchall_from_many(cur, len(rows))
 
 
 @_trace_pg_span
@@ -926,8 +919,7 @@ async def pg_upsert(
     conflict_columns: list[Column] | tuple[Column, ...] | None = None,
     static_columns: list[Column] | tuple[Column, ...] | None = None,
     static_values: RowIn | None = None,
-    returning: Collection[Column] | None = None,
-) -> tuple[RowOut, ...] | list[RowOut] | None:
+) -> None:
     """Upserts into the given table. Expect rows to be adapted and wrapped."""
     if conflict_columns is None:
         assert table._primary_key, f"no primary key for {table!r}"
@@ -962,10 +954,6 @@ async def pg_upsert(
         conflict=sqljoin(", ", (sqlident(c.name) for c in conflict_columns)),
         updates=sqljoin(", ", chain(static_update, dynamic_update)),
     )
-    if returning:
-        statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
-        )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace("postgres.upsert", table=table, cur=cur, query=query_str, span="current")
@@ -977,11 +965,9 @@ async def pg_upsert(
     else:
         templated_values = rows
     try:
-        await _pg_executemany(cur, statement, templated_values, returning=bool(returning))
+        await _pg_executemany(cur, statement, templated_values)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
-    if returning:
-        return await _pg_fetchall_from_many(cur, len(rows))
 
 
 @_trace_pg_span
@@ -992,8 +978,7 @@ async def pg_update_static(
     table: Table,
     where: SqlNode | None = None,
     static_value: RowIn,
-    returning: Collection[Column] | None = None,
-) -> Sequence[RowOut] | None:
+) -> None:
     """Updates the given table with static values. Expects values to be adapted and wrapped."""
     trace.get_current_span().set_attribute("table", table.name)
     statement = sqlstr("UPDATE {table} SET {values}").format(
@@ -1011,10 +996,6 @@ async def pg_update_static(
     )
     if where:
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
-    if returning:
-        statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
-        )
     query = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query)
     logger.trace("postgres.update_constant", table=table, cur=cur, query=query)
@@ -1027,8 +1008,6 @@ async def pg_update_static(
         await _pg_execute(cur, statement, template_values)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
-    if returning:
-        return cast(Sequence[RowOut], await cur.fetchall())
 
 
 @_trace_pg_span
@@ -1040,8 +1019,7 @@ async def pg_update_variable(
     dynamic_columns: Collection[Column],
     dynamic_values: Collection[RowIn],
     static_values: RowIn | None = None,
-    returning: Collection[Column] | None = None,
-) -> list[RowOut] | None:
+) -> None:
     """
     Updates the given table with a list of values (corresponding to rows).
     Expects values to be adapted and wrapped.
@@ -1074,16 +1052,6 @@ async def pg_update_variable(
     statement = sqlstr("UPDATE {table} SET {values} WHERE {pk} = %(pk)s").format(
         table=table_name, pk=sqlident(table._primary_key.name), values=values_sql
     )
-    if returning:
-        statement += sqlstr(" RETURNING {}").format(
-            sqljoin(
-                ", ",
-                (
-                    sqlstr("{}").format(_pg_wrap_read_column(ctx, c, sqlident(c.name)))
-                    for c in returning
-                ),
-            )
-        )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace(
@@ -1112,32 +1080,21 @@ async def pg_update_variable(
                 templated_value[column.name] = None
         templated_values.append(templated_value)
     try:
-        await _pg_executemany(cur, statement, templated_values, returning=bool(returning))
+        await _pg_executemany(cur, statement, templated_values)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
-    if returning:
-        return await _pg_fetchall_from_many(cur, len(dynamic_values))
 
 
 @_trace_pg_span
 async def pg_delete(
-    *,
-    cur: psycopg.AsyncCursor,
-    ctx: Context,
-    table: Table,
-    where: SqlNode | None = None,
-    returning: Collection[Column] | None = None,
-) -> Sequence[RowOut] | None:
+    *, cur: psycopg.AsyncCursor, ctx: Context, table: Table, where: SqlNode | None = None
+) -> None:
     """Deletes from the given table."""
     statement = sqlstr("DELETE FROM {table}").format(
         table=sqlident(table.name),
     )
     if where:
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
-    if returning:
-        statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
-        )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace("postgres.delete", table=table, cur=cur, query=query_str, span="current")
@@ -1145,8 +1102,6 @@ async def pg_delete(
         await _pg_execute(cur, statement)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
-    if returning:
-        return cast(Sequence[RowOut], await cur.fetchall())
 
 
 @_trace_pg_span
@@ -1726,20 +1681,19 @@ async def pg_edit(
     ctx: Context,
     edits: list[EditData] | tuple[EditData, ...],
     cascade: bittuple[EditType] = CASCADING_EDIT_TYPES,
-) -> tuple[list["int"], list[EditData]]:
+) -> list[EditData]:
     """
     Writes 'regular' edits to nodes (that aren't stored specially like records).
     Returns the new revisions of the edited nodes.
     """
     if not edits:
-        return [], []
+        return []
 
     # batch operations by edit kind and node type
     assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
     batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.type)]
     batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
     batch: list[EditData] = []
-    all_new_revisions: list[int] = []
     all_cascaded_edits: list[EditData] = []
 
     for i, prev_edit in enumerate(edits):
@@ -1777,25 +1731,14 @@ async def pg_edit(
 
         # write edits to pg
         updated_properties = batch_node_cls._unmask_properties(batch_updated_properties)
-        changed_nodes = await _pg_edit_batch(
+        _ = await _pg_edit_batch(
             cur=cur,
             ctx=ctx,
             edit_type=edit_type,
             node_type=cast(NodeType, node_type),
             batch=batch,
-            return_nodes=True,
             updated_properties=updated_properties,
-            selected_properties=cast(
-                tuple[Property, ...], (batch_node_cls.id, batch_node_cls.revision)
-            ),
         )
-        assert changed_nodes is not None, f"no nodes returned for {batch!r}"
-        assert len(changed_nodes) == len(batch), f"unexpected nodes: {changed_nodes!r}"
-        # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
-        new_revisions_by_id = {node.id: node.revision for node in changed_nodes}
-        for edit in batch:
-            assert edit.node_ptr.id, f"missing id for {edit!r}"
-            all_new_revisions.append(new_revisions_by_id[edit.node_ptr.id])
 
         # start new batch if needed
         if next_edit is not None:
@@ -1805,7 +1748,7 @@ async def pg_edit(
             batch_updated_properties = bitarray(batch_node_cls.__max_property_ord__ + 1)
             batch.clear()
 
-    return all_new_revisions, all_cascaded_edits
+    return all_cascaded_edits
 
 
 @_trace_pg_span
@@ -1885,20 +1828,19 @@ async def _pg_edit_cascade(
     # batch operations by edit kind and node type
     cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.type)
     for descendant_node_type, cascaded_edits in cascaded_edits_by_type.items():
-        nodes = await _pg_edit_batch(
+        _ = await _pg_edit_batch(
             cur=cur,
             ctx=ctx,
             edit_type=edit_type,
             node_type=NodeType(descendant_node_type),
             batch=cascaded_edits,
-            return_nodes=True,
             updated_properties=(),
-            selected_properties=SELECT_ALL_PROPERTIES[cast(NodeType, descendant_node_type)],
         )
 
         # and assign new/old node to edit now that we have the full data :EditData
         assert nodes and len(nodes) == len(cascaded_edits)
         for node, cascaded_edit in zip(nodes, cascaded_edits):
+            # nocheckin
             cascaded_edit.revision = node.revision
             if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
                 cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
@@ -1932,9 +1874,7 @@ async def _pg_edit_batch(
     node_type: NodeType,
     batch: list[EditData],
     updated_properties: tuple[Property, ...],  # across batch
-    return_nodes: bool,
-    selected_properties: tuple[Property, ...],
-) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:
+) -> None:
     """
     Writes a batch of regular (not custom stored) node edits of the same edit type.
     """
@@ -1946,11 +1886,6 @@ async def _pg_edit_batch(
     node_table = TABLE_BY_NODE_TYPE[node_type]
     assert node_table is not None, f"no table for {node_cls!r}"
     assert node_table._primary_key is not None, f"no primary key for {node_cls!r}: {node_table!r}"
-    selected_columns = (
-        tuple(node_table._columns_by_name[prop.name] for prop in selected_properties)
-        if return_nodes
-        else None
-    )
 
     if edit_type in (EditType.CREATE, EditType.UPSERT):
         nodes = []
@@ -1972,10 +1907,6 @@ async def _pg_edit_batch(
 
         if edit_type == EditType.CREATE:
             _ = await pg_insert(cur=cur, ctx=ctx, table=node_table, rows=rows)
-            if return_nodes:
-                return nodes  # ithe nodes are equivalent to the rows (no need to unpack again)
-            else:
-                return None
         else:
             rows = await pg_upsert(
                 cur=cur,
@@ -1985,14 +1916,7 @@ async def _pg_edit_batch(
                 conflict_columns=(node_table._primary_key,),
                 static_columns=tuple(c for c in node_table.columns if c != node_table._primary_key),
                 static_values={"revision": sqlstr(f"{node_table.name}.revision + 1")},
-                returning=selected_columns if return_nodes else None,
             )
-            if return_nodes:
-                assert rows is not None, f"no rows returned for {batch!r}"
-                return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
-            else:
-                return None
-
     elif edit_type in (
         EditType.UPDATE,
         EditType.MOVE,
@@ -2074,25 +1998,14 @@ async def _pg_edit_batch(
 
         # actually update
         static_values = {"revision": sqlstr("revision + 1")}
-        rows = await pg_update_variable(
+        _ = await pg_update_variable(
             cur=cur,
             ctx=ctx,
             table=node_table,
             static_values=static_values,
             dynamic_columns=dynamic_columns,
             dynamic_values=dynamic_values,
-            returning=selected_columns if return_nodes else (node_table._primary_key,),
         )
-        if rows is None or len(rows) != len(batch) or any(r is None for r in rows):
-            missing_rows = {edit.node_ptr.id for edit in batch} - {
-                cast(str, r["id"]) for r in rows or () if r
-            }
-            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}", cur)
-        if return_nodes:
-            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
-        else:
-            return None
-
     elif edit_type == EditType.ERASE:
         nodes_ids = [edit.node_ptr.id for edit in batch]
         where = SqlComparison(
@@ -2100,21 +2013,7 @@ async def _pg_edit_batch(
             op=PostgresConditionalOp.EQ,
             right=sqlstr("ANY({})").format(sql.Literal(nodes_ids)),
         )
-        rows = await pg_delete(
-            cur=cur,
-            ctx=ctx,
-            table=node_table,
-            where=where,
-            returning=selected_columns if return_nodes else (node_table._primary_key,),
-        )
-        if rows is None or len(rows) != len(batch) or any(r is None for r in rows):
-            missing_rows = set(nodes_ids) - {cast(str, row["id"]) for row in rows or () if row}
-            raise SqlNotExistsError(f"missing {node_type.bench_name}: {missing_rows}", cur)
-        if return_nodes:
-            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
-        else:
-            return None
-
+        _ = await pg_delete(cur=cur, ctx=ctx, table=node_table, where=where)
     else:
         assert_never(edit_type)
 

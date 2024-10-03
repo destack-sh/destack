@@ -225,6 +225,11 @@ class Edit(EditInfo):
         references=NodeType.LOG,
         description="The logged change that is being undon with this edit.",
     )
+    undo_edited_at: Optional[datetime] = p_system(
+        70,
+        default=None,
+        description="The timestamp of the edit being undone with this edit.",
+    )
 
 
 @enum_(EnumType.CHANGE_KIND)

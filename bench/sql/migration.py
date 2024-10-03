@@ -148,15 +148,19 @@ async def _write_migrations_to_pg(cur: psycopg.AsyncCursor, migrations: list[Mig
 
 async def delete_migrations_in_pg(cur: psycopg.AsyncCursor, from_id: int, to_id: int) -> None:
     """Deletes migrations from the database."""
-    migrations_rows = await pg_delete(
+    migrations_rows = await pg_select(
         cur=cur,
         ctx=GLOBAL_CONTEXT,
         table=MIGRATION_TABLE,
         where=sqlstr(f"id >= {from_id} AND id <= {to_id}"),
-        returning=MIGRATION_TABLE.columns,
     )
-    assert migrations_rows is not None
     migrations = [unpack_migration_row(row) for row in migrations_rows]
+    _ = await pg_delete(
+        cur=cur,
+        ctx=GLOBAL_CONTEXT,
+        table=MIGRATION_TABLE,
+        where=sqlstr(f"id >= {from_id} AND id <= {to_id}"),
+    )
     if migrations:
         logger.warning("migration.delete", migrations=migrations)
 

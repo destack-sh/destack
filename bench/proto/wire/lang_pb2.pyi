@@ -1515,6 +1515,8 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_DIVIDER: _ClassVar[ViewType]
     VIEW_TYPE_LIST: _ClassVar[ViewType]
     VIEW_TYPE_TABLE: _ClassVar[ViewType]
+    VIEW_TYPE_GALLERY: _ClassVar[ViewType]
+    VIEW_TYPE_BOARD: _ClassVar[ViewType]
     VIEW_TYPE_BREADCRUMB: _ClassVar[ViewType]
     VIEW_TYPE_PROGRESS: _ClassVar[ViewType]
     VIEW_TYPE_AVATAR: _ClassVar[ViewType]
@@ -1533,8 +1535,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_JSON: _ClassVar[ViewType]
     VIEW_TYPE_TOGGLE: _ClassVar[ViewType]
     VIEW_TYPE_PICKER: _ClassVar[ViewType]
-    VIEW_TYPE_CALENDAR: _ClassVar[ViewType]
-    VIEW_TYPE_MAP: _ClassVar[ViewType]
     VIEW_TYPE_COLOR: _ClassVar[ViewType]
     VIEW_TYPE_ICON: _ClassVar[ViewType]
     VIEW_TYPE_FILE: _ClassVar[ViewType]
@@ -2769,6 +2769,8 @@ VIEW_TYPE_SPACER: ViewType
 VIEW_TYPE_DIVIDER: ViewType
 VIEW_TYPE_LIST: ViewType
 VIEW_TYPE_TABLE: ViewType
+VIEW_TYPE_GALLERY: ViewType
+VIEW_TYPE_BOARD: ViewType
 VIEW_TYPE_BREADCRUMB: ViewType
 VIEW_TYPE_PROGRESS: ViewType
 VIEW_TYPE_AVATAR: ViewType
@@ -2787,8 +2789,6 @@ VIEW_TYPE_CODE: ViewType
 VIEW_TYPE_JSON: ViewType
 VIEW_TYPE_TOGGLE: ViewType
 VIEW_TYPE_PICKER: ViewType
-VIEW_TYPE_CALENDAR: ViewType
-VIEW_TYPE_MAP: ViewType
 VIEW_TYPE_COLOR: ViewType
 VIEW_TYPE_ICON: ViewType
 VIEW_TYPE_FILE: ViewType
@@ -3073,6 +3073,7 @@ class EditData(_message.Message):
         "revision",
         "epoch",
         "undo_of_ptr",
+        "undo_edited_at",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -3092,6 +3093,7 @@ class EditData(_message.Message):
     REVISION_FIELD_NUMBER: _ClassVar[int]
     EPOCH_FIELD_NUMBER: _ClassVar[int]
     UNDO_OF_PTR_FIELD_NUMBER: _ClassVar[int]
+    UNDO_EDITED_AT_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     type: EditType
@@ -3110,6 +3112,7 @@ class EditData(_message.Message):
     revision: int
     epoch: int
     undo_of_ptr: NodeReferenceData
+    undo_edited_at: _timestamp_pb2.Timestamp
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -3130,6 +3133,7 @@ class EditData(_message.Message):
         revision: _Optional[int] = ...,
         epoch: _Optional[int] = ...,
         undo_of_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        undo_edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
     ) -> None: ...
 
 class EditContextData(_message.Message):
@@ -7055,6 +7059,8 @@ class RecordData(_message.Message):
         "created_by_ptr",
         "updated_by_ptr",
         "set_properties",
+        "block_ptr",
+        "order_key",
         "value_packed",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -7072,6 +7078,8 @@ class RecordData(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
@@ -7088,6 +7096,8 @@ class RecordData(_message.Message):
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
     set_properties: _containers.RepeatedScalarFieldContainer[int]
+    block_ptr: NodeReferenceData
+    order_key: str
     value_packed: _struct_pb2.Struct
     def __init__(
         self,
@@ -7106,6 +7116,8 @@ class RecordData(_message.Message):
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         set_properties: _Optional[_Iterable[int]] = ...,
+        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        order_key: _Optional[str] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
     ) -> None: ...
 

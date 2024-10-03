@@ -137,14 +137,12 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     # insert
     initial_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(0, 3))
     target_rows = list(initial_rows)
-    db_rows = await pg_insert(
+    _ = await pg_insert(
         cur=test_cur,
         ctx=ctx,
         table=table,
         rows=_pg_adapt_rows(table, initial_rows),
-        returning=table.columns,
     )
-    assert db_rows == target_rows
     db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
@@ -162,17 +160,13 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
         row = {k: v for k, v in row.items() if k == "id" or random.random() < 0.5}
         update_rows.append(row)
         target_rows[id] = {**target_rows[id], **row}
-    db_rows = await pg_update_variable(
+    _ = await pg_update_variable(
         cur=test_cur,
         ctx=ctx,
         table=table,
         dynamic_columns=table.columns,
         dynamic_values=_pg_adapt_rows(table, update_rows),
-        returning=table.columns,
     )
-    assert db_rows is not None
-    db_rows.sort(key=lambda r: cast(int, r["id"]))
-    assert db_rows == target_rows[1:4]
     db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
@@ -183,22 +177,17 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
         if not column.is_primary_key and not column.is_array and i % 2 == 0
     }
     target_rows = [{**row, **static_value} for row in target_rows]
-    db_rows = await pg_update_static(
+    _ = await pg_update_static(
         cur=test_cur,
         ctx=ctx,
         table=table,
         static_value=_pg_adapt_row(table, static_value),
-        returning=table.columns,
     )
-    assert db_rows is not None
-    db_rows = list(db_rows)
-    db_rows.sort(key=lambda r: cast(int, r["id"]))
-    assert db_rows == target_rows
     db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # delete
-    await pg_delete(cur=test_cur, ctx=ctx, table=table, where=sql.SQL("id > 3"))
+    _ = await pg_delete(cur=test_cur, ctx=ctx, table=table, where=sql.SQL("id > 3"))
     target_rows = target_rows[:4]
     db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows is not None

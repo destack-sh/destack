@@ -85,7 +85,7 @@ export interface IGraphIOClient {
      */
     watchAggregate(input: WatchAggregateRequest, options?: OperationOptions): ServerStreamingCall<WatchAggregateRequest, WatchAggregateResponse>;
     /**
-     * Commit a new or pending completed transaction to this graph.
+     * Commit a transaction to this graph.
      *
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
@@ -157,7 +157,7 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
         return stackIntercept<WatchAggregateRequest, WatchAggregateResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
-     * Commit a new or pending completed transaction to this graph.
+     * Commit a transaction to this graph.
      *
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */

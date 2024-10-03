@@ -139,7 +139,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative rounded"
+    class="group/block relative select-none rounded"
     :class="[
       borderless || variant == Variant.STEALTH ? '' : 'border',
       isInspected || isHighlighted ? 'border-primary-900' : ['border-gray-200 px-2 py-1.5 hover:border-gray-200'],
