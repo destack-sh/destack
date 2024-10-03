@@ -43,7 +43,7 @@ export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue }
 // Packing/unpacking
 //
 
-// TODO :Architecture :Performance: encode/decode protoStruct/Json in „connections (at the fetch/commit boundary) :ProtoStructMapping
+// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
 //  Could either fork protobuf-ts or just switch to ts-proto?
 
 /** Packs a single data value in its robust JSON-able representation. */

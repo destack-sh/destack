@@ -1532,6 +1532,8 @@ enum ViewType {
   VIEW_TYPE_DIVIDER = 1041;
   VIEW_TYPE_LIST = 1050;
   VIEW_TYPE_TABLE = 1051;
+  VIEW_TYPE_GALLERY = 1052;
+  VIEW_TYPE_BOARD = 1053;
   VIEW_TYPE_BREADCRUMB = 1100;
   VIEW_TYPE_PROGRESS = 1101;
   VIEW_TYPE_AVATAR = 1102;
@@ -1550,10 +1552,8 @@ enum ViewType {
   VIEW_TYPE_JSON = 1323;
   VIEW_TYPE_TOGGLE = 1330;
   VIEW_TYPE_PICKER = 1331;
-  VIEW_TYPE_CALENDAR = 1340;
-  VIEW_TYPE_MAP = 1341;
-  VIEW_TYPE_COLOR = 1342;
-  VIEW_TYPE_ICON = 1343;
+  VIEW_TYPE_COLOR = 1340;
+  VIEW_TYPE_ICON = 1341;
   VIEW_TYPE_FILE = 1350;
   VIEW_TYPE_IMAGE = 1353;
   VIEW_TYPE_AUDIO = 1354;
@@ -1697,6 +1697,7 @@ message EditData {
   optional int64 revision = 67;
   optional int64 epoch = 68;
   optional NodeReferenceData undo_of_ptr = 69;
+  optional google.protobuf.Timestamp undo_edited_at = 70;
 }
 
 // Additional context for a specific edit (per-edit variable subset of Session context).
@@ -2946,8 +2947,7 @@ message QueryData {
   repeated ExpressionData sort = 44;
 }
 
-// A record in a DatabaseBlock.
-// If the block is_materialized, the backing table is a real Postgres table.
+// A Record in a DatabaseBlock.
 message RecordData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2964,7 +2964,9 @@ message RecordData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
-  optional google.protobuf.Struct value_packed = 30;
+  optional NodeReferenceData block_ptr = 30;
+  optional string order_key = 31;
+  optional google.protobuf.Struct value_packed = 40;
 }
 
 // Run a Block, Step or some lambda (Code) in a Session.

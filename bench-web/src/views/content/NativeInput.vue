@@ -117,7 +117,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Input -->
     <div
       v-if="isInput"
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-300"
+      class="group flex select-text flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-300"
       :class="[
         isDisabled
           ? 'bg-gray-100 text-gray-700'
@@ -196,7 +196,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Read-only -->
     <div
       v-else
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
+      class="group flex select-text flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
       :class="[variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1' : '']"
     >
       <template v-if="!valueType?.isList">

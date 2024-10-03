@@ -2224,4 +2224,4 @@ class Skip(Node):
     reference: Optional[Node] = p_regular(
         30, array=False, references=NODE_TYPES.tuple, require=True
     )
-    order_key: Optional[str] = p_internal(31, default=None)
+    order_key: str | None = p_internal(31, default=None)

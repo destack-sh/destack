@@ -181,7 +181,7 @@ service GraphIO {
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   // Receive any relevant aggregation updates for an aggregation query.
   rpc WatchAggregate(WatchAggregateRequest) returns (stream WatchAggregateResponse);
-  // Commit a new or pending completed transaction to this graph.
+  // Commit a transaction to this graph.
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
 }
 

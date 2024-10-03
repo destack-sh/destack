@@ -104,6 +104,8 @@ class ViewType(IdEnum):
     # collections
     LIST = 1050
     TABLE = 1051
+    GALLERY = 1052
+    BOARD = 1053
 
     #
     # Style
@@ -151,10 +153,9 @@ class ViewType(IdEnum):
     PICKER = 1331
 
     # rich
-    CALENDAR = 1340
-    MAP = 1341
-    COLOR = 1342
-    ICON = 1343
+    COLOR = 1340
+    ICON = 1341
+    # CALENDAR, MAP, ...
 
     # file
     FILE = 1350  # (generic file content according to file type)

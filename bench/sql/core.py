@@ -631,40 +631,5 @@ MIGRATION_TABLE = Table(  # see bench/sql/migration.py
     ),
 )
 
-# 'abstract' template for actual record tables (not a real table) :RecordSchema
-RECORD_BASE_TABLE = Table(
-    "bench_record_base",
-    columns=(
-        # ids should match with Node/RecordData property ids for clarity
-        Column("id", PrimitiveType.UUID, is_primary_key=True, _source=2),
-        Column("ck", PrimitiveType.UUID, _source=3),
-        Column("revision", PrimitiveType.INT64, default="0", _source=10),
-        Column("created_at", PrimitiveType.DATETIME, default="now()", _source=11),
-        Column("created_epoch", PrimitiveType.INT64, _source=12),
-        Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=13),
-        Column("updated_epoch", PrimitiveType.INT64, _source=14),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=15),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=16),
-    ),
-    indexes=(),
-    constraints=(),
-)
-# shared record table for database blocks without real materialized tables
-RECORD_SHARED_TABLE = Table(
-    "bench_record_shared",
-    columns=(
-        *(c.clone() for c in RECORD_BASE_TABLE.columns),
-        Column("block_tk", PrimitiveType.UUID, _source=21),
-        Column("block_ck", PrimitiveType.UUID, _source=21),
-        Column("block_id", PrimitiveType.UUID, _source=22),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True, _source=30),
-    ),
-    indexes=(
-        *(i.clone() for i in RECORD_BASE_TABLE.indexes),
-        # ...?
-    ),
-    constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
-)
-
-DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_SHARED_TABLE)
+DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
 DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
