@@ -84,7 +84,7 @@ class EditStack {
     const undoEdits: EditData[] = [];
     for (const edit of edits) {
       const undoEdit: EditData = { ...edit, id: newEditId(), editedAt: Timestamp.now(), changeKey: change.key };
-      invertEdit(undoEdit, "undo");
+      invertEdit(edit, undoEdit, "undo");
       undoEdits.push(undoEdit);
       this._undoIndex--;
       this._derivedEditsById[undoEdit.id] = undoEdit;
@@ -120,7 +120,7 @@ class EditStack {
     const redoEdits: EditData[] = [];
     for (const edit of edits) {
       const redoEdit: EditData = { ...edit, id: newEditId(), editedAt: Timestamp.now(), changeKey: change.key };
-      invertEdit(redoEdit, "redo");
+      invertEdit(edit, redoEdit, "redo");
       redoEdits.push(redoEdit);
       this._undoIndex++;
       this._derivedEditsById[redoEdit.id] = redoEdit;
@@ -180,25 +180,23 @@ export function getEditStack(graph: ReadNodeGraph, focusedView: ViewData | null)
 }
 
 /** Inverts an edit as an undo/redo of the given edit (in place). */
-function invertEdit(edit: EditData, mode: "undo" | "redo"): void {
-  const undoType = UNDO_EDIT_BY_TYPE[edit.type!];
-  if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, edit.type!)}}`);
+function invertEdit(originalEdit: EditData | LogData, newEdit: EditData, mode: "undo" | "redo"): void {
+  const undoType = UNDO_EDIT_BY_TYPE[newEdit.type!];
+  if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, newEdit.type!)}}`);
   if (mode == "undo") {
-    edit.type = undoType;
-    [edit.oldNode, edit.newNode] = [edit.newNode, edit.oldNode];
+    newEdit.type = undoType;
+    [newEdit.oldNode, newEdit.newNode] = [newEdit.newNode, newEdit.oldNode];
   } else if (mode == "redo") {
     const redoType = UNDO_EDIT_BY_TYPE[undoType!];
     if (redoType == null) throw new Error(`cannot redo edit ${toCamelName(EditType, undoType!)}}`);
-    edit.type = redoType;
+    newEdit.type = redoType;
   } else {
     assertNever(mode);
   }
-
-  // shuffle oldNode/newNode :EditData
-  if (edit.type == EditType.DELETE || edit.type == EditType.RESTORE) {
-    edit.oldNode = edit.oldNode ?? edit.newNode; // oldNode is set, newNode is unset
-    if (edit.oldNode == null) throw new Error(`missing old node for ${edit.type}}`);
-    edit.newNode = undefined;
+  if (newEdit.type == EditType.RESTORE) {
+    newEdit.oldEditedAt = (originalEdit as EditData).editedAt ?? (originalEdit as LogData).createdAt;
+  } else {
+    newEdit.oldEditedAt = undefined;
   }
 }
 
@@ -250,7 +248,7 @@ export function makeEditFromLog(
   };
 
   // invert edit
-  invertEdit(edit, mode);
+  invertEdit(log, edit, mode);
 
   return edit;
 }

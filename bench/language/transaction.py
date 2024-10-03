@@ -119,7 +119,8 @@ class EditOperation(Struct):
 @struct_(StructType.EDIT_INFO)
 class EditInfo(Struct):
     """
-    Content of an Edit to a Node.  Currently, edits are always on the property level (no sub-properties or values).
+    Content of an Edit to a Node.
+    Currently, edits are always on the property level (no sub-properties or values). nocheckin
     """
 
     # NOTE: Edit.old_node/new_node :EditData are populated as follows:
@@ -128,8 +129,8 @@ class EditInfo(Struct):
     # EditType.UPSERT: new_node = full new node
     # EditType.UPDATE: new_node = partial new node, old_node = partial old node
     # EditType.MOVE: new_node = partial new node, old_node = partial old node
-    # EditType.DELETE: -
-    # EditType.RESTORE: old_edited_at = old_edit.edited_at/old_node.deleted_at
+    # EditType.DELETE: [old_node = full old node if cascaded]
+    # EditType.RESTORE: old_edited_at, [old_node = full old node if cascaded]
     # EditType.ERASE: old_node = full old node
 
     # core
@@ -501,7 +502,7 @@ class Transaction:
             elif edit_type == EditType.RESTORE:
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
-                old_node_data = edit_event.node_data
+                old_edited_at = edit_event.node_data.deleted_at
             else:
                 assert_never(edit_type)
 

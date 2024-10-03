@@ -479,17 +479,8 @@ export function editGraph(
       (edit.type == EditType.RESTORE && !graph.has(edit.nodePtr!))
     ) {
       // add
-      let newNode: AnyNodeData;
-      if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
-        if (edit.newNode == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
-        newNode = unwrapSomeNode(edit.newNode);
-      } else {
-        if (edit.oldNode == null) throw new Error(`missing oldNodePacked in edit: ${describeEdit(edit)}`);
-        newNode = unwrapSomeNode(edit.oldNode);
-        if (edit.type == EditType.RESTORE) {
-          newNode = { ...newNode, deletedAt: undefined };
-        }
-      }
+      if (edit.newNode == null) throw new Error(`missing newNode in edit: ${describeEdit(edit)}`);
+      const newNode = unwrapSomeNode(edit.newNode);
       // implicit metadata
       newNode.createdAt = newNode.updatedAt = edit.editedAt;
       if (edit.epoch != null && "createdEpoch" in newNode && "updatedEpoch" in newNode) {
