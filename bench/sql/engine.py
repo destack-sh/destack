@@ -1702,7 +1702,8 @@ async def pg_edit(
         batch.append(prev_edit)
 
         # accumulate updated properties
-        for prop_id in prev_edit.properties:
+        for op in prev_edit.operations:
+            prop_id = int(op.path[0])
             prop_ord = batch_node_cls.__properties_by_id__[prop_id].ord
             batch_updated_properties[prop_ord] = True
 
@@ -1838,14 +1839,7 @@ async def _pg_edit_cascade(
         for cascaded_edit in cascaded_edits:
             node = nodes_by_id[cascaded_edit.node_ptr.id]
             cascaded_edit.revision = node.revision
-            if edit_type == EditType.RESTORE:
-                cascaded_edit.new_node.CopyFrom(wiring.wrap_some_node(node))
-            elif edit_type == EditType.DELETE or edit_type == EditType.ERASE:
-                cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
-            else:
-                raise RuntimeError(
-                    f"unexpected cascaded edit type {edit_type!r} for {cascaded_edit!r}"
-                )
+            cascaded_edit.node_data.CopyFrom(wiring.wrap_some_node(node))
 
     return all_cascaded_edits
 
@@ -1877,8 +1871,8 @@ async def _pg_edit_batch(
         rows = []
         for edit in batch:
             assert edit.epoch is not None, f"no epoch for {edit!r}"
-            assert edit.HasField("new_node"), f"no new node for {edit!r}"
-            node = wiring.unwrap_some_node(edit.new_node)
+            assert edit.HasField("node_data"), f"no node_data for {edit!r}"
+            node = wiring.unwrap_some_node(edit.node_data)
             nodes.append(node)
             # inline implicit metadata
             row: dict[str, SqlPrimitive] = pg_pack_node_data_row(node)
@@ -1931,28 +1925,28 @@ async def _pg_edit_batch(
 
             # update directly edited properties
             if edit_type == EditType.UPDATE or edit_type == EditType.MOVE:
-                assert edit.HasField("new_node"), f"no new node for {edit!r}"
-                new_node_data = wiring.unwrap_some_node(edit.new_node)
-                for prop_id in edit.properties:
+                for op in edit.operations:
+                    assert len(op.path) == 1, f"cannot update hierarchically: {op!r} in {edit!r}"
+                    prop_id = int(op.path[0])
                     prop = node_cls.__properties_by_id__.get(prop_id)
                     assert prop is not None, f"no property {prop_id!r} in {node_cls!r} for {edit!r}"
                     if not prop.is_node_reference:
                         # regular non-ref property
-                        if prop.is_optional_scalar and not new_node_data.HasField(prop.name):
+                        if prop.is_optional_scalar and not node.HasField(prop.name):
                             value = None
                         else:
-                            value = getattr(new_node_data, prop.name)
+                            value = getattr(node, prop.name)
                         value = _pack_struct_data_prop(prop, value)
                         row[prop.name] = value
                     else:
                         # unravel stored node reference :StoredPointers
                         wired_name = cast(Property, prop.reference_wired_ptr).name
-                        if prop.is_optional_scalar and not new_node_data.HasField(wired_name):
+                        if prop.is_optional_scalar and not node.HasField(wired_name):
                             value = None
                         else:
                             if prop.reference_is_rich:
-                                wired_name = new_node_data.WhichOneof(wired_name)
-                            value = getattr(new_node_data, wired_name)
+                                wired_name = node.WhichOneof(wired_name)
+                            value = getattr(node, wired_name)
                         _pg_pack_node_reference_into_row(prop, row, value)
 
             # implicit properties

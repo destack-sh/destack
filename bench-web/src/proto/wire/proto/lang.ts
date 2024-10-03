@@ -385,17 +385,13 @@ export interface EditData {
      */
     oldEditedAt?: Timestamp;
     /**
-     * @generated from protobuf field: repeated int32 properties = 40;
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData node_data = 40;
      */
-    properties: number[];
+    nodeData?: SomeNodeData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SomeNodeData old_node = 41;
+     * @generated from protobuf field: repeated symbolx.bench.EditOperationData operations = 41;
      */
-    oldNode?: SomeNodeData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SomeNodeData new_node = 42;
-     */
-    newNode?: SomeNodeData;
+    operations: EditOperationData[];
     /**
      * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 60;
      */
@@ -469,7 +465,7 @@ export interface EditContextData {
     identityPtr?: NodeReferenceData;
 }
 /**
- * Content of an Edit to a Node.  Currently, edits are always on the property level (no sub-properties or values).
+ * An Edit to a Node.
  *
  * @generated from protobuf message symbolx.bench.EditInfoData
  */
@@ -503,17 +499,13 @@ export interface EditInfoData {
      */
     oldEditedAt?: Timestamp;
     /**
-     * @generated from protobuf field: repeated int32 properties = 40;
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData node_data = 40;
      */
-    properties: number[];
+    nodeData?: SomeNodeData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SomeNodeData old_node = 41;
+     * @generated from protobuf field: repeated symbolx.bench.EditOperationData operations = 41;
      */
-    oldNode?: SomeNodeData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SomeNodeData new_node = 42;
-     */
-    newNode?: SomeNodeData;
+    operations: EditOperationData[];
 }
 /**
  * An edit operation.
@@ -537,6 +529,10 @@ export interface EditOperationData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
      */
     valuePacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.EditOperationData inverse = 50;
+     */
+    inverse?: EditOperationData;
 }
 /**
  * An expression like a value, function, comparison or such.
@@ -3581,21 +3577,13 @@ export interface LogData {
      */
     properties: number[];
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct old_node_packed = 43;
+     * @generated from protobuf field: optional google.protobuf.Struct node_data = 43;
      */
-    oldNodePacked?: Struct;
+    nodeData?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct old_node_secret_packed = 44;
+     * @generated from protobuf field: repeated symbolx.bench.EditOperationData operations = 44;
      */
-    oldNodeSecretPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct new_node_packed = 45;
-     */
-    newNodePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct new_node_secret_packed = 46;
-     */
-    newNodeSecretPacked?: Struct;
+    operations: EditOperationData[];
     /**
      * @generated from protobuf field: optional int64 new_revision = 47;
      */
@@ -7868,15 +7856,7 @@ export enum EditOperationType {
     /**
      * @generated from protobuf enum value: EDIT_OPERATION_TYPE_CLEAR = 2;
      */
-    CLEAR = 2,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_APPEND = 3;
-     */
-    APPEND = 3,
-    /**
-     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_REMOVE = 4;
-     */
-    REMOVE = 4
+    CLEAR = 2
 }
 /**
  * Ways to edit nodes.
@@ -12788,9 +12768,8 @@ class EditData$Type extends MessageType<EditData> {
             { no: 32, name: "vignette", kind: "message", T: () => ChangeVignetteData },
             { no: 33, name: "edited_at", kind: "message", T: () => Timestamp },
             { no: 34, name: "old_edited_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "old_node", kind: "message", T: () => SomeNodeData },
-            { no: 42, name: "new_node", kind: "message", T: () => SomeNodeData },
+            { no: 40, name: "node_data", kind: "message", T: () => SomeNodeData },
+            { no: 41, name: "operations", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditOperationData },
             { no: 60, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 61, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
@@ -12807,7 +12786,7 @@ class EditData$Type extends MessageType<EditData> {
         message.metatype = 0;
         message.id = "";
         message.type = 0;
-        message.properties = [];
+        message.operations = [];
         if (value !== undefined)
             reflectionMergePartial<EditData>(this, message, value);
         return message;
@@ -12838,18 +12817,11 @@ class EditData$Type extends MessageType<EditData> {
                 case /* optional google.protobuf.Timestamp old_edited_at */ 34:
                     message.oldEditedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.oldEditedAt);
                     break;
-                case /* repeated int32 properties */ 40:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.properties.push(reader.int32());
-                    else
-                        message.properties.push(reader.int32());
+                case /* optional symbolx.bench.SomeNodeData node_data */ 40:
+                    message.nodeData = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.nodeData);
                     break;
-                case /* optional symbolx.bench.SomeNodeData old_node */ 41:
-                    message.oldNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.oldNode);
-                    break;
-                case /* optional symbolx.bench.SomeNodeData new_node */ 42:
-                    message.newNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.newNode);
+                case /* repeated symbolx.bench.EditOperationData operations */ 41:
+                    message.operations.push(EditOperationData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.GraphScopeData scope */ 60:
                     message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
@@ -12911,19 +12883,12 @@ class EditData$Type extends MessageType<EditData> {
         /* optional google.protobuf.Timestamp old_edited_at = 34; */
         if (message.oldEditedAt)
             Timestamp.internalBinaryWrite(message.oldEditedAt, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* repeated int32 properties = 40; */
-        if (message.properties.length) {
-            writer.tag(40, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.properties.length; i++)
-                writer.int32(message.properties[i]);
-            writer.join();
-        }
-        /* optional symbolx.bench.SomeNodeData old_node = 41; */
-        if (message.oldNode)
-            SomeNodeData.internalBinaryWrite(message.oldNode, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SomeNodeData new_node = 42; */
-        if (message.newNode)
-            SomeNodeData.internalBinaryWrite(message.newNode, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SomeNodeData node_data = 40; */
+        if (message.nodeData)
+            SomeNodeData.internalBinaryWrite(message.nodeData, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.EditOperationData operations = 41; */
+        for (let i = 0; i < message.operations.length; i++)
+            EditOperationData.internalBinaryWrite(message.operations[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.GraphScopeData scope = 60; */
         if (message.scope)
             GraphScopeData.internalBinaryWrite(message.scope, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -13061,9 +13026,8 @@ class EditInfoData$Type extends MessageType<EditInfoData> {
             { no: 32, name: "vignette", kind: "message", T: () => ChangeVignetteData },
             { no: 33, name: "edited_at", kind: "message", T: () => Timestamp },
             { no: 34, name: "old_edited_at", kind: "message", T: () => Timestamp },
-            { no: 40, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "old_node", kind: "message", T: () => SomeNodeData },
-            { no: 42, name: "new_node", kind: "message", T: () => SomeNodeData }
+            { no: 40, name: "node_data", kind: "message", T: () => SomeNodeData },
+            { no: 41, name: "operations", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditOperationData }
         ]);
     }
     create(value?: PartialMessage<EditInfoData>): EditInfoData {
@@ -13071,7 +13035,7 @@ class EditInfoData$Type extends MessageType<EditInfoData> {
         message.metatype = 0;
         message.id = "";
         message.type = 0;
-        message.properties = [];
+        message.operations = [];
         if (value !== undefined)
             reflectionMergePartial<EditInfoData>(this, message, value);
         return message;
@@ -13102,18 +13066,11 @@ class EditInfoData$Type extends MessageType<EditInfoData> {
                 case /* optional google.protobuf.Timestamp old_edited_at */ 34:
                     message.oldEditedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.oldEditedAt);
                     break;
-                case /* repeated int32 properties */ 40:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.properties.push(reader.int32());
-                    else
-                        message.properties.push(reader.int32());
+                case /* optional symbolx.bench.SomeNodeData node_data */ 40:
+                    message.nodeData = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.nodeData);
                     break;
-                case /* optional symbolx.bench.SomeNodeData old_node */ 41:
-                    message.oldNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.oldNode);
-                    break;
-                case /* optional symbolx.bench.SomeNodeData new_node */ 42:
-                    message.newNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.newNode);
+                case /* repeated symbolx.bench.EditOperationData operations */ 41:
+                    message.operations.push(EditOperationData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13148,19 +13105,12 @@ class EditInfoData$Type extends MessageType<EditInfoData> {
         /* optional google.protobuf.Timestamp old_edited_at = 34; */
         if (message.oldEditedAt)
             Timestamp.internalBinaryWrite(message.oldEditedAt, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* repeated int32 properties = 40; */
-        if (message.properties.length) {
-            writer.tag(40, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.properties.length; i++)
-                writer.int32(message.properties[i]);
-            writer.join();
-        }
-        /* optional symbolx.bench.SomeNodeData old_node = 41; */
-        if (message.oldNode)
-            SomeNodeData.internalBinaryWrite(message.oldNode, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SomeNodeData new_node = 42; */
-        if (message.newNode)
-            SomeNodeData.internalBinaryWrite(message.newNode, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SomeNodeData node_data = 40; */
+        if (message.nodeData)
+            SomeNodeData.internalBinaryWrite(message.nodeData, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.EditOperationData operations = 41; */
+        for (let i = 0; i < message.operations.length; i++)
+            EditOperationData.internalBinaryWrite(message.operations[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13178,7 +13128,8 @@ class EditOperationData$Type extends MessageType<EditOperationData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditOperationType", EditOperationType, "EDIT_OPERATION_TYPE_"] },
             { no: 31, name: "path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "value_packed", kind: "message", T: () => Struct }
+            { no: 40, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 50, name: "inverse", kind: "message", T: () => EditOperationData }
         ]);
     }
     create(value?: PartialMessage<EditOperationData>): EditOperationData {
@@ -13207,6 +13158,9 @@ class EditOperationData$Type extends MessageType<EditOperationData> {
                 case /* optional google.protobuf.Struct value_packed */ 40:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
+                case /* optional symbolx.bench.EditOperationData inverse */ 50:
+                    message.inverse = EditOperationData.internalBinaryRead(reader, reader.uint32(), options, message.inverse);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -13231,6 +13185,9 @@ class EditOperationData$Type extends MessageType<EditOperationData> {
         /* optional google.protobuf.Struct value_packed = 40; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.EditOperationData inverse = 50; */
+        if (message.inverse)
+            EditOperationData.internalBinaryWrite(message.inverse, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20301,10 +20258,8 @@ class LogData$Type extends MessageType<LogData> {
             { no: 40, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 43, name: "old_node_packed", kind: "message", T: () => Struct },
-            { no: 44, name: "old_node_secret_packed", kind: "message", T: () => Struct },
-            { no: 45, name: "new_node_packed", kind: "message", T: () => Struct },
-            { no: 46, name: "new_node_secret_packed", kind: "message", T: () => Struct },
+            { no: 43, name: "node_data", kind: "message", T: () => Struct },
+            { no: 44, name: "operations", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditOperationData },
             { no: 47, name: "new_revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 48, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
             { no: 49, name: "vignette", kind: "message", T: () => ChangeVignetteData },
@@ -20333,6 +20288,7 @@ class LogData$Type extends MessageType<LogData> {
         message.kind = 0;
         message.level = 0;
         message.properties = [];
+        message.operations = [];
         if (value !== undefined)
             reflectionMergePartial<LogData>(this, message, value);
         return message;
@@ -20413,17 +20369,11 @@ class LogData$Type extends MessageType<LogData> {
                     else
                         message.properties.push(reader.int32());
                     break;
-                case /* optional google.protobuf.Struct old_node_packed */ 43:
-                    message.oldNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.oldNodePacked);
+                case /* optional google.protobuf.Struct node_data */ 43:
+                    message.nodeData = Struct.internalBinaryRead(reader, reader.uint32(), options, message.nodeData);
                     break;
-                case /* optional google.protobuf.Struct old_node_secret_packed */ 44:
-                    message.oldNodeSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.oldNodeSecretPacked);
-                    break;
-                case /* optional google.protobuf.Struct new_node_packed */ 45:
-                    message.newNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodePacked);
-                    break;
-                case /* optional google.protobuf.Struct new_node_secret_packed */ 46:
-                    message.newNodeSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodeSecretPacked);
+                case /* repeated symbolx.bench.EditOperationData operations */ 44:
+                    message.operations.push(EditOperationData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional int64 new_revision */ 47:
                     message.newRevision = reader.int64().toBigInt();
@@ -20553,18 +20503,12 @@ class LogData$Type extends MessageType<LogData> {
                 writer.int32(message.properties[i]);
             writer.join();
         }
-        /* optional google.protobuf.Struct old_node_packed = 43; */
-        if (message.oldNodePacked)
-            Struct.internalBinaryWrite(message.oldNodePacked, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct old_node_secret_packed = 44; */
-        if (message.oldNodeSecretPacked)
-            Struct.internalBinaryWrite(message.oldNodeSecretPacked, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct new_node_packed = 45; */
-        if (message.newNodePacked)
-            Struct.internalBinaryWrite(message.newNodePacked, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct new_node_secret_packed = 46; */
-        if (message.newNodeSecretPacked)
-            Struct.internalBinaryWrite(message.newNodeSecretPacked, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct node_data = 43; */
+        if (message.nodeData)
+            Struct.internalBinaryWrite(message.nodeData, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.EditOperationData operations = 44; */
+        for (let i = 0; i < message.operations.length; i++)
+            EditOperationData.internalBinaryWrite(message.operations[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
         /* optional int64 new_revision = 47; */
         if (message.newRevision !== undefined)
             writer.tag(47, WireType.Varint).int64(message.newRevision);
@@ -27908,10 +27852,8 @@ export enum LogProperty {
   type = 40,
   nodePtr = 41,
   properties = 42,
-  oldNodePacked = 43,
-  oldNodeSecretPacked = 44,
-  newNodePacked = 45,
-  newNodeSecretPacked = 46,
+  nodeData = 43,
+  operations = 44,
   newRevision = 47,
   category = 48,
   vignette = 49,
@@ -28002,9 +27944,8 @@ export enum EditProperty {
   vignette = 32,
   editedAt = 33,
   oldEditedAt = 34,
-  properties = 40,
-  oldNode = 41,
-  newNode = 42,
+  nodeData = 40,
+  operations = 41,
   scope = 60,
   changeKey = 61,
   category = 62,
@@ -28024,9 +27965,8 @@ export enum EditInfoProperty {
   vignette = 32,
   editedAt = 33,
   oldEditedAt = 34,
-  properties = 40,
-  oldNode = 41,
-  newNode = 42,
+  nodeData = 40,
+  operations = 41,
 }
 
 export enum EditOperationProperty {
@@ -28034,6 +27974,7 @@ export enum EditOperationProperty {
   type = 30,
   path = 31,
   valuePacked = 40,
+  inverse = 50,
 }
 
 export enum ChangeProperty {
@@ -28869,9 +28810,8 @@ export const EditDataInfo: Record<EditProperty, PropertyInfo> = {
   [EditProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [EditProperty.editedAt]: { id: 33, name: 'edited_at', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.oldEditedAt]: { id: 34, name: 'old_edited_at', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.properties]: { id: 40, name: 'properties', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.oldNode]: { id: 41, name: 'old_node', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
-  [EditProperty.newNode]: { id: 42, name: 'new_node', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+  [EditProperty.nodeData]: { id: 40, name: 'node_data', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+  [EditProperty.operations]: { id: 41, name: 'operations', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_OPERATION },
   [EditProperty.scope]: { id: 60, name: 'scope', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRAPH_SCOPE },
   [EditProperty.changeKey]: { id: 61, name: 'change_key', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.category]: { id: 62, name: 'category', component: ObjectType.EDIT, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28890,15 +28830,15 @@ export const EditInfoDataInfo: Record<EditInfoProperty, PropertyInfo> = {
   [EditInfoProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [EditInfoProperty.editedAt]: { id: 33, name: 'edited_at', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditInfoProperty.oldEditedAt]: { id: 34, name: 'old_edited_at', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditInfoProperty.properties]: { id: 40, name: 'properties', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditInfoProperty.oldNode]: { id: 41, name: 'old_node', component: ObjectType.EDIT_INFO, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
-  [EditInfoProperty.newNode]: { id: 42, name: 'new_node', component: ObjectType.EDIT_INFO, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+  [EditInfoProperty.nodeData]: { id: 40, name: 'node_data', component: ObjectType.EDIT_INFO, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+  [EditInfoProperty.operations]: { id: 41, name: 'operations', component: ObjectType.EDIT_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_OPERATION },
 }
 export const EditOperationDataInfo: Record<EditOperationProperty, PropertyInfo> = {
   [EditOperationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT_OPERATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EditOperationProperty.type]: { id: 30, name: 'type', component: ObjectType.EDIT_OPERATION, enumType: EnumType.EDIT_OPERATION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditOperationProperty.path]: { id: 31, name: 'path', component: ObjectType.EDIT_OPERATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditOperationProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.EDIT_OPERATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [EditOperationProperty.inverse]: { id: 50, name: 'inverse', component: ObjectType.EDIT_OPERATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_OPERATION },
 }
 export const ChangeDataInfo: Record<ChangeProperty, PropertyInfo> = {
   [ChangeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30280,10 +30220,8 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.type]: { id: 40, name: 'type', component: ObjectType.LOG, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.properties]: { id: 42, name: 'properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.oldNodePacked]: { id: 43, name: 'old_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.oldNodeSecretPacked]: { id: 44, name: 'old_node_secret_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [LogProperty.newNodePacked]: { id: 45, name: 'new_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.newNodeSecretPacked]: { id: 46, name: 'new_node_secret_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [LogProperty.nodeData]: { id: 43, name: 'node_data', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.operations]: { id: 44, name: 'operations', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_OPERATION },
   [LogProperty.newRevision]: { id: 47, name: 'new_revision', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.category]: { id: 48, name: 'category', component: ObjectType.LOG, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.vignette]: { id: 49, name: 'vignette', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },

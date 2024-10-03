@@ -437,8 +437,6 @@ enum EditOperationType {
   EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
   EDIT_OPERATION_TYPE_SET = 1;
   EDIT_OPERATION_TYPE_CLEAR = 2;
-  EDIT_OPERATION_TYPE_APPEND = 3;
-  EDIT_OPERATION_TYPE_REMOVE = 4;
 }
 
 // Ways to edit nodes.
@@ -1682,9 +1680,8 @@ message EditData {
   optional ChangeVignetteData vignette = 32;
   google.protobuf.Timestamp edited_at = 33;
   optional google.protobuf.Timestamp old_edited_at = 34;
-  repeated int32 properties = 40;
-  optional SomeNodeData old_node = 41;
-  optional SomeNodeData new_node = 42;
+  optional SomeNodeData node_data = 40;
+  repeated EditOperationData operations = 41;
   GraphScopeData scope = 60;
   optional string change_key = 61;
   optional ChangeCategory category = 62;
@@ -1707,7 +1704,7 @@ message EditContextData {
   optional NodeReferenceData identity_ptr = 75;
 }
 
-// Content of an Edit to a Node.  Currently, edits are always on the property level (no sub-properties or values).
+// An Edit to a Node.
 message EditInfoData {
   ObjectType metatype = 1;
   string id = 2;
@@ -1716,9 +1713,8 @@ message EditInfoData {
   optional ChangeVignetteData vignette = 32;
   google.protobuf.Timestamp edited_at = 33;
   optional google.protobuf.Timestamp old_edited_at = 34;
-  repeated int32 properties = 40;
-  optional SomeNodeData old_node = 41;
-  optional SomeNodeData new_node = 42;
+  optional SomeNodeData node_data = 40;
+  repeated EditOperationData operations = 41;
 }
 
 // An edit operation.
@@ -1727,6 +1723,7 @@ message EditOperationData {
   EditOperationType type = 30;
   repeated string path = 31;
   optional google.protobuf.Struct value_packed = 40;
+  optional EditOperationData inverse = 50;
 }
 
 // An expression like a value, function, comparison or such.
@@ -2660,10 +2657,8 @@ message LogData {
   optional AccessType type = 40;
   optional NodeReferenceData node_ptr = 41;
   repeated int32 properties = 42;
-  optional google.protobuf.Struct old_node_packed = 43;
-  optional google.protobuf.Struct old_node_secret_packed = 44;
-  optional google.protobuf.Struct new_node_packed = 45;
-  optional google.protobuf.Struct new_node_secret_packed = 46;
+  optional google.protobuf.Struct node_data = 43;
+  repeated EditOperationData operations = 44;
   optional int64 new_revision = 47;
   optional ChangeCategory category = 48;
   optional ChangeVignetteData vignette = 49;
