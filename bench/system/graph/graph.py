@@ -29,20 +29,8 @@ from bench.language.const import (
     PolicyEffect,
     ReadType,
 )
-from bench.language.graph import (
-    NodeDataGraph,
-    NodeDataGraphLike,
-    NodeGraphLike,
-    NodeSuperGraph,
-)
-from bench.language.node import (
-    EDIT_SUBJECT_TYPES,
-    EMPTY_SCOPE,
-    GraphScope,
-    Node,
-    is_implicit_node_property,
-)
-from bench.language.property import Property
+from bench.language.graph import NodeDataGraph, NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
+from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE, GraphScope
 from bench.language.query import QueryBuilder
 from bench.language.session import SessionContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -175,9 +163,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         now = self.oracle.utc()
         for edit in edits:
             validate_edit(edit, subject, now)
-            if edit.properties:
-                # sort the properties for consistency
-                edit.properties.sort()
         return area
 
     @final
@@ -673,8 +658,8 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
         node_id = edit.node_ptr.id
         edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
-            assert edit.HasField("new_node"), f"missing new node for {edit!r}"
-            new_node = wiring.unwrap_some_node(edit.new_node)
+            assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
+            new_node = wiring.unwrap_some_node(edit.node_data)
             # node scope is parent since we don't have this node yet
             if new_node.parent_ptr is None:
                 raise ValidationError(new_node, "can't create orphan")
@@ -690,13 +675,15 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
             node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
-                assert edit.HasField("new_node"), f"missing new node for {edit!r}"
-                new_node = wiring.unwrap_some_node(edit.new_node)
-                assert (
-                    new_node.parent_ptr is not None
-                ), f"missing parent for {new_node!r} in {edit!r}"
-                assert new_node.parent_ptr.id, f"missing parent id for {new_node!r} in {edit!r}"
-                node_scopes_by_id[new_node.parent_ptr.id] = new_node.parent_ptr
+                for op in reversed(edit.operations):
+                    prop_id = int(op.path[0])
+                    if prop_id == 4:
+                        parent_ptr = op.value_packed
+                        break
+                else:
+                    raise RuntimeError(f"missing set parent_ptr for move {edit!r}")
+                # nocheckin
+                node_scopes_by_id[parent_ptr.id] = parent_ptr
         if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
             # also add base as node scope
             assert base_graph is not None, f"missing base graph for {edit!r}"
@@ -774,41 +761,13 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
             f"bad edited_at {edit.edited_at} in {edit!r}: {edit.edited_at} !~= {now}",
         )
 
-    # old/new node packed :EditData
-    should_set_new = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.UPDATE, EditType.MOVE)
-    should_set_old = edit.type in (EditType.UPDATE, EditType.MOVE, EditType.ERASE)
-    if should_set_new != edit.HasField("new_node"):
+    # node data :EditData
+    should_set_node_data = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.ERASE)
+    if should_set_node_data != edit.HasField("node_data"):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
-            f"bad new_node in {edit!r}: {edit.new_node}",
+            f"bad node_data in {edit!r}: {edit.node_data}",
         )
-    if should_set_old != edit.HasField("old_node"):
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"bad old_node in {edit!r}: {edit.old_node}",
-        )
-
     # properties
-    if edit.type in (EditType.UPDATE, EditType.MOVE):
-        # check that properties are in both old and new
-        # no forbidden properties
-        if any(is_implicit_node_property(p) for p in edit.properties):
-            bad_properties = [
-                node_cls.__properties_by_id__[p]
-                for p in edit.properties
-                if is_implicit_node_property(p)
-            ]
-            raise GRPCError(
-                GRPCStatus.PERMISSION_DENIED,
-                f"cannot explicitly set implicit properties in {edit!r}: {bad_properties!r}",
-            )
-        has_parent = cast(Property, Node.parent).id in edit.properties
-        if (edit.type == EditType.MOVE) != has_parent:
-            raise GRPCError(
-                GRPCStatus.INVALID_ARGUMENT,
-                f"only move can set parent property in {edit!r}: {edit.properties}",
-            )
-    elif edit.properties:
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT, f"cannot set properties in {edit!r}: {edit.properties}"
-        )
+    if edit.operations and edit.type not in (EditType.UPDATE, EditType.MOVE):
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot add operations to {edit!r}")

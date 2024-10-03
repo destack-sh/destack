@@ -215,7 +215,7 @@ class ValueObject(Mapping[str, Any]):
     def __setattr__(self, item: str, value: SomeValue) -> None:
         # NOTE: __setattr__ is also called for slots so we have to bypass those
         if item in ValueObject.__slots__:
-            return object.__setattr__(self, item, value)
+            object.__setattr__(self, item, value)
         self.__setitem__(item, value)
 
     def __delitem__(self, item: str) -> None:

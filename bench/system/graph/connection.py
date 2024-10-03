@@ -203,8 +203,8 @@ def _get_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> AnyNod
     updated_node = updated_graph.get(node_id)
     if updated_node is None:
         if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE):
-            assert edit.HasField("new_node"), f"missing new node data for {edit!r}"
-            updated_node = unwrap_some_node(edit.new_node)
+            assert edit.HasField("node_data"), f"missing new node data for {edit!r}"
+            updated_node = unwrap_some_node(edit.node_data)
         else:
             return None
     return updated_node

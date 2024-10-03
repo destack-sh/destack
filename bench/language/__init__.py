@@ -132,7 +132,14 @@ from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .signal import Signal
 from .text import Text, TextSpan, md, text
-from .transaction import Change, ChangeCategory, ChangeVignette, Edit, Transaction
+from .transaction import (
+    Change,
+    ChangeCategory,
+    ChangeVignette,
+    Edit,
+    EditOperation,
+    Transaction,
+)
 from .trigger import Trigger, TriggerBase, TriggerInfo
 from .user import Handle, Organization, User
 from .validation import TypeConstraintIn, ValidationError
@@ -214,6 +221,7 @@ __all__ = [
     "Drive",
     "Edit",
     "EditContext",
+    "EditOperation",
     "Expression",
     "Field",
     "FieldZone",

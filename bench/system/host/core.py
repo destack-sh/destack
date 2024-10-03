@@ -137,11 +137,11 @@ def unpack_commit(
         edited_types[node_type.ord] = True
         # unpack
         if edit.type in (EditType.DELETE, EditType.ERASE):
-            assert edit.HasField("old_node"), f"missing old node data for {edit!r}"
-            node = wiring.unwrap_some_node(edit.old_node)
+            assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
+            node = wiring.unwrap_some_node(edit.node_data)
         elif edit.type == EditType.RESTORE:
-            assert edit.HasField("new_node"), f"missing new node data for {edit!r}"
-            node = wiring.copy_struct(wiring.unwrap_some_node(edit.new_node))
+            assert edit.HasField("new_node"), f"missing node_data for {edit!r}"
+            node = wiring.copy_struct(wiring.unwrap_some_node(edit.node_data))
             if edit.type == EditType.RESTORE:
                 node.ClearField("deleted_at")
         else:

@@ -1101,8 +1101,8 @@ def evaluate_edit(
         if node_cls.__roots__:
             # regular non-root node: scope = parent if creating, else scope = node :NodeEditScope
             if edit.type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.HasField("new_node"), f"no new node for {edit!r}"
-                node_data = wiring.unwrap_some_node(edit.new_node)
+                assert edit.HasField("node_data"), f"no node data for {edit!r}"
+                node_data = wiring.unwrap_some_node(edit.node_data)
                 assert node_data.HasField("parent_ptr"), f"no parent for {edit!r}"
                 scope_ptr = node_data.parent_ptr
                 while scope_ptr.id in new_node_scopes_by_child_id:
@@ -1122,7 +1122,9 @@ def evaluate_edit(
                 return PolicyEffect.DENY, ()
             scope = root = graph.get(node_ptr.id)
         try:
-            object_properties = node_cls._mask_properties_ids(edit.properties)
+            object_properties = node_cls._mask_properties_ids(
+                tuple(int(o.path[0]) for o in edit.operations)
+            )
             if not object_properties.any():  # if nothing specified, default to all
                 object_properties = node_cls.__properties_mask_set__
         except LookupError as e:

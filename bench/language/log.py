@@ -32,7 +32,15 @@ from bench.proto.wire import LogData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import ChangeCategory, ChangeVignette, Edit, NodeReference, Package, Text
+    from bench.language import (
+        ChangeCategory,
+        ChangeVignette,
+        Edit,
+        EditOperation,
+        NodeReference,
+        Package,
+        Text,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -105,14 +113,8 @@ class Log(RuntimeNode[LogData], HasSessionContext):
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
     properties: list[int] = p_system(42, array=True, primitive_type=PrimitiveType.INT16)
-    old_node_packed: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
-    old_node_secret_packed: Any | None = p_system(
-        44, primitive_type=PrimitiveType.JSON, encrypt=True, sensitive=True, defer=True
-    )
-    new_node_packed: Any | None = p_system(45, primitive_type=PrimitiveType.JSON)
-    new_node_secret_packed: Any | None = p_system(
-        46, primitive_type=PrimitiveType.JSON, encrypt=True, sensitive=True, defer=True
-    )
+    node_data: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
+    operations: list["EditOperation"] = p_system(44, array=True, struct=StructType.EDIT_OPERATION)
     new_revision: int | None = p_system(47, primitive_type=PrimitiveType.INT64)
     category: Optional["ChangeCategory"] = p_system(48, require=False, array=False)
     vignette: Optional["ChangeVignette"] = p_system(

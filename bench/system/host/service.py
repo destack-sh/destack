@@ -473,25 +473,13 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             assert edit.revision is not None, f"revision not set in {edit!r}"
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
             # pack old/new node
-            node_cls = NODE_CLASS_BY_TYPE[node_type]
-            properties = tuple(node_cls.__properties_by_id__[p] for p in edit.properties)
-            if edit.HasField("old_node"):
-                old_node = unwrap_some_node(edit.old_node)
-                old_node_packed = pack_builtin_object_data(old_node, only=properties or None)
+            if edit.HasField("node_data"):
+                old_node = unwrap_some_node(edit.node_data)
+                node_data = pack_builtin_object_data(old_node)
             else:
-                old_node_packed = None
-            if edit.HasField("new_node"):
-                new_node = unwrap_some_node(edit.new_node)
-                new_node_packed = pack_builtin_object_data(new_node, only=properties or None)
-            else:
-                new_node_packed = None
-            # break out secret properties
-            old_node_packed, old_node_secret_packed = _split_node_packed_sensitive(
-                node_type, old_node_packed
-            )
-            new_node_packed, new_node_secret_packed = _split_node_packed_sensitive(
-                node_type, new_node_packed
-            )
+                node_data = None
+            # trim secret properties
+            node_data, _ = _split_node_packed_sensitive(node_type, node_data)
             log_data = LogData(
                 metatype=wire.ObjectType.OBJECT_TYPE_LOG,
                 id=str(UUIDT()),
@@ -508,7 +496,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 level=wire.LogLevel.LOG_LEVEL_INFO,
                 # content
                 type=cast(wire.AccessType, edit.type),
-                properties=edit.properties,
+                operations=edit.operations,
                 new_revision=edit.revision,
             )
             # meta
@@ -524,14 +512,8 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 log_data.node_ptr.CopyFrom(edit.node_ptr)
             if edit.HasField("vignette"):
                 log_data.vignette.CopyFrom(edit.vignette)
-            if old_node_packed is not None:
-                log_data.old_node_packed.CopyFrom(old_node_packed)
-            if old_node_secret_packed is not None:
-                log_data.old_node_secret_packed.CopyFrom(old_node_secret_packed)
-            if new_node_packed is not None:
-                log_data.new_node_packed.CopyFrom(new_node_packed)
-            if new_node_secret_packed is not None:
-                log_data.new_node_secret_packed.CopyFrom(new_node_secret_packed)
+            if node_data is not None:
+                log_data.node_data.CopyFrom(node_data)
             # session context
             if edit.context.block_ptr.metatype != 0:
                 log_data.block_ptr.CopyFrom(edit.context.block_ptr)
@@ -560,7 +542,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 node_ptr=NodeReference._ref_data_from_node_data(log_data),
                 epoch=edit.epoch,
                 revision=log_data.revision,
-                new_node=wrap_some_node(log_data),
+                node_data=wrap_some_node(log_data),
                 edited_at=log_data.created_at,
             )
             if edit.HasField("subject_ptr"):
