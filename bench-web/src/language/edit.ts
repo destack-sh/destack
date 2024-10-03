@@ -195,12 +195,7 @@ function invertEdit(edit: EditData, mode: "undo" | "redo"): void {
   }
 
   // shuffle oldNode/newNode :EditData
-  if (
-    edit.type == EditType.ARCHIVE ||
-    edit.type == EditType.UNARCHIVE ||
-    edit.type == EditType.DELETE ||
-    edit.type == EditType.RESTORE
-  ) {
+  if (edit.type == EditType.DELETE || edit.type == EditType.RESTORE) {
     edit.oldNode = edit.oldNode ?? edit.newNode; // oldNode is set, newNode is unset
     if (edit.oldNode == null) throw new Error(`missing old node for ${edit.type}}`);
     edit.newNode = undefined;

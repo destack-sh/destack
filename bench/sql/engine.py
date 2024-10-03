@@ -1766,27 +1766,15 @@ async def _pg_edit_cascade(
     root_nodes = tuple(root_edit.node_ptr for root_edit in batch)
     root_edit_by_root_node_id = {cast(str, root_edit.node_ptr.id): root_edit for root_edit in batch}
     removed_at_by_root_node_id: dict[str, datetime.datetime] = {}
-    if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
+    if edit_type == EditType.RESTORE:
         # only cascade to nodes that were removed at the exact same time
         removed_dts = []
         for root_edit in batch:
-            assert root_edit.HasField("old_node"), f"no old node for {root_edit!r}"
-            old_node = wiring.unwrap_some_node(root_edit.old_node)
-            if edit_type == EditType.UNARCHIVE:
-                assert old_node.HasField("archived_at"), f"no archived_at for {old_node!r}"
-                removed_at = old_node.archived_at.ToDatetime(tzinfo=pytz.utc)
-            elif edit_type == EditType.RESTORE:
-                assert old_node.HasField("deleted_at"), f"no deleted_at for {old_node!r}"
-                removed_at = old_node.deleted_at.ToDatetime(tzinfo=pytz.utc)
-            else:
-                assert_never(edit_type)
+            assert root_edit.HasField("old_edited_at"), f"no old edited at for {root_edit!r}"
+            removed_at = root_edit.old_edited_at.ToDatetime(tzinfo=pytz.utc)
             removed_dts.append(removed_at)
             removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)] = removed_at
-        extra_filter = C(
-            op=ConditionalOp.IN,
-            property=Node.archived_at if edit_type == EditType.UNARCHIVE else Node.deleted_at,
-            value=removed_dts,
-        )
+        extra_filter = C(op=ConditionalOp.IN, property=Node.deleted_at, value=removed_dts)
     elif edit_type == EditType.ERASE:
         # cascade to all
         extra_filter = None
@@ -1837,30 +1825,29 @@ async def _pg_edit_cascade(
             updated_properties=(),
         )
 
-        # and assign new/old node to edit now that we have the full data :EditData
-        assert nodes and len(nodes) == len(cascaded_edits)
-        for node, cascaded_edit in zip(nodes, cascaded_edits):
-            # nocheckin
-            cascaded_edit.revision = node.revision
-            if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
-                cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
-                # set root edit removed_at in cascaded_edit.old_node
-                root_edit = root_edit_by_cascaded_node_id[cast(str, node.id)]
-                removed_at = removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)]
-                if edit_type == EditType.UNARCHIVE:
-                    old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
-                    old_node.archived_at.FromDatetime(removed_at)
-                elif edit_type == EditType.RESTORE:
-                    old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
-                    old_node.deleted_at.FromDatetime(removed_at)
-                else:
-                    assert_never(edit_type)
-            elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
+    # and assign new/old node to edit now that we have the full data :EditData
+    for cascaded_edit in all_cascaded_edits:
+        node = ...
+        # nocheckin
+        cascaded_edit.revision = node.revision
+        if edit_type == EditType.RESTORE:
+            cascaded_edit.new_node.CopyFrom(wiring.wrap_some_node(node))
+            # set root edit removed_at in cascaded_edit.old_node
+            root_edit = root_edit_by_cascaded_node_id[cast(str, node.id)]
+            removed_at = removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)]
+            if edit_type == EditType.RESTORE:
+                old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
+                old_node.deleted_at.FromDatetime(removed_at)
             else:
-                raise RuntimeError(
-                    f"unexpected cascaded edit type{edit_type!r} for {cascaded_edit!r}"
-                )
+                assert_never(edit_type)
+        elif edit_type == EditType.DELETE:
+            ...
+        elif edit_type == EditType.ERASE:
+            cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
+        else:
+            raise RuntimeError(
+                f"unexpected cascaded edit type {edit_type!r} for {cascaded_edit!r}"
+            )
 
     return all_cascaded_edits
 
@@ -1917,14 +1904,7 @@ async def _pg_edit_batch(
                 static_columns=tuple(c for c in node_table.columns if c != node_table._primary_key),
                 static_values={"revision": sqlstr(f"{node_table.name}.revision + 1")},
             )
-    elif edit_type in (
-        EditType.UPDATE,
-        EditType.MOVE,
-        EditType.ARCHIVE,
-        EditType.UNARCHIVE,
-        EditType.DELETE,
-        EditType.RESTORE,
-    ):
+    elif edit_type in (EditType.UPDATE, EditType.MOVE, EditType.DELETE, EditType.RESTORE):
         # collect dynamic columns (incl. implicit metadata)
         implicit_properties: list[Property | Any] = [
             node_cls.updated_at,
@@ -1932,9 +1912,7 @@ async def _pg_edit_batch(
         ]
         if issubclass(node_cls, BenchNode):
             implicit_properties.append(node_cls.updated_epoch)
-        if edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
-            implicit_properties.append(node_cls.archived_at)
-        elif edit_type in (EditType.DELETE, EditType.RESTORE):
+        if edit_type in (EditType.DELETE, EditType.RESTORE):
             implicit_properties.append(node_cls.deleted_at)
         dynamic_columns: list[Column] = [node_table._primary_key]
         for prop in chain(implicit_properties, updated_properties):
@@ -1986,11 +1964,7 @@ async def _pg_edit_batch(
                 row["updated_epoch"] = edit.epoch
             subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
             _pg_pack_node_reference_into_row(node_cls.get_property("updated_by"), row, subject_ptr)
-            if edit_type == EditType.ARCHIVE:
-                row["archived_at"] = edited_at
-            elif edit_type == EditType.UNARCHIVE:
-                row["archived_at"] = None
-            elif edit_type == EditType.DELETE:
+            if edit_type == EditType.DELETE:
                 row["deleted_at"] = edited_at
             elif edit_type == EditType.RESTORE:
                 row["deleted_at"] = None

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.03.0"  # auto change via version script
+VERSION = "2024.10.03.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -732,8 +732,6 @@ class EditType(IdEnum):
     UPSERT = 21
     UPDATE = 22
     MOVE = 23
-    ARCHIVE = 24
-    UNARCHIVE = 25
     DELETE = 26
     RESTORE = 27
     ERASE = 28
@@ -802,7 +800,7 @@ ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
     access: kind for kind, access_types in ACCESS_TYPES_BY_KIND.items() for access in access_types
 }
 CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
-    EditType.ARCHIVE, EditType.UNARCHIVE, EditType.DELETE, EditType.RESTORE, EditType.ERASE
+    EditType.DELETE, EditType.RESTORE, EditType.ERASE
 )
 
 

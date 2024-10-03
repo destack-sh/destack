@@ -245,7 +245,6 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
   clone.createdAt = now;
   clone.updatedAt = now;
   clone.deletedAt = undefined;
-  clone.archivedAt = undefined;
   return clone;
 }
 

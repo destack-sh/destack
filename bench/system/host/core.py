@@ -102,14 +102,14 @@ def unpack_commit(
     removed: dict[UUID, Node] = {}
 
     def _add_edit(edit: EditData, node: Node):
-        if edit.type in (EditType.CREATE, EditType.UNARCHIVE, EditType.RESTORE):
+        if edit.type in (EditType.CREATE, EditType.RESTORE):
             # TODO :Broken: not sure how to handle upsert here yet (just error for now)
             removed.pop(node.id, None)
             added[node.id] = node
         elif edit.type in (EditType.MOVE, EditType.UPDATE):
             if node.id not in added:
                 updated[node.id] = node
-        elif edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+        elif edit.type in (EditType.DELETE, EditType.ERASE):
             added.pop(node.id, None)
             updated.pop(node.id, None)
             removed[node.id] = node
@@ -136,15 +136,13 @@ def unpack_commit(
         node_type = NodeType(edit.node_ptr.type)
         edited_types[node_type.ord] = True
         # unpack
-        if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+        if edit.type in (EditType.DELETE, EditType.ERASE):
             assert edit.HasField("old_node"), f"missing old node data for {edit!r}"
             node = wiring.unwrap_some_node(edit.old_node)
-        elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
+        elif edit.type == EditType.RESTORE:
             assert edit.HasField("old_node"), f"missing new node data for {edit!r}"
             node = wiring.copy_struct(wiring.unwrap_some_node(edit.old_node))
-            if edit.type == EditType.UNARCHIVE:
-                node.ClearField("archived_at")
-            elif edit.type == EditType.RESTORE:
+            if edit.type == EditType.RESTORE:
                 node.ClearField("deleted_at")
         else:
             raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")

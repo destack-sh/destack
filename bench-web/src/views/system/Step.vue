@@ -192,11 +192,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     if (field == null) return false;
     flowCtx.tx.delete(field);
   },
-  "common.edit.archive": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    flowCtx.tx.archive(field);
-  },
 };
 
 canvas.registerView(self, id);

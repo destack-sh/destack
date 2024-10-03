@@ -593,7 +593,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         package_edits: list[EditData] = []
         for i, edit in enumerate(chain(edits, cascaded_edits)):
             is_cascaded = i >= len(edits)
-            if is_cascaded and edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+            if is_cascaded and edit.type in (EditType.DELETE, EditType.ERASE):
                 continue  # remove cascades are implicit
             node_type = NodeType(edit.node_ptr.type)
             if node_type not in LOADED_HOST_NODE_TYPES:

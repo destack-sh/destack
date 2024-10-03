@@ -1390,7 +1390,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     created_at: datetime = p_system(11, default=None, require=True, autoset=True)
     updated_at: datetime = p_system(13, default=None, require=True, autoset=True)
     deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
-    archived_at: Optional[datetime] = p_system(16, default=None, autoset=True)
     # NOTE: created_by/updated_by are 'baseless' because Run can only be a subject if it's a lambda
     #  (and otherwise we attribute the change to the Run's block/step/identity)
     created_by: Optional[EditSubject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
@@ -1504,12 +1503,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         ident_str = self.code_name
         if ident_str is None:
             ident_str = str(self.id)
-        if self.archived_at is not None:
-            status_str = " [archived, deleted]" if self.deleted_at is not None else " [archived]"
-        elif self.deleted_at is not None:
-            status_str = " [deleted]"
-        else:
-            status_str = ""
+        status_str = " [deleted]" if self.deleted_at is not None else ""
         if self.__parent_property__ is None:
             return f"'{ident_str}'{content_str}{status_str}"
         else:
@@ -1698,12 +1692,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def is_extant(self):
-        return self.archived_at is None and self.deleted_at is None
-
-    @property
-    def is_archived(self) -> bool:
-        parent = self.parent
-        return self.archived_at is not None or (parent is not None and parent.is_archived)
+        return self.deleted_at is None
 
     @property
     def is_deleted(self) -> bool:
@@ -1722,16 +1711,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         assert from_parent_ptr and from_parent, f"{self!r} has no parent"
         assert to_parent._graph is from_parent._graph, f"{self!r} not in graph of {to_parent!r}"
         raise NotImplementedError("move not yet supported")
-
-    def archive(self):
-        """Archive this node."""
-        assert not self.is_archived, f"{self!r} is already archived"
-        self.active_session._archive(self)
-
-    def unarchive(self):
-        """Unarchive this node."""
-        assert self.is_archived, f"{self!r} is not archived"
-        self.active_session._unarchive(self)
 
     def delete(self):
         """Delete this node (move to trash)."""

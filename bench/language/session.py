@@ -531,35 +531,6 @@ class Session(RuntimeNode[SessionData]):
                 EditType.MOVE, node, properties=properties, old_values=old_values
             )
 
-    def _archive(self, *nodes: Node):
-        """Marks a node as archived, so it will be hidden by default."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert (
-            not self._is_readonly and not self._is_suspended
-        ), f"cannot edit {nodes!r} in {self!r}"
-        for node in nodes:
-            assert node._is_attached, f"cannot archive detached node {node!r}"
-            now = self._oracle.utc()
-            self._pending_nodes_by_id[node.id] = node
-            # descendants will be removed from graph, so remember them manually
-            for descendant in node._graph.iter_descendants(node, recursive=True):
-                self._pending_nodes_by_id[descendant.id] = descendant
-            self._tx.record_edit_event(EditType.ARCHIVE, node, now=now)
-            node.archived_at = now
-            node._graph.remove(node)
-
-    def _unarchive(self, *nodes: Node):
-        """Restore a node from the archive in its original place."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert (
-            not self._is_readonly and not self._is_suspended
-        ), f"cannot edit {nodes!r} in {self!r}"
-        for node in nodes:
-            assert node._is_attached, f"cannot unarchive detached node {node!r}"
-            self._pending_nodes_by_id[node.id] = node
-            self._tx.record_edit_event(EditType.UNARCHIVE, node)
-            node.archived_at = None
-
     def _delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"

@@ -197,7 +197,7 @@ class ConnectionSubscription[UpdateT: Any]:
 
 
 def _unpack_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> AnyNodeData:
-    """Extract the full edited node data."""
+    """Get or extract the full edited node data."""
     node_id = edit.node_ptr.id
     assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
     updated_node = updated_graph.get(node_id)
@@ -205,17 +205,8 @@ def _unpack_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> Any
         if edit.type in (EditType.CREATE, EditType.UPSERT):
             assert edit.HasField("new_node"), f"missing new node data for {edit!r}"
             updated_node = unwrap_some_node(edit.new_node)
-        elif edit.type in (
-            EditType.ARCHIVE,
-            EditType.DELETE,
-            EditType.ERASE,
-            EditType.UNARCHIVE,
-            EditType.RESTORE,
-        ):
-            assert edit.HasField("old_node"), f"missing old node data for {edit!r}"
-            updated_node = unwrap_some_node(edit.old_node)
         else:
-            raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")
+            raise RuntimeError(f"missing node for edit {edit.type} {node_id} in {edit!r}")
     assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
     return updated_node
 
@@ -261,7 +252,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
             # filter scope
             updated_node = _unpack_edited_node(updated_graph, edit)
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
-                not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
+                not options.include_hidden and edit_type == EditType.RESTORE
             ):
                 # add: parent must be in a root, in our graph or be optional
                 parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
@@ -297,7 +288,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
                 # apply (just copy node instead of actually applying edit, we don't modify anything here)
                 relevant_edits.append(edit)
                 if edit_type == EditType.ERASE or (
-                    not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
+                    not options.include_hidden and edit_type == EditType.DELETE
                 ):
                     if updated_node.id in result_graph:
                         result_graph.remove(updated_node)
@@ -415,12 +406,10 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
             if not is_relevant and not is_extant:
                 continue  # ignore irrelevant edit
             is_add = edit.type in (EditType.CREATE, EditType.UPSERT) or (
-                edit.type in (EditType.UNARCHIVE, EditType.RESTORE)
-                and not DEFAULT_READ_OPTIONS.include_hidden
+                edit.type == EditType.RESTORE and not DEFAULT_READ_OPTIONS.include_hidden
             )
             is_remove = edit.type == EditType.ERASE or (
-                edit.type in (EditType.ARCHIVE, EditType.DELETE)
-                and not DEFAULT_READ_OPTIONS.include_hidden
+                edit.type == EditType.DELETE and not DEFAULT_READ_OPTIONS.include_hidden
             )
             if is_extant:
                 if is_relevant and not is_remove:

@@ -126,10 +126,6 @@ export type Transaction = TransactionMeta & {
     update: Partial<T> & { parentPtr: NodeReferenceData },
     options?: { debounce?: DebounceLevel },
   ): void;
-  /** Archive node (incl. descendants) */
-  archive(node: AnyNodeData): void;
-  /** Restore node from archive (incl. descendants) */
-  unarchive(node: AnyNodeData): void;
   /** Soft delete node (incl. descendants), marked for later deletion after retention period */
   delete(node: AnyNodeData): void;
   /** Restore node from soft delete */
@@ -272,14 +268,7 @@ export class TransactionBuilder implements Transaction {
 
   /** Adds a simple (non-update) edit */
   _addSimpleEdit(
-    editType:
-      | EditType.CREATE
-      | EditType.UPSERT
-      | EditType.ARCHIVE
-      | EditType.UNARCHIVE
-      | EditType.DELETE
-      | EditType.RESTORE
-      | EditType.ERASE,
+    editType: EditType.CREATE | EditType.UPSERT | EditType.DELETE | EditType.RESTORE | EditType.ERASE,
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
@@ -288,18 +277,15 @@ export class TransactionBuilder implements Transaction {
     // pack 'old' and 'new' node delta :EditData
     let newNode: AnyNodeData | undefined = undefined;
     let oldNode: AnyNodeData | undefined = undefined;
+    let oldEditedAt: Timestamp | undefined = undefined;
     if (editType == EditType.CREATE || editType == EditType.UPSERT) {
       newNode = node;
-    } else if (editType == EditType.ERASE || editType == EditType.ARCHIVE || editType == EditType.DELETE) {
-      if (node.deletedAt != null || node.archivedAt != null) {
-        oldNode = { ...node, deletedAt: undefined, archivedAt: undefined };
-      } else {
-        oldNode = node;
-      }
-    } else if (editType == EditType.UNARCHIVE) {
-      oldNode = makeDefaultObject({ metatype: node.metatype as any, archivedAt: node.archivedAt }) as AnyNodeData;
+    } else if (editType == EditType.DELETE) {
+      // nothing to do
     } else if (editType == EditType.RESTORE) {
-      oldNode = makeDefaultObject({ metatype: node.metatype as any, deletedAt: node.deletedAt }) as AnyNodeData;
+      oldEditedAt = node.deletedAt;
+    } else if (editType == EditType.ERASE) {
+      oldNode = node;
     }
 
     // make edit & notify
@@ -319,6 +305,7 @@ export class TransactionBuilder implements Transaction {
       changeKey: this.change?.key,
       category: this.category,
       editedAt: Timestamp.now(),
+      oldEditedAt: oldEditedAt,
     };
     this.state.edits.push(edit);
     this._notifyEdit(edit, debounce);
@@ -462,14 +449,6 @@ export class TransactionBuilder implements Transaction {
     this._doUpdate(EditType.MOVE, node, update, options);
   }
 
-  archive(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.ARCHIVE, { ...node }, null);
-  }
-
-  unarchive(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.UNARCHIVE, { ...node, archivedAt: undefined }, null);
-  }
-
   delete(node: AnyNodeData) {
     this._addSimpleEdit(EditType.DELETE, { ...node }, null);
   }
@@ -497,7 +476,7 @@ export function editGraph(
     if (
       edit.type == EditType.CREATE ||
       edit.type == EditType.UPSERT ||
-      ((edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) && !graph.has(edit.nodePtr!))
+      (edit.type == EditType.RESTORE && !graph.has(edit.nodePtr!))
     ) {
       // add
       let newNode: AnyNodeData;
@@ -507,9 +486,7 @@ export function editGraph(
       } else {
         if (edit.oldNode == null) throw new Error(`missing oldNodePacked in edit: ${describeEdit(edit)}`);
         newNode = unwrapSomeNode(edit.oldNode);
-        if (edit.type == EditType.UNARCHIVE) {
-          newNode = { ...newNode, archivedAt: undefined };
-        } else if (edit.type == EditType.RESTORE) {
+        if (edit.type == EditType.RESTORE) {
           newNode = { ...newNode, deletedAt: undefined };
         }
       }
@@ -534,11 +511,10 @@ export function editGraph(
     } else {
       // update
       let updatedNode: AnyNodeData | null;
-      if (edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) {
-        if (edit.oldNode == null)
+      if (edit.type == EditType.RESTORE) {
+        if (edit.newNode == null)
           throw new Error(`missing old node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        updatedNode = unwrapSomeNode(edit.oldNode);
-        updatedNode = { ...updatedNode, archivedAt: undefined };
+        updatedNode = unwrapSomeNode(edit.newNode);
       } else {
         updatedNode = graph.get(edit.nodePtr!);
         if (!updatedNode && options?.base) {
@@ -574,13 +550,7 @@ export function editGraph(
       }
       updatedNode.updatedByPtr = edit.subjectPtr;
       updatedNode.revision = edit.revision ?? BigInt(-1);
-      if (edit.type == EditType.ARCHIVE) {
-        updatedNode.archivedAt = edit.editedAt;
-        extraImplicitProperties.push(BlockProperty.archivedAt);
-      } else if (edit.type == EditType.UNARCHIVE) {
-        updatedNode.archivedAt = undefined;
-        extraImplicitProperties.push(BlockProperty.archivedAt);
-      } else if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
+      if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
         // (we handle DELETE here for overlays)
         updatedNode.deletedAt = edit.editedAt;
         extraImplicitProperties.push(BlockProperty.deletedAt);
@@ -1103,8 +1073,6 @@ export const EDIT_TYPES = [
   EditType.UPSERT,
   EditType.UPDATE,
   EditType.MOVE,
-  EditType.ARCHIVE,
-  EditType.UNARCHIVE,
   EditType.DELETE,
   EditType.RESTORE,
   EditType.ERASE,
@@ -1115,8 +1083,6 @@ export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
   [EditType.UPSERT]: EditType.DELETE,
   [EditType.UPDATE]: EditType.UPDATE,
   [EditType.MOVE]: EditType.MOVE,
-  [EditType.ARCHIVE]: EditType.UNARCHIVE,
-  [EditType.UNARCHIVE]: EditType.ARCHIVE,
   [EditType.DELETE]: EditType.RESTORE,
   [EditType.RESTORE]: EditType.DELETE,
 };

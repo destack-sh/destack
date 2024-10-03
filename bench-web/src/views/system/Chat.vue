@@ -267,11 +267,6 @@ const getMessageFromContext = (ctx: ActionContext | undefined): { message: Messa
 };
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"message"> = {
   // common
-  "common.edit.archive": (action, context) => {
-    const { message } = getMessageFromContext(context);
-    if (message == null) return false;
-    pkgConnection.tx.archive(message);
-  },
   "common.edit.delete": (action, context) => {
     const { message } = getMessageFromContext(context);
     if (message == null) return false;
@@ -544,7 +539,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
                     kind: 'menu',
                     placement: 'bottom-left',
                     offset: 'referenceWidth',
-                    items: menuActionsLike(['message.*', 'common.edit.archive', 'common.edit.delete'], {
+                    items: menuActionsLike(['message.*', 'common.edit.delete'], {
                       context: { ...context, triggerNode: message },
                     }),
                   })

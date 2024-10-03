@@ -363,13 +363,11 @@ class Channel[E: GraphEngine](abc.ABC):
 
 @dataclass(slots=True)
 class FlushResultData:
-    revisions: list[int]
     cascaded_edits: list[EditData]
 
 
 @dataclass(slots=True)
 class CommitResultData:
-    revisions: list[int]
     cascaded_edits: list[EditData]
 
 

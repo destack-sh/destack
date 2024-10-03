@@ -30,7 +30,7 @@ import {
   ViewType,
   type AnyNodeData,
   type AnyNodeReferenceData,
-  type AnyTypeMapping
+  type AnyTypeMapping,
 } from "@/proto/wire";
 import {
   isNodeRef,
@@ -61,7 +61,7 @@ export const TEXT_DIRECTION_BY_ALIGNMENT: Partial<Record<Alignment, string>> = {
   [Alignment.START]: "text-left",
   [Alignment.MIDDLE]: "text-center",
   [Alignment.END]: "text-right",
-}
+};
 
 export type Vector2 = Omit<Vector2Data, "metatype">;
 export type Vector3 = Omit<Vector3Data, "metatype">;
@@ -231,8 +231,6 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
   [PrimitiveType.FLOAT32]: ViewType.NUMBER,
   [PrimitiveType.FLOAT64]: ViewType.NUMBER,
   [PrimitiveType.BOOLEAN]: ViewType.TOGGLE,
-  [PrimitiveType.DATETIME]: ViewType.CALENDAR,
-  [PrimitiveType.INTERVAL]: ViewType.CALENDAR,
   [PrimitiveType.JSON]: ViewType.JSON,
 };
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
