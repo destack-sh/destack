@@ -54,7 +54,7 @@ from bench.language.const import (
 from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node, SomeNodeReferenceData
-from bench.language.query import FILTER_VISIBLE, ReadOptions
+from bench.language.query import FILTER_VISIBLE, SELECT_ALL_PROPERTIES, ReadOptions
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES_IN_STORE,
     HAS_CHILD_NODE_TYPES,
@@ -1820,34 +1820,32 @@ async def _pg_edit_cascade(
             cur=cur,
             ctx=ctx,
             edit_type=edit_type,
-            node_type=NodeType(descendant_node_type),
+            node_type=cast(NodeType, descendant_node_type),
             batch=cascaded_edits,
             updated_properties=(),
         )
+        nodes_ids = [edit.node_ptr.id for edit in cascaded_edits]
+        nodes = await pg_get_nodes(
+            cur=cur,
+            ctx=ctx,
+            node_type=NodeType(descendant_node_type),
+            properties=SELECT_ALL_PROPERTIES[cast(NodeType, descendant_node_type)],
+            filter=C(ConditionalOp.IN, property=Node.id, value=list(nodes_ids)),
+        )
+        nodes_by_id = {node.id: node for node in nodes}
 
-    # and assign new/old node to edit now that we have the full data :EditData
-    for cascaded_edit in all_cascaded_edits:
-        node = ...
-        # nocheckin
-        cascaded_edit.revision = node.revision
-        if edit_type == EditType.RESTORE:
-            cascaded_edit.new_node.CopyFrom(wiring.wrap_some_node(node))
-            # set root edit removed_at in cascaded_edit.old_node
-            root_edit = root_edit_by_cascaded_node_id[cast(str, node.id)]
-            removed_at = removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)]
+        # and assign new/old node to edit now that we have the full data :EditData
+        for cascaded_edit in cascaded_edits:
+            node = nodes_by_id[cascaded_edit.node_ptr.id]
+            cascaded_edit.revision = node.revision
             if edit_type == EditType.RESTORE:
-                old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
-                old_node.deleted_at.FromDatetime(removed_at)
+                cascaded_edit.new_node.CopyFrom(wiring.wrap_some_node(node))
+            elif edit_type == EditType.DELETE or edit_type == EditType.ERASE:
+                cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
             else:
-                assert_never(edit_type)
-        elif edit_type == EditType.DELETE:
-            ...
-        elif edit_type == EditType.ERASE:
-            cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
-        else:
-            raise RuntimeError(
-                f"unexpected cascaded edit type {edit_type!r} for {cascaded_edit!r}"
-            )
+                raise RuntimeError(
+                    f"unexpected cascaded edit type {edit_type!r} for {cascaded_edit!r}"
+                )
 
     return all_cascaded_edits
 

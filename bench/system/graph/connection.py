@@ -196,18 +196,17 @@ class ConnectionSubscription[UpdateT: Any]:
 #  (need some per-connection-type subscription info?)
 
 
-def _unpack_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> AnyNodeData:
-    """Get or extract the full edited node data."""
+def _get_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> AnyNodeData | None:
+    """Get the full edited node data."""
     node_id = edit.node_ptr.id
     assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
     updated_node = updated_graph.get(node_id)
     if updated_node is None:
-        if edit.type in (EditType.CREATE, EditType.UPSERT):
+        if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE):
             assert edit.HasField("new_node"), f"missing new node data for {edit!r}"
             updated_node = unwrap_some_node(edit.new_node)
         else:
-            raise RuntimeError(f"missing node for edit {edit.type} {node_id} in {edit!r}")
-    assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
+            return None
     return updated_node
 
 
@@ -250,10 +249,11 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
             edit_type = EditType(edit.type)
 
             # filter scope
-            updated_node = _unpack_edited_node(updated_graph, edit)
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
                 not options.include_hidden and edit_type == EditType.RESTORE
             ):
+                updated_node = _get_edited_node(updated_graph, edit)
+                assert updated_node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
                 # add: parent must be in a root, in our graph or be optional
                 parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
                 if parent_id is None:
@@ -283,8 +283,11 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
                     is_in_scope = False  # not in scope
             else:
                 # update/remove: node must already be in our result graph
-                is_in_scope = updated_node.id in result_graph
+                is_in_scope = edit.node_ptr.id in result_graph
             if is_in_scope:
+                updated_node = _get_edited_node(updated_graph, edit)
+                if updated_node is None:
+                    updated_node = result_graph[edit.node_ptr.id]
                 # apply (just copy node instead of actually applying edit, we don't modify anything here)
                 relevant_edits.append(edit)
                 if edit_type == EditType.ERASE or (
@@ -400,10 +403,14 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
                 continue
             node_id = edit.node_ptr.id
             assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
-            node = _unpack_edited_node(graph, edit)
-            is_relevant = self._filter is None or evaluate_conditional(self._filter, node)
             is_extant = node_id in self._result_roots_ids
-            if not is_relevant and not is_extant:
+            node = _get_edited_node(graph, edit)
+            if node is None:
+                if not is_extant:
+                    continue  # ignore irrelevant remove
+                node = self._result_data.graph[node_id]
+            is_relevant = self._filter is None or evaluate_conditional(self._filter, node)
+            if not is_relevant:
                 continue  # ignore irrelevant edit
             is_add = edit.type in (EditType.CREATE, EditType.UPSERT) or (
                 edit.type == EditType.RESTORE and not DEFAULT_READ_OPTIONS.include_hidden
