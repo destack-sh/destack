@@ -174,11 +174,6 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     if (field == null) return false;
     pkgConnection.tx.delete(field);
   },
-  "common.edit.archive": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    pkgConnection.tx.archive(field);
-  },
 };
 
 canvas.registerView(self, id);

@@ -63,10 +63,7 @@ SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 
 @_on_completing_setup
 def _populate_default_query():
-    FILTER_VISIBLE.clauses = [
-        C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at),
-        C(ConditionalOp.NOT_EXISTS, property=Node.archived_at),
-    ]
+    FILTER_VISIBLE.clauses = [C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at)]
     for node_t in NODE_CLASSES:
         SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
             prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred

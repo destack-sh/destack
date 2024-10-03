@@ -349,25 +349,25 @@ describe("proxy node graph", () => {
 });
 
 function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
-  let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
+  let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "deletedAt"] });
   const space11 = fabricate(ObjectType.SPACE, {
-    unset: ["archivedAt", "deletedAt"],
+    unset: ["deletedAt"],
     set: { parentPtr: toPlainNodeRef(package1), id: "space11", orderKey: "a0" },
   });
   let view111 = fabricate(ObjectType.VIEW, {
-    unset: ["archivedAt", "deletedAt"],
+    unset: ["deletedAt"],
     set: { parentPtr: toPlainNodeRef(space11), id: "view111", orderKey: "a0" },
   });
   const view112 = fabricate(ObjectType.VIEW, {
-    unset: ["archivedAt", "deletedAt"],
+    unset: ["deletedAt"],
     set: { parentPtr: toPlainNodeRef(space11), id: "view112", orderKey: "a1" },
   });
   let space12 = fabricate(ObjectType.SPACE, {
-    unset: ["archivedAt", "deletedAt"],
+    unset: ["deletedAt"],
     set: { parentPtr: toPlainNodeRef(package1), id: "space12", orderKey: "a1" },
   });
   const view121 = fabricate(ObjectType.VIEW, {
-    unset: ["archivedAt", "deletedAt"],
+    unset: ["deletedAt"],
     set: { parentPtr: toPlainNodeRef(space12), id: "view121", orderKey: "a0" },
   });
 

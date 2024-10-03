@@ -57,7 +57,6 @@ export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
   "common.edit.morph",
   "common.edit.duplicate",
-  "common.edit.archive",
   "common.edit.delete",
   "common.create.above",
   "common.create.below",

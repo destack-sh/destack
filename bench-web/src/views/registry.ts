@@ -10,56 +10,100 @@ import type { ViewComponent } from "@/views/common";
 // NOTE: sync with inverse registry in common :ViewRegistry
 //  (see above for why we can't import from here)
 const COMPONENT_BY_VIEW_TYPE_LAZY = {
+  //
+  // Intrinsics
+  //
+
   // kernel
   [ViewType.USER_WIZARD]: () => import("@/views/kernel/UserWizard.vue"),
   [ViewType.BENCH_WIZARD]: () => import("@/views/kernel/BenchWizard.vue"),
+  [ViewType.EMPTY]: () => import("@/views/system/Empty.vue"),
 
   // system
   // nodes
   [ViewType.PAGE]: () => import("@/views/system/Page.vue"),
   [ViewType.BLOCK]: () => import("@/views/system/Block.vue"),
+  [ViewType.FIELD]: () => import("@/views/system/Field.vue"),
   [ViewType.FLOW]: () => import("@/views/system/Flow.vue"),
   [ViewType.STEP]: () => import("@/views/system/Step.vue"),
-  [ViewType.PIPE]: () => import("@/views/system/Pipe.vue"),
-  [ViewType.FIELD]: () => import("@/views/system/Field.vue"),
   [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/system/ValueObject.vue"),
+  [ViewType.RUN]: () => import("@/views/system/Run.vue"),
+  [ViewType.LOG]: () => import("@/views/system/Log.vue"),
+  [ViewType.PIPE]: () => import("@/views/system/Pipe.vue"),
+
   // helpers
-  [ViewType.EMPTY]: () => import("@/views/system/Empty.vue"),
   [ViewType.TREE]: () => import("@/views/system/Tree.vue"),
   [ViewType.INSPECT]: () => import("@/views/system/Inspect.vue"),
   [ViewType.CREATE]: () => import("@/views/system/Create.vue"),
   [ViewType.CHAT]: () => import("@/views/system/Chat.vue"),
   [ViewType.START]: () => import("@/views/system/Start.vue"),
   [ViewType.FEED]: () => import("@/views/system/Feed.vue"),
-  [ViewType.RUN]: () => import("@/views/system/Run.vue"),
 
-  // containers
+  //
+  // Organization
+  //
+
+  // layout
   [ViewType.WINDOW]: () => import("@/views/containers/Split.vue"), // shared with Split
   [ViewType.TAB]: () => import("@/views/containers/Tab.vue"),
   [ViewType.SPLIT]: () => import("@/views/containers/Split.vue"),
-  [ViewType.GROUP]: () => import("@/views/containers/Group.vue"),
   [ViewType.SCROLL]: () => import("@/views/containers/Scroll.vue"),
+
+  // groups
+  [ViewType.GROUP]: () => import("@/views/containers/Group.vue"),
+
+  // presentation
+
+  // collections
+
+  //
+  // Style
+  //
+
+  // navigation
+
+  // illustration
+
+  // graphing
+
+  //
+  // Action
+  //
 
   // controls
   [ViewType.BUTTON]: () => import("@/views/controls/Button.vue"),
 
-  // content
+  //
+  // Content
+  //
+
   [ViewType.VALUE]: () => import("@/views/content/Value.vue"),
-  [ViewType.STRING]: () => import("@/views/content/NativeInput.vue"),
+
+  // numeric
   [ViewType.NUMBER]: () => import("@/views/content/NativeInput.vue"),
+
+  // stringy
+  [ViewType.STRING]: () => import("@/views/content/NativeInput.vue"),
   [ViewType.TEXT]: () => import("@/views/content/Text.vue"),
   [ViewType.CODE]: () => import("@/views/content/Code.vue"),
+
+  // selection
   [ViewType.TOGGLE]: () => import("@/views/content/Toggle.vue"),
   [ViewType.PICKER]: () => import("@/views/content/Picker.vue"),
+
+  // rich
   [ViewType.COLOR]: () => import("@/views/content/Color.vue"),
   [ViewType.ICON]: () => import("@/views/content/Icon.vue"),
+
+  // file
   [ViewType.FILE]: () => import("@/views/content/File.vue"),
   [ViewType.IMAGE]: () => import("@/views/content/File.vue"), // shared with File
   [ViewType.AUDIO]: () => import("@/views/content/File.vue"), // shared with File
   [ViewType.VIDEO]: () => import("@/views/content/File.vue"), // shared with File
   [ViewType.DOCUMENT]: () => import("@/views/content/File.vue"), // shared with File
 };
+
 const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
 const VIEW_TYPE_BY_COMPONENT_NAME = {} as Record<string, ViewType>;
 let didRegisterComponents = false;

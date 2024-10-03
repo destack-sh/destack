@@ -359,7 +359,7 @@ pyparsing==3.1.2
 pypdf==4.2.0
 pyproject-hooks==1.1.0
     # via build
-pyright==1.1.379
+pyright==1.1.383
 pyrsistent==0.20.0
     # via jsonschema
 pysocks==1.7.1
@@ -498,6 +498,7 @@ typing-extensions==4.11.0
     #   pydantic-core
     #   pyee
     #   pygithub
+    #   pyright
     #   python-docx
     #   typer
     #   typing-inspect

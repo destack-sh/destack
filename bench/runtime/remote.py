@@ -163,9 +163,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         response = await self.engine.remote.commit_transaction(
             request, metadata=self.engine.rpc_headers
         )
-        return CommitResultData(
-            revisions=list(response.revisions), cascaded_edits=list(response.cascaded_edits)
-        )
+        return CommitResultData(cascaded_edits=list(response.cascaded_edits))
 
 
 class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):

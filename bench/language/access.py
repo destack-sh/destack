@@ -536,13 +536,7 @@ def _register_system_policies():
                 text=Text.plain("System nodes must be managed through designated methods."),
             )
             .deny(
-                EditType.CREATE,
-                EditType.UPSERT,
-                EditType.DELETE,
-                EditType.RESTORE,
-                EditType.ARCHIVE,
-                EditType.UNARCHIVE,
-                EditType.ERASE,
+                EditType.CREATE, EditType.UPSERT, EditType.DELETE, EditType.RESTORE, EditType.ERASE
             )
             .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
             PolicyRule(
@@ -562,7 +556,7 @@ def _register_system_policies():
                 name="CannotMoveRuntimeNodes",
                 text=Text.plain("Cannot move or remove runtime nodes"),
             )
-            .deny(EditType.MOVE, EditType.ARCHIVE, EditType.DELETE, EditType.ERASE)
+            .deny(EditType.MOVE, EditType.DELETE, EditType.ERASE)
             .object(node_types=RUNTIME_NODE_TYPES.tuple),
         ),
         Policy(name="OwnerAccess").append(

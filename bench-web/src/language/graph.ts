@@ -44,7 +44,7 @@ export type NodeSubscriptionOptions = {
 
 /** A filter for nodes in a graph. Nodes pretend to not be in the graph when this predicate fails. */
 export type NodeGraphFilter = {
-  /** Hidden = archivedAt|deletedAt */
+  /** Hidden = deletedAt */
   includeHidden: boolean;
 };
 export const DEFAULT_NODE_FILTER = { includeHidden: false };
@@ -446,7 +446,7 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
 }
 
 /**
- * Core in-memory node graph without regard for hidden nodes or multi-graphs (deleted, archived, etc.).
+ * Core in-memory node graph without regard for hidden nodes or multi-graphs (deleted, etc.).
  * If it's an overlay, we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
  */
 export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
@@ -780,7 +780,7 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
 
   /** Checks whether the node itself is visible according to its own state */
   protected isNodeVisibleSelf(node: AnyNodeData): boolean {
-    return this.filter.value.includeHidden || (node.deletedAt == null && node.archivedAt == null);
+    return this.filter.value.includeHidden || node.deletedAt == null;
   }
 
   /** Checks whether the node itself *and* all of its ancestors are visible */

@@ -113,18 +113,14 @@ class EditOperation(Struct):
 
     type: EditOperationType = p_system(30, require=True, default=EditOperationType.SET)
     path: list[str] = p_system(31, array=True)
-    value_packed: Any = p_value_packed(40)
+    value_packed: Any | None = p_value_packed(40)
 
 
 @struct_(StructType.EDIT_INFO)
 class EditInfo(Struct):
     """
     Content of an Edit to a Node.  Currently, edits are always on the property level (no sub-properties or values).
-
-    For updates/moves, the old/new node values are just the edited properties.
-    For archive/delete/erase, the old node is the full node.
-      (technically we don't *need* the old node if it's not an erase, but it's very convenient)
-    Similarly, for create/upsert/unarchive/restore, the new node is the full node."""
+    """
 
     # NOTE: Edit.old_node/new_node :EditData are populated as follows:
     #  (default is old_node=None, new_node=None)
@@ -132,10 +128,8 @@ class EditInfo(Struct):
     # EditType.UPSERT: new_node = full new node
     # EditType.UPDATE: new_node = partial new node, old_node = partial old node
     # EditType.MOVE: new_node = partial new node, old_node = partial old node
-    # EditType.ARCHIVE: old_node = full old node (archived_at=None)
-    # EditType.UNARCHIVE: old_node = full old node (archived_at=...)
-    # EditType.DELETE: old_node = full old node (deleted_at=None)
-    # EditType.RESTORE: old_node = full old node (deleted_at=...)
+    # EditType.DELETE: -
+    # EditType.RESTORE: old_edited_at = old_edit.edited_at/old_node.deleted_at
     # EditType.ERASE: old_node = full old node
 
     # core
@@ -153,8 +147,15 @@ class EditInfo(Struct):
         struct=StructType.CHANGE_VIGNETTE,
         description="Summary of the node before the edit.",
     )
+    edited_at: datetime = p_system(33, require=True, description="When the edit was made.")
+    old_edited_at: Optional[datetime] = p_system(
+        34,
+        default=None,
+        description="The timestamp of the edit being undone with this edit.",
+    )
 
     # content
+    # nocheckin: use EditOperations instead of (or in addition to) Edit.properties
     properties: list[int] = p_system(
         40,
         array=True,
@@ -205,7 +206,6 @@ class Edit(EditInfo):
         struct=StructType.EDIT_CONTEXT,
         description="Additional per edit context for servers.",
     )
-    edited_at: datetime = p_system(66, require=True, description="When the edit was made.")
     revision: int | None = p_system(
         67,
         require=False,
@@ -224,11 +224,6 @@ class Edit(EditInfo):
         array=False,
         references=NodeType.LOG,
         description="The logged change that is being undon with this edit.",
-    )
-    undo_edited_at: Optional[datetime] = p_system(
-        70,
-        default=None,
-        description="The timestamp of the edit being undone with this edit.",
     )
 
 
@@ -392,13 +387,7 @@ class Transaction:
             scope=scope,
             old_values=old_values,
         )
-        if edit_type in (
-            EditType.ARCHIVE,
-            EditType.UNARCHIVE,
-            EditType.DELETE,
-            EditType.RESTORE,
-            EditType.ERASE,
-        ):
+        if edit_type in (EditType.DELETE, EditType.RESTORE, EditType.ERASE):
             node_data = node._to_data()
             if node._is_new:
                 # find previous create event and set node_data now to 'fresh' node
@@ -475,6 +464,7 @@ class Transaction:
             # edit data (see :EditData for Edit.old_node/new_node)
             old_node_data: AnyNodeData | None = None
             new_node_data: AnyNodeData | None = None
+            old_edited_at: Timestamp | None = None
             properties: list[int] = []
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 # coalesce any move/update sequence into move
@@ -503,17 +493,11 @@ class Transaction:
                     wiring.pack_and_set_object_prop(new_node_data, prop, new_value)
             elif edit_type in (EditType.CREATE, EditType.UPSERT):
                 new_node_data = edit_event.node_data or edit_event.node._to_data()
-            elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+            elif edit_type in (EditType.DELETE, EditType.ERASE):
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
-                old_node_data = wiring.copy_struct(edit_event.node_data)
-                if edit_type == EditType.ARCHIVE:
-                    old_node_data.ClearField("archived_at")
-                elif edit_type == EditType.DELETE:
-                    old_node_data.ClearField("deleted_at")
-            elif edit_type == EditType.UNARCHIVE:
-                assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
-                assert edit_event.node_data.archived_at, f"cannot unarchive {node!r}"
-                old_node_data = edit_event.node_data
+                old_edited_at = edit_event.node_data.deleted_at
+                if edit_type == EditType.ERASE:
+                    old_node_data = edit_event.node_data
             elif edit_type == EditType.RESTORE:
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
@@ -554,6 +538,7 @@ class Transaction:
                 origin=edit_event.origin,
                 context=edit_context,
                 edited_at=edited_at,
+                old_edited_at=old_edited_at,
             )
             if subject_ptr is not None:
                 edit.subject_ptr.CopyFrom(subject_ptr)
@@ -621,9 +606,6 @@ class Transaction:
                 else:
                     flush = await channel.flush(engine_edits)
                 log.trace(message, engine=engine, edits=len(engine_edits))
-            assert len(flush.revisions or ()) == len(engine_edits), "revisions mismatch"
-            for edit, new_revision in zip(engine_edits, cast(list[int], flush.revisions)):
-                edit.revision = new_revision
             cascaded_edits.extend(flush.cascaded_edits)
             self._cascaded_edits.extend(flush.cascaded_edits)
             self._touched_engine_ids.add(engine.id)
@@ -680,7 +662,7 @@ def edit_graph(
         node_id = UUID(edit.node_ptr.id)
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
-            not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
+            not options.include_hidden and edit_type == EditType.RESTORE
         ):
             if edit_type in (EditType.CREATE, EditType.UPSERT):
                 assert edit.HasField("new_node"), f"missing new node for {edit!r}"
@@ -688,9 +670,7 @@ def edit_graph(
             else:
                 assert edit.HasField("old_node"), f"missing old node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.old_node)
-                if edit_type == EditType.UNARCHIVE:
-                    new_node_data.ClearField("archived_at")
-                elif edit_type == EditType.RESTORE:
+                if edit_type == EditType.RESTORE:
                     new_node_data.ClearField("deleted_at")
                 else:
                     assert_never(edit_type)
@@ -712,7 +692,7 @@ def edit_graph(
             else:
                 graph.update(node)
         elif edit_type == EditType.ERASE or (
-            not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
+            not options.include_hidden and edit_type == EditType.DELETE
         ):
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for remove: {edit!r}"
@@ -744,11 +724,7 @@ def edit_graph(
                 track=track,
             )
             node._do_set("revision", edit.revision, track=track, validate=False)
-            if edit_type == EditType.ARCHIVE:
-                node._do_set("archived_at", edit.edited_at, track=track, validate=False)
-            elif edit_type == EditType.UNARCHIVE:
-                node._do_set("archived_at", None, track=track, validate=False)
-            elif edit_type == EditType.DELETE:
+            if edit_type == EditType.DELETE:
                 node._do_set("deleted_at", edit.edited_at, track=track, validate=False)
             elif edit_type == EditType.RESTORE:
                 node._do_set("deleted_at", None, track=track, validate=False)
@@ -808,9 +784,7 @@ def edit_data_graph(
         subject_ptr = edit.subject_ptr if edit.subject_ptr.metatype != 0 else None
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
-            not options.include_hidden
-            and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
-            and not is_prepass
+            not options.include_hidden and edit_type == EditType.RESTORE and not is_prepass
         ):
             # add
             if edit_type in (EditType.CREATE, EditType.UPSERT):
@@ -819,9 +793,7 @@ def edit_data_graph(
             else:
                 assert edit.HasField("old_node"), f"missing old node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.old_node)
-                if edit_type == EditType.UNARCHIVE:
-                    new_node_data.ClearField("archived_at")
-                elif edit_type == EditType.RESTORE:
+                if edit_type == EditType.RESTORE:
                     new_node_data.ClearField("deleted_at")
                 else:
                     assert_never(edit_type)
@@ -849,7 +821,7 @@ def edit_data_graph(
                 edit.vignette.CopyFrom(_make_vignette(new_node_data))
         elif (
             edit_type == EditType.ERASE
-            or (not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE))
+            or (not options.include_hidden and edit_type == EditType.DELETE)
         ) and not is_prepass:
             # remove
             old_node_data = graph.get(node_id)
@@ -890,17 +862,14 @@ def edit_data_graph(
             if is_prepass:  # :EditData
                 if edit_type in (EditType.UPDATE, EditType.MOVE):
                     edit.old_node.CopyFrom(wiring.wrap_some_node(cast(AnyNodeData, old_node)))
-                elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+                elif edit_type in (EditType.DELETE, EditType.ERASE):
                     edit.old_node.CopyFrom(
                         wiring.wrap_some_node(wiring.copy_struct(updated_node_data))
                     )
-                    if edit_type == EditType.ARCHIVE:
-                        old_node = wiring.unwrap_some_node(edit.old_node)
-                        old_node.ClearField("archived_at")
-                    elif edit_type == EditType.DELETE:
+                    if edit_type == EditType.DELETE:
                         old_node = wiring.unwrap_some_node(edit.old_node)
                         old_node.ClearField("deleted_at")
-                elif edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
+                elif edit_type == EditType.RESTORE:
                     # keep archived_at/deleted_at
                     edit.old_node.CopyFrom(
                         wiring.wrap_some_node(wiring.copy_struct(updated_node_data))
@@ -916,11 +885,7 @@ def edit_data_graph(
                 updated_node_data.ClearField("updated_by_ptr")
             # Edit.revision may be unset when editing before flushing for validation
             updated_node_data.revision = edit.revision if edit.revision is not None else -1
-            if edit_type == EditType.ARCHIVE:
-                updated_node_data.archived_at.CopyFrom(edit.edited_at)
-            elif edit_type == EditType.UNARCHIVE:
-                updated_node_data.ClearField("archived_at")
-            elif edit_type == EditType.DELETE:
+            if edit_type == EditType.DELETE:
                 updated_node_data.deleted_at.CopyFrom(edit.edited_at)
             elif edit_type == EditType.RESTORE:
                 updated_node_data.ClearField("deleted_at")

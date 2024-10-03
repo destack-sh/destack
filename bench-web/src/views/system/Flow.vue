@@ -141,11 +141,6 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
     if (thing == null) return false;
     const duplicate = cloneNode(pkgConnection.tx, pkgGraph, thing, { includeChildren: true });
   },
-  "common.edit.archive": (action, context) => {
-    const { thing } = getThingFromContext(context);
-    if (thing == null) return false;
-    pkgConnection.tx.archive(thing);
-  },
   "common.edit.delete": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;

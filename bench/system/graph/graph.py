@@ -237,9 +237,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
         # pre-validate/prepare edits
         area = self._prepare_commit(subject, context, edits)
-        include_hidden = any(
-            e.type == EditType.UNARCHIVE or e.type == EditType.RESTORE for e in edits
-        )
+        include_hidden = any(e.type == EditType.RESTORE for e in edits)
 
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
@@ -773,20 +771,12 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     ):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
-            f"bad edited_at in {edit!r}: {edit.edited_at} !~= {now}",
+            f"bad edited_at {edit.edited_at} in {edit!r}: {edit.edited_at} !~= {now}",
         )
 
     # old/new node packed :EditData
     should_set_new = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.UPDATE, EditType.MOVE)
-    should_set_old = edit.type in (
-        EditType.UPDATE,
-        EditType.MOVE,
-        EditType.ARCHIVE,
-        EditType.UNARCHIVE,
-        EditType.DELETE,
-        EditType.RESTORE,
-        EditType.ERASE,
-    )
+    should_set_old = edit.type in (EditType.UPDATE, EditType.MOVE, EditType.ERASE)
     if should_set_new != edit.HasField("new_node"):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,

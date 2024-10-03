@@ -302,7 +302,7 @@ pyparsing==3.1.2
 pypdf==4.3.1
 pyproject-hooks==1.1.0
     # via build
-pyright==1.1.379
+pyright==1.1.383
 pytest==8.2.0
     # via
     #   pytest-asyncio
@@ -411,6 +411,7 @@ typing-extensions==4.11.0
     #   psycopg-pool
     #   pydantic
     #   pydantic-core
+    #   pyright
     #   python-docx
     #   typer
 uritemplate==4.1.1

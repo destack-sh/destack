@@ -329,75 +329,110 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.PAGE]: "fas fa-memo",
   [ViewType.BLOCK]: "fas fa-cube",
   [ViewType.FIELD]: "fas fa-font",
-  [ViewType.FLOW]: "fas fa-project-diagram",
   [ViewType.DATABASE]: "fas fa-database",
+  [ViewType.VIEW]: "fas fa-window-maximize",
+  [ViewType.FLOW]: "fas fa-project-diagram",
+  [ViewType.STEP]: "fas fa-shoe-prints",
   [ViewType.TYPE]: "fas fa-objects-column",
+  [ViewType.OBJECT]: "fas fa-cubes",
   [ViewType.RUN]: "fas fa-play",
+  [ViewType.LOG]: "fas fa-scroll",
+  [ViewType.PIPE]: "fas fa-tachometer-alt",
+
   // helpers
   [ViewType.TREE]: "fas fa-list-tree",
   [ViewType.INSPECT]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
   [ViewType.CHAT]: "fas fa-message",
   [ViewType.START]: "fas fa-play",
-  [ViewType.HISTORY]: "fas fa-clock-rotate-left",
+  [ViewType.FEED]: "fas fa-list-timeline",
   [ViewType.TIMELINE]: "fas fa-timeline",
+  [ViewType.HISTORY]: "fas fa-clock-rotate-left",
 
   //
-  // General
+  // Organization
   //
 
-  // containers (root)
+  // layout
   [ViewType.WINDOW]: "fas fa-window",
   [ViewType.TAB]: "fas fa-sidebar",
   [ViewType.SPLIT]: "fas fa-reflect-horizontal",
   [ViewType.SPLIT_DRAWER]: "fas fa-reflect-horizontal",
-  // containers (layout)
   [ViewType.STACK]: "fas fa-layer-group",
   [ViewType.DRAWER]: "fas fa-square-minus",
+  [ViewType.SCROLL]: "fas fa-arrows-alt-v",
   [ViewType.GRID]: "fas fa-table-cells-large",
-  // containers (data)
-  [ViewType.LIST]: "fas fa-list",
-  [ViewType.TABLE]: "fas fa-table",
-  [ViewType.FEED]: "fas fa-list-timeline",
-  // containers (group)
+
+  // groups
   [ViewType.GROUP]: "fas fa-object-group",
   [ViewType.SECTION]: "fas fa-xmark-lines",
+  [ViewType.FORM]: "fas fa-clipboard-list",
 
   // presentation
   [ViewType.SPACER]: "fas fa-square-dashed",
   [ViewType.DIVIDER]: "fas fa-horizontal-rule",
-  [ViewType.SHAPE]: "fas fa-shapes",
+
+  // collections
+  [ViewType.LIST]: "fas fa-list",
+  [ViewType.TABLE]: "fas fa-table",
+  [ViewType.GALLERY]: "fas fa-th-large",
+  [ViewType.BOARD]: "fas fa-columns",
+
+  //
+  // Style
+  //
+
+  // navigation
+  [ViewType.BREADCRUMB]: "fas fa-ellipsis-h",
   [ViewType.PROGRESS]: "fas fa-spinner",
   [ViewType.AVATAR]: "fas fa-user-circle",
   [ViewType.BADGE]: "fas fa-badge",
+
+  // illustration
+  [ViewType.SHAPE]: "fas fa-shapes",
+
+  // graphing
   [ViewType.CHART]: "fas fa-chart-pie",
+
+  //
+  // Action
+  //
 
   // controls
   [ViewType.BUTTON]: "fas fa-hand-pointer",
   [ViewType.MULTI_BUTTON]: "fas fa-hand-pointer",
   [ViewType.LINK]: "fas fa-link",
 
-  // content
+  //
+  // Content
+  //
+
   [ViewType.VALUE]: "fas fa-box-taped",
+
   // numeric
   [ViewType.NUMBER]: "fas fa-hashtag",
   [ViewType.SLIDER]: "fas fa-slider",
+
   // stringy
   [ViewType.STRING]: "fas fa-font-case",
   [ViewType.TEXT]: "fas fa-text",
   [ViewType.CODE]: "fas fa-code",
   [ViewType.JSON]: "fas fa-brackets-curly",
+
   // selection
   [ViewType.TOGGLE]: "fas fa-square-check",
   [ViewType.PICKER]: "fas fa-caret-circle-down",
-  [ViewType.CALENDAR]: "fas fa-calendar",
+
+  // rich
   [ViewType.COLOR]: "fas fa-palette",
+  [ViewType.ICON]: "fas fa-icons",
+
   // file
   [ViewType.FILE]: "fas fa-file",
-  [ViewType.ICON]: "fas fa-icons",
   [ViewType.IMAGE]: "fas fa-image",
-  [ViewType.VIDEO]: "fas fa-video",
   [ViewType.AUDIO]: "fas fa-volume",
+  [ViewType.VIDEO]: "fas fa-video",
+  [ViewType.DOCUMENT]: "fas fa-file-alt",
 });
 
 export const ICON_BY_ALIGNMENT: Partial<Record<Alignment, IconData>> = _makeIcons({
@@ -517,8 +552,6 @@ export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons
   [EditType.UPSERT]: "fas fa-plus",
   [EditType.UPDATE]: "fas fa-pen",
   [EditType.MOVE]: "fas fa-arrows-turn-right",
-  [EditType.ARCHIVE]: "fas fa-box-archive",
-  [EditType.UNARCHIVE]: "fas fa-box-archive",
   [EditType.DELETE]: "fas fa-trash",
   [EditType.RESTORE]: "fas fa-trash-undo",
 });

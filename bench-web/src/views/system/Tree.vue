@@ -34,7 +34,7 @@ import {
   VIEW_DEFAULT_MIN_WIDTH,
   makeSelection,
   useViewExpansion,
-  useViewState
+  useViewState,
 } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
@@ -309,11 +309,6 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     const duplicate = cloneNode(pkgConnection.tx, pkgGraph, node, { includeChildren: true });
     nextTick(() => focus(duplicate));
   },
-  "common.edit.archive": (action, ctx) => {
-    const node = getItemFromContext(ctx).item?.node;
-    if (node == null) return false;
-    pkgConnection.tx.archive(node);
-  },
   "common.edit.delete": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
@@ -424,13 +419,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 kind: 'menu',
                 placement: 'bottom-right',
                 items: menuActionsLike(
-                  [
-                    'common.navigate.open*',
-                    'common.edit.rename',
-                    'common.edit.duplicate',
-                    'common.edit.archive',
-                    'common.edit.delete',
-                  ],
+                  ['common.navigate.open*', 'common.edit.rename', 'common.edit.duplicate', 'common.edit.delete'],
                   { context },
                 ),
                 context,

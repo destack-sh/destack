@@ -138,19 +138,15 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     @override
     @_pg_method
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
-        new_revisions, cascaded_edits = await pg_edit(
-            cur=self.cur, ctx=self.engine.context, edits=edits
-        )
-        return FlushResultData(revisions=new_revisions, cascaded_edits=cascaded_edits)
+        cascaded_edits = await pg_edit(cur=self.cur, ctx=self.engine.context, edits=edits)
+        return FlushResultData(cascaded_edits=cascaded_edits)
 
     @override
     @_pg_method
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
-        new_revisions, cascaded_edits = await pg_edit(
-            cur=self.cur, ctx=self.engine.context, edits=edits
-        )
+        cascaded_edits = await pg_edit(cur=self.cur, ctx=self.engine.context, edits=edits)
         await self.connection.commit()
-        return CommitResultData(revisions=new_revisions, cascaded_edits=cascaded_edits)
+        return CommitResultData(cascaded_edits=cascaded_edits)
 
     @override
     async def reset(self):
