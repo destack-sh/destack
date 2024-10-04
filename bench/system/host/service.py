@@ -437,27 +437,16 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         # create signals
         ...
 
-        def _split_node_packed_sensitive(
-            node_type: NodeType, node_packed: dict[str, Any] | None
-        ) -> tuple[ProtoStruct | None, ProtoStruct | None]:
+        def _trim_node_packed_sensitive(node_type: NodeType, node_packed: dict[str, Any] | None):
             if node_packed is None:
-                return None, None
+                return None
             node_cls = NODE_CLASS_BY_TYPE[node_type]
-            node_secret_packed = {}
-            for prop_key, prop_value in node_packed.items():
+            for prop_key in tuple(node_packed.keys()):
                 prop = node_cls.__properties_by_id__.get(int(prop_key))
                 assert prop is not None, f"missing prop {prop_key} in {node_cls!r}"
                 if prop.is_sensitive:
-                    node_secret_packed[prop_key] = prop_value
-            # prune secret properties from node_packed (after to avoid concurrent modification)
-            for prop_key in node_secret_packed:
-                del node_packed[prop_key]
-            # only keep secret properties if there are any
-            if len(node_secret_packed) > 0:
-                node_secret_packed_struct = pack_proto_json(node_secret_packed)
-            else:
-                node_secret_packed_struct = None
-            return pack_proto_json(node_packed), node_secret_packed_struct
+                    del node_packed[prop_key]
+            return pack_proto_json(node_packed)
 
         # add logs
         context_data: SessionContextData = (
@@ -479,7 +468,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             else:
                 node_data = None
             # trim secret properties
-            node_data, _ = _split_node_packed_sensitive(node_type, node_data)
+            node_data = _trim_node_packed_sensitive(node_type, node_data)
             log_data = LogData(
                 metatype=wire.ObjectType.OBJECT_TYPE_LOG,
                 id=str(UUIDT()),
@@ -702,7 +691,8 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 Conditions=[{k: v} for k, v in file_fields.items()],
                 ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
-            fields = pack_proto_json(presigned_post["fields"])
+            fields = ProtoStruct()
+            fields.update(presigned_post["fields"])
             get_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": get_drive_bucket(drive), "Key": file_key},

@@ -36,7 +36,7 @@ from bench.language.session import SessionContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import edit_data_graph
 from bench.language.validation import ValidationError, on_invalid_raise
-from bench.language.value import unpack_value_scalar_data
+from bench.language.value import unpack_proto_json, unpack_value_scalar_data
 from bench.proto import wiring
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
@@ -680,7 +680,7 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
                     prop_id = int(op.path[0])
                     if prop_id == 4:
                         parent_ptr = unpack_value_scalar_data(
-                            wiring.unpack_proto_json(op.new_value_packed),
+                            unpack_proto_json(op.new_value_packed),
                             Node.get_property("parent_ptr").type_info,
                         )
                         parent_ptr = cast(NodeReferenceData, parent_ptr)

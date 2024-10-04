@@ -803,15 +803,30 @@ def _track_set(
             path.append(obj.parent_key.key)
         obj = parent
 
-    # remap value
+    # pack new/old value
+    if type(key) is Property:
+        typ = key._type_info
+        assert typ is not None, f"{key!r} in {obj!r} has no type info"
+    else:
+        typ = cast("Field", key)
     if type(key) is Property and key.is_value_runtime:
         key = cast(Property, key.value_packed_ptr)
         old_value = getattr(node, key.name)
+    if old_value is None:
+        old_value_packed = None
+    else:
+        old_value_packed = pack_value_data(old_value, typ, wrap_primitive=False)
+    if new_value is None:
+        new_value_packed = None
+    else:
+        new_value_packed = pack_value_data(new_value, typ, wrap_primitive=False)
 
     operation = EditOperationData(
         metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
         type=operation_type,  # type: ignore
         path=path,
+        new_value_packed=pack_proto_json(new_value_packed),
+        old_value_packed=pack_proto_json(old_value_packed),
     )
     node._session._update(node, operation)
 
@@ -2224,7 +2239,12 @@ class PropertyReference(Struct):
 #  (but import at top level to avoid import in critical path)
 
 
-from bench.language.value import check_value, coerce_value  # noqa: E402
+from bench.language.value import (  # noqa: E402
+    check_value,
+    coerce_value,
+    pack_proto_json,
+    pack_value_data,
+)
 
 
 @local_node_(NodeType.SKIP, stored=False)
