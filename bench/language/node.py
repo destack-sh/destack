@@ -43,6 +43,7 @@ from bench.language.const import (
     TK_LENGTH_BYTES,
     UNSET,
     ClientType,
+    EditOperationType,
     NodeType,
     ObjectType,
     PrimitiveType,
@@ -768,6 +769,35 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
     return property(get_ancestor_ptr, set)
 
 
+def _track_set(
+    obj: "ValueObject | BuiltinObject",
+    key: Union["Property", "Field"],
+    operation_type: EditOperationType,
+    new_value: Any | None,
+    old_value: Any | None,
+):
+    if operation_type == EditOperationType.SET and new_value is None:
+        operation_type = EditOperationType.CLEAR
+    raise NotImplementedError("nocheckin")
+    # path: list[str] = [prop.id_as_str]
+    # if self.__is_struct__:
+    #     parent = self.parent
+    #     while parent is not None:
+    #         parent = parent.parent
+    #     if isinstance(parent, Node):
+    #         node = parent
+    #     else:
+    #         return
+    # else:
+    #     parent = self
+
+    # if not node._is_new:
+    #     assert self._session is not None, f"{self!r} is not in a Session"
+    #     if prop.is_value_runtime:  # use _packed property :ComputedValueProp
+    #         prop = cast(Property, prop.value_packed_ptr)
+    #         old_value = getattr(self, prop.name)
+
+
 @object_()
 class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
@@ -808,7 +838,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     _session: "Session | None" = p_runtime(default=None)
     _supergraph: "NodeSuperGraph" = p_runtime(default=None)
-    _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __init__(self, *, _skip_validate_self: bool = False, **kwargs):
         self_dict = self.__dict__
@@ -1035,6 +1064,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 if attr is not UNSET:
                     return attr
 
+        # attribute error
         try:
             self_str = repr(self)
         except Exception:
@@ -1042,7 +1072,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         raise AttributeError(f"{self_str} has no attribute '{key}'")
 
     def _do_set(self, key: str, value, *, track: bool = True, validate: bool = True):
-        """Sets *any* attribute on this node."""
+        """Sets *any* attribute on this builtin object."""
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.is_untracked:
@@ -1050,19 +1080,14 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 return
 
             # remember old value
-            old_value = getattr(self, key) if track and (validate or self.__is_node__) else None
+            old_value = getattr(self, key) if track and validate else None
 
             # validate/set
             if track and validate:
                 # coerce & check type (if it's not a contributed property, which only we edit)
                 if prop._type_info is not None and prop.reference_source is None:
                     value = coerce_value(
-                        value,
-                        prop._type_info,
-                        as_packed=False,
-                        parent=self,
-                        parent_prop=prop,
-                        ancestor_prop=prop,
+                        value, prop._type_info, as_packed=False, parent=self, parent_key=prop
                     )
                     check_value(value, prop._type_info, invalid=on_invalid_raise)
                 object.__setattr__(self, key, value)
@@ -1075,27 +1100,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 object.__setattr__(self, key, value)
 
             # track edit in session
-            if track and self.__is_node__:
-                node = cast("Node", self)
-                if not node._is_new:
-                    assert self._session is not None, f"{self!r} is not in a Session"
-                    if self._updated_properties is None:
-                        self._updated_properties = bitarray(self.__max_property_ord__ + 1)
-                    if prop.is_value_runtime:
-                        # put value packed update into _packed property :ComputedValueProp
-                        value_packed_ptr = cast(Property, prop.value_packed_ptr)
-                        old_value = getattr(self, value_packed_ptr.name)
-                        self._updated_properties[value_packed_ptr.ord] = True
-                        self._session._update(
-                            node,
-                            properties=(value_packed_ptr,),
-                            old_values={value_packed_ptr.id: old_value},
-                        )
-                    else:
-                        self._updated_properties[prop.ord] = True
-                        self._session._update(
-                            node, properties=(prop,), old_values={prop.id: old_value}
-                        )
+            if track:
+                _track_set(self, prop, EditOperationType.SET, value, old_value)
             return
         elif track and self.__passthrough__ is not None:
             # try passthrough target (if any)
@@ -1242,6 +1248,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         return mask
 
 
+StructParent = Union["BuiltinObject", "ValueObject"]
+StructParentKey = Union["Property", "Field"]
+
+
 @object_()
 class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     """A base for structs with properties."""
@@ -1250,10 +1260,11 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
 
     __is_struct__: ClassVar[bool] = True
 
-    parent: Union["BuiltinObject", "ValueObject", None] = p_struct_parent(3)
+    parent: StructParent | None = p_struct_parent(3)
+    parent_key: StructParentKey | None = p_runtime(default=None)
 
     def __content_str__(self) -> str:
-        # default __content_str__ for structs where we're too lazy to define one
+        # default __content_str__ for structs with all set properties
         value_strs = []
         for prop in self.__declared_properties__.values():
             prop_value = getattr(self, prop.name)
@@ -1301,9 +1312,8 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
 
     def _move_to(
         self,
-        parent: Union["BuiltinObject", "ValueObject"],
-        prop: Union[Property, "Field"],
-        ancestor_prop: Property | None = None,
+        parent: StructParent,
+        parent_key: StructParentKey,
     ) -> Self:
         """Move or copy this struct into given parent/prop."""
         assert self.__is_struct__, f"cannot copy non-struct {self!r}"  # this is overriden by Node
@@ -1311,12 +1321,10 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
             self.parent = parent
             return self
         else:
-            copy = self._copy_to(parent, prop)
+            copy = self._copy_to(parent, parent_key)
             return copy
 
-    def _copy_to(
-        self, parent: Union["BuiltinObject", "ValueObject"], prop: Union[Property, "Field"]
-    ) -> Self:
+    def _copy_to(self, parent: StructParent, parent_key: StructParentKey) -> Self:
         """Create a copy of this struct for the given parent/prop."""
         kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
         kwargs["parent"] = parent

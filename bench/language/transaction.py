@@ -12,6 +12,8 @@ from opentelemetry import trace
 from bench.language.connection import Channel, WritableChannel
 from bench.language.const import (
     NODE_TYPES,
+    ChangeCategory,
+    EditOperationType,
     EditType,
     EnumType,
     NodeType,
@@ -29,7 +31,6 @@ from bench.language.node import (
     GraphScope,
     Node,
     NodeReference,
-    Property,
     Struct,
     struct_,
 )
@@ -43,6 +44,7 @@ from bench.proto.wire import (
     EditData,
     GraphScopeData,
 )
+from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.func import IdEnum, partition
 from bench.utils.uuidt import UUIDT
 
@@ -67,14 +69,6 @@ def new_edit_id() -> str:
     return str(UUIDT())
 
 
-@enum_(EnumType.CHANGE_CATEGORY)
-class ChangeCategory(IdEnum):
-    """Optional classification for edits."""
-
-    SPACE = 10
-    SESSION = 20
-
-
 @struct_(StructType.CHANGE_VIGNETTE)
 class ChangeVignette(Struct):
     """
@@ -91,24 +85,6 @@ class ChangeVignette(Struct):
     )
 
 
-@enum_(EnumType.EDIT_OPERATION_TYPE)
-class EditOperationType(IdEnum):
-    """The type of edit operation."""
-
-    # basic (idempotent)
-    SET = 1
-    CLEAR = 2
-
-    # list
-    # APPEND, REMOVE, ...?
-
-    # math
-    # ADD, SUBTRACT, ...?
-
-    # text
-    # ...?
-
-
 @struct_(StructType.EDIT_OPERATION)
 class EditOperation(Struct):
     """An edit operation."""
@@ -116,15 +92,8 @@ class EditOperation(Struct):
     type: EditOperationType = p_system(30, require=True, default=EditOperationType.SET)
     path: list[str] = p_system(31, array=True)
 
-    value_packed: Any | None = p_value_packed(40)
-
-    inverse: Optional["EditOperation"] = p_system(
-        50,
-        require=False,
-        array=False,
-        struct=StructType.EDIT_OPERATION,
-        description="The inverse of this operation.",
-    )
+    new_value_packed: Any | None = p_value_packed(40)
+    old_value_packed: Any | None = p_value_packed(41)
 
     @property
     def property_id(self) -> int:
@@ -291,8 +260,7 @@ class EditEvent:
     now: datetime
     scope: GraphScopeData
     node_data: AnyNodeData | None = None
-    # remember old values (since node is edited in place)
-    old_values: dict[int, Any] | None = None
+    operations: list[EditOperationData] | None = None
 
     def __str__(self):
         return f"{self.type.bench_name} {self.node!r}"
@@ -344,12 +312,14 @@ class Transaction:
 
     def record_edit_event(
         self,
-        edit_type: EditType,
+        type: EditType,
         node: Node,
         *,
         now: datetime | None = None,
-        properties: Collection[Property] | None = None,
-        old_values: dict[int, Any] | None = None,
+        operation_type: EditOperationType | None = None,
+        path: list[str] | None = None,
+        new_value: Any | None = None,
+        old_value: Any | None = None,
     ):
         """
         Records an edit event (which are later summed into actual edits).
@@ -359,14 +329,16 @@ class Transaction:
         # peephole optimization for successive updates to same node:
         #  if the last edit was also an update to the same node, merge immediately
         if (
-            edit_type == EditType.UPDATE
+            type == EditType.UPDATE
             and len(self._pending_edit_events) > 0
             and self._pending_edit_events[-1].node == node
             and self._pending_edit_events[-1].type == EditType.UPDATE
         ):
             prev_edit = self._pending_edit_events[-1]
+            assert prev_edit.operations is not None, f"missing operations for {prev_edit!r}"
+            operation = EditOperationData()
             assert prev_edit.old_values is not None, f"missing old values for {prev_edit!r}"
-            assert old_values is not None, f"missing old values for {edit_type} {node!r}"
+            assert old_values is not None, f"missing old values for {type} {node!r}"
             for prop_id, old_value in old_values.items():
                 if prop_id not in prev_edit.old_values:
                     prev_edit.old_values[prop_id] = old_value
@@ -388,7 +360,7 @@ class Transaction:
         scope = session._get_scope_for_node(node)
         edit_event = EditEvent(
             node=node,
-            type=edit_type,
+            type=type,
             subject_ptr=subject_ptr,
             origin=session._origin,
             run=run,
@@ -396,7 +368,7 @@ class Transaction:
             scope=scope,
             old_values=old_values,
         )
-        if edit_type in (EditType.DELETE, EditType.RESTORE, EditType.ERASE):
+        if type in (EditType.DELETE, EditType.RESTORE, EditType.ERASE):
             node_data = node._to_data()
             if node._is_new:
                 # find previous create event and set node_data now to 'fresh' node

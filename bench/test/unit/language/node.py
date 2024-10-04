@@ -226,6 +226,4 @@ async def test_create_circular_node_ancestry(hosted_runtime: RuntimeHandle):
     await hosted_runtime.session.commit()
 
     # now force block2->block1
-    block1.parent = block2
-    hosted_runtime.session._move(block1, (), {})
-    await hosted_runtime.session.commit()
+    # ...

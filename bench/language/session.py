@@ -54,8 +54,8 @@ from bench.language.node import (
     struct_,
     timed_node_,
 )
-from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
-from bench.language.transaction import Transaction
+from bench.language.property import p_internal, p_node_parent, p_runtime, p_system
+from bench.language.transaction import EditOperationType, Transaction
 from bench.language.validation import constraint
 from bench.proto import wire
 from bench.proto.wire import (
@@ -511,24 +511,26 @@ class Session(RuntimeNode[SessionData]):
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UPSERT, node, now=now)
 
-    def _update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
+    def _update(
+        self,
+        node: Node,
+        path: list[str],
+        operation_type: EditOperationType,
+        new_value: Any | None,
+        old_value: Any | None,
+    ):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node._is_attached:  # ignore detached updates
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(
-                EditType.UPDATE, node, properties=properties, old_values=old_values
-            )
-
-    def _move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
-        """Moves and updates an existing node."""
-        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        if node._is_attached:  # ignore detached moves
-            self._pending_nodes_by_id[node.id] = node
-            self._tx.record_edit_event(
-                EditType.MOVE, node, properties=properties, old_values=old_values
+                EditType.UPDATE,
+                node,
+                path=path,
+                operation_type=operation_type,
+                new_value=new_value,
+                old_value=old_value,
             )
 
     def _delete(self, *nodes: Node):
@@ -654,7 +656,6 @@ class Session(RuntimeNode[SessionData]):
         if include_session:
             for node in self._pending_nodes_by_id.values():
                 node._is_new = False
-                node._updated_properties = None
             new_edits = self._tx.preflush()
             return new_edits
         else:
@@ -662,7 +663,6 @@ class Session(RuntimeNode[SessionData]):
             for node in self._pending_nodes_by_id.values():
                 if not self._is_current_session_node(node):
                     node._is_new = False
-                    node._updated_properties = None
             new_edits = self._tx.preflush(
                 filter=lambda e: not self._is_current_session_node(e.node)
             )
