@@ -94,6 +94,7 @@ class FieldType(enum.StrEnum):
     DURATION = "google.protobuf.Duration"
     EMPTY = "google.protobuf.Empty"
     STRUCT = "google.protobuf.Struct"
+    VALUE = "google.protobuf.Value"
     UUID = "google.protobuf.UUID"
 
 

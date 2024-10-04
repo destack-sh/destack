@@ -29,7 +29,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
     PrimitiveType.DATETIME: FieldType.TIMESTAMP,
     PrimitiveType.INTERVAL: FieldType.DURATION,
     PrimitiveType.UUID: FieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
-    PrimitiveType.JSON: FieldType.STRUCT,
+    PrimitiveType.JSON: FieldType.VALUE,
 }
 
 _ThingType = type[Union["BuiltinObject", "Property", IdEnum, enum.IntFlag]]

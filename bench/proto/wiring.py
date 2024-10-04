@@ -7,9 +7,7 @@ from uuid import UUID
 import pytz
 import structlog
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.json_format import MessageToDict
 from google.protobuf.message import Message as ProtoMessage
-from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
@@ -21,6 +19,7 @@ from bench.language.property import Property
 from bench.language.session import Session
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
+from bench.language.value import pack_proto_json, unpack_proto_json
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.proto.wire.lang_pb2 import FileReferenceData, SecretReferenceData
@@ -50,17 +49,6 @@ def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     copy = type(data)(metatype=data.metatype)
     copy.CopyFrom(data)  # type: ignore
     return copy
-
-
-def pack_proto_json(value: dict[str, Any]) -> ProtoStruct:
-    struct = ProtoStruct()
-    struct.update(value)
-    return struct
-
-
-def unpack_proto_json(value: ProtoStruct) -> dict[str, Any]:
-    json = MessageToDict(value)
-    return json
 
 
 def pack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: EnumT) -> Any:

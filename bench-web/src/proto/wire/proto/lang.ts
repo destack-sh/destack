@@ -13,7 +13,7 @@ import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { Duration } from "../google/protobuf/duration";
-import { Struct } from "../google/protobuf/struct";
+import { Value } from "../google/protobuf/struct";
 import { Timestamp } from "../google/protobuf/timestamp";
 /**
  * An evaluated access.
@@ -526,13 +526,13 @@ export interface EditOperationData {
      */
     path: string[];
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct new_value_packed = 40;
+     * @generated from protobuf field: optional google.protobuf.Value new_value_packed = 40;
      */
-    newValuePacked?: Struct;
+    newValuePacked?: Value;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct old_value_packed = 41;
+     * @generated from protobuf field: optional google.protobuf.Value old_value_packed = 41;
      */
-    oldValuePacked?: Struct;
+    oldValuePacked?: Value;
 }
 /**
  * An expression like a value, function, comparison or such.
@@ -557,9 +557,9 @@ export interface ExpressionData {
      */
     clauses: ExpressionData[];
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 36;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 36;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.SortMode sort_mode = 38;
      */
@@ -895,9 +895,9 @@ export interface LogInfoData {
      */
     textPlain?: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 65;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 65;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
 }
 /**
  * A plain reference to a Node.
@@ -1703,9 +1703,9 @@ export interface StartViewStateData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 30;
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 30;
      */
-    inputsPacked?: Struct;
+    inputsPacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 40;
      */
@@ -2099,9 +2099,9 @@ export interface TypeInfoData {
      */
     oneofPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
+     * @generated from protobuf field: optional google.protobuf.Value default_packed = 50;
      */
-    defaultPacked?: Struct;
+    defaultPacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeFormat format = 53;
      */
@@ -2165,9 +2165,9 @@ export interface ValueData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 35;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 35;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
 }
 /**
  * A 2D vector.
@@ -2557,17 +2557,17 @@ export interface BlockData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct variables_packed = 38;
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 38;
      */
-    variablesPacked?: Struct;
+    variablesPacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 39;
      */
     valueType?: TypeInfoData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 40;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.CodeData code = 42;
      */
@@ -3169,9 +3169,9 @@ export interface FieldData {
      */
     oneofPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
+     * @generated from protobuf field: optional google.protobuf.Value default_packed = 50;
      */
-    defaultPacked?: Struct;
+    defaultPacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeFormat format = 53;
      */
@@ -3577,9 +3577,9 @@ export interface LogData {
      */
     properties: number[];
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct node_data = 43;
+     * @generated from protobuf field: optional google.protobuf.Value node_data = 43;
      */
-    nodeData?: Struct;
+    nodeData?: Value;
     /**
      * @generated from protobuf field: repeated symbolx.bench.EditOperationData operations = 44;
      */
@@ -3932,9 +3932,9 @@ export interface MessageData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 42;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 42;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
     /**
      * @generated from protobuf field: bool is_pinned = 50;
      */
@@ -4077,9 +4077,9 @@ export interface NotificationData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 42;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 42;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
 }
 /**
  * A Bench organization with Users as members.
@@ -4562,9 +4562,9 @@ export interface RecordData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 40;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
 }
 /**
  * Run a Block, Step or some lambda (Code) in a Session.
@@ -4697,17 +4697,17 @@ export interface RunData {
      */
     terminatedEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 60;
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 60;
      */
-    inputsPacked?: Struct;
+    inputsPacked?: Value;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct outputs_packed = 61;
+     * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 61;
      */
-    outputsPacked?: Struct;
+    outputsPacked?: Value;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct variables_packed = 62;
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 62;
      */
-    variablesPacked?: Struct;
+    variablesPacked?: Value;
     /**
      * @generated from protobuf field: repeated symbolx.bench.LogInfoData logs = 65;
      */
@@ -4852,9 +4852,9 @@ export interface SecretData {
      */
     valueType?: TypeInfoData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 41;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 41;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
 }
 /**
  * A Server provides virtual compute for a Bench's Runtime.
@@ -5133,9 +5133,9 @@ export interface SignalData {
      */
     typePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 42;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 42;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 70;
      */
@@ -5468,9 +5468,9 @@ export interface StepData {
      */
     valueType?: TypeInfoData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 41;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 41;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 43;
      */
@@ -5979,9 +5979,9 @@ export interface ViewData {
      */
     valueType?: TypeInfoData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 41;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 41;
      */
-    valuePacked?: Struct;
+    valuePacked?: Value;
     /**
      * @generated from protobuf oneof: node_ptr
      */
@@ -13128,8 +13128,8 @@ class EditOperationData$Type extends MessageType<EditOperationData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditOperationType", EditOperationType, "EDIT_OPERATION_TYPE_"] },
             { no: 31, name: "path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "new_value_packed", kind: "message", T: () => Struct },
-            { no: 41, name: "old_value_packed", kind: "message", T: () => Struct }
+            { no: 40, name: "new_value_packed", kind: "message", T: () => Value },
+            { no: 41, name: "old_value_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<EditOperationData>): EditOperationData {
@@ -13155,11 +13155,11 @@ class EditOperationData$Type extends MessageType<EditOperationData> {
                 case /* repeated string path */ 31:
                     message.path.push(reader.string());
                     break;
-                case /* optional google.protobuf.Struct new_value_packed */ 40:
-                    message.newValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newValuePacked);
+                case /* optional google.protobuf.Value new_value_packed */ 40:
+                    message.newValuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.newValuePacked);
                     break;
-                case /* optional google.protobuf.Struct old_value_packed */ 41:
-                    message.oldValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.oldValuePacked);
+                case /* optional google.protobuf.Value old_value_packed */ 41:
+                    message.oldValuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.oldValuePacked);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13182,12 +13182,12 @@ class EditOperationData$Type extends MessageType<EditOperationData> {
         /* repeated string path = 31; */
         for (let i = 0; i < message.path.length; i++)
             writer.tag(31, WireType.LengthDelimited).string(message.path[i]);
-        /* optional google.protobuf.Struct new_value_packed = 40; */
+        /* optional google.protobuf.Value new_value_packed = 40; */
         if (message.newValuePacked)
-            Struct.internalBinaryWrite(message.newValuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct old_value_packed = 41; */
+            Value.internalBinaryWrite(message.newValuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value old_value_packed = 41; */
         if (message.oldValuePacked)
-            Struct.internalBinaryWrite(message.oldValuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.oldValuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13206,7 +13206,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
             { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.ExpressionOp", ExpressionOp, "EXPRESSION_OP_"] },
             { no: 31, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 35, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 36, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 36, name: "value_packed", kind: "message", T: () => Value },
             { no: 38, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] },
             { no: 39, name: "tolerance", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
@@ -13237,8 +13237,8 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* repeated symbolx.bench.ExpressionData clauses */ 35:
                     message.clauses.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 36:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 36:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* optional symbolx.bench.SortMode sort_mode */ 38:
                     message.sortMode = reader.int32();
@@ -13270,9 +13270,9 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* repeated symbolx.bench.ExpressionData clauses = 35; */
         for (let i = 0; i < message.clauses.length; i++)
             ExpressionData.internalBinaryWrite(message.clauses[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 36; */
+        /* optional google.protobuf.Value value_packed = 36; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.SortMode sort_mode = 38; */
         if (message.sortMode !== undefined)
             writer.tag(38, WireType.Varint).int32(message.sortMode);
@@ -14017,7 +14017,7 @@ class LogInfoData$Type extends MessageType<LogInfoData> {
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
             { no: 61, name: "text", kind: "message", T: () => TextData },
             { no: 62, name: "text_plain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 65, name: "value_packed", kind: "message", T: () => Struct }
+            { no: 65, name: "value_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<LogInfoData>): LogInfoData {
@@ -14048,8 +14048,8 @@ class LogInfoData$Type extends MessageType<LogInfoData> {
                 case /* optional string text_plain */ 62:
                     message.textPlain = reader.string();
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 65:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 65:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14078,9 +14078,9 @@ class LogInfoData$Type extends MessageType<LogInfoData> {
         /* optional string text_plain = 62; */
         if (message.textPlain !== undefined)
             writer.tag(62, WireType.LengthDelimited).string(message.textPlain);
-        /* optional google.protobuf.Struct value_packed = 65; */
+        /* optional google.protobuf.Value value_packed = 65; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -16085,7 +16085,7 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
     constructor() {
         super("symbolx.bench.StartViewStateData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "inputs_packed", kind: "message", T: () => Struct },
+            { no: 30, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 40, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "feed", kind: "message", T: () => FeedViewStateData }
         ]);
@@ -16105,8 +16105,8 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional google.protobuf.Struct inputs_packed */ 30:
-                    message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
+                case /* optional google.protobuf.Value inputs_packed */ 30:
+                    message.inputsPacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData run_ptr */ 40:
                     message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
@@ -16129,9 +16129,9 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional google.protobuf.Struct inputs_packed = 30; */
+        /* optional google.protobuf.Value inputs_packed = 30; */
         if (message.inputsPacked)
-            Struct.internalBinaryWrite(message.inputsPacked, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.inputsPacked, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData run_ptr = 40; */
         if (message.runPtr)
             NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -17043,7 +17043,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 50, name: "default_packed", kind: "message", T: () => Value },
             { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
@@ -17089,8 +17089,8 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional symbolx.bench.NodeReferenceData oneof_ptr */ 45:
                     message.oneofPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.oneofPtr);
                     break;
-                case /* optional google.protobuf.Struct default_packed */ 50:
-                    message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
+                case /* optional google.protobuf.Value default_packed */ 50:
+                    message.defaultPacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
                 case /* optional symbolx.bench.TypeFormat format */ 53:
                     message.format = reader.int32();
@@ -17143,9 +17143,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional symbolx.bench.NodeReferenceData oneof_ptr = 45; */
         if (message.oneofPtr)
             NodeReferenceData.internalBinaryWrite(message.oneofPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct default_packed = 50; */
+        /* optional google.protobuf.Value default_packed = 50; */
         if (message.defaultPacked)
-            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeFormat format = 53; */
         if (message.format !== undefined)
             writer.tag(53, WireType.Varint).int32(message.format);
@@ -17236,7 +17236,7 @@ class ValueData$Type extends MessageType<ValueData> {
             { no: 31, name: "type", kind: "message", T: () => TypeInfoData },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "value_packed", kind: "message", T: () => Struct }
+            { no: 35, name: "value_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<ValueData>): ValueData {
@@ -17263,8 +17263,8 @@ class ValueData$Type extends MessageType<ValueData> {
                 case /* optional symbolx.bench.TextData text */ 34:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 35:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 35:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17290,9 +17290,9 @@ class ValueData$Type extends MessageType<ValueData> {
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 35; */
+        /* optional google.protobuf.Value value_packed = 35; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18019,9 +18019,9 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 36, name: "text", kind: "message", T: () => TextData },
             { no: 37, name: "icon", kind: "message", T: () => IconData },
-            { no: 38, name: "variables_packed", kind: "message", T: () => Struct },
+            { no: 38, name: "variables_packed", kind: "message", T: () => Value },
             { no: 39, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 40, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 40, name: "value_packed", kind: "message", T: () => Value },
             { no: 42, name: "code", kind: "message", T: () => CodeData },
             { no: 43, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -18128,14 +18128,14 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional symbolx.bench.IconData icon */ 37:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional google.protobuf.Struct variables_packed */ 38:
-                    message.variablesPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.variablesPacked);
+                case /* optional google.protobuf.Value variables_packed */ 38:
+                    message.variablesPacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.variablesPacked);
                     break;
                 case /* optional symbolx.bench.TypeInfoData value_type */ 39:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 40:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 40:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* optional symbolx.bench.CodeData code */ 42:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
@@ -18243,15 +18243,15 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.IconData icon = 37; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct variables_packed = 38; */
+        /* optional google.protobuf.Value variables_packed = 38; */
         if (message.variablesPacked)
-            Struct.internalBinaryWrite(message.variablesPacked, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.variablesPacked, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeInfoData value_type = 39; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 40; */
+        /* optional google.protobuf.Value value_packed = 40; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.CodeData code = 42; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -19320,7 +19320,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "default_packed", kind: "message", T: () => Struct },
+            { no: 50, name: "default_packed", kind: "message", T: () => Value },
             { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
@@ -19442,8 +19442,8 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional symbolx.bench.NodeReferenceData oneof_ptr */ 45:
                     message.oneofPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.oneofPtr);
                     break;
-                case /* optional google.protobuf.Struct default_packed */ 50:
-                    message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
+                case /* optional google.protobuf.Value default_packed */ 50:
+                    message.defaultPacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
                 case /* optional symbolx.bench.TypeFormat format */ 53:
                     message.format = reader.int32();
@@ -19563,9 +19563,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.NodeReferenceData oneof_ptr = 45; */
         if (message.oneofPtr)
             NodeReferenceData.internalBinaryWrite(message.oneofPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct default_packed = 50; */
+        /* optional google.protobuf.Value default_packed = 50; */
         if (message.defaultPacked)
-            Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeFormat format = 53; */
         if (message.format !== undefined)
             writer.tag(53, WireType.Varint).int32(message.format);
@@ -20258,7 +20258,7 @@ class LogData$Type extends MessageType<LogData> {
             { no: 40, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 43, name: "node_data", kind: "message", T: () => Struct },
+            { no: 43, name: "node_data", kind: "message", T: () => Value },
             { no: 44, name: "operations", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditOperationData },
             { no: 47, name: "new_revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 48, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
@@ -20369,8 +20369,8 @@ class LogData$Type extends MessageType<LogData> {
                     else
                         message.properties.push(reader.int32());
                     break;
-                case /* optional google.protobuf.Struct node_data */ 43:
-                    message.nodeData = Struct.internalBinaryRead(reader, reader.uint32(), options, message.nodeData);
+                case /* optional google.protobuf.Value node_data */ 43:
+                    message.nodeData = Value.internalBinaryRead(reader, reader.uint32(), options, message.nodeData);
                     break;
                 case /* repeated symbolx.bench.EditOperationData operations */ 44:
                     message.operations.push(EditOperationData.internalBinaryRead(reader, reader.uint32(), options));
@@ -20503,9 +20503,9 @@ class LogData$Type extends MessageType<LogData> {
                 writer.int32(message.properties[i]);
             writer.join();
         }
-        /* optional google.protobuf.Struct node_data = 43; */
+        /* optional google.protobuf.Value node_data = 43; */
         if (message.nodeData)
-            Struct.internalBinaryWrite(message.nodeData, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.nodeData, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.EditOperationData operations = 44; */
         for (let i = 0; i < message.operations.length; i++)
             EditOperationData.internalBinaryWrite(message.operations[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
@@ -21030,7 +21030,7 @@ class MessageData$Type extends MessageType<MessageData> {
             { no: 34, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "text", kind: "message", T: () => TextData },
-            { no: 42, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 42, name: "value_packed", kind: "message", T: () => Value },
             { no: 50, name: "is_pinned", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -21113,8 +21113,8 @@ class MessageData$Type extends MessageType<MessageData> {
                 case /* optional symbolx.bench.TextData text */ 41:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 42:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 42:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* bool is_pinned */ 50:
                     message.isPinned = reader.bool();
@@ -21192,9 +21192,9 @@ class MessageData$Type extends MessageType<MessageData> {
         /* optional symbolx.bench.TextData text = 41; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 42; */
+        /* optional google.protobuf.Value value_packed = 42; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* bool is_pinned = 50; */
         if (message.isPinned !== false)
             writer.tag(50, WireType.Varint).bool(message.isPinned);
@@ -21353,7 +21353,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
             { no: 34, name: "read_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "text", kind: "message", T: () => TextData },
-            { no: 42, name: "value_packed", kind: "message", T: () => Struct }
+            { no: 42, name: "value_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<NotificationData>): NotificationData {
@@ -21438,8 +21438,8 @@ class NotificationData$Type extends MessageType<NotificationData> {
                 case /* optional symbolx.bench.TextData text */ 41:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 42:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 42:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21517,9 +21517,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* optional symbolx.bench.TextData text = 41; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 42; */
+        /* optional google.protobuf.Value value_packed = 42; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22441,7 +22441,7 @@ class RecordData$Type extends MessageType<RecordData> {
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "value_packed", kind: "message", T: () => Struct }
+            { no: 40, name: "value_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<RecordData>): RecordData {
@@ -22513,8 +22513,8 @@ class RecordData$Type extends MessageType<RecordData> {
                 case /* optional string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 40:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 40:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22580,9 +22580,9 @@ class RecordData$Type extends MessageType<RecordData> {
         /* optional string order_key = 31; */
         if (message.orderKey !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
-        /* optional google.protobuf.Struct value_packed = 40; */
+        /* optional google.protobuf.Value value_packed = 40; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22628,9 +22628,9 @@ class RunData$Type extends MessageType<RunData> {
             { no: 50, name: "killed_at", kind: "message", T: () => Timestamp },
             { no: 55, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 56, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 60, name: "inputs_packed", kind: "message", T: () => Struct },
-            { no: 61, name: "outputs_packed", kind: "message", T: () => Struct },
-            { no: 62, name: "variables_packed", kind: "message", T: () => Struct },
+            { no: 60, name: "inputs_packed", kind: "message", T: () => Value },
+            { no: 61, name: "outputs_packed", kind: "message", T: () => Value },
+            { no: 62, name: "variables_packed", kind: "message", T: () => Value },
             { no: 65, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogInfoData },
             { no: 66, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunSpanData },
             { no: 67, name: "events", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunEventData },
@@ -22768,14 +22768,14 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional int32 terminated_epoch */ 56:
                     message.terminatedEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Struct inputs_packed */ 60:
-                    message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
+                case /* optional google.protobuf.Value inputs_packed */ 60:
+                    message.inputsPacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
                     break;
-                case /* optional google.protobuf.Struct outputs_packed */ 61:
-                    message.outputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsPacked);
+                case /* optional google.protobuf.Value outputs_packed */ 61:
+                    message.outputsPacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.outputsPacked);
                     break;
-                case /* optional google.protobuf.Struct variables_packed */ 62:
-                    message.variablesPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.variablesPacked);
+                case /* optional google.protobuf.Value variables_packed */ 62:
+                    message.variablesPacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.variablesPacked);
                     break;
                 case /* repeated symbolx.bench.LogInfoData logs */ 65:
                     message.logs.push(LogInfoData.internalBinaryRead(reader, reader.uint32(), options));
@@ -22931,15 +22931,15 @@ class RunData$Type extends MessageType<RunData> {
         /* optional int32 terminated_epoch = 56; */
         if (message.terminatedEpoch !== undefined)
             writer.tag(56, WireType.Varint).int32(message.terminatedEpoch);
-        /* optional google.protobuf.Struct inputs_packed = 60; */
+        /* optional google.protobuf.Value inputs_packed = 60; */
         if (message.inputsPacked)
-            Struct.internalBinaryWrite(message.inputsPacked, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct outputs_packed = 61; */
+            Value.internalBinaryWrite(message.inputsPacked, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value outputs_packed = 61; */
         if (message.outputsPacked)
-            Struct.internalBinaryWrite(message.outputsPacked, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct variables_packed = 62; */
+            Value.internalBinaryWrite(message.outputsPacked, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value variables_packed = 62; */
         if (message.variablesPacked)
-            Struct.internalBinaryWrite(message.variablesPacked, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.variablesPacked, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.LogInfoData logs = 65; */
         for (let i = 0; i < message.logs.length; i++)
             LogInfoData.internalBinaryWrite(message.logs[i], writer.tag(65, WireType.LengthDelimited).fork(), options).join();
@@ -23018,7 +23018,7 @@ class SecretData$Type extends MessageType<SecretData> {
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 41, name: "value_packed", kind: "message", T: () => Struct }
+            { no: 41, name: "value_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<SecretData>): SecretData {
@@ -23103,8 +23103,8 @@ class SecretData$Type extends MessageType<SecretData> {
                 case /* symbolx.bench.TypeInfoData value_type */ 40:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 41:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 41:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -23179,9 +23179,9 @@ class SecretData$Type extends MessageType<SecretData> {
         /* symbolx.bench.TypeInfoData value_type = 40; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 41; */
+        /* optional google.protobuf.Value value_packed = 41; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23659,7 +23659,7 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 42, name: "value_packed", kind: "message", T: () => Value },
             { no: 70, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 71, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 72, name: "pipe_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23740,8 +23740,8 @@ class SignalData$Type extends MessageType<SignalData> {
                 case /* symbolx.bench.NodeReferenceData type_ptr */ 32:
                     message.typePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.typePtr);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 42:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 42:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 70:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
@@ -23840,9 +23840,9 @@ class SignalData$Type extends MessageType<SignalData> {
         /* symbolx.bench.NodeReferenceData type_ptr = 32; */
         if (message.typePtr)
             NodeReferenceData.internalBinaryWrite(message.typePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 42; */
+        /* optional google.protobuf.Value value_packed = 42; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData block_ptr = 70; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -24300,7 +24300,7 @@ class StepData$Type extends MessageType<StepData> {
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 41, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 41, name: "value_packed", kind: "message", T: () => Value },
             { no: 43, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 45, name: "code", kind: "message", T: () => CodeData },
             { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -24408,8 +24408,8 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.TypeInfoData value_type */ 40:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 41:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 41:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 43:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
@@ -24520,9 +24520,9 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.TypeInfoData value_type = 40; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 41; */
+        /* optional google.protobuf.Value value_packed = 41; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData node_ptr = 43; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
@@ -25417,7 +25417,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 34, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 41, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 41, name: "value_packed", kind: "message", T: () => Value },
             { no: 420, name: "node_ptr_node", kind: "message", oneof: "nodePtr", T: () => NodeReferenceData },
             { no: 421, name: "node_ptr_file", kind: "message", oneof: "nodePtr", T: () => FileReferenceData },
             { no: 422, name: "node_ptr_secret", kind: "message", oneof: "nodePtr", T: () => SecretReferenceData },
@@ -25543,8 +25543,8 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.TypeInfoData value_type */ 40:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 41:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                case /* optional google.protobuf.Value value_packed */ 41:
+                    message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 case /* symbolx.bench.NodeReferenceData node_ptr_node */ 420:
                     message.nodePtr = {
@@ -25703,9 +25703,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.TypeInfoData value_type = 40; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 41; */
+        /* optional google.protobuf.Value value_packed = 41; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData node_ptr_node = 420; */
         if (message.nodePtr.oneofKind === "nodePtrNode")
             NodeReferenceData.internalBinaryWrite(message.nodePtr.nodePtrNode, writer.tag(420, WireType.LengthDelimited).fork(), options).join();
@@ -29466,7 +29466,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.03.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.04.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29494,7 +29494,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.03.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.04.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29519,7 +29519,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.03.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.04.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },

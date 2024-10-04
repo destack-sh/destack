@@ -1,12 +1,13 @@
 import dataclasses
 import enum
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from uuid import UUID
 
 from more_itertools import first
+from psycopg.types.json import Jsonb
 
 from bench.language.const import PrimitiveType
 from bench.utils.func import stable_hash
@@ -194,7 +195,7 @@ class TableObject(Object):
         return dataclasses.replace(self, _table=None)
 
 
-SqlPrimitiveScalar = Union[str, int, float, bool, datetime, UUID, bytes, type(None)]
+SqlPrimitiveScalar = Union[str, int, float, bool, datetime, timedelta, UUID, bytes, type(None), Jsonb]
 SqlPrimitive = Union[SqlPrimitiveScalar, list["SqlPrimitive"], dict[str, SqlPrimitiveScalar]]
 
 

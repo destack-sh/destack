@@ -18,7 +18,11 @@ import regex
 import structlog
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.duration_pb2 import Duration as Interval
+from google.protobuf.json_format import MessageToDict
+from google.protobuf.struct_pb2 import NULL_VALUE as PROTO_NULL_VALUE
+from google.protobuf.struct_pb2 import ListValue as ProtoList
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
+from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
@@ -74,6 +78,7 @@ ScalarValueData = Union[
     dict[str, "ScalarValueData"],
     list["ScalarValueData"],
     ProtoStruct,
+    ProtoValue,
     Timestamp,
     Duration,
 ]
@@ -181,6 +186,8 @@ class ValueObject(Mapping[str, Any]):
     def _do_set(
         self, item: "str | Field", value: SomeValue, track: bool = True, validate: bool = False
     ) -> None:
+        if item in self.__slots__:
+            return object.__setattr__(self, item, value)
         if isinstance(item, str):
             field: Field | None = self._type._get_field(item)
             if field is None:
@@ -831,20 +838,20 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
         elif typ.primitive_type == PrimitiveType.UUID:
             return str(cast(UUID, value))
         elif typ.primitive_type == PrimitiveType.JSON:
-            if isinstance(value, ProtoStruct):
-                from bench.proto import wiring
-
-                return cast(JsonValue, wiring.unpack_proto_json(value))  # :ProtoStructMapping
+            if type(value) is ProtoValue:
+                return cast(JsonValue, unpack_proto_json_struct(value))
+            elif type(value) is ProtoStruct:
+                return cast(JsonValue, MessageToDict(value))
             else:
                 return cast(JsonValue, value)
         elif typ.primitive_type == PrimitiveType.DATETIME:
-            if isinstance(value, Timestamp):
-                return cast(Timestamp, value).ToDatetime(tzinfo=pytz.utc).isoformat()
+            if type(value) is Timestamp:
+                return value.ToDatetime(tzinfo=pytz.utc).isoformat()
             else:
                 return cast(datetime, value).isoformat()
         elif typ.primitive_type == PrimitiveType.INTERVAL:
-            if isinstance(value, Interval):
-                return cast(Interval, value).seconds + cast(Interval, value).nanos / 1e9
+            if type(value) is Interval:
+                return value.seconds + cast(Interval, value).nanos / 1e9
             else:
                 return cast(timedelta, value).total_seconds()
         else:
@@ -882,7 +889,9 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
             return int(cast(int, value_packed))
         elif typ.primitive_type == PrimitiveType.UUID:
             return UUID(cast(str, value_packed))
-        elif typ.primitive_type == PrimitiveType.DATETIME:
+        elif (
+            typ.primitive_type == PrimitiveType.DATETIME or typ.primitive_type == PrimitiveType.DATE
+        ):
             return datetime.fromisoformat(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.INTERVAL:
             return timedelta(seconds=cast(int, value_packed))
@@ -914,9 +923,7 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
         elif typ.primitive_type == PrimitiveType.UUID:
             return cast(str, value_packed)  # leave as string
         elif typ.primitive_type == PrimitiveType.JSON:
-            from bench.proto import wiring
-
-            return wiring.pack_proto_json(cast(dict, value_packed))
+            return pack_proto_json(cast(Any, value_packed))
         elif typ.primitive_type == PrimitiveType.DATETIME:
             ts = Timestamp()
             ts.FromDatetime(datetime.fromisoformat(cast(str, value_packed)))
@@ -1124,6 +1131,7 @@ def unpack_value(
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
+    wrap_primitive: bool = True,
 ) -> SomeValue | None:
     """
     Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
@@ -1153,7 +1161,7 @@ def unpack_value(
             ]
     else:
         # unwrap scalar
-        if isinstance(value_packed, dict):
+        if wrap_primitive and isinstance(value_packed, dict):
             value_packed = value_packed.get(typ.identity_key)
         if value_packed is None:
             return None
@@ -1163,6 +1171,88 @@ def unpack_value(
             if not isinstance(value_packed, list):
                 raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
             return [unpack_value_scalar(element, typ) for element in value_packed]
+
+
+def unpack_value_data(
+    value_packed: JsonValue, typ: "TypeInfoBase", wrap_primitive: bool = True
+) -> SomeValueData | None:
+    """
+    Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
+    """
+    typ = typ._to_resolved()
+    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
+    if typ.kind == TypeKind.OBJECT:
+        # nested object
+        return value_packed
+    else:
+        # scalar
+        if wrap_primitive and isinstance(value_packed, dict):
+            value_packed = value_packed.get(typ.identity_key)
+        if value_packed is None:
+            return None
+        elif not typ.is_list:
+            return unpack_value_scalar_data(value_packed, typ)
+        else:
+            if not isinstance(value_packed, list):
+                raise TypeError(f"expected list for {typ!r}, got {value_packed!r}")
+            return [unpack_value_scalar_data(v, typ) for v in value_packed]
+
+
+#
+# Common proto stuff
+#
+
+# NOTE :Performance: packing/unpacking proto JSON could probably be much more efficient
+
+
+def pack_proto_json_struct(value: dict[str, Any]) -> ProtoValue:
+    struct = ProtoStruct()
+    struct.update(value)
+    proto_value = ProtoValue(struct_value=struct)
+    return proto_value
+
+
+def unpack_proto_json_struct(value: ProtoValue) -> dict[str, Any]:
+    json = MessageToDict(value)
+    return json
+
+
+def pack_proto_json(value: JsonValue) -> ProtoValue:
+    t = type(value)
+    if value is None:
+        return ProtoValue(null_value=PROTO_NULL_VALUE)
+    elif t is bool:
+        return ProtoValue(bool_value=value)  # type: ignore
+    elif t is int or t is float:
+        return ProtoValue(number_value=float(value))  # type: ignore
+    elif t is str:
+        return ProtoValue(string_value=value)  # type: ignore
+    elif t is list:
+        list_value = ProtoList(values=[pack_proto_json(item) for item in value])  # type: ignore
+        return ProtoValue(list_value=list_value)
+    elif t is dict:
+        struct_value = ProtoStruct()
+        struct_value.update(value)  # type: ignore
+        return ProtoValue(struct_value=struct_value)
+    else:
+        raise ValueError(f"unsupported JSON value {value} ({type(value)})")
+
+
+def unpack_proto_json(value: ProtoValue) -> JsonValue:
+    if value.HasField("null_value"):
+        return None
+    elif value.HasField("bool_value"):
+        return value.bool_value
+    elif value.HasField("number_value"):
+        return value.number_value
+    elif value.HasField("string_value"):
+        return value.string_value
+    elif value.HasField("list_value"):
+        return [unpack_proto_json(item) for item in value.list_value.values]
+    elif value.HasField("struct_value"):
+        return MessageToDict(value.struct_value)
+    else:
+        raise ValueError(f"unsupported proto value {value!r}")
 
 
 # import later to avoid circular imports (Object is used in node.py)

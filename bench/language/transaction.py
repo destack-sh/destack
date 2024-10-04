@@ -6,6 +6,7 @@ from uuid import UUID
 
 import pytz
 import structlog
+from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
@@ -36,6 +37,7 @@ from bench.language.node import (
 )
 from bench.language.property import p_internal, p_system, p_value_packed
 from bench.language.setup import NODE_CLASS_BY_TYPE
+from bench.language.value import unpack_proto_json, unpack_value_data
 from bench.proto.wire import (
     AnyNodeData,
     ChangeVignetteData,
@@ -721,16 +723,8 @@ def edit_data_graph(
             not options.include_hidden and edit_type == EditType.RESTORE and not is_prepass
         ):
             # add
-            if edit_type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.HasField("new_node"), f"missing new node for {edit!r}"
-                node_data = wiring.unwrap_some_node(edit.node_data)
-            else:
-                assert edit.HasField("old_node"), f"missing old node for {edit!r}"
-                node_data = wiring.unwrap_some_node(edit.node_data)
-                if edit_type == EditType.RESTORE:
-                    node_data.ClearField("deleted_at")
-                else:
-                    assert_never(edit_type)
+            assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
+            node_data = wiring.unwrap_some_node(edit.node_data)
             # inline implicit metadata
             node_data.created_at.CopyFrom(edit.edited_at)
             node_data.updated_at.CopyFrom(edit.edited_at)
@@ -774,8 +768,36 @@ def edit_data_graph(
             # directly edited properties
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 for op in edit.operations:
-                    raise NotImplementedError("nocheckin edit_data_graph")
-                    wiring.set_object_prop(updated_node_data, prop, new_value_data)
+                    # traverse edit path
+                    obj = updated_node_data
+                    obj_type = node_cls
+                    key = op.path[0]
+                    for key in op.path[:-1]:
+                        ...  # nocheckin
+                    if obj is None:
+                        continue  # invalid path
+                    elif type(obj) is ProtoStruct:
+                        if op.type == EditOperationType.SET:
+                            obj[key] = op.new_value_packed
+                        elif op.type == EditOperationType.CLEAR:
+                            obj.ClearField(key)
+                        else:
+                            assert_never(op)
+                    else:
+                        prop = obj_type.__properties_by_id__.get(int(key))
+                        assert prop is not None, f"no property {key} in {obj_type!r} for {edit!r}"
+                        if prop.reference_wired_ptr is not None:
+                            prop = prop.reference_wired_ptr
+                        if op.type == EditOperationType.SET:
+                            new_value_packed = unpack_proto_json(op.new_value_packed)
+                            new_value = unpack_value_data(
+                                new_value_packed, prop.type_info, wrap_primitive=False
+                            )
+                        elif op.type == EditOperationType.CLEAR:
+                            new_value = None
+                        else:
+                            assert_never(op)
+                        wiring.set_object_prop(updated_node_data, prop, new_value)
 
             # implicit metadata
             updated_node_data.updated_at.CopyFrom(edit.edited_at)
