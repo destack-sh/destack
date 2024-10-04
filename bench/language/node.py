@@ -1356,8 +1356,9 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     ) -> Self:
         """Move or copy this struct into given parent/prop."""
         assert self.__is_struct__, f"cannot copy non-struct {self!r}"  # this is overriden by Node
-        if self.parent is None:  # not assigned
-            self.parent = parent
+        if self.parent is None:  # detached
+            self._do_set("parent", parent, track=False)
+            self._do_set("parent_key", parent_key, track=False)
             return self
         else:
             copy = self._copy_to(parent, parent_key)
@@ -1367,6 +1368,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
         """Create a copy of this struct for the given parent/prop."""
         kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
         kwargs["parent"] = parent
+        kwargs["parent_key"] = parent_key
         copy = self.__class__(**kwargs)
         return copy
 

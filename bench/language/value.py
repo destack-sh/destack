@@ -924,7 +924,9 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
             return cast(str, value_packed)  # leave as string
         elif typ.primitive_type == PrimitiveType.JSON:
             return pack_proto_json(cast(Any, value_packed))
-        elif typ.primitive_type == PrimitiveType.DATETIME:
+        elif (
+            typ.primitive_type == PrimitiveType.DATETIME or typ.primitive_type == PrimitiveType.DATE
+        ):
             ts = Timestamp()
             ts.FromDatetime(datetime.fromisoformat(cast(str, value_packed)))
             return ts
@@ -1009,8 +1011,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
 
 def pack_value_object(value: ValueObject, typ: "TypeInfoBase") -> dict[str, JsonValue]:
     """
-    Packs an object value into a packed value & secret packed value.
-    The secret split applies only to nested values within the type, not the type itself.
+    Packs an object value into a JSON representation.
     """
     value_packed: dict[str, JsonValue] = {}
     _value = value._value
@@ -1044,7 +1045,7 @@ def unpack_value_object(
     parent_key: ValueParentKey | None = None,
 ) -> ValueObject:
     """
-    Unpacks an object value from a packed value & secret packed value.
+    Unpacks an object value from a JSON packed representation.
     """
     value: dict[str, SomeValue] = {}
     for field in typ._base_fields:
@@ -1073,9 +1074,9 @@ def pack_value(
     value: SomeValue | None, typ: "TypeInfoBase", wrap_primitive: bool = True
 ) -> JsonValue:
     """
-    Packs a value into JSON-able parts (packed value & secret packed value).
-    Only minimal type checks are performed, invalid values will error in various ways.
+    Packs a value into a JSON representation.
     """
+
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
@@ -1109,7 +1110,7 @@ def pack_value(
 def pack_value_data(
     value: SomeValueData, typ: "TypeInfoBase", wrap_primitive: bool = True
 ) -> JsonValue:
-    """Packs a data value into JSON-able parts. See above."""
+    """Packs a data value into a JSON representation. See above."""
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     assert typ.kind != TypeKind.OBJECT, f"cannot pack data for {typ!r}"
@@ -1134,8 +1135,7 @@ def unpack_value(
     wrap_primitive: bool = True,
 ) -> SomeValue | None:
     """
-    Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
-    Only minimal type checks are performed, invalid values will error in various ways.
+    Unpacks a value from its JSON representation.
     """
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
@@ -1175,9 +1175,9 @@ def unpack_value(
 
 def unpack_value_data(
     value_packed: JsonValue, typ: "TypeInfoBase", wrap_primitive: bool = True
-) -> SomeValueData | None:
+) -> SomeValueData | JsonValue | None:
     """
-    Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
+    Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
     """
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"

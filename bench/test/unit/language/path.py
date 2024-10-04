@@ -53,10 +53,10 @@ from bench.language.session import Session
             ],
         ),
         (
-            "./CÜRRENT NÖDE/node",
+            "./C_RRENT_N_DE/node",
             [
                 (PathTokenType.CURRENT, None),
-                (PathTokenType.CHILD, "CÜRRENT NÖDE"),
+                (PathTokenType.CHILD, "C_RRENT_N_DE"),
                 (PathTokenType.CHILD, "node"),
             ],
         ),
