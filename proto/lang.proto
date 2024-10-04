@@ -1722,8 +1722,8 @@ message EditOperationData {
   ObjectType metatype = 1;
   EditOperationType type = 30;
   repeated string path = 31;
-  optional google.protobuf.Struct value_packed = 40;
-  optional EditOperationData inverse = 50;
+  optional google.protobuf.Struct new_value_packed = 40;
+  optional google.protobuf.Struct old_value_packed = 41;
 }
 
 // An expression like a value, function, comparison or such.

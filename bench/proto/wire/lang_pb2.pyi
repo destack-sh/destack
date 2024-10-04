@@ -3033,18 +3033,18 @@ class EditInfoData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., vignette: _Optional[_Union[ChangeVignetteData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., old_edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., node_data: _Optional[_Union[SomeNodeData, _Mapping]] = ..., operations: _Optional[_Iterable[_Union[EditOperationData, _Mapping]]] = ...) -> None: ...
 
 class EditOperationData(_message.Message):
-    __slots__ = ("metatype", "type", "path", "value_packed", "inverse")
+    __slots__ = ("metatype", "type", "path", "new_value_packed", "old_value_packed")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
-    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    INVERSE_FIELD_NUMBER: _ClassVar[int]
+    NEW_VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    OLD_VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: EditOperationType
     path: _containers.RepeatedScalarFieldContainer[str]
-    value_packed: _struct_pb2.Struct
-    inverse: EditOperationData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[EditOperationType, str]] = ..., path: _Optional[_Iterable[str]] = ..., value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., inverse: _Optional[_Union[EditOperationData, _Mapping]] = ...) -> None: ...
+    new_value_packed: _struct_pb2.Struct
+    old_value_packed: _struct_pb2.Struct
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[EditOperationType, str]] = ..., path: _Optional[_Iterable[str]] = ..., new_value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., old_value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class ExpressionData(_message.Message):
     __slots__ = ("metatype", "op", "property_ptr", "clauses", "value_packed", "sort_mode", "tolerance")

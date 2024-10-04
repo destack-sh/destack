@@ -1923,31 +1923,30 @@ async def _pg_edit_batch(
             assert edit.HasField("edited_at"), f"no edited_at for {edit!r}"
             row = {"id": edit.node_ptr.id}
 
-            # update directly edited properties
-            if edit_type == EditType.UPDATE or edit_type == EditType.MOVE:
-                for op in edit.operations:
-                    assert len(op.path) == 1, f"cannot update hierarchically: {op!r} in {edit!r}"
-                    prop_id = int(op.path[0])
-                    prop = node_cls.__properties_by_id__.get(prop_id)
-                    assert prop is not None, f"no property {prop_id!r} in {node_cls!r} for {edit!r}"
-                    if not prop.is_node_reference:
-                        # regular non-ref property
-                        if prop.is_optional_scalar and not node.HasField(prop.name):
-                            value = None
-                        else:
-                            value = getattr(node, prop.name)
-                        value = _pack_struct_data_prop(prop, value)
-                        row[prop.name] = value
+            # apply update operations
+            for op in edit.operations:
+                assert len(op.path) == 1, f"cannot update hierarchically: {op!r} in {edit!r}"
+                prop_id = int(op.path[0])
+                prop = node_cls.__properties_by_id__.get(prop_id)
+                assert prop is not None, f"no property {prop_id!r} in {node_cls!r} for {edit!r}"
+                if not prop.is_node_reference:
+                    # regular non-ref property
+                    if prop.is_optional_scalar and not node.HasField(prop.name):
+                        value = None
                     else:
-                        # unravel stored node reference :StoredPointers
-                        wired_name = cast(Property, prop.reference_wired_ptr).name
-                        if prop.is_optional_scalar and not node.HasField(wired_name):
-                            value = None
-                        else:
-                            if prop.reference_is_rich:
-                                wired_name = node.WhichOneof(wired_name)
-                            value = getattr(node, wired_name)
-                        _pg_pack_node_reference_into_row(prop, row, value)
+                        value = getattr(node, prop.name)
+                    value = _pack_struct_data_prop(prop, value)
+                    row[prop.name] = value
+                else:
+                    # unravel stored node reference :StoredPointers
+                    wired_name = cast(Property, prop.reference_wired_ptr).name
+                    if prop.is_optional_scalar and not node.HasField(wired_name):
+                        value = None
+                    else:
+                        if prop.reference_is_rich:
+                            wired_name = node.WhichOneof(wired_name)
+                        value = getattr(node, wired_name)
+                    _pg_pack_node_reference_into_row(prop, row, value)
 
             # implicit properties
             edited_at = edit.edited_at.ToDatetime()

@@ -25,6 +25,7 @@ from opentelemetry import trace
 from bench.language.const import (
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
+    EditOperationType,
     EnumType,
     NodeType,
     ObjectType,
@@ -81,7 +82,7 @@ SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 ValueParent = Union["ValueObject", "BuiltinObject"]
-ValueProperty = Union["Property", "Field"]
+ValueParentKey = Union["Property", "Field"]
 
 
 class ValueObject(Mapping[str, Any]):
@@ -96,7 +97,7 @@ class ValueObject(Mapping[str, Any]):
         "ancestor_prop",
         "parent",
         "parent_id",
-        "parent_prop",
+        "parent_key",
     )
 
     def __init__(
@@ -104,20 +105,12 @@ class ValueObject(Mapping[str, Any]):
         type: "TypeInfoBase",
         value: dict[str, SomeValue] | None = None,
         parent: ValueParent | None = None,
-        parent_prop: ValueProperty | None = None,
-        ancestor_prop: Optional["Property"] = None,
+        parent_key: ValueParentKey | None = None,
     ):
         self._type = type
         self._value = value
         self.parent = parent
-        self.parent_prop = parent_prop
-        self.ancestor_prop = ancestor_prop
-        if (
-            self.parent is not None
-            and self.ancestor_prop is None
-            and isinstance(self.parent_prop, Property)
-        ):
-            self.ancestor_prop = self.parent_prop
+        self.parent_key = parent_key
 
     def __str__(self) -> str:
         if self._value is None:
@@ -185,7 +178,9 @@ class ValueObject(Mapping[str, Any]):
         else:
             return value
 
-    def _do_set(self, item: "str | Field", value: SomeValue, validate: bool = False) -> None:
+    def _do_set(
+        self, item: "str | Field", value: SomeValue, track: bool = True, validate: bool = False
+    ) -> None:
         if isinstance(item, str):
             field: Field | None = self._type._get_field(item)
             if field is None:
@@ -196,19 +191,18 @@ class ValueObject(Mapping[str, Any]):
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         field_type = field._to_resolved()
         # coerce & copy if needed
-        value = coerce_value(
-            value,
-            field_type,
-            as_packed=True,
-            parent=self,
-            parent_prop=field,
-            ancestor_prop=self.ancestor_prop,
-        )
+        value = coerce_value(value, field_type, as_packed=True, parent=self, parent_key=field)
         if validate:
             check_value(value, field_type, invalid=on_invalid_raise)
         if self._value is None:
             self._value = {}
-        self._value[field.storage_key] = value
+        storage_key = field.storage_key
+        old_value = self._value.get(storage_key)
+        self._value[storage_key] = value
+        if track:
+            from bench.language.node import _track_set
+
+            _track_set(self, field, EditOperationType.SET, value, old_value)
 
     __setitem__ = _do_set
 
@@ -250,26 +244,25 @@ class ValueObject(Mapping[str, Any]):
                 return True
         return False
 
-    def _move_to(
-        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
-    ) -> "ValueObject":
-        """Move or copy this object into the given parent/prop."""
+    def _move_to(self, parent: ValueParent, parent_key: ValueParentKey) -> "ValueObject":
+        """Move or copy this object into the given parent/key."""
         if self.parent is None:
             # not yet assigned
             self.parent = parent
-            self.parent_prop = prop
-            self.ancestor_prop = ancestor_prop
+            self.parent_key = parent_key
             return self
         else:
-            copy = self._copy_to(parent, prop, ancestor_prop)
+            copy = self._copy_to(parent, parent_key)
             return copy
 
     def _copy_to(
-        self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
+        self,
+        parent: ValueParent,
+        parent_key: ValueParentKey,
     ) -> "ValueObject":
         """Copy this object into the given parent/prop."""
         value_packed = pack_value_object(self, self._type)
-        copy = unpack_value_object(value_packed, self._type, parent, prop, ancestor_prop)
+        copy = unpack_value_object(value_packed, self._type, parent, parent_key)
         return copy
 
     def clone(self) -> "ValueObject":
@@ -296,8 +289,7 @@ class ValueObject(Mapping[str, Any]):
         value: dict[str, SomeValue] | None,
         typ: "TypeInfoBase",
         parent: ValueParent | None = None,
-        parent_property: ValueProperty | None = None,
-        ancestor_property: Optional["Property"] = None,
+        parent_property: ValueParentKey | None = None,
     ) -> "ValueObject":
         """Creates a new Object of the given Object type, coercing the given value."""
         assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object type"
@@ -305,8 +297,7 @@ class ValueObject(Mapping[str, Any]):
             type=typ,
             value=value,
             parent=parent,
-            parent_prop=parent_property,
-            ancestor_prop=ancestor_property,
+            parent_key=parent_property,
         )
 
     @property
@@ -402,8 +393,7 @@ def _coerce_value_scalar(
     typ: "TypeInfoBase",
     as_packed: bool = False,
     parent: ValueParent | None = None,
-    parent_prop: ValueProperty | None = None,
-    ancestor_prop: "Property | None" = None,
+    parent_key: ValueParentKey | None = None,
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
     try:
@@ -415,8 +405,8 @@ def _coerce_value_scalar(
                 elif typ.primitive_type.is_int:
                     value = int(cast(Any, value))
         elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, Struct):
-            assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
-            value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
+            assert parent_key is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
+            value = cast("Struct", value)._move_to(parent, parent_key)
         elif as_packed and (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE):
             assert isinstance(value, (Node, NodeReferenceBase)), f"expected Node, got {value!r}"
             value = value.to_ref()
@@ -430,15 +420,14 @@ def coerce_value_object_scalar(
     typ: "TypeInfoBase",
     as_packed: bool = False,
     parent: ValueParent | None = None,
-    parent_prop: ValueProperty | None = None,
-    ancestor_prop: "Property | None" = None,
+    parent_prop: ValueParentKey | None = None,
 ) -> ValueObject:
     """Coerces a single object from a dict representation or existing Object (recursively)."""
     if type(value) is ValueObject:
         # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
         if parent is not None:
             assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
-            return value._move_to(parent, parent_prop, ancestor_prop)
+            return value._move_to(parent, parent_prop)
         else:
             return value
     else:
@@ -457,19 +446,10 @@ def coerce_value_object_scalar(
             if field_value is None:
                 continue
             value_coerced[field.storage_key] = coerce_value(
-                field_value,
-                field_type,
-                as_packed=as_packed,
-                parent=parent,
-                parent_prop=parent_prop,
-                ancestor_prop=ancestor_prop,
+                field_value, field_type, as_packed=as_packed, parent=parent, parent_key=parent_prop
             )
         return ValueObject.new(
-            value=value_coerced,
-            typ=typ,
-            parent=parent,
-            parent_property=parent_prop,
-            ancestor_property=ancestor_prop,
+            value=value_coerced, typ=typ, parent=parent, parent_property=parent_prop
         )
 
 
@@ -478,8 +458,7 @@ def coerce_value(
     typ: "TypeInfoBase",
     as_packed: bool = False,
     parent: ValueParent | None = None,
-    parent_prop: ValueProperty | None = None,
-    ancestor_prop: "Property | None" = None,
+    parent_key: ValueParentKey | None = None,
 ) -> SomeValue:
     """
     Coerces the given value to the expected type (recursively).
@@ -489,12 +468,7 @@ def coerce_value(
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
             return coerce_value_object_scalar(
-                cast(dict, value),
-                typ,
-                as_packed=as_packed,
-                parent=parent,
-                parent_prop=parent_prop,
-                ancestor_prop=ancestor_prop,
+                cast(dict, value), typ, as_packed=as_packed, parent=parent, parent_prop=parent_key
             )
         else:
             if not isinstance(value, Sequence):
@@ -507,8 +481,7 @@ def coerce_value(
                     typ,
                     as_packed=as_packed,
                     parent=parent,
-                    parent_prop=parent_prop,
-                    ancestor_prop=ancestor_prop,
+                    parent_prop=parent_key,
                 )
                 for element in value
             ]
@@ -517,12 +490,7 @@ def coerce_value(
             return None
         elif not typ.is_list:
             return _coerce_value_scalar(
-                value,
-                typ,
-                as_packed=as_packed,
-                parent=parent,
-                parent_prop=parent_prop,
-                ancestor_prop=ancestor_prop,
+                value, typ, as_packed=as_packed, parent=parent, parent_key=parent_key
             )
         else:
             if not isinstance(value, Sequence):
@@ -531,12 +499,7 @@ def coerce_value(
                 )
             return [
                 _coerce_value_scalar(
-                    element,
-                    typ,
-                    as_packed=as_packed,
-                    parent=parent,
-                    parent_prop=parent_prop,
-                    ancestor_prop=ancestor_prop,
+                    element, typ, as_packed=as_packed, parent=parent, parent_key=parent_key
                 )
                 for element in value
             ]
@@ -1071,8 +1034,7 @@ def unpack_value_object(
     value_packed: dict[str, JsonValue],
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
-    parent_prop: ValueProperty | None = None,
-    ancestor_prop: Optional["Property"] = None,
+    parent_key: ValueParentKey | None = None,
 ) -> ValueObject:
     """
     Unpacks an object value from a packed value & secret packed value.
@@ -1097,13 +1059,7 @@ def unpack_value_object(
                 unpack_value_scalar(element, field_type) for element in field_value_packed
             ]
         value[field.storage_key] = field_value
-    return ValueObject.new(
-        value=value,
-        typ=typ,
-        parent=parent,
-        parent_property=parent_prop,
-        ancestor_property=ancestor_prop,
-    )
+    return ValueObject.new(value=value, typ=typ, parent=parent, parent_property=parent_key)
 
 
 def pack_value(
@@ -1167,8 +1123,7 @@ def unpack_value(
     value_packed: JsonValue,
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
-    parent_prop: ValueProperty | None = None,
-    ancestor_prop: Optional["Property"] = None,
+    parent_key: ValueParentKey | None = None,
 ) -> SomeValue | None:
     """
     Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
@@ -1182,11 +1137,7 @@ def unpack_value(
             if not isinstance(value_packed, dict):
                 raise TypeError(f"{value_packed!r} is not a dict, expected {typ!r}")
             return unpack_value_object(
-                value_packed=value_packed,
-                typ=typ,
-                parent=parent,
-                parent_prop=parent_prop,
-                ancestor_prop=ancestor_prop,
+                value_packed=value_packed, typ=typ, parent=parent, parent_key=parent_key
             )
         else:
             if not isinstance(value_packed, list):
@@ -1196,8 +1147,7 @@ def unpack_value(
                     value_packed=cast(dict[str, JsonValue], element),
                     typ=typ,
                     parent=parent,
-                    parent_prop=parent_prop,
-                    ancestor_prop=ancestor_prop,
+                    parent_key=parent_key,
                 )
                 for element in value_packed
             ]
