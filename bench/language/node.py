@@ -83,7 +83,9 @@ from bench.proto.wire import (
     GraphScopeData,
     NodeReferenceData,
     SecretReferenceData,
+    lang_pb2,
 )
+from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.func import bittuple, is_close, stable_hash
 from bench.utils.string import to_code_name
@@ -770,7 +772,7 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
 
 
 def _track_set(
-    obj: "ValueObject | BuiltinObject",
+    obj: "ValueObject | Struct | Node | None",
     key: Union["Property", "Field"],
     operation_type: EditOperationType,
     new_value: Any | None,
@@ -778,24 +780,40 @@ def _track_set(
 ):
     if operation_type == EditOperationType.SET and new_value is None:
         operation_type = EditOperationType.CLEAR
-    raise NotImplementedError("nocheckin")
-    # path: list[str] = [prop.id_as_str]
-    # if self.__is_struct__:
-    #     parent = self.parent
-    #     while parent is not None:
-    #         parent = parent.parent
-    #     if isinstance(parent, Node):
-    #         node = parent
-    #     else:
-    #         return
-    # else:
-    #     parent = self
 
-    # if not node._is_new:
-    #     assert self._session is not None, f"{self!r} is not in a Session"
-    #     if prop.is_value_runtime:  # use _packed property :ComputedValueProp
-    #         prop = cast(Property, prop.value_packed_ptr)
-    #         old_value = getattr(self, prop.name)
+    # figure out if we're in a tracked node (before we start tracing the edit)
+    node = None
+    o = obj
+    while o is not None and type(o) is not Property:
+        # (o may be a Property during setup when o.parent is not initialized)
+        if isinstance(o, Node):
+            node = cast("Node", o)
+            break
+        else:
+            o = o.parent
+    if node is None or node._is_new or node._session is None:
+        return  # ignore, not tracked
+
+    # trace path for edit
+    path: list[str] = [key.key]
+    while obj is not None and not isinstance(obj, Node):
+        parent = obj.parent
+        if parent is not None:
+            assert obj.parent_key is not None, f"{obj!r} has no parent key for {parent!r}"
+            path.append(obj.parent_key.key)
+        obj = parent
+
+    # remap value
+    if type(key) is Property and key.is_value_runtime:
+        key = cast(Property, key.value_packed_ptr)
+        old_value = getattr(node, key.name)
+
+    operation = EditOperationData(
+        metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
+        type=operation_type,  # type: ignore
+        path=path,
+    )
+    node._session._update(node, operation)
 
 
 @object_()
@@ -918,7 +936,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         value_list.extend(prop_value)  # will auto copy if needed
                     prop_value = value_list
                 elif isinstance(prop_value, Struct):
-                    prop_value = prop_value._move_to(self, prop)
+                    prop_value = prop_value._move_to(cast("Node | Struct", self), prop)
 
             # default value
             if prop_value is UNSET:
@@ -1087,7 +1105,11 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 # coerce & check type (if it's not a contributed property, which only we edit)
                 if prop._type_info is not None and prop.reference_source is None:
                     value = coerce_value(
-                        value, prop._type_info, as_packed=False, parent=self, parent_key=prop
+                        value,
+                        prop._type_info,
+                        as_packed=False,
+                        parent=cast("Struct | Node", self),
+                        parent_key=prop,
                     )
                     check_value(value, prop._type_info, invalid=on_invalid_raise)
                 object.__setattr__(self, key, value)
@@ -1101,7 +1123,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
             # track edit in session
             if track:
-                _track_set(self, prop, EditOperationType.SET, value, old_value)
+                _track_set(
+                    cast("Struct | Node", self), prop, EditOperationType.SET, value, old_value
+                )
             return
         elif track and self.__passthrough__ is not None:
             # try passthrough target (if any)
@@ -1248,7 +1272,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         return mask
 
 
-StructParent = Union["BuiltinObject", "ValueObject"]
+StructParent = Union["Struct", "Node", "ValueObject"]
 StructParentKey = Union["Property", "Field"]
 
 

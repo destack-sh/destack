@@ -679,6 +679,8 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return (cast(FieldData, data)).parent_ptr
 
+    key = SourceNode.tk
+
     @property
     def storage_key(self) -> str:
         return encode_storage_key(self)

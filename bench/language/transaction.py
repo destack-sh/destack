@@ -316,10 +316,7 @@ class Transaction:
         node: Node,
         *,
         now: datetime | None = None,
-        operation_type: EditOperationType | None = None,
-        path: list[str] | None = None,
-        new_value: Any | None = None,
-        old_value: Any | None = None,
+        operation: EditOperationData | None = None,
     ):
         """
         Records an edit event (which are later summed into actual edits).
@@ -336,12 +333,8 @@ class Transaction:
         ):
             prev_edit = self._pending_edit_events[-1]
             assert prev_edit.operations is not None, f"missing operations for {prev_edit!r}"
-            operation = EditOperationData()
-            assert prev_edit.old_values is not None, f"missing old values for {prev_edit!r}"
-            assert old_values is not None, f"missing old values for {type} {node!r}"
-            for prop_id, old_value in old_values.items():
-                if prop_id not in prev_edit.old_values:
-                    prev_edit.old_values[prop_id] = old_value
+            assert operation is not None, f"missing operation for {prev_edit!r}"
+            prev_edit.operations.append(operation)
             return
 
         # context
@@ -366,8 +359,9 @@ class Transaction:
             run=run,
             now=now,
             scope=scope,
-            old_values=old_values,
         )
+        if operation is not None:
+            edit_event.operations = [operation]
         if type in (EditType.DELETE, EditType.RESTORE, EditType.ERASE):
             node_data = node._to_data()
             if node._is_new:
@@ -442,39 +436,27 @@ class Transaction:
             ):
                 continue
 
-            # edit data (see :EditData for Edit.old_node/new_node)
+            # edit data
             node_data: AnyNodeData | None = None
             old_edited_at: Timestamp | None = None
+            operations: list[EditOperationData] | None = None
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 # coalesce any move/update sequence into move
                 if any(e.type == EditType.MOVE for e in batch):
                     edit_type = EditType.MOVE
                 # accumulate old values (keep oldest)
-                old_values: dict[int, Any] = {}
-                for e in batch:
-                    assert e.old_values is not None, f"missing old values for {e!r}"
-                    for prop_id, old_value in e.old_values.items():
-                        if prop_id not in old_values:
-                            old_values[prop_id] = old_value
-                # pack old/new
-                proto_cls = cast(type[AnyNodeData], wiring.PROTO_CLASS_BY_TYPE[node.metatype])
-                old_node_data = proto_cls(metatype=cast(wire.ObjectType, node.metatype))
-                node_data = proto_cls(metatype=cast(wire.ObjectType, node.metatype))
-                for prop_id, old_value in old_values.items():
-                    prop = node.__properties_by_id__.get(prop_id)
-                    assert prop is not None, f"no property {prop_id} for {node!r} in {batch!r}"
-                    if prop.reference_wired_ptr is not None:
-                        prop = prop.reference_wired_ptr
-                    wiring.pack_and_set_object_prop(old_node_data, prop, old_value)
-                    new_value = getattr(node, prop.name)
-                    wiring.pack_and_set_object_prop(node_data, prop, new_value)
+                operations = edit_event.operations
+                assert operations, f"missing operations for {edit_event!r}"
+                for e in batch[1:]:
+                    assert e.operations, f"missing operations for {e!r}"
+                    operations.extend(e.operations)
             elif edit_type in (EditType.CREATE, EditType.UPSERT):
                 node_data = edit_event.node_data or edit_event.node._to_data()
             elif edit_type in (EditType.DELETE, EditType.ERASE):
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 old_edited_at = edit_event.node_data.deleted_at
                 if edit_type == EditType.ERASE:
-                    old_node_data = edit_event.node_data
+                    node_data = edit_event.node_data
             elif edit_type == EditType.RESTORE:
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
@@ -668,14 +650,8 @@ def edit_graph(
             assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
             # directly edited properties
             for op in edit.operations:
-                prop_id = int(op.path[0])
-                prop = node.__properties_by_id__.get(prop_id)
-                assert prop is not None, f"no property {prop_id} for {node!r} in {edit!r}"
-                if prop.reference_wired_ptr is not None:
-                    prop = prop.reference_wired_ptr
-                new_value_data = wiring.get_object_prop(node_data, prop)
-                new_value = wiring.unpack_object_prop(prop, new_value_data, supergraph=supergraph)
-                node._do_set(prop.name, new_value, track=track)
+                raise NotImplementedError("nocheckin")
+                # node._do_set(prop.name, new_value, track=track)
             # implicit metadata
             node.updated_at = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "updated_epoch" in node.__properties__:
@@ -798,16 +774,7 @@ def edit_data_graph(
             # directly edited properties
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 for op in edit.operations:
-                    prop_id = int(op.path[0])
-                    prop = node_cls.__properties_by_id__.get(prop_id)
-                    assert prop is not None, f"missing property {prop_id} for update: {edit!r}"
-                    if prop.reference_wired_ptr is not None:
-                        prop = prop.reference_wired_ptr
-                    if is_prepass:
-                        old_value = wiring.get_object_prop(updated_node_data, prop)
-                        wiring.set_object_prop(old_node, prop, old_value)
-                        # nocheckin: EditOperation.inverse
-                    new_value_data = wiring.get_object_prop(node_data, prop)
+                    raise NotImplementedError("nocheckin edit_data_graph")
                     wiring.set_object_prop(updated_node_data, prop, new_value_data)
 
             # implicit metadata

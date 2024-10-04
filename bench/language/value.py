@@ -81,7 +81,7 @@ SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
-ValueParent = Union["ValueObject", "BuiltinObject"]
+ValueParent = Union["ValueObject", "Struct", "Node"]
 ValueParentKey = Union["Property", "Field"]
 
 
@@ -961,7 +961,7 @@ def pack_builtin_object_data(
             ]
         else:
             prop_value_packed = pack_value_scalar(prop_value, prop.type_info)
-        value_packed[prop.id_as_str] = prop_value_packed
+        value_packed[prop.key] = prop_value_packed
     return value_packed
 
 
@@ -987,7 +987,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     for prop in only if only is not None else object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
-        prop_value_packed = value_packed.get(prop.id_as_str)
+        prop_value_packed = value_packed.get(prop.key)
         if prop_value_packed is None or (prop.is_list and len(prop_value_packed) == 0):
             continue
         elif prop.is_list:

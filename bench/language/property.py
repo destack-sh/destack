@@ -67,7 +67,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     #  don't want to deal with asserting id is not None everywhere.
     # stable id for wiring properties, must be unique per final struct/node
     id: int = cast(int, None)  # noqa: RUF009
-    id_as_str: str = UNSET  # str(id)
+    key: str = UNSET  # str(id)
     # unstable ordinal for bit-packing
     ord: int = cast(int, None)  # noqa: RUF009
     name: str = UNSET  # name from LHS of assignment
@@ -132,7 +132,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.reference_kind is not None and self.default is UNSET:
             self.default = None
         if self.id is not None:
-            self.id_as_str = intern(str(self.id))
+            self.key = intern(str(self.id))
 
     def __str__(self):
         if self.component is None:
