@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timedelta
 from typing import (
     TYPE_CHECKING,
-    Any,
     Awaitable,
     Callable,
     Collection,
@@ -55,7 +54,7 @@ from bench.language.node import (
     timed_node_,
 )
 from bench.language.property import p_internal, p_node_parent, p_runtime, p_system
-from bench.language.transaction import EditOperationType, Transaction
+from bench.language.transaction import Transaction
 from bench.language.validation import constraint
 from bench.proto import wire
 from bench.proto.wire import (
@@ -68,6 +67,7 @@ from bench.proto.wire import (
     SessionData,
     SupervisorClient,
 )
+from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.func import CriticalLock, async_shield, uuid_to_str
 from bench.utils.oracle import Oracle
 from bench.utils.uuidt import UUIDT
@@ -514,24 +514,14 @@ class Session(RuntimeNode[SessionData]):
     def _update(
         self,
         node: Node,
-        path: list[str],
-        operation_type: EditOperationType,
-        new_value: Any | None,
-        old_value: Any | None,
+        operation: EditOperationData | None = None,
     ):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node._is_attached:  # ignore detached updates
             self._pending_nodes_by_id[node.id] = node
-            self._tx.record_edit_event(
-                EditType.UPDATE,
-                node,
-                path=path,
-                operation_type=operation_type,
-                new_value=new_value,
-                old_value=old_value,
-            )
+            self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
 
     def _delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""

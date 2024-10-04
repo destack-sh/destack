@@ -343,7 +343,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """Gets the root node for a given node"""
         root = node
         while self._get_parent_ptr(root) is not None:
-            root = self._nodes_by_id[cast(K, root.parent_ptr.id)]
+            root = self._nodes_by_id[cast(K, root.parent_ptr.id)]  # type: ignore
         return root
 
     def get_ancestors(self, node: V) -> list[V]:
@@ -352,7 +352,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         ancestors: list[V] = []
         cur = node
         while self._get_parent_ptr(cur) is not None:
-            cur = self._nodes_by_id[cast(K, cur.parent_ptr.id)]
+            cur = self._nodes_by_id[cast(K, cur.parent_ptr.id)]  # type: ignore
             ancestors.append(cur)
         return ancestors
 

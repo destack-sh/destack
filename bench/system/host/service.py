@@ -688,7 +688,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                     packed_value = pack_value_scalar(prop_value, prop.type_info)
                     if not isinstance(packed_value, str):
                         packed_value = str(packed_value)
-                    file_metadata[prop.id_as_str] = packed_value
+                    file_metadata[prop.key] = packed_value
             file_fields = {
                 f"x-amz-meta-{k.lower().replace('_', '-')}": v for k, v in file_metadata.items()
             }
