@@ -27,6 +27,7 @@ from bench.language.node import (
     EDIT_SUBJECT_TYPES,
     NODE_SUBSUBTYPE_PROPERTY_BY_TYPE,
     NODE_SUBTYPE_PROPERTY_BY_TYPE,
+    BuiltinObject,
     ClientOrigin,
     EditSubject,
     GraphScope,
@@ -37,9 +38,10 @@ from bench.language.node import (
 )
 from bench.language.property import p_internal, p_system, p_value_packed
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.value import unpack_proto_json, unpack_value_data
+from bench.language.value import ValueObject, unpack_proto_json, unpack_value, unpack_value_data
 from bench.proto.wire import (
     AnyNodeData,
+    AnyStructData,
     ChangeVignetteData,
     ClientOriginData,
     EditContextData,
@@ -650,10 +652,45 @@ def edit_graph(
             # some update
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
-            # directly edited properties
+
+            # apply edit operations
             for op in edit.operations:
-                raise NotImplementedError("nocheckin")
-                # node._do_set(prop.name, new_value, track=track)
+                # traverse edit path
+                obj: BuiltinObject | ValueObject = node
+                obj_type = node.__class__
+                key = op.path[0]
+                assert len(op.path) == 1, f"nocheckin: edit_graph: {op!r}"
+
+                # apply edit operation
+                if obj is None:
+                    continue  # invalid path
+                elif type(obj) is ValueObject:
+                    if op.type == EditOperationType.SET:
+                        # find field
+                        raise NotImplementedError(f"nocheckin: edit_graph ValueObject {op!r}")
+                    elif op.type == EditOperationType.CLEAR:
+                        del obj._value[key]
+                    else:
+                        raise NotImplementedError(f"unsupported edit operation: {op!r}")
+                else:
+                    assert isinstance(
+                        obj, BuiltinObject
+                    ), f"unexpected object: {obj} ({type(obj)}) for {edit!r}"
+                    prop = obj_type.__properties_by_id__.get(int(key))
+                    assert prop is not None, f"no property {key} in {obj_type!r} for {edit!r}"
+                    if prop.reference_wired_ptr is not None:
+                        prop = prop.reference_wired_ptr
+                    if op.type == EditOperationType.SET:
+                        new_value_packed = unpack_proto_json(op.new_value_packed)
+                        new_value = unpack_value(
+                            new_value_packed, prop.type_info, wrap_primitive=False
+                        )
+                    elif op.type == EditOperationType.CLEAR:
+                        new_value = None
+                    else:
+                        raise NotImplementedError(f"unsupported edit operation: {op!r}")
+                    obj._do_set(prop.name, new_value, track=track)
+
             # implicit metadata
             node.updated_at = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "updated_epoch" in node.__properties__:
@@ -765,15 +802,16 @@ def edit_data_graph(
             if is_prepass:
                 edit.vignette.CopyFrom(_make_vignette(updated_node_data))
 
-            # directly edited properties
+            # apply edit operations
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 for op in edit.operations:
                     # traverse edit path
-                    obj = updated_node_data
+                    obj: AnyNodeData | AnyStructData | dict = updated_node_data
                     obj_type = node_cls
                     key = op.path[0]
-                    for key in op.path[:-1]:
-                        ...  # nocheckin
+                    assert len(op.path) == 1, f"nocheckin: edit_data_graph: {op!r}"
+
+                    # apply edit operation
                     if obj is None:
                         continue  # invalid path
                     elif type(obj) is ProtoStruct:
@@ -782,7 +820,7 @@ def edit_data_graph(
                         elif op.type == EditOperationType.CLEAR:
                             obj.ClearField(key)
                         else:
-                            assert_never(op)
+                            raise NotImplementedError(f"unsupported edit operation: {op!r}")
                     else:
                         prop = obj_type.__properties_by_id__.get(int(key))
                         assert prop is not None, f"no property {key} in {obj_type!r} for {edit!r}"
@@ -796,7 +834,7 @@ def edit_data_graph(
                         elif op.type == EditOperationType.CLEAR:
                             new_value = None
                         else:
-                            assert_never(op)
+                            raise NotImplementedError(f"unsupported edit operation: {op!r}")
                         wiring.set_object_prop(updated_node_data, prop, new_value)
 
             # implicit metadata
