@@ -29,7 +29,6 @@ import {
   makeDefaultObject,
   makeScope,
   toPlainNodeRef,
-  unpackProtoJson,
   wrapSomeNode,
 } from "@/proto/wiring";
 import { origin, userPtr } from "@/system/client";
@@ -216,15 +215,11 @@ export function makeEditFromLog(
   if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
   const oldNode =
     log.oldNodePacked != null
-      ? (makeDefaultObject(
-          unpackBuiltinObject(unpackProtoJson(log.oldNodePacked), nodeType as unknown as ObjectType),
-        ) as AnyNodeData)
+      ? (makeDefaultObject(unpackBuiltinObject(log.oldNodePacked, nodeType as unknown as ObjectType)) as AnyNodeData)
       : null;
   const newNode =
     log.newNodePacked != null
-      ? (makeDefaultObject(
-          unpackBuiltinObject(unpackProtoJson(log.newNodePacked), nodeType as unknown as ObjectType),
-        ) as AnyNodeData)
+      ? (makeDefaultObject(unpackBuiltinObject(log.newNodePacked, nodeType as unknown as ObjectType)) as AnyNodeData)
       : null;
 
   // make edit

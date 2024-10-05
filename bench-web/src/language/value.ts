@@ -22,16 +22,9 @@ import {
   TypeKind,
   type AnyNodeData,
   type AnyStructData,
-  type AnyTypeMapping
+  type AnyTypeMapping,
 } from "@/proto/wire";
-import {
-  isNodeRef,
-  isProtoJson,
-  isStruct,
-  toNodeRefOneOf,
-  unwrapProtoOneOf,
-  type SomeNodeReferenceData,
-} from "@/proto/wiring";
+import { isNodeRef, isStruct, toNodeRefOneOf, unwrapProtoOneOf, type SomeNodeReferenceData } from "@/proto/wiring";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
@@ -42,9 +35,6 @@ export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue }
 //
 // Packing/unpacking
 //
-
-// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
-//  Could either fork protobuf-ts or just switch to ts-proto?
 
 /** Packs a single data value in its robust JSON-able representation. */
 function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
@@ -59,20 +49,12 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
       }
       return Number(value);
     } else if (type.primitiveType == PrimitiveType.JSON) {
-      // auto-unpack proto json :ProtoStructMapping
-      if (isProtoJson(value)) {
-        return ProtoStruct.toJson(value);
-      } else {
-        return value as JsonValue;
-      }
+      return value as JsonValue;
     } else {
       return value as JsonPrimitive;
     }
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
-    if (isProtoJson(value)) {
-      // shortcut if already packed :ProtoStructMapping
-      return ProtoStruct.toJson(value);
-    } else if (!isNodeRef(value)) {
+    if (!isNodeRef(value)) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
     } else {
       return packBuiltinObject(value as NodeReferenceData);
@@ -80,10 +62,7 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   } else if (type.kind == TypeKind.ENUM) {
     return value as JsonPrimitive;
   } else if (type.kind == TypeKind.STRUCT) {
-    if (isProtoJson(value)) {
-      // shortcut if already packed :ProtoStructMapping
-      return ProtoStruct.toJson(value);
-    } else if (!isStruct(value)) {
+    if (!isStruct(value)) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
     } else {
       return packBuiltinObject(value);
@@ -164,11 +143,6 @@ export function packBuiltinObject(
   }
 
   return valuePacked;
-}
-
-/** Convenience wrapper around packBuiltinObject and packProtoJson */
-export function packBuiltinObjectJson(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): ProtoStruct {
-  return ProtoStruct.fromJson(packBuiltinObject(value, options));
 }
 
 /** Decodes proto value representation of a struct. See encode. */

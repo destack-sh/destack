@@ -34,13 +34,10 @@ import {
 } from "@/proto/wire";
 import {
   isNodeRef,
-  isProtoJson,
   makeStruct,
-  packProtoJson,
   toNodeRef,
   toNodeRefOneOf,
   typeNodeReferenceMaybe,
-  unpackProtoJson,
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -470,12 +467,7 @@ export function useViewState<T extends ObjectType>(use: {
     if (use.props.valuePacked == null) {
       return { metatype: use.stateType } as AnyTypeMapping[T];
     } else {
-      // we don't pack proto json structs inside proto json structs,
-      //  so while valuePacked should be a proto struct (as per the type) it may not be (see :ProtoStructMapping)
-      const valuePacked = isProtoJson(use.props.valuePacked)
-        ? unpackProtoJson(use.props.valuePacked)
-        : use.props.valuePacked;
-      const unpacked = unpackBuiltinObject(valuePacked, use.stateType);
+      const unpacked = unpackBuiltinObject(use.props.valuePacked, use.stateType);
       return unpacked;
     }
   });
@@ -484,9 +476,9 @@ export function useViewState<T extends ObjectType>(use: {
     const valuePacked = packStateUpdate(value);
     if (use.selfPtr.value != null) {
       const self = use.graph.getOrError(use.selfPtr.value);
-      tx.update(self, { valuePacked: packProtoJson(valuePacked) }, options);
+      tx.update(self, { valuePacked }, options);
     } else {
-      use.emit("update:self", { valuePacked: packProtoJson(valuePacked) });
+      use.emit("update:self", { valuePacked });
     }
   }
 

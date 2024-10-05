@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { makeTypeInfo } from "@/language/field";
 import { FieldZone, NodeType, RunData, TypeKind, Variant, ViewData } from "@/proto/wire";
-import { unpackProtoJson, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -41,13 +41,13 @@ const { graph: pkgGraph } = useExistingConnection(basePtr);
 const runnableNode = pkgGraph.getRef(basePtr, { ignoreAncestors: true });
 
 const inputsPacked = computed(
-  () => (run.value?.inputsPacked != null ? unpackProtoJson(run.value.inputsPacked) : {}) as Record<string, any>,
+  () => (run.value?.inputsPacked != null ? run.value.inputsPacked : {}) as Record<string, any>,
 );
 const inputType = computed(() =>
   makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldZone: FieldZone.INPUT }),
 );
 const outputsPacked = computed(
-  () => (run.value?.outputsPacked != null ? unpackProtoJson(run.value.outputsPacked) : {}) as Record<string, any>,
+  () => (run.value?.outputsPacked != null ? run.value.outputsPacked : {}) as Record<string, any>,
 );
 const outputType = computed(() =>
   makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldZone: FieldZone.OUTPUT }),

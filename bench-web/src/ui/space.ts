@@ -4,7 +4,7 @@ import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/gra
 import { cloneNode, generateNodeName, makeNode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { type Transaction } from "@/language/transaction";
-import { packBuiltinObjectJson } from "@/language/value";
+import { packBuiltinObject } from "@/language/value";
 import {
   BlockType,
   DESCENDANT_NODE_TYPES,
@@ -1016,7 +1016,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
             {
               type: ViewType.TREE,
               title: "Explore",
-              valuePacked: packBuiltinObjectJson({
+              valuePacked: packBuiltinObject({
                 metatype: ObjectType.TREE_VIEW_STATE,
                 preset: TreeViewPreset.EXPLORE,
               }),
@@ -1030,7 +1030,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
             {
               type: ViewType.TREE,
               title: "Outline",
-              valuePacked: packBuiltinObjectJson({
+              valuePacked: packBuiltinObject({
                 metatype: ObjectType.TREE_VIEW_STATE,
                 preset: TreeViewPreset.OUTLINE,
               }),

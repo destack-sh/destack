@@ -9,7 +9,7 @@ import {
   ViewData,
   type NodeReferenceData,
 } from "@/proto/wire";
-import { packProtoJson, type TypedNodeReferenceData } from "@/proto/wiring";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, goToBench } from "@/system/space";
@@ -56,12 +56,12 @@ function switchStage() {
   if (stage.value == UserWizardViewStage.LOG_IN) {
     canvas.tx().update(selfNode, {
       title: "Sign Up",
-      valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.SIGN_UP })),
+      valuePacked: packStateUpdate({ stage: UserWizardViewStage.SIGN_UP }),
     });
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
     canvas.tx().update(selfNode, {
       title: "Log In",
-      valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.LOG_IN })),
+      valuePacked: packStateUpdate({ stage: UserWizardViewStage.LOG_IN }),
     });
   } else {
     throw new Error(`unexpected registration stage: ${stage.value}`);

@@ -120,8 +120,6 @@ export function fabricate<T extends ObjectType>(
       value = prop.isList ? [] : null;
     } else if (propName == "metatype") {
       value = metatype;
-    } else if (propName == "setProperties") {
-      value = []; // never
     } else if (prop.isList) {
       value = [fabricateScalarProp(propName, field, prop)];
     } else {

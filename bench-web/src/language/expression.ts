@@ -12,7 +12,6 @@ import {
 } from "@/proto/wire";
 import { supergraph } from "@/system/connection";
 import { getPropertyType } from "@/language/field";
-import { packProtoJson } from "@/proto/wiring";
 import { packValue } from "@/language/value";
 
 export function makeExpression(options: { op: ExpressionOp; value?: any } & Partial<ExpressionData>): ExpressionData {
@@ -23,7 +22,7 @@ export function makeExpression(options: { op: ExpressionOp; value?: any } & Part
     if (options.op == ExpressionOp.IN || options.op == ExpressionOp.NOT_IN) {
       propertyType = { ...propertyType, isList: true }; // coerce type to list
     }
-    valuePacked = packProtoJson(packValue(options.value, propertyType));
+    valuePacked = packValue(options.value, propertyType);
   } else {
     valuePacked = options.valuePacked;
   }
