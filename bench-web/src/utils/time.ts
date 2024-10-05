@@ -226,62 +226,63 @@ export function dtToTs(dt: DateTime): Timestamp {
 // Timedelta parsing/formatting
 //
 
-type Component = [string, string, number | null, boolean];
-type Components = Component[];
-type Measurements = [string, number][];
+type DurationPart = [string, string, number | null, boolean];
+type DurationParts = DurationPart[];
+type DurationUnits = [string, number][];
 
-function parseDate(segment: string): Components {
-  const components: Components = [];
+function parseDate(segment: string): DurationParts {
+  const parts: DurationParts = [];
   switch (segment.length) {
     case 8:
       if (segment[4] === "-") {
-        components.push([segment.slice(0, 4), "years", null, true]);
-        components.push([segment.slice(5, 8), "days", 366, true]);
-        return components;
+        parts.push([segment.slice(0, 4), "years", null, true]);
+        parts.push([segment.slice(5, 8), "days", 366, true]);
+        return parts;
       }
-      components.push([segment.slice(0, 4), "years", null, true]);
-      components.push([segment.slice(4, 7), "days", 366, true]);
-      return components;
+      parts.push([segment.slice(0, 4), "years", null, true]);
+      parts.push([segment.slice(4, 7), "days", 366, true]);
+      return parts;
     case 10:
       if (segment[4] === "-" && segment[7] === "-") {
-        components.push([segment.slice(0, 4), "years", null, true]);
-        components.push([segment.slice(5, 7), "months", 12, true]);
-        components.push([segment.slice(8, 10), "days", 31, true]);
-        return components;
+        parts.push([segment.slice(0, 4), "years", null, true]);
+        parts.push([segment.slice(5, 7), "months", 12, true]);
+        parts.push([segment.slice(8, 10), "days", 31, true]);
+        return parts;
       }
       break;
   }
-  throw new Error(`unable to parse '${segment}' into date components`);
+  throw new Error(`unable to parse '${segment}' into date parts`);
 }
 
-function parseTime(segment: string): Components {
-  const components: Components = [];
+function parseTime(segment: string): DurationParts {
+  const parts: DurationParts = [];
   switch (segment.length) {
     case 8:
       if (segment[2] === ":" && segment[5] === ":") {
-        components.push([segment.slice(0, 2), "hours", 24, true]);
-        components.push([segment.slice(3, 5), "minutes", 60, true]);
-        components.push([segment.slice(6, 8), "seconds", 60, true]);
-        return components;
+        parts.push([segment.slice(0, 2), "hours", 24, true]);
+        parts.push([segment.slice(3, 5), "minutes", 60, true]);
+        parts.push([segment.slice(6, 8), "seconds", 60, true]);
+        return parts;
       }
       break;
     case 15:
       if (segment[2] === ":" && segment[5] === ":" && segment[8] === ".") {
-        components.push([segment.slice(0, 2), "hours", 24, true]);
-        components.push([segment.slice(3, 5), "minutes", 60, true]);
-        components.push([segment.slice(6), "seconds", 60, false]);
-        return components;
+        parts.push([segment.slice(0, 2), "hours", 24, true]);
+        parts.push([segment.slice(3, 5), "minutes", 60, true]);
+        parts.push([segment.slice(6), "seconds", 60, false]);
+        return parts;
       }
       break;
   }
-  throw new Error(`unable to parse '${segment}' into time components`);
+  throw new Error(`unable to parse '${segment}' into time parts`);
 }
 
-function parseDesignators(duration: string): Components {
-  const components: Components = [];
+function parseDesignators(duration: string): DurationParts {
+  const parts: DurationParts = [];
   const dateContext: [string, string][] = [
     ["Y", "years"],
     ["M", "months"],
+    ["W", "weeks"],
     ["D", "days"],
   ];
   let context: [string, string][] | null = dateContext;
@@ -306,7 +307,7 @@ function parseDesignators(duration: string): Components {
 
     if (char === "W") {
       if (unit !== null) throw new Error("cannot mix weeks with other units");
-      components.push([value, "weeks", null, false]);
+      parts.push([value, "weeks", null, false]);
       value = "";
       continue;
     }
@@ -315,36 +316,36 @@ function parseDesignators(duration: string): Components {
 
     for (const [delimiter, _unit] of context) {
       if (char === delimiter) {
-        components.push([value, _unit, null, false]);
+        parts.push([value, _unit, null, false]);
         value = "";
         unit = _unit;
         break;
       }
     }
   }
-  if (!unit) throw new Error("no measurements found");
-  return components;
+  if (parts.length === 0) throw new Error("no units found");
+  return parts;
 }
 
-function parseDuration(duration: string): Components {
+function parseDuration(duration: string): DurationParts {
   if (!duration.startsWith("P")) {
     throw new Error("durations must begin with the character 'P'");
   }
 
-  const components: Components = [];
+  const parts: DurationParts = [];
   if (/[A-Z]$/.test(duration)) {
     return parseDesignators(duration.slice(1));
   } else {
     const [dateSegment, timeSegment] = duration.slice(1).split("T");
-    if (dateSegment) components.push(...parseDate(dateSegment));
-    if (timeSegment) components.push(...parseTime(timeSegment));
-    return components;
+    if (dateSegment) parts.push(...parseDate(dateSegment));
+    if (timeSegment) parts.push(...parseTime(timeSegment));
+    return parts;
   }
 }
 
-function toMeasurements(components: Components): Measurements {
-  const measurements: Measurements = [];
-  for (const [value, unit, limit, integerOnly] of components) {
+function toUnits(parts: DurationParts): DurationUnits {
+  const units: DurationUnits = [];
+  for (const [value, unit, limit, integerOnly] of parts) {
     if (!((integerOnly && /^\d+$/.test(value)) || /^\d+\.?\d*$/.test(value))) {
       throw new Error(`unable to parse '${value}' as a positive number`);
     }
@@ -363,18 +364,23 @@ function toMeasurements(components: Components): Measurements {
       }
     }
     if (quantity) {
-      measurements.push([unit, quantity]);
+      units.push([unit, quantity]);
     }
   }
-  return measurements;
+  return units;
 }
 
 export function timedeltaFromISOFormat(duration: string): ProtoDuration {
   try {
-    const components = parseDuration(duration);
-    const measurements = toMeasurements(components);
+    let sign = 1;
+    if (duration.startsWith("-")) {
+      sign = -1;
+      duration = duration.slice(1);
+    }
+    const parts = parseDuration(duration);
+    const units = toUnits(parts);
     let totalSeconds = 0;
-    for (const [unit, quantity] of measurements) {
+    for (const [unit, quantity] of units) {
       switch (unit) {
         case "weeks":
           totalSeconds += quantity * 7 * 24 * 60 * 60;
@@ -397,7 +403,7 @@ export function timedeltaFromISOFormat(duration: string): ProtoDuration {
     }
     const seconds = Math.floor(totalSeconds);
     const nanos = Math.floor((totalSeconds - seconds) * 1e9);
-    return { seconds: BigInt(seconds), nanos };
+    return { seconds: BigInt(seconds * sign), nanos: nanos * sign };
   } catch (error) {
     throw new Error(`could not parse duration '${duration}': ${(error as any).message}`);
   }
@@ -412,21 +418,30 @@ export function timedeltaToISOFormat(duration: number | ProtoDuration): string {
     return "P0D";
   }
 
+  let sign = "";
+  if (duration < 0) {
+    sign = "-";
+    duration = -duration;
+  }
+
   let totalSeconds = duration / 1000;
-  const days = Math.floor(totalSeconds / (24 * 60 * 60));
+
+  let days = Math.floor(totalSeconds / (24 * 60 * 60));
   totalSeconds %= 24 * 60 * 60;
-
-  const hours = Math.floor(totalSeconds / (60 * 60));
-  totalSeconds %= 60 * 60;
-
+  const weeks = Math.floor(days / 7);
+  days = days % 7;
+  const hours = Math.floor(totalSeconds / 3600);
+  totalSeconds %= 3600;
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
-  let result = "P";
+  let result = `${sign}P`;
+  if (weeks > 0) {
+    result += `${weeks}W`;
+  }
   if (days > 0) {
     result += `${days}D`;
   }
-
   if (hours > 0 || minutes > 0 || seconds > 0) {
     result += "T";
     if (hours > 0) {
@@ -439,6 +454,5 @@ export function timedeltaToISOFormat(duration: number | ProtoDuration): string {
       result += `${seconds.toFixed(6).replace(/\.0+$/, "")}S`;
     }
   }
-
   return result;
 }

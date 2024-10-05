@@ -1,7 +1,7 @@
 import asyncio
 import base64
 from asyncio import CancelledError
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -16,6 +16,7 @@ from bench.language.path import get_node
 from bench.language.run import RunError, RunErrorType, RunKind, RunOptions
 from bench.language.setup import BENCH_CLASS_BY_NAME
 from bench.runtime.capture import LogSink
+from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 if TYPE_CHECKING:
     pass
@@ -109,6 +110,13 @@ STATIC_CODE_GLOBALS: dict[str, Any] = {
     # external
     "asyncio": asyncio,
     "sleep": asyncio.sleep,
+    # time
+    "datetime": datetime,
+    "date": date,
+    "time": time,
+    "timedelta": timedelta,
+    "timedelta_to_isoformat": timedelta_to_isoformat,
+    "timedelta_from_isoformat": timedelta_from_isoformat,
 }
 # and some general stuff
 for t in (datetime, timedelta, UUID, base64):

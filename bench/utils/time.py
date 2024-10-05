@@ -1,15 +1,18 @@
 from datetime import timedelta
 from typing import TypeAlias
 
-Components: TypeAlias = list[tuple[str, str, int | None, bool]]
-Measurements: TypeAlias = list[tuple[str, float]]
+_DurationParse: TypeAlias = list[tuple[str, str, int | None, bool]]
+_DurationUnits: TypeAlias = list[tuple[str, float]]
 
 
-def _parse_date(segment: str) -> Components:
+def _parse_date(segment: str) -> _DurationParse:
     match tuple(segment):
         # YYYY-DDD
         case _, _, _, _, "-", _, _, _:
-            return [(segment[0:4], "years", None, True), (segment[5:8], "days", 366, True)]
+            return [
+                (segment[0:4], "years", None, True),
+                (segment[5:8], "days", 366, True),
+            ]
 
         # YYYY-MM-DD
         case _, _, _, _, "-", _, _, "-", _, _:
@@ -21,7 +24,10 @@ def _parse_date(segment: str) -> Components:
 
         # YYYYDDD
         case _, _, _, _, _, _, _:
-            return [(segment[0:4], "years", None, True), (segment[4:7], "days", 366, True)]
+            return [
+                (segment[0:4], "years", None, True),
+                (segment[4:7], "days", 366, True),
+            ]
 
         # YYYYMMDD
         case _, _, _, _, _, _, _, _:
@@ -32,10 +38,10 @@ def _parse_date(segment: str) -> Components:
             ]
 
         case _:
-            raise ValueError(f"unable to parse '{segment}' into date components")
+            raise ValueError(f"unable to parse '{segment}' into date parts")
 
 
-def _parse_time(segment: str) -> Components:
+def _parse_time(segment: str) -> _DurationParse:
     match tuple(segment):
         # HH:MM:SS[.ssssss]
         case _, _, ":", _, _, ":", _, _, ".", *_:
@@ -70,13 +76,15 @@ def _parse_time(segment: str) -> Components:
             ]
 
         case _:
-            raise ValueError(f"unable to parse '{segment}' into time components")
+            raise ValueError(f"unable to parse '{segment}' into time parts")
 
 
-def _parse_designators(duration: str) -> Components:
+def _parse_designators(duration: str) -> _DurationParse:
     result = []
-    date_context = iter((("Y", "years"), ("M", "months"), ("D", "days")))
-    context, value, unit = date_context, "", None
+    date_context = iter((("Y", "years"), ("M", "months"), ("W", "weeks"), ("D", "days")))
+    context = date_context
+    value = ""
+    unit = None
 
     for char in duration:
         if char in {",", ".", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}:
@@ -90,8 +98,9 @@ def _parse_designators(duration: str) -> Components:
 
         if char == "W":
             assert not unit, "cannot mix weeks with other units"
-            context = iter((("W", "weeks"),))
-            pass
+            result.append((value, "weeks", None, False))
+            value = ""
+            continue
 
         for delimiter, unit in context:
             if char == delimiter:
@@ -101,47 +110,72 @@ def _parse_designators(duration: str) -> Components:
         else:
             raise ValueError(f"unexpected character '{char}'")
 
-    assert unit, "no measurements found"
+    if value:
+        raise ValueError(f"missing unit designator after '{value}'")
+
+    assert result, "no units found"
     return result
 
 
-def _parse_duration(duration: str) -> Components:
+def _parse_duration(duration: str) -> _DurationParse:
     assert duration.startswith("P"), "durations must begin with the character 'P'"
 
     if duration[-1].isupper():
-        return _parse_designators(duration[1:])
+        parts = _parse_designators(duration[1:])
     else:
         date_segment, _, time_segment = duration[1:].partition("T")
-        result = []
-        result.extend(_parse_date(date_segment) if date_segment else [])
-        result.extend(_parse_time(time_segment) if time_segment else [])
-        return result
+        parts: _DurationParse = []
+        if date_segment:
+            parts.extend(_parse_date(date_segment))
+        if time_segment:
+            parts.extend(_parse_time(time_segment))
+
+    return parts
 
 
-def _to_measurements(components: Components) -> Measurements:
+def _to_units(parts: _DurationParse) -> _DurationUnits:
     result = []
-    for value, unit, limit, integer_only in components:
+    for value, unit, limit, integer_only in parts:
+        if value.startswith("-"):
+            numeric_value = value[1:]
+            sign = -1
+        else:
+            numeric_value = value
+            sign = 1
+
         assert (
-            value.isdigit() if integer_only else value[0:1].isdigit()
+            numeric_value.isdigit() if integer_only else numeric_value.replace(".", "", 1).isdigit()
         ), f"unable to parse '{value}' as a positive number"
-        quantity = float(value)
+
+        quantity = float(numeric_value) * sign
+
         if limit is None:
             assert quantity >= 0, f"{unit} value of {value} exceeds range [0..+\u221e)"
         elif limit in (24, 60):
             assert 0 <= quantity < limit, f"{unit} value of {value} exceeds range [0..{limit})"
         else:
             assert 0 <= quantity <= limit, f"{unit} value of {value} exceeds range [0..{limit}]"
+
         if quantity:
             result.append((unit, quantity))
     return result
 
 
 def timedelta_from_isoformat(duration: str) -> timedelta:
-    """Converts a ISO 8601 duration string to a timedelta."""
+    """Converts an ISO 8601 duration string to a timedelta."""
     try:
-        components = _parse_duration(duration)
-        measurements = _to_measurements(components)
-        td = timedelta(**dict(measurements))
+        if duration.startswith("-"):
+            duration = duration[1:]
+            sign = -1
+        else:
+            sign = 1
+        parts = _parse_duration(duration)
+        units = _to_units(parts)
+        units = dict(units)
+        if sign == -1:
+            for key, value in units.items():
+                units[key] = -value
+        td = timedelta(**units)
         return td
     except (AssertionError, ValueError) as exc:
         raise ValueError(f"could not parse duration '{duration}': {exc}") from exc
@@ -149,16 +183,22 @@ def timedelta_from_isoformat(duration: str) -> timedelta:
 
 def timedelta_to_isoformat(td: timedelta) -> str:
     """Converts a timedelta to an ISO 8601 duration string."""
-    if not td:
+    if td == timedelta(0):
         return "P0D"
 
-    days = td.days
-    minutes, seconds = divmod(td.seconds, 60)
-    hours, minutes = divmod(minutes, 60)
+    sign = "-" if td.total_seconds() < 0 else ""
+    td = abs(td)
+
+    weeks, remainder = divmod(td.days, 7)
+    days = remainder
+    hours, remainder = divmod(td.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
     if td.microseconds:
         seconds += td.microseconds / 1_000_000
 
     result = "P"
+    if weeks:
+        result += f"{weeks}W"
     if days:
         result += f"{days}D"
 
@@ -169,6 +209,8 @@ def timedelta_to_isoformat(td: timedelta) -> str:
         if minutes:
             result += f"{minutes}M"
         if seconds:
-            result += f"{seconds:.6f}".rstrip("0").rstrip(".") + "S"
+            # Remove trailing zeros and decimal points
+            seconds_str = f"{seconds:.6f}".rstrip("0").rstrip(".")
+            result += f"{seconds_str}S"
 
-    return result
+    return sign + result

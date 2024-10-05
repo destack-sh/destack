@@ -4716,7 +4716,6 @@ class BadgeData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "delegated_policies",
         "expires_at",
@@ -4741,7 +4740,6 @@ class BadgeData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DELEGATED_POLICIES_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
@@ -4765,7 +4763,6 @@ class BadgeData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     delegated_policies: _containers.RepeatedCompositeFieldContainer[PolicyData]
     expires_at: _timestamp_pb2.Timestamp
@@ -4791,7 +4788,6 @@ class BadgeData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         delegated_policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ...,
         expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -4815,7 +4811,6 @@ class BenchData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "main_handle_ptr",
         "slug",
         "name",
@@ -4844,7 +4839,6 @@ class BenchData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     MAIN_HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -4872,7 +4866,6 @@ class BenchData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     main_handle_ptr: NodeReferenceData
     slug: str
     name: str
@@ -4902,7 +4895,6 @@ class BenchData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         slug: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -4938,7 +4930,6 @@ class BlockData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type",
         "name",
         "order_key",
@@ -4972,7 +4963,6 @@ class BlockData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -5005,7 +4995,6 @@ class BlockData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type: BlockType
     name: str
     order_key: str
@@ -5040,7 +5029,6 @@ class BlockData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type: _Optional[_Union[BlockType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
@@ -5073,7 +5061,6 @@ class BranchData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "slug",
         "text",
@@ -5096,7 +5083,6 @@ class BranchData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
@@ -5118,7 +5104,6 @@ class BranchData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     slug: str
     text: TextData
@@ -5142,7 +5127,6 @@ class BranchData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         slug: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
@@ -5168,7 +5152,6 @@ class CacheData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "text",
         "region",
@@ -5187,7 +5170,6 @@ class CacheData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -5205,7 +5187,6 @@ class CacheData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     text: TextData
     region: Region
@@ -5225,7 +5206,6 @@ class CacheData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -5247,7 +5227,6 @@ class ClientData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type",
         "name",
         "device_type",
@@ -5274,7 +5253,6 @@ class ClientData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DEVICE_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5300,7 +5278,6 @@ class ClientData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type: ClientType
     name: str
     device_type: str
@@ -5328,7 +5305,6 @@ class ClientData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type: _Optional[_Union[ClientType, str]] = ...,
         name: _Optional[str] = ...,
         device_type: _Optional[str] = ...,
@@ -5362,7 +5338,6 @@ class DependencyData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "scopes_ptr",
         "dependency_ptr",
     )
@@ -5382,7 +5357,6 @@ class DependencyData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     SCOPES_PTR_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCY_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -5401,7 +5375,6 @@ class DependencyData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     scopes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     dependency_ptr: NodeReferenceData
     def __init__(
@@ -5422,7 +5395,6 @@ class DependencyData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         scopes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         dependency_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
     ) -> None: ...
@@ -5441,7 +5413,6 @@ class DriveData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "text",
         "region",
@@ -5460,7 +5431,6 @@ class DriveData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -5478,7 +5448,6 @@ class DriveData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     text: TextData
     region: Region
@@ -5498,7 +5467,6 @@ class DriveData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -5524,7 +5492,6 @@ class FieldData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "order_key",
         "zone",
@@ -5560,7 +5527,6 @@ class FieldData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     ZONE_FIELD_NUMBER: _ClassVar[int]
@@ -5595,7 +5561,6 @@ class FieldData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     order_key: str
     zone: FieldZone
@@ -5632,7 +5597,6 @@ class FieldData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
         zone: _Optional[_Union[FieldZone, str]] = ...,
@@ -5667,7 +5631,6 @@ class FileData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "text",
         "region",
         "status",
@@ -5704,7 +5667,6 @@ class FileData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -5740,7 +5702,6 @@ class FileData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     text: TextData
     region: Region
     status: ResourceStatus
@@ -5778,7 +5739,6 @@ class FileData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
         status: _Optional[_Union[ResourceStatus, str]] = ...,
@@ -5818,7 +5778,6 @@ class HandleData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "slug",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5833,7 +5792,6 @@ class HandleData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
@@ -5847,7 +5805,6 @@ class HandleData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     slug: str
     def __init__(
         self,
@@ -5863,7 +5820,6 @@ class HandleData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         slug: _Optional[str] = ...,
     ) -> None: ...
 
@@ -5881,7 +5837,6 @@ class InviteData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "user_ptr",
         "user_email",
         "is_owner",
@@ -5899,7 +5854,6 @@ class InviteData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     USER_PTR_FIELD_NUMBER: _ClassVar[int]
     USER_EMAIL_FIELD_NUMBER: _ClassVar[int]
     IS_OWNER_FIELD_NUMBER: _ClassVar[int]
@@ -5916,7 +5870,6 @@ class InviteData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     user_ptr: NodeReferenceData
     user_email: str
     is_owner: bool
@@ -5935,7 +5888,6 @@ class InviteData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         user_email: _Optional[str] = ...,
         is_owner: bool = ...,
@@ -5957,7 +5909,6 @@ class LogData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "kind",
         "level",
         "change_ptr",
@@ -5996,7 +5947,6 @@ class LogData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     CHANGE_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6034,7 +5984,6 @@ class LogData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     kind: LogKind
     level: LogLevel
     change_ptr: NodeReferenceData
@@ -6074,7 +6023,6 @@ class LogData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         kind: _Optional[_Union[LogKind, str]] = ...,
         level: _Optional[_Union[LogLevel, str]] = ...,
         change_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -6115,7 +6063,6 @@ class MachineData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "text",
         "region",
@@ -6148,7 +6095,6 @@ class MachineData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -6180,7 +6126,6 @@ class MachineData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     text: TextData
     region: Region
@@ -6214,7 +6159,6 @@ class MachineData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -6250,7 +6194,6 @@ class MembershipData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "user_ptr",
         "is_owner",
     )
@@ -6266,7 +6209,6 @@ class MembershipData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     USER_PTR_FIELD_NUMBER: _ClassVar[int]
     IS_OWNER_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -6281,7 +6223,6 @@ class MembershipData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     user_ptr: NodeReferenceData
     is_owner: bool
     def __init__(
@@ -6298,7 +6239,6 @@ class MembershipData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         is_owner: bool = ...,
     ) -> None: ...
@@ -6318,7 +6258,6 @@ class MessageData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "origin_ptr",
         "path",
         "reply_to_ptr",
@@ -6340,7 +6279,6 @@ class MessageData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     ORIGIN_PTR_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6361,7 +6299,6 @@ class MessageData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     origin_ptr: NodeReferenceData
     path: PathData
     reply_to_ptr: NodeReferenceData
@@ -6384,7 +6321,6 @@ class MessageData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         origin_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         path: _Optional[_Union[PathData, _Mapping]] = ...,
         reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -6405,7 +6341,6 @@ class BaseNodeData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -6416,7 +6351,6 @@ class BaseNodeData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
@@ -6426,7 +6360,6 @@ class BaseNodeData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -6438,7 +6371,6 @@ class BaseNodeData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
     ) -> None: ...
 
 class NotificationData(_message.Message):
@@ -6456,7 +6388,6 @@ class NotificationData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "kind",
         "type_ptr",
         "expires_at",
@@ -6478,7 +6409,6 @@ class NotificationData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
@@ -6499,7 +6429,6 @@ class NotificationData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     kind: NotificationLevel
     type_ptr: NodeReferenceData
     expires_at: _timestamp_pb2.Timestamp
@@ -6522,7 +6451,6 @@ class NotificationData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         kind: _Optional[_Union[NotificationLevel, str]] = ...,
         type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -6543,7 +6471,6 @@ class OrganizationData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "main_handle_ptr",
         "slug",
         "name",
@@ -6561,7 +6488,6 @@ class OrganizationData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     MAIN_HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -6578,7 +6504,6 @@ class OrganizationData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     main_handle_ptr: NodeReferenceData
     slug: str
     name: str
@@ -6597,7 +6522,6 @@ class OrganizationData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         slug: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -6621,7 +6545,6 @@ class PackageData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "text",
         "icon",
         "policies",
@@ -6641,7 +6564,6 @@ class PackageData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     POLICIES_FIELD_NUMBER: _ClassVar[int]
@@ -6660,7 +6582,6 @@ class PackageData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     text: TextData
     icon: IconData
     policies: _containers.RepeatedCompositeFieldContainer[PolicyData]
@@ -6681,7 +6602,6 @@ class PackageData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         icon: _Optional[_Union[IconData, _Mapping]] = ...,
         policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ...,
@@ -6708,7 +6628,6 @@ class PipeData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type",
         "name",
         "order_key",
@@ -6744,7 +6663,6 @@ class PipeData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -6779,7 +6697,6 @@ class PipeData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type: PipeType
     name: str
     order_key: str
@@ -6816,7 +6733,6 @@ class PipeData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type: _Optional[_Union[PipeType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
@@ -6855,7 +6771,6 @@ class QueryData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "order_key",
         "read_type",
@@ -6880,7 +6795,6 @@ class QueryData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     READ_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -6904,7 +6818,6 @@ class QueryData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     order_key: str
     read_type: ReadType
@@ -6930,7 +6843,6 @@ class QueryData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
         read_type: _Optional[_Union[ReadType, str]] = ...,
@@ -6955,7 +6867,6 @@ class RecordData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "block_ptr",
         "order_key",
         "value_packed",
@@ -6973,7 +6884,6 @@ class RecordData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
@@ -6990,7 +6900,6 @@ class RecordData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     block_ptr: NodeReferenceData
     order_key: str
     value_packed: _struct_pb2.Value
@@ -7009,7 +6918,6 @@ class RecordData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         order_key: _Optional[str] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
@@ -7030,7 +6938,6 @@ class RunData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "kind",
         "root_ptr",
         "code",
@@ -7080,7 +6987,6 @@ class RunData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -7129,7 +7035,6 @@ class RunData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     kind: RunKind
     root_ptr: NodeReferenceData
     code: CodeData
@@ -7180,7 +7085,6 @@ class RunData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         kind: _Optional[_Union[RunKind, str]] = ...,
         root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
@@ -7232,7 +7136,6 @@ class SecretData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "title",
         "text",
         "region",
@@ -7253,7 +7156,6 @@ class SecretData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -7273,7 +7175,6 @@ class SecretData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     title: str
     text: TextData
     region: Region
@@ -7295,7 +7196,6 @@ class SecretData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         title: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -7319,7 +7219,6 @@ class ServerData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "text",
         "region",
@@ -7346,7 +7245,6 @@ class ServerData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -7372,7 +7270,6 @@ class ServerData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     text: TextData
     region: Region
@@ -7400,7 +7297,6 @@ class ServerData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -7431,7 +7327,6 @@ class SessionData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "status",
         "duration",
         "opened_at",
@@ -7454,7 +7349,6 @@ class SessionData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     OPENED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -7476,7 +7370,6 @@ class SessionData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     status: SessionStatus
     duration: _duration_pb2.Duration
     opened_at: _timestamp_pb2.Timestamp
@@ -7500,7 +7393,6 @@ class SessionData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         status: _Optional[_Union[SessionStatus, str]] = ...,
         duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         opened_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -7526,7 +7418,6 @@ class SignalData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type_ptr",
         "value_packed",
         "block_ptr",
@@ -7555,7 +7446,6 @@ class SignalData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -7583,7 +7473,6 @@ class SignalData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type_ptr: NodeReferenceData
     value_packed: _struct_pb2.Value
     block_ptr: NodeReferenceData
@@ -7613,7 +7502,6 @@ class SignalData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -7641,7 +7529,6 @@ class SkipData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "reference_ptr",
         "order_key",
     )
@@ -7654,7 +7541,6 @@ class SkipData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_PTR_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -7666,7 +7552,6 @@ class SkipData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     reference_ptr: NodeReferenceData
     order_key: str
     def __init__(
@@ -7680,7 +7565,6 @@ class SkipData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         reference_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         order_key: _Optional[str] = ...,
     ) -> None: ...
@@ -7703,7 +7587,6 @@ class SpaceData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type",
         "name",
         "text",
@@ -7731,7 +7614,6 @@ class SpaceData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
@@ -7758,7 +7640,6 @@ class SpaceData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type: SpaceType
     name: str
     text: TextData
@@ -7787,7 +7668,6 @@ class SpaceData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type: _Optional[_Union[SpaceType, str]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
@@ -7818,7 +7698,6 @@ class StepData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type",
         "name",
         "order_key",
@@ -7851,7 +7730,6 @@ class StepData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -7883,7 +7761,6 @@ class StepData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type: StepType
     name: str
     order_key: str
@@ -7917,7 +7794,6 @@ class StepData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type: _Optional[_Union[StepType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
@@ -7949,7 +7825,6 @@ class StoreData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "text",
         "region",
@@ -7973,7 +7848,6 @@ class StoreData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -7996,7 +7870,6 @@ class StoreData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     text: TextData
     region: Region
@@ -8021,7 +7894,6 @@ class StoreData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -8052,7 +7924,6 @@ class TriggerData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type",
         "name",
         "processed_epoch",
@@ -8077,7 +7948,6 @@ class TriggerData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     PROCESSED_EPOCH_FIELD_NUMBER: _ClassVar[int]
@@ -8101,7 +7971,6 @@ class TriggerData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type: TriggerType
     name: str
     processed_epoch: int
@@ -8127,7 +7996,6 @@ class TriggerData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type: _Optional[_Union[TriggerType, str]] = ...,
         name: _Optional[str] = ...,
         processed_epoch: _Optional[int] = ...,
@@ -8148,7 +8016,6 @@ class UserData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "main_handle_ptr",
         "slug",
         "name",
@@ -8171,7 +8038,6 @@ class UserData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     MAIN_HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -8193,7 +8059,6 @@ class UserData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     main_handle_ptr: NodeReferenceData
     slug: str
     name: str
@@ -8217,7 +8082,6 @@ class UserData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         slug: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -8246,7 +8110,6 @@ class VaultData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "name",
         "text",
         "region",
@@ -8265,7 +8128,6 @@ class VaultData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -8283,7 +8145,6 @@ class VaultData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     name: str
     text: TextData
     region: Region
@@ -8303,7 +8164,6 @@ class VaultData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -8329,7 +8189,6 @@ class ViewData(_message.Message):
         "deleted_at",
         "created_by_ptr",
         "updated_by_ptr",
-        "set_properties",
         "type",
         "name",
         "title",
@@ -8375,7 +8234,6 @@ class ViewData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    SET_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -8420,7 +8278,6 @@ class ViewData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
     updated_by_ptr: NodeReferenceData
-    set_properties: _containers.RepeatedScalarFieldContainer[int]
     type: ViewType
     name: str
     title: str
@@ -8467,7 +8324,6 @@ class ViewData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        set_properties: _Optional[_Iterable[int]] = ...,
         type: _Optional[_Union[ViewType, str]] = ...,
         name: _Optional[str] = ...,
         title: _Optional[str] = ...,

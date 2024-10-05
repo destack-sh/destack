@@ -1,7 +1,7 @@
 import base64
 import dataclasses
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Collection, assert_never, cast, override
 from uuid import UUID
@@ -32,6 +32,7 @@ from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import ScalarValue, SomeValue, ValueObject
 from bench.language.view import Icon, View, reverse_icon
+from bench.utils.time import timedelta_to_isoformat
 
 if TYPE_CHECKING:
     pass
@@ -262,8 +263,15 @@ class Renderer:
             elif typ.primitive_type == PrimitiveType.DATETIME:
                 value_iso = cast(datetime, value).isoformat()
                 return f"datetime.fromisoformat({value_iso!r})"
+            elif typ.primitive_type == PrimitiveType.DATE:
+                value_iso = cast(date, value).isoformat()
+                return f"date.fromisoformat({value_iso!r})"
+            elif typ.primitive_type == PrimitiveType.TIME:
+                value_iso = cast(time, value).isoformat()
+                return f"time.fromisoformat({value_iso!r})"
             elif typ.primitive_type == PrimitiveType.INTERVAL:
-                return f"timedelta(seconds={cast(timedelta, value).total_seconds()})"
+                value_iso = timedelta_to_isoformat(cast(timedelta, value))
+                return f"timedelta_from_isoformat({value_iso!r})"
             else:
                 return repr(value)
         elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
