@@ -186,10 +186,10 @@ class ValueObject(Mapping[str, Any]):
             return value
 
     def _do_set(
-        self, item: "str | Field", value: SomeValue, track: bool = True, validate: bool = False
+        self, item: "str | Field", new_value: SomeValue, track: bool = True, validate: bool = False
     ) -> None:
-        if item in self.__slots__:
-            return object.__setattr__(self, item, value)
+        if type(item) is str and item in self.__slots__:
+            return object.__setattr__(self, item, new_value)
         if isinstance(item, str):
             field: Field | None = self._type._get_field(item)
             if field is None:
@@ -200,18 +200,20 @@ class ValueObject(Mapping[str, Any]):
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         field_type = field._to_resolved()
         # coerce & copy if needed
-        value = coerce_value(value, field_type, as_packed=True, parent=self, parent_key=field)
+        new_value = coerce_value(
+            new_value, field_type, as_packed=True, parent=self, parent_key=field
+        )
         if validate:
-            check_value(value, field_type, invalid=on_invalid_raise)
+            check_value(new_value, field_type, invalid=on_invalid_raise)
         if self._value is None:
             self._value = {}
         storage_key = field.storage_key
         old_value = self._value.get(storage_key)
-        self._value[storage_key] = value
+        self._value[storage_key] = new_value
         if track:
-            from bench.language.node import _track_set
+            from bench.language.node import _trace_edit_operation
 
-            _track_set(self, field, EditOperationType.SET, value, old_value)
+            _trace_edit_operation(self, field, EditOperationType.SET, new_value, old_value)
 
     __setitem__ = _do_set
 

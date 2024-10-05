@@ -124,7 +124,7 @@ class PipeState:
     def has_values(self) -> bool:
         return len(self.values) > 0
 
-    def take_values(self, until: float, n: int | None) -> list[Any] | None:
+    def take(self, until: float, n: int | None) -> list[Any] | None:
         """
         Takes values that are ready up to the given time (inclusive).
         If n is given, return a list of batches with exactly size n.
@@ -360,8 +360,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
                     values[pipe] = value
 
             # schedule pipe tick
-            now = runner.run.terminated_at or runner.run.halted_at
-            assert now is not None, f"{runner!r} has no terminated_at or halted_at"
+            now = runner.run.terminated_at
+            assert now is not None, f"{runner!r} has no terminated_at"
             tick = FlowTick(id=self._get_tick_id(), now=now.timestamp(), values=values)
             self._tick_queue.put_nowait(tick)
 
@@ -451,18 +451,18 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 continue
             if pipe.modulation is None or pipe.modulation == PipeModulation.FLATTEN:
                 # get all ready values until now
-                values = pipe_state.take_values(until=tick.now, n=None)
+                values = pipe_state.take(until=tick.now, n=None)
             elif pipe.modulation == PipeModulation.ACCUMULATE:
                 # accumulate values into lists
                 if pipe.size:
                     # ready if batches of exactly n are ready
-                    values = pipe_state.take_values(until=tick.now, n=pipe.size)
+                    values = pipe_state.take(until=tick.now, n=pipe.size)
                 elif not self._has_unprocessed_incoming(pipe):
                     # default: ready if all incoming pipes/steps are inactive
                     # NOTE :Performance: checking for active in-flow on every tick seems inefficient?
                     #  (Also, checking for *any* incoming seems generally fragaile, should limit
                     #   to the relevant :RunContext somehow so we're done once the 'source' is done)
-                    values = [pipe_state.take_values(until=tick.now, n=None)]
+                    values = [pipe_state.take(until=tick.now, n=None)]
                 else:
                     continue  # not ready yet
             else:

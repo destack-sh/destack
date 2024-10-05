@@ -771,13 +771,14 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
     return property(get_ancestor_ptr, set)
 
 
-def _track_set(
+def _trace_edit_operation(
     obj: "ValueObject | Struct | Node | None",
     key: Union["Property", "Field"],
     operation_type: EditOperationType,
     new_value: Any | None,
     old_value: Any | None,
 ):
+    """Traces an edit operation to the given object."""
     if operation_type == EditOperationType.SET and new_value is None:
         operation_type = EditOperationType.CLEAR
 
@@ -809,9 +810,6 @@ def _track_set(
         assert typ is not None, f"{key!r} in {obj!r} has no type info"
     else:
         typ = cast("Field", key)
-    if type(key) is Property and key.is_value_runtime:
-        key = cast(Property, key.value_packed_ptr)
-        old_value = getattr(node, key.name)
     if old_value is None:
         old_value_packed = None
     else:
@@ -1104,50 +1102,65 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             self_str = self.__class__.__name__
         raise AttributeError(f"{self_str} has no attribute '{key}'")
 
-    def _do_set(self, key: str, value, *, track: bool = True, validate: bool = True):
+    def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this builtin object."""
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.is_untracked:
-                object.__setattr__(self, key, value)
+                object.__setattr__(self, key, new_value)
                 return
 
-            # remember old value
-            old_value = getattr(self, key) if track and validate else None
-
             # validate/set
-            if track and validate:
-                # coerce & check type (if it's not a contributed property, which only we edit)
-                if prop._type_info is not None and prop.reference_source is None:
-                    value = coerce_value(
-                        value,
-                        prop._type_info,
-                        as_packed=False,
-                        parent=cast("Struct | Node", self),
-                        parent_key=prop,
-                    )
-                    check_value(value, prop._type_info, invalid=on_invalid_raise)
-                object.__setattr__(self, key, value)
-                try:
-                    self._validate_self((prop,), invalid=on_invalid_raise)
-                except ValidationError:  # reset on error
-                    object.__setattr__(self, key, old_value)
-                    raise
-            else:
-                object.__setattr__(self, key, value)
-
-            # track edit in session
             if track:
-                _track_set(
-                    cast("Struct | Node", self), prop, EditOperationType.SET, value, old_value
-                )
+                if prop.is_value_runtime:
+                    old_value = getattr(self, prop.value_packed_ptr.name)  # type: ignore
+                else:
+                    old_value = getattr(self, key)
+                if validate:
+                    # coerce & check type (if it's not a contributed property, which only we edit)
+                    if prop._type_info is not None and prop.reference_source is None:
+                        new_value = coerce_value(
+                            new_value,
+                            prop._type_info,
+                            as_packed=False,
+                            parent=cast("Struct | Node", self),
+                            parent_key=prop,
+                        )
+                        check_value(new_value, prop._type_info, invalid=on_invalid_raise)
+                    object.__setattr__(self, key, new_value)
+                    try:
+                        self._validate_self((prop,), invalid=on_invalid_raise)
+                    except ValidationError:  # reset on error
+                        object.__setattr__(self, key, old_value)
+                        raise
+                else:
+                    object.__setattr__(self, key, new_value)
+                if prop.is_value_runtime:
+                    _trace_edit_operation(
+                        cast("Struct | Node", self),
+                        prop.value_packed_ptr,  # type: ignore
+                        EditOperationType.SET,
+                        getattr(self, prop.value_packed_ptr.name),  # type: ignore
+                        old_value,
+                    )
+                else:
+                    _trace_edit_operation(
+                        cast("Struct | Node", self),
+                        prop,
+                        EditOperationType.SET,
+                        new_value,
+                        old_value,
+                    )
+            else:
+                object.__setattr__(self, key, new_value)
+
             return
         elif track and self.__passthrough__ is not None:
             # try passthrough target (if any)
             for passthrough_key in self.__passthrough__:
                 target = getattr(self, passthrough_key, UNSET)
                 if target is not UNSET:
-                    setattr(target, key, value)
+                    setattr(target, key, new_value)
                     return
 
         # attribute error
