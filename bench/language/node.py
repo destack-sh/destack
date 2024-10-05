@@ -1469,7 +1469,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_type: NodeType | None = None
 
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
-    set_properties: list[int] = p_internal(29, array=True, store=False)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
