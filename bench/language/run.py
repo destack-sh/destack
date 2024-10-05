@@ -488,14 +488,6 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         else:
             return cast(RunData, data).block_ptr
 
-    def pause(self):
-        """Pauses the Run."""
-        self.halted_at = self.active_session._oracle.utc()
-
-    def resume(self):
-        """Resumes the Run."""
-        self.halted_at = None
-
     def cancel(self):
         """Cancels the Run before it happens."""
         self.killed_at = self.active_session._oracle.utc()

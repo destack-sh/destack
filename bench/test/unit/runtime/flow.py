@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 
 from bench.language.block import Block
 from bench.language.code import code
@@ -335,7 +336,7 @@ async def test_run_flow_infinite_loop_with_extra_hop(local_runtime: RuntimeHandl
 async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
     """Run a flow with a step that gets the Run port as a field."""
     Flow1 = Block.new(
-        BlockType.FLOW, "Flow1", fields=(Field.output("Duration", float, is_required=True),)
+        BlockType.FLOW, "Flow1", fields=(Field.output("Duration", timedelta, is_required=True),)
     )
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(StepType.CODE, "Code1", code=code("await asyncio.sleep(0.1)"))
@@ -345,7 +346,7 @@ async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
         code=code("return Run1.duration"),
         fields=(
             Field.input("Run1", Run, is_required=True),
-            Field.output("Duration", float, is_required=True),
+            Field.output("Duration", timedelta, is_required=True),
         ),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
@@ -360,8 +361,8 @@ async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
     assert runner.run and len(runner.run.runs) == 4  # two steps
     assert (
         runner.outputs
-        and isinstance(runner.outputs.Duration, float)
-        and runner.outputs.Duration >= 0.1  # >= sleep in that code step (above)
+        and isinstance(runner.outputs.Duration, timedelta)
+        and runner.outputs.Duration.total_seconds() >= 0.1  # >= sleep in that code step (above)
     )
 
 

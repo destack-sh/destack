@@ -280,7 +280,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         for k in dataclasses.fields(self):
             if k.name in (
                 "id",
-                "id_as_str",
+                "key",
                 "ord",
                 "component",
                 "ignore_conflicts",

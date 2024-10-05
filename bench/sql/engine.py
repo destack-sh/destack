@@ -1174,6 +1174,8 @@ def _pack_object_value_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
         return Jsonb(value)
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
+    elif prop.primitive_type == PrimitiveType.JSON:
+        return Jsonb(value)
     elif prop.primitive_type == PrimitiveType.DATETIME:
         return datetime.datetime.fromisoformat(value)
     elif prop.primitive_type == PrimitiveType.DATE:
