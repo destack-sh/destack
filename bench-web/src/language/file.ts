@@ -1,10 +1,9 @@
 import { toCamelName } from "@/language/const";
-import { type Transaction } from "@/language/transaction";
 import { makeNode } from "@/language/node";
+import { type Transaction } from "@/language/transaction";
 import { getCachedHostClient } from "@/proto/services";
 import {
   BenchData,
-  BlockData,
   DownloadFilesResponse_DownloadHandle,
   DriveData,
   EXTENSIONS_BY_FILE_FORMAT,
@@ -20,22 +19,13 @@ import {
   MIME_TYPES_BY_FILE_FORMAT,
   NodeReferenceData,
   NodeType,
-  PackageData,
   ResourceStatus,
+  Struct,
   StructType,
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
-import {
-  isNode,
-  isNodeOrRef,
-  isStruct,
-  makeScope,
-  newNodeId,
-  nodeReference,
-  toPlainNodeRef,
-  unpackProtoJson,
-} from "@/proto/wiring";
+import { isNode, isNodeOrRef, isStruct, makeScope, newNodeId, nodeReference, toPlainNodeRef } from "@/proto/wiring";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/ui/icon";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -252,7 +242,7 @@ async function doUploadFiles(
 
     // actually upload
     try {
-      const fields = unpackProtoJson(handle.fields!) as Record<string, string>;
+      const fields = Struct.toJson(handle.fields!) as Record<string, string>;
       upload.status.value = FileStatus.TRANSFERRING;
       await doUploadFile(upload.content, handle.postUrl, fields, (progress) => {
         upload.progress.value = progress;

@@ -6,6 +6,7 @@ import {
   BlockProperty,
   ChangeCategory,
   CommitTransactionRequest,
+  EditOperationData,
   EditType,
   GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
@@ -119,7 +120,11 @@ export type Transaction = TransactionMeta & {
   /** Create or update all properties in the node */
   upsert(node: AnyNodeData): void;
   /** Update regular properties in this node. v*/
-  update<T extends AnyNodeData>(node: T, update: Partial<T>, options?: { debounce?: DebounceLevel }): void;
+  update<T extends AnyNodeData>(
+    node: T,
+    update: Partial<T> | EditOperationData[],
+    options?: { debounce?: DebounceLevel },
+  ): void;
   /** Move node between parents (and update it) */
   move<T extends AnyNodeData>(
     node: T,

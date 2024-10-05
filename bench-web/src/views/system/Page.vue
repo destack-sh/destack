@@ -23,7 +23,6 @@ import {
 import {
   describeNode,
   isNode,
-  packProtoJson,
   toNodeRef,
   toNodeRefOneOf,
   unwrapProtoOneOf,
@@ -32,7 +31,7 @@ import {
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
-import { bench, canvas, inspectionPtr } from "@/system/space";
+import { bench, canvas } from "@/system/space";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
@@ -158,7 +157,7 @@ const { activeDropZone } = useMultiDropZone({
           block: {
             type: BlockType.VALUE,
             valueType: variableType,
-            valuePacked: packProtoJson(packValue(toNodeRef(upload.file.value!), variableType)),
+            valuePacked: packValue(toNodeRef(upload.file.value!), variableType),
           },
           anchor: anchor == "start" ? "before" : "after",
           target: target,

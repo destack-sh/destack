@@ -1,7 +1,7 @@
 import { EXPOSED_ANCHORS } from "@/language/const";
 import { getEditStack } from "@/language/edit";
 import { getAllTransactionBuffers } from "@/language/transaction";
-import { packBuiltinObjectJson } from "@/language/value";
+import { packBuiltinObject } from "@/language/value";
 import {
   ObjectType,
   TreeViewPreset,
@@ -1165,7 +1165,7 @@ contributeActionMap<"space">({
         {
           type: ViewType.TREE,
           title: "Explore",
-          valuePacked: packBuiltinObjectJson({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.EXPLORE }),
+          valuePacked: packBuiltinObject({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.EXPLORE }),
         },
         { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Explore") },
       );
@@ -1180,7 +1180,7 @@ contributeActionMap<"space">({
         {
           type: ViewType.TREE,
           title: "Outline",
-          valuePacked: packBuiltinObjectJson({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.OUTLINE }),
+          valuePacked: packBuiltinObject({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.OUTLINE }),
         },
         { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Outline") },
       );

@@ -85,15 +85,12 @@ const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 //
 
 const value = computed(() => {
-  // unfortunate :ProtoStructMapping for every change
   if (block.value?.valueType == null) {
     return undefined;
   } else if (block.value?.valueType.kind == TypeKind.OBJECT) {
-    const valuePacked = block.value?.valuePacked == null ? null : ProtoStruct.toJson(block.value.valuePacked);
-    return valuePacked;
+    return block.value?.valuePacked;
   } else {
-    const valuePacked = block.value?.valuePacked == null ? null : ProtoStruct.toJson(block.value.valuePacked);
-    return unpackValue(valuePacked, block.value.valueType, {
+    return unpackValue(block.value?.valuePacked!, block.value.valueType, {
       graph: pkgGraph,
       unwrapScalar: true,
       recurseValueObject: false,
@@ -111,7 +108,7 @@ function updateValue(value: any) {
           recurseValueObject: false,
         });
   if (valuePacked != null) {
-    pkgConnection.tx.update(block.value, { valuePacked: ProtoStruct.fromJson(valuePacked) }, { debounce: "short" });
+    pkgConnection.tx.update(block.value, { valuePacked }, { debounce: "short" });
   } else {
     pkgConnection.tx.update(block.value, { valuePacked: undefined }, { debounce: "short" });
   }

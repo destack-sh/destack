@@ -26,6 +26,7 @@ import {
   type PropertyInfo,
   type StructTypeMapping,
   Struct as ProtoStruct,
+  EditOperationType,
 } from "@/proto/wire";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
@@ -87,11 +88,11 @@ export function describeNode(node: {
   return `${typeName}:[${nodeParts.join(", ")}]`;
 }
 
-export function describeEdit(edit: Pick<EditData, "type" | "nodePtr" | "revision" | "properties">) {
+export function describeEdit(edit: Pick<EditData, "type" | "nodePtr" | "revision" | "operations">) {
   const editParts: string[] = [EditType[edit.type]];
   if (edit.nodePtr) editParts.push(describeNode(edit.nodePtr));
   if (edit.revision) editParts.push(`revision=${edit.revision}`);
-  if (edit.properties) editParts.push(`properties=${Object.keys(edit.properties).join("|")}`);
+  if (edit.operations) editParts.push(`operations=${edit.operations.map((o) => EditOperationType[o.type]).join("|")}`);
   return editParts.join(", ");
 }
 
@@ -386,20 +387,4 @@ export function deepContentEquals(object: any, other: any): boolean {
     }
     return true;
   }
-}
-
-//
-// Proto JSON ("Struct")
-//
-
-export function isProtoJson(value: any): value is ProtoStruct {
-  return typeof value == "object" && "fields" in value && !("metatype" in value);
-}
-
-export function packProtoJson(value: JsonValue | null | undefined): ProtoStruct {
-  return ProtoStruct.fromJson(value ?? null);
-}
-
-export function unpackProtoJson(value: ProtoStruct): JsonValue {
-  return ProtoStruct.toJson(value);
 }

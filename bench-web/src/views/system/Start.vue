@@ -17,15 +17,13 @@ import {
   Timestamp,
   TypeKind,
   Variant,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import {
   isNode,
-  packProtoJson,
   propertyReference,
   toNodeRef,
   toPlainNodeRef,
-  unpackProtoJson,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -131,8 +129,8 @@ const baseTypePtr = computed(() => {
 });
 const inputsPacked: Ref<Record<string, any>> = mapRef(
   useViewStateProp(canvas.tx, "inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
-  (packed) => (packed != null ? unpackProtoJson(packed) : {}) as Record<string, any>,
-  (unpacked) => packProtoJson(unpacked),
+  (packed) => (packed != null ? packed : {}) as Record<string, any>,
+  (unpacked) => unpacked,
 );
 const inputType = computed(() =>
   runnablePtr.value != null
@@ -158,7 +156,7 @@ defineExpose<ViewExposed>({ self });
   <div v-if="lastRunnableNode" class="h-full w-full">
     <!-- NOTE :UX: start view is ugly -->
     <!-- Header -->
-    <div class="group  flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
+    <div class="group flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
         class="mx-auto flex w-full max-w-full flex-row items-center pl-2 pr-2.5"
         :style="{ minWidth: MIN_WIDTH + 'px' }"
@@ -234,7 +232,7 @@ defineExpose<ViewExposed>({ self });
             :value-type="outputType"
             is-inline
             :variant="Variant.STEALTH"
-            :model-value="unpackProtoJson(run.outputsPacked)"
+            :model-value="run.outputsPacked"
           />
         </div>
         <!-- Error (last run) -->
