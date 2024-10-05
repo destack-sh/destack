@@ -10,4 +10,7 @@ export * from './proto/system.client';
 export * from './google/protobuf/descriptor';
 export * from './google/protobuf/struct';
 export * from './google/protobuf/timestamp';
+export * from './proto/google/type/date';
+export * from './proto/google/type/timeofday';
+export * from './proto/google/type/datetime';
         

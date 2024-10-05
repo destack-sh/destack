@@ -5,6 +5,9 @@ package symbolx.bench;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "proto/google/type/datetime.proto";
+import "proto/google/type/date.proto";
+import "proto/google/type/timeofday.proto";
 
 enum AccessKind {
   ACCESS_KIND_UNSPECIFIED = 0;
