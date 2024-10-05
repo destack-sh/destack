@@ -221,3 +221,224 @@ export function dtToTs(dt: DateTime): Timestamp {
     nanos: dt.millisecond * 1000000,
   };
 }
+
+//
+// Timedelta parsing/formatting
+//
+
+type Component = [string, string, number | null, boolean];
+type Components = Component[];
+type Measurements = [string, number][];
+
+function parseDate(segment: string): Components {
+  const components: Components = [];
+  switch (segment.length) {
+    case 8:
+      if (segment[4] === "-") {
+        components.push([segment.slice(0, 4), "years", null, true]);
+        components.push([segment.slice(5, 8), "days", 366, true]);
+        return components;
+      }
+      components.push([segment.slice(0, 4), "years", null, true]);
+      components.push([segment.slice(4, 7), "days", 366, true]);
+      return components;
+    case 10:
+      if (segment[4] === "-" && segment[7] === "-") {
+        components.push([segment.slice(0, 4), "years", null, true]);
+        components.push([segment.slice(5, 7), "months", 12, true]);
+        components.push([segment.slice(8, 10), "days", 31, true]);
+        return components;
+      }
+      break;
+  }
+  throw new Error(`unable to parse '${segment}' into date components`);
+}
+
+function parseTime(segment: string): Components {
+  const components: Components = [];
+  switch (segment.length) {
+    case 8:
+      if (segment[2] === ":" && segment[5] === ":") {
+        components.push([segment.slice(0, 2), "hours", 24, true]);
+        components.push([segment.slice(3, 5), "minutes", 60, true]);
+        components.push([segment.slice(6, 8), "seconds", 60, true]);
+        return components;
+      }
+      break;
+    case 15:
+      if (segment[2] === ":" && segment[5] === ":" && segment[8] === ".") {
+        components.push([segment.slice(0, 2), "hours", 24, true]);
+        components.push([segment.slice(3, 5), "minutes", 60, true]);
+        components.push([segment.slice(6), "seconds", 60, false]);
+        return components;
+      }
+      break;
+  }
+  throw new Error(`unable to parse '${segment}' into time components`);
+}
+
+function parseDesignators(duration: string): Components {
+  const components: Components = [];
+  const dateContext: [string, string][] = [
+    ["Y", "years"],
+    ["M", "months"],
+    ["D", "days"],
+  ];
+  let context: [string, string][] | null = dateContext;
+  let value = "";
+  let unit: string | null = null;
+
+  for (const char of duration) {
+    if (char.match(/[\d.,]/)) {
+      value += char;
+      continue;
+    }
+
+    if (char === "T" && context === dateContext) {
+      if (value !== "") throw new Error(`missing unit designator after '${value}'`);
+      context = [
+        ["H", "hours"],
+        ["M", "minutes"],
+        ["S", "seconds"],
+      ];
+      continue;
+    }
+
+    if (char === "W") {
+      if (unit !== null) throw new Error("cannot mix weeks with other units");
+      components.push([value, "weeks", null, false]);
+      value = "";
+      continue;
+    }
+
+    if (!context) throw new Error(`unexpected character '${char}'`);
+
+    for (const [delimiter, _unit] of context) {
+      if (char === delimiter) {
+        components.push([value, _unit, null, false]);
+        value = "";
+        unit = _unit;
+        break;
+      }
+    }
+  }
+  if (!unit) throw new Error("no measurements found");
+  return components;
+}
+
+function parseDuration(duration: string): Components {
+  if (!duration.startsWith("P")) {
+    throw new Error("durations must begin with the character 'P'");
+  }
+
+  const components: Components = [];
+  if (/[A-Z]$/.test(duration)) {
+    return parseDesignators(duration.slice(1));
+  } else {
+    const [dateSegment, timeSegment] = duration.slice(1).split("T");
+    if (dateSegment) components.push(...parseDate(dateSegment));
+    if (timeSegment) components.push(...parseTime(timeSegment));
+    return components;
+  }
+}
+
+function toMeasurements(components: Components): Measurements {
+  const measurements: Measurements = [];
+  for (const [value, unit, limit, integerOnly] of components) {
+    if (!((integerOnly && /^\d+$/.test(value)) || /^\d+\.?\d*$/.test(value))) {
+      throw new Error(`unable to parse '${value}' as a positive number`);
+    }
+    const quantity = parseFloat(value);
+    if (limit === null) {
+      if (quantity < 0) {
+        throw new Error(`${unit} value of ${value} exceeds range [0..+∞)`);
+      }
+    } else if (limit === 24 || limit === 60) {
+      if (quantity < 0 || quantity >= limit) {
+        throw new Error(`${unit} value of ${value} exceeds range [0..${limit})`);
+      }
+    } else {
+      if (quantity < 0 || quantity > limit) {
+        throw new Error(`${unit} value of ${value} exceeds range [0..${limit}]`);
+      }
+    }
+    if (quantity) {
+      measurements.push([unit, quantity]);
+    }
+  }
+  return measurements;
+}
+
+export function timedeltaFromISOFormat(duration: string): ProtoDuration {
+  try {
+    const components = parseDuration(duration);
+    const measurements = toMeasurements(components);
+    let totalSeconds = 0;
+    for (const [unit, quantity] of measurements) {
+      switch (unit) {
+        case "weeks":
+          totalSeconds += quantity * 7 * 24 * 60 * 60;
+          break;
+        case "days":
+          totalSeconds += quantity * 24 * 60 * 60;
+          break;
+        case "hours":
+          totalSeconds += quantity * 60 * 60;
+          break;
+        case "minutes":
+          totalSeconds += quantity * 60;
+          break;
+        case "seconds":
+          totalSeconds += quantity;
+          break;
+        default:
+          throw new Error(`unexpected unit '${unit}'`);
+      }
+    }
+    const seconds = Math.floor(totalSeconds);
+    const nanos = Math.floor((totalSeconds - seconds) * 1e9);
+    return { seconds: BigInt(seconds), nanos };
+  } catch (error) {
+    throw new Error(`could not parse duration '${duration}': ${(error as any).message}`);
+  }
+}
+
+export function timedeltaToISOFormat(duration: number | ProtoDuration): string {
+  if (typeof duration !== "number") {
+    duration = Number(duration.seconds) * 1e3 + duration.nanos / 1e6;
+  }
+
+  if (duration === 0) {
+    return "P0D";
+  }
+
+  let totalSeconds = duration / 1000;
+  const days = Math.floor(totalSeconds / (24 * 60 * 60));
+  totalSeconds %= 24 * 60 * 60;
+
+  const hours = Math.floor(totalSeconds / (60 * 60));
+  totalSeconds %= 60 * 60;
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  let result = "P";
+  if (days > 0) {
+    result += `${days}D`;
+  }
+
+  if (hours > 0 || minutes > 0 || seconds > 0) {
+    result += "T";
+    if (hours > 0) {
+      result += `${hours}H`;
+    }
+    if (minutes > 0) {
+      result += `${minutes}M`;
+    }
+    if (seconds > 0) {
+      result += `${seconds.toFixed(6).replace(/\.0+$/, "")}S`;
+    }
+  }
+
+  return result;
+}

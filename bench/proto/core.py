@@ -39,6 +39,9 @@ class ProtoSchema(ProtoThing):
             "google/protobuf/timestamp.proto",
             "google/protobuf/duration.proto",
             "google/protobuf/struct.proto",
+            "proto/google/type/datetime.proto",
+            "proto/google/type/date.proto",
+            "proto/google/type/timeofday.proto",
         ]
         return ProtoSchema(name=name, imports=imports, types=types)
 
@@ -91,6 +94,9 @@ class FieldType(enum.StrEnum):
     # well-known types
     ANY = "google.protobuf.Any"
     TIMESTAMP = "google.protobuf.Timestamp"
+    DATETIME = "google.type.DateTime"
+    DATE = "google.type.Date"
+    TIME = "google.type.TimeOfDay"
     DURATION = "google.protobuf.Duration"
     EMPTY = "google.protobuf.Empty"
     STRUCT = "google.protobuf.Struct"

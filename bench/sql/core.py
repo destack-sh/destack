@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from uuid import UUID
@@ -195,7 +195,9 @@ class TableObject(Object):
         return dataclasses.replace(self, _table=None)
 
 
-SqlPrimitiveScalar = Union[str, int, float, bool, datetime, timedelta, UUID, bytes, type(None), Jsonb]
+SqlPrimitiveScalar = Union[
+    str, int, float, bool, datetime, date, time, timedelta, UUID, bytes, type(None), Jsonb
+]
 SqlPrimitive = Union[SqlPrimitiveScalar, list["SqlPrimitive"], dict[str, SqlPrimitiveScalar]]
 
 

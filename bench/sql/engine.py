@@ -64,19 +64,25 @@ from bench.language.setup import (
 )
 from bench.language.value import (
     pack_builtin_object_data,
+    pack_proto_date,
     pack_proto_json,
+    pack_proto_time,
     unpack_builtin_object_data,
+    unpack_proto_date,
     unpack_proto_json,
+    unpack_proto_time,
     unpack_value_scalar_data,
 )
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     AnyNodeData,
+    Date,
     EditData,
     FileReferenceData,
     GraphScopeData,
     NodeReferenceData,
     SecretReferenceData,
+    TimeOfDay,
 )
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
@@ -102,6 +108,7 @@ from bench.utils.func import bittuple, describe_type, group_by, to_uuid
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions, retry
+from bench.utils.time import timedelta_from_isoformat
 from bench.utils.uuidt import UUIDT
 
 # NOTE :Performance: check out asyncpg instead of psycopg (up to 5x faster?)
@@ -269,6 +276,8 @@ PG_CAST_PRIMITIVE_TYPE: dict[PrimitiveType, str] = {
     PrimitiveType.VECTOR: "float[]",
     PrimitiveType.BYTES: "bytea",
     PrimitiveType.DATETIME: "timestamptz",
+    PrimitiveType.DATE: "date",
+    PrimitiveType.TIME: "time",
     PrimitiveType.INTERVAL: "interval",
     PrimitiveType.JSON: "jsonb",
     PrimitiveType.UUID: "uuid",
@@ -1138,7 +1147,11 @@ def _pack_object_data_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
     elif prop.primitive_type == PrimitiveType.JSON:
         return Jsonb(unpack_proto_json(value))  # type: ignore
     elif prop.primitive_type == PrimitiveType.DATETIME:
-        return value.ToDatetime()
+        return cast(Timestamp, value).ToDatetime()
+    elif prop.primitive_type == PrimitiveType.DATE:
+        return unpack_proto_date(cast(Date, value))
+    elif prop.primitive_type == PrimitiveType.TIME:
+        return unpack_proto_time(cast(TimeOfDay, value))
     elif prop.primitive_type == PrimitiveType.INTERVAL:
         return value.ToTimedelta()
     else:
@@ -1161,10 +1174,14 @@ def _pack_object_value_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
         return Jsonb(value)
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
-    elif prop.primitive_type == PrimitiveType.DATETIME or prop.primitive_type == PrimitiveType.DATE:
+    elif prop.primitive_type == PrimitiveType.DATETIME:
         return datetime.datetime.fromisoformat(value)
+    elif prop.primitive_type == PrimitiveType.DATE:
+        return datetime.date.fromisoformat(value)
+    elif prop.primitive_type == PrimitiveType.TIME:
+        return datetime.time.fromisoformat(value)
     elif prop.primitive_type == PrimitiveType.INTERVAL:
-        return datetime.timedelta(seconds=value)
+        return timedelta_from_isoformat(value)
     else:
         return value
 
@@ -1193,6 +1210,10 @@ def _unpack_object_data_prop_scalar(prop: Property, value: Any, into: Any | None
         ts = Timestamp()
         ts.FromDatetime(value)
         return ts
+    elif prop.primitive_type == PrimitiveType.DATE:
+        return pack_proto_date(value)
+    elif prop.primitive_type == PrimitiveType.TIME:
+        return pack_proto_time(value)
     elif prop.primitive_type == PrimitiveType.INTERVAL:
         dur = Duration()
         dur.FromTimedelta(value)

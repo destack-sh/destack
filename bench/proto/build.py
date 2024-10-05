@@ -44,12 +44,18 @@ EXTRA_PROTO_PY_FILES = (
     "proto/health.proto",
     "proto/system.proto",
     "proto/runtime.proto",
+    "proto/google/type/date.proto",
+    "proto/google/type/datetime.proto",
+    "proto/google/type/timeofday.proto",
 )
 EXTRA_PROTO_TS_FILES = (
     "proto/common.proto",
     "proto/health.proto",
     "proto/system.proto",
     "proto/web.proto",
+    "proto/google/type/date.proto",
+    "proto/google/type/datetime.proto",
+    "proto/google/type/timeofday.proto",
 )
 
 logger = structlog.get_logger(__name__)
@@ -143,9 +149,10 @@ def _build_proto(schema_str: str) -> None:
         wire_py = path.read_text()
         # replace 'import <name>' with 'from .<name> import <name>' (if name is one of generated_py_files)
         wire_py = regex.sub(
-            rf"import ({'|'.join(p.stem for p in generated_py_files)})",
+            rf"^import ({'|'.join(p.stem for p in generated_py_files)})",
             r"from . import \1",
             wire_py,
+            flags=regex.MULTILINE,
         )
         if "_grpc" in path.stem:
             # snake case all methods (replace def <MyName> with def <my_name>, also for self.MyName)
@@ -186,7 +193,19 @@ from typing import TYPE_CHECKING, Union
 VERSION = '{VERSION}'
 
 # import from all generated files
-{"\n".join(f"from .{path.stem} import *" for path in generated_py_files)}
+from .runtime_pb2 import *
+from .health_pb2 import *
+from .common_pb2 import *
+from .common_grpc import *
+from .lang_grpc import *
+from .runtime_grpc import *
+from .system_grpc import *
+from .health_grpc import *
+from .lang_pb2 import *
+from .system_pb2 import *
+from .google.type.date_pb2 import *
+from .google.type.timeofday_pb2 import *
+from .google.type.datetime_pb2 import *
 
 # extra utility types
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
@@ -558,6 +577,9 @@ export * from './proto/system.client';
 export * from './google/protobuf/descriptor';
 export * from './google/protobuf/struct';
 export * from './google/protobuf/timestamp';
+export * from './proto/google/type/date';
+export * from './proto/google/type/timeofday';
+export * from './proto/google/type/datetime';
         """
     )
 

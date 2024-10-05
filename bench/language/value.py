@@ -1,6 +1,6 @@
 import base64
 from collections.abc import Mapping
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -17,7 +17,6 @@ import pytz
 import regex
 import structlog
 from google.protobuf.duration_pb2 import Duration
-from google.protobuf.duration_pb2 import Duration as Interval
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.struct_pb2 import NULL_VALUE as PROTO_NULL_VALUE
 from google.protobuf.struct_pb2 import ListValue as ProtoList
@@ -46,8 +45,9 @@ from bench.language.property import (
 )
 from bench.language.setup import ENUM_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import NAME_CONSTRAINT, TYPE_CONSTRAINT_BY_FORMAT, on_invalid_raise
-from bench.proto.wire import AnyNodeData, AnyStructData
+from bench.proto.wire import AnyNodeData, AnyStructData, Date, TimeOfDay
 from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -80,6 +80,8 @@ ScalarValueData = Union[
     ProtoStruct,
     ProtoValue,
     Timestamp,
+    Date,
+    TimeOfDay,
     Duration,
 ]
 SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
@@ -849,11 +851,21 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
                 return value.ToDatetime(tzinfo=pytz.utc).isoformat()
             else:
                 return cast(datetime, value).isoformat()
-        elif typ.primitive_type == PrimitiveType.INTERVAL:
-            if type(value) is Interval:
-                return value.seconds + cast(Interval, value).nanos / 1e9
+        elif typ.primitive_type == PrimitiveType.DATE:
+            if type(value) is Date:
+                return unpack_proto_date(value).isoformat()
             else:
-                return cast(timedelta, value).total_seconds()
+                return cast(date, value).isoformat()
+        elif typ.primitive_type == PrimitiveType.TIME:
+            if type(value) is TimeOfDay:
+                return unpack_proto_time(value).isoformat()
+            else:
+                return cast(time, value).isoformat()
+        elif typ.primitive_type == PrimitiveType.INTERVAL:
+            if type(value) is Duration:
+                return timedelta_to_isoformat(value.ToTimedelta())
+            else:
+                return timedelta_to_isoformat(cast(timedelta, value))
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
@@ -889,12 +901,14 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
             return int(cast(int, value_packed))
         elif typ.primitive_type == PrimitiveType.UUID:
             return UUID(cast(str, value_packed))
-        elif (
-            typ.primitive_type == PrimitiveType.DATETIME or typ.primitive_type == PrimitiveType.DATE
-        ):
+        elif typ.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(cast(str, value_packed))
+        elif typ.primitive_type == PrimitiveType.DATE:
+            return date.fromisoformat(cast(str, value_packed))
+        elif typ.primitive_type == PrimitiveType.TIME:
+            return time.fromisoformat(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.INTERVAL:
-            return timedelta(seconds=cast(int, value_packed))
+            return timedelta_from_isoformat(cast(str, value_packed))
         else:
             return cast(PrimitiveValue, value_packed)
     elif typ.kind == TypeKind.ENUM:
@@ -924,15 +938,19 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
             return cast(str, value_packed)  # leave as string
         elif typ.primitive_type == PrimitiveType.JSON:
             return pack_proto_json(cast(Any, value_packed))
-        elif (
-            typ.primitive_type == PrimitiveType.DATETIME or typ.primitive_type == PrimitiveType.DATE
-        ):
+        elif typ.primitive_type == PrimitiveType.DATETIME:
             ts = Timestamp()
             ts.FromDatetime(datetime.fromisoformat(cast(str, value_packed)))
             return ts
+        elif typ.primitive_type == PrimitiveType.DATE:
+            dt = date.fromisoformat(cast(str, value_packed))
+            return pack_proto_date(dt)
+        elif typ.primitive_type == PrimitiveType.TIME:
+            dt = time.fromisoformat(cast(str, value_packed))
+            return pack_proto_time(dt)
         elif typ.primitive_type == PrimitiveType.INTERVAL:
             dur = Duration()
-            dur.FromTimedelta(timedelta(seconds=cast(float, value_packed)))
+            dur.FromTimedelta(timedelta_from_isoformat(cast(str, value_packed)))
             return dur
         else:
             return cast(PrimitiveValue, value_packed)
@@ -1203,6 +1221,22 @@ def unpack_value_data(
 #
 
 # NOTE :Performance: packing/unpacking proto JSON could probably be much more efficient
+
+
+def pack_proto_date(value: date) -> Date:
+    return Date(year=value.year, month=value.month, day=value.day)
+
+
+def unpack_proto_date(value: Date) -> date:
+    return date(year=value.year, month=value.month, day=value.day)
+
+
+def pack_proto_time(value: time) -> TimeOfDay:
+    return TimeOfDay(hours=value.hour, minutes=value.minute, seconds=value.second)
+
+
+def unpack_proto_time(value: TimeOfDay) -> time:
+    return time(hour=value.hours, minute=value.minutes, second=value.seconds)
 
 
 def pack_proto_json_struct(value: dict[str, Any]) -> ProtoValue:

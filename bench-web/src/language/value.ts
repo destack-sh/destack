@@ -22,7 +22,7 @@ import {
   TypeKind,
   type AnyNodeData,
   type AnyStructData,
-  type AnyTypeMapping,
+  type AnyTypeMapping
 } from "@/proto/wire";
 import {
   isNodeRef,

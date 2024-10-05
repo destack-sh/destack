@@ -1,7 +1,7 @@
 import contextvars
 import secrets
 import typing
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any, Mapping, Optional, TypeGuard, cast
 from uuid import UUID, uuid4
 
@@ -891,7 +891,7 @@ class PrimitiveType(IdEnum):
         return self.id >= 15 and self.id < 20
 
 
-PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta
+PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | date | time | timedelta
 
 PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.BOOLEAN: bool,
@@ -904,6 +904,8 @@ PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.BYTES: bytes,
     PrimitiveType.UUID: UUID,
     PrimitiveType.DATETIME: datetime,
+    PrimitiveType.DATE: date,
+    PrimitiveType.TIME: time,
     PrimitiveType.INTERVAL: timedelta,
 }
 PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
@@ -913,6 +915,8 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     str: PrimitiveType.STRING,
     bytes: PrimitiveType.BYTES,
     datetime: PrimitiveType.DATETIME,
+    date: PrimitiveType.DATE,
+    time: PrimitiveType.TIME,
     timedelta: PrimitiveType.INTERVAL,
     UUID: PrimitiveType.UUID,
 }
