@@ -1122,30 +1122,23 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
   }
 }
 
+type PartialNode<T extends NodeType> = NodeTypeMapping[T] & { setPaths?: string[][] };
+
 /**
- * Creates a new node with the explicitly set properties from the overlay superimposed on the base.
- * NOTE: this works specifically with Node.setProperties, not a TS Partial.
+ * Creates a new node with the explicitly set paths from the overlay superimposed on the base.
  */
 export function mergeNode<T extends NodeType>(
-  base: NodeTypeMapping[T],
-  partial: NodeTypeMapping[T],
+  base: PartialNode<T>,
+  partial: PartialNode<T>,
 ): NodeTypeMapping[T] {
-  if (partial.setProperties.length > 0) {
+  if (partial.setPaths != null && partial.setPaths.length > 0) {
     const merged: NodeTypeMapping[T] = { ...base };
     const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[base.metatype]!;
-    for (const propId of partial.setProperties) {
-      if (propId == allProperties.setProperties) {
-        // merge setProperties
-        merged.setProperties = [...merged.setProperties];
-        partial.setProperties
-          .filter((propId) => !merged.setProperties.includes(propId))
-          .forEach((propId) => merged.setProperties.push(propId));
-      } else {
-        // overwrite property
-        const propName = allProperties[propId];
-        (merged as any)[propName] = (partial as any)[propName];
-      }
+    for (const path of partial.setPaths) {
+      // nocheckin
     }
+    
+    // merge setPaths
     return merged;
   } else {
     return { ...base, ...partial };

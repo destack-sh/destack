@@ -11,12 +11,11 @@ import {
   FieldZone,
   NodeReferenceData,
   NodeType,
-  Struct as ProtoStruct,
   TypeInfoData,
   TypeKind,
   Variant,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";

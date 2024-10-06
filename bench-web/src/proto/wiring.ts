@@ -1,7 +1,7 @@
 import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/language/const";
-import type { JsonValue } from "@/language/value";
 import {
   EditData,
+  EditOperationType,
   EditType,
   FileData,
   FileReferenceData,
@@ -16,7 +16,6 @@ import {
   SecretData,
   SecretReferenceData,
   SomeNodeData,
-  STRUCT_PROPERTY_ENUM_BY_TYPE,
   StructType,
   ViewData,
   type AnyNodeData,
@@ -24,9 +23,7 @@ import {
   type AnyTypeMapping,
   type NodeTypeMapping,
   type PropertyInfo,
-  type StructTypeMapping,
-  Struct as ProtoStruct,
-  EditOperationType,
+  type StructTypeMapping
 } from "@/proto/wire";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";

@@ -146,9 +146,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
-  data: Partial<
-    Omit<NodeTypeMapping[T], "metatype" | "createdAt" | "updatedAt" | "revision" | "source" | "setProperties">
-  > & {
+  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "createdAt" | "updatedAt" | "revision">> & {
     metatype: T;
   },
   options?: { omit: (keyof NodeTypeMapping[T])[] },

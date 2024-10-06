@@ -1,12 +1,14 @@
+import { getPropertyType } from "@/language/field";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
-import { type JsonValue } from "@/language/value";
+import { unpackValue } from "@/language/value";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
   BlockProperty,
   ChangeCategory,
   CommitTransactionRequest,
   EditOperationData,
+  EditOperationType,
   EditType,
   GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
@@ -15,25 +17,22 @@ import {
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
-  Struct as ProtoStruct,
   TextData,
   Timestamp,
   type AnyNodeData,
   type EditData,
-  type NodeTypeMapping,
-  type PropertyInfo,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import {
   describeEdit,
   describeNode,
   EMPTY_SCOPE,
-  makeDefaultObject,
   makeScope,
   nodeReference,
   toPlainNodeRef,
   unwrapSomeNode,
   wrapSomeNode,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { makeIcon } from "@/ui/icon";
@@ -43,7 +42,7 @@ import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
-import { computed, nextTick, ref, shallowRef, toRef, toValue, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
@@ -280,17 +279,16 @@ export class TransactionBuilder implements Transaction {
     this.checkInScope(node);
 
     // pack 'old' and 'new' node delta :EditData
-    let newNode: AnyNodeData | undefined = undefined;
-    let oldNode: AnyNodeData | undefined = undefined;
+    let nodeData: AnyNodeData | undefined = undefined;
     let oldEditedAt: Timestamp | undefined = undefined;
     if (editType == EditType.CREATE || editType == EditType.UPSERT) {
-      newNode = node;
+      nodeData = node;
     } else if (editType == EditType.DELETE) {
       // nothing to do
     } else if (editType == EditType.RESTORE) {
       oldEditedAt = node.deletedAt;
     } else if (editType == EditType.ERASE) {
-      oldNode = node;
+      nodeData = node;
     }
 
     // make edit & notify
@@ -302,15 +300,14 @@ export class TransactionBuilder implements Transaction {
       type: editType,
       nodePtr: toPlainNodeRef(node),
       scope: this.getScope(node),
-      oldNode: oldNode != null ? wrapSomeNode(oldNode) : undefined,
-      newNode: newNode != null ? wrapSomeNode(newNode) : undefined,
-      properties: [],
       origin: origin.value,
       subjectPtr: subjectPtr,
       changeKey: this.change?.key,
       category: this.category,
       editedAt: Timestamp.now(),
       oldEditedAt: oldEditedAt,
+      nodeData: nodeData != null ? wrapSomeNode(nodeData) : undefined,
+      operations: [],
     };
     this.state.edits.push(edit);
     this._notifyEdit(edit, debounce);
@@ -362,37 +359,21 @@ export class TransactionBuilder implements Transaction {
   _doUpdate<T extends AnyNodeData>(
     editType: EditType.UPDATE | EditType.MOVE,
     node: T,
-    update: Partial<T>,
+    update: Partial<T> | EditOperationData[],
     options?: { debounce?: DebounceLevel },
   ) {
     this.checkInScope(node);
 
-    const propertiesEnum = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
-    const allProperties = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
-
-    // collect properties
-    const properties: PropertyInfo[] = [];
-    for (const propName of Object.keys(update)) {
-      if (IMPLICIT_PROPERTIES.includes(propName)) {
-        throw new Error(`cannot update constant property for ${describeNode(node)}: ${propName}`);
-      }
-      const propId = propertiesEnum[propName as any];
-      const propInfo = allProperties[propId];
-      if (propInfo == null) {
-        throw new Error(`missing property info for ${describeNode(node)}: ${propName}/${propId}`);
-      }
-      properties.push(propInfo);
+    // convert update to operations
+    let operations: EditOperationData[];
+    if (!Array.isArray(update)) {
+      throw new Error("nocheckin: _doUpdate.update convert to operations");
+    } else {
+      operations = update;
     }
 
     if (!options?.debounce || !this.state._debouncedUpdatesByNodeId[node.id]) {
       // create new edit
-      const oldNode = { ...node } as T;
-      const newNode = { ...oldNode, ...update } as T;
-      for (const prop of properties) {
-        const propName = propertiesEnum[prop.id];
-        (oldNode as any)[propName] = (node as any)[propName];
-        (newNode as any)[propName] = (update as any)[propName];
-      }
       const subjectPtr = toValue(this.subject);
       if (subjectPtr == null) throw new Error("no subject for edit");
       const edit: EditData = {
@@ -401,9 +382,7 @@ export class TransactionBuilder implements Transaction {
         type: editType,
         nodePtr: toPlainNodeRef(node),
         scope: this.getScope(node),
-        properties: properties.map((p) => p.id),
-        oldNode: wrapSomeNode(oldNode),
-        newNode: wrapSomeNode(newNode),
+        operations: operations,
         origin: origin.value,
         subjectPtr: subjectPtr,
         changeKey: this.change?.key,
@@ -418,21 +397,9 @@ export class TransactionBuilder implements Transaction {
     } else {
       // merge into existing edit & notify directly :DebouncedUpdate
       const edit = this.state._debouncedUpdatesByNodeId[node.id];
-      if (edit.oldNode == null || edit.newNode == null) {
-        throw new Error(`missing old/new node in debounced edit: ${describeEdit(edit)}`);
-      }
-      const oldNode = unwrapSomeNode(edit.oldNode);
-      const newNode = unwrapSomeNode(edit.newNode);
-      for (const prop of properties) {
-        const propName = propertiesEnum[prop.id];
-        // add to Edit.properties if not there @yet
-        if (!edit.properties.includes(prop.id)) {
-          // and old value since it doesn't already exist
-          edit.properties.push(prop.id);
-          (oldNode as any)[propName] = (node as any)[propName];
-        }
-        // and update new value
-        (newNode as any)[propName] = (update as any)[propName];
+      // nocheckin: merge operations to same paths?
+      for (const op of operations) {
+        edit.operations.push(op);
       }
       // coalesce successive move/update into move edit
       if (editType == EditType.MOVE && edit.type != EditType.MOVE) {
@@ -448,7 +415,7 @@ export class TransactionBuilder implements Transaction {
 
   move<T extends AnyNodeData>(
     node: T,
-    update: Partial<T> & { parentPtr: NodeReferenceData },
+    update: (Partial<T> & { parentPtr: NodeReferenceData }) | EditOperationData[],
     options?: { debounce?: DebounceLevel },
   ) {
     this._doUpdate(EditType.MOVE, node, update, options);
@@ -478,24 +445,25 @@ export function editGraph(
 ) {
   for (const edit of edits) {
     const nodeType = edit.nodePtr!.type;
+    const allProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
     if (
       edit.type == EditType.CREATE ||
       edit.type == EditType.UPSERT ||
       (edit.type == EditType.RESTORE && !graph.has(edit.nodePtr!))
     ) {
       // add
-      if (edit.newNode == null) throw new Error(`missing newNode in edit: ${describeEdit(edit)}`);
-      const newNode = unwrapSomeNode(edit.newNode);
+      if (edit.nodeData == null) throw new Error(`missing nodeData in edit: ${describeEdit(edit)}`);
+      const node = unwrapSomeNode(edit.nodeData);
       // implicit metadata
-      newNode.createdAt = newNode.updatedAt = edit.editedAt;
-      if (edit.epoch != null && "createdEpoch" in newNode && "updatedEpoch" in newNode) {
-        newNode.createdEpoch = newNode.updatedEpoch = edit.epoch;
+      node.createdAt = node.updatedAt = edit.editedAt;
+      if (edit.epoch != null && "createdEpoch" in node && "updatedEpoch" in node) {
+        node.createdEpoch = node.updatedEpoch = edit.epoch;
       }
-      newNode.createdByPtr = newNode.updatedByPtr = edit.subjectPtr;
-      if (edit.type == EditType.CREATE || !graph.has(newNode)) {
-        graph.add(newNode);
+      node.createdByPtr = node.updatedByPtr = edit.subjectPtr;
+      if (edit.type == EditType.CREATE || !graph.has(node)) {
+        graph.add(node);
       } else {
-        graph.update(newNode);
+        graph.update(node);
       }
     } else if (edit.type == EditType.ERASE && !(options?.base && !graph.has(edit.nodePtr!))) {
       // remove
@@ -508,9 +476,9 @@ export function editGraph(
       // update
       let updatedNode: AnyNodeData | null;
       if (edit.type == EditType.RESTORE) {
-        if (edit.newNode == null)
-          throw new Error(`missing old node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        updatedNode = unwrapSomeNode(edit.newNode);
+        if (edit.nodeData == null)
+          throw new Error(`missing node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
+        updatedNode = unwrapSomeNode(edit.nodeData);
       } else {
         updatedNode = graph.get(edit.nodePtr!);
         if (!updatedNode && options?.base) {
@@ -520,21 +488,25 @@ export function editGraph(
           throw new Error(`missing node for update: ${describeNode(edit.nodePtr!)} in ${graph.describeSelf()}`);
         }
       }
-      updatedNode = { ...updatedNode }; // copy
+      updatedNode = structuredClone(updatedNode); // copy
 
-      // directly edited properties
+      // apply edit operations
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
-        if (edit.newNode == null)
-          throw new Error(`missing new node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        const newNode = unwrapSomeNode(edit.newNode);
-        const propertyEnum = NODE_PROPERTY_ENUM_BY_TYPE[nodeType]!;
-        const allProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
-        for (const propId of edit.properties) {
-          const prop = allProperties[propId];
-          if (!prop) throw new Error(`missing property info for ${nodeType}: ${propId}`);
-          const propName = propertyEnum[propId];
-          const newValue = (newNode as any)[propName];
-          (updatedNode as any)[propName] = newValue;
+        if (edit.nodeData == null)
+          throw new Error(`missing node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
+        for (const operation of edit.operations) {
+          if (operation.path.length != 1) throw new Error(`nocheckin editGraph: ${operation.path}`);
+          const prop = allProperties[Number(operation.path[0])];
+          const propType = getPropertyType(prop);
+          let newValue: any;
+          if (operation.type == EditOperationType.SET) {
+            newValue = unpackValue(operation.newValuePacked!, propType);
+          } else if (operation.type == EditOperationType.CLEAR) {
+            newValue = undefined;
+          } else {
+            throw new Error(`unexpected operation type: ${operation.type}`);
+          }
+          Object.assign(updatedNode, { [prop.name]: newValue });
         }
       }
 
@@ -555,18 +527,14 @@ export function editGraph(
         extraImplicitProperties.push(BlockProperty.deletedAt);
       }
 
-      // extend setProperties for overlay
+      // extend setPaths for overlay
       if (options?.base != null) {
-        if ((updatedNode.setProperties?.length ?? 0) == 0) {
-          updatedNode.setProperties = [
-            ...IMPLICIT_UPDATE_PROPERTIES_IDS,
-            ...edit.properties,
-            ...extraImplicitProperties,
-          ];
-        } else {
-          for (const propId of [...edit.properties, ...extraImplicitProperties]) {
-            if (!updatedNode.setProperties.includes(propId)) updatedNode.setProperties.push(propId);
-          }
+        for (const setPath of [
+          ...IMPLICIT_UPDATE_PROPERTIES_IDS,
+          ...edit.operations.map((o) => o.path),
+          ...extraImplicitProperties,
+        ]) {
+          // nocheckin: update setPaths
         }
       }
 
