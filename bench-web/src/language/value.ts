@@ -15,7 +15,6 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
-  Struct as ProtoStruct,
   TYPE_CONSTRAINT_BY_FORMAT,
   Timestamp,
   TypeConstraintIn,
@@ -29,7 +28,7 @@ import { isNodeRef, isStruct, toNodeRefOneOf, unwrapProtoOneOf, type SomeNodeRef
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
 export type PrimitiveValue = JsonPrimitive | bigint | Timestamp;
-export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
+export type ScalarValue = PrimitiveValue | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
 //
@@ -102,14 +101,7 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
 
 /** Unpacks a single value into its data representation (converting JSON into ProtoJson ƒor builtin objects).  */
 function unpackValueScalarData(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
-  let value = unpackValueScalar(valuePacked, type);
-  if (type.kind == TypeKind.PRIMITIVE) {
-    // unpack
-    if (type.primitiveType == PrimitiveType.JSON) {
-      value = ProtoStruct.fromJson(value as JsonValue);
-    }
-  }
-  return value;
+  return unpackValueScalar(valuePacked, type); // nocheckin: do we need this method?
 }
 
 /** Packs a single struct/node proto value using proto ids for keys and enums. */

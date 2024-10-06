@@ -43,9 +43,7 @@ const currentValue: Ref<string | null | undefined> = ref(null);
 watch(
   modelValue,
   (newValue) => (currentValue.value = Array.isArray(newValue) ? currentValue.value : newValue?.toString()),
-  {
-    immediate: true,
-  },
+  { immediate: true },
 );
 const validationError: Ref<string | null> = ref(null);
 watch(currentValue, (newValue) => {

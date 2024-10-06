@@ -20,6 +20,7 @@ import {
   Struct,
   Timestamp,
   UserData,
+  Value,
   type AnyNodeData,
   type AnyPropertyType,
   type AnyTypeMapping,
@@ -47,6 +48,7 @@ const SCALAR_GENERATORS: Partial<Record<ScalarType, () => any>> = {
 
 const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
   "google.protobuf.Struct": () => Struct.fromJson({}),
+  "google.protobuf.Value": () => Value.fromJson(null),
   "google.protobuf.Timestamp": () => Timestamp.now(),
   "google.protobuf.Duration": () => Math.random(),
   "symbolx.bench.NodeReferenceData": () => ({ metatype: ObjectType.NODE_REFERENCE, id: v4(), type: NodeType.USER }),
@@ -54,8 +56,7 @@ const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
 
 const PROP_NAME_GENERATORS: Record<string, () => any> = {
   valuePacked: () => {},
-  oldNode: () => {},
-  newNode: () => {},
+  nodeData: () => {},
 };
 
 const MEMBERS_BY_ENUM: Record<string, number[]> = {};
@@ -242,11 +243,11 @@ describe("layered node graph", () => {
     clientA = {
       ...clientA,
       name: "clientAOverlay",
-      setProperties: [ClientProperty.setProperties, ClientProperty.name],
+      setPaths: [ClientProperty.name.toString()],
     } as ClientData;
-    // NOTE: deviceName in overlay should be ignored because it's not in setProperties.
+    // NOTE: deviceName in overlay should be ignored because it's not in setPaths.
     //  This shouldn't really happen, but it's good to have this invariant.
-    overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetProperties" });
+    overlay.update({ ...clientA, deviceName: "ignoreBecauseNotInSetPaths" });
     expect(graph.get({ id: clientA.id })).toEqual(clientA);
     expect(clientARef.value).toEqual(clientA);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);

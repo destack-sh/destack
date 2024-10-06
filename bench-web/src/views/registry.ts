@@ -51,7 +51,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.SCROLL]: () => import("@/views/containers/Scroll.vue"),
 
   // groups
-  [ViewType.GROUP]: () => import("@/views/containers/Group.vue"),
 
   // presentation
 

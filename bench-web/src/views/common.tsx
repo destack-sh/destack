@@ -18,7 +18,7 @@ import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
 
 export type ViewProps = { self?: NodeReferenceData; modelValue?: any; placeholder?: string } & Partial<
-  Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
+  Omit<ViewData, "metatype" | "id" | "ck" | "revision">
 >;
 export type ViewComponent = {
   new (): ComponentInstance<any>;
@@ -89,7 +89,7 @@ export const ViewContentWrapper: FunctionalComponent<{
     <div class={classBase}>
       {props.title && <label class={labelClass}>{props.title}</label>}
       {isUnsupported ? (
-        <div class="text-red-500">{IS_DEV ? (props.type ?? '<no view type>') : "???"}</div>
+        <div class="text-red-500">{IS_DEV ? (props.type ?? "<no view type>") : "???"}</div>
       ) : slots.default ? (
         slots.default()
       ) : null}
