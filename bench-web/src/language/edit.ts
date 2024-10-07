@@ -17,6 +17,7 @@ import {
   EditType,
   LogData,
   NodeReferenceData,
+  NodeType,
   ObjectType,
   Timestamp,
   ViewData,
@@ -26,6 +27,7 @@ import {
   EMPTY_SCOPE,
   describeEdit,
   describeNode,
+  isNode,
   makeDefaultObject,
   makeScope,
   toPlainNodeRef,
@@ -184,13 +186,19 @@ function invertEdit(originalEdit: EditData | LogData, newEdit: EditData, mode: "
   if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, newEdit.type!)}}`);
   if (mode == "undo") {
     newEdit.type = undoType;
-    [newEdit.oldNode, newEdit.newNode] = [newEdit.newNode, newEdit.oldNode];
   } else if (mode == "redo") {
     const redoType = UNDO_EDIT_BY_TYPE[undoType!];
     if (redoType == null) throw new Error(`cannot redo edit ${toCamelName(EditType, undoType!)}}`);
     newEdit.type = redoType;
   } else {
     assertNever(mode);
+  }
+  if (isNode(originalEdit, NodeType.LOG)) {
+    if (originalEdit.nodeData != null) {
+      newEdit.nodeData = wrapSomeNode(unpackBuiltinObject(originalEdit.nodeData) as AnyNodeData);
+    }
+  } else {
+    newEdit.nodeData = originalEdit.nodeData;
   }
   if (newEdit.type == EditType.RESTORE) {
     newEdit.oldEditedAt = (originalEdit as EditData).editedAt ?? (originalEdit as LogData).createdAt;
@@ -213,13 +221,9 @@ export function makeEditFromLog(
   const nodeType = log.nodePtr.type;
   const editType = log.type as unknown as EditType | undefined;
   if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
-  const oldNode =
-    log.oldNodePacked != null
-      ? (makeDefaultObject(unpackBuiltinObject(log.oldNodePacked, nodeType as unknown as ObjectType)) as AnyNodeData)
-      : null;
-  const newNode =
-    log.newNodePacked != null
-      ? (makeDefaultObject(unpackBuiltinObject(log.newNodePacked, nodeType as unknown as ObjectType)) as AnyNodeData)
+  const nodeData =
+    log.nodeData != null
+      ? (makeDefaultObject(unpackBuiltinObject(log.nodeData, nodeType as unknown as ObjectType)) as AnyNodeData)
       : null;
 
   // make edit
@@ -232,9 +236,8 @@ export function makeEditFromLog(
     type: editType!,
     nodePtr: log.nodePtr,
     scope: scope,
-    properties: log.properties,
-    oldNode: oldNode != null ? wrapSomeNode(oldNode) : undefined,
-    newNode: newNode != null ? wrapSomeNode(newNode) : undefined,
+    nodeData: nodeData != null ? wrapSomeNode(nodeData) : undefined,
+    operations: log.operations,
     origin: origin.value,
     category: options?.category ?? log.category,
     subjectPtr: subjectPtr,

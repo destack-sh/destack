@@ -85,7 +85,7 @@ const absoluteStyle = computed(() => {
           <!-- Title -->
           <span class="font-medium text-gray-900">{{ toast.title }}</span>
           <!-- Content -->
-          <p v-if="toast.text" class="mt-0.5 text-gray-500">{{ toast.text }}</p>
+          <p v-if="toast.text" class="mt-0.5 line-clamp-3 text-gray-500">{{ toast.text }}</p>
         </div>
       </div>
       <!-- Actions -->
