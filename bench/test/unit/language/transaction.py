@@ -1,7 +1,7 @@
 from bench.language.block import Block
 from bench.language.const import BlockType, EditOperationType
 from bench.language.field import Field, to_type
-from bench.language.run import RunOptions
+from bench.language.run import RunErrorType, RunOptions
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -23,12 +23,12 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
         assert last_edit.operations, f"no operations for last edit: {last_edit!r}"
         return last_edit.operations[-1]
 
-    # root scalar value set
+    # root scalar parent_key set
     Value1.name = "Value2"
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [Block.get_property("name").key]
 
-    # root value clear
+    # root scalar parent_key clear
     Value1.text = None
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [Block.get_property("text").key]
@@ -50,7 +50,7 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
         RunOptions.get_property("max_concurrency").key,
     ]
 
-    # nested scalar value set
+    # nested scalar parent_key set
     Value1.value_type = to_type(Class1)
     Value1.value = Class1(Integer=1, String="two")
     Value1.value.Integer = 2
@@ -59,3 +59,24 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
         Block.get_property("value_packed").key,
         Class1.fields.Integer.key,
     ]
+
+    # root list set
+    Value1.roles = [Class1]
+    assert get_last_operation().type == EditOperationType.SET
+    assert get_last_operation().path == [Block.get_property("roles").key]
+
+    # root list parent_key clear
+    Value1.roles = []
+    assert get_last_operation().type == EditOperationType.SET
+    assert get_last_operation().path == [Block.get_property("roles").key]
+
+    # nested list parent_key set
+    Value1.run_options.retry_on = [RunErrorType.CODE_INVALID, RunErrorType.INVALID_VALUE]
+    assert get_last_operation().type == EditOperationType.SET
+    assert get_last_operation().path == [
+        Block.get_property("run_options").key,
+        RunOptions.get_property("retry_on").key,
+    ]
+
+    # commit and read back
+    await session.commit()  # nocheckin

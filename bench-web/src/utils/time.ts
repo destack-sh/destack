@@ -402,7 +402,7 @@ export function timedeltaFromISOFormat(duration: string): ProtoDuration {
       }
     }
     const seconds = Math.floor(totalSeconds);
-    const nanos = Math.floor((totalSeconds - seconds) * 1e9);
+    const nanos = Math.round((totalSeconds - seconds) * 1e9); // round to account for floating point errors
     return { seconds: BigInt(seconds * sign), nanos: nanos * sign };
   } catch (error) {
     throw new Error(`could not parse duration '${duration}': ${(error as any).message}`);
@@ -451,7 +451,7 @@ export function timedeltaToISOFormat(duration: number | ProtoDuration): string {
       result += `${minutes}M`;
     }
     if (seconds > 0) {
-      result += `${seconds.toFixed(6).replace(/\.0+$/, "")}S`;
+      result += `${seconds.toFixed(9).replace(/\.0+$/, "")}S`;
     }
   }
   return result;
