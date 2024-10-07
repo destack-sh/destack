@@ -23,17 +23,17 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
         assert last_edit.operations, f"no operations for last edit: {last_edit!r}"
         return last_edit.operations[-1]
 
-    # top level value set
+    # root scalar value set
     Value1.name = "Value2"
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [Block.get_property("name").key]
 
-    # top level value clear
+    # root value clear
     Value1.text = None
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [Block.get_property("text").key]
 
-    # nested struct set
+    # nested scalar struct set
     Value1.run_options = RunOptions(max_attempts=3)
     Value1.run_options.max_attempts = 4
     assert get_last_operation().type == EditOperationType.SET
@@ -42,7 +42,7 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
         RunOptions.get_property("max_attempts").key,
     ]
 
-    # nested struct clear
+    # nested scalar struct clear
     Value1.run_options.max_concurrency = None
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [
@@ -50,7 +50,7 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
         RunOptions.get_property("max_concurrency").key,
     ]
 
-    # nested value set
+    # nested scalar value set
     Value1.value_type = to_type(Class1)
     Value1.value = Class1(Integer=1, String="two")
     Value1.value.Integer = 2

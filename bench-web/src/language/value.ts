@@ -10,24 +10,37 @@ import {
 } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import {
+  DateTime,
   NodeReferenceData,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
   TYPE_CONSTRAINT_BY_FORMAT,
+  TimeOfDay,
   Timestamp,
+  Date as ProtoDate,
   TypeConstraintIn,
   TypeKind,
   type AnyNodeData,
   type AnyStructData,
   type AnyTypeMapping,
 } from "@/proto/wire";
+import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { isNodeRef, isStruct, toNodeRefOneOf, unwrapProtoOneOf, type SomeNodeReferenceData } from "@/proto/wiring";
+import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@/utils/time";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
-export type PrimitiveValue = JsonPrimitive | bigint | Timestamp;
+export type PrimitiveValue =
+  | JsonPrimitive
+  | JsonValue
+  | bigint
+  | Timestamp
+  | DateTime
+  | ProtoDate
+  | TimeOfDay
+  | Duration;
 export type ScalarValue = PrimitiveValue | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
@@ -38,8 +51,18 @@ export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue }
 /** Packs a single data value in its robust JSON-able representation. */
 function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   if (type.kind == TypeKind.PRIMITIVE) {
-    if (type.primitiveType == PrimitiveType.DATETIME) {
+    if (type.primitiveType == PrimitiveType.BYTES) {
+      return Buffer.from(value as string).toString("base64");
+    } else if (type.primitiveType == PrimitiveType.JSON) {
+      return value as JsonValue;
+    } else if (type.primitiveType == PrimitiveType.DATETIME) {
       return Timestamp.toDate(value as Timestamp).toISOString();
+    } else if (type.primitiveType == PrimitiveType.DATE) {
+      return ProtoDate.toJsDate(value as ProtoDate).toISOString();
+    } else if (type.primitiveType == PrimitiveType.TIME) {
+      throw new Error(`:Incomplete ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
+    } else if (type.primitiveType == PrimitiveType.INTERVAL) {
+      return timedeltaToISOFormat(value as Duration);
     } else if (typeof value == "bigint") {
       // NOTE :Robustness: we pack bigints as numbers, which is only safe up to 2^53-1
       //  (should be fine, we only use it for epoch/revision which will last ~300k years at 1000edits/sec)
@@ -47,8 +70,6 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
         throw new Error(`bigint ${value} too large for Number for ${describeTypeIdentity(type)}`);
       }
       return Number(value);
-    } else if (type.primitiveType == PrimitiveType.JSON) {
-      return value as JsonValue;
     } else {
       return value as JsonPrimitive;
     }
@@ -74,10 +95,20 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
 /** Unpacks a single value into its data representation (except for JSON, which remains as is for value objects). */
 function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
   if (type.kind == TypeKind.PRIMITIVE) {
-    if (type.primitiveType == PrimitiveType.DATETIME) {
+    if (type.primitiveType == PrimitiveType.BYTES) {
+      return Buffer.from(valuePacked as string, "base64").toString("utf8");
+    } else if (type.primitiveType == PrimitiveType.JSON) {
+      return valuePacked as JsonValue;
+    } else if (type.primitiveType == PrimitiveType.DATETIME) {
       return Timestamp.fromDate(new Date(valuePacked as string));
+    } else if (type.primitiveType == PrimitiveType.DATE) {
+      return ProtoDate.fromJsDate(new Date(valuePacked as string));
+    } else if (type.primitiveType == PrimitiveType.TIME) {
+      return TimeOfDay.fromJsDate(new Date(valuePacked as string));
+    } else if (type.primitiveType == PrimitiveType.INTERVAL) {
+      return timedeltaFromISOFormat(valuePacked as string);
     } else if (type.primitiveType == PrimitiveType.INT64) {
-      // see above
+      // see packing above
       return BigInt(valuePacked as number);
     } else {
       return valuePacked as PrimitiveValue;

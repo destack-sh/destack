@@ -810,7 +810,7 @@ class GraphNodeList[V: Node](NodeList[V]):
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["ValueObject", "Struct", "Node"])
 ValueT = TypeVar("ValueT", bound=Union["ValueObject", "Struct", "Property"])
-ValueProperty = Union["Property", "Field"]
+ValueParentKey = Union["Property", "Field"]
 
 
 class ValueList(list, Generic[ValueParentT]):
@@ -823,8 +823,7 @@ class ValueList(list, Generic[ValueParentT]):
     def __init__(
         self,
         parent: ValueParentT,
-        parent_prop: ValueProperty,
-        ancestor_prop: Optional["Property"] = None,
+        parent_key: ValueParentKey,
         *args,
         **kwargs,
     ):  # type: ignore
@@ -832,19 +831,14 @@ class ValueList(list, Generic[ValueParentT]):
 
         super().__init__(*args, **kwargs)
         self.parent = parent
-        self.parent_prop = parent_prop
-        if isinstance(parent_prop, Property):
-            self.ancestor_prop = parent_prop
-        else:
-            assert ancestor_prop is not None, f"expected ancestor_prop for {parent_prop!r}"
-            self.ancestor_prop = ancestor_prop
+        self.parent_key = parent_key
         self.is_property_reference = (
-            isinstance(parent_prop, Property) and parent_prop.is_property_reference
+            isinstance(parent_key, Property) and parent_key.is_property_reference
         )
 
     def append(self, item: ValueT, after: ValueT | None = None, before: ValueT | None = None):  # type: ignore
         if not self.is_property_reference:
-            item = item._move_to(self.parent, self.parent_prop)  # type: ignore
+            item = item._move_to(self.parent, self.parent_key)  # type: ignore
         super().append(item)
         return item
 
@@ -853,7 +847,7 @@ class ValueList(list, Generic[ValueParentT]):
         if not self.is_property_reference:
             values = cast(list[Union["ValueObject", "Struct"]], items)
             if any(item.parent is not None for item in values):
-                values = [e._copy_to(self.parent, self.parent_prop) for e in items]  # type: ignore
+                values = [e._copy_to(self.parent, self.parent_key) for e in items]  # type: ignore
             else:
                 for item in values:
                     item.parent = self.parent
@@ -865,13 +859,13 @@ class ValueList(list, Generic[ValueParentT]):
     def _move_list(
         values: Collection[ValueT],
         parent: ValueParentT,
-        parent_prop: ValueProperty,
+        parent_key: ValueParentKey,
         ancestor_prop: Optional["Property"] = None,
     ):
         """Moves or copies the values in the list to the given parent."""
         if any(v.parent is not None for v in cast(list[Union["ValueObject", "Struct"]], values)):
-            values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
-        return ValueList(parent, parent_prop, ancestor_prop, values)
+            values = [v._copy_to(parent, parent_key) for v in values]  # type: ignore
+        return ValueList(parent, parent_key, ancestor_prop, values)
 
 
 def patch_graph(existing: NodeGraph, patch: NodeGraph) -> None:
