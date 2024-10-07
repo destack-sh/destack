@@ -779,10 +779,9 @@ def _trace_edit_operation(
     old_value: Any | None,
 ):
     """Traces an edit operation to the given object."""
-    if operation_type == EditOperationType.SET and new_value is None:
-        operation_type = EditOperationType.CLEAR
-
     # figure out if we're in a tracked node (before we start tracing the edit)
+    if key.is_list and not (new_value is None or isinstance(new_value, list)):
+        return  # ignore, not tracking edits to individual list items yet
     node = None
     o = obj
     while o is not None and type(o) is not Property:
@@ -800,13 +799,14 @@ def _trace_edit_operation(
     while obj is not None and not isinstance(obj, Node):
         parent = obj.parent
         if parent is not None:
-            assert obj.parent_key is not None, f"{obj!r} has no parent key for {parent!r}"
-            parent_key = obj.parent_key.key
+            parent_key = obj.parent_key.key  # type: ignore
             assert type(parent_key) is str, f"{obj!r} has non-str key {parent_key!r} in {parent!r}"
             path.insert(0, parent_key)
         obj = parent
 
-    # pack new/old value
+    # pack edit operation content
+    if operation_type == EditOperationType.SET and new_value is None:
+        operation_type = EditOperationType.CLEAR
     if type(key) is Property:
         typ = key._type_info
         assert typ is not None, f"{key!r} in {obj!r} has no type info"

@@ -129,7 +129,7 @@ class Runtime:
             input_type=node.input_type,
             output_type=node.output_type,
             inputs=inputs,
-            attempts=run.attempts if run else [],
+            attempts=list(run.attempts) if run else [],
             run=run,
         )
 
