@@ -2646,7 +2646,6 @@ message LogData {
   optional NodeReferenceData undo_of_ptr = 33;
   optional AccessType type = 40;
   optional NodeReferenceData node_ptr = 41;
-  repeated int32 properties = 42;
   optional google.protobuf.Value node_data = 43;
   repeated EditOperationData operations = 44;
   optional int64 new_revision = 47;

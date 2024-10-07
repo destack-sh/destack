@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { getRunDurationMs } from "@/language/session";
 import {
   AnyNodeData,
   ColorShade,
@@ -69,18 +70,6 @@ function getStartedAtMs(run: RunData): number {
   return timestampToMs(run.startedAt ?? run.createdAt!);
 }
 
-function getDurationMs(run: RunData, nowMs: number): number {
-  const startedAtMs = timestampToMs(run.startedAt ?? run.createdAt!);
-  let durationMs: number;
-  if (run.duration != null) {
-    durationMs = durationToMs(run.duration);
-  } else {
-    const currentMs = run.terminatedAt != null ? timestampToMs(run.terminatedAt) : nowMs;
-    durationMs = currentMs - startedAtMs;
-  }
-  return durationMs;
-}
-
 const spans: Ref<TimelineSpan[]> = computed(() => {
   const spans: TimelineSpan[] = [];
   if (runTree.run == null) return spans;
@@ -88,12 +77,12 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
   const now = getNow(TimeUpdateInterval.MILLISECOND).value;
   const nowMs = timestampToMs(now);
   const rootStartedAtMs = getStartedAtMs(runTree.run);
-  const rootDurationMs = getDurationMs(runTree.run, nowMs);
+  const rootDurationMs = getRunDurationMs(runTree.run, nowMs);
 
   function walkRun(run: RunData, parent: TimelineSpan | null, depth: number) {
     // timing
     const startedAtMs = getStartedAtMs(run);
-    const durationMs = getDurationMs(run, nowMs);
+    const durationMs = getRunDurationMs(run, nowMs);
 
     // context
     let baseNode: AnyNodeData | null = null;

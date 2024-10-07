@@ -5915,7 +5915,6 @@ class LogData(_message.Message):
         "undo_of_ptr",
         "type",
         "node_ptr",
-        "properties",
         "node_data",
         "operations",
         "new_revision",
@@ -5953,7 +5952,6 @@ class LogData(_message.Message):
     UNDO_OF_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NODE_DATA_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
     NEW_REVISION_FIELD_NUMBER: _ClassVar[int]
@@ -5990,7 +5988,6 @@ class LogData(_message.Message):
     undo_of_ptr: NodeReferenceData
     type: AccessType
     node_ptr: NodeReferenceData
-    properties: _containers.RepeatedScalarFieldContainer[int]
     node_data: _struct_pb2.Value
     operations: _containers.RepeatedCompositeFieldContainer[EditOperationData]
     new_revision: int
@@ -6029,7 +6026,6 @@ class LogData(_message.Message):
         undo_of_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[AccessType, str]] = ...,
         node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        properties: _Optional[_Iterable[int]] = ...,
         node_data: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         operations: _Optional[_Iterable[_Union[EditOperationData, _Mapping]]] = ...,
         new_revision: _Optional[int] = ...,
