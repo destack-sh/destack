@@ -801,7 +801,7 @@ def _trace_edit_operation(
         parent = obj.parent
         if parent is not None:
             assert obj.parent_key is not None, f"{obj!r} has no parent key for {parent!r}"
-            path.append(obj.parent_key.key)
+            path.insert(0, obj.parent_key.key)
         obj = parent
 
     # pack new/old value

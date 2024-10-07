@@ -166,6 +166,9 @@ class ProcessRunPlugin(HostPlugin[Run]):
             )
             async with self.host.session(commit=True):  # :StaleNodes
                 run.status = RunStatus.ABORTED if op.op == RunOperation.KILL else RunStatus.FAILED
+                run.terminated_at = self.host.oracle.utc()
+                if run.started_at is not None:
+                    run.duration = run.terminated_at - run.started_at
                 run.error = error
             log.error(
                 f"scheduler.{op_name}.failed",

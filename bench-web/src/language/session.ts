@@ -1,3 +1,4 @@
+import { TERMINAL_RUN_STATUSES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
 import {
@@ -9,7 +10,6 @@ import {
   NodeType,
   RunKind,
   RunStatus,
-  Struct,
   StructType,
   TextData,
   type AnyNodeData,
@@ -19,6 +19,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, toPlainNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
+import { durationToMs, timestampToMs } from "@/utils/time";
 
 export type RunnableNode = BlockData | StepData;
 export type RunnableObject = RunnableNode | TextData | CodeData;
@@ -62,6 +63,22 @@ export function getRunKind(runnable: RunnableObject): RunKind {
   throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);
 }
 
+/** Gets the duration of a Run */
+export function getRunDurationMs(run: RunData, nowMs: number): number {
+  if (TERMINAL_RUN_STATUSES.includes(run.status) && run.startedAt == null) {
+    return 0; // never really started
+  }
+  const startedAtMs = timestampToMs(run.startedAt ?? run.createdAt!);
+  let durationMs: number;
+  if (run.duration != null) {
+    durationMs = durationToMs(run.duration);
+  } else {
+    const currentMs = run.terminatedAt != null ? timestampToMs(run.terminatedAt) : nowMs;
+    durationMs = currentMs - startedAtMs;
+  }
+  return durationMs;
+}
+
 /** Make a new Run for some runnable node */
 export function makeRun(
   graph: ReadNodeGraph,
@@ -92,7 +109,7 @@ export function makeRun(
     status: RunStatus.SCHEDULED,
     blockPtr: block != null ? toPlainNodeRef(block) : undefined,
     stepPtr: isNode(runnable, NodeType.STEP) ? toPlainNodeRef(runnable) : undefined,
-    inputsPacked: options?.inputsPacked != null ? Struct.fromJson(options?.inputsPacked) : undefined,
+    inputsPacked: options?.inputsPacked ?? undefined,
   });
   return run;
 }

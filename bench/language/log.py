@@ -112,7 +112,6 @@ class Log(RuntimeNode[LogData], HasSessionContext):
     )
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
-    properties: list[int] = p_system(42, array=True, primitive_type=PrimitiveType.INT16)
     node_data: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
     operations: list["EditOperation"] = p_system(44, array=True, struct=StructType.EDIT_OPERATION)
     new_revision: int | None = p_system(47, primitive_type=PrimitiveType.INT64)
