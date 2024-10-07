@@ -266,7 +266,7 @@ defineExpose<ViewExposed>({ self, id, focus });
                 ? focusedValue?.[fieldView.storageKey]
                 : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.fieldType, {
                     graph: pkgGraph,
-                    unwrapScalar: false,
+                    wrapScalar: false,
                     recurseValueObject: false,
                   })
             "

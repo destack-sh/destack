@@ -99,11 +99,6 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
   }
 }
 
-/** Unpacks a single value into its data representation (converting JSON into ProtoJson ƒor builtin objects).  */
-function unpackValueScalarData(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
-  return unpackValueScalar(valuePacked, type); // nocheckin: do we need this method?
-}
-
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
 export function packBuiltinObject(
   value: AnyStructData | AnyNodeData,
@@ -157,7 +152,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
       if (propValuePacked == null) {
         propValue = [];
       } else {
-        propValue = propValuePacked.map((v: any) => unpackValueScalarData(v, propType));
+        propValue = propValuePacked.map((v: any) => unpackValueScalar(v, propType));
       }
     } else {
       if (propValuePacked == null) {
@@ -169,7 +164,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
           propValue = null;
         }
       } else {
-        propValue = unpackValueScalarData(propValuePacked, propType);
+        propValue = unpackValueScalar(propValuePacked, propType);
         if (prop.referenceIsRich) {
           // :RichReferences
           propValue = toNodeRefOneOf(propValue as SomeNodeReferenceData);
@@ -188,7 +183,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
 function packValueObject(
   value: ScalarValue,
   type: TypeIdentity,
-  options: { graph: ReadNodeGraph; recurseValueObject: boolean },
+  options: { graph: ReadNodeGraph; recurseValueObject?: boolean },
 ): JsonValue {
   const fields = resolveFields(type, options.graph);
   const valuePacked: { [key: string]: JsonValue } = {};
@@ -221,7 +216,7 @@ function packValueObject(
 function unpackValueObject(
   valuePacked: JsonValue,
   type: TypeIdentity,
-  options: { graph: ReadNodeGraph; recurseValueObject: boolean },
+  options: { graph: ReadNodeGraph; recurseValueObject?: boolean },
 ): SomeValue {
   const fields = resolveFields(type, options.graph);
   const value: { [key: string]: SomeValue } = {};
@@ -235,7 +230,7 @@ function unpackValueObject(
       if (options.recurseValueObject) {
         const fieldValue = unpackValue(fieldValuePacked, fieldType, {
           graph: options.graph,
-          unwrapScalar: false,
+          wrapScalar: false,
           recurseValueObject: options.recurseValueObject,
         });
         if (fieldValue != null) {
@@ -261,7 +256,7 @@ function unpackValueObject(
 export function packValue(
   value: any,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar: boolean; recurseValueObject: boolean } = {
+  options: { graph?: ReadNodeGraph; wrapScalar?: boolean; recurseValueObject?: boolean } = {
     wrapScalar: true,
     recurseValueObject: true,
   },
@@ -315,8 +310,8 @@ export function packValue(
 export function unpackValue(
   valuePacked: JsonValue,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; unwrapScalar: boolean; recurseValueObject: boolean } = {
-    unwrapScalar: true,
+  options: { graph?: ReadNodeGraph; wrapScalar?: boolean; recurseValueObject?: boolean } = {
+    wrapScalar: true,
     recurseValueObject: true,
   },
 ): any {
@@ -355,7 +350,7 @@ export function unpackValue(
       return null;
     }
     let value;
-    if (options?.unwrapScalar) {
+    if (options?.wrapScalar) {
       if (typeof valuePacked !== "object" || Array.isArray(valuePacked)) {
         throw new Error(
           `expected object for scalar type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`,
