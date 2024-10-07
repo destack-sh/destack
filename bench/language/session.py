@@ -677,7 +677,7 @@ class Session(RuntimeNode[SessionData]):
                 return edits, cascaded_edits
         except ChannelUnavailableError as e:
             logger.error("session.flush.error", session=self, error=e)
-            await self._tx.reset()
+            self._tx.reset()
             raise
 
     @tracer.start_as_current_span("session.commit")
@@ -718,7 +718,7 @@ class Session(RuntimeNode[SessionData]):
             return edits, cascaded_edits
         except ChannelUnavailableError as e:
             logger.error("session.commit.error", session=self, error=e)
-            await self._tx.reset()
+            self._tx.reset()
             raise
 
     @tracer.start_as_current_span("session.flush.schedule")

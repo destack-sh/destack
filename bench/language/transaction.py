@@ -584,12 +584,10 @@ class Transaction:
         """Commits the transaction (flushing any pending edits)."""
         await self._do_flush(is_commit=True)
         edits, cascaded_edits = self._edits, self._cascaded_edits
-        self._edits = []
-        self._cascaded_edits = []
-        self._touched_engine_ids.clear()
+        self.reset()
         return edits, cascaded_edits
 
-    async def reset(self):
+    def reset(self):
         """Resets the transaction, any edits and channels (without closing)."""
         self._edits = []
         self._cascaded_edits = []

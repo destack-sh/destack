@@ -398,7 +398,7 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
     # values last (may depend on types, and to simplify control flow for skipping unset values)
     for prop in obj.__value_runtime_properties__.values():
         wired_prop = prop.value_packed_ptr
-        assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+        assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
         wired_prop_value = getattr(obj, wired_prop.name)
         if wired_prop_value is None:
             continue

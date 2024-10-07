@@ -186,7 +186,7 @@ class ValueObject(Mapping[str, Any]):
             return value
 
     def _do_set(
-        self, item: "str | Field", new_value: SomeValue, track: bool = True, validate: bool = False
+        self, item: "str | Field", new_value: SomeValue, track: bool = True, validate: bool = True
     ) -> None:
         if type(item) is str and item in self.__slots__:
             return object.__setattr__(self, item, new_value)
@@ -324,10 +324,10 @@ class ValueObject(Mapping[str, Any]):
             return self._type.base_type.absolute_path
 
 
-def _do_get_value_runtime(obj: "BuiltinObject", prop: Property):
+def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
     """Computes the runtime value for the given property."""
     wired_prop = prop.value_packed_ptr
-    assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+    assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
     value_packed = getattr(obj, wired_prop.name)
     if value_packed is None or (len(value_packed) == 0 and not prop.is_required):
         value = None
@@ -339,7 +339,7 @@ def _do_get_value_runtime(obj: "BuiltinObject", prop: Property):
     ):
         value = None
     else:
-        value = unpack_value(value_packed, value_type)
+        value = unpack_value(value_packed, value_type, parent=obj, parent_key=wired_prop)
     return value_type, value
 
 
@@ -350,7 +350,7 @@ def _object_value_runtime(prop: Property) -> property:
 
     cache_key = f"_{prop.name}_cached"
 
-    def _get_value_runtime(self: BuiltinObject) -> Optional[SomeValue]:
+    def _get_value_runtime(self: "Struct | Node") -> Optional[SomeValue]:
         """Gets the runtime value for this property (with auto resolving)."""
         if cache_key in self.__dict__:
             value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
@@ -379,11 +379,15 @@ def _object_value_runtime(prop: Property) -> property:
         else:
             return value
 
-    def _set_value_runtime(self: BuiltinObject, value: SomeValue):
+    def _set_value_runtime(self: "Struct | Node", value: SomeValue):
         wired_prop = prop.value_packed_ptr
-        assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+        assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
         value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
         if value is not None and value_type is not None:
+            if type(value) is ValueObject:
+                value = value._move_to(self, wired_prop)
+            elif isinstance(value, list) and value and type(value[0]) is ValueObject:
+                value = [v._move_to(self, wired_prop) for v in value]  # type: ignore
             value_packed = pack_value(value, value_type)
             self._do_set(wired_prop.name, value_packed, track=False)
         else:
