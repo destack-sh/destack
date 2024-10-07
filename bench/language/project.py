@@ -158,7 +158,7 @@ class Projection:
 
         # visit values
         for prop in obj.__value_runtime_properties__.values():
-            value_type, wired_prop_value = _do_get_value_runtime(obj, prop)
+            value_type, wired_prop_value = _do_get_value_runtime(cast("Struct | Node", obj), prop)
             if value_type is not None:
                 self._collect_value(wired_prop_value, value_type)
 

@@ -24,7 +24,7 @@ def test_builtin_object_properties_are_available():
         for prop in cls.__properties__.values():
             if prop.is_introspectable:
                 attr = getattr(cls, prop.name)
-                assert isinstance(attr, Property), f"{prop!r}->{attr!r} is not a Property"
+                assert type(attr) is Property, f"{prop!r}->{attr!r} is not a Property"
 
 
 def test_get_set_non_existing_property(session: "Session"):

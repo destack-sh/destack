@@ -580,7 +580,7 @@ def to_type(
     constraint: TypeConstraintIn | TypeConstraint | None = None,
     is_required: bool = False,
     is_list: bool = False,
-) -> TypeInfoBase:
+) -> TypeInfo:
     """Converts a TypeIn into a TypeInfoBase."""
     type_scalar = to_type_scalar(typ, as_object=as_object, zone=zone)
     if isinstance(constraint, TypeConstraintIn):

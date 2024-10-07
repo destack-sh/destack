@@ -479,17 +479,6 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <span>
                   <span>{{ EDIT_TYPE_PAST_VERB[item.it.type as unknown as EditType] }}</span>
                 </span>
-                <!-- Properties (if any) -->
-                <template
-                  v-if="
-                    item.it.properties != null && item.it.properties.length > 0 && item.it.type == AccessType.UPDATE
-                  "
-                >
-                  <span v-for="propId in item.it.properties" :key="propId" class="rounded-md bg-secondary-100 px-2">
-                    {{ getPropertyTitle(PROPERTY_INFOS_BY_TYPE[item.it.nodePtr!.type][propId]) }}
-                  </span>
-                  in
-                </template>
                 <!-- Object -->
                 <button
                   class="group/node flex-shrink-0 px-1 hover:bg-primary-100 hover:text-primary-900"
