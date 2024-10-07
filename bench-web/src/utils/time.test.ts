@@ -16,8 +16,8 @@ describe("timedeltaFromISOFormat", () => {
     ["PT12H30M"],
     ["P1DT12H30M15S"],
     ["-PT12H30M15S"],
-    ["PT1H1M1.123456S"],
-    ["PT12.345678S"],
+    ["PT1H1M1.123456666S"],
+    ["PT12.345678123S"],
   ])("timedeltaFromISOFormat(%s)", (iso) => {
     const parsed = timedeltaFromISOFormat(iso);
     const rendered = timedeltaToISOFormat(parsed);

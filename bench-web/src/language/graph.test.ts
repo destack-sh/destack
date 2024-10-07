@@ -31,6 +31,7 @@ import {
   type AnyTypeMapping,
   type PropertyInfo,
 } from "@/proto/wire";
+import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { EMPTY_SCOPE, toNodeRef, toNodeRefOneOf, toPlainNodeRef } from "@/proto/wiring";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
@@ -55,7 +56,11 @@ const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
   "google.protobuf.Struct": () => Struct.fromJson({}),
   "google.protobuf.Value": () => Value.fromJson(null),
   "google.protobuf.Timestamp": () => Timestamp.now(),
-  "google.protobuf.Duration": () => Math.random(),
+  "google.protobuf.Duration": (): Duration => {
+    const seconds = BigInt(Math.floor(Math.random() * 60));
+    const nanos = Math.floor(Math.random() * 1e9);
+    return { seconds, nanos };
+  },
   "symbolx.bench.NodeReferenceData": () => ({ metatype: ObjectType.NODE_REFERENCE, id: v4(), type: NodeType.USER }),
 };
 

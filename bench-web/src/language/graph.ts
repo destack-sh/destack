@@ -1137,7 +1137,6 @@ export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: Par
       let partialObj: any = partial;
       let mergedObj: any = merged;
       let key = path[0];
-      let isValid = true;
       for (let i = 0; i < path.length; i++) {
         // map key
         key = path[i];
@@ -1147,26 +1146,22 @@ export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: Par
           const objProperties = PROPERTY_ENUM_BY_TYPE[mergedObj.metatype as ObjectType];
           const propName = objProperties?.[propId];
           if (propName == null) {
-            isValid = false;
-            break;
+            break; // invalid path
           }
           key = propName;
         }
-        // map value
         if (i < path.length - 1) {
+          // descend into value
           mergedObj = mergedObj[key];
           partialObj = partialObj[key];
           if (mergedObj == null || partialObj == null) {
-            isValid = false;
-            break;
+            break; // invalid path
           }
+        } else {
+          // set value
+          mergedObj[key] = partialObj[key];
         }
       }
-      if (!isValid) {
-        continue;
-      }
-      // set value
-      mergedObj[key] = partialObj[key];
     }
     // merge setPaths
     (merged as PartialNode<T>).setPaths = [...((base as PartialNode<T>).setPaths ?? []), ...partial.setPaths];

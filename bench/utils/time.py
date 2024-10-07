@@ -210,7 +210,7 @@ def timedelta_to_isoformat(td: timedelta) -> str:
             result += f"{minutes}M"
         if seconds:
             # Remove trailing zeros and decimal points
-            seconds_str = f"{seconds:.6f}".rstrip("0").rstrip(".")
+            seconds_str = f"{seconds:.9f}".rstrip("0").rstrip(".")
             result += f"{seconds_str}S"
 
     return sign + result
