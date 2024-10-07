@@ -21,7 +21,7 @@ import {
   Timestamp,
   type AnyNodeData,
   type EditData,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import {
   describeEdit,
@@ -32,7 +32,7 @@ import {
   toPlainNodeRef,
   unwrapSomeNode,
   wrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { makeIcon } from "@/ui/icon";
@@ -356,6 +356,10 @@ export class TransactionBuilder implements Transaction {
     this._addSimpleEdit(EditType.UPSERT, { ...node }, null);
   }
 
+  _partialToOperations<T extends AnyNodeData>(node: T, update: Partial<T>): EditOperationData[] {
+    throw new Error("nocheckin: _doUpdate.update convert to operations");
+  }
+
   _doUpdate<T extends AnyNodeData>(
     editType: EditType.UPDATE | EditType.MOVE,
     node: T,
@@ -367,7 +371,7 @@ export class TransactionBuilder implements Transaction {
     // convert update to operations
     let operations: EditOperationData[];
     if (!Array.isArray(update)) {
-      throw new Error("nocheckin: _doUpdate.update convert to operations");
+      operations = this._partialToOperations(node, update);
     } else {
       operations = update;
     }

@@ -28,7 +28,7 @@ import {
 } from "@/proto/wire";
 import {
   describeNode,
-  fillDefaultObject,
+  makeDefaultObject,
   isNode,
   isNodeRef,
   newNodeCk,
@@ -181,14 +181,18 @@ export function makeNode<T extends NodeType>(
       node.id = newNodeId();
     }
   }
-  if ("benchPtr" in properties && !Object.prototype.hasOwnProperty.call(node, "benchPtr")) {
+  if (
+    "benchPtr" in properties &&
+    data.metatype != NodeType.BENCH &&
+    !Object.prototype.hasOwnProperty.call(node, "benchPtr")
+  ) {
     const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
     if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[data.metatype]}`);
     (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
   }
 
   // assign default values to unset properties
-  node = fillDefaultObject(node);
+  node = makeDefaultObject(node) as NodeTypeMapping[T];
 
   return node;
 }
@@ -225,7 +229,7 @@ export function cloneStruct<T extends AnyStructData>(struct: T): T {
     }
   }
   if ("orderKey" in struct) (clone as any).orderKey = struct.orderKey;
-  clone = fillDefaultObject(clone as T);
+  clone = makeDefaultObject(clone as T);
   return clone as T;
 }
 

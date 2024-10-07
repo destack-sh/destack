@@ -2,13 +2,17 @@ import { OBJECT_TYPES } from "@/language/const";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
+  mergeNode,
   NodeGraph,
   PASSTHROUGH_NODE_FILTER,
   ProxyNodeGraph,
   type NodeGraphFilter,
   type ReadNodeGraph,
 } from "@/language/graph";
+import { makeNode } from "@/language/node";
 import {
+  BlockData,
+  BlockProperty,
   ClientData,
   ClientProperty,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
@@ -26,7 +30,7 @@ import {
   type AnyTypeMapping,
   type PropertyInfo,
 } from "@/proto/wire";
-import { EMPTY_SCOPE, toNodeRefOneOf, toPlainNodeRef } from "@/proto/wiring";
+import { EMPTY_SCOPE, toNodeRef, toNodeRefOneOf, toPlainNodeRef } from "@/proto/wiring";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";
@@ -134,6 +138,44 @@ export function fabricate<T extends ObjectType>(
 const OBJECT_TYPES_NAMES = OBJECT_TYPES.map((t) => ObjectType[t]);
 test.each(OBJECT_TYPES_NAMES)(`fabricate(%s)`, (metatype) => {
   fabricate(ObjectType[metatype as any] as unknown as ObjectType);
+});
+
+describe("merge nodes", () => {
+  const bench = makeNode({ metatype: NodeType.BENCH, name: "test", slug: "test" });
+  const pkg = makeNode({ metatype: NodeType.PACKAGE, benchPtr: toNodeRef(bench) });
+  const base1 = makeNode({
+    metatype: NodeType.BLOCK,
+    packagePtr: toNodeRef(pkg),
+    name: "Block1",
+    valuePacked: { fruity: 3, fluffy: false },
+  });
+
+  test("merge", () => {
+    // simple merge without changes
+    const overlay1 = structuredClone(base1);
+    const merged1 = mergeNode(base1, overlay1);
+    expect(merged1).toEqual(base1);
+
+    // changes that are not in setPaths should be ignored
+    const overlay2 = structuredClone(base1);
+    overlay2.name = "Overlay2";
+    const merged2 = mergeNode(base1, overlay2);
+    expect(merged2).toEqual(base1);
+
+    // changes in setPaths should be applied (and irrelevant setPaths should be ignored)
+    const overlay3 = structuredClone(base1);
+    overlay3.name = "Overlay3";
+    overlay3.valuePacked = { fruity: 4, fluffy: true };
+    (overlay3 as any).setPaths = [
+      [BlockProperty.name.toString()],
+      [BlockProperty.valuePacked.toString(), "fluffy"],
+      [BlockProperty.valuePacked.toString(), "bold", "italic"],
+    ];
+    const merged3 = mergeNode(base1, overlay3) as BlockData;
+    expect(merged3.name).toEqual("Overlay3");
+    expect((merged3.valuePacked as any).fruity).toEqual(3); // not in setPaths
+    expect((merged3.valuePacked as any).fluffy).toEqual(true); // in setPaths
+  });
 });
 
 describe("node graph", () => {

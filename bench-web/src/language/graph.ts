@@ -3,6 +3,9 @@ import {
   GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
+  ObjectType,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
   type AnyNodeData,
   type AnyPropertyType,
   type NodeTypeMapping,
@@ -1127,21 +1130,49 @@ type PartialNode<T extends NodeType> = NodeTypeMapping[T] & { setPaths?: string[
 /**
  * Creates a new node with the explicitly set paths from the overlay superimposed on the base.
  */
-export function mergeNode<T extends NodeType>(
-  base: PartialNode<T>,
-  partial: PartialNode<T>,
-): NodeTypeMapping[T] {
+export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: PartialNode<T>): NodeTypeMapping[T] {
   if (partial.setPaths != null && partial.setPaths.length > 0) {
-    const merged: NodeTypeMapping[T] = { ...base };
-    const allProperties: AnyPropertyType = NODE_PROPERTY_ENUM_BY_TYPE[base.metatype]!;
+    const merged: NodeTypeMapping[T] = structuredClone(base);
     for (const path of partial.setPaths) {
-      // nocheckin
+      let partialObj: any = partial;
+      let mergedObj: any = merged;
+      let key = path[0];
+      let isValid = true;
+      for (let i = 0; i < path.length; i++) {
+        // map key
+        key = path[i];
+        const propId = Number(key);
+        if (!Number.isNaN(propId)) {
+          // builtin object property
+          const objProperties = PROPERTY_ENUM_BY_TYPE[mergedObj.metatype as ObjectType];
+          const propName = objProperties?.[propId];
+          if (propName == null) {
+            isValid = false;
+            break;
+          }
+          key = propName;
+        }
+        // map value
+        if (i < path.length - 1) {
+          mergedObj = mergedObj[key];
+          partialObj = partialObj[key];
+          if (mergedObj == null || partialObj == null) {
+            isValid = false;
+            break;
+          }
+        }
+      }
+      if (!isValid) {
+        continue;
+      }
+      // set value
+      mergedObj[key] = partialObj[key];
     }
-    
     // merge setPaths
+    (merged as PartialNode<T>).setPaths = [...((base as PartialNode<T>).setPaths ?? []), ...partial.setPaths];
     return merged;
   } else {
-    return { ...base, ...partial };
+    return base;
   }
 }
 
