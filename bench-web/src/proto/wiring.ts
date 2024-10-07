@@ -23,7 +23,7 @@ import {
   type AnyTypeMapping,
   type NodeTypeMapping,
   type PropertyInfo,
-  type StructTypeMapping
+  type StructTypeMapping,
 } from "@/proto/wire";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
@@ -103,13 +103,7 @@ export function makeStruct<T extends StructType>(
   data: Partial<Omit<StructTypeMapping[T], "metatype">> & { metatype: T },
 ): StructTypeMapping[T] {
   const struct = { ...data };
-  return fillDefaultObject(struct as unknown as StructTypeMapping[T]);
-}
-
-/** Fills unset properties in the given object with default values. */
-export function fillDefaultObject<T extends AnyNodeData | AnyStructData>(obj: T) {
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[obj.metatype as unknown as ObjectType]!;
-  return messageType.create(obj);
+  return makeDefaultObject(struct as unknown as StructTypeMapping[T]) as StructTypeMapping[T];
 }
 
 /** Makes an object from partial properties */
@@ -117,7 +111,14 @@ export function makeDefaultObject<T extends ObjectType>(
   data: Partial<Omit<AnyTypeMapping[T], "metatype" | "id">> & { metatype: T },
 ): AnyTypeMapping[T] {
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
-  return messageType.create(data);
+  const message = messageType.create(data);
+  // preserve original value (packed) properties :MagicJsValuePacking
+  for (const field of messageType.fields) {
+    if (field.kind == "message" && field.T().typeName == 'google.protobuf.Value') {
+      message[field.localName] = (data as any)[field.localName];
+    }
+  }
+  return message;
 }
 
 export const SCALAR_DEFAULTS: Partial<Record<ScalarType, any>> = {
