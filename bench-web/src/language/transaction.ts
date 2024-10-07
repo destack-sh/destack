@@ -1,7 +1,7 @@
 import { getPropertyType } from "@/language/field";
-import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
+import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
-import { unpackValue } from "@/language/value";
+import { packValue, unpackValue } from "@/language/value";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
   BlockProperty,
@@ -24,6 +24,7 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import {
+  deepContentEquals,
   describeEdit,
   describeNode,
   EMPTY_SCOPE,
@@ -50,19 +51,7 @@ const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
   long: 2000,
 };
 
-const IMPLICIT_PROPERTIES = [
-  "metatype",
-  "id",
-  "ck",
-  "createdAt",
-  "createdEpoch",
-  "createdByPtr",
-  "updatedAt",
-  "updatedEpoch",
-  "updatedByPtr",
-  "revision",
-];
-const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedEpoch", "updatedByPtr", "revision"].map(
+const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt", "revision"].map(
   (p) => BlockProperty[p as any] as unknown as number,
 );
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
@@ -356,10 +345,6 @@ export class TransactionBuilder implements Transaction {
     this._addSimpleEdit(EditType.UPSERT, { ...node }, null);
   }
 
-  _partialToOperations<T extends AnyNodeData>(node: T, update: Partial<T>): EditOperationData[] {
-    throw new Error("nocheckin: _doUpdate.update convert to operations");
-  }
-
   _doUpdate<T extends AnyNodeData>(
     editType: EditType.UPDATE | EditType.MOVE,
     node: T,
@@ -371,7 +356,7 @@ export class TransactionBuilder implements Transaction {
     // convert update to operations
     let operations: EditOperationData[];
     if (!Array.isArray(update)) {
-      operations = this._partialToOperations(node, update);
+      operations = makeEditOperations(node, update);
     } else {
       operations = update;
     }
@@ -401,7 +386,7 @@ export class TransactionBuilder implements Transaction {
     } else {
       // merge into existing edit & notify directly :DebouncedUpdate
       const edit = this.state._debouncedUpdatesByNodeId[node.id];
-      // nocheckin: merge operations to same paths?
+      // nocheckin: merge operations to same paths
       for (const op of operations) {
         edit.operations.push(op);
       }
@@ -436,6 +421,40 @@ export class TransactionBuilder implements Transaction {
   erase(node: AnyNodeData) {
     this._addSimpleEdit(EditType.ERASE, { ...node }, null);
   }
+}
+
+/** Turns a top-level node partial update into its corresponding edit operations (set/clear) */
+export function makeEditOperations<T extends AnyNodeData>(node: T, update: Partial<T>): EditOperationData[] {
+  const operations: EditOperationData[] = [];
+  const propertiesInfos = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
+  const properties = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
+
+  for (const key in update) {
+    const propId = properties[key as unknown as number];
+    if (propId == null) throw new Error(`missing property ${key} in ${node.metatype}`);
+    const prop = propertiesInfos[propId];
+    const propType = getPropertyType(prop);
+    const newValue = update[key as keyof T];
+    let operation: EditOperationData;
+    if (newValue == null) {
+      operation = {
+        metatype: ObjectType.EDIT_OPERATION,
+        type: EditOperationType.CLEAR,
+        path: [propId.toString()],
+      };
+    } else {
+      const newValuePacked = packValue(newValue, propType, { wrapScalar: false });
+      operation = {
+        metatype: ObjectType.EDIT_OPERATION,
+        type: EditOperationType.SET,
+        path: [propId.toString()],
+        newValuePacked: newValuePacked,
+      };
+    }
+    operations.push(operation);
+  }
+
+  return operations;
 }
 
 /**
@@ -496,15 +515,13 @@ export function editGraph(
 
       // apply edit operations
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
-        if (edit.nodeData == null)
-          throw new Error(`missing node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
         for (const operation of edit.operations) {
           if (operation.path.length != 1) throw new Error(`nocheckin editGraph: ${operation.path}`);
           const prop = allProperties[Number(operation.path[0])];
           const propType = getPropertyType(prop);
           let newValue: any;
           if (operation.type == EditOperationType.SET) {
-            newValue = unpackValue(operation.newValuePacked!, propType);
+            newValue = unpackValue(operation.newValuePacked!, propType, { wrapScalar: false });
           } else if (operation.type == EditOperationType.CLEAR) {
             newValue = undefined;
           } else {
@@ -515,7 +532,6 @@ export function editGraph(
       }
 
       // implicit metadata
-      const extraImplicitProperties: number[] = [];
       updatedNode.updatedAt = edit.editedAt;
       if (edit.epoch != null && "updatedEpoch" in updatedNode) {
         updatedNode.updatedEpoch = edit.epoch;
@@ -525,20 +541,19 @@ export function editGraph(
       if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
         // (we handle DELETE here for overlays)
         updatedNode.deletedAt = edit.editedAt;
-        extraImplicitProperties.push(BlockProperty.deletedAt);
       } else if (edit.type == EditType.RESTORE) {
         updatedNode.deletedAt = undefined;
-        extraImplicitProperties.push(BlockProperty.deletedAt);
       }
 
       // extend setPaths for overlay
       if (options?.base != null) {
-        for (const setPath of [
-          ...IMPLICIT_UPDATE_PROPERTIES_IDS,
-          ...edit.operations.map((o) => o.path),
-          ...extraImplicitProperties,
-        ]) {
-          // nocheckin: update setPaths
+        if ((updatedNode as PartialNode<any>).setPaths == null) {
+          (updatedNode as PartialNode<any>).setPaths = [...IMPLICIT_UPDATE_PROPERTIES_IDS.map((p) => [p.toString()])];
+        }
+        for (const op of edit.operations) {
+          if (!(updatedNode as PartialNode<any>).setPaths.some((s: any) => !deepContentEquals(s, op.path))) {
+            (updatedNode as PartialNode<any>).setPaths.push(op.path);
+          }
         }
       }
 

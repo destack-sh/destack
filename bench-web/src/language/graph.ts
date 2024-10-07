@@ -1125,7 +1125,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
   }
 }
 
-type PartialNode<T extends NodeType> = NodeTypeMapping[T] & { setPaths?: string[][] };
+export type PartialNode<T extends NodeType> = NodeTypeMapping[T] & { setPaths?: string[][] };
 
 /**
  * Creates a new node with the explicitly set paths from the overlay superimposed on the base.

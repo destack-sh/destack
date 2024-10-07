@@ -24,6 +24,7 @@ import {
   Struct,
   Timestamp,
   UserData,
+  UserProperty,
   Value,
   type AnyNodeData,
   type AnyPropertyType,
@@ -271,7 +272,7 @@ describe("layered node graph", () => {
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
 
     // update user
-    user1 = { ...user1, name: "user1Overlay" } as UserData;
+    user1 = { ...user1, name: "user1Overlay", setPaths: [[UserProperty.name.toString()]] } as UserData;
     overlay.update(user1);
     expect(graph.get({ id: user1.id })).toEqual(user1);
     expect(user1Ref.value).toEqual(user1);
@@ -285,7 +286,7 @@ describe("layered node graph", () => {
     clientA = {
       ...clientA,
       name: "clientAOverlay",
-      setPaths: [ClientProperty.name.toString()],
+      setPaths: [[ClientProperty.name.toString()]],
     } as ClientData;
     // NOTE: deviceName in overlay should be ignored because it's not in setPaths.
     //  This shouldn't really happen, but it's good to have this invariant.

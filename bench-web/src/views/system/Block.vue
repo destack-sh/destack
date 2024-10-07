@@ -91,7 +91,7 @@ const value = computed(() => {
   } else {
     return unpackValue(block.value?.valuePacked!, block.value.valueType, {
       graph: pkgGraph,
-      unwrapScalar: true,
+      wrapScalar: true,
       recurseValueObject: false,
     });
   }
