@@ -114,7 +114,7 @@ export function makeDefaultObject<T extends ObjectType>(
   const message = messageType.create(data);
   // preserve original value (packed) properties :MagicJsValuePacking
   for (const field of messageType.fields) {
-    if (field.kind == "message" && field.T().typeName == 'google.protobuf.Value') {
+    if (field.kind == "message" && field.T().typeName == "google.protobuf.Value") {
       message[field.localName] = (data as any)[field.localName];
     }
   }
@@ -385,4 +385,8 @@ export function deepContentEquals(object: any, other: any): boolean {
     }
     return true;
   }
+}
+
+export function arrayEquals<T>(a: T[], b: T[]): boolean {
+  return a.length == b.length && a.every((v, i) => v === b[i]);
 }

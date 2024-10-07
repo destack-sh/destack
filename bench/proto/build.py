@@ -225,7 +225,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANG_PROTO} {' '.join(EXTRA_PROTO_TS_FILES)}",
     )
 
-    # magic replace code so that Value is transparently encoded/decoded
+    # magic replace code so that Value is transparently encoded/decoded :MagicJsValuePacking
     #  (like in ts-proto, but protobuf-ts doesn't have an option for this unfortunately)
     generated_ts_files = list(Path(TEMP_TS_DIR).rglob("*.ts"))
     for path in generated_ts_files:

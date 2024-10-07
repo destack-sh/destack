@@ -1,4 +1,7 @@
 import colors from "tailwindcss/colors";
+import aspectRatio from '@tailwindcss/aspect-ratio';
+import typography from '@tailwindcss/typography';
+import containerQueries from '@tailwindcss/container-queries';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -91,6 +94,10 @@ export default {
     },
   },
   plugins: [
+    aspectRatio,
+    typography,
+    containerQueries,
+    
     // not-focus variants
     function ({ addVariant, e }) {
       addVariant("not-focus", ({ modifySelectors, separator }) => {

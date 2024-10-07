@@ -24,6 +24,7 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import {
+  arrayEquals,
   deepContentEquals,
   describeEdit,
   describeNode,
@@ -386,9 +387,14 @@ export class TransactionBuilder implements Transaction {
     } else {
       // merge into existing edit & notify directly :DebouncedUpdate
       const edit = this.state._debouncedUpdatesByNodeId[node.id];
-      // nocheckin: merge operations to same paths
       for (const op of operations) {
-        edit.operations.push(op);
+        const existingOp = edit.operations.find((o) => arrayEquals(o.path, op.path));
+        if (existingOp != null) {
+          existingOp.type = op.type;
+          existingOp.newValuePacked = op.newValuePacked;
+        } else {
+          edit.operations.push(op);
+        }
       }
       // coalesce successive move/update into move edit
       if (editType == EditType.MOVE && edit.type != EditType.MOVE) {
@@ -468,7 +474,8 @@ export function editGraph(
 ) {
   for (const edit of edits) {
     const nodeType = edit.nodePtr!.type;
-    const allProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
+    const propertiesInfos = PROPERTY_INFOS_BY_TYPE[nodeType]!;
+    const properties = PROPERTY_ENUM_BY_TYPE[nodeType]!;
     if (
       edit.type == EditType.CREATE ||
       edit.type == EditType.UPSERT ||
@@ -517,7 +524,9 @@ export function editGraph(
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
         for (const operation of edit.operations) {
           if (operation.path.length != 1) throw new Error(`nocheckin editGraph: ${operation.path}`);
-          const prop = allProperties[Number(operation.path[0])];
+          const propId = Number(operation.path[0]);
+          const prop = propertiesInfos[propId];
+          const propName = properties[propId];
           const propType = getPropertyType(prop);
           let newValue: any;
           if (operation.type == EditOperationType.SET) {
@@ -527,7 +536,7 @@ export function editGraph(
           } else {
             throw new Error(`unexpected operation type: ${operation.type}`);
           }
-          Object.assign(updatedNode, { [prop.name]: newValue });
+          Object.assign(updatedNode, { [propName]: newValue });
         }
       }
 
@@ -551,7 +560,7 @@ export function editGraph(
           (updatedNode as PartialNode<any>).setPaths = [...IMPLICIT_UPDATE_PROPERTIES_IDS.map((p) => [p.toString()])];
         }
         for (const op of edit.operations) {
-          if (!(updatedNode as PartialNode<any>).setPaths.some((s: any) => !deepContentEquals(s, op.path))) {
+          if (!(updatedNode as PartialNode<any>).setPaths.some((s: any) => arrayEquals(s, op.path))) {
             (updatedNode as PartialNode<any>).setPaths.push(op.path);
           }
         }
