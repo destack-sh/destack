@@ -348,6 +348,8 @@ async def hosted_bench(global_store: Store):
             global_store=global_store,
             session=session,
         )
+        await session.flush(optimistic=True)
+        user.main_bench = bench
         await session.commit()
 
         bench._untrack_rec()

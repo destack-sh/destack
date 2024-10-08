@@ -339,7 +339,9 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
     ):
         value = None
     else:
-        value = unpack_value(value_packed, value_type, parent=obj, parent_key=wired_prop)
+        value = unpack_value(
+            value_packed, value_type, parent=obj, parent_key=wired_prop, wrap_primitive=True
+        )
     return value_type, value
 
 
@@ -1078,7 +1080,7 @@ def unpack_value_object(
         if field_value_packed is None:
             continue
         elif field_type.kind == TypeKind.OBJECT:
-            field_value = unpack_value(field_value_packed, field_type)
+            field_value = unpack_value(field_value_packed, field_type, wrap_primitive=False)
             if field_value is None:
                 continue
         elif not field_type.is_list:
@@ -1156,7 +1158,8 @@ def unpack_value(
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
-    wrap_primitive: bool = True,
+    *,
+    wrap_primitive: bool,
 ) -> SomeValue | None:
     """
     Unpacks a value from its JSON representation.
@@ -1198,7 +1201,7 @@ def unpack_value(
 
 
 def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeInfoBase", wrap_primitive: bool = True
+    value_packed: JsonValue, typ: "TypeInfoBase", wrap_primitive: bool
 ) -> SomeValueData | JsonValue | None:
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).

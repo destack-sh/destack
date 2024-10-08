@@ -228,8 +228,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
         ) as session:
-            session.add_edits(edits)  # add edits to session
-
             # read the affected nodes into a single graph for evaluation
             data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
             with self.tracer.start_as_current_span("graph.commit.read"):
@@ -260,10 +258,12 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 if decision != PolicyEffect.ALLOW:
                     raise AccessError(accesses)
 
-            # apply edits in copy (to validate and get current 'old' values)
-            edit_data_graph(
+            # apply edits in copy to validate
+            # (and update true 'old' values in prepass, simplify edits for sql engine)
+            flat_edits = edit_data_graph(
                 graph=data_graph, edits=edits, options=ReadOptions.all(), is_prepass=True
             )
+            assert flat_edits, f"no flat edits from prepass for {edits!r}"
             unpacked_graph = wiring.unpack_node_graph(
                 data_graph, supergraph=subject._supergraph, parent=None, session=session
             )
@@ -275,6 +275,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 session._pending_nodes_by_id[node.id] = node
 
             # actually commit
+            session.add_edits(flat_edits)
             _, cascaded_edits = await session.commit(_data_graph=data_graph)
             # NOTE :Robustness: edited nodes are unsynced copies (from unpack) :StaleNodes
             #  So we should really untrack them (to disable further edits) or keep them in sync,
@@ -287,6 +288,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def commit_transaction(
         self, request: "CommitTransactionRequest", headers: Mapping
     ) -> "CommitTransactionResponse":
+        # nocheckin: bump revisions (again)
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         assert subject.client is not None, f"no client for {subject!r}"
