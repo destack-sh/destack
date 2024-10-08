@@ -454,12 +454,6 @@ export interface CommitTransactionRequest {
  */
 export interface CommitTransactionResponse {
     /**
-     * The new revisions for every submitted edit.
-     *
-     * @generated from protobuf field: repeated int64 revisions = 1;
-     */
-    revisions: bigint[];
-    /**
      * Any cascaded edits.
      *
      * @generated from protobuf field: repeated symbolx.bench.EditData cascaded_edits = 2;
@@ -1872,14 +1866,12 @@ export const CommitTransactionRequest = new CommitTransactionRequest$Type();
 class CommitTransactionResponse$Type extends MessageType<CommitTransactionResponse> {
     constructor() {
         super("symbolx.bench.CommitTransactionResponse", [
-            { no: 1, name: "revisions", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 2, name: "cascaded_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
             { no: 3, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<CommitTransactionResponse>): CommitTransactionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.revisions = [];
         message.cascadedEdits = [];
         message.epoch = 0n;
         if (value !== undefined)
@@ -1891,13 +1883,6 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated int64 revisions */ 1:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.revisions.push(reader.int64().toBigInt());
-                    else
-                        message.revisions.push(reader.int64().toBigInt());
-                    break;
                 case /* repeated symbolx.bench.EditData cascaded_edits */ 2:
                     message.cascadedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
@@ -1916,13 +1901,6 @@ class CommitTransactionResponse$Type extends MessageType<CommitTransactionRespon
         return message;
     }
     internalBinaryWrite(message: CommitTransactionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated int64 revisions = 1; */
-        if (message.revisions.length) {
-            writer.tag(1, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.revisions.length; i++)
-                writer.int64(message.revisions[i]);
-            writer.join();
-        }
         /* repeated symbolx.bench.EditData cascaded_edits = 2; */
         for (let i = 0; i < message.cascadedEdits.length; i++)
             EditData.internalBinaryWrite(message.cascadedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();

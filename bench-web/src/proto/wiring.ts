@@ -64,7 +64,7 @@ export function describeNode(node: {
   const nodeParts: string[] = [`id=${node.id}`];
   const nodeType = isNodeRef(node) ? node.type : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
-  if ("revision" in node) nodeParts.push(`revision=${node.revision}`);
+  if ("updatedEpoch" in node) nodeParts.push(`updatedEpoch=${node.updatedEpoch}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
   if (!isNodeRef(node) && nodeType != null && node.type != null) {
@@ -85,10 +85,10 @@ export function describeNode(node: {
   return `${typeName}:[${nodeParts.join(", ")}]`;
 }
 
-export function describeEdit(edit: Pick<EditData, "type" | "nodePtr" | "revision" | "operations">) {
+export function describeEdit(edit: Pick<EditData, "type" | "nodePtr" | "epoch" | "operations">) {
   const editParts: string[] = [EditType[edit.type]];
   if (edit.nodePtr) editParts.push(describeNode(edit.nodePtr));
-  if (edit.revision) editParts.push(`revision=${edit.revision}`);
+  if (edit.epoch) editParts.push(`epoch=${edit.epoch}`);
   if (edit.operations) editParts.push(`operations=${edit.operations.map((o) => EditOperationType[o.type]).join("|")}`);
   return editParts.join(", ");
 }

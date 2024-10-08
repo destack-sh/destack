@@ -210,7 +210,7 @@ from .google.type.datetime_pb2 import *
 # extra utility types
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
-AnyObjectData = AnyObjectData
+AnyObjectData = AnyNodeData | AnyStructData
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
     on_apply.append(lambda: shutil.copytree(TEMP_PY_DIR, TARGET_PY_DIR))

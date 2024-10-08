@@ -1,8 +1,8 @@
 <script lang="ts" setup>
+import { TERMINAL_RUN_STATUSES } from "@/language/const";
 import { getRunDurationMs } from "@/language/session";
 import {
   AnyNodeData,
-  ColorShade,
   IconData,
   NodeType,
   RunAttemptData,
@@ -16,9 +16,10 @@ import { RunTree } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
-import { durationToMs, formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
+import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
 import { useElementSize } from "@vueuse/core";
-import { computed, ref, Ref, toRef } from "vue";
+import { DateTime } from "luxon";
+import { computed, ref, Ref, shallowRef, toRef, watch, watchEffect } from "vue";
 
 const TREE_WIDTH = 280;
 const DEPTH_OFFSET = 12;
@@ -38,11 +39,17 @@ const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH - 16
 //
 
 const runTree = new RunTree(pkgGraph, nodePtr);
-const run = runTree.runRef;
 
 //
 // Spans / Events
 //
+
+type Timeline = {
+  root: RunData | null;
+  spans: TimelineSpan[];
+  events: TimelineEvent[];
+};
+const EMPTY_TIMELINE: Timeline = { root: null, spans: [], events: [] };
 
 type TimelineSpan = {
   id: string;
@@ -70,14 +77,13 @@ function getStartedAtMs(run: RunData): number {
   return timestampToMs(run.startedAt ?? run.createdAt!);
 }
 
-const spans: Ref<TimelineSpan[]> = computed(() => {
+function walkTimeline(now: DateTime, root: RunData): Timeline {
   const spans: TimelineSpan[] = [];
-  if (runTree.run == null) return spans;
+  const events: TimelineEvent[] = [];
 
-  const now = getNow(TimeUpdateInterval.MILLISECOND).value;
   const nowMs = timestampToMs(now);
-  const rootStartedAtMs = getStartedAtMs(runTree.run);
-  const rootDurationMs = getRunDurationMs(runTree.run, nowMs);
+  const rootStartedAtMs = getStartedAtMs(root);
+  const rootDurationMs = getRunDurationMs(root, nowMs);
 
   function walkRun(run: RunData, parent: TimelineSpan | null, depth: number) {
     // timing
@@ -94,8 +100,8 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
     const color = getColorHex(COLOR_BY_RUN_STATUS[run.status])!;
 
     // span
-    const widthRelative = Math.max(0, Math.min(1, durationMs / rootDurationMs));
     const offsetRelative = Math.max(0, Math.min(1, (startedAtMs - rootStartedAtMs) / rootDurationMs));
+    const widthRelative = Math.max(0, Math.min(1 - offsetRelative, durationMs / rootDurationMs));
     const span: TimelineSpan = {
       id: run.id,
       parent: parent,
@@ -119,9 +125,22 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
     }
   }
 
-  walkRun(runTree.run, null, 0);
-  return spans;
-});
+  walkRun(root, null, 0);
+
+  return { root, spans, events };
+}
+
+const now = getNow(TimeUpdateInterval.MILLISECOND); // nocheckin: live update only if needed
+const timeline: Ref<Timeline> = shallowRef(EMPTY_TIMELINE);
+watch(
+  [runTree.runRef, runTree.runsRef, now],
+  () => {
+    // nocheckin :Robustness: why is runTree.run out of date sometimes but runTree.runs is fine?
+    // (it is being fired properly, it just doesn't seem to update the manual ref)
+    timeline.value = runTree.run != null ? walkTimeline(now.value, runTree.run) : EMPTY_TIMELINE;
+  },
+  { immediate: true },
+);
 </script>
 <template>
   <div class="flex w-full flex-row gap-x-2">
@@ -131,7 +150,7 @@ const spans: Ref<TimelineSpan[]> = computed(() => {
     <div ref="containerRef" class="flex flex-1 flex-col">
       <!-- Span -->
       <div
-        v-for="span in spans"
+        v-for="span in timeline.spans"
         :key="span.id"
         class="group/span relative flex w-full flex-row items-center rounded hover:bg-gray-100"
         :style="{

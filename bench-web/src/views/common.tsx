@@ -18,7 +18,7 @@ import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
 
 export type ViewProps = { self?: NodeReferenceData; modelValue?: any; placeholder?: string } & Partial<
-  Omit<ViewData, "metatype" | "id" | "ck" | "revision">
+  Omit<ViewData, "metatype" | "id" | "ck">
 >;
 export type ViewComponent = {
   new (): ComponentInstance<any>;

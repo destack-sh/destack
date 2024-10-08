@@ -459,7 +459,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             node_type = NodeType(edit.node_ptr.type)
             if node_type in RUNTIME_NODE_TYPES:
                 continue
-            assert edit.revision is not None, f"revision not set in {edit!r}"
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
             # pack old/new node
             if edit.HasField("node_data"):
@@ -472,7 +471,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             log_data = LogData(
                 metatype=wire.ObjectType.OBJECT_TYPE_LOG,
                 id=str(UUIDT()),
-                revision=0,
                 parent_ptr=package_ptr,
                 package_ptr=package_ptr,
                 bench_ptr=bench_ptr,
@@ -486,7 +484,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 # content
                 type=cast(wire.AccessType, edit.type),
                 operations=edit.operations,
-                new_revision=edit.revision,
             )
             # meta
             if edit.category != 0:
@@ -530,7 +527,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 scope=edit.scope,
                 node_ptr=NodeReference._ref_data_from_node_data(log_data),
                 epoch=edit.epoch,
-                revision=log_data.revision,
                 node_data=wrap_some_node(log_data),
                 edited_at=log_data.created_at,
             )
@@ -589,12 +585,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 options=options,
                 validate=False,
             )
-            for edit in subedits:
-                # manually patch revisions since we skipped some edits above
-                assert edit.revision is not None, f"revision not set in {edit!r}"
-                edited_node = root_node._graph.get(UUID(edit.node_ptr.id))
-                if edited_node is not None:
-                    edited_node.revision = edit.revision
             # and apply all edits to our cached data graphs
             edit_data_graph(root_node._data_graph, subedits, options)
 

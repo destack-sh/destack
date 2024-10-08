@@ -159,7 +159,7 @@ export async function logOut(logOut?: { all?: boolean; clients?: { id: string }[
 
 /** Reports an authentication error from a request using our current credentials */
 export function onAuthenticationError(error: RpcError) {
-  // TODO :Robustness: handle user auth error & badge auth error separately
+  // NOTE :Robustness: should handle user auth error & badge auth error separately
   log.error("user.unauthenticated");
   local.clearUser();
   local.clearBench();

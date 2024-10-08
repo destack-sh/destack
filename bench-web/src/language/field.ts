@@ -84,7 +84,7 @@ export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>):
   const typeParts: string[] = [];
   if ("id" in type) typeParts.push(`id=${type.id}`);
   if ("ck" in type) typeParts.push(`ck=${type.ck}`);
-  if ("revision" in type) typeParts.push(`revision=${type.revision}`);
+  if ("updatedEpoch" in type) typeParts.push(`updatedEpoch=${type.updatedEpoch}`);
   if (type.primitiveType != null) typeParts.push(toCamelName(PrimitiveType, type.primitiveType!));
   if (type.benchType != null) typeParts.push(toCamelName(BenchType, type.benchType!));
   if (type.baseTypePtr != null) typeParts.push(`base=${describeNode(type.baseTypePtr)}`);

@@ -1738,7 +1738,6 @@ async def pg_edit(
 ) -> list[EditData]:
     """
     Writes 'regular' edits to nodes (that aren't stored specially like records).
-    Returns the new revisions of the edited nodes.
     """
     if not edits:
         return []
@@ -1892,7 +1891,6 @@ async def _pg_edit_cascade(
         # and assign new/old node to edit now that we have the full data :EditData
         for cascaded_edit in cascaded_edits:
             node = nodes_by_id[cascaded_edit.node_ptr.id]
-            cascaded_edit.revision = node.revision
             cascaded_edit.node_data.CopyFrom(wiring.wrap_some_node(node))
 
     return all_cascaded_edits
@@ -1948,7 +1946,6 @@ async def _pg_edit_batch(
                 rows=rows,
                 conflict_columns=(node_table._primary_key,),
                 static_columns=tuple(c for c in node_table.columns if c != node_table._primary_key),
-                static_values={"revision": sqlstr(f"{node_table.name}.revision + 1")},
             )
     elif edit_type in (EditType.UPDATE, EditType.MOVE, EditType.DELETE, EditType.RESTORE):
         # collect dynamic columns (incl. implicit metadata)
@@ -2024,12 +2021,10 @@ async def _pg_edit_batch(
             dynamic_values.append(row)
 
         # actually update
-        static_values = {"revision": sqlstr("revision + 1")}
         _ = await pg_update_variable(
             cur=cur,
             ctx=ctx,
             table=node_table,
-            static_values=static_values,
             dynamic_columns=dynamic_columns,
             dynamic_values=dynamic_values,
         )

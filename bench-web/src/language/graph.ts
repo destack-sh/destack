@@ -43,6 +43,7 @@ export type NodeKey<T extends NodeType> = { type?: T; id?: string; ck?: string }
 export type NodeGraphCallback = () => void;
 export type NodeSubscriptionOptions = {
   ignoreAncestors?: boolean;
+  refId?: any;
 };
 
 /** A filter for nodes in a graph. Nodes pretend to not be in the graph when this predicate fails. */
@@ -246,6 +247,12 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
     options?: { metatypes?: T[]; filter?: (node: NodeTypeMapping[T]) => boolean; includeSelf?: boolean },
   ): NodeTypeMapping[T][] {
     const descendants: NodeTypeMapping[T][] = [];
+    if (options?.includeSelf) {
+      const self = this.get(node);
+      if (self != null && (options?.filter == null || options?.filter(self as NodeTypeMapping[T]))) {
+        descendants.push(self as NodeTypeMapping[T]);
+      }
+    }
     const children = [];
     const metatypes =
       options?.metatypes ?? CHILD_NODE_TYPES[(this.get(node)?.metatype as NodeType) ?? NodeType.UNSPECIFIED];
@@ -255,7 +262,7 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
     for (const child of children) {
       if (options?.filter == null || options?.filter(child as NodeTypeMapping[T])) {
         descendants.push(child as NodeTypeMapping[T]);
-        descendants.push(...this.getDescendants(child, options));
+        descendants.push(...this.getDescendants(child, { ...options, includeSelf: false }));
       }
     }
     return descendants;
@@ -552,7 +559,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     this.nodesByCk = {};
     this.nodesByParentIdAndType = {};
 
-    // notify all subs (they unsubscribe themselves)
+    // notify all subs
     this.anySubs.forEach((sub) => sub());
     for (const id in this.nodeSubsById) {
       this.nodeSubsById[id].forEach((sub) => sub());

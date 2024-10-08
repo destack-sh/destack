@@ -1444,21 +1444,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         parent_ptr: Optional[NodeReference] = None
 
     # 10-29: reserved for node tracking
-    revision: int = p_system(
-        10,
-        default=0,
-        default_sql=None,
-        require=True,
-        autoset=True,
-        primitive_type=PrimitiveType.INT64,
-    )
-    created_at: datetime = p_system(11, default=None, require=True, autoset=True)
-    updated_at: datetime = p_system(13, default=None, require=True, autoset=True)
-    deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
     # NOTE: created_by/updated_by are 'baseless' because Run can only be a subject if it's a lambda
     #  (and otherwise we attribute the change to the Run's block/step/identity)
+    created_at: datetime = p_system(10, default=None, require=True, autoset=True)
     created_by: Optional[EditSubject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
-        21,
+        11,
         default=None,
         require=False,
         array=False,
@@ -1467,8 +1457,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         same_bench=True,
         baseless=True,
     )
+    # BenchNode.created_epoch (12)
+    updated_at: datetime = p_system(13, default=None, require=True, autoset=True)
     updated_by: Optional[EditSubject] = p_system(  # type: ignore (see above)
-        22,
+        14,
         default=None,
         require=False,
         array=False,
@@ -1477,6 +1469,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         same_bench=True,
         baseless=True,
     )
+    # BenchNode.updated_epoch (15)
+    deleted_at: Optional[datetime] = p_system(16, default=None, autoset=True)
     # managed_by? owned_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
@@ -1899,7 +1893,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
         12, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
     )
     updated_epoch: int = p_system(
-        14, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
+        15, default=-1, default_sql=None, autoset=True, primitive_type=PrimitiveType.INT64
     )
 
     @property

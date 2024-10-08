@@ -146,18 +146,13 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
-  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "createdAt" | "updatedAt" | "revision">> & {
+  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "createdAt" | "updatedAt">> & {
     metatype: T;
   },
   options?: { omit: (keyof NodeTypeMapping[T])[] },
 ): NodeTypeMapping[T] {
   const now = Timestamp.now();
-  let node = {
-    ...data,
-    createdAt: now,
-    updatedAt: now,
-    revision: 0,
-  } as unknown as NodeTypeMapping[T];
+  let node = { ...data, createdAt: now, updatedAt: now } as unknown as NodeTypeMapping[T];
   const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
 
   // assign id/ck/scope
@@ -243,7 +238,6 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
   if ("benchPtr" in node) (clone as any).benchPtr = node.benchPtr;
   if ("templatePtr" in node) (clone as any).templatePtr = node.templatePtr;
   if ("templatedEpoch" in node) (clone as any).templatedEpoch = node.templatedEpoch;
-  clone.revision = BigInt(0);
   clone.createdAt = now;
   clone.updatedAt = now;
   clone.deletedAt = undefined;

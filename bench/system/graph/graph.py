@@ -288,7 +288,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def commit_transaction(
         self, request: "CommitTransactionRequest", headers: Mapping
     ) -> "CommitTransactionResponse":
-        # nocheckin: bump revisions (again)
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         assert subject.client is not None, f"no client for {subject!r}"
@@ -340,13 +339,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             epoch=self.epoch,
             span="current",
         )
-        accepted_revisions = []
-        for edit in request.edits:
-            assert edit.revision is not None, f"{edit!r} has no revision"
-            accepted_revisions.append(edit.revision)
-        return CommitTransactionResponse(
-            revisions=accepted_revisions, cascaded_edits=cascaded_edits, epoch=self.epoch
-        )
+        return CommitTransactionResponse(cascaded_edits=cascaded_edits, epoch=self.epoch)
 
     @override
     async def get_nodes(self, request: "GetNodesRequest", headers: Mapping) -> "GetNodesResponse":

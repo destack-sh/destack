@@ -45,7 +45,7 @@ export class RunTree {
       })),
     );
     this.runGraph = runGraph;
-    this.runRef = runGraph.getRef(this.runPtr);
+    this.runRef = runGraph.getRef(this.runPtr, { refId: "runtime.run" });
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
     this.runBasePtr = computedValue(
       () =>

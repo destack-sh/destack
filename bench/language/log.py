@@ -114,7 +114,6 @@ class Log(RuntimeNode[LogData], HasSessionContext):
         node_ptr: Optional[NodeReference] = None
     node_data: Any | None = p_system(43, primitive_type=PrimitiveType.JSON)
     operations: list["EditOperation"] = p_system(44, array=True, struct=StructType.EDIT_OPERATION)
-    new_revision: int | None = p_system(47, primitive_type=PrimitiveType.INT64)
     category: Optional["ChangeCategory"] = p_system(48, require=False, array=False)
     vignette: Optional["ChangeVignette"] = p_system(
         49, require=False, array=False, struct=StructType.CHANGE_VIGNETTE

@@ -382,7 +382,6 @@ class WritableChannel[E: GraphEngine](Channel[E]):
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
         """
         Flushes edits in the current transaction context. If not in a transaction, begins one.
-        If this is a primary store, must return the accepted revisions for every edit (in order).
         """
         ...
 
@@ -390,7 +389,6 @@ class WritableChannel[E: GraphEngine](Channel[E]):
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
         """
         Commits the flushed pending and given edits in the current transaction context.
-        If this is a primary store, must return the accepted revisions for every edit (in order).
         """
         ...
 

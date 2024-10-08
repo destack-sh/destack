@@ -1064,7 +1064,6 @@ def evaluate_and_adapt_read(
                 metatype=wire.ObjectType.OBJECT_TYPE_SKIP,
                 id=node.id,
                 parent_ptr=node.parent_ptr,
-                revision=node.revision,
                 order_key=getattr(node, "order_key", None),
                 reference_ptr=NodeReference._ref_data_from_node_data(node),
             )

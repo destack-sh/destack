@@ -159,8 +159,6 @@ message CommitTransactionRequest {
   optional SessionContextData context = 4;
 }
 message CommitTransactionResponse {
-  // The new revisions for every submitted edit.
-  repeated int64 revisions = 1;
   // Any cascaded edits.
   repeated EditData cascaded_edits = 2; 
   // Current epoch.
