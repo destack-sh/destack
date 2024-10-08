@@ -36,12 +36,16 @@ def bump(revision: int = typer.Option(None)):
     logger.info("version.bump", current_version=current_version, new_version=new_version)
 
     # write version to 'version', Python files and TS files
+    Path("version").write_text(new_version)
     for path in (
-        "version",
         "bench/language/const.py",
         "bench/sql/schema.py",
         "bench/proto/wire/__init__.py",
         "bench-web/package.json",
         "bench-web/src/utils/globals.ts",
     ):
-        Path(path).write_text(Path(path).read_text().replace(current_version, new_version))
+        original_text = Path(path).read_text()
+        if current_version not in original_text:
+            raise ValueError(f"{current_version} not found in {path}")
+        updated_text = original_text.replace(current_version, new_version)
+        Path(path).write_text(updated_text)
