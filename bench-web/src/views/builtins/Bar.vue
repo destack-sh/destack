@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
+import { Anchor, ClientType, NodeType, Orientation, RunStatus } from "@/proto/wire";
 import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
 import { runtime } from "@/system/runtime";
 import { bench, canvas, hasLocalBench } from "@/system/space";
@@ -232,6 +232,7 @@ const dockActions: Ref<Action[]> = computed(
         <!-- Status -->
         <IconInline
           class="w-5"
+          :class="[runtime.focusedRun.status == RunStatus.RUNNING ? 'animate-spin' : '']"
           :style="{ color: getRunColorHex(runtime.focusedRun.status) }"
           v-bind="ICON_BY_RUN_STATUS[runtime.focusedRun.status]"
         />

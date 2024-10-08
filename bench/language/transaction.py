@@ -196,12 +196,6 @@ class Edit(EditInfo):
         struct=StructType.EDIT_CONTEXT,
         description="Additional per edit context for servers.",
     )
-    revision: int | None = p_system(
-        67,
-        require=False,
-        description="New revision of the edited node.",
-        primitive_type=PrimitiveType.INT64,
-    )
     epoch: int | None = p_system(
         68,
         require=False,
@@ -756,7 +750,6 @@ def edit_graph(
 
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
-        assert edit.revision is not None, f"missing revision for {edit!r}"
         edit_type = cast(EditType, edit.type)
         node_id = UUID(edit.node_ptr.id)
 
@@ -806,7 +799,6 @@ def edit_graph(
                 ),
                 track=False,
             )
-            node._do_set("revision", edit.revision, track=False, validate=False)
             if edit_type == EditType.DELETE:
                 node._do_set("deleted_at", edit.edited_at, track=False, validate=False)
             elif edit_type == EditType.RESTORE:
@@ -955,8 +947,6 @@ def edit_data_graph(
                 updated_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
             else:
                 updated_node_data.ClearField("updated_by_ptr")
-            # Edit.revision may be unset when editing before flushing for validation
-            updated_node_data.revision = edit.revision if edit.revision is not None else -1
             if edit_type == EditType.DELETE:
                 updated_node_data.deleted_at.CopyFrom(edit.edited_at)
             elif edit_type == EditType.RESTORE:

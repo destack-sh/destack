@@ -53,7 +53,7 @@ const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
   long: 2000,
 };
 
-const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt", "revision"].map(
+const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedEpoch", "updatedByPtr", "deletedAt"].map(
   (p) => BlockProperty[p as any] as unknown as number,
 );
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
@@ -565,7 +565,7 @@ export function editGraph(
         }
       }
       updatedNode = structuredClone(updatedNode); // copy
-      
+
       // apply edit operations
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
         for (const operation of edit.operations) {
@@ -579,7 +579,6 @@ export function editGraph(
         updatedNode.updatedEpoch = edit.epoch;
       }
       updatedNode.updatedByPtr = edit.subjectPtr;
-      updatedNode.revision = edit.revision ?? BigInt(-1);
       if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
         // (we handle DELETE here for overlays)
         updatedNode.deletedAt = edit.editedAt;
@@ -803,7 +802,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
       // commit
       const {
-        response: { epoch, revisions, cascadedEdits },
+        response: { epoch, cascadedEdits },
       } = await client.commitTransaction(
         { edits, id: this.bufferedTx.id, scope: this.scope },
         {
@@ -821,9 +820,6 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
           },
         },
       );
-      for (let i = 0; i < edits.length; i++) {
-        edits[i].revision = revisions[i];
-      }
 
       // notify on success
       // (we do not directly edit state on success, when/how/which edits to 'accept' is up to the caller)

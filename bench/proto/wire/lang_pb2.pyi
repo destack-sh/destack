@@ -3061,7 +3061,6 @@ class EditData(_message.Message):
         "subject_ptr",
         "origin",
         "context",
-        "revision",
         "epoch",
         "undo_of_ptr",
     )
@@ -3080,7 +3079,6 @@ class EditData(_message.Message):
     SUBJECT_PTR_FIELD_NUMBER: _ClassVar[int]
     ORIGIN_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     EPOCH_FIELD_NUMBER: _ClassVar[int]
     UNDO_OF_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -3098,7 +3096,6 @@ class EditData(_message.Message):
     subject_ptr: NodeReferenceData
     origin: ClientOriginData
     context: EditContextData
-    revision: int
     epoch: int
     undo_of_ptr: NodeReferenceData
     def __init__(
@@ -3118,7 +3115,6 @@ class EditData(_message.Message):
         subject_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         origin: _Optional[_Union[ClientOriginData, _Mapping]] = ...,
         context: _Optional[_Union[EditContextData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         epoch: _Optional[int] = ...,
         undo_of_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
     ) -> None: ...
@@ -4708,14 +4704,13 @@ class BadgeData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "delegated_policies",
         "expires_at",
@@ -4732,14 +4727,13 @@ class BadgeData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DELEGATED_POLICIES_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
@@ -4755,14 +4749,13 @@ class BadgeData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     delegated_policies: _containers.RepeatedCompositeFieldContainer[PolicyData]
     expires_at: _timestamp_pb2.Timestamp
@@ -4780,14 +4773,13 @@ class BadgeData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         delegated_policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ...,
         expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -4803,14 +4795,13 @@ class BenchData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "main_handle_ptr",
         "slug",
         "name",
@@ -4831,14 +4822,13 @@ class BenchData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     MAIN_HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -4858,14 +4848,13 @@ class BenchData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     main_handle_ptr: NodeReferenceData
     slug: str
     name: str
@@ -4887,14 +4876,13 @@ class BenchData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         slug: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -4922,14 +4910,13 @@ class BlockData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type",
         "name",
         "order_key",
@@ -4955,14 +4942,13 @@ class BlockData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -4987,14 +4973,13 @@ class BlockData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type: BlockType
     name: str
     order_key: str
@@ -5021,14 +5006,13 @@ class BlockData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[BlockType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
@@ -5053,14 +5037,13 @@ class BranchData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "slug",
         "text",
@@ -5075,14 +5058,13 @@ class BranchData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
@@ -5096,14 +5078,13 @@ class BranchData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     slug: str
     text: TextData
@@ -5119,14 +5100,13 @@ class BranchData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         slug: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
@@ -5144,14 +5124,13 @@ class CacheData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "text",
         "region",
@@ -5162,14 +5141,13 @@ class CacheData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -5179,14 +5157,13 @@ class CacheData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     text: TextData
     region: Region
@@ -5198,14 +5175,13 @@ class CacheData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -5219,14 +5195,13 @@ class ClientData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type",
         "name",
         "device_type",
@@ -5245,14 +5220,13 @@ class ClientData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DEVICE_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5270,14 +5244,13 @@ class ClientData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type: ClientType
     name: str
     device_type: str
@@ -5297,14 +5270,13 @@ class ClientData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[ClientType, str]] = ...,
         name: _Optional[str] = ...,
         device_type: _Optional[str] = ...,
@@ -5330,14 +5302,13 @@ class DependencyData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "scopes_ptr",
         "dependency_ptr",
     )
@@ -5349,14 +5320,13 @@ class DependencyData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     SCOPES_PTR_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCY_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -5367,14 +5337,13 @@ class DependencyData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     scopes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     dependency_ptr: NodeReferenceData
     def __init__(
@@ -5387,14 +5356,13 @@ class DependencyData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         scopes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         dependency_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
     ) -> None: ...
@@ -5405,14 +5373,13 @@ class DriveData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "text",
         "region",
@@ -5423,14 +5390,13 @@ class DriveData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -5440,14 +5406,13 @@ class DriveData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     text: TextData
     region: Region
@@ -5459,14 +5424,13 @@ class DriveData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -5484,14 +5448,13 @@ class FieldData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "order_key",
         "zone",
@@ -5519,14 +5482,13 @@ class FieldData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     ZONE_FIELD_NUMBER: _ClassVar[int]
@@ -5553,14 +5515,13 @@ class FieldData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     order_key: str
     zone: FieldZone
@@ -5589,14 +5550,13 @@ class FieldData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
         zone: _Optional[_Union[FieldZone, str]] = ...,
@@ -5623,14 +5583,13 @@ class FileData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "text",
         "region",
         "status",
@@ -5659,14 +5618,13 @@ class FileData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -5694,14 +5652,13 @@ class FileData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     text: TextData
     region: Region
     status: ResourceStatus
@@ -5731,14 +5688,13 @@ class FileData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
         status: _Optional[_Union[ResourceStatus, str]] = ...,
@@ -5770,41 +5726,38 @@ class HandleData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "slug",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     slug: str
     def __init__(
         self,
@@ -5812,14 +5765,13 @@ class HandleData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         slug: _Optional[str] = ...,
     ) -> None: ...
 
@@ -5829,14 +5781,13 @@ class InviteData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "user_ptr",
         "user_email",
         "is_owner",
@@ -5846,14 +5797,13 @@ class InviteData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     USER_PTR_FIELD_NUMBER: _ClassVar[int]
     USER_EMAIL_FIELD_NUMBER: _ClassVar[int]
     IS_OWNER_FIELD_NUMBER: _ClassVar[int]
@@ -5862,14 +5812,13 @@ class InviteData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     user_ptr: NodeReferenceData
     user_email: str
     is_owner: bool
@@ -5880,14 +5829,13 @@ class InviteData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         user_email: _Optional[str] = ...,
         is_owner: bool = ...,
@@ -5901,14 +5849,13 @@ class LogData(_message.Message):
         "parent_ptr",
         "package_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "kind",
         "level",
         "change_ptr",
@@ -5917,7 +5864,6 @@ class LogData(_message.Message):
         "node_ptr",
         "node_data",
         "operations",
-        "new_revision",
         "category",
         "vignette",
         "block_ptr",
@@ -5938,14 +5884,13 @@ class LogData(_message.Message):
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     CHANGE_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5954,7 +5899,6 @@ class LogData(_message.Message):
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     NODE_DATA_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
-    NEW_REVISION_FIELD_NUMBER: _ClassVar[int]
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
     VIGNETTE_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5974,14 +5918,13 @@ class LogData(_message.Message):
     parent_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     kind: LogKind
     level: LogLevel
     change_ptr: NodeReferenceData
@@ -5990,7 +5933,6 @@ class LogData(_message.Message):
     node_ptr: NodeReferenceData
     node_data: _struct_pb2.Value
     operations: _containers.RepeatedCompositeFieldContainer[EditOperationData]
-    new_revision: int
     category: ChangeCategory
     vignette: ChangeVignetteData
     block_ptr: NodeReferenceData
@@ -6012,14 +5954,13 @@ class LogData(_message.Message):
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         kind: _Optional[_Union[LogKind, str]] = ...,
         level: _Optional[_Union[LogLevel, str]] = ...,
         change_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -6028,7 +5969,6 @@ class LogData(_message.Message):
         node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         node_data: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         operations: _Optional[_Iterable[_Union[EditOperationData, _Mapping]]] = ...,
-        new_revision: _Optional[int] = ...,
         category: _Optional[_Union[ChangeCategory, str]] = ...,
         vignette: _Optional[_Union[ChangeVignetteData, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -6051,14 +5991,13 @@ class MachineData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "text",
         "region",
@@ -6083,14 +6022,13 @@ class MachineData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -6114,14 +6052,13 @@ class MachineData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     text: TextData
     region: Region
@@ -6147,14 +6084,13 @@ class MachineData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -6182,14 +6118,13 @@ class MembershipData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "user_ptr",
         "is_owner",
     )
@@ -6197,28 +6132,26 @@ class MembershipData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     USER_PTR_FIELD_NUMBER: _ClassVar[int]
     IS_OWNER_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     user_ptr: NodeReferenceData
     is_owner: bool
     def __init__(
@@ -6227,14 +6160,13 @@ class MembershipData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         is_owner: bool = ...,
     ) -> None: ...
@@ -6246,14 +6178,13 @@ class MessageData(_message.Message):
         "parent_ptr",
         "package_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "origin_ptr",
         "path",
         "reply_to_ptr",
@@ -6267,14 +6198,13 @@ class MessageData(_message.Message):
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     ORIGIN_PTR_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6287,14 +6217,13 @@ class MessageData(_message.Message):
     parent_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     origin_ptr: NodeReferenceData
     path: PathData
     reply_to_ptr: NodeReferenceData
@@ -6309,14 +6238,13 @@ class MessageData(_message.Message):
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         origin_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         path: _Optional[_Union[PathData, _Mapping]] = ...,
         reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -6331,42 +6259,38 @@ class BaseNodeData(_message.Message):
         "metatype",
         "id",
         "parent_ptr",
-        "revision",
         "created_at",
-        "updated_at",
-        "deleted_at",
         "created_by_ptr",
+        "updated_at",
         "updated_by_ptr",
+        "deleted_at",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
-    updated_at: _timestamp_pb2.Timestamp
-    deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
+    deleted_at: _timestamp_pb2.Timestamp
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
     ) -> None: ...
 
 class NotificationData(_message.Message):
@@ -6376,14 +6300,13 @@ class NotificationData(_message.Message):
         "parent_ptr",
         "package_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "kind",
         "type_ptr",
         "expires_at",
@@ -6397,14 +6320,13 @@ class NotificationData(_message.Message):
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
@@ -6417,14 +6339,13 @@ class NotificationData(_message.Message):
     parent_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     kind: NotificationLevel
     type_ptr: NodeReferenceData
     expires_at: _timestamp_pb2.Timestamp
@@ -6439,14 +6360,13 @@ class NotificationData(_message.Message):
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         kind: _Optional[_Union[NotificationLevel, str]] = ...,
         type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -6461,12 +6381,11 @@ class OrganizationData(_message.Message):
         "metatype",
         "id",
         "parent_ptr",
-        "revision",
         "created_at",
-        "updated_at",
-        "deleted_at",
         "created_by_ptr",
+        "updated_at",
         "updated_by_ptr",
+        "deleted_at",
         "main_handle_ptr",
         "slug",
         "name",
@@ -6478,12 +6397,11 @@ class OrganizationData(_message.Message):
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     MAIN_HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -6494,12 +6412,11 @@ class OrganizationData(_message.Message):
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
-    updated_at: _timestamp_pb2.Timestamp
-    deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
+    deleted_at: _timestamp_pb2.Timestamp
     main_handle_ptr: NodeReferenceData
     slug: str
     name: str
@@ -6512,12 +6429,11 @@ class OrganizationData(_message.Message):
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         slug: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -6533,14 +6449,13 @@ class PackageData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "text",
         "icon",
         "policies",
@@ -6552,14 +6467,13 @@ class PackageData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     POLICIES_FIELD_NUMBER: _ClassVar[int]
@@ -6570,14 +6484,13 @@ class PackageData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     text: TextData
     icon: IconData
     policies: _containers.RepeatedCompositeFieldContainer[PolicyData]
@@ -6590,14 +6503,13 @@ class PackageData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         icon: _Optional[_Union[IconData, _Mapping]] = ...,
         policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ...,
@@ -6616,14 +6528,13 @@ class PipeData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type",
         "name",
         "order_key",
@@ -6651,14 +6562,13 @@ class PipeData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -6685,14 +6595,13 @@ class PipeData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type: PipeType
     name: str
     order_key: str
@@ -6721,14 +6630,13 @@ class PipeData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[PipeType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
@@ -6759,14 +6667,13 @@ class QueryData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "order_key",
         "read_type",
@@ -6783,14 +6690,13 @@ class QueryData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     READ_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -6806,14 +6712,13 @@ class QueryData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     order_key: str
     read_type: ReadType
@@ -6831,14 +6736,13 @@ class QueryData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
         read_type: _Optional[_Union[ReadType, str]] = ...,
@@ -6855,14 +6759,13 @@ class RecordData(_message.Message):
         "parent_ptr",
         "package_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "block_ptr",
         "order_key",
         "value_packed",
@@ -6872,14 +6775,13 @@ class RecordData(_message.Message):
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
@@ -6888,14 +6790,13 @@ class RecordData(_message.Message):
     parent_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     block_ptr: NodeReferenceData
     order_key: str
     value_packed: _struct_pb2.Value
@@ -6906,14 +6807,13 @@ class RecordData(_message.Message):
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         order_key: _Optional[str] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
@@ -6926,14 +6826,13 @@ class RunData(_message.Message):
         "parent_ptr",
         "package_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "kind",
         "root_ptr",
         "code",
@@ -6975,14 +6874,13 @@ class RunData(_message.Message):
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -7023,14 +6921,13 @@ class RunData(_message.Message):
     parent_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     kind: RunKind
     root_ptr: NodeReferenceData
     code: CodeData
@@ -7073,14 +6970,13 @@ class RunData(_message.Message):
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         kind: _Optional[_Union[RunKind, str]] = ...,
         root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
@@ -7124,14 +7020,13 @@ class SecretData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "title",
         "text",
         "region",
@@ -7144,14 +7039,13 @@ class SecretData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -7163,14 +7057,13 @@ class SecretData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     title: str
     text: TextData
     region: Region
@@ -7184,14 +7077,13 @@ class SecretData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         title: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -7207,14 +7099,13 @@ class ServerData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "text",
         "region",
@@ -7233,14 +7124,13 @@ class ServerData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -7258,14 +7148,13 @@ class ServerData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     text: TextData
     region: Region
@@ -7285,14 +7174,13 @@ class ServerData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -7315,14 +7203,13 @@ class SessionData(_message.Message):
         "parent_ptr",
         "package_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "status",
         "duration",
         "opened_at",
@@ -7337,14 +7224,13 @@ class SessionData(_message.Message):
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     OPENED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -7358,14 +7244,13 @@ class SessionData(_message.Message):
     parent_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     status: SessionStatus
     duration: _duration_pb2.Duration
     opened_at: _timestamp_pb2.Timestamp
@@ -7381,14 +7266,13 @@ class SessionData(_message.Message):
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         status: _Optional[_Union[SessionStatus, str]] = ...,
         duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         opened_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
@@ -7406,14 +7290,13 @@ class SignalData(_message.Message):
         "parent_ptr",
         "package_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type_ptr",
         "value_packed",
         "block_ptr",
@@ -7434,14 +7317,13 @@ class SignalData(_message.Message):
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -7461,14 +7343,13 @@ class SignalData(_message.Message):
     parent_ptr: NodeReferenceData
     package_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type_ptr: NodeReferenceData
     value_packed: _struct_pb2.Value
     block_ptr: NodeReferenceData
@@ -7490,14 +7371,13 @@ class SignalData(_message.Message):
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -7519,35 +7399,32 @@ class SkipData(_message.Message):
         "metatype",
         "id",
         "parent_ptr",
-        "revision",
         "created_at",
-        "updated_at",
-        "deleted_at",
         "created_by_ptr",
+        "updated_at",
         "updated_by_ptr",
+        "deleted_at",
         "reference_ptr",
         "order_key",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_PTR_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
-    updated_at: _timestamp_pb2.Timestamp
-    deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
+    deleted_at: _timestamp_pb2.Timestamp
     reference_ptr: NodeReferenceData
     order_key: str
     def __init__(
@@ -7555,12 +7432,11 @@ class SkipData(_message.Message):
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         reference_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         order_key: _Optional[str] = ...,
     ) -> None: ...
@@ -7575,14 +7451,13 @@ class SpaceData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type",
         "name",
         "text",
@@ -7602,14 +7477,13 @@ class SpaceData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
@@ -7628,14 +7502,13 @@ class SpaceData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type: SpaceType
     name: str
     text: TextData
@@ -7656,14 +7529,13 @@ class SpaceData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[SpaceType, str]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
@@ -7686,14 +7558,13 @@ class StepData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type",
         "name",
         "order_key",
@@ -7718,14 +7589,13 @@ class StepData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -7749,14 +7619,13 @@ class StepData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type: StepType
     name: str
     order_key: str
@@ -7782,14 +7651,13 @@ class StepData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[StepType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
@@ -7813,14 +7681,13 @@ class StoreData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "text",
         "region",
@@ -7836,14 +7703,13 @@ class StoreData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -7858,14 +7724,13 @@ class StoreData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     text: TextData
     region: Region
@@ -7882,14 +7747,13 @@ class StoreData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -7912,14 +7776,13 @@ class TriggerData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type",
         "name",
         "processed_epoch",
@@ -7936,14 +7799,13 @@ class TriggerData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     PROCESSED_EPOCH_FIELD_NUMBER: _ClassVar[int]
@@ -7959,14 +7821,13 @@ class TriggerData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type: TriggerType
     name: str
     processed_epoch: int
@@ -7984,14 +7845,13 @@ class TriggerData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[TriggerType, str]] = ...,
         name: _Optional[str] = ...,
         processed_epoch: _Optional[int] = ...,
@@ -8006,12 +7866,11 @@ class UserData(_message.Message):
         "metatype",
         "id",
         "parent_ptr",
-        "revision",
         "created_at",
-        "updated_at",
-        "deleted_at",
         "created_by_ptr",
+        "updated_at",
         "updated_by_ptr",
+        "deleted_at",
         "main_handle_ptr",
         "slug",
         "name",
@@ -8028,12 +7887,11 @@ class UserData(_message.Message):
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     MAIN_HANDLE_PTR_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -8049,12 +7907,11 @@ class UserData(_message.Message):
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
-    updated_at: _timestamp_pb2.Timestamp
-    deleted_at: _timestamp_pb2.Timestamp
     created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
+    deleted_at: _timestamp_pb2.Timestamp
     main_handle_ptr: NodeReferenceData
     slug: str
     name: str
@@ -8072,12 +7929,11 @@ class UserData(_message.Message):
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         slug: _Optional[str] = ...,
         name: _Optional[str] = ...,
@@ -8098,14 +7954,13 @@ class VaultData(_message.Message):
         "id",
         "parent_ptr",
         "bench_ptr",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "name",
         "text",
         "region",
@@ -8116,14 +7971,13 @@ class VaultData(_message.Message):
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
@@ -8133,14 +7987,13 @@ class VaultData(_message.Message):
     id: str
     parent_ptr: NodeReferenceData
     bench_ptr: NodeReferenceData
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     name: str
     text: TextData
     region: Region
@@ -8152,14 +8005,13 @@ class VaultData(_message.Message):
         id: _Optional[str] = ...,
         parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         name: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         region: _Optional[_Union[Region, str]] = ...,
@@ -8177,14 +8029,13 @@ class ViewData(_message.Message):
         "bench_ptr",
         "template_ptr",
         "templated_epoch",
-        "revision",
         "created_at",
+        "created_by_ptr",
         "created_epoch",
         "updated_at",
+        "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "created_by_ptr",
-        "updated_by_ptr",
         "type",
         "name",
         "title",
@@ -8222,14 +8073,13 @@ class ViewData(_message.Message):
     BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    REVISION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -8266,14 +8116,13 @@ class ViewData(_message.Message):
     bench_ptr: NodeReferenceData
     template_ptr: NodeReferenceData
     templated_epoch: int
-    revision: int
     created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
     created_epoch: int
     updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_by_ptr: NodeReferenceData
     type: ViewType
     name: str
     title: str
@@ -8312,14 +8161,13 @@ class ViewData(_message.Message):
         bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         templated_epoch: _Optional[int] = ...,
-        revision: _Optional[int] = ...,
         created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         created_epoch: _Optional[int] = ...,
         updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         type: _Optional[_Union[ViewType, str]] = ...,
         name: _Optional[str] = ...,
         title: _Optional[str] = ...,

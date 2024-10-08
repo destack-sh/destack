@@ -65,7 +65,7 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
       return timedeltaToISOFormat(value as Duration);
     } else if (typeof value == "bigint") {
       // NOTE :Robustness: we pack bigints as numbers, which is only safe up to 2^53-1
-      //  (should be fine, we only use it for epoch/revision which will last ~300k years at 1000edits/sec)
+      //  (should be fine, we only use it for epoch which will last ~300k years at 1000edits/sec)
       if (value > Number.MAX_SAFE_INTEGER) {
         throw new Error(`bigint ${value} too large for Number for ${describeTypeIdentity(type)}`);
       }
