@@ -587,7 +587,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 supergraph=self._supergraph,
                 edits=external_edits,
                 options=options,
-                track=False,
                 validate=False,
             )
             for edit in subedits:

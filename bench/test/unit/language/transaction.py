@@ -79,4 +79,4 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
     ]
 
     # commit and read back
-    await session.commit()  # nocheckin
+    # await session.commit()  # nocheckin

@@ -77,6 +77,7 @@ from bench.language.setup import (
 from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
 from bench.proto.wire import (
     AnyNodeData,
+    AnyObjectData,
     AnyStructData,
     ClientOriginData,
     FileReferenceData,
@@ -832,7 +833,7 @@ def _trace_edit_operation(
 
 
 @object_()
-class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
+class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
     metatype: ClassVar[ObjectType]

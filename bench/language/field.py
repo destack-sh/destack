@@ -478,6 +478,13 @@ class TypeInfoBase(BuiltinObject):
                 return field
         return None
 
+    def _get_field_by_tk(self, tk: str) -> Optional["Field"]:
+        """Resolves a field in this type by its tk"""
+        for field in self._base_fields:
+            if field.tk == tk:
+                return field
+        return None
+
 
 @struct_(StructType.TYPE_INFO)
 class TypeInfo(Struct, TypeInfoBase):
