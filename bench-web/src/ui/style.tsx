@@ -64,7 +64,7 @@ export const COLOR_HEX_BY_TYPE: Partial<Record<ColorType, string[]>> = {
 // semantic
 COLOR_HEX_BY_TYPE[ColorType.SUCCESS] = COLOR_HEX_BY_TYPE[ColorType.EMERALD];
 COLOR_HEX_BY_TYPE[ColorType.HINT] = COLOR_HEX_BY_TYPE[ColorType.GRAY];
-COLOR_HEX_BY_TYPE[ColorType.WARNING] = COLOR_HEX_BY_TYPE[ColorType.ORANGE];
+COLOR_HEX_BY_TYPE[ColorType.WARNING] = COLOR_HEX_BY_TYPE[ColorType.AMBER];
 COLOR_HEX_BY_TYPE[ColorType.DANGER] = COLOR_HEX_BY_TYPE[ColorType.RED];
 // surface
 COLOR_HEX_BY_TYPE[ColorType.PRIMARY] = COLOR_HEX_BY_TYPE[ColorType.BLUE];

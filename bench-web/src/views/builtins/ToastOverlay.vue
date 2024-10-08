@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { ICON_BY_LOG_LEVEL, IconInline } from "@/ui/icon";
+import { ColorShade } from "@/proto/wire";
+import { IconInline } from "@/ui/icon";
 import { getLogColorHex } from "@/ui/style";
 import { toaster, type ToastAnchor } from "@/ui/toast";
 import { assertNever } from "@/utils/functools";
@@ -50,7 +51,7 @@ const absoluteStyle = computed(() => {
 <template>
   <TransitionGroup
     tag="ul"
-    class="fixed z-50 flex p-2"
+    class="fixed z-50 flex gap-y-2 p-2"
     data-outside-view="true"
     :class="[isInverted ? 'flex-col-reverse' : 'flex-col']"
     :style="absoluteStyle"
@@ -66,28 +67,37 @@ const absoluteStyle = computed(() => {
     <li
       v-for="(toast, i) in visibleToasts"
       :key="toast.id"
-      :style="{ width: TOAST_WIDTH + 'px' }"
-      class="group/toast relative border border-gray-300 bg-white px-3.5 py-2.5"
+      :style="{
+        width: TOAST_WIDTH + 'px',
+        borderTopColor: getLogColorHex(toast.level, ColorShade.S100),
+        borderBottomColor: getLogColorHex(toast.level, ColorShade.S100),
+        borderRightColor: getLogColorHex(toast.level, ColorShade.S100),
+        borderLeftColor: getLogColorHex(toast.level, ColorShade.S400),
+        backgroundColor: getLogColorHex(toast.level, ColorShade.S50),
+      }"
+      class="group/toast relative border border-l-4 px-3.5 py-2.5"
       :class="[i == 0 ? 'rounded-t' : '', i == visibleToasts.length - 1 ? 'rounded-b' : '']"
     >
-      <!-- Body -->
+      <!-- Header -->
       <div class="flex flex-row">
-        <!-- Icon -->
-        <div class="w-4 text-center">
-          <IconInline
-            v-bind="toast.icon ?? ICON_BY_LOG_LEVEL[toast.level]"
-            force-color="inherit"
-            class="mt-0.5"
-            :style="{ color: getLogColorHex(toast.level) }"
-          />
-        </div>
-        <div class="ml-2.5">
-          <!-- Title -->
-          <span class="font-medium text-gray-900">{{ toast.title }}</span>
-          <!-- Content -->
-          <p v-if="toast.text" class="mt-0.5 line-clamp-3 text-gray-500">{{ toast.text }}</p>
-        </div>
+        <span
+          class="font-medium"
+          :style="{
+            color: getLogColorHex(toast.level, ColorShade.S800),
+          }"
+          >{{ toast.title }}</span
+        >
       </div>
+      <!-- Content -->
+      <p
+        v-if="toast.text"
+        class="mt-0.5 line-clamp-2"
+        :style="{
+          color: getLogColorHex(toast.level, ColorShade.S700),
+        }"
+      >
+        {{ toast.text }}
+      </p>
       <!-- Actions -->
       <div v-if="toast.actions.length > 0" class="mt-1.5 flex w-full justify-end gap-x-3">
         <button
@@ -97,15 +107,21 @@ const absoluteStyle = computed(() => {
           @click="action.action(), toaster.dismiss(toast)"
         >
           <IconInline v-if="action.icon" v-bind="action.icon" class="mr-1" />
-          <span class="text-gray-700 group-hover/action:text-primary-900">{{ action.title }}</span>
+          <span
+            class="group-hover/action:text-primary-900"
+            :style="{
+              color: getLogColorHex(toast.level, ColorShade.S700),
+            }"
+            >{{ action.title }}</span
+          >
         </button>
       </div>
       <!-- Dismiss -->
       <button
-        class="absolute right-3 top-2.5 text-gray-300 group-hover/toast:text-gray-400"
+        class="absolute right-3 top-2.5 opacity-40 transition-colors duration-75 hover:text-primary-900 group-hover/toast:opacity-100"
         @click="toaster.dismiss(toast)"
       >
-        <i class="fas fa-xmark hover:text-primary-900" />
+        <i class="fas fa-xmark" />
       </button>
     </li>
   </TransitionGroup>
