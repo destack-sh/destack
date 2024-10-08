@@ -528,8 +528,14 @@ export function editGraph(
       (edit.type == EditType.RESTORE && !graph.has(edit.nodePtr!))
     ) {
       // add
-      if (edit.nodeData == null) throw new Error(`missing nodeData in edit: ${describeEdit(edit)}`);
-      const node = unwrapSomeNode(edit.nodeData);
+      let node: AnyNodeData | null = edit.nodeData != null ? unwrapSomeNode(edit.nodeData) : null;
+      if (node == null) {
+        if (!options?.base || !options.base.has(edit.nodePtr!)) {
+          throw new Error(`missing nodeData in edit: ${describeEdit(edit)}`);
+        } else {
+          node = structuredClone(options.base.getOrError(edit.nodePtr!));
+        }
+      }
       // implicit metadata
       node.createdAt = node.updatedAt = edit.editedAt;
       if (edit.epoch != null && "createdEpoch" in node && "updatedEpoch" in node) {
@@ -837,7 +843,6 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       toaster.error({
         title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
         text: `Synchronizing ${this.bufferedTx?.edits.length ?? 0} edits failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
-        actions: [{ title: "Retry", icon: makeIcon("fas fa-redo"), action: () => this.retry(fail.id) }],
       });
       this.reset();
     } finally {
