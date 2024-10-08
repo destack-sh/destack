@@ -669,7 +669,6 @@ class GetConnection[ChannelT: Channel, T: Node](
                 supergraph=self.session._supergraph,
                 edits=new_edits,
                 options=self.query._options,
-                track=False,
                 validate=False,
             )
 
@@ -748,7 +747,6 @@ class SearchConnection[ChannelT: Channel, T: Node](
                 supergraph=self.session._supergraph,
                 edits=new_edits,
                 options=self.query._options,
-                track=False,
                 validate=False,
             )
 

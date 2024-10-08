@@ -464,6 +464,54 @@ export function makeEditOperations<T extends AnyNodeData>(node: T, update: Parti
   return operations;
 }
 
+/** Apply an edit operation to the given node */
+export function applyEditOperation(operation: EditOperationData, node: AnyNodeData) {
+  let obj: any = node;
+  for (let i = 0; i < operation.path.length; i++) {
+    // map key
+    let key = operation.path[i];
+    const propId = Number(key);
+    if (!Number.isNaN(propId)) {
+      // builtin object property
+      const objProperties = PROPERTY_ENUM_BY_TYPE[obj.metatype as ObjectType];
+      const propName = objProperties?.[propId];
+      if (propName == null) {
+        break; // invalid path
+      }
+      key = propName;
+    }
+
+    if (i < operation.path.length - 1) {
+      // next: descend into value
+      obj = obj[key];
+      if (obj == null) {
+        break; // invalid path
+      }
+    } else {
+      // done: set value
+      let valueType: TypeIdentity;
+      if (!Number.isNaN(propId)) {
+        // builtin object property
+        const objProperties = PROPERTY_INFOS_BY_TYPE[obj.metatype as ObjectType];
+        const prop = objProperties[propId];
+        valueType = getPropertyType(prop);
+      } else {
+        // value object field
+        valueType = decodeTypeIdentity(key);
+      }
+      let newValue: any;
+      if (operation.type == EditOperationType.SET) {
+        newValue = unpackValue(operation.newValuePacked!, valueType, { wrapScalar: false });
+      } else if (operation.type == EditOperationType.CLEAR) {
+        newValue = undefined;
+      } else {
+        throw new Error(`unexpected operation type: ${operation.type}`);
+      }
+      Object.assign(node, { [key]: newValue });
+    }
+  }
+}
+
 /**
  * Applies the edits to the graph (in place!).
  * If a base graph is given, this graph is assumed to be an overlay.
@@ -474,9 +522,6 @@ export function editGraph(
   options?: { base?: ReadNodeGraph },
 ) {
   for (const edit of edits) {
-    const nodeType = edit.nodePtr!.type;
-    const propertiesInfos = PROPERTY_INFOS_BY_TYPE[nodeType]!;
-    const properties = PROPERTY_ENUM_BY_TYPE[nodeType]!;
     if (
       edit.type == EditType.CREATE ||
       edit.type == EditType.UPSERT ||
@@ -520,56 +565,11 @@ export function editGraph(
         }
       }
       updatedNode = structuredClone(updatedNode); // copy
-
+      
       // apply edit operations
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
         for (const operation of edit.operations) {
-          // nocheckin
-          let obj: any = updatedNode;
-          let key = operation.path[0];
-          for (let i = 0; i < operation.path.length - 1; i++) {
-            // map key
-            key = operation.path[i];
-            const propId = Number(key);
-            if (!Number.isNaN(propId)) {
-              // builtin object property
-              const objProperties = PROPERTY_ENUM_BY_TYPE[obj.metatype as ObjectType];
-              const propName = objProperties?.[propId];
-              if (propName == null) {
-                break; // invalid path
-              }
-              key = propName;
-            }
-
-            if (i < operation.path.length - 1) {
-              // descend into value
-              obj = obj[key];
-              if (obj == null) {
-                break; // invalid path
-              }
-            } else {
-              // set value
-              let valueType: TypeIdentity;
-              if (!Number.isNaN(propId)) {
-                // builtin object property
-                const objProperties = PROPERTY_INFOS_BY_TYPE[obj.metatype as ObjectType];
-                const prop = objProperties[propId];
-                valueType = getPropertyType(prop);
-              } else {
-                // value object field
-                valueType = decodeTypeIdentity(key);
-              }
-              let newValue: any;
-              if (operation.type == EditOperationType.SET) {
-                newValue = unpackValue(operation.newValuePacked!, valueType, { wrapScalar: false });
-              } else if (operation.type == EditOperationType.CLEAR) {
-                newValue = undefined;
-              } else {
-                throw new Error(`unexpected operation type: ${operation.type}`);
-              }
-              Object.assign(updatedNode, { [key]: newValue });
-            }
-          }
+          applyEditOperation(operation, updatedNode);
         }
       }
 

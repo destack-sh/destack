@@ -22,6 +22,7 @@ from bench.language.const import (
     StructType,
     enum_,
 )
+from bench.language.field import decode_type_identity
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
@@ -37,11 +38,18 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import p_internal, p_system, p_value_packed
-from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.value import ValueObject, unpack_proto_json, unpack_value, unpack_value_data
+from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
+from bench.language.value import (
+    ValueObject,
+    pack_proto_json,
+    pack_value_data,
+    unpack_proto_json,
+    unpack_value,
+    unpack_value_data,
+)
 from bench.proto.wire import (
     AnyNodeData,
-    AnyStructData,
+    AnyObjectData,
     ChangeVignetteData,
     ClientOriginData,
     EditContextData,
@@ -584,7 +592,10 @@ class Transaction:
         """Commits the transaction (flushing any pending edits)."""
         await self._do_flush(is_commit=True)
         edits, cascaded_edits = self._edits, self._cascaded_edits
-        self.reset()
+        self._edits = []
+        self._cascaded_edits = []
+        # keep pending edit events (haven't been consumed yet)
+        self._touched_engine_ids.clear()
         return edits, cascaded_edits
 
     def reset(self):
@@ -595,6 +606,136 @@ class Transaction:
         self._touched_engine_ids.clear()
 
 
+def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
+    """Applies an edit operation to a node."""
+    obj: BuiltinObject | ValueObject = node
+    for i in range(len(op.path)):
+        # map key
+        key = op.path[i]
+        if key.isdigit():
+            # builtin object property
+            assert isinstance(
+                obj, BuiltinObject
+            ), f"unexpected object: {obj} ({type(obj)}) for {op!r}"
+            prop_id = int(key)
+            prop = obj.__properties_by_id__.get(prop_id)
+            if prop is None:
+                return  # invalid path
+            if prop.reference_wired_ptr:
+                prop = prop.reference_wired_ptr
+            key = cast(str, prop.name)
+        else:
+            prop = None
+
+        if i < (len(op.path) - 1):
+            # next: descend into object
+            if prop is not None:  # builtin object property
+                next_obj = getattr(cast("BuiltinObject", obj), prop.name)
+            else:  # value object field
+                field = cast(ValueObject, obj)._type._get_field_by_tk(key)
+                if field is None:
+                    return  # invalid path
+                next_obj = cast(ValueObject, obj)._do_get(field)
+            if not (type(next_obj) is ValueObject or isinstance(next_obj, BuiltinObject)):
+                return  # invalid path
+            obj = next_obj
+        else:
+            # done: set value
+            if prop is not None:
+                value_type = cast(BuiltinObject, obj).__properties__[key].type_info
+            else:
+                value_type = decode_type_identity(key)
+            if op.type == EditOperationType.SET:
+                new_value_packed = unpack_proto_json(op.new_value_packed)
+                new_value = unpack_value(new_value_packed, value_type, wrap_primitive=False)
+            elif op.type == EditOperationType.CLEAR:
+                new_value = None
+            else:
+                raise NotImplementedError(f"unsupported edit operation: {op!r}")
+            if prop is not None:  # builtin object property
+                cast(BuiltinObject, obj)._do_set(
+                    prop.name, new_value, track=False, validate=validate
+                )
+            else:  # value object field
+                field = cast(ValueObject, obj)._type._get_field_by_tk(key)
+                if field is None:
+                    return  # invalid path
+                cast(ValueObject, obj)._do_set(field, new_value, track=False, validate=validate)
+
+
+def apply_edit_operation_data(
+    node: AnyNodeData, op: EditOperationData, *, is_prepass: bool = False
+):
+    """
+    Applies an edit operation to a node.
+    For is_prepass, we also update the old_value_packed to the actual current/old value.
+    """
+    from bench.proto import wiring
+
+    obj: AnyObjectData | ProtoStruct = node
+    for i in range(len(op.path)):
+        # map key
+        key = op.path[i]
+        if key.isdigit():
+            # builtin object property
+            assert type(obj) is not ProtoStruct, f"unexpected object: {obj} for {op!r}"
+            obj_type = OBJECT_CLASS_BY_TYPE[obj.metatype]  # type: ignore
+            prop_id = int(key)
+            prop = obj_type.__properties_by_id__.get(prop_id)
+            if prop is None:
+                return  # invalid path
+            if prop.reference_wired_ptr:
+                prop = prop.reference_wired_ptr
+            key = cast(str, prop.name)
+        else:
+            obj_type = None
+            prop = None
+
+        if i < (len(op.path) - 1):
+            # next: descend into object
+            if prop is not None:  # builtin object property
+                next_obj = getattr(cast(AnyObjectData, obj), prop.name)
+            else:  # value object field
+                next_obj = cast(ProtoStruct, obj).__getitem__(key)
+            if not (type(next_obj) is ProtoStruct or getattr(next_obj, "metatype", None)):
+                return  # invalid path
+            obj = cast("AnyObjectData | ProtoStruct", next_obj)
+        else:
+            # done: set value
+            if prop is not None:
+                assert obj_type is not None, f"missing object type for {op!r}"
+                value_type = obj_type.__properties__[key].type_info
+            else:
+                value_type = decode_type_identity(key)
+            if op.type == EditOperationType.SET:
+                new_value_packed = unpack_proto_json(op.new_value_packed)
+                new_value = unpack_value_data(new_value_packed, value_type, wrap_primitive=False)
+            elif op.type == EditOperationType.CLEAR:
+                new_value = None
+            else:
+                raise NotImplementedError(f"unsupported edit operation: {op!r}")
+            if prop is not None:  # builtin object property
+                if is_prepass:
+                    if prop.is_optional_scalar and not (
+                        cast(AnyObjectData, obj).HasField(prop.name)
+                    ):
+                        old_value = None
+                    else:
+                        old_value = getattr(cast(AnyObjectData, obj), prop.name)
+                    old_value_packed = pack_value_data(old_value, value_type, wrap_primitive=False)
+                    wiring.set_object_prop(
+                        op,
+                        EditOperation.get_property("old_value_packed"),
+                        wiring.pack_proto_json(old_value_packed),
+                    )
+                wiring.set_object_prop(cast(AnyObjectData, obj), prop, new_value)
+            else:  # value object field
+                if is_prepass:
+                    old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
+                    op.old_value_packed.CopyFrom(pack_proto_json(old_value_packed))  # type: ignore
+                cast(ProtoStruct, obj).__setitem__(key, new_value)  # type: ignore
+
+
 @tracer.start_as_current_span("graph.edit_graph")
 def edit_graph(
     graph: NodeGraph,
@@ -602,7 +743,6 @@ def edit_graph(
     edits: Collection[EditData],
     options: "ReadOptions | None",
     *,
-    track: bool,
     validate: bool,
 ) -> None:
     """Applies the edits to the graph (in place!)."""
@@ -653,58 +793,24 @@ def edit_graph(
 
             # apply edit operations
             for op in edit.operations:
-                # traverse edit path
-                obj: BuiltinObject | ValueObject = node
-                obj_type = node.__class__
-                key = op.path[0]
-                assert len(op.path) == 1, f"nocheckin: edit_graph: {op!r}"
-
-                # apply edit operation
-                if obj is None:
-                    continue  # invalid path
-                elif type(obj) is ValueObject:
-                    if op.type == EditOperationType.SET:
-                        # find field
-                        raise NotImplementedError(f"nocheckin: edit_graph ValueObject {op!r}")
-                    elif op.type == EditOperationType.CLEAR:
-                        del obj._value[key]
-                    else:
-                        raise NotImplementedError(f"unsupported edit operation: {op!r}")
-                else:
-                    assert isinstance(
-                        obj, BuiltinObject
-                    ), f"unexpected object: {obj} ({type(obj)}) for {edit!r}"
-                    prop = obj_type.__properties_by_id__.get(int(key))
-                    assert prop is not None, f"no property {key} in {obj_type!r} for {edit!r}"
-                    if prop.reference_wired_ptr is not None:
-                        prop = prop.reference_wired_ptr
-                    if op.type == EditOperationType.SET:
-                        new_value_packed = unpack_proto_json(op.new_value_packed)
-                        new_value = unpack_value(
-                            new_value_packed, prop.type_info, wrap_primitive=False
-                        )
-                    elif op.type == EditOperationType.CLEAR:
-                        new_value = None
-                    else:
-                        raise NotImplementedError(f"unsupported edit operation: {op!r}")
-                    obj._do_set(prop.name, new_value, track=track)
+                apply_edit_operation(node, op, validate=validate)
 
             # implicit metadata
             node.updated_at = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "updated_epoch" in node.__properties__:
-                node._do_set("updated_epoch", edit.epoch, track=track, validate=False)
+                node._do_set("updated_epoch", edit.epoch, track=False, validate=False)
             node._do_set(
                 "updated_by_ptr",
                 wiring.unpack_object_prop(
                     Node.get_property("updated_by"), edit.subject_ptr, supergraph=supergraph
                 ),
-                track=track,
+                track=False,
             )
-            node._do_set("revision", edit.revision, track=track, validate=False)
+            node._do_set("revision", edit.revision, track=False, validate=False)
             if edit_type == EditType.DELETE:
-                node._do_set("deleted_at", edit.edited_at, track=track, validate=False)
+                node._do_set("deleted_at", edit.edited_at, track=False, validate=False)
             elif edit_type == EditType.RESTORE:
-                node._do_set("deleted_at", None, track=track, validate=False)
+                node._do_set("deleted_at", None, track=False, validate=False)
             graph.update(node)
 
 
@@ -803,37 +909,7 @@ def edit_data_graph(
             # apply edit operations
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 for op in edit.operations:
-                    # traverse edit path
-                    obj: AnyNodeData | AnyStructData | dict = updated_node_data
-                    obj_type = node_cls
-                    key = op.path[0]
-                    assert len(op.path) == 1, f"nocheckin: edit_data_graph: {op!r}"
-
-                    # apply edit operation
-                    if obj is None:
-                        continue  # invalid path
-                    elif type(obj) is ProtoStruct:
-                        if op.type == EditOperationType.SET:
-                            obj[key] = op.new_value_packed
-                        elif op.type == EditOperationType.CLEAR:
-                            obj.ClearField(key)
-                        else:
-                            raise NotImplementedError(f"unsupported edit operation: {op!r}")
-                    else:
-                        prop = obj_type.__properties_by_id__.get(int(key))
-                        assert prop is not None, f"no property {key} in {obj_type!r} for {edit!r}"
-                        if prop.reference_wired_ptr is not None:
-                            prop = prop.reference_wired_ptr
-                        if op.type == EditOperationType.SET:
-                            new_value_packed = unpack_proto_json(op.new_value_packed)
-                            new_value = unpack_value_data(
-                                new_value_packed, prop.type_info, wrap_primitive=False
-                            )
-                        elif op.type == EditOperationType.CLEAR:
-                            new_value = None
-                        else:
-                            raise NotImplementedError(f"unsupported edit operation: {op!r}")
-                        wiring.set_object_prop(updated_node_data, prop, new_value)
+                    apply_edit_operation_data(updated_node_data, op, is_prepass=is_prepass)
 
             # implicit metadata
             updated_node_data.updated_at.CopyFrom(edit.edited_at)
