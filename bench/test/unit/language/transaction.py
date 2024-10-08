@@ -5,9 +5,9 @@ from bench.language.run import RunErrorType, RunOptions
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_edit_nested_objects(local_runtime: RuntimeHandle):
+async def test_edit_nested_objects(hosted_runtime: RuntimeHandle):
     """Edits to nested objects should be traced correctly"""
-    session = local_runtime.session
+    session = hosted_runtime.session
     Class1 = Block.new(
         BlockType.CLASS,
         name="Class1",
@@ -15,7 +15,7 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
     )
     Class1.fields.append(Field.member("Class1", Class1))
     Value1 = Block.new(BlockType.VALUE, name="Value1")
-    local_runtime.page().blocks.extend(Class1, Value1)
+    hosted_runtime.page().blocks.extend(Class1, Value1)
     await session.commit()
 
     def get_last_operation():
@@ -78,5 +78,5 @@ async def test_edit_nested_objects(local_runtime: RuntimeHandle):
         RunOptions.get_property("retry_on").key,
     ]
 
-    # commit and read back
-    # await session.commit()  # nocheckin
+    # commit
+    await session.commit()

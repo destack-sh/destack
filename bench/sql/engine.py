@@ -71,7 +71,7 @@ from bench.language.value import (
     unpack_proto_date,
     unpack_proto_json,
     unpack_proto_time,
-    unpack_value_scalar_data,
+    unpack_value_data,
 )
 from bench.proto import wire, wiring
 from bench.proto.wire import (
@@ -2005,9 +2005,10 @@ async def _pg_edit_batch(
                     elif prop.reference_is_rich:
                         row[wired_name] = Jsonb(new_value_packed)
                     else:
-                        new_value = unpack_value_scalar_data(new_value_packed, prop.type_info)
-                        assert type(new_value) is NodeReferenceData
-                        _pg_pack_node_reference_into_row(prop, row, new_value)
+                        new_value = unpack_value_data(
+                            new_value_packed, prop.type_info, wrap_primitive=False
+                        )
+                        _pg_pack_node_reference_into_row(prop, row, new_value)  # type: ignore
 
             # implicit properties
             edited_at = edit.edited_at.ToDatetime()

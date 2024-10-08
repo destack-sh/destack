@@ -821,11 +821,12 @@ def edit_data_graph(
     options: "ReadOptions | None",
     *,
     is_prepass: bool = False,
-) -> None:
+) -> None | list[EditData]:
     """
     Applies the edits to the data graph (edited nodes are copied before update).
-    For the 'prepass' (before validating & applying the edits, with ground truth loaded)
-     we do some extra work ensure the edits are in a consistent state.
+    During prepass, we do some extra work (before applying the edits within in the system):
+      1. Update edits (and edit operations) with the ground truth state.
+      2. Simplify hierarchical edits into flat set/clear edits (for storage).
     """
     trace.get_current_span().set_attribute("edits", len(edits))
 
@@ -851,6 +852,7 @@ def edit_data_graph(
             vignette.icon.CopyFrom(getattr(node, "icon"))
         return vignette
 
+    flat_edits: list[EditData] = []  # for prepass
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
         edit_type = cast(EditType, edit.type)
@@ -888,6 +890,7 @@ def edit_data_graph(
                 edit.ClearField("node_data")
                 edit.node_data.CopyFrom(wiring.wrap_some_node(node_data))  # :EditData
                 edit.vignette.CopyFrom(_make_vignette(node_data))
+                flat_edits.append(edit)
         elif (
             edit_type == EditType.ERASE
             or (not options.include_hidden and edit_type == EditType.DELETE)
@@ -911,6 +914,39 @@ def edit_data_graph(
                 for op in edit.operations:
                     apply_edit_operation_data(updated_node_data, op, is_prepass=is_prepass)
 
+                # prepass: convert hierarchical edits into flat set/clear edits
+                if is_prepass:
+                    properties = {int(op.path[0]) for op in edit.operations}
+                    flat_operations: list[EditOperationData] = []
+                    for prop_id in properties:
+                        prop = node_cls.__properties_by_id__.get(prop_id)
+                        if prop is None:
+                            continue
+                        if prop.reference_wired_ptr:
+                            prop = prop.reference_wired_ptr
+                        if prop.is_optional_scalar and not updated_node_data.HasField(prop.name):
+                            new_value_packed = None
+                            op_type = wire.EDIT_OPERATION_TYPE_CLEAR
+                        else:
+                            new_value = getattr(updated_node_data, prop.name)
+                            new_value_packed = pack_value_data(
+                                new_value, prop.type_info, wrap_primitive=False
+                            )
+                            op_type = wire.EDIT_OPERATION_TYPE_SET
+                        flat_op = EditOperationData(
+                            metatype=wire.ObjectType.OBJECT_TYPE_EDIT_OPERATION,
+                            path=[str(prop_id)],
+                            type=op_type,
+                            new_value_packed=wiring.pack_proto_json(new_value_packed),
+                        )
+                        flat_operations.append(flat_op)
+                    flat_edit = wiring.copy_struct(edit)
+                    flat_edit.ClearField("operations")
+                    flat_edit.operations.extend(flat_operations)
+                    flat_edits.append(flat_edit)
+            elif is_prepass:
+                flat_edits.append(edit)
+
             # implicit metadata
             updated_node_data.updated_at.CopyFrom(edit.edited_at)
             if "updated_epoch" in node_cls.__properties__:
@@ -927,3 +963,5 @@ def edit_data_graph(
                 updated_node_data.ClearField("deleted_at")
 
             graph.update(updated_node_data)
+
+    return flat_edits if is_prepass else None

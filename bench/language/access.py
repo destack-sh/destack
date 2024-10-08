@@ -900,11 +900,13 @@ def evaluate_access(
                                 node_type, node_cls.__properties_mask_set__
                             )
                             allowed_properties |= rule_properties_mask & unset_properties
-                        else:
+                        elif rule.effect == PolicyEffect.DENY:
                             rule_properties_mask = rule._object_properties_masks.get(
                                 node_type, node_cls.__properties_mask_unset__
                             )
                             allowed_properties &= ~(rule_properties_mask & unset_properties)
+                        else:
+                            assert_never(rule.effect)
                         unset_properties = unset_properties & ~rule_properties_mask
                         if not unset_properties.any():
                             break  # nothing can change anymore
