@@ -14,6 +14,8 @@ import { unpackBuiltinObject } from "@/language/value";
 import {
   ChangeCategory,
   EditData,
+  EditOperationData,
+  EditOperationType,
   EditType,
   LogData,
   NodeReferenceData,
@@ -106,7 +108,7 @@ class EditStack {
    */
   redo() {
     if (this._undoIndex >= this._editStack.length) return;
-    // accumulate edits from same change (edits are in right order)
+    // accumulate edits from same change (edits are in original order)
     const edits: EditData[] = [this._editStack[this._undoIndex]];
     if (edits[0].changeKey != null) {
       for (let i = this._undoIndex + 1; i < this._editStack.length; i++) {
@@ -143,8 +145,9 @@ class EditStack {
         if (this._filter(edit) && !this._editsById[edit.id] && !this._derivedEditsById[edit.id]) {
           this._editStack.push(edit);
           this._editsById[edit.id] = edit;
-          if (event.connectionIdByEditId[edit.id] == null)
+          if (event.connectionIdByEditId[edit.id] == null) {
             throw new Error(`missing connection id for ${describeEdit(edit)}`);
+          }
           this._connectionIdByEdit[edit.id] = event.connectionIdByEditId[edit.id];
           hasNewEdits = true;
         }
@@ -180,30 +183,54 @@ export function getEditStack(graph: ReadNodeGraph, focusedView: ViewData | null)
   return editStack;
 }
 
+export function invertEditOperation(op: EditOperationData): EditOperationData {
+  if (op.type == EditOperationType.SET || op.type == EditOperationType.CLEAR) {
+    return {
+      metatype: ObjectType.EDIT_OPERATION,
+      type: op.oldValuePacked == null ? EditOperationType.CLEAR : EditOperationType.SET,
+      path: op.path,
+      newValuePacked: op.oldValuePacked,
+      oldValuePacked: op.newValuePacked,
+    };
+  } else {
+    throw new Error(`cannot invert operation ${op.type}`);
+  }
+}
+
 /** Inverts an edit as an undo/redo of the given edit (in place). */
-function invertEdit(originalEdit: EditData | LogData, newEdit: EditData, mode: "undo" | "redo"): void {
-  const undoType = UNDO_EDIT_BY_TYPE[newEdit.type!];
-  if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, newEdit.type!)}}`);
+export function invertEdit(edit: EditData | LogData, invertedEdit: EditData, mode: "undo" | "redo"): void {
+  const undoType = UNDO_EDIT_BY_TYPE[invertedEdit.type!];
+  if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, invertedEdit.type!)}}`);
+
+  // edit type
   if (mode == "undo") {
-    newEdit.type = undoType;
+    invertedEdit.type = undoType;
   } else if (mode == "redo") {
     const redoType = UNDO_EDIT_BY_TYPE[undoType!];
     if (redoType == null) throw new Error(`cannot redo edit ${toCamelName(EditType, undoType!)}}`);
-    newEdit.type = redoType;
+    invertedEdit.type = redoType;
   } else {
     assertNever(mode);
   }
-  if (isNode(originalEdit, NodeType.LOG)) {
-    if (originalEdit.nodeData != null) {
-      newEdit.nodeData = wrapSomeNode(unpackBuiltinObject(originalEdit.nodeData) as AnyNodeData);
+
+  // edit content
+  if (isNode(edit, NodeType.LOG)) {
+    if (edit.nodeData != null) {
+      invertedEdit.nodeData = wrapSomeNode(unpackBuiltinObject(edit.nodeData) as AnyNodeData);
+    }
+    if (invertedEdit.type == EditType.RESTORE) {
+      invertedEdit.oldEditedAt = edit.createdAt;
     }
   } else {
-    newEdit.nodeData = originalEdit.nodeData;
+    invertedEdit.nodeData = edit.nodeData;
+    if (invertedEdit.type == EditType.RESTORE) {
+      invertedEdit.oldEditedAt = edit.editedAt;
+    }
   }
-  if (newEdit.type == EditType.RESTORE) {
-    newEdit.oldEditedAt = (originalEdit as EditData).editedAt ?? (originalEdit as LogData).createdAt;
-  } else {
-    newEdit.oldEditedAt = undefined;
+
+  // edit operations
+  if (mode == "undo") {
+    invertedEdit.operations = edit.operations.map((op) => invertEditOperation(op)).reverse();
   }
 }
 
@@ -211,10 +238,7 @@ function invertEdit(originalEdit: EditData | LogData, newEdit: EditData, mode: "
 export function makeEditFromLog(
   log: LogData,
   mode: "redo" | "undo",
-  options?: {
-    category?: ChangeCategory;
-    subjectPtr?: NodeReferenceData;
-  },
+  options?: { category?: ChangeCategory; subjectPtr?: NodeReferenceData },
 ): EditData {
   // unpack
   if (log.nodePtr == null) throw new Error(`missing node for ${log.type}: ${describeNode(log)}`);

@@ -1295,7 +1295,7 @@ def unpack_proto_json(value: ProtoValue) -> JsonValue:
     elif value.HasField("struct_value"):
         return MessageToDict(value.struct_value)
     else:
-        raise ValueError(f"unsupported proto value {value!r}")
+        raise ValueError(f"unsupported proto value: {value!r}")
 
 
 # import later to avoid circular imports (Object is used in node.py)

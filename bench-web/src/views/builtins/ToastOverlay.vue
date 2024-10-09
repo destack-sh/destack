@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { ColorShade } from "@/proto/wire";
+import { ColorShade, ColorType } from "@/proto/wire";
 import { IconInline } from "@/ui/icon";
-import { getLogColorHex } from "@/ui/style";
-import { toaster, type ToastAnchor } from "@/ui/toast";
+import { getColorHex } from "@/ui/style";
+import { Toast, toaster, ToastLevel, type ToastAnchor } from "@/ui/toast";
 import { assertNever } from "@/utils/functools";
 import { computed } from "vue";
 
@@ -33,6 +33,19 @@ const visibleToasts = computed(() => {
   if (toasts.length > MAX_TOASTS) toasts = toasts.slice(toasts.length - MAX_TOASTS);
   return toasts;
 });
+
+const COLOR_BY_TOAST_LEVEL: Record<ToastLevel, ColorType> = {
+  [ToastLevel.DEBUG]: ColorType.GRAY,
+  [ToastLevel.INFO]: ColorType.FUCHSIA,
+  [ToastLevel.SUCCESS]: ColorType.SUCCESS,
+  [ToastLevel.WARNING]: ColorType.WARNING,
+  [ToastLevel.ERROR]: ColorType.DANGER,
+};
+
+function getToastColorHex(toast: Toast, shade: ColorShade): string {
+  const color = COLOR_BY_TOAST_LEVEL[toast.level];
+  return getColorHex(color, shade)!;
+}
 
 const absoluteStyle = computed(() => {
   if (props.anchor == "top-left") {
@@ -69,21 +82,20 @@ const absoluteStyle = computed(() => {
       :key="toast.id"
       :style="{
         width: TOAST_WIDTH + 'px',
-        borderTopColor: getLogColorHex(toast.level, ColorShade.S100),
-        borderBottomColor: getLogColorHex(toast.level, ColorShade.S100),
-        borderRightColor: getLogColorHex(toast.level, ColorShade.S100),
-        borderLeftColor: getLogColorHex(toast.level, ColorShade.S400),
-        backgroundColor: getLogColorHex(toast.level, ColorShade.S50),
+        borderLeftColor: getToastColorHex(toast, ColorShade.S400),
+        backgroundColor:
+          toast.level == ToastLevel.DEBUG
+            ? getColorHex(ColorType.GRAY, ColorShade.S100)
+            : getToastColorHex(toast, ColorShade.S50),
       }"
-      class="group/toast relative border border-l-4 px-3.5 py-2.5"
-      :class="[i == 0 ? 'rounded-t' : '', i == visibleToasts.length - 1 ? 'rounded-b' : '']"
+      class="group/toast relative rounded-sm border-l-4 px-3.5 py-2"
     >
       <!-- Header -->
       <div class="flex flex-row">
         <span
           class="font-medium"
           :style="{
-            color: getLogColorHex(toast.level, ColorShade.S800),
+            color: getToastColorHex(toast, ColorShade.S800),
           }"
           >{{ toast.title }}</span
         >
@@ -93,7 +105,7 @@ const absoluteStyle = computed(() => {
         v-if="toast.text"
         class="mt-0.5 line-clamp-2"
         :style="{
-          color: getLogColorHex(toast.level, ColorShade.S700),
+          color: getToastColorHex(toast, ColorShade.S700),
         }"
       >
         {{ toast.text }}
@@ -110,7 +122,7 @@ const absoluteStyle = computed(() => {
           <span
             class="group-hover/action:text-primary-900"
             :style="{
-              color: getLogColorHex(toast.level, ColorShade.S700),
+              color: getToastColorHex(toast, ColorShade.S700),
             }"
             >{{ action.title }}</span
           >
@@ -118,7 +130,7 @@ const absoluteStyle = computed(() => {
       </div>
       <!-- Dismiss -->
       <button
-        class="absolute right-3 top-2.5 opacity-40 transition-colors duration-75 hover:text-primary-900 group-hover/toast:opacity-100"
+        class="absolute right-3 top-2.5 text-gray-400 opacity-40 transition-colors duration-75 hover:text-primary-900 group-hover/toast:opacity-100"
         @click="toaster.dismiss(toast)"
       >
         <i class="fas fa-xmark" />

@@ -269,19 +269,6 @@ export class TransactionBuilder implements Transaction {
   ) {
     this.checkInScope(node);
 
-    // pack 'old' and 'new' node delta :EditData
-    let nodeData: AnyNodeData | undefined = undefined;
-    let oldEditedAt: Timestamp | undefined = undefined;
-    if (editType == EditType.CREATE || editType == EditType.UPSERT) {
-      nodeData = node;
-    } else if (editType == EditType.DELETE) {
-      // nothing to do
-    } else if (editType == EditType.RESTORE) {
-      oldEditedAt = node.deletedAt;
-    } else if (editType == EditType.ERASE) {
-      nodeData = node;
-    }
-
     // make edit & notify
     const subjectPtr = toValue(this.subject);
     if (subjectPtr == null) throw new Error("no subject for edit");
@@ -296,8 +283,8 @@ export class TransactionBuilder implements Transaction {
       changeKey: this.change?.key,
       category: this.category,
       editedAt: Timestamp.now(),
-      oldEditedAt: oldEditedAt,
-      nodeData: nodeData != null ? wrapSomeNode(nodeData) : undefined,
+      oldEditedAt: node.deletedAt,
+      nodeData: wrapSomeNode(node),
       operations: [],
     };
     this.state.edits.push(edit);
@@ -443,11 +430,13 @@ export function makeEditOperations<T extends AnyNodeData>(node: T, update: Parti
     const propType = getPropertyType(prop);
     const newValue = update[key as keyof T];
     let operation: EditOperationData;
+    const oldValuePacked = packValue(node[key as keyof T], propType, { wrapScalar: false });
     if (newValue == null) {
       operation = {
         metatype: ObjectType.EDIT_OPERATION,
         type: EditOperationType.CLEAR,
         path: [propId.toString()],
+        oldValuePacked,
       };
     } else {
       const newValuePacked = packValue(newValue, propType, { wrapScalar: false });
@@ -455,7 +444,8 @@ export function makeEditOperations<T extends AnyNodeData>(node: T, update: Parti
         metatype: ObjectType.EDIT_OPERATION,
         type: EditOperationType.SET,
         path: [propId.toString()],
-        newValuePacked: newValuePacked,
+        newValuePacked,
+        oldValuePacked,
       };
     }
     operations.push(operation);
@@ -528,14 +518,8 @@ export function editGraph(
       (edit.type == EditType.RESTORE && !graph.has(edit.nodePtr!))
     ) {
       // add
-      let node: AnyNodeData | null = edit.nodeData != null ? unwrapSomeNode(edit.nodeData) : null;
-      if (node == null) {
-        if (!options?.base || !options.base.has(edit.nodePtr!)) {
-          throw new Error(`missing nodeData in edit: ${describeEdit(edit)}`);
-        } else {
-          node = structuredClone(options.base.getOrError(edit.nodePtr!));
-        }
-      }
+      if (edit.nodeData == null) throw new Error(`missing node in edit: ${describeEdit(edit)}`);
+      const node = unwrapSomeNode(edit.nodeData);
       // implicit metadata
       node.createdAt = node.updatedAt = edit.editedAt;
       if (edit.epoch != null && "createdEpoch" in node && "updatedEpoch" in node) {
@@ -558,8 +542,9 @@ export function editGraph(
       // update
       let updatedNode: AnyNodeData | null;
       if (edit.type == EditType.RESTORE) {
-        if (edit.nodeData == null)
+        if (edit.nodeData == null) {
           throw new Error(`missing node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
+        }
         updatedNode = unwrapSomeNode(edit.nodeData);
       } else {
         updatedNode = graph.get(edit.nodePtr!);

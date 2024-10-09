@@ -134,6 +134,7 @@ function walkTimeline(now: DateTime, root: RunData): Timeline {
   return { root, spans, events, hasActive };
 }
 
+// nocheckin: fix runTree.run sometimes out of sync with runTree.runs (stale reference...)
 const now = getNow(TimeUpdateInterval.MILLISECOND);
 const timeline: Ref<Timeline> = shallowRef(EMPTY_TIMELINE);
 watchEffect(() => {
