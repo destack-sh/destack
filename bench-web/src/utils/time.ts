@@ -4,7 +4,7 @@ import { ref, type Ref } from "vue";
 import { Duration as ProtoDuration } from "@/proto/wire/google/protobuf/duration";
 
 export enum TimeUpdateInterval {
-  MILLISECOND = 50, // ms-ish
+  MILLISECOND = 100, // ms-ish
   SECOND = 1000,
   MINUTE = 60000,
   HOUR = 3600000,
