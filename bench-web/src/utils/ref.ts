@@ -132,10 +132,15 @@ export function watchValue<T>(source: T, callback: () => void, options?: WatchOp
 /** A computed ref with a manual trigger. */
 export type ManualComputedRef<T> = Ref<T> & {
   trigger: () => void;
+  meta?: ManualRefMeta;
+};
+
+type ManualRefMeta = {
+  id?: string;
 };
 
 /** A computed ref that is only triggered manually. */
-export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> {
+export function manualComputed<T>(get: ComputedGetter<T>, meta?: ManualRefMeta): ManualComputedRef<T> {
   let value: T = undefined!;
   let trigger: Fn;
   let dirty = true;
@@ -143,6 +148,7 @@ export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> 
   const update = () => {
     dirty = true;
     trigger();
+    if (meta?.id != null) console.log("manualRef.trigger", meta.id, value);
   };
 
   const result = customRef<T>((_track, _trigger) => {
@@ -153,6 +159,7 @@ export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> 
         if (dirty) {
           value = get();
           dirty = false;
+          if (meta?.id != null) console.log("manualRef.get", meta.id, value);
         }
         _track();
         return value;
@@ -163,7 +170,10 @@ export function manualComputed<T>(get: ComputedGetter<T>): ManualComputedRef<T> 
     };
   }) as ManualComputedRef<T>;
 
-  if (Object.isExtensible(result)) result.trigger = update;
+  if (Object.isExtensible(result)) {
+    result.trigger = update;
+    result.meta = meta;
+  }
 
   return result;
 }
@@ -193,8 +203,12 @@ export type SubRef<T> = Ref<T> & {
  * @param stop - the function to stop tracking any dependencies
  * @returns the ref and a trigger to trigger its update (via Vue's reactivity system for batching)
  */
-export function manualSubRef<T>(get: () => T, stop: () => void): { ref: SubRef<T>; trigger: () => void } {
-  const manualRef = manualComputed(get);
+export function manualSubRef<T>(
+  get: () => T,
+  stop: () => void,
+  meta?: ManualRefMeta,
+): { ref: SubRef<T>; trigger: () => void } {
+  const manualRef = manualComputed(get, meta);
   const ref = manualRef as unknown as SubRef<T>;
   ref.stop = stop;
   return { ref, trigger: manualRef.trigger };
