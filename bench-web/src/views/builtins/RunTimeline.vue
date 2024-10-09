@@ -48,8 +48,9 @@ type Timeline = {
   root: RunData | null;
   spans: TimelineSpan[];
   events: TimelineEvent[];
+  hasActive: boolean; // whether there are any still active spans in the timeline
 };
-const EMPTY_TIMELINE: Timeline = { root: null, spans: [], events: [] };
+const EMPTY_TIMELINE: Timeline = { root: null, spans: [], events: [], hasActive: false };
 
 type TimelineSpan = {
   id: string;
@@ -64,6 +65,7 @@ type TimelineSpan = {
   content: RunData | RunAttemptData | RunSpanData;
   offsetRelative: number;
   widthRelative: number;
+  isActive: boolean;
 };
 
 type TimelineEvent = {
@@ -115,6 +117,7 @@ function walkTimeline(now: DateTime, root: RunData): Timeline {
       content: run,
       offsetRelative,
       widthRelative,
+      isActive: !TERMINAL_RUN_STATUSES.includes(run.status),
     };
     spans.push(span);
 
@@ -127,20 +130,21 @@ function walkTimeline(now: DateTime, root: RunData): Timeline {
 
   walkRun(root, null, 0);
 
-  return { root, spans, events };
+  const hasActive = spans.some((span) => span.isActive);
+  return { root, spans, events, hasActive };
 }
 
-const now = getNow(TimeUpdateInterval.MILLISECOND); // nocheckin: live update only if needed
+const now = getNow(TimeUpdateInterval.MILLISECOND);
 const timeline: Ref<Timeline> = shallowRef(EMPTY_TIMELINE);
-watch(
-  [runTree.runRef, runTree.runsRef, now],
-  () => {
-    // nocheckin :Robustness: why is runTree.run out of date sometimes but runTree.runs is fine?
-    // (it is being fired properly, it just doesn't seem to update the manual ref)
+watchEffect(() => {
+  if (
+    timeline.value?.root?.id != runTree.run?.id ||
+    !runTree.runs.every((r) => TERMINAL_RUN_STATUSES.includes(r.status)) ||
+    timeline.value?.hasActive
+  ) {
     timeline.value = runTree.run != null ? walkTimeline(now.value, runTree.run) : EMPTY_TIMELINE;
-  },
-  { immediate: true },
-);
+  }
+});
 </script>
 <template>
   <div class="flex w-full flex-row gap-x-2">
