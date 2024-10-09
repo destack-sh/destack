@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import { TERMINAL_RUN_STATUSES } from "@/language/const";
-import { getRunDurationMs } from "@/language/session";
+import { getRunDurationMs, isRunActive, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
   IconData,
@@ -19,7 +18,7 @@ import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, ref, Ref, shallowRef, toRef, watch, watchEffect } from "vue";
+import { computed, ref, Ref, shallowRef, toRef, watchEffect } from "vue";
 
 const TREE_WIDTH = 280;
 const DEPTH_OFFSET = 12;
@@ -79,7 +78,7 @@ function getStartedAtMs(run: RunData): number {
   return timestampToMs(run.startedAt ?? run.createdAt!);
 }
 
-function walkTimeline(now: DateTime, root: RunData): Timeline {
+function makeTimeline(now: DateTime, root: RunData): Timeline {
   const spans: TimelineSpan[] = [];
   const events: TimelineEvent[] = [];
 
@@ -117,7 +116,7 @@ function walkTimeline(now: DateTime, root: RunData): Timeline {
       content: run,
       offsetRelative,
       widthRelative,
-      isActive: !TERMINAL_RUN_STATUSES.includes(run.status),
+      isActive: isRunActive(run),
     };
     spans.push(span);
 
@@ -135,23 +134,22 @@ function walkTimeline(now: DateTime, root: RunData): Timeline {
 }
 
 // nocheckin: fix runTree.run sometimes out of sync with runTree.runs (stale reference...)
+watchEffect(() => console.log("runTree.run", runTree.run?.id, runTree.run));
 const now = getNow(TimeUpdateInterval.MILLISECOND);
 const timeline: Ref<Timeline> = shallowRef(EMPTY_TIMELINE);
 watchEffect(() => {
-  if (
-    timeline.value?.root?.id != runTree.run?.id ||
-    !runTree.runs.every((r) => TERMINAL_RUN_STATUSES.includes(r.status)) ||
-    timeline.value?.hasActive
-  ) {
-    timeline.value = runTree.run != null ? walkTimeline(now.value, runTree.run) : EMPTY_TIMELINE;
-  }
+  // nocheckin
+  // if (timeline.value?.root?.id != runTree.run?.id || !runTree.runs.every(isRunTerminal) || timeline.value?.hasActive) {
+    timeline.value = runTree.run != null ? makeTimeline(now.value, runTree.run) : EMPTY_TIMELINE;
+  // }
 });
 </script>
 <template>
-  <div class="flex w-full flex-row gap-x-2">
+  <div class="w-full">
     <!-- Timeline -->
-    <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
+    hasActive:{{ timeline.hasActive }} treeTerminal:{{ runTree.runs.every(isRunTerminal) }}
     <!-- Spans -->
+    <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
     <div ref="containerRef" class="flex flex-1 flex-col">
       <!-- Span -->
       <div
@@ -170,6 +168,7 @@ watchEffect(() => {
             width: TREE_WIDTH + 'px',
           }"
         >
+          {{ span.id.slice(32) /* nocheckin */ }}
           <!-- Node -->
           <button
             class="group/node truncate hover:cursor-pointer"

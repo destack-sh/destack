@@ -3,7 +3,7 @@ import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
 import { timesortNode } from "@/language/order";
 import { makeRun, type RunnableObject } from "@/language/session";
-import type { Transaction } from "@/language/transaction";
+import { CONNECTION_IGNORE, type Transaction } from "@/language/transaction";
 import {
   BlockData,
   ChangeCategory,
@@ -19,10 +19,12 @@ import { propertyReference, toNodeRef, type SomeNodeReferenceData, type TypedNod
 import { useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { canvas, pkgConnection, pkgGraph, space } from "@/system/space";
 import { computedValue } from "@/utils/ref";
-import { computed, watchEffect, type Ref } from "vue";
+import { computed, type Ref } from "vue";
 
 /** A reactive Run with all its descendants */
+let treeId = 0;
 export class RunTree {
+  id: number = treeId++;
   runGraph: ReadNodeGraph;
   runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
   runRef: Ref<RunData | null>;
@@ -35,7 +37,7 @@ export class RunTree {
   constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
     this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
     const { graph: runGraph, connection: runConnection } = useGetConnection(
-      { name: "runtime.run", live: true },
+      { name: "runtime.run." + this.id, live: true },
       computed(() => ({
         scope: graph.scope,
         roots: [this.runPtr.value!],
@@ -45,7 +47,7 @@ export class RunTree {
       })),
     );
     this.runGraph = runGraph;
-    this.runRef = runGraph.getRef(this.runPtr, { refId: "runtime.run" });
+    this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: true });
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
     this.runBasePtr = computedValue(
       () =>
@@ -165,7 +167,7 @@ export class Runtime {
     options?: { inputsPacked?: Record<string, any>; packagePtr?: NodeReferenceData },
   ): RunData {
     const run = makeRun(this.graph, runnable, options);
-    this.txFactory().with({ category: ChangeCategory.SESSION }).create(run);
+    this.txFactory().with({ connectionId: CONNECTION_IGNORE, category: ChangeCategory.SESSION }).create(run);
     if (canvas.space.value != null) {
       canvas.tx().update(canvas.space.value, { runPtr: toNodeRef(run) }, { debounce: "short" });
     }

@@ -101,6 +101,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="round"
         stroke="currentColor"
         fill="none"
+        :stroke-dasharray="pipe.type === PipeType.DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"
       />
     </svg>
@@ -117,7 +118,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :stroke-dasharray="pipe.type === PipeType.DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : undefined"
+        :stroke-dasharray="pipe.type === PipeType.DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"
       />
     </svg>

@@ -261,7 +261,11 @@ defineExpose<ViewExposed>({ self, id, actions });
           leave-to-class="opacity-0"
           appear
         >
-          <span v-if="lastRun" class="flex-shrink-0 truncate px-1" :style="{ color: getRunColorHex(lastRun.status) }">
+          <span
+            v-if="lastRun"
+            class="flex-shrink-0 truncate px-1"
+            :style="{ color: getRunColorHex(lastRun.status, ColorShade.S700) }"
+          >
             <span v-if="lastRuns.length > 1"> {{ lastRuns.length }}x </span>
             <!-- Duration -->
             <span v-if="lastRun.startedAt" class="mr-1">

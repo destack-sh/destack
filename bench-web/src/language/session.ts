@@ -1,4 +1,4 @@
-import { TERMINAL_RUN_STATUSES } from "@/language/const";
+import { ACTIVE_RUN_STATUSES, HALTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
 import {
@@ -40,6 +40,18 @@ export function isRunnable(node: AnyNodeData, graph: ReadNodeGraph, fields?: Fie
   } else {
     return false;
   }
+}
+
+export function isRunActive(run: RunData): boolean {
+  return ACTIVE_RUN_STATUSES.includes(run.status);
+}
+
+export function isRunHalted(run: RunData): boolean {
+  return HALTED_RUN_STATUSES.includes(run.status);
+}
+
+export function isRunTerminal(run: RunData): boolean {
+  return TERMINAL_RUN_STATUSES.includes(run.status);
 }
 
 /** Determine the type of run for some runnable object */

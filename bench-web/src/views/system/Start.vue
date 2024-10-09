@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import { TERMINAL_RUN_STATUSES } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import { makeTypeInfo } from "@/language/field";
-import { isRunnable, type RunnableNode } from "@/language/session";
+import { isRunnable, isRunTerminal, type RunnableNode } from "@/language/session";
 import {
   BoxData,
   ChangeCategory,
@@ -186,7 +185,7 @@ defineExpose<ViewExposed>({ self });
           </button>
           <!-- Stop -->
           <button
-            :disabled="lastRunnableNode == null || run == null || TERMINAL_RUN_STATUSES.includes(run.status)"
+            :disabled="lastRunnableNode == null || run == null || isRunTerminal(run)"
             class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
             @click="
               () =>

@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+import { ACTIVE_RUN_STATUSES, EDIT_TYPE_PAST_VERB, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/const";
+import { makeEditFromLog } from "@/language/edit";
+import { makeExpression, resolveSubject, type EditSubject } from "@/language/expression";
+import { isRunTerminal } from "@/language/session";
 import {
   AccessType,
   BlockData,
@@ -14,7 +18,6 @@ import {
   NodeType,
   ObjectType,
   Orientation,
-  PROPERTY_INFOS_BY_TYPE,
   RunData,
   RunProperty,
   RunStatus,
@@ -22,7 +25,7 @@ import {
   Timestamp,
   Variant,
   ViewData,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import {
   describeNode,
@@ -40,33 +43,28 @@ import {
   useSearchConnection,
   type PreparedSearchConnection,
 } from "@/system/connection";
-import { makeExpression, resolveSubject, type EditSubject } from "@/language/expression";
+import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
+import { user } from "@/system/user";
 import {
   DEFAULT_SYSTEM_ICON,
+  getNodeIcon,
   ICON_BY_NODE_TYPE,
   ICON_BY_RUN_STATUS,
   IconInline,
-  getNodeIcon,
   makeIcon,
 } from "@/ui/icon";
-import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/const";
-import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
-import { user } from "@/system/user";
-import { getElement } from "@/utils/element";
-import { humanizeNumber } from "@/utils/string";
 import { ScrollbarWidth } from "@/ui/layout";
+import { getRunColorHex } from "@/ui/style";
+import { useViewExpansion, useViewState, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { getElement } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
+import { humanizeNumber } from "@/utils/string";
 import { formatDuration, formatRelativeDate, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
 import { computed, ref, toRef, type Ref } from "vue";
-import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/language/const";
-import { makeEditFromLog } from "@/language/edit";
-import { useViewExpansion, useViewState } from "@/ui/view";
-import { getRunColorHex } from "@/ui/style";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -311,7 +309,7 @@ const items = computed<FeedItem[]>(() => {
       if (it.stepPtr != null) node = supergraph.get(it.stepPtr) as StepData;
       else if (it.blockPtr != null) node = supergraph.get(it.blockPtr) as BlockData;
       const actions: MiniAction[] = [];
-      if (!TERMINAL_RUN_STATUSES.includes(it.status)) {
+      if (!isRunTerminal(it)) {
         actions.push({
           id: "session.run.kill",
           title: "Kill",

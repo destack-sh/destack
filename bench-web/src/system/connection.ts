@@ -25,6 +25,7 @@ import {
 } from "@/proto/services";
 import {
   AggregationData,
+  EditType,
   ExpressionData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
@@ -32,7 +33,7 @@ import {
   type GraphScopeData,
   type NodeReferenceData,
   type NodeTypeMapping,
-  type ReadOptionsData
+  type ReadOptionsData,
 } from "@/proto/wire";
 import { HealthClient } from "@/proto/wire/proto/health.client";
 import {
@@ -41,7 +42,7 @@ import {
   describeNode,
   makeScope,
   unwrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
@@ -201,25 +202,39 @@ function getNodeTypesFromParams<T extends NodeType>(
   return nodeTypes;
 }
 
-/** Derives the overlay graph for a specific connection */
+/**
+ * Derives the overlay graph for a specific connection
+ *
+ * NOTE :UX :Architecture: instead of ignoring transactions from other connections outright we could optimistically
+ *  apply edits to the same node identities to other connections as well. Ultimately, for better responsiveness,
+ *  we probably want to emulate even more of the backend Connection behavior (e.g., optimistic search results).
+ * (the reason for having the connection filter below is that while the backend properly filters edits per connection,
+ *  here we distribute optimistic edits across the per-bench tx buffer, so an edit might not be relevant or even valid)
+ */
 function makeConnectionOverlayGraph(
   base: NodeGraph,
   connection: Connection<any, any>,
-  subs: (() => void)[],
-): NodeGraph {
+): { graph: NodeGraph; sub: () => void } {
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
+  // add current buffered edits
+  {
+    const currentBuffered = connection.txBuffer.getBuffered();
+    const currentEdits = [...(currentBuffered[-1] ?? []), ...(currentBuffered[connection.meta.id] ?? [])];
+    editGraph(overlay, currentEdits, { base: base });
+  }
+  // susbcribe to buffer changes
   const sub = connection.txBuffer.subscribeBuffered((event) => {
-    // NOTE :UX :Architecture: instead of ignoring transactions from other connections outright we could optimistically
-    //  apply edits to the same node identities to other connections as well. Ultimately,
-    //  we probably want to emulate even more of the backend live connesction logic (e.g., optimistic search results).
-    // (the reason for having the connection filter below is that while the backend properly filters edits per connection,
-    //  here we distribute optimistic edits across the per-bench tx buffer, so any given edit might not be relevant)
-    if (event.meta.connectionId != null && event.meta.connectionId != connection.meta.id) return;
-    if (event.type == "reset") overlay.clear();
-    editGraph(overlay, event.newEdits, { base: base });
+    if (event.meta.connectionId == null || event.meta.connectionId == connection.meta.id) {
+      console.log("overlay.update", event.type, connection.meta.id);
+      if (event.type == "reset") {
+        overlay.clear();
+      }
+      if (event.newEdits.length > 0) {
+        editGraph(overlay, event.newEdits, { base: base });
+      }
+    }
   });
-  subs.push(sub);
-  return overlay;
+  return { graph: overlay, sub };
 }
 
 //
@@ -603,8 +618,14 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
+        console.log(
+          "get.update",
+          this.meta.id,
+          rep.edits?.map((r) => r.nodePtr?.id),
+        );
         editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
         this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
+        console.log("----")
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
@@ -615,7 +636,8 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
       );
     }
 
-    const overlay = makeConnectionOverlayGraph(graph, this, subs);
+    const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
+    subs.push(sub);
     return { graph, overlay, roots: graph.getManyRef(params.roots), epoch, subs };
   }
 }
@@ -666,7 +688,6 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
-        this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
         // apply other added/removed nodes
         for (const node of rep.addedNodes) {
           graph.add(unwrapSomeNode(node));
@@ -675,17 +696,19 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
           const node = graph.get(nodePtr);
           if (node != null) graph.remove(node);
         }
-        // apply edits
-        editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
         // update' roots' list
         rootsPtr.value = rep.rootsPtr as TypedNodeReferenceData<T>[];
         page.value = { size: rep.rootsPtr.length, total: rep.total };
+        // apply edits
+        editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
+        this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
     }
 
-    const overlay = makeConnectionOverlayGraph(graph, this, subs);
+    const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
+    subs.push(sub);
     return { graph, overlay, rootsPtr, page, subs, epoch };
   }
 }

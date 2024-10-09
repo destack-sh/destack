@@ -229,6 +229,7 @@ const dockActions: Ref<Action[]> = computed(
         :class="[orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col']"
         @click="canvas.goToNode(runtime.focusedRun)"
       >
+        {{ runtime?.focusedRun?.id /* nocheckin */ }}
         <!-- Status -->
         <IconInline
           class="w-5"

@@ -74,6 +74,9 @@ export function newTransactionId(): string {
 // Transaction
 //
 
+// connection ids are positive, so this connection id is used to prevent an edit from being used in an overlay graph 
+export const CONNECTION_IGNORE = Number.MIN_SAFE_INTEGER; 
+
 /** Metadata for a transaction (mostly local only). */
 export type TransactionMeta = {
   connectionId?: number;
@@ -99,10 +102,9 @@ export type Transaction = TransactionMeta & {
   /** Adds an externally created edit */
   addEdit(edit: EditData): void;
   /** Gets the sub tx for a specific connection */
-  with(meta: { connectionId?: number; change?: ChangeIn; category?: ChangeCategory }): Transaction;
+  with(meta: TransactionMeta): Transaction;
   /** Stops debouncing the given edit (force start a new edit on that node) */
   clearDebounce(nodeId: string): void;
-
   /** Create a new node */
   create<T extends NodeType>(
     node: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[T], "metatype">>,
@@ -651,6 +653,8 @@ export interface TransactionBuffer {
   acceptCommitted(edits: EditData[], cascadedEdits: EditData[]): void;
   /** Force retries the given commit (for debugging) */
   retry?(id: string): Promise<void>;
+  /** Gets the current buffered edits by their connection id (-1 if none) */
+  getBuffered(): Record<number, EditData[]>;
 
   /** Whether there are any pending uncommitted edits  */
   get isDirty(): boolean;
@@ -713,6 +717,10 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   subscribeBuffered(sub: BufferedCallback): () => void {
     // nothing to do
     return () => {};
+  }
+
+  getBuffered(): Record<number, EditData[]> {
+    return {};
   }
 
   subscribeCommitted(sub: CommittedCallback): () => void {
@@ -862,14 +870,19 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       state: new TransactionState(newTransactionId(), this.scope),
     });
     tx.onEdit((edit, meta, debounce) => {
-      if (this.currentTx?.id !== tx.id) throw new Error(`transaction ${tx.describeSelf()} is closed`);
+      if (this.currentTx?.id !== tx.id) {
+        throw new Error(`transaction ${tx.describeSelf()} is closed`);
+      }
       const pendingConnectionId = this.bufferedConnectionByEditId[edit.id];
-      if (pendingConnectionId != null && (!meta.connectionId || meta.connectionId != pendingConnectionId))
+      if (pendingConnectionId != null && (!meta.connectionId || meta.connectionId != pendingConnectionId)) {
         // ensure connections don't trample on each others' edits since we currently only optimistically overlay
         //  edits from the same connection (see connection)
         throw new Error(`edit ${edit.id} already pending in ${pendingConnectionId}`);
+      }
       this.bufferedEditsById[edit.id] = edit;
-      if (meta.connectionId != null) this.bufferedConnectionByEditId[edit.id] = meta.connectionId;
+      if (meta.connectionId != null) {
+        this.bufferedConnectionByEditId[edit.id] = meta.connectionId;
+      }
       this.bufferedSubs.forEach((sub) =>
         sub({
           type: "add",
@@ -881,6 +894,16 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       );
     });
     return tx;
+  }
+
+  getBuffered(): Record<number, EditData[]> {
+    const bufferedEditsByConnection: Record<number, EditData[]> = {};
+    for (const edit of Object.values(this.bufferedEditsById)) {
+      const connectionId = this.bufferedConnectionByEditId[edit.id] ?? -1;
+      if (!bufferedEditsByConnection[connectionId]) bufferedEditsByConnection[connectionId] = [];
+      bufferedEditsByConnection[connectionId].push(edit);
+    }
+    return bufferedEditsByConnection;
   }
 
   subscribeBuffered(sub: BufferedCallback): () => void {
