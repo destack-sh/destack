@@ -761,7 +761,13 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         )
 
     # node data :EditData
-    should_set_node_data = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.ERASE)
+    should_set_node_data = edit.type in (
+        EditType.CREATE,
+        EditType.UPSERT,
+        EditType.DELETE,
+        EditType.RESTORE,
+        EditType.ERASE,
+    )
     if should_set_node_data != edit.HasField("node_data"):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,

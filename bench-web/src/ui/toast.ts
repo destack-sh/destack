@@ -1,4 +1,4 @@
-import { LogLevel, type IconData, type TextData } from "@/proto/wire";
+import { LogLevel, RunStatus, type IconData, type TextData } from "@/proto/wire";
 import { makeIcon } from "@/ui/icon";
 import { DateTime } from "luxon";
 import { ref, type Ref } from "vue";
@@ -32,7 +32,7 @@ export type Toast = {
   icon?: IconData;
   title: string;
   text?: string | TextData;
-  level: LogLevel;
+  level: ToastLevel;
   durationMs: number;
   remainingDurationMs: number;
   createdAt: DateTime;
@@ -49,14 +49,20 @@ export enum ToastDuration {
   inf = Infinity,
 }
 
-export const DEFAULT_TOAST_DURATION_BY_LEVEL: Record<LogLevel, ToastDuration> = {
-  [LogLevel.UNSPECIFIED]: ToastDuration.md,
-  [LogLevel.TRACE]: ToastDuration.sm,
-  [LogLevel.DEBUG]: ToastDuration.sm,
-  [LogLevel.INFO]: ToastDuration.md,
-  [LogLevel.WARNING]: ToastDuration.md,
-  [LogLevel.ERROR]: ToastDuration.lg,
-  [LogLevel.CRITICAL]: ToastDuration["2xl"],
+export enum ToastLevel {
+  DEBUG = 1,
+  INFO = 2,
+  SUCCESS = 3,
+  WARNING = 4,
+  ERROR = 5,
+}
+
+export const DEFAULT_TOAST_DURATION_BY_LEVEL: Record<ToastLevel, ToastDuration> = {
+  [ToastLevel.DEBUG]: ToastDuration.sm,
+  [ToastLevel.INFO]: ToastDuration.md,
+  [ToastLevel.SUCCESS]: ToastDuration.md,
+  [ToastLevel.WARNING]: ToastDuration.md,
+  [ToastLevel.ERROR]: ToastDuration.lg,
 };
 
 export type ToastIn<T> = Pick<Toast, "title" | "text" | "level"> &
@@ -103,28 +109,24 @@ export class Toaster {
     this.toasts.value.push({ ...toast, icon, durationMs, actions, id, createdAt, remainingDurationMs });
   }
 
-  trace(toast: Omit<ToastIn<any>, "level">) {
-    this.add({ ...toast, level: LogLevel.TRACE });
-  }
-
   debug(toast: Omit<ToastIn<any>, "level">) {
-    this.add({ ...toast, level: LogLevel.DEBUG });
+    this.add({ ...toast, level: ToastLevel.DEBUG });
   }
 
   info(toast: Omit<ToastIn<any>, "level">) {
-    this.add({ ...toast, level: LogLevel.INFO });
+    this.add({ ...toast, level: ToastLevel.INFO });
+  }
+
+  success(toast: Omit<ToastIn<any>, "level">) {
+    this.add({ ...toast, level: ToastLevel.SUCCESS });
   }
 
   warning(toast: Omit<ToastIn<any>, "level">) {
-    this.add({ ...toast, level: LogLevel.WARNING });
+    this.add({ ...toast, level: ToastLevel.WARNING });
   }
 
   error(toast: Omit<ToastIn<any>, "level">) {
-    this.add({ ...toast, level: LogLevel.ERROR });
-  }
-
-  critical(toast: Omit<ToastIn<any>, "level">) {
-    this.add({ ...toast, level: LogLevel.CRITICAL });
+    this.add({ ...toast, level: ToastLevel.ERROR });
   }
 
   dismiss(toast: Toast) {

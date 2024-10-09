@@ -119,16 +119,6 @@ class EditInfo(Struct):
     An Edit to a Node.
     """
 
-    # NOTE: Edit.old_node/new_node :EditData are populated as follows:
-    #  (default is old_node=None, new_node=None)
-    # EditType.CREATE: new_node = full new node
-    # EditType.UPSERT: new_node = full new node
-    # EditType.UPDATE: new_node = partial new node, old_node = partial old node
-    # EditType.MOVE: new_node = partial new node, old_node = partial old node
-    # EditType.DELETE: [old_node = full old node if cascaded]
-    # EditType.RESTORE: old_edited_at, [old_node = full old node if cascaded]
-    # EditType.ERASE: old_node = full old node
-
     # core
     id: UUID = p_system(
         2,
@@ -156,7 +146,7 @@ class EditInfo(Struct):
         40,
         primitive_type=None,
         is_node_data=True,
-        description="The entire node",
+        description="The entire node (for add/remove edits)",
     )
     operations: list[EditOperation] = p_system(
         41,
@@ -402,14 +392,7 @@ class Transaction:
     ) -> tuple[list[EditEvent], list[EditData]]:
         """
         Turns a series of mini edits into real edits, attempting to coalesce them.
-        Specifically, we coalesce sequential updates/moves to the same node (coalescing into moves),
-            all other edit types are kept separate.
-        NOTE :Architecture: revisit how we coalesce edits in sessions (updates/moves)
-            Right now, something like:
-            node1.a = 1
-            node2.a = 2
-            node1.a = 1
-            will result in 3 edits.
+        We only merge sequential updates/moves to the same node (coalescing into moves).
         """
         from bench.proto import wire, wiring
 
@@ -458,15 +441,10 @@ class Transaction:
                     operations.extend(e.operations)
             elif edit_type in (EditType.CREATE, EditType.UPSERT):
                 node_data = edit_event.node_data or edit_event.node._to_data()
-            elif edit_type in (EditType.DELETE, EditType.ERASE):
+            elif edit_type in (EditType.DELETE, EditType.ERASE, EditType.RESTORE):
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 old_edited_at = edit_event.node_data.deleted_at
-                if edit_type == EditType.ERASE:
-                    node_data = edit_event.node_data
-            elif edit_type == EditType.RESTORE:
-                assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
-                assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
-                old_edited_at = edit_event.node_data.deleted_at
+                node_data = edit_event.node_data
             else:
                 assert_never(edit_type)
 
@@ -900,6 +878,8 @@ def edit_data_graph(
             # prepass: make vignette with old data
             if is_prepass:
                 edit.vignette.CopyFrom(_make_vignette(updated_node_data))
+                if edit.type not in (EditType.UPDATE, EditType.MOVE):
+                    edit.node_data.CopyFrom(wiring.wrap_some_node(updated_node_data))
 
             # apply edit operations
             if edit_type in (EditType.UPDATE, EditType.MOVE):
