@@ -19,7 +19,7 @@ import { propertyReference, toNodeRef, type SomeNodeReferenceData, type TypedNod
 import { useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { canvas, pkgConnection, pkgGraph, space } from "@/system/space";
 import { computedValue } from "@/utils/ref";
-import { computed, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 /** A reactive Run with all its descendants */
 let treeId = 0;
@@ -116,7 +116,10 @@ export class Runtime {
     this.graph = graph;
     this.txFactory = txFactory;
 
-    this.focusedRunTree = new RunTree(graph, runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>);
+    this.focusedRunTree = new RunTree(
+      graph,
+      ref(null) /* nocheckin runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null> */,
+    );
     const { roots: activeRuns } = useSearchConnection(
       { name: "runtime.activeRuns", live: true },
       computed(() => ({

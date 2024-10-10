@@ -837,54 +837,54 @@ def edit_data_graph(
         ):
             # add
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
-            node_data = wiring.unwrap_some_node(edit.node_data)
+            node = wiring.unwrap_some_node(edit.node_data)
             # inline implicit metadata
-            node_data.created_at.CopyFrom(edit.edited_at)
-            node_data.updated_at.CopyFrom(edit.edited_at)
-            if hasattr(node_data, "created_epoch"):
-                setattr(node_data, "created_epoch", edit.epoch)
-                setattr(node_data, "updated_epoch", edit.epoch)
+            node.created_at.CopyFrom(edit.edited_at)
+            node.updated_at.CopyFrom(edit.edited_at)
+            if hasattr(node, "created_epoch"):
+                setattr(node, "created_epoch", edit.epoch)
+                setattr(node, "updated_epoch", edit.epoch)
             if subject_ptr is not None:
-                node_data.created_by_ptr.CopyFrom(subject_ptr)
-                node_data.updated_by_ptr.CopyFrom(subject_ptr)
+                node.created_by_ptr.CopyFrom(subject_ptr)
+                node.updated_by_ptr.CopyFrom(subject_ptr)
             else:
-                node_data.ClearField("created_by_ptr")
-                node_data.ClearField("updated_by_ptr")
-            if edit_type == EditType.CREATE or node_data.id not in graph:
-                graph.add(node_data)
+                node.ClearField("created_by_ptr")
+                node.ClearField("updated_by_ptr")
+            if edit_type == EditType.CREATE or node.id not in graph:
+                graph.add(node)
             else:
-                graph.update(node_data)
+                graph.update(node)
 
             # prepass: update new_node and make vignette with new data
             if is_prepass:
                 edit.ClearField("node_data")
-                edit.node_data.CopyFrom(wiring.wrap_some_node(node_data))  # :EditData
-                edit.vignette.CopyFrom(_make_vignette(node_data))
+                edit.node_data.CopyFrom(wiring.wrap_some_node(node))  # :EditData
+                edit.vignette.CopyFrom(_make_vignette(node))
                 flat_edits.append(edit)
         elif (
             edit_type == EditType.ERASE
             or (not options.include_hidden and edit_type == EditType.DELETE)
         ) and not is_prepass:
             # remove
-            old_node_data = graph.get(node_id)
-            assert old_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
-            graph.remove(old_node_data)
+            node = graph.get(node_id)
+            assert node is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
+            graph.remove(node)
         else:
             # update
-            updated_node_data = graph.get(node_id)
-            assert updated_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
-            updated_node_data = wiring.copy_struct(updated_node_data)
+            node = graph.get(node_id)
+            assert node is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
+            node = wiring.copy_struct(node)
 
             # prepass: make vignette with old data
             if is_prepass:
-                edit.vignette.CopyFrom(_make_vignette(updated_node_data))
+                edit.vignette.CopyFrom(_make_vignette(node))
                 if edit.type not in (EditType.UPDATE, EditType.MOVE):
-                    edit.node_data.CopyFrom(wiring.wrap_some_node(updated_node_data))
+                    edit.node_data.CopyFrom(wiring.wrap_some_node(node))
 
             # apply edit operations
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 for op in edit.operations:
-                    apply_edit_operation_data(updated_node_data, op, is_prepass=is_prepass)
+                    apply_edit_operation_data(node, op, is_prepass=is_prepass)
 
                 # prepass: convert hierarchical edits into flat set/clear edits
                 if is_prepass:
@@ -896,11 +896,11 @@ def edit_data_graph(
                             continue
                         if prop.reference_wired_ptr:
                             prop = prop.reference_wired_ptr
-                        if prop.is_optional_scalar and not updated_node_data.HasField(prop.name):
+                        if prop.is_optional_scalar and not node.HasField(prop.name):
                             new_value_packed = None
                             op_type = wire.EDIT_OPERATION_TYPE_CLEAR
                         else:
-                            new_value = getattr(updated_node_data, prop.name)
+                            new_value = getattr(node, prop.name)
                             new_value_packed = pack_value_data(
                                 new_value, prop.type_info, wrap_primitive=False
                             )
@@ -920,18 +920,18 @@ def edit_data_graph(
                 flat_edits.append(edit)
 
             # implicit metadata
-            updated_node_data.updated_at.CopyFrom(edit.edited_at)
+            node.updated_at.CopyFrom(edit.edited_at)
             if "updated_epoch" in node_cls.__properties__:
-                setattr(updated_node_data, "updated_epoch", edit.epoch)
+                setattr(node, "updated_epoch", edit.epoch)
             if edit.subject_ptr.metatype != 0:
-                updated_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
+                node.updated_by_ptr.CopyFrom(edit.subject_ptr)
             else:
-                updated_node_data.ClearField("updated_by_ptr")
+                node.ClearField("updated_by_ptr")
             if edit_type == EditType.DELETE:
-                updated_node_data.deleted_at.CopyFrom(edit.edited_at)
+                node.deleted_at.CopyFrom(edit.edited_at)
             elif edit_type == EditType.RESTORE:
-                updated_node_data.ClearField("deleted_at")
+                node.ClearField("deleted_at")
 
-            graph.update(updated_node_data)
+            graph.update(node)
 
     return flat_edits if is_prepass else None

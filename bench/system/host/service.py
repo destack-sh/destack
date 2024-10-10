@@ -61,7 +61,7 @@ from bench.proto.wiring import (
 )
 from bench.system.graph.graph import (
     GraphIoServiceBase,
-    parse_commit_scope,
+    extract_commit_area,
     validate_edit,
 )
 from bench.system.graph.postgres import PostgresEngine
@@ -204,7 +204,11 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     async def session(self, *, readonly: bool = False, commit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         assert self._session is not None, f"no session for {self!r}"
-        async with self._session_lock, self._session.active(readonly=readonly):
+        if readonly:  # noqa: SIM108
+            graph_lock_ctx = self._graph_lock.read("all")
+        else:
+            graph_lock_ctx = self._graph_lock.write("all")
+        async with graph_lock_ctx, self._session.active(readonly=readonly):
             self._session._local_epoch = self.epoch
             yield self._session
             if commit:
@@ -413,7 +417,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # prepare commit
-        scope = parse_commit_scope(edits, base_graph=self._main_package._data_graph)
+        scope = extract_commit_area(edits, base_graph=self._main_package._data_graph)
         now = self.oracle.utc()
         for edit in edits:
             validate_edit(edit, subject, now)

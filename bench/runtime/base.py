@@ -36,8 +36,8 @@ from bench.proto.wire import (
 )
 from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.remote import RemoteEngine
-from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
+from bench.utils.sync import CriticalLock
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 logger = structlog.get_logger(__name__)

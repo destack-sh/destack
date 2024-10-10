@@ -5,14 +5,12 @@ import hashlib
 import json
 import math
 import secrets
-import traceback
 import types
 import typing
 from collections import OrderedDict
 from itertools import cycle, filterfalse, islice, product, tee
 from os import urandom
 from sys import intern
-from time import time_ns
 from typing import (
     Any,
     Awaitable,
@@ -33,8 +31,6 @@ from cachetools import cached
 from more_itertools import first
 
 from bench.utils.base58 import base58_encode
-from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -450,19 +446,6 @@ _MAX_ID_BY_ENUM: dict[type, int] = {}
 
 IdEnumT = TypeVar("IdEnumT", bound="IdEnum")
 
-TRACE_LOCKS = get_from_env(
-    "TRACE_LOCKS",
-    typ=bool,
-    default=False,
-    description="Whether to trace critical lock acquisition/release",
-)
-CRITICAL_LOCK_TIMEOUT = get_from_env(
-    "CRITICAL_LOCK_TIMEOUT",
-    typ=int,
-    default=10,
-    description="Timeout for critical locks in seconds",
-)
-
 
 def generate_access_token(length: int) -> str:
     """Generate a random access token."""
@@ -478,68 +461,6 @@ def generate_encryption_key(length: int) -> str:
 def generate_salt(length: int) -> bytes:
     """Generate a random salt."""
     return urandom(length)
-
-
-class CriticalLock(asyncio.Lock):
-    """
-    A smarter asyncio.Lock that remembers who acquired it & supports timeouts for critical sections.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        track_acquirer: bool = IS_DEV or IS_TEST,
-        timeout: float = CRITICAL_LOCK_TIMEOUT,
-    ):
-        super().__init__()
-        self._name = f"{name}_{id(self):x}"
-        self._track_acquirer = track_acquirer
-        self._timeout = timeout
-        self._acquired_by = None
-        self._acquired_at: float | None = None
-
-    async def acquire(self):
-        if TRACE_LOCKS:
-            logger.trace("lock.acquire.wait", name=self._name)
-
-        if self._timeout is not None:
-            try:
-                await asyncio.wait_for(super().acquire(), timeout=self._timeout)
-            except asyncio.TimeoutError as e:
-                if self._acquired_by:
-                    # prune _pytest, pluggy, asyncio from traceback
-                    filtered_tb = [
-                        frame
-                        for frame in self._acquired_by
-                        if not any(m in frame.filename for m in ["pytest", "pluggy", "asyncio"])
-                    ]
-                    pretty_tb = "\n" + "\n".join(traceback.format_list(filtered_tb))
-                    logger.error(
-                        "lock.timeout",
-                        name=self._name,
-                        acquirer=pretty_tb,
-                        acquired_at=self._acquired_at,
-                    )
-                raise TimeoutError(f"lock {self._name} timed out after {self._timeout}s") from e
-        else:
-            await super().acquire()
-
-        if self._track_acquirer:
-            self._acquired_by = traceback.extract_stack()[:-1]
-        self._acquired_at = time_ns()
-        if TRACE_LOCKS:
-            logger.trace("lock.acquire.success", name=self._name, acquired_at=self._acquired_at)
-        return True
-
-    def release(self):
-        super().release()
-        if TRACE_LOCKS:
-            logger.trace("lock.release", name=self._name, acquired_at=self._acquired_at)
-        if self._timeout is not None:
-            assert self._acquired_at is not None
-        if self._track_acquirer:
-            self._acquired_by = None
-            self._acquired_at = None
 
 
 class IdEnum(enum.IntEnum):
@@ -608,7 +529,6 @@ IdEnumOrUnion = Union[IdEnum, Union[IdEnum, Any]]
 #  But for type checking we have it as AccessType = ReadType | ...
 #  So we make these methods accept 'Any' for compliance. Not great but it's a small footprint.
 EnumT = TypeVar("EnumT", bound=IdEnum)
-
 _ENUM_MEMBERS_BY_ORD: dict[type[IdEnum], list[IdEnum]] = {}
 
 

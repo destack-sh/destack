@@ -133,20 +133,19 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
   return { root, spans, events, hasActive };
 }
 
-// nocheckin: fix runTree.run sometimes out of sync with runTree.runs (stale reference...)
-watchEffect(() => console.log("runTree.run", runTree.run?.id, runTree.run));
 const now = getNow(TimeUpdateInterval.MILLISECOND);
 const timeline: Ref<Timeline> = shallowRef(EMPTY_TIMELINE);
 watchEffect(() => {
   // nocheckin
   // if (timeline.value?.root?.id != runTree.run?.id || !runTree.runs.every(isRunTerminal) || timeline.value?.hasActive) {
-    timeline.value = runTree.run != null ? makeTimeline(now.value, runTree.run) : EMPTY_TIMELINE;
+  timeline.value = runTree.run != null ? makeTimeline(now.value, runTree.run) : EMPTY_TIMELINE;
   // }
 });
 </script>
 <template>
   <div class="w-full">
     <!-- Timeline -->
+    <!-- nocheckin -->
     hasActive:{{ timeline.hasActive }} treeTerminal:{{ runTree.runs.every(isRunTerminal) }}
     <!-- Spans -->
     <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
@@ -168,7 +167,6 @@ watchEffect(() => {
             width: TREE_WIDTH + 'px',
           }"
         >
-          {{ span.id.slice(32) /* nocheckin */ }}
           <!-- Node -->
           <button
             class="group/node truncate hover:cursor-pointer"

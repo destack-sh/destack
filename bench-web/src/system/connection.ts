@@ -25,7 +25,6 @@ import {
 } from "@/proto/services";
 import {
   AggregationData,
-  EditType,
   ExpressionData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
@@ -225,7 +224,6 @@ function makeConnectionOverlayGraph(
   // susbcribe to buffer changes
   const sub = connection.txBuffer.subscribeBuffered((event) => {
     if (event.meta.connectionId == null || event.meta.connectionId == connection.meta.id) {
-      console.log("overlay.update", event.type, connection.meta.id);
       if (event.type == "reset") {
         overlay.clear();
       }
@@ -618,22 +616,11 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
-        console.log(
-          "get.update",
-          this.meta.id,
-          rep.edits?.map((r) => r.nodePtr?.id),
-        );
         editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
         this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
-        console.log("----")
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
-    } else {
-      // otherwise directly apply committed edits
-      subs.push(
-        this.txBuffer.subscribeCommitted((event) => this.txBuffer.acceptCommitted(event.edits, event.cascadedEdits)),
-      );
     }
 
     const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
