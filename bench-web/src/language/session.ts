@@ -88,7 +88,7 @@ export function getRunDurationMs(run: RunData, nowMs: number): number {
     const currentMs = run.terminatedAt != null ? timestampToMs(run.terminatedAt) : nowMs;
     durationMs = currentMs - startedAtMs;
   }
-  return durationMs;
+  return Math.max(0, durationMs);
 }
 
 /** Make a new Run for some runnable node */

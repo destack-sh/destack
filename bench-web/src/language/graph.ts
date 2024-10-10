@@ -659,29 +659,30 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   subscribeAny(callback: NodeGraphCallback, options?: NodeSubscriptionOptions): () => void {
-    this.anySubs.push(callback);
+    const cb = () => callback(); // wrap to get a unique reference
+    this.anySubs.push(cb);
     return () => {
-      const idx = this.anySubs.indexOf(callback);
+      const idx = this.anySubs.indexOf(cb);
       if (idx >= 0) this.anySubs.splice(idx, 1);
     };
   }
 
   subscribe(key: { id?: string; ck?: string }, callback: NodeGraphCallback): () => void {
+    const cb = () => callback(); // wrap to get a unique reference
     // subscribe
     if (key.id) {
       if (!this.nodeSubsById[key.id]) this.nodeSubsById[key.id] = [];
-      this.nodeSubsById[key.id].push(callback);
+      this.nodeSubsById[key.id].push(cb);
     }
     if (key.ck) {
       if (!this.nodeSubsByCk[key.ck]) this.nodeSubsByCk[key.ck] = [];
-      this.nodeSubsByCk[key.ck].push(callback);
+      this.nodeSubsByCk[key.ck].push(cb);
     }
-
     // unsubscribe
     return () => {
       if (key.id) {
         if (this.nodeSubsById[key.id]) {
-          this.nodeSubsById[key.id].splice(this.nodeSubsById[key.id].indexOf(callback), 1);
+          this.nodeSubsById[key.id].splice(this.nodeSubsById[key.id].indexOf(cb), 1);
           if (this.nodeSubsById[key.id].length == 0) {
             delete this.nodeSubsById[key.id];
           }
@@ -689,7 +690,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
       }
       if (key.ck) {
         if (this.nodeSubsByCk[key.ck]) {
-          this.nodeSubsByCk[key.ck].splice(this.nodeSubsByCk[key.ck].indexOf(callback), 1);
+          this.nodeSubsByCk[key.ck].splice(this.nodeSubsByCk[key.ck].indexOf(cb), 1);
           if (this.nodeSubsByCk[key.ck].length == 0) {
             delete this.nodeSubsByCk[key.ck];
           }
@@ -1110,10 +1111,15 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     };
     const update = () => {
       unsub();
+
+      // NOTE :Architecture :Robustness!: node subscriptions are not always reliably updated if ignoreAncestors :NodeRefStability
+      //  (After much debugging I fixed some related bugs, but I'm still not sure why this still happens sometimes. Overall,
+      //   we almost certainly want a more powerful graph ref/subscription system sometime anyway, and until then, we'll just 
+      //   keep oversubscribing here to be safe :|)
       this.layers.value.forEach((layer) => {
         subs.push(layer.subscribe(key, callback));
+        if (!options?.ignoreAncestors) subs.push(layer.subscribeAncestors(key, callback));
       });
-      if (!options?.ignoreAncestors) subs.push(this.subscribeAncestors(key, callback));
     };
     update();
 
