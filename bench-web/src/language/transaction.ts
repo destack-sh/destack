@@ -573,7 +573,7 @@ export function editGraph(
       }
       updatedNode.updatedByPtr = edit.subjectPtr;
       if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
-        // (we handle DELETE here for overlays)
+        // (we handle removes here for overlays)
         updatedNode.deletedAt = edit.editedAt;
       } else if (edit.type == EditType.RESTORE) {
         updatedNode.deletedAt = undefined;

@@ -93,6 +93,10 @@ class Connection[
         return f"<{self.__class__.__name__} {self}>"
 
     @property
+    def node_types(self):
+        return self._node_types
+
+    @property
     def has_result(self) -> bool:
         return self._result_data is not None
 
@@ -252,20 +256,19 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
                 not options.include_hidden and edit_type == EditType.RESTORE
             ):
-                updated_node = _get_edited_node(updated_graph, edit)
-                assert updated_node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
+                node = _get_edited_node(updated_graph, edit)
+                assert node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
                 # add: parent must be in a root, in our graph or be optional
-                parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
+                parent_id = node.parent_ptr.id if node.parent_ptr else None
                 if parent_id is None:
-                    if updated_node.metatype in ROOT_NODE_TYPES:
+                    if node.metatype in ROOT_NODE_TYPES:
                         continue  # unrelated root node
                     else:
-                        raise RuntimeError(f"missing parent ptr for {updated_node!r} in {edit!r}")
+                        raise RuntimeError(f"missing parent ptr for {node!r} in {edit!r}")
                 if parent_id in result_graph:
                     is_in_scope = True  # already have parent
                 elif (
-                    updated_node.id in self._get_node_ids
-                    or getattr(updated_node, "ck", None) in self._get_node_cks
+                    node.id in self._get_node_ids or getattr(node, "ck", None) in self._get_node_cks
                 ):
                     is_in_scope = True  # optional root
                     # add node and its ancestors
@@ -285,20 +288,20 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
                 # update/remove: node must already be in our result graph
                 is_in_scope = edit.node_ptr.id in result_graph
             if is_in_scope:
-                updated_node = _get_edited_node(updated_graph, edit)
-                if updated_node is None:
-                    updated_node = result_graph[edit.node_ptr.id]
+                node = _get_edited_node(updated_graph, edit)
+                if node is None:
+                    node = result_graph[edit.node_ptr.id]
                 # apply (just copy node instead of actually applying edit, we don't modify anything here)
                 relevant_edits.append(edit)
                 if edit_type == EditType.ERASE or (
                     not options.include_hidden and edit_type == EditType.DELETE
                 ):
-                    if updated_node.id in result_graph:
-                        result_graph.remove(updated_node)
-                elif updated_node.id in result_graph:
-                    result_graph.update(updated_node)
+                    if node.id in result_graph:
+                        result_graph.remove(node)
+                elif node.id in result_graph:
+                    result_graph.update(node)
                 else:
-                    result_graph.add(updated_node)
+                    result_graph.add(node)
         return relevant_edits, added_nodes, removed_nodes_ptr
 
     @override

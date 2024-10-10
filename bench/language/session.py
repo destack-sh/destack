@@ -68,8 +68,9 @@ from bench.proto.wire import (
     SupervisorClient,
 )
 from bench.proto.wire.lang_pb2 import EditOperationData
-from bench.utils.func import CriticalLock, async_shield, uuid_to_str
+from bench.utils.func import async_shield, uuid_to_str
 from bench.utils.oracle import Oracle
+from bench.utils.sync import CriticalLock
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:

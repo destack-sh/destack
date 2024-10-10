@@ -291,7 +291,7 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
     const subs: Array<() => void> = [];
     const unsub = () => {
       subs.forEach((sub) => sub());
-      subs.splice(0, subs.length);
+      subs.length = 0;
     };
     const update = () => {
       unsub();
@@ -493,7 +493,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     }
 
     this._addToParent(node);
-    console.log("graph.add", node?.id);
     this.notify(node);
   }
 
@@ -519,7 +518,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
         throw new Error(`node ${describeNode(node)} not found in ${this.describeSelf()}`);
       }
     }
-    console.log("graph.update", node?.id);
 
     if (existingSelf?.parentPtr?.id != node.parentPtr?.id) {
       // move
@@ -551,7 +549,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
         this.remove(this.nodesById[childId]);
       }
     }
-    console.log("graph.remove", node?.id);
 
     this.notify(node);
   }
@@ -729,7 +726,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   notify(node: AnyNodeData) {
     this.anySubs.forEach((sub) => sub());
     if (this.nodeSubsById[node.id]) {
-      console.log("graph.notify", node?.id, this.nodeSubsById[node.id]);
       this.nodeSubsById[node.id].forEach((sub) => sub());
     }
     if ("ck" in node && this.nodeSubsByCk[node.ck]) {
@@ -922,7 +918,7 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     const subs: Array<() => void> = [];
     const unsub = () => {
       subs.forEach((sub) => sub());
-      subs.splice(0, subs.length);
+      subs.length = 0;
     };
     const update = () => {
       unsub();
@@ -945,7 +941,7 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     const subs: Array<() => void> = [];
     const unsub = () => {
       subs.forEach((sub) => sub());
-      subs.splice(0, subs.length);
+      subs.length = 0;
     };
     const update = () => {
       unsub();
@@ -970,7 +966,7 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     const subs: Array<() => void> = [];
     const unsub = () => {
       subs.forEach((sub) => sub());
-      subs.splice(0, subs.length);
+      subs.length = 0;
     };
     const update = () => {
       unsub();
@@ -1388,7 +1384,7 @@ export class NodeSuperGraph {
     const subs: Array<() => void> = [];
     const unsub = () => {
       subs.forEach((sub) => sub());
-      subs.splice(0, subs.length);
+      subs.length = 0;
     };
     const update = () => {
       unsub();

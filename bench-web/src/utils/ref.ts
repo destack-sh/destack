@@ -148,7 +148,6 @@ export function manualComputed<T>(get: ComputedGetter<T>, meta?: ManualRefMeta):
   const update = () => {
     dirty = true;
     trigger();
-    if (meta?.id != null) console.log("manualRef.trigger", meta.id, value);
   };
 
   const result = customRef<T>((_track, _trigger) => {
@@ -159,7 +158,6 @@ export function manualComputed<T>(get: ComputedGetter<T>, meta?: ManualRefMeta):
         if (dirty) {
           value = get();
           dirty = false;
-          if (meta?.id != null) console.log("manualRef.get", meta.id, value);
         }
         _track();
         return value;

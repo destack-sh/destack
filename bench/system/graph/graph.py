@@ -1,7 +1,8 @@
 import abc
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import AsyncIterator, Mapping, NamedTuple, Sequence, cast, final, override
+from typing import AsyncIterator, Literal, Mapping, NamedTuple, Sequence, cast, final, override
 from uuid import UUID
 
 import pytz
@@ -67,8 +68,9 @@ from bench.system.graph.connection import (
     WatchGetUpdate,
     WatchSearchUpdate,
 )
-from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid
+from bench.utils.func import bittuple, group_by, to_uuid
 from bench.utils.oracle import Oracle
+from bench.utils.sync import RWLock
 from bench.utils.tenacity import RetryOptions
 from bench.utils.utils import get_from_env
 
@@ -82,6 +84,63 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
     description="Maximum allowable delta between our time and client transaction time",
 )
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(ChannelUnavailableError,))
+
+
+class GraphLock:
+    """
+    Locks for synchronizing graph operations.
+
+    NOTE :Performance!: obviously, putting broad locks around graph access is not ideal,
+     but we have to guarantee absolute order and integrity of any loaded graphs (esp. in Host).
+    We must prevent sync failures with non-repeatable reads where a node is edited while being read,
+     whether that's in a loaded graph or in a Postgres transaction or whatever.
+    For instance, if not locking carefully, it can happen that we read & cache a Connection's Runs
+     while simulatenously committing an Edit to that Run, and then the Connection is out of sync and
+     maybe even invalid because the commit happened during the read. I can't think of a good way to
+     fix this sort of issue without resorting to locks at some point.)
+    We can probably optimize this by only locking some tighter critical sections
+     if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
+    We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
+    """
+
+    def __init__(self) -> None:
+        self._locks: dict[NodeType, RWLock] = {node_type: RWLock() for node_type in NODE_TYPES}
+
+    @asynccontextmanager
+    async def read(self, ctx: QueryBuilder | Literal["all"]):
+        if isinstance(ctx, QueryBuilder):  # noqa: SIM108
+            node_types = ctx.all_node_types
+        else:
+            node_types = NODE_TYPES
+        node_types = sorted(node_types)  # for consistent lock order
+
+        with tracer.start_as_current_span("graph.lock.read"):
+            for node_type in node_types:
+                await self._locks[node_type].acquire_read()
+
+        try:
+            yield
+        finally:
+            for node_type in reversed(node_types):
+                await self._locks[node_type].release_read()
+
+    @asynccontextmanager
+    async def write(self, ctx: "CommitArea | Literal['all']"):
+        if isinstance(ctx, CommitArea):  # noqa: SIM108
+            node_types = ctx.node_types
+        else:
+            node_types = NODE_TYPES
+        node_types = sorted(node_types)  # for consistent lock order
+
+        with tracer.start_as_current_span("graph.lock.write"):
+            for node_type in node_types:
+                await self._locks[node_type].acquire_write()
+
+        try:
+            yield
+        finally:
+            for node_type in reversed(node_types):
+                await self._locks[node_type].release_write()
 
 
 class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
@@ -103,9 +162,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self.node_types: bittuple[NodeType] = node_types
         self.connector = ConnectionIndex(owner=self, scope=self.scope, oracle=self.oracle)
 
-        self._session_lock: asyncio.Lock = CriticalLock(
-            name=f"{self.__class__.__name__}_{bench_id or ''}"
-        )
+        self._graph_lock = GraphLock()
 
     @abc.abstractmethod
     def get_engines(self) -> tuple[GraphEngine, ...]:
@@ -124,6 +181,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self.tasks.start_scheduled(
             10, self.connector.gc_connections, task_id="gc_connections", skip_errors=False
         )
+        asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
     @property
     def request_session_parent(self) -> Package | None:
@@ -160,7 +218,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self, subject: Subject, context: SessionContext, edits: Sequence[EditData]
     ) -> "CommitArea":
         """Prepares and validates the edits for a commit."""
-        area = parse_commit_scope(edits, base_graph=None)
+        area = extract_commit_area(edits, base_graph=None)
         now = self.oracle.utc()
         for edit in edits:
             validate_edit(edit, subject, now)
@@ -214,6 +272,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def _do_commit(
         self,
         *,
+        area: "CommitArea",
         scope: GraphScopeData,
         subject: Subject,
         context: SessionContext,
@@ -222,7 +281,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         """Commits some edits."""
 
         # pre-validate/prepare edits
-        area = self._prepare_commit(subject, context, edits)
         include_hidden = any(e.type == EditType.RESTORE for e in edits)
 
         async with self.new_request_session(
@@ -304,20 +362,18 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 _supergraph=subject._supergraph,
             )
 
-        # NOTE :Performance!: obviously, putting a big lock around commit is not ideal,
-        #  but we have to guarantee absolute order + integrity of any loaded graphs (in Host).
-        # We can probably optimize this by only locking some tighter critical sections
-        #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
-        # We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
-        with tracer.start_as_current_span("graph.lock.acquire"):
-            await self._session_lock.acquire()
-        try:
+        area = self._prepare_commit(subject, context, request.edits)
+        async with self._graph_lock.write(area):
             retry = COMMIT_RETRY.new(self.oracle)
             while retry.should_retry:
                 retry.on_attempt()
                 try:
                     _, cascaded_edits = await self._do_commit(
-                        scope=self.scope, subject=subject, context=context, edits=request.edits
+                        area=area,
+                        scope=self.scope,
+                        subject=subject,
+                        context=context,
+                        edits=request.edits,
                     )
                     break
                 except Exception as e:
@@ -329,8 +385,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     await self.oracle.sleep(retry.get_wait_interval())
             else:
                 raise retry.to_error("commit")
-        finally:
-            self._session_lock.release()
 
         self.logger.info(
             "graph.commit",
@@ -371,8 +425,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 if len(roots_by_type) > 1:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "roots must be of the same type")
                 node_type = next(iter(roots_by_type.keys()))
-
-            with self.tracer.start_as_current_span("graph.get.read") as span:
                 adapted_options = adapt_read_options(subject, node_type, options)
                 query = QueryBuilder(
                     read_type=ReadType.GET,
@@ -380,16 +432,20 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     roots=roots,
                     options=adapted_options,
                 )
-                connection = await self.connector.connect(
-                    query=query,
-                    session=session,
-                    connection_t=GetConnection,
-                    cache=not request.no_cache,
-                )
-                result = connection.result
-                span.set_attributes(
-                    {"connection_hash": connection.hash, "connection_token": connection.token}
-                )
+
+            with self.tracer.start_as_current_span("graph.get.read") as span:
+                async with self._graph_lock.read(query):
+                    connection = await self.connector.connect(
+                        query=query,
+                        session=session,
+                        connection_t=GetConnection,
+                        cache=not request.no_cache,
+                    )
+                    result = connection.result
+                    span.set_attributes(
+                        {"connection_hash": connection.hash, "connection_token": connection.token}
+                    )
+
         # check if all roots are found (if not optional)
         if not request.is_optional and any(
             cast(str, root.id) not in result.graph for root in request.roots
@@ -497,16 +553,17 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 )
 
             with self.tracer.start_as_current_span("graph.search.read") as span:
-                connection = await self.connector.connect(
-                    query=query,
-                    session=session,
-                    connection_t=SearchConnection,
-                    cache=not request.no_cache,
-                )
-                result = connection.result
-                span.set_attributes(
-                    {"connection_hash": connection.hash, "connection_token": connection.token}
-                )
+                async with self._graph_lock.read(query):
+                    connection = await self.connector.connect(
+                        query=query,
+                        session=session,
+                        connection_t=SearchConnection,
+                        cache=not request.no_cache,
+                    )
+                    result = connection.result
+                    span.set_attributes(
+                        {"connection_hash": connection.hash, "connection_token": connection.token}
+                    )
 
         # check access & prune result
         with self.tracer.start_as_current_span("graph.search.check_access"):
@@ -601,15 +658,16 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 )
 
             with self.tracer.start_as_current_span("graph.aggregate.read") as span:
-                connection = await self.connector.connect(
-                    query=query,
-                    session=session,
-                    connection_t=AggregateConnection,
-                    cache=not request.no_cache,
-                )
-                span.set_attributes(
-                    {"connection_hash": connection.hash, "connection_token": connection.token}
-                )
+                async with self._graph_lock.read(query):
+                    connection = await self.connector.connect(
+                        query=query,
+                        session=session,
+                        connection_t=AggregateConnection,
+                        cache=not request.no_cache,
+                    )
+                    span.set_attributes(
+                        {"connection_hash": connection.hash, "connection_token": connection.token}
+                    )
 
         # TODO :Security!: check aggregation access
 
@@ -632,27 +690,30 @@ class CommitArea(NamedTuple):
     """The scope of relevant nodes for a transaction."""
 
     edited_node_ids: set[str]
+    node_types: set[NodeType]
     scopes_by_type: dict[NodeType, list[NodeReference]]
     graph_scopes: tuple[GraphScopeData, ...]
 
 
-@tracer.start_as_current_span(name="graph.parse_commit_scope")
-def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
+@tracer.start_as_current_span(name="graph.extract_commit_area")
+def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
     """
-    Gets the specific nodes (scopes) and related nodes that are edited. :NodeEditScope
+    Gets the specific nodes (scopes) and related snodes that are edited. :NodeEditScope
     """
     from bench.proto import wiring
 
     edited_node_ids: set[str] = set()
+    node_types: set[NodeType] = set()
     node_scopes_by_id: dict[str, NodeReferenceData] = {}
     graph_scopes: dict[int, GraphScopeData] = {}
     in_tx_created_nodes_ids: set[str] = set()
 
     for edit in edits:
         node_type = NodeType(edit.node_ptr.type)
-        assert edit.node_ptr.id, f"missing id for {edit!r}"
         node_id = edit.node_ptr.id
+        assert node_id, f"missing id for {edit!r}"
         edited_node_ids.add(node_id)
+        node_types.add(node_type)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
             new_node = wiring.unwrap_some_node(edit.node_data)
@@ -683,6 +744,7 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
                 else:
                     raise RuntimeError(f"missing set parent_ptr for move {edit!r}")
                 node_scopes_by_id[parent_ptr.id] = parent_ptr
+                node_types.add(NodeType(parent_ptr.type))
         if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
             # also add base as node scope
             assert base_graph is not None, f"missing base graph for {edit!r}"
@@ -692,6 +754,7 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
                 old_base_ptr = NodeReference._ref_data_from_node_data(old_base_node)
                 assert old_base_ptr.id, f"missing base id for {old_base_ptr!r} in {edit!r}"
                 node_scopes_by_id[old_base_ptr.id] = old_base_ptr
+                node_types.add(NodeType(old_base_ptr.type))
         node_scopes_by_id[node_id] = node_scope
 
         # graph scope
@@ -707,6 +770,7 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
     return CommitArea(
         edited_node_ids=edited_node_ids,
+        node_types=node_types,
         scopes_by_type=node_scopes_by_type,
         graph_scopes=tuple(graph_scopes.values()),
     )
