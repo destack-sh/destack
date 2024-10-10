@@ -47,7 +47,7 @@ export class RunTree {
       })),
     );
     this.runGraph = runGraph;
-    this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: true });
+    this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }); // :NodeRefStability
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
     this.runBasePtr = computedValue(
       () =>
@@ -116,10 +116,7 @@ export class Runtime {
     this.graph = graph;
     this.txFactory = txFactory;
 
-    this.focusedRunTree = new RunTree(
-      graph,
-      ref(null) /* nocheckin runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null> */,
-    );
+    this.focusedRunTree = new RunTree(graph, runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>);
     const { roots: activeRuns } = useSearchConnection(
       { name: "runtime.activeRuns", live: true },
       computed(() => ({

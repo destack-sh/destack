@@ -10,8 +10,8 @@ import {
   RunStatus,
   ViewData,
 } from "@/proto/wire";
-import { isNode, SomeNodeReferenceData, TypedNodeReferenceData } from "@/proto/wiring";
-import { RunTree } from "@/system/runtime";
+import { describeNode, isNode, SomeNodeReferenceData, TypedNodeReferenceData } from "@/proto/wiring";
+import { runtime, RunTree } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
@@ -116,7 +116,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
       content: run,
       offsetRelative,
       widthRelative,
-      isActive: isRunActive(run),
+      isActive: !isRunTerminal(run),
     };
     spans.push(span);
 
@@ -136,17 +136,22 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
 const now = getNow(TimeUpdateInterval.MILLISECOND);
 const timeline: Ref<Timeline> = shallowRef(EMPTY_TIMELINE);
 watchEffect(() => {
-  // nocheckin
-  // if (timeline.value?.root?.id != runTree.run?.id || !runTree.runs.every(isRunTerminal) || timeline.value?.hasActive) {
-  timeline.value = runTree.run != null ? makeTimeline(now.value, runTree.run) : EMPTY_TIMELINE;
-  // }
+  if (timeline.value?.root?.id != runTree.run?.id || !runTree.runs.every(isRunTerminal) || timeline.value?.hasActive) {
+    if (runTree.run != null) {
+      // NOTE :Robustness: technically, we shouldn't need to re-fetch the root node, the ref should just work :NodeRefStability
+      //  (but right now, it doesn't always work and that looks really bad.. so we re-fetch the root node)
+      const root = runTree.runGraph.get(runTree.run);
+      if (!isNode(root, NodeType.RUN)) throw new Error(`expected run node for ${describeNode(runTree.run)}`);
+      timeline.value = makeTimeline(now.value, root);
+    } else {
+      timeline.value = EMPTY_TIMELINE;
+    }
+  }
 });
 </script>
 <template>
   <div class="w-full">
     <!-- Timeline -->
-    <!-- nocheckin -->
-    hasActive:{{ timeline.hasActive }} treeTerminal:{{ runTree.runs.every(isRunTerminal) }}
     <!-- Spans -->
     <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
     <div ref="containerRef" class="flex flex-1 flex-col">
