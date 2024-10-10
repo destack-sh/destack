@@ -1095,7 +1095,7 @@ def evaluate_edit(
         access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
         node_ptr = edit.node_ptr
         assert node_ptr and node_ptr.id is not None, f"no node id for {edit!r}"
-        node_type: NodeType = wiring.unpack_enum(NodeType, node_ptr.type)
+        node_type: NodeType = wiring.unpack_enum(NodeType, node_ptr.node_type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
 
         # figure out the scope to evaluate what in

@@ -9,7 +9,7 @@ import {
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
-  type TextData
+  type TextData,
 } from "@/proto/wire";
 import { describeNode, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
@@ -46,14 +46,6 @@ export type OmnibarMode = (typeof OMNIBAR_MODES)[number];
 
 export type ActionCategory = "bench" | "package" | "space" | "common" | "view" | "user" | "organization" | "developer";
 export const ACTION_BUILTIN_IDS = [
-  // bench
-  "bench.go.goToBench",
-  "bench.go.goToEnvironment",
-  "bench.go.goToBranch",
-  "bench.go.goToPackage",
-  "bench.go.goToSpace",
-  // package
-  // ...
   // space
   // (:OmnibarModes)
   "space.omnibar.everywhere",
@@ -1249,43 +1241,5 @@ contributeActionMap<"space">({
       if (isFullscreen) document.exitFullscreen();
       else document.documentElement.requestFullscreen();
     },
-  },
-});
-
-// bench actions
-contributeActionMap<"bench">({
-  "bench.go.goToBench": {
-    title: "Switch Bench",
-    text: "Open another Bench",
-    icon: "fas fa-circle-dot",
-    action: ACTION_COMING_SOON,
-  },
-  "bench.go.goToBranch": {
-    isEnabled: ref(false), // not yet implemented
-    title: "Switch Branch",
-    text: "Go to another Branch in this Bench",
-    icon: "fas fa-code-branch",
-    action: ACTION_COMING_SOON,
-  },
-  "bench.go.goToEnvironment": {
-    isEnabled: ref(false), // not yet implemented
-    title: "Switch Environment",
-    text: "Go to another Environment in this Bench",
-    icon: "fas fa-cloud",
-    action: ACTION_COMING_SOON,
-  },
-  "bench.go.goToPackage": {
-    isEnabled: hasLocalBench,
-    title: "Switch Package",
-    text: "Go to another Package in this Bench",
-    icon: "fas fa-box",
-    action: ACTION_COMING_SOON,
-  },
-  "bench.go.goToSpace": {
-    isEnabled: hasLocalBench,
-    title: "Switch Space",
-    text: "Go to another Space of this Bench",
-    icon: "fas fa-galaxy",
-    action: ACTION_COMING_SOON,
   },
 });

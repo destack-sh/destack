@@ -242,7 +242,7 @@ export function makeEditFromLog(
 ): EditData {
   // unpack
   if (log.nodePtr == null) throw new Error(`missing node for ${log.type}: ${describeNode(log)}`);
-  const nodeType = log.nodePtr.type;
+  const nodeType = log.nodePtr.nodeType;
   const editType = log.type as unknown as EditType | undefined;
   if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
   const nodeData =

@@ -374,10 +374,12 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
 
-    code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
+    block: Optional["Block"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
     # extra run options if different from base or it's a lambda
+    code: Optional["Code"] = p_internal(38, require=False, array=False, struct=StructType.CODE)
     options: Optional["RunOptions"] = p_system(
-        38, require=False, array=False, struct=StructType.RUN_OPTIONS
+        39, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
     # status (overall)

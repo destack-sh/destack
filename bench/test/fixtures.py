@@ -41,7 +41,7 @@ def make_system_store(name: str):
     username = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
     password = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
 
-    system_bench_ptr = NodeReference(type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
+    system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=UUID(int=0),

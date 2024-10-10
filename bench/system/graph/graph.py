@@ -420,7 +420,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     or ReadOptions.default()
                 )
                 roots_by_type: dict[NodeType, list[NodeReference]] = group_by(
-                    roots, lambda r: r.type
+                    roots, lambda r: r.node_type
                 )
                 if len(roots_by_type) > 1:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "roots must be of the same type")
@@ -709,7 +709,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
     in_tx_created_nodes_ids: set[str] = set()
 
     for edit in edits:
-        node_type = NodeType(edit.node_ptr.type)
+        node_type = NodeType(edit.node_ptr.node_type)
         node_id = edit.node_ptr.id
         assert node_id, f"missing id for {edit!r}"
         edited_node_ids.add(node_id)
@@ -744,7 +744,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
                 else:
                     raise RuntimeError(f"missing set parent_ptr for move {edit!r}")
                 node_scopes_by_id[parent_ptr.id] = parent_ptr
-                node_types.add(NodeType(parent_ptr.type))
+                node_types.add(NodeType(parent_ptr.node_type))
         if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
             # also add base as node scope
             assert base_graph is not None, f"missing base graph for {edit!r}"
@@ -754,7 +754,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
                 old_base_ptr = NodeReference._ref_data_from_node_data(old_base_node)
                 assert old_base_ptr.id, f"missing base id for {old_base_ptr!r} in {edit!r}"
                 node_scopes_by_id[old_base_ptr.id] = old_base_ptr
-                node_types.add(NodeType(old_base_ptr.type))
+                node_types.add(NodeType(old_base_ptr.node_type))
         node_scopes_by_id[node_id] = node_scope
 
         # graph scope
@@ -767,7 +767,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
         UUID(k): wiring.unpack_object(v, supergraph=None, expect=NodeReference)
         for k, v in node_scopes_by_id.items()
     }
-    node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.type)
+    node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.node_type)
     return CommitArea(
         edited_node_ids=edited_node_ids,
         node_types=node_types,
@@ -784,7 +784,7 @@ def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
 def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     """Checks the given (non-system) edit for basic validity."""
     assert subject.client, f"{subject!r} has no client"
-    node_type = NodeType(edit.node_ptr.type)
+    node_type = NodeType(edit.node_ptr.node_type)
     node_cls = NODE_CLASS_BY_TYPE[node_type]
 
     # scope
@@ -804,7 +804,7 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
             )
     else:
         # subject must be a Run/Server
-        if not edit.subject_ptr or edit.subject_ptr.type not in EDIT_SUBJECT_TYPES:
+        if not edit.subject_ptr or edit.subject_ptr.node_type not in EDIT_SUBJECT_TYPES:
             raise GRPCError(
                 GRPCStatus.PERMISSION_DENIED, f"bad created_by in {edit!r}: {edit.subject_ptr!r}"
             )

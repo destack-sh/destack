@@ -69,9 +69,9 @@ class Commit[T: Node]:
         elif isinstance(node_types, tuple):
             node_types = bittuple(*node_types)
         return Commit(
-            edits=[e for e in self.edits if NodeType(e.node_ptr.type) in node_types],
+            edits=[e for e in self.edits if NodeType(e.node_ptr.node_type) in node_types],
             cascaded_edits=[
-                e for e in self.cascaded_edits if NodeType(e.node_ptr.type) in node_types
+                e for e in self.cascaded_edits if NodeType(e.node_ptr.node_type) in node_types
             ],
             edited_types=self.edited_types & node_types,
             added=tuple(node for node in self.added if node.metatype in node_types),
@@ -118,7 +118,7 @@ def unpack_commit(
 
     # the nodes edited in 'edits' are expected to be in one of the graphs
     for edit in edits:
-        node_type = NodeType(edit.node_ptr.type)
+        node_type = NodeType(edit.node_ptr.node_type)
         edited_types[node_type.ord] = True
         # unpack
         node_id = UUID(edit.node_ptr.id)
@@ -133,7 +133,7 @@ def unpack_commit(
 
     # any cascaded edits are expected to be full trusted nodes (from archive/unarchive/...)
     for edit in cascaded_edits:
-        node_type = NodeType(edit.node_ptr.type)
+        node_type = NodeType(edit.node_ptr.node_type)
         edited_types[node_type.ord] = True
         # unpack
         if edit.type in (EditType.DELETE, EditType.ERASE):

@@ -27,12 +27,13 @@ logger = structlog.get_logger(__name__)
 @local_node_(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
 class Record(StateNode[RecordData], HasNodeBase):
     """
-    A Record in a DatabaseBlock.
+    A Record from a DatabaseBlock.
     """
 
-    parent: Union["Block", "Record", None] = p_node_parent(4, NodeType.BLOCK, NodeType.BLOCK)
-    block: "Block" = p_node_ancestor(30, NodeType.BLOCK, wire=True)
-    order_key: str | None = p_internal(31, default=INTEGER_ZERO)
+    parent: Union["Block", "Record", None] = p_node_parent(4, NodeType.BLOCK, NodeType.RECORD)
+    # type: RecordType?
+    order_key: str | None = p_internal(33, default=INTEGER_ZERO)
+    block: "Block" = p_node_ancestor(34, NodeType.BLOCK, wire=True)
 
     # value
     value_packed: Any = p_value_packed(40)

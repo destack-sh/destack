@@ -194,13 +194,13 @@ class MentionView implements PmNodeView {
     this.dom = document.createElement("span");
     (this.dom as any).__pmView = this;
     this.dom.classList.add("mention");
-    this.dom.dataset.nodeType = pmNode.attrs.nodePtr.type;
+    this.dom.dataset.nodeType = pmNode.attrs.nodePtr.nodeType;
     this.dom.dataset.nodeId = pmNode.attrs.nodePtr.id;
     this.dom.dataset.nodeCk = pmNode.attrs.nodePtr.ck;
     this.iconDom = this.dom.appendChild(document.createElement("span"));
     this.iconDom.classList.add(
       "icon",
-      ...(ICON_BY_NODE_TYPE[pmNode.attrs.nodePtr.type as NodeType]?.faName?.split(" ") ?? ["fas", "fa-question"]),
+      ...(ICON_BY_NODE_TYPE[pmNode.attrs.nodePtr.nodeType as NodeType]?.faName?.split(" ") ?? ["fas", "fa-question"]),
     );
     this.nameDom = this.dom.appendChild(document.createElement("span"));
     this.nameDom.classList.add("name");
@@ -211,7 +211,7 @@ class MentionView implements PmNodeView {
       // go to mention on alt-click
       if (IS_IN_ALT_MODE.value) {
         canvas.goToNode(pmNode.attrs.nodePtr);
-      } else if (pmNode.attrs.nodePtr.type == NodeType.FILE) {
+      } else if (pmNode.attrs.nodePtr.nodeType == NodeType.FILE) {
         // open file on click
         if (!isStruct(pmNode.attrs.nodePtr, StructType.FILE_REFERENCE)) {
           throw new Error(`unexpected file type: ${describeNode(pmNode.attrs.nodePtr)}`);
@@ -233,7 +233,7 @@ class MentionView implements PmNodeView {
 
     // open file preview on hover
     // (would be nice to have this be more general :NodePreviews)
-    if (pmNode.attrs.nodePtr.type == NodeType.FILE) {
+    if (pmNode.attrs.nodePtr.nodeType == NodeType.FILE) {
       let popoverInstance: PopoverInstance | undefined;
       this.dom.addEventListener("mouseenter", () => {
         // prefetch (to speed up load on hover)

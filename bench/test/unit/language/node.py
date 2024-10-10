@@ -59,7 +59,7 @@ def test_node_pointers_consistency(session: "Session"):
     """Pointers should include the relevant bench/base/base_bench references."""
     bench_a = Bench(slug="testa", name="testb")
     assert bench_a.to_ref().equals(
-        NodeReference(type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
+        NodeReference(node_type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
     bench_a.main_server = server_a = bench_a.servers.create(name="Server")
     bench_a.main_store = bench_a.stores.create(name="Store")
@@ -69,7 +69,9 @@ def test_node_pointers_consistency(session: "Session"):
     branch_a = bench_a.branches.create(name="main a")
     assert branch_a.bench_id == bench_a.id
     assert branch_a.to_ref().equals(
-        NodeReference(type=NodeType.BRANCH, id=branch_a.id, ck=branch_a.ck, bench_id=bench_a.id)
+        NodeReference(
+            node_type=NodeType.BRANCH, id=branch_a.id, ck=branch_a.ck, bench_id=bench_a.id
+        )
     )
     assert branch_a.parent_ptr
     assert branch_a.parent_ptr.id == bench_a.id
@@ -85,7 +87,9 @@ def test_node_pointers_consistency(session: "Session"):
     )
     assert client_a.bench_id == bench_a.id
     assert client_a.to_ref().equals(
-        NodeReference(type=NodeType.CLIENT, id=client_a.id, ck=client_a.ck, bench_id=bench_a.id)
+        NodeReference(
+            node_type=NodeType.CLIENT, id=client_a.id, ck=client_a.ck, bench_id=bench_a.id
+        )
     )
     assert client_a.parent_ptr
     assert client_a.parent_ptr.bench_id == bench_a.id
@@ -97,17 +101,19 @@ def test_node_pointers_consistency(session: "Session"):
     block_a_1 = package_a.blocks.create(type=BlockType.CODE)
     assert block_a_1.bench_id == bench_a.id
     assert block_a_1.to_ref().equals(
-        NodeReference(type=NodeType.BLOCK, id=block_a_1.id, ck=block_a_1.ck, bench_id=bench_a.id)
+        NodeReference(
+            node_type=NodeType.BLOCK, id=block_a_1.id, ck=block_a_1.ck, bench_id=bench_a.id
+        )
     )
     block_a_2 = package_a.blocks.create(type=BlockType.ROLE)
     block_a_1.roles = [block_a_2]
 
     # based pointers
-    signal_a = Signal(parent=package_a, type=block_a_1)
+    signal_a = Signal(parent=package_a, block=block_a_1)
     assert signal_a.bench_id == bench_a.id
     assert signal_a.to_ref().equals(
         NodeReference(
-            type=NodeType.SIGNAL,
+            node_type=NodeType.SIGNAL,
             id=signal_a.id,
             ck=signal_a.ck,
             bench_id=bench_a.id,
@@ -127,11 +133,11 @@ def test_node_pointers_consistency(session: "Session"):
     assert block_b.bench_id == bench_b.id
     assert block_b.roles
     assert block_b.roles[0].bench_id == bench_a.id
-    signal_b = Signal(parent=package_b, type=block_a_1)
+    signal_b = Signal(parent=package_b, block=block_a_1)
     assert signal_b.bench_id == bench_b.id
     assert signal_b.to_ref().equals(
         NodeReference(
-            type=NodeType.SIGNAL,
+            node_type=NodeType.SIGNAL,
             id=signal_b.id,
             ck=signal_b.ck,
             bench_id=bench_b.id,

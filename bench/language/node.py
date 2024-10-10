@@ -635,7 +635,7 @@ def _object_node_ref(prop: Property) -> property:
                 value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
             if value is not None:
                 return value
-            elif value_ptr.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
+            elif value_ptr.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
                 return value_ptr  # :RichReferences
             else:
                 return None
@@ -666,7 +666,7 @@ def _object_node_ref(prop: Property) -> property:
                     value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
                 if value is not None:
                     values.append(value)
-                elif value_ptr.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
+                elif value_ptr.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
                     values.append(value_ptr)  # :RichReferences
             return values
 
@@ -1980,7 +1980,7 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
 NODE_SUBTYPE_PROPERTY_BY_TYPE: dict[NodeType, str] = {
     NodeType.BLOCK: "type",
     NodeType.STEP: "type",
-    NodeType.FIELD: "zone",
+    NodeType.FIELD: "type",
     NodeType.VIEW: "type",
     NodeType.FILE: "coarse_type",
 }
@@ -2020,7 +2020,7 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
 ):
     """A base for node references for extension in richer references (Files, Secrets, ...)"""
 
-    type: NodeType = p_internal(30, require=True)
+    node_type: NodeType = p_internal(30, require=True)
     id: Optional[UUID] = p_internal(31, default=None)
     ck: Optional[UUID] = p_internal(32, default=None)
     bench_id: Optional[UUID] = p_internal(33, default=None)
@@ -2035,7 +2035,7 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
         return ref_cls(
             id=ref.id,
             ck=ref.ck,
-            type=ref.type,
+            node_type=ref.node_type,
             bench_id=ref.bench_id,
             base_ck=ref.base_ck,
             base_bench_id=ref.base_bench_id,
@@ -2049,7 +2049,7 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
     def _to_plain_ref(self) -> "NodeReference":
         """Gets a plain reference from this reference."""
         return NodeReference(
-            type=self.type,
+            node_type=self.node_type,
             id=self.id,
             ck=self.ck,
             bench_id=self.bench_id,
@@ -2096,7 +2096,7 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
         if self.base_bench_id is not None:
             content_parts.append(f"base_bench_id={self.base_bench_id}")
         selector_str = ", ".join(content_parts)
-        return f"{self.type.bench_name}:[{selector_str}]"
+        return f"{self.node_type.bench_name}:[{selector_str}]"
 
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
@@ -2140,7 +2140,7 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
                 base_bench_id = base_bench_id
 
         reference = NodeReference(
-            type=node.metatype,
+            node_type=node.metatype,
             id=node.id,
             ck=node.ck,
             bench_id=bench_id,
@@ -2158,7 +2158,7 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
         node_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
         reference = NodeReferenceData(
             metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
-            type=cast(wire.NodeType, node_data.metatype),
+            node_type=cast(wire.NodeType, node_data.metatype),
             id=node_data.id,
             ck=getattr(node_data, "ck", node_data.id),
         )

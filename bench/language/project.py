@@ -88,7 +88,7 @@ class Projection:
     def _visit_missing_node(self, node: SomeNodeReference) -> bool:
         """Adds a node reference to the missing set."""
         assert node.id is not None, f"missing id for {node!r}"
-        if node.id not in self._missing_nodes_by_id and node.type in self._options.node_types:
+        if node.id not in self._missing_nodes_by_id and node.node_type in self._options.node_types:
             self._missing_nodes_by_id[node.id] = node
             return True
         else:

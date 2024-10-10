@@ -80,13 +80,11 @@ if TYPE_CHECKING:
         Machine,
         NodeReference,
         Package,
-        Pipe,
         QueryBuilder,
         Run,
         Server,
         Step,
         User,
-        View,
     )
     from bench.runtime.runtime import Runtime
 
@@ -823,11 +821,6 @@ class HasSessionContext(BuiltinObject):
     # NOTE :Security: session context properties are p_internal, not p_system so we can update
     #   them in all clients. But this also means users can mess with them if they really want to.
     # :SessionContext
-    # where
-    block: Optional["Block"] = p_internal(70, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(71, require=False, array=False, references=NodeType.STEP)
-    pipe: Optional["Pipe"] = p_internal(72, require=False, array=False, references=NodeType.PIPE)
-    view: Optional["View"] = p_internal(73, require=False, array=False, references=NodeType.VIEW)
     # context
     session: Optional["Session"] = p_internal(
         80, require=False, array=False, references=NodeType.SESSION, same_bench=True

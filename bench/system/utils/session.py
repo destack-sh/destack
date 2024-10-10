@@ -24,7 +24,7 @@ def system_store_from_env() -> Store:
     password = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
     encryption_key = get_from_env("GLOBAL_PG_CRYPTO_KEY", description="Global encryption key")
 
-    system_bench_ptr = NodeReference(type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
+    system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
         id=UUID(int=0),

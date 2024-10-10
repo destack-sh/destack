@@ -1249,7 +1249,7 @@ def _pg_pack_node_reference_into_row(
         for stored_prop in prop.reference_stored_ids:
             row[stored_prop.name] = []
         for ref in references:
-            stored_prop = prop.reference_stored_ids_by_type[cast(NodeType, ref.type)]
+            stored_prop = prop.reference_stored_ids_by_type[cast(NodeType, ref.node_type)]
             row[stored_prop.name].append(ref.id)
         # additional pointer metadata
         for meta_key, meta_prop in prop.reference_stored_metas.items():
@@ -1265,7 +1265,7 @@ def _pg_pack_node_reference_into_row(
         # pointer id/ck
         for stored_prop in prop.reference_stored_ids:
             assert stored_prop.reference_nodes is not None, f"no reference nodes: {stored_prop!r}"
-            if reference is not None and reference.type in stored_prop.reference_nodes:
+            if reference is not None and reference.node_type in stored_prop.reference_nodes:
                 row[stored_prop.name] = reference.id
             else:
                 row[stored_prop.name] = None
@@ -1311,7 +1311,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 ptr: NodeReferenceData = ptrs.add()
                 ptr.metatype = wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE
                 ptr.id = str(id)
-                ptr.type = cast(list[wire.NodeType], stored_prop.reference_nodes)[0]
+                ptr.node_type = cast(list[wire.NodeType], stored_prop.reference_nodes)[0]
         # additional pointer metadata
         for i, ptr in enumerate(ptrs):
             for meta_key, meta_prop in prop.reference_stored_metas.items():
@@ -1340,7 +1340,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                     metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(value),
                     # if this is a heterogeneous ck pointer, type will be overwritten from extras
-                    type=cast(list[wire.NodeType], stored_prop.reference_nodes)[0],
+                    node_type=cast(list[wire.NodeType], stored_prop.reference_nodes)[0],
                 )
                 break
         else:
@@ -1522,7 +1522,7 @@ async def pg_walk_graph_down(
             # collect possible parents
             parent_ids: list[str] = []
             for parent in current_parents:
-                if NodeType(parent.type) in PARENT_NODE_TYPES[child_type]:
+                if NodeType(parent.node_type) in PARENT_NODE_TYPES[child_type]:
                     parent_ids.append(cast(str, parent.id))
             if not parent_ids:
                 continue  # nothing to do
@@ -1553,7 +1553,7 @@ async def pg_walk_graph_down(
                 child_ptr = NodeReferenceData(
                     metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(child_row["id"]),
-                    type=cast(wire.NodeType, child_type),
+                    node_type=cast(wire.NodeType, child_type),
                 )
                 next_parents.append(child_ptr)
                 all_descendants.append(child_ptr)
@@ -1619,10 +1619,10 @@ async def pg_get_node_graph(
                 if (
                     node.parent_ptr is not None
                     and node.parent_ptr.id is not None
-                    and node.parent_ptr.type in options.ancestor_types
+                    and node.parent_ptr.node_type in options.ancestor_types
                     and node.parent_ptr.id not in visited_graph
                 ):
-                    parent_type = NodeType(node.parent_ptr.type)
+                    parent_type = NodeType(node.parent_ptr.node_type)
                     to_select_by_type[parent_type].append(node.parent_ptr.id)
 
             # select next parents
@@ -1653,7 +1653,7 @@ async def pg_get_node_graph(
             descendant_types=options.descendant_types,
             extra_filter=FILTER_VISIBLE if not options.include_hidden else None,
         )
-        descendant_node_ptrs_by_type = group_by(descendant_node_ptrs, lambda ptr: ptr.type)
+        descendant_node_ptrs_by_type = group_by(descendant_node_ptrs, lambda ptr: ptr.node_type)
         for wire_node_type, node_ptrs in descendant_node_ptrs_by_type.items():
             node_type = NodeType(wire_node_type)
             new_children = await pg_get_nodes(
@@ -1738,13 +1738,14 @@ async def pg_edit(
 ) -> list[EditData]:
     """
     Writes 'regular' edits to nodes (that aren't stored specially like records).
+    Returns cascaded edits.
     """
     if not edits:
         return []
 
     # batch operations by edit kind and node type
     assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
-    batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.type)]
+    batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.node_type)]
     batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
     batch: list[EditData] = []
     all_cascaded_edits: list[EditData] = []
@@ -1765,13 +1766,13 @@ async def pg_edit(
             next_edit is not None
             and next_edit.type == prev_edit.type
             and next_edit.node_ptr is not None
-            and next_edit.node_ptr.type == prev_edit.node_ptr.type
+            and next_edit.node_ptr.node_type == prev_edit.node_ptr.node_type
         ):
             continue
 
         # flush batch (at end or next is different)
         edit_type: EditType = wiring.unpack_enum(EditType, prev_edit.type)
-        node_type = wiring.unpack_enum(NodeType, prev_edit.node_ptr.type)
+        node_type = wiring.unpack_enum(NodeType, prev_edit.node_ptr.node_type)
         del prev_edit  # for clarity
 
         # cascade edits down
@@ -1797,7 +1798,7 @@ async def pg_edit(
         # start new batch if needed
         if next_edit is not None:
             batch_node_cls = NODE_CLASS_BY_TYPE[
-                wiring.unpack_enum(NodeType, next_edit.node_ptr.type)
+                wiring.unpack_enum(NodeType, next_edit.node_ptr.node_type)
             ]
             batch_updated_properties = bitarray(batch_node_cls.__max_property_ord__ + 1)
             batch.clear()
@@ -1868,7 +1869,7 @@ async def _pg_edit_cascade(
             root_edit_by_cascaded_node_id[cast(str, node_ptr.id)] = root_edit
 
     # batch operations by edit kind and node type
-    cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.type)
+    cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.node_type)
     for descendant_node_type, cascaded_edits in cascaded_edits_by_type.items():
         _ = await _pg_edit_batch(
             cur=cur,

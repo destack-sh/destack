@@ -132,7 +132,7 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   } else if (node.metatype == ObjectType.RUN) {
     return (node as RunData).stepPtr ?? (node as RunData).blockPtr ?? null;
   } else if (node.metatype == ObjectType.SIGNAL || node.metatype == ObjectType.NOTIFICATION) {
-    return (node as SignalData | NotificationData).typePtr ?? null;
+    return (node as SignalData | NotificationData).blockPtr ?? null;
   } else {
     return null;
   }

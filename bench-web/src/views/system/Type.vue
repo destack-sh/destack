@@ -59,11 +59,11 @@ const rightZone = computed(() => {
   }
 });
 const leftFields = computed(() => {
-  return leftZone.value == null ? fields.value : fields.value.filter((f) => f.zone == leftZone.value);
+  return leftZone.value == null ? fields.value : fields.value.filter((f) => f.type == leftZone.value);
 });
 const rightFields = computed(() => {
   if (isFunction.value) {
-    return fields.value.filter((f) => f.zone == FieldZone.OUTPUT);
+    return fields.value.filter((f) => f.type == FieldZone.OUTPUT);
   } else {
     return [];
   }

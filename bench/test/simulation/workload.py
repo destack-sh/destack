@@ -204,7 +204,7 @@ async def make_remote_session(
     host_client = await host.connect(client)
     engines = _make_remote_engines(bench_id, client.rpc_metadata, supervisor_client, host_client)
     if supergraph is None:
-        root_ptr = NodeReference(type=NodeType.BENCH, id=bench_id, ck=bench_id)
+        root_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
         supergraph = NodeSuperGraph(root_ptr)
     session = Session(
         _is_readonly=False,
@@ -238,7 +238,7 @@ async def make_remote_session(
 async def get_package(bench_id: UUID, session: Session, *, live: bool):
     """Gets the entire main package source"""
     # resolve package pointer
-    bench_ptr = NodeReference(type=NodeType.BENCH, id=bench_id, ck=bench_id)
+    bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
     bench = await Bench.descendants(NodeType.BRANCH, NodeType.PACKAGE).get(bench_ptr)
     assert bench.main_branch is not None, f"{bench!r} has no main branch"
     assert bench.main_branch.main_package is not None, f"{bench!r} has no main package"

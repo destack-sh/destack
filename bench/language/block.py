@@ -162,7 +162,7 @@ class Block(SourceNode[BlockData]):
 
     @property
     def has_function_fields(self) -> bool:
-        return any(f.zone == FieldZone.INPUT or f.zone == FieldZone.OUTPUT for f in self.fields)
+        return any(f.type == FieldZone.INPUT or f.type == FieldZone.OUTPUT for f in self.fields)
 
     def __call__(self, *args, **kwargs) -> Any:
         if self.type.is_runnable:

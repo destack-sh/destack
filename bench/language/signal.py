@@ -28,7 +28,7 @@ class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
     """
 
     parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
-    type: "Block" = p_internal(
+    block: "Block" = p_internal(
         32,
         require=True,
         array=False,
@@ -47,15 +47,15 @@ class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
 
     @property
     def value_type(self) -> "TypeInfoBase | None":
-        return self.type.to_type(as_object=True)
+        return self.block.to_type(as_object=True)
 
     @property
     def base(self) -> Optional["Block"]:
-        return self.type
+        return self.block
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return (cast(SignalData, data)).type_ptr
+        return (cast(SignalData, data)).block_ptr
 
 
 #

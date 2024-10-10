@@ -83,7 +83,7 @@ const run = computed(() => {
   else return someRun.value;
 });
 const feedState = computed((): FeedViewStateData => {
-  const runNodeProperty = runnablePtr.value?.type == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
+  const runNodeProperty = runnablePtr.value?.nodeType == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
   const clauses = [
     makeExpression({
       op: ExpressionOp.EQUALS,
@@ -91,7 +91,7 @@ const feedState = computed((): FeedViewStateData => {
       value: runnablePtr.value,
     }),
   ];
-  if (runnablePtr.value?.type == NodeType.BLOCK) {
+  if (runnablePtr.value?.nodeType == NodeType.BLOCK) {
     clauses.push(
       makeExpression({
         op: ExpressionOp.NOT_EXISTS,

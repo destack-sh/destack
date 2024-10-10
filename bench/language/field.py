@@ -189,7 +189,7 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
         return TypeInfo(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.OBJECT.value:
         base_type_ptr = NodeReference(
-            type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
+            node_type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
         return TypeInfo(
             kind=TypeKind.OBJECT, base_type_ptr=base_type_ptr, is_list=is_list, is_secret=is_secret
@@ -466,14 +466,14 @@ class TypeInfoBase(BuiltinObject):
             return self._base_fields
         else:
             return tuple(
-                f for f in self._base_fields if f.zone == self._resolved_type.base_field_zone
+                f for f in self._base_fields if f.type == self._resolved_type.base_field_zone
             )
 
     def _get_field(self, ident: str) -> Optional["Field"]:
         """Resolves a field in this type by an identifier (name or py_name)"""
         for field in self._base_fields:
             if (field.code_name == ident or field.name == ident) and (
-                self.base_field_zone is None or field.zone == self.base_field_zone
+                self.base_field_zone is None or field.type == self.base_field_zone
             ):
                 return field
         return None
@@ -634,9 +634,9 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
-    name: str = p_regular(30, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(31, default=INTEGER_ZERO)
-    zone: FieldZone = p_internal(32, default=FieldZone.VARIABLE)
+    type: FieldZone = p_internal(30, default=FieldZone.VARIABLE)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    order_key: str = p_internal(32, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
@@ -653,10 +653,10 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
 
     @final
     def __repr__(self):  # type: ignore we want to override the default repr
-        return f"<{self.zone.bench_name}Field {self}>"
+        return f"<{self.type.bench_name}Field {self}>"
 
     def __content_str__(self) -> str:
-        if self.zone == FieldZone.OPTION:
+        if self.type == FieldZone.OPTION:
             return ""  # nothing to show
         else:
             return TypeInfoBase.__content_str__(self)
@@ -671,7 +671,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:
-        if (self.zone == FieldZone.OPTION) != (self.kind == TypeKind.LITERAL):
+        if (self.type == FieldZone.OPTION) != (self.kind == TypeKind.LITERAL):
             invalid(self, "option field must be literal", None)
 
     @property
@@ -712,7 +712,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
 
     @staticmethod
     def option(name: str, **kwargs) -> "Field":
-        return Field(kind=TypeKind.LITERAL, zone=FieldZone.OPTION, name=name, **kwargs)
+        return Field(kind=TypeKind.LITERAL, type=FieldZone.OPTION, name=name, **kwargs)
 
     @staticmethod
     def variable(

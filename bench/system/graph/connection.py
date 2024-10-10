@@ -247,7 +247,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
         removed_nodes_ptr: list[NodeReferenceData] = []  # not used yet
         for edit in edits:
             # filter type
-            node_type = NodeType(edit.node_ptr.type)
+            node_type = NodeType(edit.node_ptr.node_type)
             if node_type not in self._node_types:
                 continue  # irrelevant type
             edit_type = EditType(edit.type)
@@ -402,7 +402,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
         added_nodes: list[AnyNodeData] = []
         removed_nodes_ptr: list[NodeReferenceData] = []
         for edit in chain(edits, cascaded_edits):
-            if edit.node_ptr.type != self.query._node_type:
+            if edit.node_ptr.node_type != self.query._node_type:
                 continue
             node_id = edit.node_ptr.id
             assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"

@@ -78,7 +78,7 @@ def pack_object_prop_scalar(prop: Property, value: Any) -> Any:
         value_id = str(value.id)
         return NodeReferenceData(
             metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
-            type=pack_enum(NodeType, value.type),
+            node_type=pack_enum(NodeType, value.type),
             id=value_id,
             ck=str(value.ck) if value.ck is not None else value_id,
         )
@@ -120,7 +120,7 @@ def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSup
         elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
             value_id = UUID(value.id)
             return NodeReference(
-                type=unpack_enum(NodeType, value.type),
+                node_type=unpack_enum(NodeType, value.type),
                 id=value_id,
                 ck=UUID(value.ck) if value.ck else value_id,
             )

@@ -43,16 +43,16 @@ class Notification(RuntimeNode[NotificationData], HasNodeBase):
     """
 
     parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
-    kind: NotificationLevel = p_regular(30)
-    type: "Block" = p_system(
+    block: "Block" = p_system(
         32,
         require=True,
         array=False,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.NOTIFICATION]),
     )
-    expires_at: Optional[datetime] = p_internal(33, default=None)
-    read_at: Optional[datetime] = p_internal(34, default=None)
+    level: NotificationLevel = p_regular(33)
+    expires_at: Optional[datetime] = p_internal(34, default=None)
+    read_at: Optional[datetime] = p_internal(35, default=None)
 
     # content
     title: Optional[str] = p_regular(40, constraint=TITLE_CONSTRAINT)
@@ -67,17 +67,17 @@ class Notification(RuntimeNode[NotificationData], HasNodeBase):
 
     @property
     def value_type(self) -> "TypeInfoBase":
-        typ = self.type.to_type(as_object=True)
-        assert typ is not None, f"{self.type!r} has no type for {self!r}"
+        typ = self.block.to_type(as_object=True)
+        assert typ is not None, f"{self.block!r} has no type for {self!r}"
         return typ
 
     @property
     def base(self) -> Optional["Block"]:
-        return self.type
+        return self.block
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return (cast(NotificationData, data)).type_ptr
+        return (cast(NotificationData, data)).block_ptr
 
 
 #
