@@ -33,7 +33,7 @@ export function isRunnable(node: AnyNodeData, graph: ReadNodeGraph, fields?: Fie
       return true;
     } else if (node.type == BlockType.TEXT) {
       fields = fields ?? graph.getChildren(node, NodeType.FIELD);
-      return fields.some((f) => f.zone == FieldZone.INPUT) && fields.some((f) => f.zone == FieldZone.OUTPUT);
+      return fields.some((f) => f.type == FieldZone.INPUT) && fields.some((f) => f.type == FieldZone.OUTPUT);
     } else {
       return false;
     }

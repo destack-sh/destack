@@ -126,7 +126,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
 
         self.bench_id = bench_id
         self.bench_ptr = NodeReference(
-            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
+            node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
         self._global_store = global_store
         self._global_pg_engine_unscoped = pg_engine_from_store(global_store)
@@ -460,7 +460,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         bench_ptr = session.bench._to_plain_ref_data()
         log_edits: list[EditData] = []
         for edit in chain(edits, extended_edits):
-            node_type = NodeType(edit.node_ptr.type)
+            node_type = NodeType(edit.node_ptr.node_type)
             if node_type in RUNTIME_NODE_TYPES:
                 continue
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
@@ -505,10 +505,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             if node_data is not None:
                 log_data.node_data.CopyFrom(node_data)
             # session context
-            if edit.context.block_ptr.metatype != 0:
-                log_data.block_ptr.CopyFrom(edit.context.block_ptr)
-            if edit.context.step_ptr.metatype != 0:
-                log_data.step_ptr.CopyFrom(edit.context.step_ptr)
             if edit.context.session_ptr.metatype != 0:
                 log_data.session_ptr.CopyFrom(edit.context.session_ptr)
             if edit.context.run_ptr.metatype != 0:
@@ -566,7 +562,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             is_cascaded = i >= len(edits)
             if is_cascaded and edit.type in (EditType.DELETE, EditType.ERASE):
                 continue  # remove cascades are implicit
-            node_type = NodeType(edit.node_ptr.type)
+            node_type = NodeType(edit.node_ptr.node_type)
             if node_type not in LOADED_HOST_NODE_TYPES:
                 continue  # not loaded
             if node_type in LOADED_BENCH_NODE_TYPES:

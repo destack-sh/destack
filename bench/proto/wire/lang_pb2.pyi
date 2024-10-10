@@ -3353,7 +3353,7 @@ class FileInfoData(_message.Message):
 class FileReferenceData(_message.Message):
     __slots__ = (
         "metatype",
-        "type",
+        "node_type",
         "id",
         "ck",
         "bench_id",
@@ -3378,7 +3378,7 @@ class FileReferenceData(_message.Message):
         "sample_rate",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
     BENCH_ID_FIELD_NUMBER: _ClassVar[int]
@@ -3402,7 +3402,7 @@ class FileReferenceData(_message.Message):
     CHANNELS_FIELD_NUMBER: _ClassVar[int]
     SAMPLE_RATE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: NodeType
+    node_type: NodeType
     id: str
     ck: str
     bench_id: str
@@ -3428,7 +3428,7 @@ class FileReferenceData(_message.Message):
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        type: _Optional[_Union[NodeType, str]] = ...,
+        node_type: _Optional[_Union[NodeType, str]] = ...,
         id: _Optional[str] = ...,
         ck: _Optional[str] = ...,
         bench_id: _Optional[str] = ...,
@@ -3547,16 +3547,16 @@ class LogInfoData(_message.Message):
     ) -> None: ...
 
 class NodeReferenceData(_message.Message):
-    __slots__ = ("metatype", "type", "id", "ck", "bench_id", "base_ck", "base_bench_id")
+    __slots__ = ("metatype", "node_type", "id", "ck", "bench_id", "base_ck", "base_bench_id")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
     BENCH_ID_FIELD_NUMBER: _ClassVar[int]
     BASE_CK_FIELD_NUMBER: _ClassVar[int]
     BASE_BENCH_ID_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: NodeType
+    node_type: NodeType
     id: str
     ck: str
     bench_id: str
@@ -3565,7 +3565,7 @@ class NodeReferenceData(_message.Message):
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        type: _Optional[_Union[NodeType, str]] = ...,
+        node_type: _Optional[_Union[NodeType, str]] = ...,
         id: _Optional[str] = ...,
         ck: _Optional[str] = ...,
         bench_id: _Optional[str] = ...,
@@ -4097,9 +4097,18 @@ class ScheduleData(_message.Message):
     ) -> None: ...
 
 class SecretReferenceData(_message.Message):
-    __slots__ = ("metatype", "type", "id", "ck", "bench_id", "base_ck", "base_bench_id", "title")
+    __slots__ = (
+        "metatype",
+        "node_type",
+        "id",
+        "ck",
+        "bench_id",
+        "base_ck",
+        "base_bench_id",
+        "title",
+    )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
     BENCH_ID_FIELD_NUMBER: _ClassVar[int]
@@ -4107,7 +4116,7 @@ class SecretReferenceData(_message.Message):
     BASE_BENCH_ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: NodeType
+    node_type: NodeType
     id: str
     ck: str
     bench_id: str
@@ -4117,7 +4126,7 @@ class SecretReferenceData(_message.Message):
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        type: _Optional[_Union[NodeType, str]] = ...,
+        node_type: _Optional[_Union[NodeType, str]] = ...,
         id: _Optional[str] = ...,
         ck: _Optional[str] = ...,
         bench_id: _Optional[str] = ...,
@@ -4153,10 +4162,6 @@ class SelectionData(_message.Message):
 class SessionContextData(_message.Message):
     __slots__ = (
         "metatype",
-        "block_ptr",
-        "step_ptr",
-        "pipe_ptr",
-        "view_ptr",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -4167,10 +4172,6 @@ class SessionContextData(_message.Message):
         "identity_ptr",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    STEP_PTR_FIELD_NUMBER: _ClassVar[int]
-    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4180,10 +4181,6 @@ class SessionContextData(_message.Message):
     USER_PTR_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    block_ptr: NodeReferenceData
-    step_ptr: NodeReferenceData
-    pipe_ptr: NodeReferenceData
-    view_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -4195,10 +4192,6 @@ class SessionContextData(_message.Message):
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -5455,9 +5448,9 @@ class FieldData(_message.Message):
         "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
+        "type",
         "name",
         "order_key",
-        "zone",
         "text",
         "icon",
         "kind",
@@ -5489,9 +5482,9 @@ class FieldData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    ZONE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -5522,9 +5515,9 @@ class FieldData(_message.Message):
     updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
+    type: FieldZone
     name: str
     order_key: str
-    zone: FieldZone
     text: TextData
     icon: IconData
     kind: TypeKind
@@ -5557,9 +5550,9 @@ class FieldData(_message.Message):
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        type: _Optional[_Union[FieldZone, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
-        zone: _Optional[_Union[FieldZone, str]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         icon: _Optional[_Union[IconData, _Mapping]] = ...,
         kind: _Optional[_Union[TypeKind, str]] = ...,
@@ -5866,10 +5859,6 @@ class LogData(_message.Message):
         "operations",
         "category",
         "vignette",
-        "block_ptr",
-        "step_ptr",
-        "pipe_ptr",
-        "view_ptr",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -5901,10 +5890,6 @@ class LogData(_message.Message):
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
     VIGNETTE_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    STEP_PTR_FIELD_NUMBER: _ClassVar[int]
-    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5935,10 +5920,6 @@ class LogData(_message.Message):
     operations: _containers.RepeatedCompositeFieldContainer[EditOperationData]
     category: ChangeCategory
     vignette: ChangeVignetteData
-    block_ptr: NodeReferenceData
-    step_ptr: NodeReferenceData
-    pipe_ptr: NodeReferenceData
-    view_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -5971,10 +5952,6 @@ class LogData(_message.Message):
         operations: _Optional[_Iterable[_Union[EditOperationData, _Mapping]]] = ...,
         category: _Optional[_Union[ChangeCategory, str]] = ...,
         vignette: _Optional[_Union[ChangeVignetteData, _Mapping]] = ...,
-        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -6307,8 +6284,8 @@ class NotificationData(_message.Message):
         "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "kind",
-        "type_ptr",
+        "block_ptr",
+        "level",
         "expires_at",
         "read_at",
         "title",
@@ -6327,8 +6304,8 @@ class NotificationData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    LEVEL_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     READ_AT_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -6346,8 +6323,8 @@ class NotificationData(_message.Message):
     updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    kind: NotificationLevel
-    type_ptr: NodeReferenceData
+    block_ptr: NodeReferenceData
+    level: NotificationLevel
     expires_at: _timestamp_pb2.Timestamp
     read_at: _timestamp_pb2.Timestamp
     title: str
@@ -6367,8 +6344,8 @@ class NotificationData(_message.Message):
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        kind: _Optional[_Union[NotificationLevel, str]] = ...,
-        type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        level: _Optional[_Union[NotificationLevel, str]] = ...,
         expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         read_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         title: _Optional[str] = ...,
@@ -6766,8 +6743,8 @@ class RecordData(_message.Message):
         "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "block_ptr",
         "order_key",
+        "block_ptr",
         "value_packed",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -6782,8 +6759,8 @@ class RecordData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
@@ -6797,8 +6774,8 @@ class RecordData(_message.Message):
     updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    block_ptr: NodeReferenceData
     order_key: str
+    block_ptr: NodeReferenceData
     value_packed: _struct_pb2.Value
     def __init__(
         self,
@@ -6814,8 +6791,8 @@ class RecordData(_message.Message):
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         order_key: _Optional[str] = ...,
+        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
     ) -> None: ...
 
@@ -6835,6 +6812,8 @@ class RunData(_message.Message):
         "deleted_at",
         "kind",
         "root_ptr",
+        "block_ptr",
+        "step_ptr",
         "code",
         "options",
         "status",
@@ -6856,10 +6835,6 @@ class RunData(_message.Message):
         "logs",
         "spans",
         "events",
-        "block_ptr",
-        "step_ptr",
-        "pipe_ptr",
-        "view_ptr",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -6883,6 +6858,8 @@ class RunData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    STEP_PTR_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -6904,10 +6881,6 @@ class RunData(_message.Message):
     LOGS_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    STEP_PTR_FIELD_NUMBER: _ClassVar[int]
-    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6930,6 +6903,8 @@ class RunData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     kind: RunKind
     root_ptr: NodeReferenceData
+    block_ptr: NodeReferenceData
+    step_ptr: NodeReferenceData
     code: CodeData
     options: RunOptionsData
     status: RunStatus
@@ -6951,10 +6926,6 @@ class RunData(_message.Message):
     logs: _containers.RepeatedCompositeFieldContainer[LogInfoData]
     spans: _containers.RepeatedCompositeFieldContainer[RunSpanData]
     events: _containers.RepeatedCompositeFieldContainer[RunEventData]
-    block_ptr: NodeReferenceData
-    step_ptr: NodeReferenceData
-    pipe_ptr: NodeReferenceData
-    view_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -6979,6 +6950,8 @@ class RunData(_message.Message):
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         kind: _Optional[_Union[RunKind, str]] = ...,
         root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
         options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
         status: _Optional[_Union[RunStatus, str]] = ...,
@@ -7000,10 +6973,6 @@ class RunData(_message.Message):
         logs: _Optional[_Iterable[_Union[LogInfoData, _Mapping]]] = ...,
         spans: _Optional[_Iterable[_Union[RunSpanData, _Mapping]]] = ...,
         events: _Optional[_Iterable[_Union[RunEventData, _Mapping]]] = ...,
-        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
@@ -7297,12 +7266,8 @@ class SignalData(_message.Message):
         "updated_by_ptr",
         "updated_epoch",
         "deleted_at",
-        "type_ptr",
-        "value_packed",
         "block_ptr",
-        "step_ptr",
-        "pipe_ptr",
-        "view_ptr",
+        "value_packed",
         "session_ptr",
         "run_ptr",
         "run_root_ptr",
@@ -7324,12 +7289,8 @@ class SignalData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    STEP_PTR_FIELD_NUMBER: _ClassVar[int]
-    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    VIEW_PTR_FIELD_NUMBER: _ClassVar[int]
+    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -7350,12 +7311,8 @@ class SignalData(_message.Message):
     updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    type_ptr: NodeReferenceData
-    value_packed: _struct_pb2.Value
     block_ptr: NodeReferenceData
-    step_ptr: NodeReferenceData
-    pipe_ptr: NodeReferenceData
-    view_ptr: NodeReferenceData
+    value_packed: _struct_pb2.Value
     session_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     run_root_ptr: NodeReferenceData
@@ -7378,12 +7335,8 @@ class SignalData(_message.Message):
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,

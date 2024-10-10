@@ -555,7 +555,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
     </Scroll>
     <!-- Can't find thread -->
     <Inaccessible
-      v-else-if="nodePtr != null && nodePtr.type == NodeType.MESSAGE"
+      v-else-if="nodePtr != null && nodePtr.nodeType == NodeType.MESSAGE"
       class="my-1 h-full w-full"
       :node="nodePtr"
       :connection="pkgConnection"

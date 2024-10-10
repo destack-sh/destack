@@ -899,7 +899,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
                             node.parent_ptr is not None
                             and node.parent_ptr.id is not None
                             and node.parent_ptr.id not in visited_graph
-                            and node.parent_ptr.type in ancestor_types
+                            and node.parent_ptr.node_type in ancestor_types
                         ):
                             parent = loaded_graph.get(node.parent_ptr.id)
                             assert parent is not None, f"missing parent {node.parent_ptr!r}"
@@ -1033,7 +1033,9 @@ class SplitConnection(Connection):
         # select up for each parent in current roots
         if remaining_ancestors_types:
             inner_roots_parents = tuple(n.parent_ptr for n in inner_roots if n.parent_ptr)
-            inner_roots_parents_by_type = group_by(inner_roots_parents, lambda n: NodeType(n.type))
+            inner_roots_parents_by_type = group_by(
+                inner_roots_parents, lambda n: NodeType(n.node_type)
+            )
             ancestor_engine = self.session._get_engine_for(
                 self.scope,
                 remaining_ancestors_types,

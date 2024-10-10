@@ -340,13 +340,13 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             supergraph=subject._supergraph, readonly=False
         ) as session:
             # check (and reload owner to get Handles)
-            if owner_ptr.type == NodeType.USER:
+            if owner_ptr.node_type == NodeType.USER:
                 if owner_ptr.id != user.id:
                     raise GRPCError(
                         GRPCStatus.PERMISSION_DENIED, "cannot create bench for other user"
                     )
                 owner = await User.descendants(Handle).get(id=owner_ptr.id)
-            elif owner_ptr.type == NodeType.ORGANIZATION:
+            elif owner_ptr.node_type == NodeType.ORGANIZATION:
                 owner = await Organization.descendants(Handle).get(id=owner_ptr.id)
                 if owner.created_by_id != user.id:
                     raise GRPCError(

@@ -163,7 +163,7 @@ class Aliasing:
             if not regex.match(r"^[a-zA-Z_]\w+$", alias):  # ensure it's a valid python identifier
                 alias = f"{obj.metatype.bench_name}_{alias}"
         else:
-            alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.type.bench_name
+            alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
             alias = alias + "1"
         # bump digit at end to make alias unique
         count = regex.search(r"\d+$", alias)
@@ -296,7 +296,7 @@ class Renderer:
         assert typ.base_type is not None, f"{value!r} has no base type"
         repr_by_name: dict[str, str] = {}
         for field in typ._base_fields:
-            if typ.base_field_zone is not None and field.zone != typ.base_field_zone:
+            if typ.base_field_zone is not None and field.type != typ.base_field_zone:
                 continue
             field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
@@ -366,7 +366,7 @@ class Renderer:
             if node.parent_ptr and node.parent_ptr in self.aliasing:
                 # append to parent
                 parent_alias = self._aliasing.get(node.parent_ptr)
-                parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.type]
+                parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.node_type]
                 parent_child_prop = parent_cls.get_node_child_property(node.metatype)
                 rendered_objs.append(
                     f"{parent_alias}.{parent_child_prop.name}.append({node_alias})"
@@ -585,7 +585,7 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         # remap back to type in if possible
         kwargs = _map_type_info_kwargs(renderer, obj, kwargs)
         # kind=literal is implicit if option
-        if obj.zone == FieldZone.OPTION:
+        if obj.type == FieldZone.OPTION:
             kwargs.pop("kind")
         return kwargs
 
@@ -597,7 +597,7 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         kwargs: dict[str, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        constructor_name = obj.zone.name.lower()
+        constructor_name = obj.type.name.lower()
         rendered_kwargs.pop("zone", None)
         if "type" in rendered_kwargs:
             field_args = renderer._render_args(

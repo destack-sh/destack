@@ -263,7 +263,7 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   } else if (kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
     return { kind, benchType: decodeB64VLQ(value) as BenchType, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.OBJECT) {
-    const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, type: NodeType.BLOCK, ck: padCkFromTkB64(value) };
+    const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, ck: padCkFromTkB64(value) };
     return { kind, baseTypePtr, isRequired: false, isList, isSecret };
   } else {
     throw new Error(`unsupported type kind ${kind}`);
@@ -341,9 +341,9 @@ export function typeIsNumeric(type: { kind: TypeKind } & Partial<TypeInfoData>):
 /** Resolves the actual type identity :TypeResolution */
 export function resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
   if (type.kind == TypeKind.ALIAS && type.baseTypePtr != null) {
-    if (type.baseTypePtr.type == NodeType.STEP) {
+    if (type.baseTypePtr.nodeType == NodeType.STEP) {
       return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
-    } else if (type.baseTypePtr.type == NodeType.BLOCK) {
+    } else if (type.baseTypePtr.nodeType == NodeType.BLOCK) {
       const block = graph.get(type.baseTypePtr) as BlockData | null;
       if (CLASSY_BLOCK_TYPES.includes(block?.type!)) {
         return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
@@ -362,8 +362,8 @@ export function resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdent
 export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
   if (type.baseTypePtr == null) return [];
   const fields = graph.getChildren(type.baseTypePtr, NodeType.FIELD);
-  if (type.baseFieldZone == null) return fields.filter((f) => f.zone != FieldZone.OPTION);
-  else return fields.filter((f) => f.zone == type.baseFieldZone);
+  if (type.baseFieldZone == null) return fields.filter((f) => f.type != FieldZone.OPTION);
+  else return fields.filter((f) => f.type == type.baseFieldZone);
 }
 
 function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): string {
@@ -419,7 +419,7 @@ export function createField(
   // position in graph
   let parentPtr: NodeReferenceData;
   let orderKey: string;
-  let zone: FieldZone;
+  let type: FieldZone;
   let kind: TypeKind | null = fieldIn?.kind ?? null;
   let siblings: FieldData[];
   if (isNode(target, NodeType.BLOCK)) {
@@ -429,17 +429,17 @@ export function createField(
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
     if (target.type == BlockType.CHOICE) {
-      zone = FieldZone.OPTION;
+      type = FieldZone.OPTION;
       kind = TypeKind.LITERAL;
     } else if (TYPE_BLOCK_TYPES.includes(target.type)) {
-      zone = FieldZone.MEMBER;
+      type = FieldZone.MEMBER;
     } else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) {
-      zone = FieldZone.INPUT;
+      type = FieldZone.INPUT;
     } else {
-      zone = FieldZone.VARIABLE;
+      type = FieldZone.VARIABLE;
     }
   } else if (isNode(target, NodeType.STEP)) {
-    if (fieldIn?.zone == null) throw new Error(`missing zone for step field: ${describeNode(target)}`);
+    if (fieldIn?.type == null) throw new Error(`missing zone for step field: ${describeNode(target)}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toPlainNodeRef(target);
     if (anchor == "start") {
@@ -447,13 +447,13 @@ export function createField(
     } else {
       orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     }
-    zone = fieldIn.zone;
+    type = fieldIn.type;
   } else if (isNode(target, NodeType.FIELD)) {
     if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
     siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
     parentPtr = target.parentPtr!;
     orderKey = getOrderKey({ position: anchor == "start" ? "before" : "after", reference: target, nodes: siblings });
-    zone = target.zone;
+    type = target.type;
     // copy kind if none given
     kind = fieldIn?.kind ?? (target as FieldData).kind;
   } else {
@@ -461,7 +461,7 @@ export function createField(
   }
 
   // type
-  if (zone != FieldZone.OPTION && fieldIn?.kind == null) {
+  if (type != FieldZone.OPTION && fieldIn?.kind == null) {
     // default to Text if no type given
     fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
   } else if (kind != null) {
@@ -473,7 +473,7 @@ export function createField(
   let name: string;
   if (fieldIn?.name != null) {
     name = fieldIn.name;
-  } else if (zone != FieldZone.OPTION) {
+  } else if (type != FieldZone.OPTION) {
     // make name unique (bumping number if needed)
     name = getFieldNameFromType(graph, fieldIn!);
     const siblings = graph.getChildren(parentPtr, NodeType.FIELD);
@@ -482,12 +482,12 @@ export function createField(
       name = `${name}${i++}`;
     }
   } else {
-    name = makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone });
+    name = makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, type: type });
   }
 
   // assign color icon if it's an option :FieldIcon
   if (fieldIn?.icon == null) {
-    if (zone == FieldZone.OPTION) {
+    if (type == FieldZone.OPTION) {
       const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
       const colorType = getRandomColorType({ except: occupiedColors });
       fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
@@ -501,7 +501,7 @@ export function createField(
 
   const field = tx.create({
     name,
-    zone,
+    type: type,
     ...fieldIn,
     // overwrite non-required properties
     id: undefined,

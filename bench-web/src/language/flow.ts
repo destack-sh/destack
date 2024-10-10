@@ -914,7 +914,7 @@ export function getStepFields(
     if (related.flow == null) return null;
     return {
       zone: FieldZone.INPUT,
-      fields: side == PortSide.OUTGOING ? related.flowFields.filter((f) => f.zone == FieldZone.INPUT) : [],
+      fields: side == PortSide.OUTGOING ? related.flowFields.filter((f) => f.type == FieldZone.INPUT) : [],
       fieldParent: related.flow!,
     };
   } else if (step.type == StepType.COMPLETE) {
@@ -922,18 +922,18 @@ export function getStepFields(
     if (related.flow == null) return null;
     return {
       zone: FieldZone.OUTPUT,
-      fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.zone == FieldZone.OUTPUT) : [],
+      fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.type == FieldZone.OUTPUT) : [],
       fieldParent: related.flow,
     };
   } else if (step.type == StepType.BLOCK) {
     // from block
     if (related.node == null) return null;
     const zone = side == PortSide.INCOMING ? FieldZone.INPUT : FieldZone.OUTPUT;
-    return { zone, fields: related.nodeFields.filter((f) => f.zone == zone), fieldParent: related.node };
+    return { zone, fields: related.nodeFields.filter((f) => f.type == zone), fieldParent: related.node };
   } else {
     // step itself
     const zone = side == PortSide.INCOMING ? FieldZone.INPUT : FieldZone.OUTPUT;
-    return { zone, fields: related.stepFields.filter((f) => f.zone == zone), fieldParent: step };
+    return { zone, fields: related.stepFields.filter((f) => f.type == zone), fieldParent: step };
   }
 }
 

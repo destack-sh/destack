@@ -25,7 +25,7 @@ import {
   Timestamp,
   Variant,
   ViewData,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -298,7 +298,7 @@ const items = computed<FeedItem[]>(() => {
         id: it.id,
         it,
         node: it.nodePtr != null ? supergraph.get(it.nodePtr) : null,
-        nodeType: it.nodePtr!.type,
+        nodeType: it.nodePtr!.nodeType,
         createdAt: it.createdAt!,
         createdBy: resolveSubject(it.createdByPtr),
         actions,
@@ -469,7 +469,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                     class="mr-1 w-5 text-gray-700"
                   />
                   <span v-if="item.it.createdByPtr != null">
-                    {{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}
+                    {{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.nodeType) }}
                   </span>
                   <span v-else class="italic">System</span>
                 </button>
@@ -533,7 +533,9 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                     v-bind="item.createdBy != null ? getNodeIcon(item.createdBy) : DEFAULT_SYSTEM_ICON"
                     class="mr-1 w-5 text-gray-700"
                   />
-                  <span>{{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr?.type) }}</span>
+                  <span>{{
+                    (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr?.nodeType)
+                  }}</span>
                 </button>
                 <!-- Duration -->
                 <template v-if="item.it.startedAt != null">

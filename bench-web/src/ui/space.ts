@@ -718,7 +718,7 @@ export class SpaceCanvas {
     if (node == null) {
       // not found
       throw new Error(`node not found in ${describeScope(graph.scope)}: ${describeNode(nodePtr)}`);
-    } else if (nodePtr.type == NodeType.VIEW && this.isInSpace(node)) {
+    } else if (nodePtr.nodeType == NodeType.VIEW && this.isInSpace(node)) {
       // just focus directly
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     } else if (
@@ -746,7 +746,7 @@ export class SpaceCanvas {
         { type: ViewType.VIEW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
-    } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.type)) {
+    } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.nodeType)) {
       // open generic block in containing page
       const containingPage = graph
         .getAncestors(nodePtr, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })

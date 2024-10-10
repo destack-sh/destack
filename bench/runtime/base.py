@@ -99,7 +99,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         # bench
         self._bench_id = bench_id
         self._bench_ptr = NodeReference(
-            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
+            node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
         self._supergraph = NodeSuperGraph(self._bench_ptr)
         self._bench: Bench | None = None

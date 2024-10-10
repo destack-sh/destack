@@ -523,7 +523,10 @@ class Transaction:
         edits_by_engine_id: dict[Any, list[EditData]] = defaultdict(list)
         for edit in edits:
             engine = self.session._get_engine_for(
-                edit.scope, NodeType(edit.node_ptr.type), include_hidden=False, is_readonly=False
+                edit.scope,
+                NodeType(edit.node_ptr.node_type),
+                include_hidden=False,
+                is_readonly=False,
             )
             edits_by_engine_id[engine.id].append(edit)
 
@@ -826,7 +829,7 @@ def edit_data_graph(
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
         edit_type = cast(EditType, edit.type)
-        node_type = NodeType(edit.node_ptr.type)
+        node_type = NodeType(edit.node_ptr.node_type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         node_id = edit.node_ptr.id
         assert node_id is not None, f"missing node id for {edit!r}"

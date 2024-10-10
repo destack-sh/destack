@@ -830,8 +830,12 @@ class FileReference(
     __content_str__ = FileInfoBase.__content_str__  # type: ignore
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
-        if self.type != NodeType.FILE:
-            invalid("type", f"referenced node must be File, got {self.type}", (FileReference.type,))
+        if self.node_type != NodeType.FILE:
+            invalid(
+                "type",
+                f"referenced node must be File, got {self.node_type}",
+                (FileReference.node_type,),
+            )
 
     @override
     @staticmethod

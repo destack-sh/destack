@@ -73,7 +73,7 @@ const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
   () =>
     RUNNABLE_BLOCK_TYPES.includes(block.value?.type!) &&
-    fields.value.some((f) => f.zone == FieldZone.INPUT || f.zone == FieldZone.OUTPUT),
+    fields.value.some((f) => f.type == FieldZone.INPUT || f.type == FieldZone.OUTPUT),
 );
 const forceShowText: Ref<boolean> = ref(false);
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));

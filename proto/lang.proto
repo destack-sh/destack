@@ -1772,7 +1772,7 @@ message FileInfoData {
 // A reference to a File. Extends NodeReference with file-specific metadata.
 message FileReferenceData {
   ObjectType metatype = 1;
-  NodeType type = 30;
+  NodeType node_type = 30;
   optional string id = 31;
   optional string ck = 32;
   optional string bench_id = 33;
@@ -1849,7 +1849,7 @@ message LogInfoData {
 // Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
 message NodeReferenceData {
   ObjectType metatype = 1;
-  NodeType type = 30;
+  NodeType node_type = 30;
   optional string id = 31;
   optional string ck = 32;
   optional string bench_id = 33;
@@ -2085,7 +2085,7 @@ message ScheduleData {
 // A reference to a Secret. Extends NodeReference with secret-specific metadata.
 message SecretReferenceData {
   ObjectType metatype = 1;
-  NodeType type = 30;
+  NodeType node_type = 30;
   optional string id = 31;
   optional string ck = 32;
   optional string bench_id = 33;
@@ -2107,10 +2107,6 @@ message SelectionData {
 // Context information for runtime nodes created in a session.
 message SessionContextData {
   ObjectType metatype = 1;
-  optional NodeReferenceData block_ptr = 70;
-  optional NodeReferenceData step_ptr = 71;
-  optional NodeReferenceData pipe_ptr = 72;
-  optional NodeReferenceData view_ptr = 73;
   optional NodeReferenceData session_ptr = 80;
   optional NodeReferenceData run_ptr = 81;
   optional NodeReferenceData run_root_ptr = 82;
@@ -2519,9 +2515,9 @@ message FieldData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  string name = 30;
-  string order_key = 31;
-  FieldZone zone = 32;
+  FieldZone type = 30;
+  string name = 31;
+  string order_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
   TypeKind kind = 40;
@@ -2636,10 +2632,6 @@ message LogData {
   repeated EditOperationData operations = 44;
   optional ChangeCategory category = 48;
   optional ChangeVignetteData vignette = 49;
-  optional NodeReferenceData block_ptr = 70;
-  optional NodeReferenceData step_ptr = 71;
-  optional NodeReferenceData pipe_ptr = 72;
-  optional NodeReferenceData view_ptr = 73;
   optional NodeReferenceData session_ptr = 80;
   optional NodeReferenceData run_ptr = 81;
   optional NodeReferenceData run_root_ptr = 82;
@@ -2755,10 +2747,10 @@ message NotificationData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  NotificationLevel kind = 30;
-  NodeReferenceData type_ptr = 32;
-  optional google.protobuf.Timestamp expires_at = 33;
-  optional google.protobuf.Timestamp read_at = 34;
+  NodeReferenceData block_ptr = 32;
+  NotificationLevel level = 33;
+  optional google.protobuf.Timestamp expires_at = 34;
+  optional google.protobuf.Timestamp read_at = 35;
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Value value_packed = 42;
@@ -2869,7 +2861,7 @@ message QueryData {
   repeated ExpressionData sort = 44;
 }
 
-// A Record in a DatabaseBlock.
+// A Record from a DatabaseBlock.
 message RecordData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2883,8 +2875,8 @@ message RecordData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional NodeReferenceData block_ptr = 30;
-  optional string order_key = 31;
+  optional string order_key = 33;
+  optional NodeReferenceData block_ptr = 34;
   optional google.protobuf.Value value_packed = 40;
 }
 
@@ -2904,8 +2896,10 @@ message RunData {
   optional google.protobuf.Timestamp deleted_at = 16;
   RunKind kind = 30;
   optional NodeReferenceData root_ptr = 32;
-  optional CodeData code = 36;
-  optional RunOptionsData options = 38;
+  optional NodeReferenceData block_ptr = 33;
+  optional NodeReferenceData step_ptr = 34;
+  optional CodeData code = 38;
+  optional RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Duration cached_duration = 42;
@@ -2925,10 +2919,6 @@ message RunData {
   repeated LogInfoData logs = 65;
   repeated RunSpanData spans = 66;
   repeated RunEventData events = 67;
-  optional NodeReferenceData block_ptr = 70;
-  optional NodeReferenceData step_ptr = 71;
-  optional NodeReferenceData pipe_ptr = 72;
-  optional NodeReferenceData view_ptr = 73;
   optional NodeReferenceData session_ptr = 80;
   optional NodeReferenceData run_ptr = 81;
   optional NodeReferenceData run_root_ptr = 82;
@@ -3031,12 +3021,8 @@ message SignalData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  NodeReferenceData type_ptr = 32;
+  NodeReferenceData block_ptr = 32;
   optional google.protobuf.Value value_packed = 42;
-  optional NodeReferenceData block_ptr = 70;
-  optional NodeReferenceData step_ptr = 71;
-  optional NodeReferenceData pipe_ptr = 72;
-  optional NodeReferenceData view_ptr = 73;
   optional NodeReferenceData session_ptr = 80;
   optional NodeReferenceData run_ptr = 81;
   optional NodeReferenceData run_root_ptr = 82;

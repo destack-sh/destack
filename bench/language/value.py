@@ -159,7 +159,7 @@ class ValueObject(Mapping[str, Any]):
             field = self._type._get_field(item)
             if field is None:
                 raise AttributeError(f"{self._type!r} has no field named '{item}'")
-            if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
+            if self._type.base_field_zone is not None and field.type != self._type.base_field_zone:
                 raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         else:
             field = item
@@ -178,7 +178,7 @@ class ValueObject(Mapping[str, Any]):
             resolved_value = self._type._supergraph.get(value)
             if resolved_value is not None:
                 return resolved_value
-            elif value.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
+            elif value.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
                 return value  # :RichReferences
             else:
                 return None  # couldn't resolve
@@ -196,7 +196,7 @@ class ValueObject(Mapping[str, Any]):
                 raise AttributeError(f"{self._type!r} has no field with identifier {item}")
         else:
             field = item
-        if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
+        if self._type.base_field_zone is not None and field.type != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         field_type = field._to_resolved()
         # coerce & copy if needed
@@ -236,12 +236,12 @@ class ValueObject(Mapping[str, Any]):
     @property
     def fields(self):
         for field in self._type._base_fields:
-            if self._type.base_field_zone is None or field.zone == self._type.base_field_zone:
+            if self._type.base_field_zone is None or field.type == self._type.base_field_zone:
                 yield field
 
     def __iter__(self):
         for field in self._type._base_fields:
-            if self._type.base_field_zone is None or field.zone == self._type.base_field_zone:
+            if self._type.base_field_zone is None or field.type == self._type.base_field_zone:
                 yield field.name
 
     def __len__(self) -> int:
@@ -249,7 +249,7 @@ class ValueObject(Mapping[str, Any]):
 
     def __contains__(self, item: object) -> bool:
         for field in self._type._base_fields:
-            if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
+            if self._type.base_field_zone is not None and field.type != self._type.base_field_zone:
                 continue
             if field.code_name == item or field.name == item:
                 return True
@@ -374,7 +374,7 @@ def _object_value_runtime(prop: Property) -> property:
             resolved_value = self._supergraph.get(value)
             if resolved_value is not None:
                 return resolved_value
-            elif value.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
+            elif value.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
                 return value  # :RichReferences
             else:
                 return None  # couldn't resolve
@@ -612,8 +612,8 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
             if allowed_types and value.metatype not in allowed_types:
                 invalid(value, f"not of type, is {value.metatype}", typ)
         elif isinstance(value, NodeReferenceBase):
-            if allowed_types and value.type not in allowed_types:
-                invalid(value, f"not of type, is {value.type}", typ)
+            if allowed_types and value.node_type not in allowed_types:
+                invalid(value, f"not of type, is {value.node_type}", typ)
         else:
             invalid(value, "not a Node", typ)
     elif typ.kind == TypeKind.STRUCT:

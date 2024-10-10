@@ -291,7 +291,7 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
         bench_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
         bench_id = None
-    return NodeReference(type=node_type, id=node_id, ck=node_ck, bench_id=bench_id)
+    return NodeReference(node_type=node_type, id=node_id, ck=node_ck, bench_id=bench_id)
 
 
 STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {

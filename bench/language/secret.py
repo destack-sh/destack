@@ -63,9 +63,11 @@ class SecretReference(
     title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
-        if self.type != NodeType.SECRET:
+        if self.node_type != NodeType.SECRET:
             invalid(
-                "type", f"referenced node must be Secret, got {self.type}", (SecretReference.type,)
+                "type",
+                f"referenced node must be Secret, got {self.node_type}",
+                (SecretReference.node_type,),
             )
 
     @override

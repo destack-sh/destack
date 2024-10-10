@@ -581,7 +581,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private _addToParent(node: AnyNodeData) {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      if (!this.nodesById[parentId] && !this.isOverlayOf && this.nodeTypes.includes(node.parentPtr.type)) {
+      if (!this.nodesById[parentId] && !this.isOverlayOf && this.nodeTypes.includes(node.parentPtr.nodeType)) {
         throw new Error(
           `parent ${describeNode(node.parentPtr)} not found in ${this.describeSelf()} for node ${describeNode(node)}`,
         );
@@ -599,7 +599,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId]?.[node.metatype]?.findIndex((n) => n == node.id);
-      if (nodeIdx == null && (this.isOverlayOf || this.nodeTypes.includes(node.parentPtr.type))) return;
+      if (nodeIdx == null && (this.isOverlayOf || this.nodeTypes.includes(node.parentPtr.nodeType))) return;
       else if (nodeIdx == -1)
         throw new Error(
           `node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)} in ${this.describeSelf()}`,

@@ -45,7 +45,7 @@ export type EditSubject = UserData | RunData | BlockData | StepData;
 export function resolveSubject(subjectPtr: NodeReferenceData | null | undefined): EditSubject | null {
   let subject: EditSubject | null;
   if (subjectPtr != null) {
-    if (subjectPtr.type == NodeType.RUN) {
+    if (subjectPtr.nodeType == NodeType.RUN) {
       subject = supergraph.get({ ck: subjectPtr.baseCk }) as BlockData | StepData | null;
     } else {
       subject = supergraph.get(subjectPtr) as UserData | null;

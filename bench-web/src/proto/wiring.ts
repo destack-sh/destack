@@ -34,7 +34,7 @@ export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);
 export const STRUCT_TYPE_NAME: Record<StructType, string> = reverseRecord(StructType);
 export const OBJECT_TYPE_NAME: Record<ObjectType, string> = reverseRecord(ObjectType);
 
-export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
+export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { nodeType: T };
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
 
 export function makeScope(scope: Partial<GraphScopeData>): GraphScopeData {
@@ -62,7 +62,7 @@ export function describeNode(node: {
   title?: string | null;
 }): string {
   const nodeParts: string[] = [`id=${node.id}`];
-  const nodeType = isNodeRef(node) ? node.type : node.metatype;
+  const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if ("updatedEpoch" in node) nodeParts.push(`updatedEpoch=${node.updatedEpoch}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
@@ -78,7 +78,7 @@ export function describeNode(node: {
     }
   }
   if (node.title) nodeParts.push(`title='${node.title}'`);
-  if (node.parentPtr) nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.type)}:${node.parentPtr.id}`);
+  if (node.parentPtr) nodeParts.push(`parent=${toCamelName(NodeType, node.parentPtr.nodeType)}:${node.parentPtr.id}`);
   if ("benchId" in node) nodeParts.push(`benchId=${node.benchId}`);
   if ("benchCk" in node) nodeParts.push(`benchId=${node.benchCk}`);
   const typeName = nodeType == null ? "Node" : toCamelName(NodeType, nodeType);
@@ -176,13 +176,13 @@ export function nodeReference<T extends NodeType>(
     baseBenchId?: string;
   },
 ): TypedNodeReferenceData<T> {
-  const ptr = { metatype: ObjectType.NODE_REFERENCE, type: nodeType, ...meta, id, ck: meta?.ck ?? id };
+  const ptr = { metatype: ObjectType.NODE_REFERENCE, nodeType, ...meta, id, ck: meta?.ck ?? id };
   if (nodeType == NodeType.BENCH && ptr.benchId == null) ptr.benchId = id;
   return ptr;
 }
 
 export function typeNodeReference<T extends NodeType>(nodeType: T, ref: NodeReferenceData): TypedNodeReferenceData<T> {
-  if (ref.type != nodeType) throw new Error(`expected ${NodeType[nodeType]}, got ${NodeType[ref.type]}`);
+  if (ref.nodeType != nodeType) throw new Error(`expected ${NodeType[nodeType]}, got ${NodeType[ref.nodeType]}`);
   return ref as TypedNodeReferenceData<T>;
 }
 
@@ -221,7 +221,9 @@ export function isNodeOrRef<T extends NodeType>(
   value: any | null | undefined,
   nodeType?: T,
 ): value is TypedNodeReferenceData<T> | NodeTypeMapping[T] {
-  return typeof value == "object" && ((isNodeRef(value) && value.type == nodeType) || isNode(value, NodeType.BLOCK));
+  return (
+    typeof value == "object" && ((isNodeRef(value) && value.nodeType == nodeType) || isNode(value, NodeType.BLOCK))
+  );
 }
 
 export function toPlainNodeRef(node: null): null;
@@ -236,7 +238,7 @@ export function toPlainNodeRef<T extends NodeType>(node: NodeTypeMapping[T] | nu
   if (isNodeRef(node)) {
     const ref: NodeReferenceData = {
       metatype: ObjectType.NODE_REFERENCE,
-      type: node.type,
+      nodeType: node.nodeType,
       id: node.id,
       ck: node.ck,
       benchId: node.benchId,
@@ -248,7 +250,7 @@ export function toPlainNodeRef<T extends NodeType>(node: NodeTypeMapping[T] | nu
 
   const ref: TypedNodeReferenceData<T> = {
     metatype: ObjectType.NODE_REFERENCE,
-    type: node.metatype as unknown as T,
+    nodeType: node.metatype as unknown as T,
     id: node.id,
     ck: (node as any).ck ?? node.id,
   };
@@ -306,9 +308,9 @@ export function toNodeRefOneOf(node: AnyNodeData | SomeNodeReferenceData): ViewD
   if (!isNodeRef(node)) node = toNodeRef(node);
   if (!isNodeRef(node)) throw new Error(`expected Node, got ${JSON.stringify(node)}`);
 
-  if (node.type == NodeType.FILE) {
+  if (node.nodeType == NodeType.FILE) {
     return { oneofKind: "nodePtrFile", nodePtrFile: node as FileReferenceData };
-  } else if (node.type == NodeType.SECRET) {
+  } else if (node.nodeType == NodeType.SECRET) {
     return { oneofKind: "nodePtrSecret", nodePtrSecret: node as SecretReferenceData };
   } else {
     return { oneofKind: "nodePtrNode", nodePtrNode: node as NodeReferenceData };
