@@ -305,7 +305,7 @@ def test_unnamed_node(session: Session, mock_package: Package):
         parent=package.bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile.txt",
-        coarse_type=FileType.TEXT,
+        type=FileType.TEXT,
         mime_type="text/plain",
         size=1024,
     )

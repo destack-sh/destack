@@ -15,7 +15,7 @@ from bench.language import NodeReference
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     EnumType,
-    FieldZone,
+    FieldType,
     NodeType,
     ObjectType,
     PrimitiveType,
@@ -320,8 +320,8 @@ STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
     (NodeType.FILE, "inline_content"): BYTES_STRATEGY,
     (StructType.FILE_REFERENCE, "inline_content"): BYTES_STRATEGY,
     (StructType.FILE_INFO, "inline_content"): BYTES_STRATEGY,
-    (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
-    (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
+    (StructType.FILE_REFERENCE, "node_type"): st.just(NodeType.FILE),
+    (StructType.SECRET_REFERENCE, "node_type"): st.just(NodeType.SECRET),
     (StructType.CODE, "lines"): st.lists(from_object_type(StructType.CODE_LINE), min_size=0),
     (StructType.CODE_LINE, "content"): st.text(min_size=1, max_size=64, alphabet=ascii_lowercase),
     # Text is pretty limited right now :CrummyMarkdown
@@ -358,7 +358,7 @@ def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]
         "primitive_type": primitive_type,
         "bench_type": bench_type,
         "base_type": base_type,
-        "base_field_zone": None,  # NOTE :Incomplete: base_field_zone is not rendered properly
+        "base_field_type": None,  # NOTE :Incomplete: base_field_type is not rendered properly
     }
 
 
@@ -374,9 +374,9 @@ def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     type_info_base_dict = draw_type_info_base_dict(draw, kinds)
     naive_base_dict = get_naive_object_strategy(NodeType.FIELD)
     if type_info_base_dict["kind"] == TypeKind.LITERAL:
-        naive_base_dict["zone"] = st.just(FieldZone.OPTION)
+        naive_base_dict["zone"] = st.just(FieldType.OPTION)
     else:
-        naive_base_dict["zone"] = st.just(FieldZone.VARIABLE)
+        naive_base_dict["zone"] = st.just(FieldType.VARIABLE)
     combined_dict = {}
     for key in naive_base_dict:
         # prefer type info where set

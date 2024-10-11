@@ -5,7 +5,7 @@ import cachetools
 from bench.language.const import (
     BenchError,
     BlockType,
-    FieldZone,
+    FieldType,
     NodeType,
     StructType,
     TypeKind,
@@ -162,7 +162,7 @@ class Block(SourceNode[BlockData]):
 
     @property
     def has_function_fields(self) -> bool:
-        return any(f.type == FieldZone.INPUT or f.type == FieldZone.OUTPUT for f in self.fields)
+        return any(f.type == FieldType.INPUT or f.type == FieldType.OUTPUT for f in self.fields)
 
     def __call__(self, *args, **kwargs) -> Any:
         if self.type.is_runnable:
@@ -178,7 +178,7 @@ class Block(SourceNode[BlockData]):
 
     @cachetools.cached({})  # :CachedTypeInfo
     def to_type(
-        self, *, as_object: bool = False, zone: FieldZone | None = None
+        self, *, as_object: bool = False, field_type: FieldType | None = None
     ) -> "TypeInfoBase | None":
         """Get a type represented by this Block (if any)"""
         from bench.language.field import TypeInfo
@@ -192,14 +192,16 @@ class Block(SourceNode[BlockData]):
                 kind=TypeKind.BASED_NODE,
                 base_type=self,
                 bench_type=NodeType.FIELD,
-                base_field_zone=FieldZone.OPTION,
+                base_field_type=FieldType.OPTION,
             )
         elif self.type == BlockType.SIGNAL:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.SIGNAL)
             else:
                 typ = TypeInfo(
-                    kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone or FieldZone.MEMBER
+                    kind=TypeKind.OBJECT,
+                    base_type=self,
+                    base_field_type=field_type or FieldType.MEMBER,
                 )
         elif self.type == BlockType.VALUE:
             assert self.value_type is not None, f"{self!r} has no builtin base"
@@ -209,13 +211,15 @@ class Block(SourceNode[BlockData]):
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
             else:
                 typ = TypeInfo(
-                    kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone or FieldZone.MEMBER
+                    kind=TypeKind.OBJECT,
+                    base_type=self,
+                    base_field_type=field_type or FieldType.MEMBER,
                 )
         elif self.type.is_runnable:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
-                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone)
+                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
         else:
             return None
         typ._resolve_type()  # pre-resolve
@@ -230,15 +234,15 @@ class Block(SourceNode[BlockData]):
 
     @property
     def variable_type(self) -> "TypeInfoBase | None":
-        return self.to_type(as_object=True, zone=FieldZone.VARIABLE)
+        return self.to_type(as_object=True, field_type=FieldType.VARIABLE)
 
     @property
     def input_type(self) -> "TypeInfoBase | None":
-        return self.to_type(as_object=True, zone=FieldZone.INPUT)
+        return self.to_type(as_object=True, field_type=FieldType.INPUT)
 
     @property
     def output_type(self) -> "TypeInfoBase | None":
-        return self.to_type(as_object=True, zone=FieldZone.OUTPUT)
+        return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod
     def new(typ: BlockType, name: str, **kwargs) -> "Block":

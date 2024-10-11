@@ -7,7 +7,7 @@ import {
   ChangeCategory,
   ExpressionOp,
   FeedViewStateData,
-  FieldZone,
+  FieldType,
   NodeType,
   ObjectType,
   Orientation,
@@ -133,12 +133,12 @@ const inputsPacked: Ref<Record<string, any>> = mapRef(
 );
 const inputType = computed(() =>
   runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldZone: FieldZone.INPUT })
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldType: FieldType.INPUT })
     : undefined,
 );
 const outputType = computed(() =>
   runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldZone: FieldZone.OUTPUT })
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldType: FieldType.OUTPUT })
     : undefined,
 );
 

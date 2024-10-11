@@ -159,7 +159,7 @@ class ValueObject(Mapping[str, Any]):
             field = self._type._get_field(item)
             if field is None:
                 raise AttributeError(f"{self._type!r} has no field named '{item}'")
-            if self._type.base_field_zone is not None and field.type != self._type.base_field_zone:
+            if self._type.base_field_type is not None and field.type != self._type.base_field_type:
                 raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         else:
             field = item
@@ -196,7 +196,7 @@ class ValueObject(Mapping[str, Any]):
                 raise AttributeError(f"{self._type!r} has no field with identifier {item}")
         else:
             field = item
-        if self._type.base_field_zone is not None and field.type != self._type.base_field_zone:
+        if self._type.base_field_type is not None and field.type != self._type.base_field_type:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         field_type = field._to_resolved()
         # coerce & copy if needed
@@ -236,12 +236,12 @@ class ValueObject(Mapping[str, Any]):
     @property
     def fields(self):
         for field in self._type._base_fields:
-            if self._type.base_field_zone is None or field.type == self._type.base_field_zone:
+            if self._type.base_field_type is None or field.type == self._type.base_field_type:
                 yield field
 
     def __iter__(self):
         for field in self._type._base_fields:
-            if self._type.base_field_zone is None or field.type == self._type.base_field_zone:
+            if self._type.base_field_type is None or field.type == self._type.base_field_type:
                 yield field.name
 
     def __len__(self) -> int:
@@ -249,7 +249,7 @@ class ValueObject(Mapping[str, Any]):
 
     def __contains__(self, item: object) -> bool:
         for field in self._type._base_fields:
-            if self._type.base_field_zone is not None and field.type != self._type.base_field_zone:
+            if self._type.base_field_type is not None and field.type != self._type.base_field_type:
                 continue
             if field.code_name == item or field.name == item:
                 return True

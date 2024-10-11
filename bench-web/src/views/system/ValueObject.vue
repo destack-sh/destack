@@ -2,7 +2,7 @@
 import {
   BlockType,
   BoxData,
-  FieldZone,
+  FieldType,
   IconData,
   NodeType,
   ObjectType,
@@ -62,7 +62,7 @@ const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need 
 const titleField = computed(() => getTitleField(fields.value));
 const fieldViews = computed(() =>
   getFieldViews(fields.value, pkgGraph, {
-    zones: [props.valueType?.baseFieldZone ?? FieldZone.MEMBER],
+    types: [props.valueType?.baseFieldType ?? FieldType.MEMBER],
     isInput: props.isInput,
   }),
 );

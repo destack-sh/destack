@@ -200,7 +200,7 @@ function isDropCompatible(zone: DropZone, dragged: DraggedContent): boolean {
   const kinds = unref(zone.kinds);
   if (kinds != null && !kinds.includes(dragged.kind)) return false;
   const metatypes = unref(zone.metatypes);
-  if (metatypes != null && dragged.kind == "node" && !metatypes.includes(dragged.node.type)) return false;
+  if (metatypes != null && dragged.kind == "node" && !metatypes.includes(dragged.node.nodeType)) return false;
   return true;
 }
 

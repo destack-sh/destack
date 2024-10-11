@@ -26,7 +26,6 @@ from bench.language.field import decode_type_identity
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
-    NODE_SUBSUBTYPE_PROPERTY_BY_TYPE,
     NODE_SUBTYPE_PROPERTY_BY_TYPE,
     BuiltinObject,
     ClientOrigin,
@@ -91,7 +90,6 @@ class ChangeVignette(Struct):
     name: str | None = p_system(30, require=False, description="Name of the object.")
     title: str | None = p_system(31, require=False, description="Title of the object.")
     subtype: int | None = p_system(32, require=False, description="Subtype of the object.")
-    subsubtype: int | None = p_system(33, require=False, description="Subsubtype of the object.")
     icon: Optional["Icon"] = p_system(
         35, require=False, struct=StructType.ICON, description="Icon of the object."
     )
@@ -811,7 +809,6 @@ def edit_data_graph(
 
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
         node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
-        node_subsubtype = NODE_SUBSUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         vignette = ChangeVignetteData(metatype=wire.ObjectType.OBJECT_TYPE_CHANGE_VIGNETTE)
         if getattr(node, "name", None):
             vignette.name = getattr(node, "name")
@@ -819,8 +816,6 @@ def edit_data_graph(
             vignette.title = getattr(node, "title")
         if node_subtype and getattr(node, node_subtype, None) is not None:
             vignette.subtype = getattr(node, node_subtype)
-        if node_subsubtype and getattr(node, node_subsubtype, None) is not None:
-            vignette.subsubtype = getattr(node, node_subsubtype)
         if getattr(node, "icon", None) is not None and node.HasField("icon"):
             vignette.icon.CopyFrom(getattr(node, "icon"))
         return vignette

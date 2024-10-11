@@ -54,7 +54,7 @@ PropertyReferenceMetadata = Union[
     Literal["bench_id"],
     Literal["base_ck"],
     Literal["base_bench_id"],
-    Literal["type"],
+    Literal["node_type"],
 ]
 
 
@@ -551,13 +551,13 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     extra_stored_props["ck"] = ck_prop
                 if len(shared_ptr_types) > 1:
                     # disambiguate type for heterogeneous ck references :HomogeneousListCk
-                    extra_stored_props["type"] = Property(
+                    extra_stored_props["node_type"] = Property(
                         id=self.id,
                         name=self.name + "_type",
                         component=self.component,
                         py_type_raw=list[NodeType] if is_list else NodeType,
                         reference_source=self,
-                        reference_meta="type",
+                        reference_meta="node_type",
                         is_runtime=False,
                         is_wired=False,
                         is_stored=True,

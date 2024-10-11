@@ -33,7 +33,7 @@ import {
 } from "vue";
 
 /** A NodeReference but with proper typing */
-export type NodeKey<T extends NodeType> = { type?: T; id?: string; ck?: string };
+export type NodeKey<T extends NodeType> = { nodeType?: T; id?: string; ck?: string };
 
 // NOTE :Performance!: should differentiate node update types for :NodeFiltering
 //  (e.g. full, create/delete, move, update:[properties...], etc.)

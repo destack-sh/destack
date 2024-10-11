@@ -17,7 +17,7 @@ import { Casing, toCasing } from "@/utils/string";
           {{
             (activeDragged.nodes[0] as any).title ??
             (activeDragged.nodes[0] as any).name ??
-            toCamelName(NodeType, activeDragged.node.type)
+            toCamelName(NodeType, activeDragged.node.nodeType)
           }}
         </span>
       </div>

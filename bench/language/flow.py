@@ -7,7 +7,7 @@ import cachetools
 from bench.language.const import (
     BlockType,
     EnumType,
-    FieldZone,
+    FieldType,
     NodeType,
     StructType,
     TypeKind,
@@ -81,9 +81,9 @@ PORT_TYPES_BY_SIDE: dict[PortSide, tuple[PortType, ...]] = {
     PortSide.INCOMING: (PortType.RUN, PortType.FIELD),
     PortSide.OUTGOING: (PortType.RUN, PortType.FIELD),
 }
-FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldZone, ...]] = {
-    PortSide.INCOMING: (FieldZone.VARIABLE, FieldZone.INPUT),
-    PortSide.OUTGOING: (FieldZone.OUTPUT,),
+FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldType, ...]] = {
+    PortSide.INCOMING: (FieldType.VARIABLE, FieldType.INPUT),
+    PortSide.OUTGOING: (FieldType.OUTPUT,),
 }
 
 
@@ -518,7 +518,7 @@ class Step(SourceNode[StepData]):
 
     @cachetools.cached({})  # :CachedTypeInfo
     def to_type(
-        self, as_object: bool = True, zone: FieldZone | None = None
+        self, as_object: bool = True, field_type: FieldType | None = None
     ) -> "TypeInfoBase | None":
         """Gets a type represented by this Step (if any)"""
         from bench.language.block import Block
@@ -532,26 +532,26 @@ class Step(SourceNode[StepData]):
             return self.parent.output_type
         elif self.type == StepType.BLOCK:
             assert isinstance(self.node, Block), f"{self!r} has no block: {self.node!r}"
-            return self.node.to_type(as_object=as_object, zone=zone)
+            return self.node.to_type(as_object=as_object, field_type=field_type)
         else:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
-                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone)
+                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
             typ._resolve_type()  # auto resolve type
             return typ
 
     @property
     def variable_type(self) -> "TypeInfoBase | None":
-        return self.to_type(as_object=True, zone=FieldZone.VARIABLE)
+        return self.to_type(as_object=True, field_type=FieldType.VARIABLE)
 
     @property
     def input_type(self) -> "TypeInfoBase | None":
-        return self.to_type(as_object=True, zone=FieldZone.INPUT)
+        return self.to_type(as_object=True, field_type=FieldType.INPUT)
 
     @property
     def output_type(self) -> "TypeInfoBase | None":
-        return self.to_type(as_object=True, zone=FieldZone.OUTPUT)
+        return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @property
     def incoming_ports(self) -> list[PortKey]:

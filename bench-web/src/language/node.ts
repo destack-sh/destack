@@ -10,7 +10,7 @@ import { newChangeId, type Transaction } from "@/language/transaction";
 import {
   BlockType,
   ENUM_BY_TYPE,
-  FieldZone,
+  FieldType,
   FileFormat,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
@@ -49,12 +49,12 @@ export function extractNameId(name: string): number | null {
 }
 /** Gets the node type for a node or reference */
 export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType {
-  if (isNodeRef(node)) return node.type;
+  if (isNodeRef(node)) return node.nodeType;
   else return node.metatype as unknown as NodeType;
 }
 
 /** Gets the discriminating subtype for a node, if any :NodeSubtype */
-export function getNodeSubtype(node: Partial<AnyNodeData>): FieldZone | BlockType | ViewType | StepType | any {
+export function getNodeSubtype(node: Partial<AnyNodeData>): FieldType | BlockType | ViewType | StepType | any {
   const key = NODE_SUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
   if (key != null) return (node as any)[key];
   else return null;
@@ -324,14 +324,14 @@ export function cloneNode<T extends AnyNodeData>(
 export function moveNode(
   tx: Transaction,
   graph: ReadNodeGraph,
-  node: AnyNodeData | AnyNodeReferenceData,
+  nodeOrRef: AnyNodeData | AnyNodeReferenceData,
   options: {
     anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down";
     target?: AnyNodeData | AnyNodeReferenceData;
   },
 ) {
   const { anchor } = options;
-  node = resolveNode(graph, node);
+  const node = resolveNode(graph, nodeOrRef);
   const target = options.target != null ? resolveNode(graph, options.target) : undefined;
   if (node?.id == target?.id) {
     return; // no-op

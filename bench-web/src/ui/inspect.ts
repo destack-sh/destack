@@ -32,7 +32,7 @@ import {
   EnumType,
   EnumTypeMapping,
   FieldProperty,
-  FieldZone,
+  FieldType,
   IconData,
   ModelProvider,
   NodeType,
@@ -143,7 +143,7 @@ const RUN_OPTIONS_PROPERTIES = PROPERTY_INFOS_BY_TYPE[ObjectType.RUN_OPTIONS]!;
 const TYPE_CONSTRAINT_PROPERTIES = PROPERTY_INFOS_BY_TYPE[ObjectType.TYPE_CONSTRAINT]!;
 function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory> | null {
   if (isNode(node, NodeType.FIELD)) {
-    if (node.zone == FieldZone.OPTION) {
+    if (node.type == FieldType.OPTION) {
       return { Common: [FieldProperty.text] };
     }
     const properties: Record<string, InspectionCategory> = {

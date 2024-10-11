@@ -8,7 +8,7 @@ import {
   Anchor,
   BenchType,
   FieldData,
-  FieldZone,
+  FieldType,
   FileType,
   NodeReferenceData,
   NodeType,
@@ -292,11 +292,11 @@ export type FieldView = {
 export function getFieldViews(
   fields: FieldData[],
   graph: ReadNodeGraph,
-  options?: { zones?: FieldZone[]; isInput?: boolean },
+  options?: { types?: FieldType[]; isInput?: boolean },
 ): FieldView[] {
   const fieldViews: FieldView[] = [];
   for (const field of fields) {
-    if (options?.zones != null && !options.zones.includes(field.zone)) continue;
+    if (options?.types != null && !options.types.includes(field.type)) continue;
     const fieldType = resolveType(field, graph);
     const storageKey = getStorageKey(field, fieldType);
     const view = getViewForValueType(fieldType);

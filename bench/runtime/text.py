@@ -242,7 +242,7 @@ return True
         # download files
         _ = await download_batch(
             raw_files,
-            include_content=[f for f in raw_files if f.coarse_type in processed_types],
+            include_content=[f for f in raw_files if f.type in processed_types],
         )
 
         # convert/preprocess files
@@ -250,7 +250,7 @@ return True
         preprocessed_files: list[FileInfoBase] = []
         for file in raw_files:
             # downscale large images to smaller JPEGs
-            if file.coarse_type == FileType.IMAGE and (
+            if file.type == FileType.IMAGE and (
                 (file.width or 0) > image_max_pixels
                 or (file.height or 0) > image_max_pixels
                 or file.size > image_max_size
@@ -258,17 +258,17 @@ return True
                 file = await file.downscale(max_pixels=image_max_pixels, max_size=image_max_size)
 
             # convert files to native types
-            if file.coarse_type not in native_types:
+            if file.type not in native_types:
                 # NOTE :Incomplete: automap non-document files (e.g. Audio->Text?)
                 assert FileType.TEXT in native_types, f"{self!r} has no text type"
                 file = await file.convert(FileFormat.MARKDOWN)
 
             # convert files to native format (if there are specific formats)
             if (
-                native_formats_by_type.get(file.coarse_type)
-                and file.format not in native_formats_by_type[file.coarse_type]
+                native_formats_by_type.get(file.type)
+                and file.format not in native_formats_by_type[file.type]
             ):
-                file = await file.convert(native_formats_by_type[file.coarse_type][0])
+                file = await file.convert(native_formats_by_type[file.type][0])
 
             preprocessed_files.append(file)
 
@@ -425,11 +425,11 @@ class OpenaiModelRunner(ChatModelRunnerBase):
                         continue
                     contents.append({"type": "text", "text": content.text.strip()})
                 elif isinstance(content, ChatMessageFileContent):
-                    if content.file.coarse_type in (FileType.TEXT, FileType.CODE):
+                    if content.file.type in (FileType.TEXT, FileType.CODE):
                         if not content.file.text:
                             continue
                         contents.append({"type": "text", "text": content.file.text.strip()})
-                    elif content.file.coarse_type == FileType.IMAGE:
+                    elif content.file.type == FileType.IMAGE:
                         contents.append(
                             {
                                 "type": "image_url",
@@ -522,11 +522,11 @@ class AnthropicModelRunner(ChatModelRunnerBase):
                     continue
                 contents.append({"type": "text", "text": content.text.strip()})
             elif isinstance(content, ChatMessageFileContent):
-                if content.file.coarse_type in (FileType.TEXT, FileType.CODE):
+                if content.file.type in (FileType.TEXT, FileType.CODE):
                     if not content.file.text:
                         continue
                     contents.append({"type": "text", "text": content.file.text.strip()})
-                elif content.file.coarse_type == FileType.IMAGE:
+                elif content.file.type == FileType.IMAGE:
                     contents.append(
                         {
                             "type": "image",

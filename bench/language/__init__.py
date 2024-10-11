@@ -67,7 +67,7 @@ from .const import (
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import (
     Field,
-    FieldZone,
+    FieldType,
     TypeConstraint,
     TypeInfo,
     TypeInfoBase,
@@ -224,7 +224,7 @@ __all__ = [
     "EditOperation",
     "Expression",
     "Field",
-    "FieldZone",
+    "FieldType",
     "File",
     "FileFormat",
     "FileKind",

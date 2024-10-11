@@ -5,9 +5,8 @@ import {
   NAME_CONSTRAINT,
   padCkFromTkB64,
   RUNNABLE_BLOCK_TYPES,
-  TK_LENGTH_B64,
   toCamelName,
-  TYPE_BLOCK_TYPES,
+  TYPE_BLOCK_TYPES
 } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName } from "@/language/node";
@@ -20,7 +19,7 @@ import {
   ColorType,
   EnumType,
   FieldData,
-  FieldZone,
+  FieldType,
   FileType,
   NodeReferenceData,
   NodeType,
@@ -70,7 +69,7 @@ export type TypeIdentity = Pick<
   | "primitiveType"
   | "benchType"
   | "baseTypePtr"
-  | "baseFieldZone"
+  | "baseFieldType"
   | "isRequired"
   | "isList"
   | "isSecret"
@@ -303,7 +302,7 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
   } else if (constraint.fileTypes.length > 0 && isNode(node, NodeType.FILE)) {
     if (constraint.fileFormats.length > 0 && node.format != null && !constraint.fileFormats.includes(node.format)) {
       return false;
-    } else if (constraint.fileTypes.length > 0 && !constraint.fileTypes.includes(node.coarseType)) {
+    } else if (constraint.fileTypes.length > 0 && !constraint.fileTypes.includes(node.type)) {
       return false;
     } else {
       return true;
@@ -362,8 +361,8 @@ export function resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdent
 export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
   if (type.baseTypePtr == null) return [];
   const fields = graph.getChildren(type.baseTypePtr, NodeType.FIELD);
-  if (type.baseFieldZone == null) return fields.filter((f) => f.type != FieldZone.OPTION);
-  else return fields.filter((f) => f.type == type.baseFieldZone);
+  if (type.baseFieldType == null) return fields.filter((f) => f.type != FieldType.OPTION);
+  else return fields.filter((f) => f.type == type.baseFieldType);
 }
 
 function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): string {
@@ -419,7 +418,7 @@ export function createField(
   // position in graph
   let parentPtr: NodeReferenceData;
   let orderKey: string;
-  let type: FieldZone;
+  let type: FieldType;
   let kind: TypeKind | null = fieldIn?.kind ?? null;
   let siblings: FieldData[];
   if (isNode(target, NodeType.BLOCK)) {
@@ -429,14 +428,14 @@ export function createField(
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
     if (target.type == BlockType.CHOICE) {
-      type = FieldZone.OPTION;
+      type = FieldType.OPTION;
       kind = TypeKind.LITERAL;
     } else if (TYPE_BLOCK_TYPES.includes(target.type)) {
-      type = FieldZone.MEMBER;
+      type = FieldType.MEMBER;
     } else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) {
-      type = FieldZone.INPUT;
+      type = FieldType.INPUT;
     } else {
-      type = FieldZone.VARIABLE;
+      type = FieldType.VARIABLE;
     }
   } else if (isNode(target, NodeType.STEP)) {
     if (fieldIn?.type == null) throw new Error(`missing zone for step field: ${describeNode(target)}`);
@@ -461,7 +460,7 @@ export function createField(
   }
 
   // type
-  if (type != FieldZone.OPTION && fieldIn?.kind == null) {
+  if (type != FieldType.OPTION && fieldIn?.kind == null) {
     // default to Text if no type given
     fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
   } else if (kind != null) {
@@ -473,7 +472,7 @@ export function createField(
   let name: string;
   if (fieldIn?.name != null) {
     name = fieldIn.name;
-  } else if (type != FieldZone.OPTION) {
+  } else if (type != FieldType.OPTION) {
     // make name unique (bumping number if needed)
     name = getFieldNameFromType(graph, fieldIn!);
     const siblings = graph.getChildren(parentPtr, NodeType.FIELD);
@@ -487,7 +486,7 @@ export function createField(
 
   // assign color icon if it's an option :FieldIcon
   if (fieldIn?.icon == null) {
-    if (type == FieldZone.OPTION) {
+    if (type == FieldType.OPTION) {
       const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
       const colorType = getRandomColorType({ except: occupiedColors });
       fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };

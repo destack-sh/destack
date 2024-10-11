@@ -99,7 +99,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
   match: {
     predicate: (c) => {
       // NOTE: hack to exclude Bench connection (which also contains package) :ConnectionMatching
-      return !(c as Connection<"get", NodeType>).params.roots.some((r) => r.type == NodeType.BENCH);
+      return !(c as Connection<"get", NodeType>).params.roots.some((r) => r.nodeType == NodeType.BENCH);
     },
   },
 });
@@ -263,8 +263,8 @@ const { activeDropZone } = useMultiDropZone({
     if (dragged.kind != "node") return false;
     const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
     if (target == null || isDescendantOf(pkgGraph, target, dragged.node)) return false;
-    const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.type;
-    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.type)) return false;
+    const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.nodeType;
+    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.nodeType)) return false;
     return true;
   },
   onDrop: (dragged, anchor, targetId) => {

@@ -218,7 +218,7 @@ class FileFormat(IdEnum):  # :FileFormats
     RPM = 90007
 
     @property
-    def coarse_type(self) -> FileType:
+    def type(self) -> FileType:
         return FileType(self.value // 10000)
 
     @property
@@ -494,7 +494,7 @@ class FileInfoBase(BuiltinObject):
     ...  # thumbnail/preview/...?
 
     # common meta
-    coarse_type: FileType = p_internal(50)
+    type: FileType = p_internal(50)
     mime_type: str | None = p_internal(51, constraint=MIME_TYPE_CONSTRAINT)
     format: FileFormat | None = p_internal(52, default=None)
     size: int = p_internal(
@@ -522,9 +522,9 @@ class FileInfoBase(BuiltinObject):
     def __content_str__(self) -> str:
         content_parts = [f"'{self.title}'", humanize_bytes(self.size)]
         if self.format:
-            content_parts.append(f"{self.coarse_type.bench_name}/{self.format.bench_name}")
+            content_parts.append(f"{self.type.bench_name}/{self.format.bench_name}")
         else:
-            content_parts.append(self.coarse_type.bench_name)
+            content_parts.append(self.type.bench_name)
         if self.mime_type:
             content_parts.append(f"'{self.mime_type}'")
         if self.width and self.height:
@@ -621,10 +621,8 @@ class FileInfoBase(BuiltinObject):
         """Converts the file to the given type/format."""
         if target_format == self.format:
             return self
-        elif self.coarse_type == FileType.IMAGE:
-            assert (
-                target_format.coarse_type == self.coarse_type
-            ), f"cannot convert {self!r} to {target_format!r}"
+        elif self.type == FileType.IMAGE:
+            assert target_format.type == self.type, f"cannot convert {self!r} to {target_format!r}"
             buffer = io.BytesIO()
             self.image.save(buffer, format=target_format.name)
             text = buffer.getvalue()
@@ -632,7 +630,7 @@ class FileInfoBase(BuiltinObject):
                 kind=FileKind.INLINE,
                 title=self.title,
                 mime_type=target_format.mime_type,
-                coarse_type=target_format.coarse_type,
+                type=target_format.type,
                 format=target_format,
                 size=len(text),
                 width=self.width,
@@ -641,7 +639,7 @@ class FileInfoBase(BuiltinObject):
                 inline_content=text,
                 _original=self.original,
             )
-        elif self.coarse_type == FileType.DOCUMENT:
+        elif self.type == FileType.DOCUMENT:
             # NOTE :Incomplete: handle images when converting documents
             if target_format == FileFormat.MARKDOWN and self.format in (
                 FileFormat.DOC,
@@ -660,7 +658,7 @@ class FileInfoBase(BuiltinObject):
                     kind=FileKind.INLINE,
                     title=self.title,
                     mime_type="text/markdown",
-                    coarse_type=target_format.coarse_type,
+                    type=target_format.type,
                     format=target_format,
                     size=len(content),
                     inline_content=content,
@@ -681,7 +679,7 @@ class FileInfoBase(BuiltinObject):
                     kind=FileKind.INLINE,
                     title=self.title,
                     mime_type="text/markdown",
-                    coarse_type=target_format.coarse_type,
+                    type=target_format.type,
                     format=target_format,
                     size=len(content),
                     inline_content=content,
@@ -697,7 +695,7 @@ class FileInfoBase(BuiltinObject):
     @property
     def text(self) -> str:
         """Gets the text content of the file."""
-        if self.coarse_type == FileType.TEXT or self.coarse_type == FileType.CODE:
+        if self.type == FileType.TEXT or self.type == FileType.CODE:
             return self.content.decode()
         else:
             raise ValueError(f"cannot get text content of {self!r}")
@@ -705,7 +703,7 @@ class FileInfoBase(BuiltinObject):
     @property
     def lines(self) -> list[str]:
         """Gets the lines of the file."""
-        if self.coarse_type == FileType.TEXT or self.coarse_type == FileType.CODE:
+        if self.type == FileType.TEXT or self.type == FileType.CODE:
             return self.text.splitlines()
         else:
             raise ValueError(f"cannot get lines of {self!r}")
@@ -717,7 +715,7 @@ class FileInfoBase(BuiltinObject):
     @property
     def image(self) -> Image.Image:
         """Gets the image content of the file."""
-        if self.coarse_type == FileType.IMAGE:
+        if self.type == FileType.IMAGE:
             if self._cached_image is None:
                 self._cached_image = Image.open(io.BytesIO(self.content))
             return self._cached_image
@@ -764,7 +762,7 @@ class FileInfoBase(BuiltinObject):
             kind=FileKind.INLINE,
             title=self.title,
             inline_content=content,
-            coarse_type=self.coarse_type,
+            type=self.type,
             format=FileFormat.JPEG,
             size=len(content),
             width=new_width,
@@ -985,7 +983,7 @@ async def extract_file_info(  # noqa: RUF029
     title: str,
     *,
     mime_type: str | None = None,
-    coarse_type: FileType | None = None,
+    type: FileType | None = None,
     format: FileFormat | str | None = None,
 ) -> tuple["File", bytes]:  # :ExtractFileInfo
     """Extracts the metadata from a file."""
@@ -1010,9 +1008,9 @@ async def extract_file_info(  # noqa: RUF029
     if format is None and title is not None and "." in title:
         format = FILE_FORMAT_BY_EXTENSION.get(title.split(".")[-1])
     if format is not None:
-        coarse_type = format.coarse_type
-    elif coarse_type is None:
-        coarse_type = FileType.GENERIC
+        type = format.type
+    elif type is None:
+        type = FileType.GENERIC
     if mime_type is None and format is not None:
         mime_type = format.mime_type
 
@@ -1020,7 +1018,7 @@ async def extract_file_info(  # noqa: RUF029
     if format is None:
         mime_type, format = detect_file_format(content)
         if format is not None:
-            coarse_type = format.coarse_type
+            type = format.type
 
     # add extension if needed
     if format is not None and "." not in title and format.extension is not None:
@@ -1031,7 +1029,7 @@ async def extract_file_info(  # noqa: RUF029
     file = File(
         kind=FileKind.DRIVE,
         title=title,
-        coarse_type=coarse_type,
+        type=type,
         mime_type=mime_type,
         format=format,
         size=size,
@@ -1041,7 +1039,7 @@ async def extract_file_info(  # noqa: RUF029
     # TODO :Incomplete: extract more file metadata :ExtractFileInfo
 
     # image metadata
-    if coarse_type == FileType.IMAGE:
+    if type == FileType.IMAGE:
         image = file_in if isinstance(file_in, Image.Image) else Image.open(io.BytesIO(content))
         file.width, file.height = image.size
         file.aspect_ratio = file.width / file.height
@@ -1054,7 +1052,7 @@ async def upload(
     title: str,
     *,
     mime_type: str | None = None,
-    coarse_type: FileType | None = None,
+    type: FileType | None = None,
     format: FileFormat | str | None = None,
     drive: "Drive | None" = None,
     session: "Session | None" = None,
@@ -1063,7 +1061,7 @@ async def upload(
 
     # extract file info
     file, content = await extract_file_info(
-        file_in, title, mime_type=mime_type, coarse_type=coarse_type, format=format
+        file_in, title, mime_type=mime_type, type=type, format=format
     )
 
     # drive

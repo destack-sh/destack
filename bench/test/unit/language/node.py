@@ -153,7 +153,7 @@ def test_node_pointers_consistency(session: "Session"):
         kind=FileKind.DRIVE,
         title="File1",
         size=0,
-        coarse_type=FileType.TEXT,
+        type=FileType.TEXT,
         mime_type="text/plain",
     )
     file1_ref = file1.to_ref()
@@ -209,7 +209,7 @@ def test_roundtrip_rich_reference(shared_session: Session, shared_package: Packa
         parent=shared_package.bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile.txt",
-        coarse_type=FileType.TEXT,
+        type=FileType.TEXT,
         mime_type="text/plain",
         size=1024,
     )

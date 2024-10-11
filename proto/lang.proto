@@ -597,14 +597,14 @@ enum ExpressionOp {
   EXPRESSION_OP_DESCENDING = 501;
 }
 
-// The 'zone' of a Field within its Block.
-enum FieldZone {
-  FIELD_ZONE_UNSPECIFIED = 0;
-  FIELD_ZONE_VARIABLE = 1;
-  FIELD_ZONE_MEMBER = 2;
-  FIELD_ZONE_INPUT = 3;
-  FIELD_ZONE_OUTPUT = 4;
-  FIELD_ZONE_OPTION = 5;
+// The type of a Field within its Block.
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  FIELD_TYPE_VARIABLE = 1;
+  FIELD_TYPE_MEMBER = 2;
+  FIELD_TYPE_INPUT = 3;
+  FIELD_TYPE_OUTPUT = 4;
+  FIELD_TYPE_OPTION = 5;
 }
 
 // The format of a file (roughly an extension).
@@ -1635,7 +1635,6 @@ message ChangeVignetteData {
   optional string name = 30;
   optional string title = 31;
   optional int32 subtype = 32;
-  optional int32 subsubtype = 33;
   optional IconData icon = 35;
 }
 
@@ -1754,7 +1753,7 @@ message FileInfoData {
   string title = 41;
   optional string external_url = 43;
   optional bytes inline_content = 44;
-  FileType coarse_type = 50;
+  FileType type = 50;
   optional string mime_type = 51;
   optional FileFormat format = 52;
   int64 size = 53;
@@ -1782,7 +1781,7 @@ message FileReferenceData {
   string title = 41;
   optional string external_url = 43;
   optional bytes inline_content = 44;
-  FileType coarse_type = 50;
+  FileType type = 50;
   optional string mime_type = 51;
   optional FileFormat format = 52;
   int64 size = 53;
@@ -2240,7 +2239,7 @@ message TypeInfoData {
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
-  optional FieldZone base_field_zone = 44;
+  optional FieldType base_field_type = 44;
   optional NodeReferenceData oneof_ptr = 45;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
@@ -2515,7 +2514,7 @@ message FieldData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  FieldZone type = 30;
+  FieldType type = 30;
   string name = 31;
   string order_key = 32;
   optional TextData text = 33;
@@ -2524,7 +2523,7 @@ message FieldData {
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
-  optional FieldZone base_field_zone = 44;
+  optional FieldType base_field_type = 44;
   optional NodeReferenceData oneof_ptr = 45;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
@@ -2556,7 +2555,7 @@ message FileData {
   string title = 41;
   optional string external_url = 43;
   optional bytes inline_content = 44;
-  FileType coarse_type = 50;
+  FileType type = 50;
   optional string mime_type = 51;
   optional FileFormat format = 52;
   int64 size = 53;

@@ -9,7 +9,7 @@ import {
   BlockType,
   ColorShade,
   FieldData,
-  FieldZone,
+  FieldType,
   NodeType,
   ObjectType,
   PipeData,
@@ -891,7 +891,7 @@ export function getStepFields(
     nodeFields: FieldData[];
   },
 ): {
-  zone: FieldZone;
+  type: FieldType;
   fields: FieldData[];
   fieldParent: BlockData | StepData;
 } | null {
@@ -913,27 +913,27 @@ export function getStepFields(
     // from flow's input fields
     if (related.flow == null) return null;
     return {
-      zone: FieldZone.INPUT,
-      fields: side == PortSide.OUTGOING ? related.flowFields.filter((f) => f.type == FieldZone.INPUT) : [],
+      type: FieldType.INPUT,
+      fields: side == PortSide.OUTGOING ? related.flowFields.filter((f) => f.type == FieldType.INPUT) : [],
       fieldParent: related.flow!,
     };
   } else if (step.type == StepType.COMPLETE) {
     // from flow's output fields
     if (related.flow == null) return null;
     return {
-      zone: FieldZone.OUTPUT,
-      fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.type == FieldZone.OUTPUT) : [],
+      type: FieldType.OUTPUT,
+      fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.type == FieldType.OUTPUT) : [],
       fieldParent: related.flow,
     };
   } else if (step.type == StepType.BLOCK) {
     // from block
     if (related.node == null) return null;
-    const zone = side == PortSide.INCOMING ? FieldZone.INPUT : FieldZone.OUTPUT;
-    return { zone, fields: related.nodeFields.filter((f) => f.type == zone), fieldParent: related.node };
+    const zone = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
+    return { type: zone, fields: related.nodeFields.filter((f) => f.type == zone), fieldParent: related.node };
   } else {
     // step itself
-    const zone = side == PortSide.INCOMING ? FieldZone.INPUT : FieldZone.OUTPUT;
-    return { zone, fields: related.stepFields.filter((f) => f.type == zone), fieldParent: step };
+    const zone = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
+    return { type: zone, fields: related.stepFields.filter((f) => f.type == zone), fieldParent: step };
   }
 }
 

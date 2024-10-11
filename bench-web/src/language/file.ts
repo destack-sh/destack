@@ -98,11 +98,11 @@ export async function extractFile(
   if (format == null && mimeType != null && FILE_FORMAT_BY_MIME_TYPE[mimeType]) {
     format = FILE_FORMAT_BY_MIME_TYPE[mimeType];
   }
-  let coarseType: FileType;
+  let type: FileType;
   if (format == null) {
-    coarseType = FileType.GENERIC;
+    type = FileType.GENERIC;
   } else {
-    coarseType = Math.floor(format / 10000);
+    type = Math.floor(format / 10000);
   }
 
   const file = makeNode({
@@ -115,7 +115,7 @@ export async function extractFile(
     currentStatus: ResourceStatus.DOWN,
     kind: FileKind.DRIVE,
     title,
-    coarseType,
+    type,
     mimeType,
     format,
     retention: FileRetentionMode.AUTOMATIC,
@@ -126,7 +126,7 @@ export async function extractFile(
   // TODO :Incomplete: extract more file metadata :ExtractFileInfo
 
   // image metadata
-  if (coarseType == FileType.IMAGE) {
+  if (type == FileType.IMAGE) {
     // turn into data URL & load as Image (this feels a bit hacky)
     const imageLoaded = new AsyncEvent();
     const contentAsDataUrl = window.URL.createObjectURL(content);
@@ -297,9 +297,9 @@ export function uploadFiles(
   // kick off async
   doUploadFiles(txFactory, uploads, {
     validate: (upload, file) => {
-      if (options.allowedTypes && !options.allowedTypes.includes(file.coarseType)) {
+      if (options.allowedTypes && !options.allowedTypes.includes(file.type)) {
         throw new Error(
-          `want ${options.allowedTypes.map((t) => toCamelName(FileType, t)).join(" or ")}, got ${toCamelName(FileType, file.coarseType)}`,
+          `want ${options.allowedTypes.map((t) => toCamelName(FileType, t)).join(" or ")}, got ${toCamelName(FileType, file.type)}`,
         );
       }
       if (options.allowedFormats && (file.format == null || !options.allowedFormats.includes(file.format))) {
@@ -518,7 +518,7 @@ export async function prefetchFiles(files: (FileData | FileReferenceData)[]): Pr
   downloadFiles(files, {
     includeContent: (file) => {
       if (!isNodeOrRef(file, NodeType.FILE)) return false;
-      if (PREFETCH_FILE_TYPES.includes((file as FileData).coarseType)) return true;
+      if (PREFETCH_FILE_TYPES.includes((file as FileData).type)) return true;
       else return false;
     },
   });
@@ -545,8 +545,8 @@ async function sha256(content: File): Promise<string> {
 /** Gets the icon for the given file. */
 export function getFileIcon(file: FileData | FileReferenceData): IconData | null {
   if (file.format != null && ICON_BY_FILE_FORMAT[file.format] != null) return ICON_BY_FILE_FORMAT[file.format]!;
-  else if (file.coarseType != null && ICON_BY_FILE_TYPE[file.coarseType] != null)
-    return ICON_BY_FILE_TYPE[file.coarseType]!;
+  else if (file.type != null && ICON_BY_FILE_TYPE[file.type] != null)
+    return ICON_BY_FILE_TYPE[file.type]!;
   else return null;
 }
 
