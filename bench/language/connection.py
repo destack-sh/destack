@@ -27,7 +27,7 @@ from bench.language.const import (
     BenchError,
     ConditionalOp,
     NodeType,
-    ReadType,
+    QueryType,
 )
 from bench.language.expression import C
 from bench.language.graph import NodeDataGraph, NodeGraph, patch_graph
@@ -254,7 +254,7 @@ class GraphEngine[C: Channel](abc.ABC):
 
     @property
     @abc.abstractmethod
-    def includes_hidden(self) -> bool:
+    def include_deleted(self) -> bool:
         """Whether this channel includes hidden nodes."""
         ...
 
@@ -275,7 +275,7 @@ class NullEngine(GraphEngine):
         raise ChannelIncapableError(self, reason="null engine")
 
     @property
-    def includes_hidden(self) -> bool:
+    def include_deleted(self) -> bool:
         return False
 
     @property
@@ -326,7 +326,7 @@ class Channel[E: GraphEngine](abc.ABC):
     @final
     async def get(self, query: "QueryBuilder", options: GetOptions) -> "GetConnection":
         """Read a single node given the query in the current transaction context (if any)."""
-        assert query._read_type == ReadType.GET, f"{query!r} is not a get"
+        assert query._type == QueryType.GET, f"{query!r} is not a get"
         assert query._roots is not None, f"{query!r} has no roots"
         scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
@@ -338,7 +338,7 @@ class Channel[E: GraphEngine](abc.ABC):
     @final
     async def search(self, query: "QueryBuilder", options: SearchOptions) -> "SearchConnection":
         """Read the nodes given the search query in the current transaction context (if any)."""
-        assert query._read_type == ReadType.SEARCH, f"{query!r} is not a search"
+        assert query._type == QueryType.SEARCH, f"{query!r} is not a search"
         scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.read_retry, options)
@@ -351,7 +351,7 @@ class Channel[E: GraphEngine](abc.ABC):
         self, query: "QueryBuilder", options: AggregateOptions
     ) -> "AggregateConnection":
         """Read the nodes given the aggregate query in the current transaction context (if any)."""
-        assert query._read_type == ReadType.AGGREGATE, f"{query!r} is not an aggregate"
+        assert query._type == QueryType.AGGREGATE, f"{query!r} is not an aggregate"
         assert query._aggregation is not None, f"{query!r} has no aggregation"
         scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
@@ -413,7 +413,7 @@ class Connection[
         self.channel = channel
         self.scope = scope
         self.query = query
-        self.type = query._read_type
+        self.type = query._type
         self.type_name = self.type.name.lower()
         self.retry = retry
         self.node_types = list(query.all_node_types)
@@ -660,13 +660,13 @@ class GetConnection[ChannelT: Channel, T: Node](
             ]
         else:
             new_edits = update.edits
-        edit_data_graph(result_data.graph, update.edits, self.query._options)
+        edit_data_graph(result_data.graph, update.edits, include_deleted=self.query.include_deleted)
         if result is not None:
             edit_graph(
                 graph=result.graph,
                 supergraph=self.session._supergraph,
                 edits=new_edits,
-                options=self.query._options,
+                include_deleted=self.query.include_deleted,
                 validate=False,
             )
 
@@ -736,7 +736,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
             ]
         else:
             new_edits = update.edits
-        edit_data_graph(result_data.graph, update.edits, self.query._options)
+        edit_data_graph(result_data.graph, update.edits, include_deleted=self.query.include_deleted)
         for node_data in update.added_nodes:
             result_data.graph.add(node_data)
         if result is not None:
@@ -744,7 +744,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
                 graph=result.graph,
                 supergraph=self.session._supergraph,
                 edits=new_edits,
-                options=self.query._options,
+                include_deleted=self.query.include_deleted,
                 validate=False,
             )
 
@@ -812,11 +812,11 @@ class MemoryEngine(GraphEngine["MemoryChannel"]):
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
         graph: "NodeDataGraph",
-        includes_hidden: bool,
+        include_deleted: bool,
     ):
         super().__init__(scope, node_types)
         self.graph = graph
-        self._includes_hidden = includes_hidden
+        self._include_deleted = include_deleted
 
     def __str__(self):
         return (
@@ -828,8 +828,8 @@ class MemoryEngine(GraphEngine["MemoryChannel"]):
         return True
 
     @property
-    def includes_hidden(self) -> bool:
-        return self._includes_hidden
+    def include_deleted(self) -> bool:
+        return self._include_deleted
 
     async def channel(self, session: "Session"):
         return MemoryChannel(self, session)
@@ -856,7 +856,7 @@ class MemoryChannel(Channel[MemoryEngine]):
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
-        if query._read_type == ReadType.GET:
+        if query._type == QueryType.GET:
             return MemoryGetConnection
         else:
             raise RuntimeError(f"unsupported memory read {query!r}")
@@ -888,7 +888,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
                 visited_graph.add(root)
 
         # select ancestors
-        ancestor_types = query._options.ancestor_types if query._options else ()
+        ancestor_types = query._ancestor_types or ()
         if len(ancestor_types) > 0:
             with tracer.start_as_current_span("memory.fetch.get_ancestors"):
                 current_parents = roots
@@ -908,7 +908,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
                     current_parents = next_parents
 
         # select descendants
-        descendant_types = query._options.descendant_types if query._options else ()
+        descendant_types = query._descendant_types or ()
         if len(descendant_types) > 0:
             with tracer.start_as_current_span("memory.fetch.get_descendants"):
                 child_types_by_parent: dict[wire.NodeType, tuple[NodeType, ...]] = {
@@ -953,9 +953,9 @@ class SplitChannel(Channel[NullEngine]):
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
-        if query._read_type == ReadType.GET:
+        if query._type == QueryType.GET:
             return SplitGetConnection
-        elif query._read_type == ReadType.SEARCH:
+        elif query._type == QueryType.SEARCH:
             return SplitSearchConnection
         else:
             raise RuntimeError(f"unsupported split read {query!r}")
@@ -972,16 +972,12 @@ class SplitConnection(Connection):
         initial_types: Collection[NodeType],
     ) -> NodeDataGraph:
         """Fetch the surrounding ancestor/descendant nodes for a split query."""
-        from bench.language import NodeReference, QueryBuilder, ReadOptions
+        from bench.language import NodeReference, QueryBuilder
         from bench.proto import wiring
 
-        assert query._options is not None, f"{query!r} has no options"  # checked by caller
-        remaining_ancestors_types = [
-            t for t in query._options.ancestor_types if t not in initial_types
-        ]
-        remaining_descendants_types = [
-            t for t in query._options.descendant_types if t not in initial_types
-        ]
+        assert query._select is not None, f"{query!r} has no options"  # checked by caller
+        remaining_ancestors_types = [t for t in query._ancestor_types if t not in initial_types]
+        remaining_descendants_types = [t for t in query._descendant_types if t not in initial_types]
         if not remaining_ancestors_types and not remaining_descendants_types:
             return initial_result.graph  # nothing more to read (full result)
 
@@ -1003,7 +999,7 @@ class SplitConnection(Connection):
             descendants_engine = self.session._get_engine_for(
                 descendants_scope,
                 remaining_descendants_types,
-                include_hidden=query._options.include_hidden,
+                include_deleted=query.include_deleted,
                 is_readonly=True,
             )
             descendants_channel = await self.session._get_channel(descendants_engine)
@@ -1016,14 +1012,15 @@ class SplitConnection(Connection):
                     )
                     parent_ids = [n.id for n in parents if n.id]
                     descendant_query = QueryBuilder(
-                        read_type=ReadType.SEARCH,
+                        type=QueryType.SEARCH,
                         node_type=child_type,
                         filter=C(
                             ConditionalOp.IN,
                             property=child_cls.get_property("parent_id"),
                             value=parent_ids,
                         ),
-                        options=ReadOptions(descendant_types=list(descendant_types)),
+                        descendant_types=list(descendant_types),
+                        include_deleted=query.include_deleted,
                     )
                     descendant_connection = await descendants_channel.search(
                         descendant_query, SearchOptions(live=False, unpack=False, count=False)
@@ -1039,7 +1036,7 @@ class SplitConnection(Connection):
             ancestor_engine = self.session._get_engine_for(
                 self.scope,
                 remaining_ancestors_types,
-                include_hidden=query._options.include_hidden,
+                include_deleted=query.include_deleted,
                 is_readonly=True,
             )
             ancestor_channel = await self.session._get_channel(ancestor_engine)
@@ -1047,13 +1044,14 @@ class SplitConnection(Connection):
                 if parent_type not in remaining_ancestors_types:
                     continue
                 ancestor_query = QueryBuilder(
-                    read_type=ReadType.GET,
+                    type=QueryType.GET,
                     node_type=parent_type,
                     roots=[
                         wiring.unpack_object(p, supergraph=None, expect=NodeReference)
                         for p in parents
                     ],
-                    options=ReadOptions(ancestor_types=remaining_ancestors_types),
+                    ancestor_types=remaining_ancestors_types,
+                    include_deleted=query.include_deleted,
                 )
                 ancestor_connection = await ancestor_channel.get(ancestor_query, self.options)
                 combined_graph.extend(ancestor_connection.result_data.graph.nodes)
@@ -1071,7 +1069,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
             self.scope,
             query._node_type,
             best_match=self.node_types,
-            include_hidden=query.includes_hidden,
+            include_deleted=query.include_deleted,
             is_readonly=True,
         )
         channel = await self.session._get_channel(engine)
@@ -1080,7 +1078,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
             SearchOptions(live=False, unpack=False, count=self.options.count),
         )
         result = connection.result_data
-        if query._options is None:
+        if query._select is None:
             return result  # nothing more to read
 
         # combine (keeping the 'roots' from the initial result)
@@ -1106,7 +1104,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
             self.scope,
             query._node_type,
             best_match=self.node_types,
-            include_hidden=query.includes_hidden,
+            include_deleted=query.include_deleted,
             is_readonly=True,
         )
         channel = await self.session._get_channel(engine)
@@ -1114,7 +1112,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
             query.trim_to(engine.node_types), GetOptions(live=False, unpack=False)
         )
         result = connection.result_data
-        if query._options is None:
+        if query._select is None:
             return result  # nothing more to read
 
         # combine (keeping the 'roots' from the initial result)

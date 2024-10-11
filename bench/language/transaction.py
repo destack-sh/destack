@@ -67,7 +67,6 @@ if TYPE_CHECKING:
         Log,
         NodeSuperGraph,
         QueryInfo,
-        ReadOptions,
         Run,
         Session,
     )
@@ -523,7 +522,7 @@ class Transaction:
             engine = self.session._get_engine_for(
                 edit.scope,
                 NodeType(edit.node_ptr.node_type),
-                include_hidden=False,
+                include_deleted=False,
                 is_readonly=False,
             )
             edits_by_engine_id[engine.id].append(edit)
@@ -714,18 +713,14 @@ def edit_graph(
     graph: NodeGraph,
     supergraph: "NodeSuperGraph",
     edits: Collection[EditData],
-    options: "ReadOptions | None",
     *,
+    include_deleted: bool,
     validate: bool,
 ) -> None:
     """Applies the edits to the graph (in place!)."""
     trace.get_current_span().set_attribute("edits", len(edits))
 
-    from bench.language.query import DEFAULT_READ_OPTIONS
     from bench.proto import wiring
-
-    if options is None:
-        options = DEFAULT_READ_OPTIONS
 
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
@@ -733,7 +728,7 @@ def edit_graph(
         node_id = UUID(edit.node_ptr.id)
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
-            not options.include_hidden and edit_type == EditType.RESTORE
+            not include_deleted and edit_type == EditType.RESTORE
         ):
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
             node_data = wiring.unwrap_some_node(edit.node_data)
@@ -752,9 +747,7 @@ def edit_graph(
                 graph.add(node)
             else:
                 graph.update(node)
-        elif edit_type == EditType.ERASE or (
-            not options.include_hidden and edit_type == EditType.DELETE
-        ):
+        elif edit_type == EditType.ERASE or (not include_deleted and edit_type == EditType.DELETE):
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for remove: {edit!r}"
             graph.remove(node)
@@ -789,8 +782,8 @@ def edit_graph(
 def edit_data_graph(
     graph: NodeDataGraph,
     edits: Collection[EditData],
-    options: "ReadOptions | None",
     *,
+    include_deleted: bool,
     is_prepass: bool = False,
 ) -> None | list[EditData]:
     """
@@ -801,11 +794,7 @@ def edit_data_graph(
     """
     trace.get_current_span().set_attribute("edits", len(edits))
 
-    from bench.language.query import DEFAULT_READ_OPTIONS
     from bench.proto import wire, wiring
-
-    if options is None:
-        options = DEFAULT_READ_OPTIONS
 
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
         node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
@@ -831,7 +820,7 @@ def edit_data_graph(
         subject_ptr = edit.subject_ptr if edit.subject_ptr.metatype != 0 else None
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
-            not options.include_hidden and edit_type == EditType.RESTORE and not is_prepass
+            not include_deleted and edit_type == EditType.RESTORE and not is_prepass
         ):
             # add
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
@@ -860,8 +849,7 @@ def edit_data_graph(
                 edit.vignette.CopyFrom(_make_vignette(node))
                 flat_edits.append(edit)
         elif (
-            edit_type == EditType.ERASE
-            or (not options.include_hidden and edit_type == EditType.DELETE)
+            edit_type == EditType.ERASE or (not include_deleted and edit_type == EditType.DELETE)
         ) and not is_prepass:
             # remove
             node = graph.get(node_id)

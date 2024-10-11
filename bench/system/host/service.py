@@ -225,7 +225,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         server: Server | None = None
         owned: list[Ownable] = []
         if metadata.client_id and metadata.client_access_token:
-            if metadata.client_type is None:
+            if not metadata.client_type:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
             client_id = UUID(metadata.client_id)
             if metadata.client_type != wire.ClientType.CLIENT_TYPE_BENCH_MACHINE:
@@ -339,13 +339,13 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                     scope=self._scope,
                     node_types=LOADED_BENCH_NODE_TYPES,
                     graph=self._bench._data_graph,
-                    includes_hidden=False,
+                    include_deleted=False,
                 ),
                 MemoryEngine(
                     scope=self._scope,
                     node_types=SOURCE_NODE_TYPES,
                     graph=self._main_package._data_graph,
-                    includes_hidden=False,
+                    include_deleted=False,
                 ),
             )
             self._engines = (*inmemory_engines, *self._engines)  # in order of priority
@@ -572,9 +572,9 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 package_id = to_uuid(edit.scope.package_id)
                 assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
                 package_edits.append(edit)
-        for root_node, options, subedits in (
-            (self._bench, BENCH_QUERY._options, bench_edits),
-            (self._main_package, PACKAGE_QUERY._options, package_edits),
+        for root_node, subedits in (
+            (self._bench, bench_edits),
+            (self._main_package, package_edits),
         ):
             # filter the in memory edits to only those with an origin (we = system has origin = null)
             external_edits = tuple(e for e in subedits if e.origin.id)
@@ -582,11 +582,11 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 graph=root_node._graph,
                 supergraph=self._supergraph,
                 edits=external_edits,
-                options=options,
+                include_deleted=False,
                 validate=False,
             )
             # and apply all edits to our cached data graphs
-            edit_data_graph(root_node._data_graph, subedits, options)
+            edit_data_graph(root_node._data_graph, subedits, include_deleted=False)
 
         # run plugins on commit (in main session)
         async with self._session.active():

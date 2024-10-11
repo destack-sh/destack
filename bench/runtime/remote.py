@@ -1,7 +1,9 @@
 from functools import wraps
 from typing import AsyncIterator, cast, override
+from xml.etree.ElementInclude import include
 
 import structlog
+from grpclib import GRPCError
 from opentelemetry import trace
 
 from bench.language.connection import (
@@ -22,7 +24,7 @@ from bench.language.connection import (
     WatchSearchUpdate,
     WritableChannel,
 )
-from bench.language.const import NodeType, ReadType
+from bench.language.const import NodeType, QueryType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
@@ -34,7 +36,6 @@ from bench.proto.wire import (
     GraphIOClient,
     GraphScopeData,
     HostClient,
-    ReadOptionsData,
     RpcMetadata,
     SupervisorClient,
     WatchGetRequest,
@@ -74,7 +75,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
         return RemoteChannel(self, session)
 
     @property
-    def includes_hidden(self) -> bool:
+    def include_deleted(self) -> bool:
         return True
 
     @property
@@ -99,14 +100,14 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
-        if query._read_type == ReadType.GET:
+        if query._type == QueryType.GET:
             return RemoteGetConnection
-        elif query._read_type == ReadType.SEARCH:
+        elif query._type == QueryType.SEARCH:
             return RemoteSearchConnection
-        elif query._read_type == ReadType.AGGREGATE:
+        elif query._type == QueryType.AGGREGATE:
             return RemoteAggregateConnection
         else:
-            raise RuntimeError(f"unsupported read type {query._read_type}")
+            raise RuntimeError(f"unsupported read type {query._type}")
 
     @property
     @override
@@ -166,6 +167,11 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         return CommitResultData(cascaded_edits=list(response.cascaded_edits))
 
 
+def _grpc_wrap_error(query: "QueryBuilder", e: GRPCError):
+    """Wraps a GRPCError in something more harmonized."""
+    return e  # NOTE :UX: wrap remote grpc errors :BadRemoteErrors
+
+
 class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
     """Search a remote channel live."""
 
@@ -177,11 +183,21 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
         engine = self.channel.engine
         roots_ptr = [r._to_data() for r in query._roots]
         request = wire.GetNodesRequest(
-            roots=roots_ptr,
-            options=query._options._to_data() if query._options else None,
             scope=engine.scope,
+            roots=roots_ptr,
+            ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
+            descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
+            select=query._select._to_data() if query._select else None,
+            include_deleted=query._include_deleted,
+            first=query._first,
+            skip=query._skip,
         )
-        response = await self.channel.engine.remote.get_nodes(request, metadata=engine.rpc_headers)
+        try:
+            response = await self.channel.engine.remote.get_nodes(
+                request, metadata=engine.rpc_headers
+            )
+        except GRPCError as e:
+            raise _grpc_wrap_error(query, e) from e
         nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
         graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
         return GetResultData(
@@ -222,19 +238,24 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
 
         engine = self.channel.engine
         request = wire.SearchNodesRequest(
+            scope=engine.scope,
             node_type=wiring.pack_enum(NodeType, query._node_type),
             filter=wiring.pack_object_maybe(query._filter, ExpressionData),
             sort=(
                 [wiring.pack_object(s, ExpressionData) for s in query._sort] if query._sort else []
             ),
+            ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
+            descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
             first=query._first,
-            options=wiring.pack_object_maybe(query._options, ReadOptionsData),
             count=self.options.count,
-            scope=engine.scope,
+            select=query._select._to_data() if query._select else None,
         )
-        response = await self.channel.engine.remote.search_nodes(
-            request, metadata=engine.rpc_headers
-        )
+        try:
+            response = await self.channel.engine.remote.search_nodes(
+                request, metadata=engine.rpc_headers
+            )
+        except GRPCError as e:
+            raise _grpc_wrap_error(query, e) from e
         nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
         graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
         roots = [graph[cast(str, r.id)] for r in response.roots_ptr]
@@ -286,7 +307,10 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
             scope=engine.scope,
         )
-        response = await engine.remote.aggregate_nodes(request, metadata=engine.rpc_headers)
+        try:
+            response = await engine.remote.aggregate_nodes(request, metadata=engine.rpc_headers)
+        except GRPCError as e:
+            raise _grpc_wrap_error(query, e) from e
         assert response.aggregation is not None, f"{response!r} has no aggregation"
         return AggregateResultData(
             aggregation=response.aggregation,

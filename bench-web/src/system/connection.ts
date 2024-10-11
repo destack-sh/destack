@@ -68,9 +68,9 @@ import {
 } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[ObjectType.READ_OPTIONS]!;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[ObjectType.SELECT_OPTIONS]!;
   const data = messageType.create(options);
-  data.metatype = ObjectType.READ_OPTIONS;
+  data.metatype = ObjectType.SELECT_OPTIONS;
   return data;
 }
 

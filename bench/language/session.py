@@ -298,7 +298,7 @@ class Session(RuntimeNode[SessionData]):
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool,
-        include_hidden: bool,
+        include_deleted: bool,
         best_match: Collection[NodeType] | None = None,
     ) -> GraphEngine:
         """Gets the appropriate engine"""
@@ -308,7 +308,7 @@ class Session(RuntimeNode[SessionData]):
             for engine in self._engines
             if (
                 (is_readonly or not engine.is_readonly)
-                and (not include_hidden or engine.includes_hidden)
+                and (not include_deleted or engine.include_deleted)
                 and scope_includes(engine.scope, scope)
                 and all(t in engine.node_types for t in node_types)
             )
@@ -345,7 +345,7 @@ class Session(RuntimeNode[SessionData]):
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool,
-        include_hidden: bool,
+        include_deleted: bool,
         best_match: Collection[NodeType] | None = None,
     ) -> Channel:
         """Gets or creates a store channel for a scope and node types."""
@@ -360,7 +360,7 @@ class Session(RuntimeNode[SessionData]):
                 scope=scope,
                 node_types=node_types,
                 is_readonly=is_readonly,
-                include_hidden=include_hidden,
+                include_deleted=include_deleted,
                 best_match=best_match,
             )
             return await self._get_channel(engine)

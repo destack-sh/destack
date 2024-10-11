@@ -22,7 +22,7 @@ from bench.language.connection import (
     SearchResultData,
     WritableChannel,
 )
-from bench.language.const import AggregationOp, NodeType, ReadType
+from bench.language.const import AggregationOp, NodeType, QueryType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Node, NodeReference
 from bench.language.query import QueryBuilder
@@ -76,7 +76,7 @@ class PostgresEngine(GraphEngine):
         return channel
 
     @property
-    def includes_hidden(self) -> bool:
+    def include_deleted(self) -> bool:
         return True
 
     @property
@@ -124,14 +124,14 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
-        if query._read_type == ReadType.GET:
+        if query._type == QueryType.GET:
             return PostgresGetConnection
-        elif query._read_type == ReadType.SEARCH:
+        elif query._type == QueryType.SEARCH:
             return PostgresSearchConnection
-        elif query._read_type == ReadType.AGGREGATE:
+        elif query._type == QueryType.AGGREGATE:
             return PostgresAggregateConnection
         else:
-            raise RuntimeError(f"unsupported read type {query._read_type}")
+            raise RuntimeError(f"unsupported read type {query._type}")
 
     @override
     @_pg_method

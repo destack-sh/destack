@@ -16,7 +16,7 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.const import NodeType, ReadType
+from bench.language.const import NodeType, QueryType
 from bench.language.graph import generate_node_name
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
@@ -264,7 +264,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
         assert isinstance(self._node, Block), f"can only query from a block: {self._node!r}"
         query = QueryBuilder(
-            read_type=ReadType.SEARCH, node_type=self._child_node_type, block=self._node
+            type=QueryType.SEARCH, node_type=self._child_node_type, block=self._node
         )
         return query
 

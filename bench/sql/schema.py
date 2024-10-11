@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.10.11.0"
+VERSION = "2024.10.11.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -894,13 +894,26 @@ QUERY_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("read_type", PrimitiveType.INT16),
+        Column("type", PrimitiveType.INT16),
         Column("node_type", PrimitiveType.INT16),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("roots_id", PrimitiveType.UUID, is_array=True),
+        Column("roots_ck", PrimitiveType.UUID, is_array=True),
+        Column("roots_type", PrimitiveType.INT16, is_array=True),
+        Column("roots_bench_id", PrimitiveType.UUID, is_array=True),
+        Column("roots_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("roots_base_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("filter", PrimitiveType.JSON, is_nullable=True),
         Column("sort", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("aggregation", PrimitiveType.JSON, is_nullable=True),
+        Column("ancestor_types", PrimitiveType.INT16, is_array=True),
+        Column("descendant_types", PrimitiveType.INT16, is_array=True),
+        Column("select", PrimitiveType.JSON, is_nullable=True),
+        Column("include_deleted", PrimitiveType.BOOLEAN, default="false"),
+        Column("first", PrimitiveType.INT32, is_nullable=True),
+        Column("skip", PrimitiveType.INT32, is_nullable=True),
     ),
 )
 
