@@ -97,10 +97,10 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
     description="S3 presigned URL expiry (in seconds)",
 )
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
-    Package.ancestors(Branch)
-    .descendants(*SOURCE_NODE_TYPES)
+    Package.include_ancestors(Branch)
+    .include_descendants(*SOURCE_NODE_TYPES)
     .select_all()
     .exclude(Bench.encryption_key)
 )
@@ -296,7 +296,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         #  (in different session because we don't have the actual engines yet)
         async with self.global_session(readonly=True) as session:
             # get bench main store so we can get all bench data (some of which is local)
-            tmp_bench = await Bench.descendants(Store).select_all().get(self.bench_ptr)
+            tmp_bench = await Bench.include_descendants(Store).select_all().get(self.bench_ptr)
             assert tmp_bench.main_store, f"{tmp_bench!r} has no main store"
             tmp_bench._untrack_rec()
             session._engines += (local_pg_engine_from_store(tmp_bench.main_store),)

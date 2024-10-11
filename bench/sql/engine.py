@@ -42,7 +42,6 @@ from bench.language.const import (
     NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     BenchError,
-    BlockType,
     EditOperationType,
     EditType,
     EnumType,
@@ -352,17 +351,6 @@ POSTGRES_SORT_OP_BY_BENCH: dict[SortOp, PostgresSortOp] = {
     SortOp.ASCENDING: PostgresSortOp.ASC,
     SortOp.DESCENDING: PostgresSortOp.DESC,
 }
-
-
-def get_block_table_name(block: Block) -> str:
-    """
-    Gets the name for a table with the Records of a dynamically created DatabaseBlock.
-    NOTE: we rely on a constant :BlockTablePrefix
-    """
-    if block.type == BlockType.DATABASE:
-        return f"bench_record_{block.tk.replace('-', '')}"
-    else:
-        raise ValueError(f"unexpected block type {block.type!r}")
 
 
 def get_bench_table_name(node_type: NodeType) -> str:
@@ -1231,6 +1219,7 @@ def _pg_pack_node_reference_into_row(
 ) -> None:
     """
     'Unravels' a wired pointer into (one or more) stored columns as needed :StoredPointers
+    NOTE :Cleanup: pg_pack_node_reference/pg_unpack_node_reference are way too much code
     """
     if prop.reference_is_rich:
         # stored as struct (jsonb)
@@ -1488,7 +1477,7 @@ async def pg_walk_graph_down(
     """
     Gets node pointers to all descendants down from the roots matching the filter.
     TODO :Performance: walk graph down in SQL only (no roundtrip recursion)
-     (the result of this is usually cached after initial load, but not for edit cascades)
+     (the result of this walk is usually cached, but not for cascading edits)
     """
     if not roots:
         return [], {}

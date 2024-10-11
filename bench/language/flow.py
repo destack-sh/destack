@@ -14,7 +14,7 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.field import TypeInfoBase
-from bench.language.graph import NodeList
+from bench.language.list import LocalNodeList
 from bench.language.node import BuiltinObject, SourceNode, Struct, local_node_, object_, struct_
 from bench.language.property import (
     Property,
@@ -379,9 +379,9 @@ class Step(SourceNode[StepData]):
         81, default=None, require=False, array=False, struct=StructType.BOX
     )
 
-    steps: NodeList["Step"] = p_node_children(NodeType.STEP)
-    pipes: NodeList["Pipe"] = p_node_children(NodeType.PIPE)
-    fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
+    steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
+    pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
+    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
 
     @final
     def __repr__(self):  # type: ignore we want to override the default repr

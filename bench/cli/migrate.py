@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="migration management")
 console = Console()
 
-BENCH_QUERY = Bench.descendants(Store).select_all()
+BENCH_QUERY = Bench.include_descendants(Store).select_all()
 
 
 @app.command(help="generate global / local SQL migrations")
@@ -194,7 +194,7 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
 
     if bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-            bench_node = await Bench.descendants(NodeType.STORE).get(slug=bench)
+            bench_node = await Bench.include_descendants(NodeType.STORE).get(slug=bench)
             assert bench_node.main_store, f"{bench!r} has no main environment"
         async with pg_connection(bench_node.main_store) as conn:
             schema = await introspect_sql_schema(

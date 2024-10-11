@@ -83,8 +83,8 @@ from .graph import (
     NodeDict,
     NodeGraph,
     NodeSuperGraph,
-    ValueList,
 )
+from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
 from .message import Message
 from .node import (
@@ -245,6 +245,7 @@ __all__ = [
     "Icon",
     "IconKind",
     "Line",
+    "LocalNodeList",
     "Log",
     "LogInfo",
     "LogKind",
@@ -259,6 +260,7 @@ __all__ = [
     "NodeDataGraph",
     "NodeDict",
     "NodeGraph",
+    "NodeList",
     "NodeNotFoundError",
     "NodeReference",
     "NodeReferenceBase",
@@ -291,6 +293,7 @@ __all__ = [
     "ReadOptions",
     "Record",
     "Region",
+    "RemoteNodeList",
     "ResourceNode",
     "ResourceStatus",
     "Run",

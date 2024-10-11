@@ -43,10 +43,10 @@ from bench.utils.tenacity import RETRY_GRPC_FOREVER
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
-    Package.descendants(*SOURCE_NODE_TYPES)
-    .ancestors(Bench, Branch)
+    Package.include_descendants(*SOURCE_NODE_TYPES)
+    .include_ancestors(Bench, Branch)
     .select_all()
     .exclude(Bench.encryption_key)
 )

@@ -247,7 +247,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
             user = (
                 await User.include(User.password_salt, User.password_hash)
-                .descendants(NodeType.CLIENT)
+                .include_descendants(NodeType.CLIENT)
                 .get(User.__properties__[key_name] == key_value)
             )
             if user.password_salt is None or user.password_hash is None:
@@ -345,9 +345,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                     raise GRPCError(
                         GRPCStatus.PERMISSION_DENIED, "cannot create bench for other user"
                     )
-                owner = await User.descendants(Handle).get(id=owner_ptr.id)
+                owner = await User.include_descendants(Handle).get(id=owner_ptr.id)
             elif owner_ptr.node_type == NodeType.ORGANIZATION:
-                owner = await Organization.descendants(Handle).get(id=owner_ptr.id)
+                owner = await Organization.include_descendants(Handle).get(id=owner_ptr.id)
                 if owner.created_by_id != user.id:
                     raise GRPCError(
                         GRPCStatus.PERMISSION_DENIED, "cannot create bench for other organization"

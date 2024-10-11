@@ -119,7 +119,7 @@ async def _do_get_client(client_id: UUID) -> Client:
     try:
         client: Client = (
             await Client.include(User.email, Client.access_token)
-            .ancestors(User, Server, Bench)
+            .include_ancestors(User, Server, Bench)
             .get(id=client_id)
         )
         client._untrack_rec()

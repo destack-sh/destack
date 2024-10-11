@@ -9,7 +9,7 @@ from bench.language.const import (
     StructType,
     UserStatus,
 )
-from bench.language.graph import NodeList
+from bench.language.list import LocalNodeList
 from bench.language.node import BenchNode, Node, node_
 from bench.language.property import (
     p_internal,
@@ -62,7 +62,7 @@ class User(Node[UserData]):
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )
-    handles: NodeList[Handle] = p_node_children(NodeType.HANDLE)
+    handles: LocalNodeList[Handle] = p_node_children(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
@@ -97,7 +97,7 @@ class User(Node[UserData]):
     # flags
     is_staff: bool = p_system(90, default=False)
 
-    clients: NodeList["Client"] = p_node_children(NodeType.CLIENT)
+    clients: LocalNodeList["Client"] = p_node_children(NodeType.CLIENT)
 
     @property
     def bench(self) -> "Bench":
@@ -115,7 +115,7 @@ class Organization(Node[OrganizationData]):
     main_handle: Optional[Handle] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )  # not actually optional but Handle.parent = Organization
-    handles: NodeList[Handle] = p_node_children(NodeType.HANDLE)
+    handles: LocalNodeList[Handle] = p_node_children(NodeType.HANDLE)
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)

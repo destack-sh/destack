@@ -431,8 +431,12 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
             title: (infos) => `${infos.length} connections ${retry ? "lost" : "failed"}`,
             text: (infos) => {
               // distinct errors
-              const errors = new Set(infos.map((info) => HUMANIZED_OPERATION_STATUS[info.error.code]));
-              const errorStr = [...errors].join(", ");
+              const errors = new Set(
+                infos
+                  .map((info) => HUMANIZED_OPERATION_STATUS[info.error.code])
+                  .filter((e) => e != null && e.length > 0),
+              );
+              const errorStr = [...errors].join(", ") ?? "Unknown error";
               return `${errorStr}: ${infos.map((info) => `'${info.op}'`).join(", ")}`;
             },
           },

@@ -6,7 +6,7 @@ from cachetools import LRUCache, cached
 from bench.language.bench import Bench, Branch, Package
 from bench.language.const import BenchError, EnumType, NodeType, StructType, enum_
 from bench.language.flow import Step
-from bench.language.graph import NodeList
+from bench.language.list import LocalNodeList
 from bench.language.node import (
     BenchNode,
     Node,
@@ -424,7 +424,7 @@ def get_node(scope: Node, path: str | Path) -> Node | None:
             current = _get_unique(current, token.name)
         elif token.type == PathTokenType.FIELD:
             assert token.name, f"missing name for {token!r} in {path!r}"
-            fields = cast(NodeList["Field"] | None, getattr(current, "fields", None))
+            fields = cast(LocalNodeList["Field"] | None, getattr(current, "fields", None))
             if fields is not None:
                 current = fields.get(token.name)
             else:

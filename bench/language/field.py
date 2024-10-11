@@ -35,7 +35,7 @@ from bench.language.const import (
     is_struct_type,
 )
 from bench.language.expression import _TypeQueryBuilder
-from bench.language.graph import NodeList
+from bench.language.list import LocalNodeList
 from bench.language.node import (
     BuiltinObject,
     HasNodeBase,
@@ -454,13 +454,13 @@ class TypeInfoBase(BuiltinObject):
         return self._resolved_identity_key
 
     @property
-    def _base_fields(self) -> NodeList["Field"]:
+    def _base_fields(self) -> LocalNodeList["Field"]:
         assert self._resolved_type is not None, f"unresolved type {self!r}"
         assert self._resolved_type.base_type is not None, f"missing base type {self!r}"
         return self._resolved_type.base_type.fields
 
     @property
-    def _fields(self) -> NodeList["Field"] | Sequence["Field"]:
+    def _fields(self) -> LocalNodeList["Field"] | Sequence["Field"]:
         assert self._resolved_type is not None, f"unresolved type {self!r}"
         if self._resolved_type.base_field_type is None:
             return self._base_fields

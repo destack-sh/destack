@@ -219,7 +219,7 @@ class NodeType(IdEnum):
     # CHALLENGE?
 
     # synchronization
-    # POOL, LOCK, BARRIER, ...?
+    # POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
     # Local (per Bench)

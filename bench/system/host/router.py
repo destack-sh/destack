@@ -59,10 +59,10 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
     description="S3 presigned URL expiry (in seconds)",
 )
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
-    Package.ancestors(Branch)
-    .descendants(*SOURCE_NODE_TYPES)
+    Package.include_ancestors(Branch)
+    .include_descendants(*SOURCE_NODE_TYPES)
     .select_all()
     .exclude(Bench.encryption_key)
 )

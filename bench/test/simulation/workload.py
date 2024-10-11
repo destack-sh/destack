@@ -239,15 +239,15 @@ async def get_package(bench_id: UUID, session: Session, *, live: bool):
     """Gets the entire main package source"""
     # resolve package pointer
     bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
-    bench = await Bench.descendants(NodeType.BRANCH, NodeType.PACKAGE).get(bench_ptr)
+    bench = await Bench.include_descendants(NodeType.BRANCH, NodeType.PACKAGE).get(bench_ptr)
     assert bench.main_branch is not None, f"{bench!r} has no main branch"
     assert bench.main_branch.main_package is not None, f"{bench!r} has no main package"
     pkg_stub = bench.main_branch.main_package
 
     # get package source
     pkg = await (
-        Package.descendants(*SOURCE_NODE_TYPES)
-        .ancestors(Bench, Branch)
+        Package.include_descendants(*SOURCE_NODE_TYPES)
+        .include_ancestors(Bench, Branch)
         .select_all()
         .exclude(Bench.encryption_key)
         .get(pkg_stub.to_ref(), live=live)

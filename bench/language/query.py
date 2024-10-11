@@ -422,24 +422,27 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         clone._options.exclude_properties += self._to_properties(properties)
         return clone
 
-    def include_ancestors(self) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes all ancestors in the results."""
         # not quite happy with this API for getting a 'full' node yet, see :LoadOrphanNode
-        ancestors = ANCESTOR_NODE_TYPES[self._node_type]
-        return self.ancestors(*ancestors)
-
-    def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Joins the given ancestors in the results."""
         clone = self.clone()
         clone._options = self._clone_options()
-        clone._options.ancestor_types = self._to_node_types(node_types)
+        for node_type in node_types or ANCESTOR_NODE_TYPES[self._node_type]:
+            if not isinstance(node_type, NodeType):
+                node_type = node_type.metatype
+            if node_type not in clone._options.ancestor_types:
+                clone._options.ancestor_types.append(node_type)
         return clone
 
-    def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include_descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Joins the given descendants in the results."""
         clone = self.clone()
         clone._options = self._clone_options()
-        clone._options.descendant_types = self._to_node_types(node_types)
+        for node_type in node_types:
+            if not isinstance(node_type, NodeType):
+                node_type = node_type.metatype
+            if node_type not in clone._options.descendant_types:
+                clone._options.descendant_types.append(node_type)
         return clone
 
     #
@@ -635,16 +638,10 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
                 tuple(getattr(node, p) for p in properties_names) for node in await self.search()
             ]
 
-    @staticmethod
-    def _to_properties(properties: tuple[FieldOrProperty, ...]) -> tuple["Property", ...]:
+    def _to_properties(self, properties: tuple[FieldOrProperty, ...]) -> tuple["Property", ...]:
+        if not all(isinstance(p, Property) for p in properties):
+            raise NotImplementedError(f"fields not yet supported in {self!r}, got {properties}")
         return cast(tuple["Property"], properties)
-
-    @staticmethod
-    def _to_node_types(node_types: tuple[NodeTypeOrClass, ...]) -> list[NodeType]:
-        return [
-            cast(type[Node], t).metatype if isinstance(t, type) else cast(NodeType, t)
-            for t in node_types
-        ]
 
 
 @object_()

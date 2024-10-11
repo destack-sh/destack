@@ -1,16 +1,7 @@
 import base64
 from collections.abc import Mapping
 from datetime import date, datetime, time, timedelta
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Collection,
-    Optional,
-    Sequence,
-    TypeGuard,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, TypeGuard, Union, cast
 from uuid import UUID
 
 import pytz
@@ -88,6 +79,7 @@ SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
+
 ValueParent = Union["ValueObject", "Struct", "Node"]
 ValueParentKey = Union["Property", "Field"]
 

@@ -29,7 +29,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.graph import GraphNodeList, NodeList, ValueList
+from bench.language.list import LocalNodeList, NodeList, ValueList
 from bench.language.setup import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
@@ -921,7 +921,7 @@ def p_node_children(
         is_internal=True,
         is_required=True,
         is_list=True,
-        reference_list_type=list or GraphNodeList,
+        reference_list_type=list or LocalNodeList,
         is_stored=False,
     )
 

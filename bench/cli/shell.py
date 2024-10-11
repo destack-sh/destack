@@ -29,7 +29,7 @@ async def shell(bench: Optional[str] = None):  # type: ignore
     global_pg_engine = pg_engine_from_store(global_store)
     if bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-            bench_node = await Bench.descendants(Store).select_all().get(slug=bench)
+            bench_node = await Bench.include_descendants(Store).select_all().get(slug=bench)
             assert bench_node.main_store, f"{bench!r} has no main store"
             store = bench_node.main_store
     else:
