@@ -12,10 +12,10 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Expression, NodeReference, ReadOptions, Session, Subject
+from bench.language import Expression, NodeReference, SelectOptions, Session, Subject
 from bench.language.access import (
     AccessError,
-    adapt_read_options,
+    adapt_read_query,
     evaluate_and_adapt_read,
     evaluate_edit,
     generate_access_matrix,
@@ -28,7 +28,7 @@ from bench.language.const import (
     EditType,
     NodeType,
     PolicyEffect,
-    ReadType,
+    QueryType,
 )
 from bench.language.graph import NodeDataGraph, NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE, GraphScope, Node
@@ -281,7 +281,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         """Commits some edits."""
 
         # pre-validate/prepare edits
-        include_hidden = any(e.type == EditType.RESTORE for e in edits)
+        include_deleted = any(e.type == EditType.RESTORE for e in edits)
 
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
@@ -291,18 +291,19 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             with self.tracer.start_as_current_span("graph.commit.read"):
                 for node_type, node_references in area.scopes_by_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
-                    options = adapt_read_options(subject, node_type, ReadOptions.all())
-                    options.include_hidden = include_hidden
                     query = QueryBuilder(
-                        read_type=ReadType.GET,
+                        type=QueryType.GET,
                         node_type=node_type,
                         roots=node_references,
-                        options=options,
+                        include_deleted=include_deleted,
                     )
+                    adapted_query = adapt_read_query(subject, query)
                     channel = await session._get_channel_for(
-                        scope, query.all_node_types, include_hidden=False, is_readonly=True
+                        scope, adapted_query.all_node_types, include_deleted=False, is_readonly=True
                     )
-                    connection = await channel.get(query, GetOptions(live=False, unpack=False))
+                    connection = await channel.get(
+                        adapted_query, GetOptions(live=False, unpack=False)
+                    )
                     # merge result into data_graph (there may be duplicates)
                     for node_data in connection.result_data.graph.nodes:
                         if node_data.id not in data_graph:
@@ -319,7 +320,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             # apply edits in copy to validate
             # (and update true 'old' values in prepass, simplify edits for sql engine)
             flat_edits = edit_data_graph(
-                graph=data_graph, edits=edits, options=ReadOptions.all(), is_prepass=True
+                graph=data_graph, edits=edits, include_deleted=True, is_prepass=True
             )
             assert flat_edits, f"no flat edits from prepass for {edits!r}"
             unpacked_graph = wiring.unpack_node_graph(
@@ -413,11 +414,15 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
                 if any(not r.id for r in roots):
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
-                options: ReadOptions = (
+                ancestor_types = [wiring.unpack_enum(NodeType, t) for t in request.ancestor_types]
+                descendant_types = [
+                    wiring.unpack_enum(NodeType, t) for t in request.descendant_types
+                ]
+                select: SelectOptions = (
                     wiring.unpack_object_validate_maybe(
-                        request.options, supergraph=None, expect=ReadOptions
+                        request.select, supergraph=None, expect=SelectOptions
                     )
-                    or ReadOptions.default()
+                    or SelectOptions.default()
                 )
                 roots_by_type: dict[NodeType, list[NodeReference]] = group_by(
                     roots, lambda r: r.node_type
@@ -425,18 +430,21 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 if len(roots_by_type) > 1:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "roots must be of the same type")
                 node_type = next(iter(roots_by_type.keys()))
-                adapted_options = adapt_read_options(subject, node_type, options)
                 query = QueryBuilder(
-                    read_type=ReadType.GET,
+                    type=QueryType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
                     roots=roots,
-                    options=adapted_options,
+                    ancestor_types=ancestor_types,
+                    descendant_types=descendant_types,
+                    include_deleted=request.include_deleted,
+                    select=select,
                 )
+                adapted_query = adapt_read_query(subject, query)
 
             with self.tracer.start_as_current_span("graph.get.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(
-                        query=query,
+                        query=adapted_query,
                         session=session,
                         connection_t=GetConnection,
                         cache=not request.no_cache,
@@ -460,7 +468,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 matrix,
                 result.graph,
                 root_node_type=node_type,
-                options=options,
+                query=adapted_query,
                 required_nodes=request.roots,
             )
             if decision != PolicyEffect.ALLOW:
@@ -535,27 +543,33 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     )
                     for s in request.sort
                 ] or []
-                options = (
+                ancestor_types = [wiring.unpack_enum(NodeType, t) for t in request.ancestor_types]
+                descendant_types = [
+                    wiring.unpack_enum(NodeType, t) for t in request.descendant_types
+                ]
+                select = (
                     wiring.unpack_object_validate_maybe(
-                        request.options, supergraph=None, expect=ReadOptions
+                        request.select, supergraph=None, expect=SelectOptions
                     )
-                    or ReadOptions.default()
+                    or SelectOptions.default()
                 )
-                adapted_options = adapt_read_options(subject, node_type, options)
                 query = QueryBuilder(
-                    read_type=ReadType.SEARCH,
+                    type=QueryType.SEARCH,
                     node_type=node_type,
                     filter=filter,
-                    options=adapted_options,
                     sort=sort,
+                    ancestor_types=ancestor_types,
+                    descendant_types=descendant_types,
                     first=request.first,
                     skip=request.skip,
+                    select=select,
                 )
+                adapted_query = adapt_read_query(subject, query)
 
             with self.tracer.start_as_current_span("graph.search.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(
-                        query=query,
+                        query=adapted_query,
                         session=session,
                         connection_t=SearchConnection,
                         cache=not request.no_cache,
@@ -572,7 +586,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 matrix,
                 result.graph,
                 root_node_type=node_type,
-                options=options,
+                query=adapted_query,
                 required_nodes=request.bases,
             )
             if decision != PolicyEffect.ALLOW:
@@ -648,19 +662,18 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 aggregation = wiring.unpack_object_validate(
                     request.aggregation, supergraph=session._supergraph, expect=Expression
                 )
-                adapted_options = adapt_read_options(subject, node_type, ReadOptions())
                 query = QueryBuilder(
-                    read_type=ReadType.AGGREGATE,
+                    type=QueryType.AGGREGATE,
                     node_type=node_type,
                     filter=filter,
-                    options=adapted_options,
                     aggregation=aggregation,
                 )
+                adapted_query = adapt_read_query(subject, query)
 
             with self.tracer.start_as_current_span("graph.aggregate.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(
-                        query=query,
+                        query=adapted_query,
                         session=session,
                         connection_t=AggregateConnection,
                         cache=not request.no_cache,

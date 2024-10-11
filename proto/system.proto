@@ -16,10 +16,16 @@ message GetNodesRequest {
   repeated NodeReferenceData roots = 2;  // must be of same type
   // Whether the roots are considered optional (if not found, return empty result instead of error).
   optional bool is_optional = 3;
-  // Options to configure read.
-  optional ReadOptionsData options = 19;
+  // Ancestor nodes to include.
+  repeated NodeType ancestor_types = 10;
+  // Descendant nodes to include.
+  repeated NodeType descendant_types = 11;
+  // Which properties/fields to select.
+  optional SelectOptionsData select = 20;
+  // Whether to include deleted nodes.
+  optional bool include_deleted = 21;
   // Whether to sideline the cache.
-  optional bool no_cache = 20; 
+  optional bool no_cache = 30; 
 }
 message GetNodesResponse {
   // Nodes are in pre-order (parent before children) traversal.
@@ -63,16 +69,20 @@ message SearchNodesRequest {
   optional ExpressionData filter = 4;
   // Sort order for the search.
   repeated ExpressionData sort = 5;
+  // Ancestor nodes to include.
+  repeated NodeType ancestor_types = 10;
+  // Descendant nodes to include.
+  repeated NodeType descendant_types = 11;
   // Limit result set.
-  optional int32 first = 6;
+  optional int32 first = 20;
   // Paginate result set.
-  optional int32 skip = 7;
+  optional int32 skip = 21;
   // Whether to get the total count.
-  optional bool count = 9;
-  // Options to configure read.
-  optional ReadOptionsData options = 19;
+  optional bool count = 22;
+  // Which properties/fields to select.
+  optional SelectOptionsData select = 23;
   // Whether to sideline the cache.
-  optional bool no_cache = 20;
+  optional bool no_cache = 30;
 }
 message SearchNodesResponse {
   // The 'root' result set for the search.
@@ -125,7 +135,7 @@ message AggregateNodesRequest {
   // Aggregation expression.
   ExpressionData aggregation = 6;
   // Whether to sideline the cache.
-  optional bool no_cache = 20;
+  optional bool no_cache = 30;
 }
 message AggregateNodesResponse {
   GraphScopeData scope = 1;

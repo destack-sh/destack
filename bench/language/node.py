@@ -47,12 +47,13 @@ from bench.language.const import (
     NodeType,
     ObjectType,
     PrimitiveType,
-    ReadType,
+    QueryType,
     ReferenceKind,
     StructType,
     _active_session,
 )
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
+from bench.language.list import LocalNodeList
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -1589,6 +1590,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
         # clone children and append to self (recursive)
         for child_prop in self.__node_child_properties__.values():
+            if child_prop.reference_list_type is not LocalNodeList:
+                continue  # only clone local lists
             child_list = getattr(self, child_prop.name)
             clone_list = getattr(clone, child_prop.name)
             for child in child_list:
@@ -1802,7 +1805,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def query(cls) -> "QueryBuilder[Self, NodeDataT]":
         from bench.language.query import QueryBuilder
 
-        return QueryBuilder(read_type=ReadType.SEARCH, node_type=cls.metatype)
+        return QueryBuilder(type=QueryType.SEARCH, node_type=cls.metatype)
 
     @classmethod
     def where(

@@ -152,7 +152,7 @@ enum BenchType {
   BENCH_TYPE_AGGREGATION = 10301;
   BENCH_TYPE_SELECTION = 10302;
   BENCH_TYPE_QUERY_INFO = 10303;
-  BENCH_TYPE_READ_OPTIONS = 10304;
+  BENCH_TYPE_SELECT_OPTIONS = 10304;
   BENCH_TYPE_VALUE = 10305;
   BENCH_TYPE_COMPUTED_VALUE = 10306;
   BENCH_TYPE_CODE = 10400;
@@ -188,7 +188,7 @@ enum BenchType {
   BENCH_TYPE_CHANGE_KIND = 20011;
   BENCH_TYPE_ACCESS_MODE = 20030;
   BENCH_TYPE_ACCESS_KIND = 20031;
-  BENCH_TYPE_READ_TYPE = 20032;
+  BENCH_TYPE_QueryType = 20032;
   BENCH_TYPE_EDIT_TYPE = 20033;
   BENCH_TYPE_USE_TYPE = 20034;
   BENCH_TYPE_ACCESS_TYPE = 20035;
@@ -464,7 +464,7 @@ enum EnumType {
   ENUM_TYPE_CHANGE_KIND = 20011;
   ENUM_TYPE_ACCESS_MODE = 20030;
   ENUM_TYPE_ACCESS_KIND = 20031;
-  ENUM_TYPE_READ_TYPE = 20032;
+  ENUM_TYPE_QueryType = 20032;
   ENUM_TYPE_EDIT_TYPE = 20033;
   ENUM_TYPE_USE_TYPE = 20034;
   ENUM_TYPE_ACCESS_TYPE = 20035;
@@ -961,7 +961,7 @@ enum ObjectType {
   OBJECT_TYPE_AGGREGATION = 10301;
   OBJECT_TYPE_SELECTION = 10302;
   OBJECT_TYPE_QUERY_INFO = 10303;
-  OBJECT_TYPE_READ_OPTIONS = 10304;
+  OBJECT_TYPE_SELECT_OPTIONS = 10304;
   OBJECT_TYPE_VALUE = 10305;
   OBJECT_TYPE_COMPUTED_VALUE = 10306;
   OBJECT_TYPE_CODE = 10400;
@@ -1091,11 +1091,11 @@ enum PrimitiveType {
 }
 
 // Ways to read nodes.
-enum ReadType {
-  READ_TYPE_UNSPECIFIED = 0;
-  READ_TYPE_GET = 1;
-  READ_TYPE_SEARCH = 2;
-  READ_TYPE_AGGREGATE = 3;
+enum QueryType {
+  QUERY_TYPE_UNSPECIFIED = 0;
+  QUERY_TYPE_GET = 1;
+  QUERY_TYPE_SEARCH = 2;
+  QUERY_TYPE_AGGREGATE = 3;
 }
 
 // A reference to a Node or Struct - usually both have an identity (except for inlined Structs).
@@ -1359,7 +1359,7 @@ enum StructType {
   STRUCT_TYPE_AGGREGATION = 10301;
   STRUCT_TYPE_SELECTION = 10302;
   STRUCT_TYPE_QUERY_INFO = 10303;
-  STRUCT_TYPE_READ_OPTIONS = 10304;
+  STRUCT_TYPE_SELECT_OPTIONS = 10304;
   STRUCT_TYPE_VALUE = 10305;
   STRUCT_TYPE_COMPUTED_VALUE = 10306;
   STRUCT_TYPE_CODE = 10400;
@@ -1972,24 +1972,19 @@ message PropertyReferenceData {
 // A stored query.
 message QueryInfoData {
   ObjectType metatype = 1;
-  ReadType read_type = 40;
+  QueryType type = 40;
   NodeType node_type = 41;
   optional NodeReferenceData block_ptr = 42;
-  optional ExpressionData filter = 43;
-  repeated ExpressionData sort = 44;
-}
-
-// Fine-grained options to a read request.
-// This is an addition to primary options (like the filter for a search or aggregation).
-message ReadOptionsData {
-  ObjectType metatype = 1;
-  repeated NodeType ancestor_types = 31;
-  repeated NodeType descendant_types = 32;
-  repeated PropertyReferenceData include_properties_ptr = 40;
-  repeated PropertyReferenceData exclude_properties_ptr = 41;
-  repeated PropertyReferenceData select_properties_ptr = 42;
-  bool select_all_properties = 43;
-  bool include_hidden = 50;
+  repeated NodeReferenceData roots_ptr = 43;
+  optional ExpressionData filter = 44;
+  repeated ExpressionData sort = 45;
+  optional ExpressionData aggregation = 46;
+  repeated NodeType ancestor_types = 50;
+  repeated NodeType descendant_types = 51;
+  optional SelectOptionsData select = 60;
+  bool include_deleted = 61;
+  optional int32 first = 62;
+  optional int32 skip = 63;
 }
 
 // A single attempt at a Run.
@@ -2093,6 +2088,17 @@ message SecretReferenceData {
   optional string base_ck = 34;
   optional string base_bench_id = 35;
   string title = 43;
+}
+
+// Fine-grained options to a read request specifying which properties/fields to load.
+message SelectOptionsData {
+  ObjectType metatype = 1;
+  bool select_all_properties = 40;
+  repeated PropertyReferenceData include_properties_ptr = 41;
+  repeated PropertyReferenceData exclude_properties_ptr = 42;
+  repeated PropertyReferenceData select_properties_ptr = 43;
+  bool select_all_fields = 50;
+  repeated NodeReferenceData select_fields_ptr = 51;
 }
 
 // A selection of nodes/values.
@@ -2855,11 +2861,19 @@ message QueryData {
   optional google.protobuf.Timestamp deleted_at = 16;
   string name = 30;
   string order_key = 31;
-  ReadType read_type = 40;
+  QueryType type = 40;
   NodeType node_type = 41;
   optional NodeReferenceData block_ptr = 42;
-  optional ExpressionData filter = 43;
-  repeated ExpressionData sort = 44;
+  repeated NodeReferenceData roots_ptr = 43;
+  optional ExpressionData filter = 44;
+  repeated ExpressionData sort = 45;
+  optional ExpressionData aggregation = 46;
+  repeated NodeType ancestor_types = 50;
+  repeated NodeType descendant_types = 51;
+  optional SelectOptionsData select = 60;
+  bool include_deleted = 61;
+  optional int32 first = 62;
+  optional int32 skip = 63;
 }
 
 // A Record from a DatabaseBlock.

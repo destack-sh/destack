@@ -6,10 +6,10 @@ import { groupByList } from '@/utils/functools';
 import { ServiceType } from "@protobuf-ts/runtime-rpc";
 import type { BinaryWriteOptions } from "@protobuf-ts/runtime";
 import type { IBinaryWriter } from "@protobuf-ts/runtime";
-import { WireType } from "@protobuf-ts/runtime";
 import type { BinaryReadOptions } from "@protobuf-ts/runtime";
 import type { IBinaryReader } from "@protobuf-ts/runtime";
 import { UnknownFieldHandler } from "@protobuf-ts/runtime";
+import { WireType } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
@@ -24,10 +24,10 @@ import { ClientType } from "./lang";
 import { SessionContextData } from "./lang";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
-import { NodeType } from "./lang";
 import { EditData } from "./lang";
 import { SomeNodeData } from "./lang";
-import { ReadOptionsData } from "./lang";
+import { SelectOptionsData } from "./lang";
+import { NodeType } from "./lang";
 import { NodeReferenceData } from "./lang";
 import { GraphScopeData } from "./lang";
 // 
@@ -55,15 +55,33 @@ export interface GetNodesRequest {
      */
     isOptional?: boolean;
     /**
-     * Options to configure read.
+     * Ancestor nodes to include.
      *
-     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 19;
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 10;
      */
-    options?: ReadOptionsData;
+    ancestorTypes: NodeType[];
+    /**
+     * Descendant nodes to include.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 11;
+     */
+    descendantTypes: NodeType[];
+    /**
+     * Which properties/fields to select.
+     *
+     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 20;
+     */
+    select?: SelectOptionsData;
+    /**
+     * Whether to include deleted nodes.
+     *
+     * @generated from protobuf field: optional bool include_deleted = 21;
+     */
+    includeDeleted?: boolean;
     /**
      * Whether to sideline the cache.
      *
-     * @generated from protobuf field: optional bool no_cache = 20;
+     * @generated from protobuf field: optional bool no_cache = 30;
      */
     noCache?: boolean;
 }
@@ -182,33 +200,45 @@ export interface SearchNodesRequest {
      */
     sort: ExpressionData[];
     /**
+     * Ancestor nodes to include.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 10;
+     */
+    ancestorTypes: NodeType[];
+    /**
+     * Descendant nodes to include.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 11;
+     */
+    descendantTypes: NodeType[];
+    /**
      * Limit result set.
      *
-     * @generated from protobuf field: optional int32 first = 6;
+     * @generated from protobuf field: optional int32 first = 20;
      */
     first?: number;
     /**
      * Paginate result set.
      *
-     * @generated from protobuf field: optional int32 skip = 7;
+     * @generated from protobuf field: optional int32 skip = 21;
      */
     skip?: number;
     /**
      * Whether to get the total count.
      *
-     * @generated from protobuf field: optional bool count = 9;
+     * @generated from protobuf field: optional bool count = 22;
      */
     count?: boolean;
     /**
-     * Options to configure read.
+     * Which properties/fields to select.
      *
-     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 19;
+     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 23;
      */
-    options?: ReadOptionsData;
+    select?: SelectOptionsData;
     /**
      * Whether to sideline the cache.
      *
-     * @generated from protobuf field: optional bool no_cache = 20;
+     * @generated from protobuf field: optional bool no_cache = 30;
      */
     noCache?: boolean;
 }
@@ -357,7 +387,7 @@ export interface AggregateNodesRequest {
     /**
      * Whether to sideline the cache.
      *
-     * @generated from protobuf field: optional bool no_cache = 20;
+     * @generated from protobuf field: optional bool no_cache = 30;
      */
     noCache?: boolean;
 }
@@ -899,13 +929,18 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "is_optional", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 19, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 20, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 10, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 11, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 20, name: "select", kind: "message", T: () => SelectOptionsData },
+            { no: 21, name: "include_deleted", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<GetNodesRequest>): GetNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.roots = [];
+        message.ancestorTypes = [];
+        message.descendantTypes = [];
         if (value !== undefined)
             reflectionMergePartial<GetNodesRequest>(this, message, value);
         return message;
@@ -924,10 +959,27 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
                 case /* optional bool is_optional */ 3:
                     message.isOptional = reader.bool();
                     break;
-                case /* optional symbolx.bench.ReadOptionsData options */ 19:
-                    message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 10:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
                     break;
-                case /* optional bool no_cache */ 20:
+                case /* repeated symbolx.bench.NodeType descendant_types */ 11:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.descendantTypes.push(reader.int32());
+                    else
+                        message.descendantTypes.push(reader.int32());
+                    break;
+                case /* optional symbolx.bench.SelectOptionsData select */ 20:
+                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
+                    break;
+                case /* optional bool include_deleted */ 21:
+                    message.includeDeleted = reader.bool();
+                    break;
+                case /* optional bool no_cache */ 30:
                     message.noCache = reader.bool();
                     break;
                 default:
@@ -951,12 +1003,29 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         /* optional bool is_optional = 3; */
         if (message.isOptional !== undefined)
             writer.tag(3, WireType.Varint).bool(message.isOptional);
-        /* optional symbolx.bench.ReadOptionsData options = 19; */
-        if (message.options)
-            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool no_cache = 20; */
+        /* repeated symbolx.bench.NodeType ancestor_types = 10; */
+        if (message.ancestorTypes.length) {
+            writer.tag(10, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.NodeType descendant_types = 11; */
+        if (message.descendantTypes.length) {
+            writer.tag(11, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.descendantTypes.length; i++)
+                writer.int32(message.descendantTypes[i]);
+            writer.join();
+        }
+        /* optional symbolx.bench.SelectOptionsData select = 20; */
+        if (message.select)
+            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool include_deleted = 21; */
+        if (message.includeDeleted !== undefined)
+            writer.tag(21, WireType.Varint).bool(message.includeDeleted);
+        /* optional bool no_cache = 30; */
         if (message.noCache !== undefined)
-            writer.tag(20, WireType.Varint).bool(message.noCache);
+            writer.tag(30, WireType.Varint).bool(message.noCache);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1180,11 +1249,13 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 3, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 6, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 7, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 9, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 19, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 20, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 10, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 11, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 20, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 21, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 22, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 23, name: "select", kind: "message", T: () => SelectOptionsData },
+            { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -1192,6 +1263,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         message.nodeType = 0;
         message.bases = [];
         message.sort = [];
+        message.ancestorTypes = [];
+        message.descendantTypes = [];
         if (value !== undefined)
             reflectionMergePartial<SearchNodesRequest>(this, message, value);
         return message;
@@ -1216,19 +1289,33 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* repeated symbolx.bench.ExpressionData sort */ 5:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int32 first */ 6:
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 10:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.NodeType descendant_types */ 11:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.descendantTypes.push(reader.int32());
+                    else
+                        message.descendantTypes.push(reader.int32());
+                    break;
+                case /* optional int32 first */ 20:
                     message.first = reader.int32();
                     break;
-                case /* optional int32 skip */ 7:
+                case /* optional int32 skip */ 21:
                     message.skip = reader.int32();
                     break;
-                case /* optional bool count */ 9:
+                case /* optional bool count */ 22:
                     message.count = reader.bool();
                     break;
-                case /* optional symbolx.bench.ReadOptionsData options */ 19:
-                    message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
+                case /* optional symbolx.bench.SelectOptionsData select */ 23:
+                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
                     break;
-                case /* optional bool no_cache */ 20:
+                case /* optional bool no_cache */ 30:
                     message.noCache = reader.bool();
                     break;
                 default:
@@ -1258,21 +1345,35 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* repeated symbolx.bench.ExpressionData sort = 5; */
         for (let i = 0; i < message.sort.length; i++)
             ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 first = 6; */
+        /* repeated symbolx.bench.NodeType ancestor_types = 10; */
+        if (message.ancestorTypes.length) {
+            writer.tag(10, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.NodeType descendant_types = 11; */
+        if (message.descendantTypes.length) {
+            writer.tag(11, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.descendantTypes.length; i++)
+                writer.int32(message.descendantTypes[i]);
+            writer.join();
+        }
+        /* optional int32 first = 20; */
         if (message.first !== undefined)
-            writer.tag(6, WireType.Varint).int32(message.first);
-        /* optional int32 skip = 7; */
+            writer.tag(20, WireType.Varint).int32(message.first);
+        /* optional int32 skip = 21; */
         if (message.skip !== undefined)
-            writer.tag(7, WireType.Varint).int32(message.skip);
-        /* optional bool count = 9; */
+            writer.tag(21, WireType.Varint).int32(message.skip);
+        /* optional bool count = 22; */
         if (message.count !== undefined)
-            writer.tag(9, WireType.Varint).bool(message.count);
-        /* optional symbolx.bench.ReadOptionsData options = 19; */
-        if (message.options)
-            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool no_cache = 20; */
+            writer.tag(22, WireType.Varint).bool(message.count);
+        /* optional symbolx.bench.SelectOptionsData select = 23; */
+        if (message.select)
+            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool no_cache = 30; */
         if (message.noCache !== undefined)
-            writer.tag(20, WireType.Varint).bool(message.noCache);
+            writer.tag(30, WireType.Varint).bool(message.noCache);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1527,7 +1628,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 6, name: "aggregation", kind: "message", T: () => ExpressionData },
-            { no: 20, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
@@ -1562,7 +1663,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.ExpressionData aggregation */ 6:
                     message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
-                case /* optional bool no_cache */ 20:
+                case /* optional bool no_cache */ 30:
                     message.noCache = reader.bool();
                     break;
                 default:
@@ -1595,9 +1696,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.ExpressionData aggregation = 6; */
         if (message.aggregation)
             ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool no_cache = 20; */
+        /* optional bool no_cache = 30; */
         if (message.noCache !== undefined)
-            writer.tag(20, WireType.Varint).bool(message.noCache);
+            writer.tag(30, WireType.Varint).bool(message.noCache);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

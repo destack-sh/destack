@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.11.0"
+VERSION = "2024.10.11.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -78,7 +78,7 @@ class EnumType(IdEnum):
     # access
     ACCESS_MODE = 20030
     ACCESS_KIND = 20031
-    READ_TYPE = 20032
+    QueryType = 20032
     EDIT_TYPE = 20033
     USE_TYPE = 20034
     ACCESS_TYPE = 20035  # ReadType | EditType | UseType
@@ -375,7 +375,7 @@ class StructType(IdEnum):
     AGGREGATION = 10301
     SELECTION = 10302
     QUERY_INFO = 10303
-    READ_OPTIONS = 10304
+    SELECT_OPTIONS = 10304
     VALUE = 10305
     COMPUTED_VALUE = 10306
 
@@ -708,8 +708,8 @@ class ReferenceKind(IdEnum):
 #
 
 
-@enum_(EnumType.READ_TYPE)
-class ReadType(IdEnum):
+@enum_(EnumType.QueryType)
+class QueryType(IdEnum):
     """Ways to read nodes."""
 
     """Any direct read for specific nodes."""
@@ -800,17 +800,17 @@ class AccessKind(IdEnum):
 
 
 if typing.TYPE_CHECKING:
-    AccessType = ReadType | EditType | UseType
+    AccessType = QueryType | EditType | UseType
 else:
-    AccessType = IdEnum.combine("AccessType", ReadType, EditType, UseType)
+    AccessType = IdEnum.combine("AccessType", QueryType, EditType, UseType)
     AccessType.kind = property(lambda self: ACCESS_KIND_BY_ACCESS[self])
     enum_(EnumType.ACCESS_TYPE)(AccessType)
 
-READ_TYPES: bittuple[ReadType] = bittuple(*ReadType)
+READ_TYPES: bittuple[QueryType] = bittuple(*QueryType)
 EDIT_TYPES: bittuple[EditType] = bittuple(*EditType)
 USE_TYPES: bittuple[UseType] = bittuple(*UseType)
 ACCESS_TYPES: bittuple[AccessType] = bittuple(*AccessType)  # type: ignore
-ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, UseType, AccessType)  # type: ignore
+ACCESS_CLASSES: tuple[type[AccessType], ...] = (QueryType, EditType, UseType, AccessType)  # type: ignore
 ACCESS_KINDS = bittuple(*AccessKind)
 ACCESS_TYPES_BY_KIND: dict[AccessKind, bittuple[AccessType]] = {
     AccessKind.READ: bittuple(*READ_TYPES),
@@ -818,7 +818,7 @@ ACCESS_TYPES_BY_KIND: dict[AccessKind, bittuple[AccessType]] = {
     AccessKind.USE: bittuple(*USE_TYPES),
 }
 ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
-    AccessKind.READ: ReadType,
+    AccessKind.READ: QueryType,
     AccessKind.EDIT: EditType,
     AccessKind.USE: UseType,
 }

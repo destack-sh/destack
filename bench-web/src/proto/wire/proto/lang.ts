@@ -1211,9 +1211,9 @@ export interface QueryInfoData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.ReadType read_type = 40;
+     * @generated from protobuf field: symbolx.bench.QueryType type = 40;
      */
-    readType: ReadType;
+    type: QueryType;
     /**
      * @generated from protobuf field: symbolx.bench.NodeType node_type = 41;
      */
@@ -1223,53 +1223,45 @@ export interface QueryInfoData {
      */
     blockPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 43;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots_ptr = 43;
+     */
+    rootsPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 44;
      */
     filter?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 44;
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 45;
      */
     sort: ExpressionData[];
-}
-/**
- * Fine-grained options to a read request.
- * This is an addition to primary options (like the filter for a search or aggregation).
- *
- * @generated from protobuf message symbolx.bench.ReadOptionsData
- */
-export interface ReadOptionsData {
     /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData aggregation = 46;
      */
-    metatype: ObjectType;
+    aggregation?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 31;
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 50;
      */
     ancestorTypes: NodeType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 32;
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 51;
      */
     descendantTypes: NodeType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 40;
+     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 60;
      */
-    includePropertiesPtr: PropertyReferenceData[];
+    select?: SelectOptionsData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 41;
+     * @generated from protobuf field: bool include_deleted = 61;
      */
-    excludePropertiesPtr: PropertyReferenceData[];
+    includeDeleted: boolean;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 42;
+     * @generated from protobuf field: optional int32 first = 62;
      */
-    selectPropertiesPtr: PropertyReferenceData[];
+    first?: number;
     /**
-     * @generated from protobuf field: bool select_all_properties = 43;
+     * @generated from protobuf field: optional int32 skip = 63;
      */
-    selectAllProperties: boolean;
-    /**
-     * @generated from protobuf field: bool include_hidden = 50;
-     */
-    includeHidden: boolean;
+    skip?: number;
 }
 /**
  * A single attempt at a Run.
@@ -1601,6 +1593,41 @@ export interface SecretReferenceData {
      * @generated from protobuf field: string title = 43;
      */
     title: string;
+}
+/**
+ * Fine-grained options to a read request specifying which properties/fields to load.
+ *
+ * @generated from protobuf message symbolx.bench.SelectOptionsData
+ */
+export interface SelectOptionsData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: bool select_all_properties = 40;
+     */
+    selectAllProperties: boolean;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 41;
+     */
+    includePropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 42;
+     */
+    excludePropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 43;
+     */
+    selectPropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: bool select_all_fields = 50;
+     */
+    selectAllFields: boolean;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData select_fields_ptr = 51;
+     */
+    selectFieldsPtr: NodeReferenceData[];
 }
 /**
  * A selection of nodes/values.
@@ -4255,9 +4282,9 @@ export interface QueryData {
      */
     orderKey: string;
     /**
-     * @generated from protobuf field: symbolx.bench.ReadType read_type = 40;
+     * @generated from protobuf field: symbolx.bench.QueryType type = 40;
      */
-    readType: ReadType;
+    type: QueryType;
     /**
      * @generated from protobuf field: symbolx.bench.NodeType node_type = 41;
      */
@@ -4267,13 +4294,45 @@ export interface QueryData {
      */
     blockPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 43;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots_ptr = 43;
+     */
+    rootsPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 44;
      */
     filter?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 44;
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 45;
      */
     sort: ExpressionData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData aggregation = 46;
+     */
+    aggregation?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 50;
+     */
+    ancestorTypes: NodeType[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 51;
+     */
+    descendantTypes: NodeType[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 60;
+     */
+    select?: SelectOptionsData;
+    /**
+     * @generated from protobuf field: bool include_deleted = 61;
+     */
+    includeDeleted: boolean;
+    /**
+     * @generated from protobuf field: optional int32 first = 62;
+     */
+    first?: number;
+    /**
+     * @generated from protobuf field: optional int32 skip = 63;
+     */
+    skip?: number;
 }
 /**
  * A Record from a DatabaseBlock.
@@ -6471,9 +6530,9 @@ export enum BenchType {
      */
     QUERY_INFO = 10303,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 10304;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECT_OPTIONS = 10304;
      */
-    READ_OPTIONS = 10304,
+    SELECT_OPTIONS = 10304,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_VALUE = 10305;
      */
@@ -6615,9 +6674,9 @@ export enum BenchType {
      */
     ACCESS_KIND = 20031,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_READ_TYPE = 20032;
+     * @generated from protobuf enum value: BENCH_TYPE_QueryType = 20032;
      */
-    READ_TYPE = 20032,
+    QueryType = 20032,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20033;
      */
@@ -7586,9 +7645,9 @@ export enum EnumType {
      */
     ACCESS_KIND = 20031,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_READ_TYPE = 20032;
+     * @generated from protobuf enum value: ENUM_TYPE_QueryType = 20032;
      */
-    READ_TYPE = 20032,
+    QueryType = 20032,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20033;
      */
@@ -9414,9 +9473,9 @@ export enum ObjectType {
      */
     QUERY_INFO = 10303,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_READ_OPTIONS = 10304;
+     * @generated from protobuf enum value: OBJECT_TYPE_SELECT_OPTIONS = 10304;
      */
-    READ_OPTIONS = 10304,
+    SELECT_OPTIONS = 10304,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_VALUE = 10305;
      */
@@ -9834,23 +9893,23 @@ export enum PrimitiveType {
 /**
  * Ways to read nodes.
  *
- * @generated from protobuf enum symbolx.bench.ReadType
+ * @generated from protobuf enum symbolx.bench.QueryType
  */
-export enum ReadType {
+export enum QueryType {
     /**
-     * @generated from protobuf enum value: READ_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: QUERY_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: READ_TYPE_GET = 1;
+     * @generated from protobuf enum value: QUERY_TYPE_GET = 1;
      */
     GET = 1,
     /**
-     * @generated from protobuf enum value: READ_TYPE_SEARCH = 2;
+     * @generated from protobuf enum value: QUERY_TYPE_SEARCH = 2;
      */
     SEARCH = 2,
     /**
-     * @generated from protobuf enum value: READ_TYPE_AGGREGATE = 3;
+     * @generated from protobuf enum value: QUERY_TYPE_AGGREGATE = 3;
      */
     AGGREGATE = 3
 }
@@ -10745,9 +10804,9 @@ export enum StructType {
      */
     QUERY_INFO = 10303,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 10304;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECT_OPTIONS = 10304;
      */
-    READ_OPTIONS = 10304,
+    SELECT_OPTIONS = 10304,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 10305;
      */
@@ -14460,19 +14519,31 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
     constructor() {
         super("symbolx.bench.QueryInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "read_type", kind: "enum", T: () => ["symbolx.bench.ReadType", ReadType, "READ_TYPE_"] },
+            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.QueryType", QueryType, "QUERY_TYPE_"] },
             { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 44, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
+            { no: 43, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 44, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 45, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 46, name: "aggregation", kind: "message", T: () => ExpressionData },
+            { no: 50, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 51, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 60, name: "select", kind: "message", T: () => SelectOptionsData },
+            { no: 61, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<QueryInfoData>): QueryInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.readType = 0;
+        message.type = 0;
         message.nodeType = 0;
+        message.rootsPtr = [];
         message.sort = [];
+        message.ancestorTypes = [];
+        message.descendantTypes = [];
+        message.includeDeleted = false;
         if (value !== undefined)
             reflectionMergePartial<QueryInfoData>(this, message, value);
         return message;
@@ -14485,8 +14556,8 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.ReadType read_type */ 40:
-                    message.readType = reader.int32();
+                case /* symbolx.bench.QueryType type */ 40:
+                    message.type = reader.int32();
                     break;
                 case /* symbolx.bench.NodeType node_type */ 41:
                     message.nodeType = reader.int32();
@@ -14494,11 +14565,43 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
-                case /* optional symbolx.bench.ExpressionData filter */ 43:
+                case /* repeated symbolx.bench.NodeReferenceData roots_ptr */ 43:
+                    message.rootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData filter */ 44:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 44:
+                case /* repeated symbolx.bench.ExpressionData sort */ 45:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData aggregation */ 46:
+                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                    break;
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 50:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.NodeType descendant_types */ 51:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.descendantTypes.push(reader.int32());
+                    else
+                        message.descendantTypes.push(reader.int32());
+                    break;
+                case /* optional symbolx.bench.SelectOptionsData select */ 60:
+                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
+                    break;
+                case /* bool include_deleted */ 61:
+                    message.includeDeleted = reader.bool();
+                    break;
+                case /* optional int32 first */ 62:
+                    message.first = reader.int32();
+                    break;
+                case /* optional int32 skip */ 63:
+                    message.skip = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14515,21 +14618,53 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.ReadType read_type = 40; */
-        if (message.readType !== 0)
-            writer.tag(40, WireType.Varint).int32(message.readType);
+        /* symbolx.bench.QueryType type = 40; */
+        if (message.type !== 0)
+            writer.tag(40, WireType.Varint).int32(message.type);
         /* symbolx.bench.NodeType node_type = 41; */
         if (message.nodeType !== 0)
             writer.tag(41, WireType.Varint).int32(message.nodeType);
         /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 43; */
+        /* repeated symbolx.bench.NodeReferenceData roots_ptr = 43; */
+        for (let i = 0; i < message.rootsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rootsPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 44; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 44; */
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 45; */
         for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData aggregation = 46; */
+        if (message.aggregation)
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeType ancestor_types = 50; */
+        if (message.ancestorTypes.length) {
+            writer.tag(50, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.NodeType descendant_types = 51; */
+        if (message.descendantTypes.length) {
+            writer.tag(51, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.descendantTypes.length; i++)
+                writer.int32(message.descendantTypes[i]);
+            writer.join();
+        }
+        /* optional symbolx.bench.SelectOptionsData select = 60; */
+        if (message.select)
+            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* bool include_deleted = 61; */
+        if (message.includeDeleted !== false)
+            writer.tag(61, WireType.Varint).bool(message.includeDeleted);
+        /* optional int32 first = 62; */
+        if (message.first !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.first);
+        /* optional int32 skip = 63; */
+        if (message.skip !== undefined)
+            writer.tag(63, WireType.Varint).int32(message.skip);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14540,125 +14675,6 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
  * @generated MessageType for protobuf message symbolx.bench.QueryInfoData
  */
 export const QueryInfoData = new QueryInfoData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ReadOptionsData$Type extends MessageType<ReadOptionsData> {
-    constructor() {
-        super("symbolx.bench.ReadOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 32, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 40, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 41, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 42, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 43, name: "select_all_properties", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 50, name: "include_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ReadOptionsData>): ReadOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.ancestorTypes = [];
-        message.descendantTypes = [];
-        message.includePropertiesPtr = [];
-        message.excludePropertiesPtr = [];
-        message.selectPropertiesPtr = [];
-        message.selectAllProperties = false;
-        message.includeHidden = false;
-        if (value !== undefined)
-            reflectionMergePartial<ReadOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReadOptionsData): ReadOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.NodeType ancestor_types */ 31:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ancestorTypes.push(reader.int32());
-                    else
-                        message.ancestorTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.NodeType descendant_types */ 32:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.descendantTypes.push(reader.int32());
-                    else
-                        message.descendantTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr */ 40:
-                    message.includePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr */ 41:
-                    message.excludePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr */ 42:
-                    message.selectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* bool select_all_properties */ 43:
-                    message.selectAllProperties = reader.bool();
-                    break;
-                case /* bool include_hidden */ 50:
-                    message.includeHidden = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ReadOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbolx.bench.NodeType ancestor_types = 31; */
-        if (message.ancestorTypes.length) {
-            writer.tag(31, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.ancestorTypes.length; i++)
-                writer.int32(message.ancestorTypes[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.NodeType descendant_types = 32; */
-        if (message.descendantTypes.length) {
-            writer.tag(32, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.descendantTypes.length; i++)
-                writer.int32(message.descendantTypes[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 40; */
-        for (let i = 0; i < message.includePropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.includePropertiesPtr[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 41; */
-        for (let i = 0; i < message.excludePropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.excludePropertiesPtr[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 42; */
-        for (let i = 0; i < message.selectPropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.selectPropertiesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* bool select_all_properties = 43; */
-        if (message.selectAllProperties !== false)
-            writer.tag(43, WireType.Varint).bool(message.selectAllProperties);
-        /* bool include_hidden = 50; */
-        if (message.includeHidden !== false)
-            writer.tag(50, WireType.Varint).bool(message.includeHidden);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ReadOptionsData
- */
-export const ReadOptionsData = new ReadOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunAttemptData$Type extends MessageType<RunAttemptData> {
     constructor() {
@@ -15512,6 +15528,101 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
  * @generated MessageType for protobuf message symbolx.bench.SecretReferenceData
  */
 export const SecretReferenceData = new SecretReferenceData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SelectOptionsData$Type extends MessageType<SelectOptionsData> {
+    constructor() {
+        super("symbolx.bench.SelectOptionsData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "select_all_properties", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 41, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 42, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 43, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 50, name: "select_all_fields", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 51, name: "select_fields_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<SelectOptionsData>): SelectOptionsData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.selectAllProperties = false;
+        message.includePropertiesPtr = [];
+        message.excludePropertiesPtr = [];
+        message.selectPropertiesPtr = [];
+        message.selectAllFields = false;
+        message.selectFieldsPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<SelectOptionsData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectOptionsData): SelectOptionsData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* bool select_all_properties */ 40:
+                    message.selectAllProperties = reader.bool();
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr */ 41:
+                    message.includePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr */ 42:
+                    message.excludePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr */ 43:
+                    message.selectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* bool select_all_fields */ 50:
+                    message.selectAllFields = reader.bool();
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData select_fields_ptr */ 51:
+                    message.selectFieldsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SelectOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* bool select_all_properties = 40; */
+        if (message.selectAllProperties !== false)
+            writer.tag(40, WireType.Varint).bool(message.selectAllProperties);
+        /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 41; */
+        for (let i = 0; i < message.includePropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.includePropertiesPtr[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 42; */
+        for (let i = 0; i < message.excludePropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.excludePropertiesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 43; */
+        for (let i = 0; i < message.selectPropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.selectPropertiesPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* bool select_all_fields = 50; */
+        if (message.selectAllFields !== false)
+            writer.tag(50, WireType.Varint).bool(message.selectAllFields);
+        /* repeated symbolx.bench.NodeReferenceData select_fields_ptr = 51; */
+        for (let i = 0; i < message.selectFieldsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.selectFieldsPtr[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.SelectOptionsData
+ */
+export const SelectOptionsData = new SelectOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SelectionData$Type extends MessageType<SelectionData> {
     constructor() {
@@ -21280,11 +21391,19 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "read_type", kind: "enum", T: () => ["symbolx.bench.ReadType", ReadType, "READ_TYPE_"] },
+            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.QueryType", QueryType, "QUERY_TYPE_"] },
             { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 44, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
+            { no: 43, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 44, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 45, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 46, name: "aggregation", kind: "message", T: () => ExpressionData },
+            { no: 50, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 51, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 60, name: "select", kind: "message", T: () => SelectOptionsData },
+            { no: 61, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<QueryData>): QueryData {
@@ -21296,9 +21415,13 @@ class QueryData$Type extends MessageType<QueryData> {
         message.updatedEpoch = 0n;
         message.name = "";
         message.orderKey = "";
-        message.readType = 0;
+        message.type = 0;
         message.nodeType = 0;
+        message.rootsPtr = [];
         message.sort = [];
+        message.ancestorTypes = [];
+        message.descendantTypes = [];
+        message.includeDeleted = false;
         if (value !== undefined)
             reflectionMergePartial<QueryData>(this, message, value);
         return message;
@@ -21359,8 +21482,8 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
-                case /* symbolx.bench.ReadType read_type */ 40:
-                    message.readType = reader.int32();
+                case /* symbolx.bench.QueryType type */ 40:
+                    message.type = reader.int32();
                     break;
                 case /* symbolx.bench.NodeType node_type */ 41:
                     message.nodeType = reader.int32();
@@ -21368,11 +21491,43 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
-                case /* optional symbolx.bench.ExpressionData filter */ 43:
+                case /* repeated symbolx.bench.NodeReferenceData roots_ptr */ 43:
+                    message.rootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData filter */ 44:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 44:
+                case /* repeated symbolx.bench.ExpressionData sort */ 45:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData aggregation */ 46:
+                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                    break;
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 50:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.NodeType descendant_types */ 51:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.descendantTypes.push(reader.int32());
+                    else
+                        message.descendantTypes.push(reader.int32());
+                    break;
+                case /* optional symbolx.bench.SelectOptionsData select */ 60:
+                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
+                    break;
+                case /* bool include_deleted */ 61:
+                    message.includeDeleted = reader.bool();
+                    break;
+                case /* optional int32 first */ 62:
+                    message.first = reader.int32();
+                    break;
+                case /* optional int32 skip */ 63:
+                    message.skip = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21437,21 +21592,53 @@ class QueryData$Type extends MessageType<QueryData> {
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.ReadType read_type = 40; */
-        if (message.readType !== 0)
-            writer.tag(40, WireType.Varint).int32(message.readType);
+        /* symbolx.bench.QueryType type = 40; */
+        if (message.type !== 0)
+            writer.tag(40, WireType.Varint).int32(message.type);
         /* symbolx.bench.NodeType node_type = 41; */
         if (message.nodeType !== 0)
             writer.tag(41, WireType.Varint).int32(message.nodeType);
         /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 43; */
+        /* repeated symbolx.bench.NodeReferenceData roots_ptr = 43; */
+        for (let i = 0; i < message.rootsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rootsPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 44; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 44; */
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 45; */
         for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData aggregation = 46; */
+        if (message.aggregation)
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeType ancestor_types = 50; */
+        if (message.ancestorTypes.length) {
+            writer.tag(50, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.NodeType descendant_types = 51; */
+        if (message.descendantTypes.length) {
+            writer.tag(51, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.descendantTypes.length; i++)
+                writer.int32(message.descendantTypes[i]);
+            writer.join();
+        }
+        /* optional symbolx.bench.SelectOptionsData select = 60; */
+        if (message.select)
+            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* bool include_deleted = 61; */
+        if (message.includeDeleted !== false)
+            writer.tag(61, WireType.Varint).bool(message.includeDeleted);
+        /* optional int32 first = 62; */
+        if (message.first !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.first);
+        /* optional int32 skip = 63; */
+        if (message.skip !== undefined)
+            writer.tag(63, WireType.Varint).int32(message.skip);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24842,10 +25029,10 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | VaultData | CacheData | FileData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | SignalData | LogData | NotificationData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | SelectOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof VaultData | typeof CacheData | typeof FileData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -25076,7 +25263,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.AGGREGATION]: AggregationData,
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.QUERY_INFO]: QueryInfoData,
-  [ObjectType.READ_OPTIONS]: ReadOptionsData,
+  [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
   [ObjectType.VALUE]: ValueData,
   [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.CODE]: CodeData,
@@ -25176,7 +25363,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.AggregationData"]: ObjectType.AGGREGATION,
   ["symbolx.bench.SelectionData"]: ObjectType.SELECTION,
   ["symbolx.bench.QueryInfoData"]: ObjectType.QUERY_INFO,
-  ["symbolx.bench.ReadOptionsData"]: ObjectType.READ_OPTIONS,
+  ["symbolx.bench.SelectOptionsData"]: ObjectType.SELECT_OPTIONS,
   ["symbolx.bench.ValueData"]: ObjectType.VALUE,
   ["symbolx.bench.ComputedValueData"]: ObjectType.COMPUTED_VALUE,
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
@@ -25216,7 +25403,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.CHANGE_KIND]: ChangeKind,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.READ_TYPE]: ReadType,
+  [EnumType.QueryType]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
@@ -25335,7 +25522,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.AGGREGATION]: AggregationData,
   [StructType.SELECTION]: SelectionData,
   [StructType.QUERY_INFO]: QueryInfoData,
-  [StructType.READ_OPTIONS]: ReadOptionsData,
+  [StructType.SELECT_OPTIONS]: SelectOptionsData,
   [StructType.VALUE]: ValueData,
   [StructType.COMPUTED_VALUE]: ComputedValueData,
   [StructType.CODE]: CodeData,
@@ -25473,7 +25660,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.AGGREGATION]: AggregationData,
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.QUERY_INFO]: QueryInfoData,
-  [ObjectType.READ_OPTIONS]: ReadOptionsData,
+  [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
   [ObjectType.VALUE]: ValueData,
   [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.CODE]: CodeData,
@@ -25513,7 +25700,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.CHANGE_KIND]: ChangeKind,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.READ_TYPE]: ReadType,
+  [EnumType.QueryType]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
@@ -26146,11 +26333,19 @@ export enum QueryProperty {
   deletedAt = 16,
   name = 30,
   orderKey = 31,
-  readType = 40,
+  type = 40,
   nodeType = 41,
   blockPtr = 42,
-  filter = 43,
-  sort = 44,
+  rootsPtr = 43,
+  filter = 44,
+  sort = 45,
+  aggregation = 46,
+  ancestorTypes = 50,
+  descendantTypes = 51,
+  select = 60,
+  includeDeleted = 61,
+  first = 62,
+  skip = 63,
 }
 
 export enum ViewProperty {
@@ -26869,22 +27064,29 @@ export enum SelectionProperty {
 
 export enum QueryInfoProperty {
   metatype = 1,
-  readType = 40,
+  type = 40,
   nodeType = 41,
   blockPtr = 42,
-  filter = 43,
-  sort = 44,
+  rootsPtr = 43,
+  filter = 44,
+  sort = 45,
+  aggregation = 46,
+  ancestorTypes = 50,
+  descendantTypes = 51,
+  select = 60,
+  includeDeleted = 61,
+  first = 62,
+  skip = 63,
 }
 
-export enum ReadOptionsProperty {
+export enum SelectOptionsProperty {
   metatype = 1,
-  ancestorTypes = 31,
-  descendantTypes = 32,
-  includePropertiesPtr = 40,
-  excludePropertiesPtr = 41,
-  selectPropertiesPtr = 42,
-  selectAllProperties = 43,
-  includeHidden = 50,
+  selectAllProperties = 40,
+  includePropertiesPtr = 41,
+  excludePropertiesPtr = 42,
+  selectPropertiesPtr = 43,
+  selectAllFields = 50,
+  selectFieldsPtr = 51,
 }
 
 export enum ValueProperty {
@@ -27106,11 +27308,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -27184,7 +27386,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.AGGREGATION]: AggregationProperty,
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
-  [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
+  [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
   [ObjectType.VALUE]: ValueProperty,
   [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.CODE]: CodeProperty,
@@ -27284,7 +27486,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.AGGREGATION]: AggregationProperty,
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
-  [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
+  [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
   [ObjectType.VALUE]: ValueProperty,
   [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.CODE]: CodeProperty,
@@ -27700,21 +27902,28 @@ export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
 }
 export const QueryInfoDataInfo: Record<QueryInfoProperty, PropertyInfo> = {
   [QueryInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [QueryInfoProperty.readType]: { id: 40, name: 'read_type', component: ObjectType.QUERY_INFO, enumType: EnumType.READ_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryInfoProperty.type]: { id: 40, name: 'type', component: ObjectType.QUERY_INFO, enumType: EnumType.QueryType, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryInfoProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY_INFO, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryInfoProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.QUERY_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryInfoProperty.filter]: { id: 43, name: 'filter', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [QueryInfoProperty.sort]: { id: 44, name: 'sort', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryInfoProperty.rootsPtr]: { id: 43, name: 'roots_ptr', component: ObjectType.QUERY_INFO, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryInfoProperty.filter]: { id: 44, name: 'filter', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryInfoProperty.sort]: { id: 45, name: 'sort', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryInfoProperty.aggregation]: { id: 46, name: 'aggregation', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryInfoProperty.ancestorTypes]: { id: 50, name: 'ancestor_types', component: ObjectType.QUERY_INFO, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryInfoProperty.descendantTypes]: { id: 51, name: 'descendant_types', component: ObjectType.QUERY_INFO, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryInfoProperty.select]: { id: 60, name: 'select', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECT_OPTIONS },
+  [QueryInfoProperty.includeDeleted]: { id: 61, name: 'include_deleted', component: ObjectType.QUERY_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryInfoProperty.first]: { id: 62, name: 'first', component: ObjectType.QUERY_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [QueryInfoProperty.skip]: { id: 63, name: 'skip', component: ObjectType.QUERY_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
-export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
-  [ReadOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.READ_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ReadOptionsProperty.ancestorTypes]: { id: 31, name: 'ancestor_types', component: ObjectType.READ_OPTIONS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.descendantTypes]: { id: 32, name: 'descendant_types', component: ObjectType.READ_OPTIONS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.includePropertiesPtr]: { id: 40, name: 'include_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ReadOptionsProperty.excludePropertiesPtr]: { id: 41, name: 'exclude_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ReadOptionsProperty.selectPropertiesPtr]: { id: 42, name: 'select_properties_ptr', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ReadOptionsProperty.selectAllProperties]: { id: 43, name: 'select_all_properties', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ReadOptionsProperty.includeHidden]: { id: 50, name: 'include_hidden', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+export const SelectOptionsDataInfo: Record<SelectOptionsProperty, PropertyInfo> = {
+  [SelectOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SELECT_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [SelectOptionsProperty.selectAllProperties]: { id: 40, name: 'select_all_properties', component: ObjectType.SELECT_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SelectOptionsProperty.includePropertiesPtr]: { id: 41, name: 'include_properties_ptr', component: ObjectType.SELECT_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [SelectOptionsProperty.excludePropertiesPtr]: { id: 42, name: 'exclude_properties_ptr', component: ObjectType.SELECT_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [SelectOptionsProperty.selectPropertiesPtr]: { id: 43, name: 'select_properties_ptr', component: ObjectType.SELECT_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [SelectOptionsProperty.selectAllFields]: { id: 50, name: 'select_all_fields', component: ObjectType.SELECT_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SelectOptionsProperty.selectFieldsPtr]: { id: 51, name: 'select_fields_ptr', component: ObjectType.SELECT_OPTIONS, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
   [ValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28031,7 +28240,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28057,7 +28266,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28080,7 +28289,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28434,11 +28643,19 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.readType]: { id: 40, name: 'read_type', component: ObjectType.QUERY, enumType: EnumType.READ_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.type]: { id: 40, name: 'type', component: ObjectType.QUERY, enumType: EnumType.QueryType, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.filter]: { id: 43, name: 'filter', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [QueryProperty.sort]: { id: 44, name: 'sort', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.rootsPtr]: { id: 43, name: 'roots_ptr', component: ObjectType.QUERY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.filter]: { id: 44, name: 'filter', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.sort]: { id: 45, name: 'sort', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.aggregation]: { id: 46, name: 'aggregation', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [QueryProperty.ancestorTypes]: { id: 50, name: 'ancestor_types', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.descendantTypes]: { id: 51, name: 'descendant_types', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.select]: { id: 60, name: 'select', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECT_OPTIONS },
+  [QueryProperty.includeDeleted]: { id: 61, name: 'include_deleted', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.first]: { id: 62, name: 'first', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.skip]: { id: 63, name: 'skip', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28806,7 +29023,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.AGGREGATION]: AggregationDataInfo,
   [ObjectType.SELECTION]: SelectionDataInfo,
   [ObjectType.QUERY_INFO]: QueryInfoDataInfo,
-  [ObjectType.READ_OPTIONS]: ReadOptionsDataInfo,
+  [ObjectType.SELECT_OPTIONS]: SelectOptionsDataInfo,
   [ObjectType.VALUE]: ValueDataInfo,
   [ObjectType.COMPUTED_VALUE]: ComputedValueDataInfo,
   [ObjectType.CODE]: CodeDataInfo,

@@ -112,7 +112,7 @@ from .query import (
     Query,
     QueryBuilder,
     QueryInfo,
-    ReadOptions,
+    SelectOptions,
 )
 from .record import Record
 from .render import render, render_expr, render_stmt
@@ -290,7 +290,6 @@ __all__ = [
     "Query",
     "QueryBuilder",
     "QueryInfo",
-    "ReadOptions",
     "Record",
     "Region",
     "RemoteNodeList",
@@ -313,6 +312,7 @@ __all__ = [
     "SearchResultData",
     "Secret",
     "SecretReference",
+    "SelectOptions",
     "Server",
     "Session",
     "SessionContext",

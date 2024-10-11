@@ -18,10 +18,10 @@ from bench.language.connection import (
     WatchGetUpdate,
     WatchSearchUpdate,
 )
-from bench.language.const import ROOT_NODE_TYPES, EditType, NodeType, ReadType
+from bench.language.const import ROOT_NODE_TYPES, EditType, NodeType, QueryType
 from bench.language.expression import apply_sort, evaluate_conditional
 from bench.language.graph import NodeDataGraphLike
-from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
+from bench.language.query import QueryBuilder
 from bench.proto.wire import (
     AnyNodeData,
     EditData,
@@ -60,7 +60,7 @@ class Connection[
      here we cache results, replay and push updates to connection subscribers.
     """
 
-    read_type: ClassVar[ReadType]
+    read_type: ClassVar[QueryType]
 
     def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
         self.scope = scope
@@ -220,7 +220,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
     If live and any root is removed, we error (like the usual get behavior; not sure about this).
     """
 
-    read_type: ClassVar[ReadType] = ReadType.GET
+    read_type: ClassVar[QueryType] = QueryType.GET
 
     def __init__(self, scope: GraphScopeData, query: "QueryBuilder", oracle: Oracle):
         super().__init__(scope, query, oracle)
@@ -240,7 +240,6 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
         Apply node edits that are in the scope of the result graph, return applied edits.
         'in scope' here means the node or its parent is already in the given graph.
         """
-        options = self.query._options or DEFAULT_READ_OPTIONS
         result_graph = self.result.graph
         relevant_edits: list[EditData] = []
         added_nodes: list[AnyNodeData] = []
@@ -254,7 +253,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
 
             # filter scope
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
-                not options.include_hidden and edit_type == EditType.RESTORE
+                not self.query.include_deleted and edit_type == EditType.RESTORE
             ):
                 node = _get_edited_node(updated_graph, edit)
                 assert node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
@@ -294,7 +293,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
                 # apply (just copy node instead of actually applying edit, we don't modify anything here)
                 relevant_edits.append(edit)
                 if edit_type == EditType.ERASE or (
-                    not options.include_hidden and edit_type == EditType.DELETE
+                    not self.query.include_deleted and edit_type == EditType.DELETE
                 ):
                     if node.id in result_graph:
                         result_graph.remove(node)
@@ -309,7 +308,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
         channel = await session._get_channel_for(
             self.scope,
             self.query.all_node_types,
-            include_hidden=self.query.includes_hidden,
+            include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
         connection = await channel.get(self.query, GetOptions(live=False, unpack=False))
@@ -357,7 +356,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
         self._filter = query._filter
         self._result_roots_ids: set[str] | None = None
 
-    read_type: ClassVar[ReadType] = ReadType.SEARCH
+    read_type: ClassVar[QueryType] = QueryType.SEARCH
 
     def __result_str__(self, result: SearchResultData) -> str:
         return f"nodes={len(result.graph)}, roots={len(result.roots)}, total={result.total}"
@@ -367,7 +366,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
         channel = await session._get_channel_for(
             self.scope,
             self.query.all_node_types,
-            include_hidden=self.query.includes_hidden,
+            include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
         connection = await channel.search(
@@ -415,12 +414,8 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
             is_relevant = self._filter is None or evaluate_conditional(self._filter, node)
             if not is_relevant:
                 continue  # ignore irrelevant edit
-            is_add = edit.type in (EditType.CREATE, EditType.UPSERT) or (
-                edit.type == EditType.RESTORE and not DEFAULT_READ_OPTIONS.include_hidden
-            )
-            is_remove = edit.type == EditType.ERASE or (
-                edit.type == EditType.DELETE and not DEFAULT_READ_OPTIONS.include_hidden
-            )
+            is_add = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE)
+            is_remove = edit.type in (EditType.DELETE, EditType.ERASE)
             if is_extant:
                 if is_relevant and not is_remove:
                     # regular update
@@ -498,7 +493,7 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
     Live isn't supported yet, but eventually (like search) this should be incremental materialized view.
     """
 
-    read_type: ClassVar[ReadType] = ReadType.AGGREGATE
+    read_type: ClassVar[QueryType] = QueryType.AGGREGATE
 
     def __result_str__(self, result: AggregateResultData) -> str:
         return f"aggregation={result.aggregation!r}"
@@ -508,7 +503,7 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
         channel = await session._get_channel_for(
             self.scope,
             self.query.all_node_types,
-            include_hidden=self.query.includes_hidden,
+            include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
         connection = await channel.aggregate(self.query, AggregateOptions(live=False, unpack=False))
@@ -578,14 +573,12 @@ class ConnectionIndex:
         self, query: QueryBuilder, session: Session, connection_t: type[ConnectionT], *, cache: bool
     ) -> ConnectionT:
         """Creates or reuses a connection to the graph."""
-        assert (
-            query._read_type == connection_t.read_type
-        ), f"unexpected {query!r} (want {connection_t})"
+        assert query._type == connection_t.read_type, f"unexpected {query!r} (want {connection_t})"
         if not cache:
             connection = connection_t(self.scope, query, self.oracle)
             await connection.connect(session)
             self._log.debug(
-                f"connect.{query._read_type.name.lower()}",
+                f"connect.{query._type.name.lower()}",
                 query=query,
                 query_hash=connection.hash,
                 span="current",
@@ -610,7 +603,7 @@ class ConnectionIndex:
                     connection.bump_active()
                     connection.bump_referenced()
                 self._log.debug(
-                    f"connect.{query._read_type.name.lower()}",
+                    f"connect.{query._type.name.lower()}",
                     query=query,
                     was_cached=was_cached,
                     query_hash=query_hash,

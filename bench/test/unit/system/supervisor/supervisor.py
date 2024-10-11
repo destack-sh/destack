@@ -4,10 +4,7 @@ from uuid import uuid4
 import pytest
 from grpclib import Status as GRPCStatus
 
-from bench.language import NodeReference, ReadOptions, User
-from bench.language.const import (
-    NodeType,
-)
+from bench.language import NodeReference, SelectOptions, User
 from bench.language.node import GraphScope
 from bench.language.property import Property
 from bench.proto import wire
@@ -92,14 +89,12 @@ async def test_user_registration(supervisor: SupervisorClient):
     assert login_rep.access_token
 
     # read user with sensitive data, authorized -> success
-    options = ReadOptions(
-        include_properties=[cast(Property, User.email)],
-        descendant_types=[NodeType.CLIENT, NodeType.HANDLE],
-    )._to_data()
+    select = SelectOptions(include_properties=[cast(Property, User.email)])._to_data()
     read_user_req = GetNodesRequest(
         scope=GraphScope()._to_data(),
         roots=[NodeReference._ref_data_from_node_data(signup_rep.user)],
-        options=options,
+        descendant_types=[wire.NodeType.NODE_TYPE_CLIENT, wire.NodeType.NODE_TYPE_HANDLE],
+        select=select,
     )
     access_metadata = RpcMetadata(
         client_id=login_rep.client.id, client_access_token=login_rep.access_token

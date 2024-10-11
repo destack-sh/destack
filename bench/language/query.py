@@ -20,12 +20,13 @@ from opentelemetry import trace
 
 from bench.language.connection import AggregateOptions, SearchConnection
 from bench.language.const import (
+    NODE_TYPES,
     AggregationOp,
     BenchError,
     ConditionalOp,
     ExpressionKind,
     NodeType,
-    ReadType,
+    QueryType,
     StructType,
     active_session,
 )
@@ -49,21 +50,21 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
-    from bench.language import Block, Channel, Field, NodeReference, ReadOptions
+    from bench.language import Block, Channel, Field, NodeReference, SelectOptions
 
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 # default read options
-FILTER_VISIBLE: Expression = C(ConditionalOp.AND, clauses=[])
+FILTER_NOT_DELETED: Expression = C(ConditionalOp.AND, clauses=[])
 SELECT_DEFAULT_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 
 
 @_on_completing_setup
 def _populate_default_query():
-    FILTER_VISIBLE.clauses = [C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at)]
+    FILTER_NOT_DELETED.clauses = [C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at)]
     for node_t in NODE_CLASSES:
         SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
             prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
@@ -81,31 +82,29 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
-@struct_(StructType.READ_OPTIONS)
-class ReadOptions(Struct):
+@struct_(StructType.SELECT_OPTIONS)
+class SelectOptions(Struct):
     """
-    Fine-grained options to a read request.
-    This is an addition to primary options (like the filter for a search or aggregation).
+    Fine-grained options to a read request specifying which properties/fields to load.
     """
-
-    # relations
-    ancestor_types: list[NodeType] = p_regular(31, array=True, require=False)
-    descendant_types: list[NodeType] = p_regular(32, array=True, require=False)
 
     # properties (include/exclude relative to default OR select specific properties)
+    select_all_properties: bool = p_regular(40, default=False)
     include_properties: list[Property] = p_regular(
-        40, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-    exclude_properties: list[Property] = p_regular(
         41, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    select_properties: list[Property] = p_regular(
+    exclude_properties: list[Property] = p_regular(
         42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
-    select_all_properties: bool = p_regular(43, default=False)
+    select_properties: list[Property] = p_regular(
+        43, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+    )
 
-    # filters (simplified for now)
-    include_hidden: bool = p_regular(50, default=False)
+    # fields
+    select_all_fields: bool = p_regular(50, default=False)
+    select_fields: list["Field"] = p_regular(
+        51, require=True, array=True, references=NodeType.FIELD
+    )
 
     def __content_str__(self) -> str:
         content_parts = []
@@ -120,17 +119,7 @@ class ReadOptions(Struct):
         else:
             return "<default>"
 
-    @property
-    def all_node_types(self) -> Iterable[NodeType]:
-        return chain(self.ancestor_types, self.descendant_types)
-
-    def trim_to(self, node_types: Collection[NodeType]) -> "ReadOptions":
-        clone = self.clone()
-        clone.ancestor_types = [t for t in self.ancestor_types if t in node_types]
-        clone.descendant_types = [t for t in self.descendant_types if t in node_types]
-        return clone
-
-    def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
+    def get_properties(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
         # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
         if self.select_all_properties:
             properties = SELECT_ALL_PROPERTIES[node_type]
@@ -159,32 +148,16 @@ class ReadOptions(Struct):
                 )
             return properties
 
-    def filter(
-        self, node_type: NodeType, custom_filter: Optional["Expression"] = None
-    ) -> "Expression | None":
-        if self.include_hidden:
-            if custom_filter is None:
-                return None
-            else:
-                return custom_filter
-        else:
-            if custom_filter is None:
-                return FILTER_VISIBLE
-            else:
-                return FILTER_VISIBLE & custom_filter
-
     @staticmethod
     def default():
-        """Read default: exclude soft delete & archived, select all non-deferred properties."""
-        return ReadOptions()
+        return SelectOptions()
 
     @staticmethod
     def all():
-        """Read all: include everything, select all properties."""
-        return ReadOptions(include_hidden=True, select_all_properties=True)
+        return SelectOptions(select_all_properties=True, select_all_fields=True)
 
 
-DEFAULT_READ_OPTIONS = ReadOptions.default()
+DEFAULT_READ_OPTIONS = SelectOptions.default()
 
 
 class QueryError(BenchError, ValueError):
@@ -212,44 +185,59 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     __slots__ = (
         "_after",
         "_aggregation",
+        "_ancestor_types",
         "_block",
+        "_descendant_types",
         "_filter",
         "_first",
+        "_include_deleted",
         "_node_cls",
         "_node_type",
-        "_options",
-        "_read_type",
         "_roots",
+        "_select",
         "_skip",
         "_sort",
+        "_type",
     )
 
     def __init__(
         self,
-        read_type: ReadType,
+        # root
+        type: QueryType,
         node_type: NodeType,
         block: Optional["Block"] = None,
         roots: Optional[list["NodeReference"]] = None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
+        aggregation: Optional["Expression"] = None,
+        # joins
+        ancestor_types: list[NodeType] | None = None,
+        descendant_types: list[NodeType] | None = None,
+        # options
+        select: Optional["SelectOptions"] = None,
+        include_deleted: bool = False,
         first: int | None = None,
         skip: int | None = None,
-        aggregation: Optional["Expression"] = None,
-        options: Optional["ReadOptions"] = None,
     ):
         from bench.language.node import NODE_CLASS_BY_TYPE, Node
 
-        self._read_type = read_type
+        # root
+        self._type = type
         self._node_type = node_type
         self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
         self._block = block
-        self._filter = filter
         self._roots = roots
+        self._filter = filter
         self._sort = sort
+        self._aggregation = aggregation
+        # joins
+        self._ancestor_types = ancestor_types or []
+        self._descendant_types = descendant_types or []
+        # options
+        self._select = select
+        self._include_deleted = include_deleted
         self._first = first
         self._skip = skip
-        self._aggregation = aggregation
-        self._options = options
 
     def __str__(self):
         content_parts = []
@@ -264,51 +252,59 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             if v is not None and not (type(v) is list and len(v) == 0):
                 content_parts.append(f"{k}={v}")
 
-        if self._options is not None:
-            if self._options.ancestor_types:
-                ancestors_str = "|".join(a.bench_name for a in self._options.ancestor_types)
-                content_parts.append(f"ancestors={ancestors_str}")
-            if self._options.descendant_types:
-                descendants_str = "|".join(d.bench_name for d in self._options.descendant_types)
-                content_parts.append(f"descendants={descendants_str}")
+        if self._ancestor_types:
+            ancestors_str = "|".join(a.bench_name for a in self._ancestor_types)
+            content_parts.append(f"ancestors={ancestors_str}")
+        if self._descendant_types:
+            descendants_str = "|".join(d.bench_name for d in self._descendant_types)
+            content_parts.append(f"descendants={descendants_str}")
 
         return ", ".join(content_parts) if content_parts else "<empty>"
 
     def __repr__(self):
-        return f"<{self._node_type.bench_name}Query.{self._read_type.bench_name} {self}>"
+        return f"<{self._node_type.bench_name}Query.{self._type.bench_name} {self}>"
 
     def _stable_hash(self):
         return stable_hash(
-            self._read_type,
+            # self._type,
+            # self._node_type,
+            # self._block._stable_hash() if self._block is not None else None,
+            # self._filter._stable_hash() if self._filter is not None else None,
+            # tuple(r._stable_hash() for r in self._roots) if self._roots is not None else None,
+            # tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
+            # self._first,
+            # self._skip,
+            # self._aggregation._stable_hash() if self._aggregation is not None else None,
+            # self._select._stable_hash() if self._select is not None else None,
+            # root
+            self._type,
             self._node_type,
             self._block._stable_hash() if self._block is not None else None,
-            self._filter._stable_hash() if self._filter is not None else None,
             tuple(r._stable_hash() for r in self._roots) if self._roots is not None else None,
+            self._filter._stable_hash() if self._filter is not None else None,
             tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
+            self._aggregation._stable_hash() if self._aggregation is not None else None,
+            # joins
+            self._ancestor_types,
+            self._descendant_types,
+            # options
+            self._select._stable_hash() if self._select is not None else None,
+            self._include_deleted,
             self._first,
             self._skip,
-            self._aggregation._stable_hash() if self._aggregation is not None else None,
-            self._options._stable_hash() if self._options is not None else None,
         )
 
     @property
     def all_node_types(self) -> Iterable[NodeType]:
-        if self._options is None:
-            return (self._node_type,)
-        else:
-            return chain(
-                (self._node_type,), self._options.ancestor_types, self._options.descendant_types
-            )
+        return chain((self._node_type,), self._ancestor_types, self._descendant_types)
 
     @property
     def is_aggregation(self) -> bool:
         return self._aggregation is not None
 
     @property
-    def includes_hidden(self) -> bool:
-        return (
-            self._options.include_hidden if self._options else DEFAULT_READ_OPTIONS.include_hidden
-        )
+    def include_deleted(self) -> bool:
+        return self._include_deleted
 
     #
     # Builder
@@ -317,42 +313,35 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     def clone(self):
         """Clones the query (the properties are immutable)."""
         return QueryBuilder(
-            read_type=self._read_type,
+            # root
+            type=self._type,
             node_type=self._node_type,
             block=self._block,
             roots=self._roots,
             filter=self._filter,
             sort=self._sort,
+            aggregation=self._aggregation,
+            # joins
+            ancestor_types=self._ancestor_types,
+            descendant_types=self._descendant_types,
+            # options
+            select=self._select.clone() if self._select is not None else None,
+            include_deleted=self._include_deleted,
             first=self._first,
             skip=self._skip,
-            aggregation=self._aggregation,
-            options=self._options,
         )
 
-    def _clone_options(self) -> "ReadOptions":
-        if self._options is None:
-            return ReadOptions()
+    def _clone_select(self) -> "SelectOptions":
+        if self._select is None:
+            return SelectOptions()
         else:
-            return self._options.clone()
-
-    def include_hidden(self) -> "QueryBuilder[NodeT, NodeDataT]":
-        clone = self.clone()
-        clone._options = self._clone_options()
-        clone._options.include_hidden = True
-        return clone
-
-    def exclude_hidden(self) -> "QueryBuilder[NodeT, NodeDataT]":
-        clone = self.clone()
-        clone._options = self._clone_options()
-        clone._options.include_hidden = False
-        return clone
+            return self._select.clone()
 
     def trim_to(self, node_types: Collection[NodeType]) -> "QueryBuilder[NodeT, NodeDataT]":
         assert self._node_type in node_types
         clone = self.clone()
-        if not self._options:
-            return clone
-        clone._options = self._options.trim_to(node_types)
+        clone._ancestor_types = [a for a in self._ancestor_types if a in node_types]
+        clone._descendant_types = [d for d in self._descendant_types if d in node_types]
         return clone
 
     def where(
@@ -404,45 +393,43 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
         clone = self.clone()
-        clone._options = self._clone_options()
-        clone._options.include_properties += self._to_properties(properties)
+        clone._select = self._clone_select()
+        clone._select.include_properties += self._to_properties(properties)
         return clone
 
     def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes all (non-relational) properties in the results."""
         clone = self.clone()
-        clone._options = self._clone_options()
-        clone._options.select_all_properties = True
+        clone._select = self._clone_select()
+        clone._select.select_all_properties = True
         return clone
 
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Excludes given default-included properties from the results."""
         clone = self.clone()
-        clone._options = self._clone_options()
-        clone._options.exclude_properties += self._to_properties(properties)
+        clone._select = self._clone_select()
+        clone._select.exclude_properties += self._to_properties(properties)
         return clone
 
     def include_ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes all ancestors in the results."""
         # not quite happy with this API for getting a 'full' node yet, see :LoadOrphanNode
         clone = self.clone()
-        clone._options = self._clone_options()
         for node_type in node_types or ANCESTOR_NODE_TYPES[self._node_type]:
             if not isinstance(node_type, NodeType):
                 node_type = node_type.metatype
-            if node_type not in clone._options.ancestor_types:
-                clone._options.ancestor_types.append(node_type)
+            if node_type not in clone._ancestor_types:
+                clone._ancestor_types.append(node_type)
         return clone
 
     def include_descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Joins the given descendants in the results."""
         clone = self.clone()
-        clone._options = self._clone_options()
         for node_type in node_types:
             if not isinstance(node_type, NodeType):
                 node_type = node_type.metatype
-            if node_type not in clone._options.descendant_types:
-                clone._options.descendant_types.append(node_type)
+            if node_type not in clone._descendant_types:
+                clone._descendant_types.append(node_type)
         return clone
 
     #
@@ -469,7 +456,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return await session._get_channel_for(
             scope,
             self.all_node_types,
-            include_hidden=self.includes_hidden,
+            include_deleted=self.include_deleted,
             is_readonly=True,
         )
 
@@ -504,7 +491,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             assert self._filter is None, f"cannot combine filter and roots in {self!r}"
             query = self.clone()
             query._roots = [filter] if isinstance(filter, NodeReferenceBase) else list(filter)
-            query._read_type = ReadType.GET
+            query._type = QueryType.GET
             channel = await query._get_read_channel()
             connection = await channel.get(query, GetOptions(unpack=True, live=live))
 
@@ -569,7 +556,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
-        query._read_type = ReadType.AGGREGATE
+        query._type = QueryType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
 
         # query
@@ -588,7 +575,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
-        query._read_type = ReadType.AGGREGATE
+        query._type = QueryType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
 
         # query
@@ -648,15 +635,31 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 class QueryInfoBase(BuiltinObject):
     """An object we can build query from."""
 
-    read_type: ReadType = p_regular(40)
+    # root
+    type: QueryType = p_regular(40)
     node_type: NodeType = p_regular(41)
     block: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
-    filter: Optional["Expression"] = p_regular(43, default=None, struct=StructType.EXPRESSION)
+    roots: list[Node] = p_regular(43, require=True, array=True, references=NODE_TYPES.tuple)
+    filter: Optional["Expression"] = p_regular(44, default=None, struct=StructType.EXPRESSION)
     sort: Optional[list["Expression"]] = p_regular(
-        44, default=None, array=True, struct=StructType.EXPRESSION
+        45, default=None, array=True, struct=StructType.EXPRESSION
     )
+    aggregation: Optional["Expression"] = p_regular(46, default=None, struct=StructType.EXPRESSION)
+
+    # joins
+    ancestor_types: list[NodeType] = p_regular(50, require=True, array=True)
+    descendant_types: list[NodeType] = p_regular(51, require=True, array=True)
+    # joins, ...?
+
+    # options
+    select: Optional["SelectOptions"] = p_regular(
+        60, default=None, struct=StructType.SELECT_OPTIONS
+    )
+    include_deleted: bool = p_regular(61, default=False)
+    first: int | None = p_regular(62, default=None)
+    skip: int | None = p_regular(63, default=None)
 
 
 @struct_(StructType.QUERY_INFO)
@@ -676,6 +679,8 @@ class Query(SourceNode[QueryData], QueryInfoBase):
     name: str = p_regular(30, constraint=NAME_CONSTRAINT)
     order_key: str = p_regular(31, default=INTEGER_ZERO)
 
+    # ...QueryInfoBase[40-59]
+
     def __content_str__(self):
         return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
 
@@ -685,7 +690,8 @@ class Query(SourceNode[QueryData], QueryInfoBase):
 
     def build(self) -> "QueryBuilder":
         return QueryBuilder(
-            read_type=self.read_type,
+            # root
+            type=self.type,
             node_type=self.node_type,
             block=self.block,
             filter=self.filter,
@@ -693,7 +699,7 @@ class Query(SourceNode[QueryData], QueryInfoBase):
             first=None,
             skip=None,
             aggregation=None,
-            options=None,
+            select=self.select,
         )
 
     # ... ReadQueryBase methods

@@ -36,7 +36,7 @@ from bench.language.const import (
     NodeType,
     ObjectType,
     PolicyEffect,
-    ReadType,
+    QueryType,
     StructType,
     UseType,
     new_struct_id,
@@ -70,7 +70,14 @@ from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Organization, Package, ReadOptions
+    from bench.language import (
+        Bench,
+        Block,
+        Client,
+        Organization,
+        Package,
+        QueryBuilder,
+    )
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -941,25 +948,23 @@ def evaluate_access(
     return decision, composite_allowed_properties
 
 
-def adapt_read_options(
-    subject: Subject, root_node_type: NodeType, options: "ReadOptions"
-) -> "ReadOptions":
+def adapt_read_query(subject: Subject, query: "QueryBuilder") -> "QueryBuilder":
     """
     Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
     Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
     """
 
-    options = options.clone()
+    query = query.clone()
 
     # query ancestors up to root
-    for ancestor_type in ANCESTOR_NODE_TYPES[root_node_type]:
-        if ancestor_type not in options.ancestor_types:
-            options.ancestor_types.append(ancestor_type)
+    for ancestor_type in ANCESTOR_NODE_TYPES[query._node_type]:
+        if ancestor_type not in query._ancestor_types:
+            query._ancestor_types.append(ancestor_type)
 
     # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
     # NOTE :Performance :Security: also pre-filter read options for owner?
 
-    return options
+    return query
 
 
 @tracer.start_as_current_span("access.evaluate_and_adapt_read")
@@ -967,7 +972,7 @@ def evaluate_and_adapt_read(
     matrix: AccessMatrix,
     graph: NodeDataGraph,
     root_node_type: NodeType,
-    options: "ReadOptions",
+    query: "QueryBuilder",
     *,
     required_nodes: Collection[NodeReferenceData] | None = None,
 ) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
@@ -986,7 +991,7 @@ def evaluate_and_adapt_read(
     from bench.proto import wire
 
     trace.get_current_span().set_attribute("nodes", len(graph))
-    requested_node_types = bittuple(root_node_type, *options.all_node_types)
+    requested_node_types = bittuple(root_node_type, *query.all_node_types)
     requested_nodes_preorder: list[AnyNodeData] = []
     visible_nodes: list[AnyNodeData] = []
     allowed_properties_by_node_id: dict[str, bitarray] = {}
@@ -1006,7 +1011,7 @@ def evaluate_and_adapt_read(
                 node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
                 decision, allowed_properties = evaluate_access(
                     matrix=matrix,
-                    verb=ReadType.GET,  # same for all?
+                    verb=QueryType.GET,  # same for all?
                     node_type=node_type,
                     wanted_properties=node_properties,
                     root_id=root.id,
@@ -1021,7 +1026,7 @@ def evaluate_and_adapt_read(
                     access = Access(
                         mode=AccessMode.ADAPTIVE,
                         decision=decision,
-                        verb=ReadType.GET,
+                        verb=QueryType.GET,
                         node_type=node_type,
                         allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
                     )
