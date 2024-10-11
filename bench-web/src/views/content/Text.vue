@@ -96,11 +96,11 @@ const mentions = pkgGraph.getManyRef(mentionPtrs);
 function resolveMention(mention: {
   id: string;
   ck: string;
-  type: NodeType;
+  nodeType: NodeType;
 }): AnyNodeData | FileReferenceData | SecretReferenceData | null {
   const node = pkgGraph.get(mention);
   if (node != null) return node;
-  if (NODE_REFERENCE_TYPES_BY_NODE_TYPE[mention.type] == null) return null; // not a rich reference
+  if (NODE_REFERENCE_TYPES_BY_NODE_TYPE[mention.nodeType] == null) return null; // not a rich reference
   // find rich reference
   const ref = mentionPtrs.value.find((r) => r.id == mention.id || r.ck == mention.ck) ?? null;
   return ref as FileReferenceData | SecretReferenceData | null;
@@ -276,7 +276,7 @@ class MentionView implements PmNodeView {
 
   updateNode(node: AnyNodeData | FileReferenceData | SecretReferenceData) {
     // content
-    const nodeType = isNodeRef(node) ? node.type : node.metatype;
+    const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
     this.nameDom.textContent = (node as any).name ?? (node as any).title ?? "???";
 
     // style
@@ -296,7 +296,7 @@ watch(
     view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
       if (!(mentionDom instanceof HTMLElement)) return;
       const node = resolveMention({
-        type: Number.parseInt(mentionDom.dataset.nodeType!),
+        nodeType: Number.parseInt(mentionDom.dataset.nodeType!),
         id: mentionDom.dataset.nodeId!,
         ck: mentionDom.dataset.nodeCk!,
       });

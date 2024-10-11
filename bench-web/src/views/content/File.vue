@@ -163,7 +163,7 @@ defineExpose<ViewExposed>({ self, id });
         {
           isEnabled: () =>
             optimisticValue != null &&
-            [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.coarseType),
+            [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.type),
           popover: (context: PopoverContext) => ({
             component: ViewType.FILE,
             props: {
@@ -266,7 +266,7 @@ defineExpose<ViewExposed>({ self, id });
     >
       <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
       <!-- Image File -->
-      <div v-if="optimisticValue?.coarseType == FileType.IMAGE && download?.getUrl.value != null">
+      <div v-if="optimisticValue?.type == FileType.IMAGE && download?.getUrl.value != null">
         <img
           :key="download.getUrl.value"
           :src="download.getUrl.value"
@@ -347,7 +347,7 @@ defineExpose<ViewExposed>({ self, id });
             {{ FileFormat[optimisticValue.format].toUpperCase().replace(/_/g, " ") }}
           </span>
           <!-- Size -->
-          <span v-if="optimisticValue != null && optimisticValue?.coarseType == FileType.IMAGE" class="text-gray-400">
+          <span v-if="optimisticValue != null && optimisticValue?.type == FileType.IMAGE" class="text-gray-400">
             ({{ humanizeBytes(Number(optimisticValue.size)) }})
           </span>
           <!-- Focus -->

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { makeTypeInfo } from "@/language/field";
-import { FieldZone, NodeType, RunData, TypeKind, Variant, ViewData } from "@/proto/wire";
+import { FieldType, NodeType, RunData, TypeKind, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
@@ -44,13 +44,13 @@ const inputsPacked = computed(
   () => (run.value?.inputsPacked != null ? run.value.inputsPacked : {}) as Record<string, any>,
 );
 const inputType = computed(() =>
-  makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldZone: FieldZone.INPUT }),
+  makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldType: FieldType.INPUT }),
 );
 const outputsPacked = computed(
   () => (run.value?.outputsPacked != null ? run.value.outputsPacked : {}) as Record<string, any>,
 );
 const outputType = computed(() =>
-  makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldZone: FieldZone.OUTPUT }),
+  makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldType: FieldType.OUTPUT }),
 );
 
 canvas.registerView(self, id);

@@ -220,7 +220,7 @@ export class SpaceCanvas {
         // annotated element
         const nodePtr = {
           metatype: ObjectType.NODE_REFERENCE,
-          type: Number(el.dataset["nodeType"]),
+          nodeType: Number(el.dataset["nodeType"]),
           id: el.dataset["nodeId"],
           ck: el.dataset["nodeCk"],
         };
@@ -328,7 +328,7 @@ export class SpaceCanvas {
   ) {
     log.trace("canvas.focus", focus);
     focus.node = this.graph.getOrError({ id: focus.node.id }); // 'refresh' node in graph since it may have moved
-    const nodeType = isNodeRef(focus.node) ? (focus.node as NodeReferenceData).type : focus.node.metatype;
+    const nodeType = isNodeRef(focus.node) ? (focus.node as NodeReferenceData).nodeType : focus.node.metatype;
 
     if (nodeType == NodeType.VIEW && this.isInSpace(focus.node)) {
       // focus as a view in canvas
@@ -337,8 +337,8 @@ export class SpaceCanvas {
       // recover view & inspection from views' 'focus' down from focused view
       let viewData = this.getViewData(node);
       while (!HELPER_VIEW_TYPES.has(viewData?.type!) && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
-        if (viewData!.focus!.nodesPtr.some((v) => v.type == NodeType.VIEW)) {
-          const viewPtr = viewData!.focus!.nodesPtr.find((v) => v.type == NodeType.VIEW);
+        if (viewData!.focus!.nodesPtr.some((v) => v.nodeType == NodeType.VIEW)) {
+          const viewPtr = viewData!.focus!.nodesPtr.find((v) => v.nodeType == NodeType.VIEW);
           viewData = viewPtr != null ? this.getViewData(viewPtr) : null;
         } else if (!focus.ignoreInspection) {
           // auto-inspect what was previously focused inside this view
@@ -432,8 +432,8 @@ export class SpaceCanvas {
 
     // if no anchor is given, try to use existing focus state
     if (anchor == null) {
-      if (viewData?.focus?.nodesPtr?.some((n) => n.type == NodeType.VIEW)) {
-        const child = this.getViewData(viewData.focus.nodesPtr.find((n) => n.type == NodeType.VIEW)!);
+      if (viewData?.focus?.nodesPtr?.some((n) => n.nodeType == NodeType.VIEW)) {
+        const child = this.getViewData(viewData.focus.nodesPtr.find((n) => n.nodeType == NodeType.VIEW)!);
         if (child != null) {
           // if we have a focus state we must use it, even if it didn't actually focus in the component
           //  (so we 'pretend' there was focus in the component by calling onComponentFocused directly)
@@ -797,7 +797,7 @@ export class SpaceCanvas {
     if (
       graph.getChildren(view, NodeType.VIEW).length == 0 &&
       graph.getChildren(view.parentPtr!, NodeType.VIEW).length > 1 &&
-      graph.get({ type: NodeType.VIEW, id: view.parentPtr!.id })?.type == ViewType.SPLIT
+      graph.get({ nodeType: NodeType.VIEW, id: view.parentPtr!.id })?.type == ViewType.SPLIT
     ) {
       // NOTE :UX: should we re-distribute space if cleaning up after a split?
       this.removeView(graph, view);

@@ -8,14 +8,14 @@ import { packValue, unpackValue } from "@/language/value";
 import {
   BenchType,
   BlockType,
-  FieldZone,
+  FieldType,
   NodeReferenceData,
   NodeType,
   TypeInfoData,
   TypeKind,
   Variant,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
@@ -73,7 +73,7 @@ const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
   () =>
     RUNNABLE_BLOCK_TYPES.includes(block.value?.type!) &&
-    fields.value.some((f) => f.type == FieldZone.INPUT || f.type == FieldZone.OUTPUT),
+    fields.value.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT),
 );
 const forceShowText: Ref<boolean> = ref(false);
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
@@ -223,7 +223,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                   createField(pkgConnection.tx, pkgGraph, {
                     anchor: 'inside',
                     target: block!,
-                    field: { kind: TypeKind.LITERAL, zone: FieldZone.OPTION },
+                    field: { kind: TypeKind.LITERAL, type: FieldType.OPTION },
                   });
                 } else {
                   const button = (e.target as HTMLElement).closest('button')!;

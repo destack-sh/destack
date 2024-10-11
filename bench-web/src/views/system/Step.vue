@@ -114,14 +114,14 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
     } else {
       moveNode(flowCtx.tx, flowCtx.graph, node, { anchor: "center", target: stepFields.fieldParent });
     }
-    if (node.zone != stepFields.zone) {
-      flowCtx.tx.update(node, { zone: stepFields.zone }, { debounce: "tick" });
+    if (node.type != stepFields.type) {
+      flowCtx.tx.update(node, { type: stepFields.type }, { debounce: "tick" });
       onNodeMorphed(flowCtx.tx, flowCtx.graph, node);
     }
   } else if (isNode(node, NodeType.BLOCK)) {
     // add field with block type
     const type = blockToType(node);
-    const fieldIn = { ...type, zone: stepFields.zone };
+    const fieldIn = { ...type, zone: stepFields.type };
     if (port.field != null) {
       createField(flowCtx.tx, flowCtx.graph, { field: fieldIn, anchor, target: port.field });
     } else {
@@ -307,7 +307,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   createField(flowCtx.tx, flowCtx.graph, {
                     anchor: 'inside',
                     target: stepFields.fieldParent,
-                    field: { ...typeInfo, zone: stepFields.zone },
+                    field: { ...typeInfo, type: stepFields.type },
                   });
                 },
               },

@@ -954,8 +954,8 @@ class TypeKind(IdEnum):
 
 
 @enum_(EnumType.FIELD_ZONE)
-class FieldZone(IdEnum):
-    """The 'zone' of a Field within its Block."""
+class FieldType(IdEnum):
+    """The type of a Field within its Block."""
 
     VARIABLE = 1
     MEMBER = 2

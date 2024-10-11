@@ -247,10 +247,6 @@ export interface ChangeVignetteData {
      */
     subtype?: number;
     /**
-     * @generated from protobuf field: optional int32 subsubtype = 33;
-     */
-    subsubtype?: number;
-    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
      */
     icon?: IconData;
@@ -615,9 +611,9 @@ export interface FileInfoData {
      */
     inlineContent?: Uint8Array;
     /**
-     * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
+     * @generated from protobuf field: symbolx.bench.FileType type = 50;
      */
-    coarseType: FileType;
+    type: FileType;
     /**
      * @generated from protobuf field: optional string mime_type = 51;
      */
@@ -718,9 +714,9 @@ export interface FileReferenceData {
      */
     inlineContent?: Uint8Array;
     /**
-     * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
+     * @generated from protobuf field: symbolx.bench.FileType type = 50;
      */
-    coarseType: FileType;
+    type: FileType;
     /**
      * @generated from protobuf field: optional string mime_type = 51;
      */
@@ -2071,9 +2067,9 @@ export interface TypeInfoData {
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FieldZone base_field_zone = 44;
+     * @generated from protobuf field: optional symbolx.bench.FieldType base_field_type = 44;
      */
-    baseFieldZone?: FieldZone;
+    baseFieldType?: FieldType;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData oneof_ptr = 45;
      */
@@ -3033,9 +3029,9 @@ export interface FieldData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbolx.bench.FieldZone type = 30;
+     * @generated from protobuf field: symbolx.bench.FieldType type = 30;
      */
-    type: FieldZone;
+    type: FieldType;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -3069,9 +3065,9 @@ export interface FieldData {
      */
     baseTypePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FieldZone base_field_zone = 44;
+     * @generated from protobuf field: optional symbolx.bench.FieldType base_field_type = 44;
      */
-    baseFieldZone?: FieldZone;
+    baseFieldType?: FieldType;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData oneof_ptr = 45;
      */
@@ -3188,9 +3184,9 @@ export interface FileData {
      */
     inlineContent?: Uint8Array;
     /**
-     * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
+     * @generated from protobuf field: symbolx.bench.FileType type = 50;
      */
-    coarseType: FileType;
+    type: FileType;
     /**
      * @generated from protobuf field: optional string mime_type = 51;
      */
@@ -8093,33 +8089,33 @@ export enum ExpressionOp {
     DESCENDING = 501
 }
 /**
- * The 'zone' of a Field within its Block.
+ * The type of a Field within its Block.
  *
- * @generated from protobuf enum symbolx.bench.FieldZone
+ * @generated from protobuf enum symbolx.bench.FieldType
  */
-export enum FieldZone {
+export enum FieldType {
     /**
-     * @generated from protobuf enum value: FIELD_ZONE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: FIELD_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FIELD_ZONE_VARIABLE = 1;
+     * @generated from protobuf enum value: FIELD_TYPE_VARIABLE = 1;
      */
     VARIABLE = 1,
     /**
-     * @generated from protobuf enum value: FIELD_ZONE_MEMBER = 2;
+     * @generated from protobuf enum value: FIELD_TYPE_MEMBER = 2;
      */
     MEMBER = 2,
     /**
-     * @generated from protobuf enum value: FIELD_ZONE_INPUT = 3;
+     * @generated from protobuf enum value: FIELD_TYPE_INPUT = 3;
      */
     INPUT = 3,
     /**
-     * @generated from protobuf enum value: FIELD_ZONE_OUTPUT = 4;
+     * @generated from protobuf enum value: FIELD_TYPE_OUTPUT = 4;
      */
     OUTPUT = 4,
     /**
-     * @generated from protobuf enum value: FIELD_ZONE_OPTION = 5;
+     * @generated from protobuf enum value: FIELD_TYPE_OPTION = 5;
      */
     OPTION = 5
 }
@@ -12020,7 +12016,6 @@ class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 33, name: "subsubtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData }
         ]);
     }
@@ -12047,9 +12042,6 @@ class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
                     break;
                 case /* optional int32 subtype */ 32:
                     message.subtype = reader.int32();
-                    break;
-                case /* optional int32 subsubtype */ 33:
-                    message.subsubtype = reader.int32();
                     break;
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
@@ -12078,9 +12070,6 @@ class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
         /* optional int32 subtype = 32; */
         if (message.subtype !== undefined)
             writer.tag(32, WireType.Varint).int32(message.subtype);
-        /* optional int32 subsubtype = 33; */
-        if (message.subsubtype !== undefined)
-            writer.tag(33, WireType.Varint).int32(message.subsubtype);
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
@@ -13004,7 +12993,7 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
             { no: 41, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 50, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
             { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
@@ -13024,7 +13013,7 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
         message.metatype = 0;
         message.kind = 0;
         message.title = "";
-        message.coarseType = 0;
+        message.type = 0;
         message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileInfoData>(this, message, value);
@@ -13050,8 +13039,8 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
                 case /* optional bytes inline_content */ 44:
                     message.inlineContent = reader.bytes();
                     break;
-                case /* symbolx.bench.FileType coarse_type */ 50:
-                    message.coarseType = reader.int32();
+                case /* symbolx.bench.FileType type */ 50:
+                    message.type = reader.int32();
                     break;
                 case /* optional string mime_type */ 51:
                     message.mimeType = reader.string();
@@ -13116,9 +13105,9 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
         /* optional bytes inline_content = 44; */
         if (message.inlineContent !== undefined)
             writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
-        /* symbolx.bench.FileType coarse_type = 50; */
-        if (message.coarseType !== 0)
-            writer.tag(50, WireType.Varint).int32(message.coarseType);
+        /* symbolx.bench.FileType type = 50; */
+        if (message.type !== 0)
+            writer.tag(50, WireType.Varint).int32(message.type);
         /* optional string mime_type = 51; */
         if (message.mimeType !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
@@ -13180,7 +13169,7 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 41, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 50, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
             { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
@@ -13201,7 +13190,7 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         message.nodeType = 0;
         message.kind = 0;
         message.title = "";
-        message.coarseType = 0;
+        message.type = 0;
         message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileReferenceData>(this, message, value);
@@ -13245,8 +13234,8 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* optional bytes inline_content */ 44:
                     message.inlineContent = reader.bytes();
                     break;
-                case /* symbolx.bench.FileType coarse_type */ 50:
-                    message.coarseType = reader.int32();
+                case /* symbolx.bench.FileType type */ 50:
+                    message.type = reader.int32();
                     break;
                 case /* optional string mime_type */ 51:
                     message.mimeType = reader.string();
@@ -13329,9 +13318,9 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* optional bytes inline_content = 44; */
         if (message.inlineContent !== undefined)
             writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
-        /* symbolx.bench.FileType coarse_type = 50; */
-        if (message.coarseType !== 0)
-            writer.tag(50, WireType.Varint).int32(message.coarseType);
+        /* symbolx.bench.FileType type = 50; */
+        if (message.type !== 0)
+            writer.tag(50, WireType.Varint).int32(message.type);
         /* optional string mime_type = 51; */
         if (message.mimeType !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
@@ -16650,7 +16639,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
+            { no: 44, name: "base_field_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "default_packed", kind: "message", T: () => Value },
             { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
@@ -16692,8 +16681,8 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* optional symbolx.bench.FieldZone base_field_zone */ 44:
-                    message.baseFieldZone = reader.int32();
+                case /* optional symbolx.bench.FieldType base_field_type */ 44:
+                    message.baseFieldType = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData oneof_ptr */ 45:
                     message.oneofPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.oneofPtr);
@@ -16746,9 +16735,9 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
         if (message.baseTypePtr)
             NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.FieldZone base_field_zone = 44; */
-        if (message.baseFieldZone !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.baseFieldZone);
+        /* optional symbolx.bench.FieldType base_field_type = 44; */
+        if (message.baseFieldType !== undefined)
+            writer.tag(44, WireType.Varint).int32(message.baseFieldType);
         /* optional symbolx.bench.NodeReferenceData oneof_ptr = 45; */
         if (message.oneofPtr)
             NodeReferenceData.internalBinaryWrite(message.oneofPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
@@ -18724,7 +18713,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
@@ -18733,7 +18722,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 41, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PrimitiveType", PrimitiveType, "PRIMITIVE_TYPE_"] },
             { no: 42, name: "bench_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
+            { no: 44, name: "base_field_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "default_packed", kind: "message", T: () => Value },
             { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
@@ -18812,7 +18801,7 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbolx.bench.FieldZone type */ 30:
+                case /* symbolx.bench.FieldType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* string name */ 31:
@@ -18839,8 +18828,8 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional symbolx.bench.NodeReferenceData base_type_ptr */ 43:
                     message.baseTypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseTypePtr);
                     break;
-                case /* optional symbolx.bench.FieldZone base_field_zone */ 44:
-                    message.baseFieldZone = reader.int32();
+                case /* optional symbolx.bench.FieldType base_field_type */ 44:
+                    message.baseFieldType = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData oneof_ptr */ 45:
                     message.oneofPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.oneofPtr);
@@ -18923,7 +18912,7 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FieldZone type = 30; */
+        /* symbolx.bench.FieldType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* string name = 31; */
@@ -18950,9 +18939,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.NodeReferenceData base_type_ptr = 43; */
         if (message.baseTypePtr)
             NodeReferenceData.internalBinaryWrite(message.baseTypePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.FieldZone base_field_zone = 44; */
-        if (message.baseFieldZone !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.baseFieldZone);
+        /* optional symbolx.bench.FieldType base_field_type = 44; */
+        if (message.baseFieldType !== undefined)
+            writer.tag(44, WireType.Varint).int32(message.baseFieldType);
         /* optional symbolx.bench.NodeReferenceData oneof_ptr = 45; */
         if (message.oneofPtr)
             NodeReferenceData.internalBinaryWrite(message.oneofPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
@@ -19010,7 +18999,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 41, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 50, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
             { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
@@ -19038,7 +19027,7 @@ class FileData$Type extends MessageType<FileData> {
         message.currentStatus = 0;
         message.kind = 0;
         message.title = "";
-        message.coarseType = 0;
+        message.type = 0;
         message.size = 0n;
         message.retention = 0;
         if (value !== undefined)
@@ -19107,8 +19096,8 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional bytes inline_content */ 44:
                     message.inlineContent = reader.bytes();
                     break;
-                case /* symbolx.bench.FileType coarse_type */ 50:
-                    message.coarseType = reader.int32();
+                case /* symbolx.bench.FileType type */ 50:
+                    message.type = reader.int32();
                     break;
                 case /* optional string mime_type */ 51:
                     message.mimeType = reader.string();
@@ -19221,9 +19210,9 @@ class FileData$Type extends MessageType<FileData> {
         /* optional bytes inline_content = 44; */
         if (message.inlineContent !== undefined)
             writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
-        /* symbolx.bench.FileType coarse_type = 50; */
-        if (message.coarseType !== 0)
-            writer.tag(50, WireType.Varint).int32(message.coarseType);
+        /* symbolx.bench.FileType type = 50; */
+        if (message.type !== 0)
+            writer.tag(50, WireType.Varint).int32(message.type);
         /* optional string mime_type = 51; */
         if (message.mimeType !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
@@ -25223,7 +25212,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
-  [EnumType.FIELD_ZONE]: FieldZone,
+  [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.TYPE_FORMAT]: TypeFormat,
   [EnumType.BLOCK_TYPE]: BlockType,
@@ -25520,7 +25509,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
-  [EnumType.FIELD_ZONE]: FieldZone,
+  [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.TYPE_FORMAT]: TypeFormat,
   [EnumType.BLOCK_TYPE]: BlockType,
@@ -25859,7 +25848,7 @@ export enum FileProperty {
   title = 41,
   externalUrl = 43,
   inlineContent = 44,
-  coarseType = 50,
+  type = 50,
   mimeType = 51,
   format = 52,
   size = 53,
@@ -26106,7 +26095,7 @@ export enum FieldProperty {
   primitiveType = 41,
   benchType = 42,
   baseTypePtr = 43,
-  baseFieldZone = 44,
+  baseFieldType = 44,
   oneofPtr = 45,
   defaultPacked = 50,
   format = 53,
@@ -26562,7 +26551,6 @@ export enum ChangeVignetteProperty {
   name = 30,
   title = 31,
   subtype = 32,
-  subsubtype = 33,
   icon = 35,
 }
 
@@ -26712,7 +26700,7 @@ export enum TypeInfoProperty {
   primitiveType = 41,
   benchType = 42,
   baseTypePtr = 43,
-  baseFieldZone = 44,
+  baseFieldType = 44,
   oneofPtr = 45,
   defaultPacked = 50,
   format = 53,
@@ -26758,7 +26746,7 @@ export enum FileInfoProperty {
   title = 41,
   externalUrl = 43,
   inlineContent = 44,
-  coarseType = 50,
+  type = 50,
   mimeType = 51,
   format = 52,
   size = 53,
@@ -26785,7 +26773,7 @@ export enum FileReferenceProperty {
   title = 41,
   externalUrl = 43,
   inlineContent = 44,
-  coarseType = 50,
+  type = 50,
   mimeType = 51,
   format = 52,
   size = 53,
@@ -27419,7 +27407,6 @@ export const ChangeVignetteDataInfo: Record<ChangeVignetteProperty, PropertyInfo
   [ChangeVignetteProperty.name]: { id: 30, name: 'name', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ChangeVignetteProperty.title]: { id: 31, name: 'title', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ChangeVignetteProperty.subtype]: { id: 32, name: 'subtype', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ChangeVignetteProperty.subsubtype]: { id: 33, name: 'subsubtype', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ChangeVignetteProperty.icon]: { id: 35, name: 'icon', component: ObjectType.CHANGE_VIGNETTE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
 }
 export const GraphScopeDataInfo: Record<GraphScopeProperty, PropertyInfo> = {
@@ -27553,7 +27540,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.TYPE_INFO, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.TYPE_INFO, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [TypeInfoProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.baseFieldType]: { id: 44, name: 'base_field_type', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.oneofPtr]: { id: 45, name: 'oneof_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TypeInfoProperty.format]: { id: 53, name: 'format', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -27596,7 +27583,7 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.title]: { id: 41, name: 'title', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.externalUrl]: { id: 43, name: 'external_url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.type]: { id: 50, name: 'type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -27622,7 +27609,7 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.title]: { id: 41, name: 'title', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.externalUrl]: { id: 43, name: 'external_url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.type]: { id: 50, name: 'type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28156,7 +28143,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.title]: { id: 41, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.externalUrl]: { id: 43, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.type]: { id: 50, name: 'type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28393,7 +28380,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.primitiveType]: { id: 41, name: 'primitive_type', component: ObjectType.FIELD, enumType: EnumType.PRIMITIVE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.benchType]: { id: 42, name: 'bench_type', component: ObjectType.FIELD, enumType: EnumType.BENCH_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.baseFieldType]: { id: 44, name: 'base_field_type', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.oneofPtr]: { id: 45, name: 'oneof_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [FieldProperty.format]: { id: 53, name: 'format', component: ObjectType.FIELD, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },

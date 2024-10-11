@@ -23,7 +23,7 @@ const humanizedError = computed(() => {
       <!-- Not found -->
       <span>
         <i class="fas fa-circle-exclamation mr-1.5 text-gray-500" />
-        <span class="text-gray-600">{{ node != null ? toCamelName(NodeType, node.type) : "Node" }} Not Found</span>
+        <span class="text-gray-600">{{ node != null ? toCamelName(NodeType, node.nodeType) : "Node" }} Not Found</span>
       </span>
       <!-- TODO :UX: help to restore node if not found (and is accessible, else help with policies) -->
     </template>

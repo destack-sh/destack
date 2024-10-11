@@ -46,11 +46,11 @@ export const { graph: userGraph, connection: userConnection } = useGetConnection
   })),
 );
 export const user = userGraph.getRef(
-  computed(() => (isAuthenticated.value ? { type: NodeType.USER, id: local.userInfo.value?.id! } : null)),
+  computed(() => (isAuthenticated.value ? { nodeType: NodeType.USER, id: local.userInfo.value?.id! } : null)),
 );
 export const client = userGraph.getRef(
   computed(() =>
-    local.clientInfo.value?.id == null ? null : { type: NodeType.CLIENT, id: local.clientInfo.value.id },
+    local.clientInfo.value?.id == null ? null : { nodeType: NodeType.CLIENT, id: local.clientInfo.value.id },
   ),
 );
 export const clients = userGraph.getChildrenRef(

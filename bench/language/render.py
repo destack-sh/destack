@@ -16,7 +16,7 @@ from bench.language.const import (
     NODE_TYPES_SET,
     BlockType,
     EnumType,
-    FieldZone,
+    FieldType,
     NodeType,
     ObjectType,
     PrimitiveType,
@@ -296,7 +296,7 @@ class Renderer:
         assert typ.base_type is not None, f"{value!r} has no base type"
         repr_by_name: dict[str, str] = {}
         for field in typ._base_fields:
-            if typ.base_field_zone is not None and field.type != typ.base_field_zone:
+            if typ.base_field_type is not None and field.type != typ.base_field_type:
                 continue
             field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
@@ -570,8 +570,8 @@ def _map_type_info_kwargs(
         else:
             assert isinstance(type_in, type), f"unexpected type {type_in!r}"
             rendered_type = type_in.__name__
-        kwargs = {"type": rendered_type, **kwargs}
-        for key in ("kind", "primitive_type", "bench_type", "base_type", "base_field_zone"):
+        kwargs = {"_type_in": rendered_type, **kwargs}
+        for key in ("kind", "primitive_type", "bench_type", "base_type", "base_field_type"):
             kwargs.pop(key, None)
     return kwargs
 
@@ -585,7 +585,7 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         # remap back to type in if possible
         kwargs = _map_type_info_kwargs(renderer, obj, kwargs)
         # kind=literal is implicit if option
-        if obj.type == FieldZone.OPTION:
+        if obj.type == FieldType.OPTION:
             kwargs.pop("kind")
         return kwargs
 
@@ -598,11 +598,11 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         rendered_kwargs: dict[str, str],
     ) -> str:
         constructor_name = obj.type.name.lower()
-        rendered_kwargs.pop("zone", None)
-        if "type" in rendered_kwargs:
+        rendered_kwargs.pop("type", None)
+        if "_type_in" in rendered_kwargs:
             field_args = renderer._render_args(
                 rendered_kwargs.pop("name"),
-                rendered_kwargs.pop("type"),
+                rendered_kwargs.pop("_type_in"),
                 renderer._render_kwargs(**rendered_kwargs) or None,
             )
         else:
@@ -628,7 +628,7 @@ class TypeInfoRenderer(BuiltinObjectRenderer[TypeInfoBase]):
         rendered_kwargs: dict[str, str],
     ) -> str:
         type_args = renderer._render_args(
-            rendered_kwargs.pop("type"),
+            rendered_kwargs.pop("_type_in"),
             renderer._render_kwargs(**rendered_kwargs) or None,
         )
         return f"to_type({type_args})"

@@ -238,7 +238,7 @@ function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeRefer
   while (el != null) {
     const id = el.getAttribute("data-message-id");
     if (id != null) {
-      const message = pkgGraph.get({ id, type: NodeType.MESSAGE });
+      const message = pkgGraph.get({ id, nodeType: NodeType.MESSAGE });
       if (message != null) return toPlainNodeRef(message);
     }
     el = el.parentElement;
@@ -247,7 +247,7 @@ function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeRefer
 }
 
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
-  if (anchor == null || typeof anchor === "string" || anchor.type != NodeType.MESSAGE) {
+  if (anchor == null || typeof anchor === "string" || anchor.nodeType != NodeType.MESSAGE) {
     textRef.value?.focus?.("center");
   } else {
     const selfView = spaceGraph.getOrError(self.value!);

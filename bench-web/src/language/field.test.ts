@@ -22,7 +22,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind; identityK
     kind: TypeKind.OBJECT,
     baseTypePtr: {
       metatype: ObjectType.NODE_REFERENCE,
-      type: NodeType.BLOCK,
+      nodeType: NodeType.BLOCK,
       ck: "12345678-ffff-0000-0000-000000000000",
     },
     isSecret: false,

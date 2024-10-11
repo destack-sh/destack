@@ -88,21 +88,21 @@ def test_project_unloaded_nodes(shared_session: Session, shared_package: Package
         parent=shared_package.bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile1.txt",
-        coarse_type=FileType.TEXT,
+        type=FileType.TEXT,
         size=1024,
     )
     File2 = File(
         parent=shared_package.bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile2.txt",
-        coarse_type=FileType.TEXT,
+        type=FileType.TEXT,
         size=1024,
     )
     File3 = File(
         parent=shared_package.bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile3.txt",
-        coarse_type=FileType.TEXT,
+        type=FileType.TEXT,
         size=1024,
     )
     Variable1 = Block.new(

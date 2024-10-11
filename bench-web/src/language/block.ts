@@ -2,7 +2,7 @@ import {
   BenchType,
   BlockData,
   BlockType,
-  FieldZone,
+  FieldType,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -242,11 +242,11 @@ export function blockToType(block: BlockData): TypeInfoData {
   //  (for instance Signal blocks could map to both Signal nodes based in that block or Values of that Signal type)
   let kind: TypeKind;
   let benchType: BenchType | undefined;
-  let baseFieldZone: FieldZone | undefined;
+  let baseFieldType: FieldType | undefined;
   if (block.type == BlockType.CHOICE) {
     benchType = BenchType.FIELD;
     kind = TypeKind.BASED_NODE;
-    baseFieldZone = FieldZone.OPTION;
+    baseFieldType = FieldType.OPTION;
   } else if (block.type == BlockType.CLASS) {
     kind = TypeKind.OBJECT;
   } else if (block.type == BlockType.SIGNAL) {
@@ -258,7 +258,7 @@ export function blockToType(block: BlockData): TypeInfoData {
   } else {
     kind = TypeKind.ALIAS;
   }
-  const type = makeTypeInfo({ kind, benchType, baseFieldZone });
+  const type = makeTypeInfo({ kind, benchType, baseFieldType });
   type.baseTypePtr = toNodeRef(block);
   return type;
 }

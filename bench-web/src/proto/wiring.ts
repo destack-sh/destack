@@ -34,7 +34,7 @@ export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);
 export const STRUCT_TYPE_NAME: Record<StructType, string> = reverseRecord(StructType);
 export const OBJECT_TYPE_NAME: Record<ObjectType, string> = reverseRecord(ObjectType);
 
-export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { nodeType: T };
+export type TypedNodeReferenceData<T extends NodeType> = Omit<NodeReferenceData, "nodeType"> & { nodeType: T };
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
 
 export function makeScope(scope: Partial<GraphScopeData>): GraphScopeData {

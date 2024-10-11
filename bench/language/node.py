@@ -311,12 +311,14 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
                 # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
                 if prop.is_node_reference and prop.reference_kind != ReferenceKind.NODE_CHILDREN:
-                    for key in ("id", "ck", "type"):
-                        if key == "type" and (
+                    for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
+                        if obj_key == "type" and (
                             not prop.reference_nodes or len(prop.reference_nodes) <= 1
                         ):
                             continue  # no need for *_type if only one possible node type
-                        _set_computed(f"{prop.name}_{key}", _object_node_ref_attr(key, prop))
+                        _set_computed(
+                            f"{prop.name}_{obj_key}", _object_node_ref_attr(ptr_key, prop)
+                        )
 
             # computed runtime value
             if prop.is_value_runtime:
@@ -681,7 +683,7 @@ def _object_node_ref(prop: Property) -> property:
         return property(_get_node_many, _set_node_many)
 
 
-def _object_node_ref_attr(key: str, prop: Property) -> property:
+def _object_node_ref_attr(ptr_key: str, prop: Property) -> property:
     """The computed get property from a specific attribute of a node pointer."""
 
     wired_prop = prop.reference_wired_ptr
@@ -692,7 +694,7 @@ def _object_node_ref_attr(key: str, prop: Property) -> property:
         def _get_node_ref_attr_scalar(self):
             value_ptr = getattr(self, wired_prop.name)
             if value_ptr is not None:
-                return getattr(value_ptr, key)
+                return getattr(value_ptr, ptr_key)
             else:
                 return None
 
@@ -706,7 +708,7 @@ def _object_node_ref_attr(key: str, prop: Property) -> property:
         def _get_node_ref_attr_many(self: BuiltinObject):
             value_ptrs = getattr(self, wired_prop.name)
             assert type(value_ptrs) is list, f"invalid {prop}: {value_ptrs!r}"
-            return tuple(getattr(p, key) for p in value_ptrs)
+            return tuple(getattr(p, ptr_key) for p in value_ptrs)
 
         def _set_node_ref_attr_many(self: BuiltinObject, values):
             raise RuntimeError(f"cannot set computed property attribute {prop!r}: {values!r}")
@@ -1982,11 +1984,7 @@ NODE_SUBTYPE_PROPERTY_BY_TYPE: dict[NodeType, str] = {
     NodeType.STEP: "type",
     NodeType.FIELD: "type",
     NodeType.VIEW: "type",
-    NodeType.FILE: "coarse_type",
-}
-NODE_SUBSUBTYPE_PROPERTY_BY_TYPE: dict[NodeType, str] = {
-    NodeType.FIELD: "kind",
-    NodeType.FILE: "format",
+    NodeType.FILE: "type",
 }
 
 #

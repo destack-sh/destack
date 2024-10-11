@@ -11,7 +11,7 @@ import {
   EditType,
   EnumType,
   FieldData,
-  FieldZone,
+  FieldType,
   FileFormat,
   FileType,
   IconKind,
@@ -518,12 +518,12 @@ export const ICON_BY_FILE_FORMAT: Partial<Record<FileFormat, IconData>> = _makeI
   [FileFormat.PPT]: "fas fa-file-powerpoint",
 });
 
-export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIcons({
-  [FieldZone.VARIABLE]: "fas fa-sliders",
-  [FieldZone.MEMBER]: "fas fa-objects-column",
-  [FieldZone.INPUT]: "fas fa-arrow-down-right",
-  [FieldZone.OUTPUT]: "fas fa-arrow-up-right",
-  [FieldZone.OPTION]: "fas fa-circle-small",
+export const ICON_BY_FIELD_ZONE: Partial<Record<FieldType, IconData>> = _makeIcons({
+  [FieldType.VARIABLE]: "fas fa-sliders",
+  [FieldType.MEMBER]: "fas fa-objects-column",
+  [FieldType.INPUT]: "fas fa-arrow-down-right",
+  [FieldType.OUTPUT]: "fas fa-arrow-up-right",
+  [FieldType.OPTION]: "fas fa-circle-small",
 });
 
 export const ICON_BY_LOG_LEVEL: Record<LogLevel, IconData> = {
@@ -628,8 +628,8 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
 
 /** Resolves the icon for a type :FieldIcon */
 export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData | undefined {
-  if ((node as FieldData).zone == FieldZone.OPTION) {
-    return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
+  if ((node as FieldData).type == FieldType.OPTION) {
+    return ICON_BY_FIELD_ZONE[FieldType.OPTION];
   } else if (node.primitiveType != null) {
     if (node.format != null) {
       const icon = ICON_BY_TYPE_FORMAT[node.format];
@@ -679,7 +679,7 @@ export function getNodeIcon(
 
   // get icon for subtype
   const nodeType =
-    options?.nodeType ?? (isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).type);
+    options?.nodeType ?? (isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).nodeType);
   const nodeSubtypeKey = NODE_SUBTYPE_BY_TYPE[nodeType];
   const nodeSubtype =
     nodeSubtypeKey != null ? ((node as ChangeVignetteData).subtype ?? (node as any)[nodeSubtypeKey]) : undefined;

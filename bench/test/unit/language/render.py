@@ -179,7 +179,7 @@ def test_render_variable_with_file(shared_session: Session, shared_package: Pack
     File1 = File(
         kind=FileKind.DRIVE,
         title="myfile.txt",
-        coarse_type=FileType.TEXT,
+        type=FileType.TEXT,
         mime_type="text/plain",
         size=1024,
     )

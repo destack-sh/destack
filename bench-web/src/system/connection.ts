@@ -117,7 +117,7 @@ type ConnectionMetadata = {
 // get connection
 type GetConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
-  roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
+  roots: (Omit<NodeReferenceData, "type"> & { nodeType: T })[];
   scope: GraphScopeData;
   isOptional?: boolean;
   options?: Partial<ReadOptionsData>;
@@ -192,7 +192,7 @@ function getNodeTypesFromParams<T extends NodeType>(
   params: ConnectionParamsMapping<T>[GraphConnectionKind],
 ): NodeType[] {
   const nodeTypes: NodeType[] = [];
-  if ("roots" in params) nodeTypes.push(...params.roots.map((r) => r.type));
+  if ("roots" in params) nodeTypes.push(...params.roots.map((r) => r.nodeType));
   if ("nodeType" in params) nodeTypes.push(params.nodeType);
   if ("options" in params) {
     if (params.options?.ancestorTypes) nodeTypes.push(...params.options.ancestorTypes);
@@ -555,7 +555,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         return false;
       }
       const thisNodeTypes = [
-        ...thisGet.roots.map((r) => r.type),
+        ...thisGet.roots.map((r) => r.nodeType),
         ...(thisGet.options?.ancestorTypes ?? []),
         ...(thisGet.options?.descendantTypes ?? []),
       ];
@@ -565,7 +565,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         return deepContentEquals(params, this.params);
       }
       const otherNodeTypes = [
-        ...otherGet.roots.map((r) => r.type),
+        ...otherGet.roots.map((r) => r.nodeType),
         ...(otherGet.options?.ancestorTypes ?? []),
         ...(otherGet.options?.descendantTypes ?? []),
       ];

@@ -3,7 +3,7 @@ import { blockToType } from "@/language/block";
 import { RUNNABLE_BLOCK_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS } from "@/language/field";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
-import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
+import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -42,18 +42,18 @@ const shouldHaveFields = computed(() => block.value != null && !isFunction.value
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 const leftZone = computed(() => {
   if (block.value?.type == BlockType.CLASS) {
-    return FieldZone.MEMBER;
+    return FieldType.MEMBER;
   } else if (block.value?.type == BlockType.CHOICE) {
-    return FieldZone.OPTION;
+    return FieldType.OPTION;
   } else if (isFunction.value) {
-    return FieldZone.INPUT;
+    return FieldType.INPUT;
   } else {
     return null;
   }
 });
 const rightZone = computed(() => {
   if (isFunction.value) {
-    return FieldZone.OUTPUT;
+    return FieldType.OUTPUT;
   } else {
     return null;
   }
@@ -63,7 +63,7 @@ const leftFields = computed(() => {
 });
 const rightFields = computed(() => {
   if (isFunction.value) {
-    return fields.value.filter((f) => f.type == FieldZone.OUTPUT);
+    return fields.value.filter((f) => f.type == FieldType.OUTPUT);
   } else {
     return [];
   }
@@ -74,7 +74,7 @@ const rightFields = computed(() => {
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
   if (dragged.kind != "node") return false;
   const node = pkgGraph.get(dragged.node);
-  if (isNode(node, NodeType.FIELD) && (node.zone == FieldZone.OPTION) == (block.value?.type == BlockType.CHOICE)) {
+  if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (block.value?.type == BlockType.CHOICE)) {
     return true;
   } else if (
     isNode(node, NodeType.BLOCK) &&
@@ -90,7 +90,7 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
   if (dragged.kind != "node") return;
   const node = pkgGraph.getOrError(dragged.node);
   const side = leftRef.value?.contains(event.target as Node) ? "left" : "right";
-  const sideZone = side == "left" ? leftZone.value : rightZone.value;
+  const sideType = side == "left" ? leftZone.value : rightZone.value;
   const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
   if (isNode(node, NodeType.FIELD)) {
     // move field
@@ -100,14 +100,14 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
     } else {
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
     }
-    if (node.zone != sideZone) {
-      pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
+    if (node.type != sideType) {
+      pkgConnection.tx.update(node, { type: sideType ?? undefined }, { debounce: "tick" });
       onNodeMorphed(pkgConnection.tx, pkgGraph, node);
     }
   } else if (isNode(node, NodeType.BLOCK)) {
     // add field with block type
     const type = blockToType(node);
-    const fieldIn = { ...type, zone: sideZone! };
+    const fieldIn = { ...type, zone: sideType! };
     if (target != null) {
       if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
       createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor, target });
@@ -220,11 +220,11 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
         >
           <i class="fas fa-empty-set mr-1.5 text-gray-400" />
-          <span class="text-gray-500">No {{ toCamelName(FieldZone, side == "left" ? leftZone : rightZone) }}s</span>
+          <span class="text-gray-500">No {{ toCamelName(FieldType, side == "left" ? leftZone : rightZone) }}s</span>
         </div>
         <!-- Drop indicator -->
         <div v-else-if="activeDropZoneSide == side" class="absolute right-1 top-1 text-primary-900">
-          {{ toCamelName(FieldZone, side == "left" ? leftZone : rightZone) }}
+          {{ toCamelName(FieldType, side == "left" ? leftZone : rightZone) }}
         </div>
         <!-- Field wrapper -->
         <li v-for="(field, i) in sideFields" :key="field.id" class="relative w-fit max-w-[200px]">

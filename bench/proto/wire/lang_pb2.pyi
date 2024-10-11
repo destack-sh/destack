@@ -599,14 +599,14 @@ class ExpressionOp(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EXPRESSION_OP_ASCENDING: _ClassVar[ExpressionOp]
     EXPRESSION_OP_DESCENDING: _ClassVar[ExpressionOp]
 
-class FieldZone(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class FieldType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    FIELD_ZONE_UNSPECIFIED: _ClassVar[FieldZone]
-    FIELD_ZONE_VARIABLE: _ClassVar[FieldZone]
-    FIELD_ZONE_MEMBER: _ClassVar[FieldZone]
-    FIELD_ZONE_INPUT: _ClassVar[FieldZone]
-    FIELD_ZONE_OUTPUT: _ClassVar[FieldZone]
-    FIELD_ZONE_OPTION: _ClassVar[FieldZone]
+    FIELD_TYPE_UNSPECIFIED: _ClassVar[FieldType]
+    FIELD_TYPE_VARIABLE: _ClassVar[FieldType]
+    FIELD_TYPE_MEMBER: _ClassVar[FieldType]
+    FIELD_TYPE_INPUT: _ClassVar[FieldType]
+    FIELD_TYPE_OUTPUT: _ClassVar[FieldType]
+    FIELD_TYPE_OPTION: _ClassVar[FieldType]
 
 class FileFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2041,12 +2041,12 @@ EXPRESSION_OP_MEDIAN: ExpressionOp
 EXPRESSION_OP_HISTOGRAM: ExpressionOp
 EXPRESSION_OP_ASCENDING: ExpressionOp
 EXPRESSION_OP_DESCENDING: ExpressionOp
-FIELD_ZONE_UNSPECIFIED: FieldZone
-FIELD_ZONE_VARIABLE: FieldZone
-FIELD_ZONE_MEMBER: FieldZone
-FIELD_ZONE_INPUT: FieldZone
-FIELD_ZONE_OUTPUT: FieldZone
-FIELD_ZONE_OPTION: FieldZone
+FIELD_TYPE_UNSPECIFIED: FieldType
+FIELD_TYPE_VARIABLE: FieldType
+FIELD_TYPE_MEMBER: FieldType
+FIELD_TYPE_INPUT: FieldType
+FIELD_TYPE_OUTPUT: FieldType
+FIELD_TYPE_OPTION: FieldType
 FILE_FORMAT_UNSPECIFIED: FileFormat
 FILE_FORMAT_TXT: FileFormat
 FILE_FORMAT_MARKDOWN: FileFormat
@@ -2948,18 +2948,16 @@ class ChangeData(_message.Message):
     ) -> None: ...
 
 class ChangeVignetteData(_message.Message):
-    __slots__ = ("metatype", "name", "title", "subtype", "subsubtype", "icon")
+    __slots__ = ("metatype", "name", "title", "subtype", "icon")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     SUBTYPE_FIELD_NUMBER: _ClassVar[int]
-    SUBSUBTYPE_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     name: str
     title: str
     subtype: int
-    subsubtype: int
     icon: IconData
     def __init__(
         self,
@@ -2967,7 +2965,6 @@ class ChangeVignetteData(_message.Message):
         name: _Optional[str] = ...,
         title: _Optional[str] = ...,
         subtype: _Optional[int] = ...,
-        subsubtype: _Optional[int] = ...,
         icon: _Optional[_Union[IconData, _Mapping]] = ...,
     ) -> None: ...
 
@@ -3278,7 +3275,7 @@ class FileInfoData(_message.Message):
         "title",
         "external_url",
         "inline_content",
-        "coarse_type",
+        "type",
         "mime_type",
         "format",
         "size",
@@ -3297,7 +3294,7 @@ class FileInfoData(_message.Message):
     TITLE_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_URL_FIELD_NUMBER: _ClassVar[int]
     INLINE_CONTENT_FIELD_NUMBER: _ClassVar[int]
-    COARSE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
@@ -3315,7 +3312,7 @@ class FileInfoData(_message.Message):
     title: str
     external_url: str
     inline_content: bytes
-    coarse_type: FileType
+    type: FileType
     mime_type: str
     format: FileFormat
     size: int
@@ -3335,7 +3332,7 @@ class FileInfoData(_message.Message):
         title: _Optional[str] = ...,
         external_url: _Optional[str] = ...,
         inline_content: _Optional[bytes] = ...,
-        coarse_type: _Optional[_Union[FileType, str]] = ...,
+        type: _Optional[_Union[FileType, str]] = ...,
         mime_type: _Optional[str] = ...,
         format: _Optional[_Union[FileFormat, str]] = ...,
         size: _Optional[int] = ...,
@@ -3363,7 +3360,7 @@ class FileReferenceData(_message.Message):
         "title",
         "external_url",
         "inline_content",
-        "coarse_type",
+        "type",
         "mime_type",
         "format",
         "size",
@@ -3388,7 +3385,7 @@ class FileReferenceData(_message.Message):
     TITLE_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_URL_FIELD_NUMBER: _ClassVar[int]
     INLINE_CONTENT_FIELD_NUMBER: _ClassVar[int]
-    COARSE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
@@ -3412,7 +3409,7 @@ class FileReferenceData(_message.Message):
     title: str
     external_url: str
     inline_content: bytes
-    coarse_type: FileType
+    type: FileType
     mime_type: str
     format: FileFormat
     size: int
@@ -3438,7 +3435,7 @@ class FileReferenceData(_message.Message):
         title: _Optional[str] = ...,
         external_url: _Optional[str] = ...,
         inline_content: _Optional[bytes] = ...,
-        coarse_type: _Optional[_Union[FileType, str]] = ...,
+        type: _Optional[_Union[FileType, str]] = ...,
         mime_type: _Optional[str] = ...,
         format: _Optional[_Union[FileFormat, str]] = ...,
         size: _Optional[int] = ...,
@@ -4544,7 +4541,7 @@ class TypeInfoData(_message.Message):
         "primitive_type",
         "bench_type",
         "base_type_ptr",
-        "base_field_zone",
+        "base_field_type",
         "oneof_ptr",
         "default_packed",
         "format",
@@ -4559,7 +4556,7 @@ class TypeInfoData(_message.Message):
     PRIMITIVE_TYPE_FIELD_NUMBER: _ClassVar[int]
     BENCH_TYPE_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_FIELD_ZONE_FIELD_NUMBER: _ClassVar[int]
+    BASE_FIELD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ONEOF_PTR_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_PACKED_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
@@ -4573,7 +4570,7 @@ class TypeInfoData(_message.Message):
     primitive_type: PrimitiveType
     bench_type: BenchType
     base_type_ptr: NodeReferenceData
-    base_field_zone: FieldZone
+    base_field_type: FieldType
     oneof_ptr: NodeReferenceData
     default_packed: _struct_pb2.Value
     format: TypeFormat
@@ -4589,7 +4586,7 @@ class TypeInfoData(_message.Message):
         primitive_type: _Optional[_Union[PrimitiveType, str]] = ...,
         bench_type: _Optional[_Union[BenchType, str]] = ...,
         base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        base_field_zone: _Optional[_Union[FieldZone, str]] = ...,
+        base_field_type: _Optional[_Union[FieldType, str]] = ...,
         oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         format: _Optional[_Union[TypeFormat, str]] = ...,
@@ -5457,7 +5454,7 @@ class FieldData(_message.Message):
         "primitive_type",
         "bench_type",
         "base_type_ptr",
-        "base_field_zone",
+        "base_field_type",
         "oneof_ptr",
         "default_packed",
         "format",
@@ -5491,7 +5488,7 @@ class FieldData(_message.Message):
     PRIMITIVE_TYPE_FIELD_NUMBER: _ClassVar[int]
     BENCH_TYPE_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    BASE_FIELD_ZONE_FIELD_NUMBER: _ClassVar[int]
+    BASE_FIELD_TYPE_FIELD_NUMBER: _ClassVar[int]
     ONEOF_PTR_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_PACKED_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
@@ -5515,7 +5512,7 @@ class FieldData(_message.Message):
     updated_by_ptr: NodeReferenceData
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
-    type: FieldZone
+    type: FieldType
     name: str
     order_key: str
     text: TextData
@@ -5524,7 +5521,7 @@ class FieldData(_message.Message):
     primitive_type: PrimitiveType
     bench_type: BenchType
     base_type_ptr: NodeReferenceData
-    base_field_zone: FieldZone
+    base_field_type: FieldType
     oneof_ptr: NodeReferenceData
     default_packed: _struct_pb2.Value
     format: TypeFormat
@@ -5550,7 +5547,7 @@ class FieldData(_message.Message):
         updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         updated_epoch: _Optional[int] = ...,
         deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
-        type: _Optional[_Union[FieldZone, str]] = ...,
+        type: _Optional[_Union[FieldType, str]] = ...,
         name: _Optional[str] = ...,
         order_key: _Optional[str] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
@@ -5559,7 +5556,7 @@ class FieldData(_message.Message):
         primitive_type: _Optional[_Union[PrimitiveType, str]] = ...,
         bench_type: _Optional[_Union[BenchType, str]] = ...,
         base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        base_field_zone: _Optional[_Union[FieldZone, str]] = ...,
+        base_field_type: _Optional[_Union[FieldType, str]] = ...,
         oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         format: _Optional[_Union[TypeFormat, str]] = ...,
@@ -5591,7 +5588,7 @@ class FileData(_message.Message):
         "title",
         "external_url",
         "inline_content",
-        "coarse_type",
+        "type",
         "mime_type",
         "format",
         "size",
@@ -5626,7 +5623,7 @@ class FileData(_message.Message):
     TITLE_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_URL_FIELD_NUMBER: _ClassVar[int]
     INLINE_CONTENT_FIELD_NUMBER: _ClassVar[int]
-    COARSE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
@@ -5660,7 +5657,7 @@ class FileData(_message.Message):
     title: str
     external_url: str
     inline_content: bytes
-    coarse_type: FileType
+    type: FileType
     mime_type: str
     format: FileFormat
     size: int
@@ -5696,7 +5693,7 @@ class FileData(_message.Message):
         title: _Optional[str] = ...,
         external_url: _Optional[str] = ...,
         inline_content: _Optional[bytes] = ...,
-        coarse_type: _Optional[_Union[FileType, str]] = ...,
+        type: _Optional[_Union[FileType, str]] = ...,
         mime_type: _Optional[str] = ...,
         format: _Optional[_Union[FileFormat, str]] = ...,
         size: _Optional[int] = ...,

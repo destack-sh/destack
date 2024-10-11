@@ -120,7 +120,7 @@ def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSup
         elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
             value_id = UUID(value.id)
             return NodeReference(
-                node_type=unpack_enum(NodeType, value.type),
+                node_type=unpack_enum(NodeType, value.node_type),
                 id=value_id,
                 ck=UUID(value.ck) if value.ck else value_id,
             )

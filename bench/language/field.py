@@ -23,7 +23,7 @@ from bench.language.const import (
     BenchType,
     BlockType,
     EnumType,
-    FieldZone,
+    FieldType,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
@@ -264,7 +264,7 @@ class TypeInfoBase(BuiltinObject):
        9. Union (type is union of Field children with oneof=self)
 
     Types may also specify:
-       - field zone, narrowing the fields included from the base type (if any)
+       - field type, narrowing the fields included from the base type (if any)
        - condition which instances must satisfy
        - constraints (simple conditions the value must satisfy)
        - combination flags for arrays, optionals, ...
@@ -280,7 +280,7 @@ class TypeInfoBase(BuiltinObject):
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
-    base_field_zone: Optional["FieldZone"] = p_internal(44, require=False, default=None)
+    base_field_type: Optional["FieldType"] = p_internal(44, require=False, default=None)
     oneof: Union["Field", "Block", None] = p_regular(
         45,
         require=False,
@@ -339,8 +339,8 @@ class TypeInfoBase(BuiltinObject):
             flags.append("is_secret")
         if len(flags) > 0:
             info_str += f" ({', '.join(flags)})"
-        if self.base_field_zone:
-            info_str += f" [{self.base_field_zone.bench_name}]"
+        if self.base_field_type:
+            info_str += f" [{self.base_field_type.bench_name}]"
         if self.constraint is not None:
             constraint_str = self.constraint.__content_str__()
             if constraint_str:
@@ -462,18 +462,18 @@ class TypeInfoBase(BuiltinObject):
     @property
     def _fields(self) -> NodeList["Field"] | Sequence["Field"]:
         assert self._resolved_type is not None, f"unresolved type {self!r}"
-        if self._resolved_type.base_field_zone is None:
+        if self._resolved_type.base_field_type is None:
             return self._base_fields
         else:
             return tuple(
-                f for f in self._base_fields if f.type == self._resolved_type.base_field_zone
+                f for f in self._base_fields if f.type == self._resolved_type.base_field_type
             )
 
     def _get_field(self, ident: str) -> Optional["Field"]:
         """Resolves a field in this type by an identifier (name or py_name)"""
         for field in self._base_fields:
             if (field.code_name == ident or field.name == ident) and (
-                self.base_field_zone is None or field.type == self.base_field_zone
+                self.base_field_type is None or field.type == self.base_field_type
             ):
                 return field
         return None
@@ -526,7 +526,7 @@ TypeIn = Union[
 
 
 def to_type_scalar(
-    typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = None
+    typ: TypeIn, *, as_object: bool = False, field_type: FieldType | None = None
 ) -> "TypeInfo":
     """Converts a type-like object to a TypeInfo."""
     from bench.language.file import FileFormat, FileType
@@ -534,7 +534,7 @@ def to_type_scalar(
     if isinstance(typ, TypeInfoBase):
         return cast("TypeInfo", typ)
     elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.STEP):
-        type_info = cast("Block|Step", typ).to_type(as_object=as_object, zone=zone)
+        type_info = cast("Block|Step", typ).to_type(as_object=as_object, field_type=field_type)
         if type_info is not None:
             assert isinstance(type_info, TypeInfo), f"expected TypeInfo, got {type_info!r}"
             return type_info
@@ -583,13 +583,13 @@ def to_type(
     typ: TypeIn,
     *,
     as_object: bool = False,
-    zone: FieldZone | None = None,
+    type: FieldType | None = None,
     constraint: TypeConstraintIn | TypeConstraint | None = None,
     is_required: bool = False,
     is_list: bool = False,
 ) -> TypeInfo:
     """Converts a TypeIn into a TypeInfoBase."""
-    type_scalar = to_type_scalar(typ, as_object=as_object, zone=zone)
+    type_scalar = to_type_scalar(typ, as_object=as_object, field_type=type)
     if isinstance(constraint, TypeConstraintIn):
         constraint = constraint.into()
     type_scalar.constraint = constraint
@@ -634,7 +634,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
-    type: FieldZone = p_internal(30, default=FieldZone.VARIABLE)
+    type: FieldType = p_internal(30, default=FieldType.VARIABLE)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
@@ -645,7 +645,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     # type identity
     # ...TypeInfo[40-69]
 
-    # field-only flags
+    # member-only flags
     # is_indexed? # for database fields
     # is_unique? # for database fields
 
@@ -656,7 +656,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         return f"<{self.type.bench_name}Field {self}>"
 
     def __content_str__(self) -> str:
-        if self.type == FieldZone.OPTION:
+        if self.type == FieldType.OPTION:
             return ""  # nothing to show
         else:
             return TypeInfoBase.__content_str__(self)
@@ -671,7 +671,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:
-        if (self.type == FieldZone.OPTION) != (self.kind == TypeKind.LITERAL):
+        if (self.type == FieldType.OPTION) != (self.kind == TypeKind.LITERAL):
             invalid(self, "option field must be literal", None)
 
     @property
@@ -712,7 +712,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
 
     @staticmethod
     def option(name: str, **kwargs) -> "Field":
-        return Field(kind=TypeKind.LITERAL, type=FieldZone.OPTION, name=name, **kwargs)
+        return Field(kind=TypeKind.LITERAL, type=FieldType.OPTION, name=name, **kwargs)
 
     @staticmethod
     def variable(
@@ -721,7 +721,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.VARIABLE, constraint=constraint, **kwargs)
+        return Field.new(name, typ, type=FieldType.VARIABLE, constraint=constraint, **kwargs)
 
     @staticmethod
     def member(
@@ -730,7 +730,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.MEMBER, constraint=constraint, **kwargs)
+        return Field.new(name, typ, type=FieldType.MEMBER, constraint=constraint, **kwargs)
 
     @staticmethod
     def input(
@@ -739,7 +739,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.INPUT, constraint=constraint, **kwargs)
+        return Field.new(name, typ, type=FieldType.INPUT, constraint=constraint, **kwargs)
 
     @staticmethod
     def output(
@@ -748,4 +748,4 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.OUTPUT, constraint=constraint, **kwargs)
+        return Field.new(name, typ, type=FieldType.OUTPUT, constraint=constraint, **kwargs)
