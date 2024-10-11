@@ -212,7 +212,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     __slots__ = (
         "_after",
         "_aggregation",
-        "_base",
+        "_block",
         "_filter",
         "_first",
         "_node_cls",
@@ -228,7 +228,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         read_type: ReadType,
         node_type: NodeType,
-        base: Optional["Block"] = None,
+        block: Optional["Block"] = None,
         roots: Optional[list["NodeReference"]] = None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
@@ -242,7 +242,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         self._read_type = read_type
         self._node_type = node_type
         self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
-        self._base = base
+        self._block = block
         self._filter = filter
         self._roots = roots
         self._sort = sort
@@ -253,8 +253,8 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def __str__(self):
         content_parts = []
-        if self._base:
-            content_parts.append(self._base.absolute_path)
+        if self._block:
+            content_parts.append(self._block.absolute_path)
         if self._roots is not None:
             content_parts.append(f"roots=[{', '.join(str(r) for r in self._roots)}]")
         for k in ("filter", "sort", "first", "skip", "aggregation"):
@@ -281,7 +281,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return stable_hash(
             self._read_type,
             self._node_type,
-            self._base._stable_hash() if self._base is not None else None,
+            self._block._stable_hash() if self._block is not None else None,
             self._filter._stable_hash() if self._filter is not None else None,
             tuple(r._stable_hash() for r in self._roots) if self._roots is not None else None,
             tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
@@ -319,7 +319,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return QueryBuilder(
             read_type=self._read_type,
             node_type=self._node_type,
-            base=self._base,
+            block=self._block,
             roots=self._roots,
             filter=self._filter,
             sort=self._sort,
@@ -650,7 +650,7 @@ class QueryInfoBase(BuiltinObject):
 
     read_type: ReadType = p_regular(40)
     node_type: NodeType = p_regular(41)
-    base: Optional["Block"] = p_regular(
+    block: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     filter: Optional["Expression"] = p_regular(43, default=None, struct=StructType.EXPRESSION)
@@ -687,7 +687,7 @@ class Query(SourceNode[QueryData], QueryInfoBase):
         return QueryBuilder(
             read_type=self.read_type,
             node_type=self.node_type,
-            base=self.base,
+            block=self.block,
             filter=self.filter,
             sort=self.sort,
             first=None,

@@ -2159,15 +2159,18 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
 
         # bench
         if node_data.metatype == NodeType.BENCH:
-            reference.bench_id = node_data.id
-        elif "bench" in node_cls.__properties__ and node_data.parent_ptr is not None:
+            if node_data.id:
+                reference.bench_id = node_data.id
+        elif "bench" in node_cls.__properties__ and node_data.parent_ptr.bench_id:
             reference.bench_id = node_data.parent_ptr.bench_id
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
             base = cast(HasNodeBase, node_cls).get_base_from_data(node_data)
             if base is not None:
-                reference.base_ck = base.ck
-                reference.base_bench_id = base.bench_id
+                if base.ck:
+                    reference.base_ck = base.ck
+                if base.bench_id:
+                    reference.base_bench_id = base.bench_id
 
         return reference
 

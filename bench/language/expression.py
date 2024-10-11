@@ -27,6 +27,7 @@ from bench.language.const import (
 )
 from bench.language.node import (
     Node,
+    NodeReference,
     NodeReferenceBase,
     Property,
     PropertyReference,
@@ -121,14 +122,23 @@ class Expression(Struct):
     property: Optional[Property] = p_regular(
         31, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
-    # field...?
+    field: Optional["Field"] = p_regular(
+        32, require=False, default=None, array=False, references=NodeType.FIELD
+    )
+    block: Optional["Block"] = p_regular(
+        33, require=False, default=None, array=False, references=NodeType.FIELD
+    )
     if TYPE_CHECKING:
         property_ptr: Optional[PropertyReference] = None
-    clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
-    value_packed: Any = p_value_packed(36)
-    value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self).value_type)
-    sort_mode: Optional[SortMode] = p_regular(38, default=None)
-    tolerance: Optional[float] = p_regular(39, default=None)
+        field_ptr: Optional[NodeReference] = None
+        block_ptr: Optional[NodeReference] = None
+
+    # content
+    clauses: list["Expression"] | None = p_regular(40, array=True, struct=StructType.EXPRESSION)
+    value_packed: Any = p_value_packed(46)
+    value: Any = p_value_runtime(46, typ=lambda self: cast(Expression, self).value_type)
+    sort_mode: Optional[SortMode] = p_regular(48, default=None)
+    tolerance: Optional[float] = p_regular(49, default=None)
 
     def __content_str__(self):
         if self.op in ExpressionOps.COND_COMPOUND:

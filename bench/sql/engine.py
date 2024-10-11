@@ -48,13 +48,19 @@ from bench.language.const import (
     LiteralOp,
     NodeType,
     PrimitiveType,
+    ReadType,
     ReferenceKind,
     SortOp,
 )
 from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node, SomeNodeReferenceData
-from bench.language.query import FILTER_VISIBLE, SELECT_ALL_PROPERTIES, ReadOptions
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
+from bench.language.query import (
+    DEFAULT_READ_OPTIONS,
+    FILTER_VISIBLE,
+    QueryBuilder,
+    ReadOptions,
+)
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES_IN_STORE,
     HAS_CHILD_NODE_TYPES,
@@ -1115,7 +1121,7 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table, ctx: Context) -> N
 
 
 #
-# Nodes API
+# Graph API
 # Higher level methods use Session and return Nodes, but handle respective PG cursors.
 # Lower level methods use data constructs and expect appropriate PG cursors.
 #
@@ -1356,7 +1362,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         getattr(node, prop.reference_wired_ptr.name).CopyFrom(ptr)
 
 
-def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
+def _pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
     """Packs a node's data into a row for the respective table."""
     node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, node.metatype)]
     try:
@@ -1384,7 +1390,7 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
         raise ValueError(f"could not pack row {node_cls.metatype.name}: {struct!r}") from e
 
 
-def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> AnyNodeData:
+def _pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> AnyNodeData:
     """Unpacks a node's data from a row from the respective table."""
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
@@ -1430,24 +1436,21 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
 
 
 @_trace_pg_span
-async def pg_get_nodes(
-    cur: psycopg.AsyncCursor,
-    ctx: Context,
-    node_type: NodeType,
-    *,
-    properties: Collection[Property],
-    filter: Expression | None = None,
-    sort: Collection[Expression] | None = None,
-    first: int | None = None,
-    skip: int | None = None,
+async def pg_graph_select(
+    *, cur: psycopg.AsyncCursor, ctx: Context, query: QueryBuilder
 ) -> list[AnyNodeData]:
-    """Selects regular nodes from the given PG database."""
-    node_cls = NODE_CLASS_BY_TYPE[node_type]
-    node_table = TABLE_BY_NODE_TYPE[node_type]
+    """Selects the nodes from the graph matching the given query."""
+    # compile
+    options = query._options or DEFAULT_READ_OPTIONS
+    node_cls = NODE_CLASS_BY_TYPE[query._node_type]
+    node_table = TABLE_BY_NODE_TYPE[query._node_type]
+    properties = options.select(query._node_type)
     columns = [node_table._columns_by_name[prop.name] for prop in properties]
     assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
-    where = pg_compile_conditional(node_cls, filter) if filter is not None else None
-    order_by = pg_compile_sorts(node_cls, sort) if sort else None
+    where = pg_compile_conditional(node_cls, query._filter) if query._filter is not None else None
+    order_by = pg_compile_sorts(node_cls, query._sort) if query._sort else None
+
+    # select
     rows = await pg_select(
         cur=cur,
         ctx=ctx,
@@ -1455,15 +1458,33 @@ async def pg_get_nodes(
         columns=columns,
         where=where,
         order_by=order_by,
-        first=first,
-        skip=skip,
+        first=query._first,
+        skip=query._skip,
     )
-    nodes_data = [pg_unpack_node_data_row(node_cls, row) for row in rows]
+    nodes_data = [_pg_unpack_node_data_row(node_cls, row) for row in rows]
     return nodes_data
 
 
 @_trace_pg_span
-async def pg_walk_graph_down(
+async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: Context, query: QueryBuilder) -> int:
+    """Counts the nodes from the graph matching the given query."""
+    # compile
+    node_cls = NODE_CLASS_BY_TYPE[query._node_type]
+    node_table = TABLE_BY_NODE_TYPE[query._node_type]
+    where = pg_compile_conditional(node_cls, query._filter) if query._filter is not None else None
+
+    # count
+    return await pg_count(cur=cur, ctx=ctx, table=node_table, where=where)
+
+
+@_trace_pg_span
+async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: Context, query: QueryBuilder) -> bool:
+    """Checks if nodes from the graph matching the given query exist."""
+    raise NotImplementedError("nocheckin: pg_graph_exists")
+
+
+@_trace_pg_span
+async def _pg_graph_walk_down(
     *,
     cur: psycopg.AsyncCursor,
     ctx: Context,
@@ -1558,22 +1579,21 @@ async def pg_walk_graph_down(
 
 
 @_trace_pg_span
-async def pg_get_node_graph(
+async def pg_graph_get(
     *,
     cur: psycopg.AsyncCursor,
     ctx: Context,
-    root_type: NodeType,
-    roots: Sequence[SomeNodeReferenceData] | Sequence[AnyNodeData],
-    options: ReadOptions,
+    query: QueryBuilder,
     visited_graph: NodeDataGraph,
 ) -> None:
     """
-    Reads regular nodes from the given PG database.
-    Returns a graph of nodes that *may* contain the requested nodes.
-    'Root' here is the base level, we get ancestor/descendants relative to the 'roots'.
-    NOTE :Performance: we could read all package contents with package_id=x if we know it's a package query.
+    Gets the 'root' nodes from a Query (QueryBuilder.roots) and recursively reads up/down the graph.
+    Also performs any additional joins needed for the query.
     """
-    assert roots, "no roots to select"
+    # NOTE :Performance: we could read all package contents with package_id=x if we know it's a package query.
+    options = query._options or ReadOptions()
+    assert query._roots, "no roots to select"
+    roots = [r._to_data() for r in query._roots]
 
     # get roots
     root_nodes: list[AnyNodeData]
@@ -1581,15 +1601,12 @@ async def pg_get_node_graph(
         # select roots
         roots_ids = [node.id for node in roots]
         root_filter = options.filter(
-            root_type, C(ConditionalOp.IN, property=Node.id, value=roots_ids)
+            query._node_type, C(ConditionalOp.IN, property=Node.id, value=roots_ids)
         )
-        root_nodes = await pg_get_nodes(
-            cur=cur,
-            ctx=ctx,
-            node_type=root_type,
-            filter=root_filter,
-            properties=options.select(root_type),
+        root_query = QueryBuilder(
+            ReadType.GET, query._node_type, filter=root_filter, options=query._options
         )
+        root_nodes = await pg_graph_select(cur=cur, ctx=ctx, query=root_query)
     else:  # already got nodes
         root_nodes = cast(list[AnyNodeData], list(roots))
     for node in root_nodes:
@@ -1617,16 +1634,12 @@ async def pg_get_node_graph(
             # select next parents
             next_parents = []
             for node_type, node_ids in to_select_by_type.items():
-                new_parents = await pg_get_nodes(
-                    cur=cur,
-                    ctx=ctx,
-                    node_type=node_type,
-                    filter=options.filter(
-                        node_type,
-                        C(ConditionalOp.IN, property=Node.id, value=node_ids),
-                    ),
-                    properties=options.select(node_type),
+                parents_filter = options.filter(
+                    node_type,
+                    C(ConditionalOp.IN, property=Node.id, value=node_ids),
                 )
+                parents_query = QueryBuilder(ReadType.SEARCH, node_type, filter=parents_filter)
+                new_parents = await pg_graph_select(cur=cur, ctx=ctx, query=parents_query)
                 next_parents.extend(new_parents)
                 for node in new_parents:
                     visited_graph.add(node)
@@ -1635,7 +1648,7 @@ async def pg_get_node_graph(
     # select descendants (recursively)
     # (since this may be a long wide search down, we first collect the pointers, then select by type)
     if options.descendant_types:
-        descendant_node_ptrs, _ = await pg_walk_graph_down(
+        descendant_node_ptrs, _ = await _pg_graph_walk_down(
             cur=cur,
             ctx=ctx,
             roots=root_nodes,
@@ -1645,73 +1658,60 @@ async def pg_get_node_graph(
         descendant_node_ptrs_by_type = group_by(descendant_node_ptrs, lambda ptr: ptr.node_type)
         for wire_node_type, node_ptrs in descendant_node_ptrs_by_type.items():
             node_type = NodeType(wire_node_type)
-            new_children = await pg_get_nodes(
-                cur=cur,
-                ctx=ctx,
-                node_type=node_type,
-                filter=options.filter(
-                    node_type,
-                    C(ConditionalOp.IN, property=Node.id, value=[ptr.id for ptr in node_ptrs]),
-                ),
-                properties=options.select(node_type),
+            children_filter = options.filter(
+                node_type,
+                C(ConditionalOp.IN, property=Node.id, value=[ptr.id for ptr in node_ptrs]),
             )
+            children_query = QueryBuilder(
+                ReadType.SEARCH, node_type, filter=children_filter, options=query._options
+            )
+            new_children = await pg_graph_select(cur=cur, ctx=ctx, query=children_query)
             for node in new_children:
                 visited_graph.add(node)
 
 
 @_trace_pg_span
-async def pg_search_node_graph(
-    *,
+async def pg_graph_search(
     cur: psycopg.AsyncCursor,
     ctx: Context,
     scope: GraphScopeData,
-    node_type: NodeType,
-    options: ReadOptions,
-    filter: Expression | None = None,
-    sort: Collection[Expression] | None = None,
-    first: int | None = None,
-    skip: int | None = None,
-) -> tuple[list[AnyNodeData], NodeDataGraph]:
-    """Select root nodes and then read the graph of nodes from the given PG database."""
-    node_types = tuple({node_type, *options.ancestor_types, *options.descendant_types})
+    query: QueryBuilder,
+    count: bool,
+) -> tuple[list[AnyNodeData], NodeDataGraph, int | None]:
+    """
+    Search for roots matching the filter and then get the graph up/down/joined from there.
+    """
+    options = query._options or ReadOptions()
+    node_types = tuple(query.all_node_types)
+    if count:
+        total = await pg_graph_count(cur=cur, ctx=ctx, query=query)
+    else:
+        total = None
     if options.ancestor_types or options.descendant_types:
         # split into two passes if we have other nodes to fetch
-        roots = await pg_get_nodes(
-            cur=cur,
-            ctx=ctx,
-            node_type=node_type,
-            filter=options.filter(node_type, filter),
-            sort=sort,
-            first=first,
-            skip=skip,
-            properties=options.select(node_type),
-        )
+        roots = await pg_graph_select(cur=cur, ctx=ctx, query=query)
         visited_graph = NodeDataGraph(scope, node_types)
         if not roots:
-            return roots, visited_graph
-        await pg_get_node_graph(
-            cur=cur,
-            ctx=ctx,
-            root_type=node_type,
-            roots=roots,
-            options=options,
-            visited_graph=visited_graph,
+            return roots, visited_graph, total
+        roots_ptrs = [
+            wiring.unpack_object(
+                NodeReference._ref_data_from_node_data(r), expect=NodeReference, supergraph=None
+            )
+            for r in roots
+        ]
+        get_query = QueryBuilder(
+            ReadType.GET,
+            query._node_type,
+            roots=roots_ptrs,
+            options=query._options,
         )
-        return roots, visited_graph
+        _ = await pg_graph_get(cur=cur, ctx=ctx, query=get_query, visited_graph=visited_graph)
+        return roots, visited_graph, total
     else:
         # otherwise just select in one go
-        roots = await pg_get_nodes(
-            cur=cur,
-            ctx=ctx,
-            node_type=node_type,
-            filter=options.filter(node_type, filter),
-            sort=sort,
-            first=first,
-            skip=skip,
-            properties=options.select(node_type),
-        )
+        roots = await pg_graph_select(cur=cur, ctx=ctx, query=query)
         graph = NodeDataGraph(scope, node_types, nodes=roots)
-        return roots, graph
+        return roots, graph, total
 
 
 # TODO :Performance!: use psycopg3/postgres pipelining to batch edits
@@ -1725,10 +1725,6 @@ async def pg_edit(
     edits: list[EditData] | tuple[EditData, ...],
     cascade: bittuple[EditType] = CASCADING_EDIT_TYPES,
 ) -> list[EditData]:
-    """
-    Writes 'regular' edits to nodes (that aren't stored specially like records).
-    Returns cascaded edits.
-    """
     if not edits:
         return []
 
@@ -1827,7 +1823,7 @@ async def _pg_edit_cascade(
         extra_filter = FILTER_VISIBLE
 
     # select cascaded nodes from graph
-    _, cascaded_nodes_by_root_id = await pg_walk_graph_down(
+    _, cascaded_nodes_by_root_id = await _pg_graph_walk_down(
         cur=cur,
         ctx=ctx,
         roots=root_nodes,
@@ -1869,13 +1865,12 @@ async def _pg_edit_cascade(
             updated_properties=(),
         )
         nodes_ids = [edit.node_ptr.id for edit in cascaded_edits]
-        nodes = await pg_get_nodes(
-            cur=cur,
-            ctx=ctx,
+        descendant_query = QueryBuilder(
+            ReadType.GET,
             node_type=NodeType(descendant_node_type),
-            properties=SELECT_ALL_PROPERTIES[cast(NodeType, descendant_node_type)],
-            filter=C(ConditionalOp.IN, property=Node.id, value=list(nodes_ids)),
+            filter=C(ConditionalOp.IN, property=Node.id, value=nodes_ids),
         )
+        nodes = await pg_graph_select(cur=cur, ctx=ctx, query=descendant_query)
         nodes_by_id = {node.id: node for node in nodes}
 
         # and assign new/old node to edit now that we have the full data :EditData
@@ -1917,7 +1912,7 @@ async def _pg_edit_batch(
             node = wiring.unwrap_some_node(edit.node_data)
             nodes.append(node)
             # inline implicit metadata
-            row: dict[str, SqlPrimitive] = pg_pack_node_data_row(node)
+            row: dict[str, SqlPrimitive] = _pg_pack_node_data_row(node)
             row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "created_epoch" in node_cls.__properties__:
                 row["created_epoch"] = row["updated_epoch"] = edit.epoch

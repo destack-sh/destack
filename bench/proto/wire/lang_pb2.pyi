@@ -3220,6 +3220,8 @@ class ExpressionData(_message.Message):
         "metatype",
         "op",
         "property_ptr",
+        "field_ptr",
+        "block_ptr",
         "clauses",
         "value_packed",
         "sort_mode",
@@ -3228,6 +3230,8 @@ class ExpressionData(_message.Message):
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     OP_FIELD_NUMBER: _ClassVar[int]
     PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
+    FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     CLAUSES_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     SORT_MODE_FIELD_NUMBER: _ClassVar[int]
@@ -3235,6 +3239,8 @@ class ExpressionData(_message.Message):
     metatype: ObjectType
     op: ExpressionOp
     property_ptr: PropertyReferenceData
+    field_ptr: NodeReferenceData
+    block_ptr: NodeReferenceData
     clauses: _containers.RepeatedCompositeFieldContainer[ExpressionData]
     value_packed: _struct_pb2.Value
     sort_mode: SortMode
@@ -3244,6 +3250,8 @@ class ExpressionData(_message.Message):
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         op: _Optional[_Union[ExpressionOp, str]] = ...,
         property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ...,
+        field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         clauses: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...,
         value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         sort_mode: _Optional[_Union[SortMode, str]] = ...,
@@ -3772,17 +3780,17 @@ class PropertyReferenceData(_message.Message):
     ) -> None: ...
 
 class QueryInfoData(_message.Message):
-    __slots__ = ("metatype", "read_type", "node_type", "base_ptr", "filter", "sort")
+    __slots__ = ("metatype", "read_type", "node_type", "block_ptr", "filter", "sort")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     READ_TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BASE_PTR_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     SORT_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     read_type: ReadType
     node_type: NodeType
-    base_ptr: NodeReferenceData
+    block_ptr: NodeReferenceData
     filter: ExpressionData
     sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
     def __init__(
@@ -3790,7 +3798,7 @@ class QueryInfoData(_message.Message):
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         read_type: _Optional[_Union[ReadType, str]] = ...,
         node_type: _Optional[_Union[NodeType, str]] = ...,
-        base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         filter: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...,
     ) -> None: ...
@@ -6652,7 +6660,7 @@ class QueryData(_message.Message):
         "order_key",
         "read_type",
         "node_type",
-        "base_ptr",
+        "block_ptr",
         "filter",
         "sort",
     )
@@ -6675,7 +6683,7 @@ class QueryData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     READ_TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BASE_PTR_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     SORT_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -6697,7 +6705,7 @@ class QueryData(_message.Message):
     order_key: str
     read_type: ReadType
     node_type: NodeType
-    base_ptr: NodeReferenceData
+    block_ptr: NodeReferenceData
     filter: ExpressionData
     sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
     def __init__(
@@ -6721,7 +6729,7 @@ class QueryData(_message.Message):
         order_key: _Optional[str] = ...,
         read_type: _Optional[_Union[ReadType, str]] = ...,
         node_type: _Optional[_Union[NodeType, str]] = ...,
-        base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         filter: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...,
     ) -> None: ...
