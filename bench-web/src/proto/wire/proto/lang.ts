@@ -545,19 +545,27 @@ export interface ExpressionData {
      */
     propertyPtr?: PropertyReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData clauses = 35;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 32;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 33;
+     */
+    blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData clauses = 40;
      */
     clauses: ExpressionData[];
     /**
-     * @generated from protobuf field: optional google.protobuf.Value value_packed = 36;
+     * @generated from protobuf field: optional google.protobuf.Value value_packed = 46;
      */
     valuePacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SortMode sort_mode = 38;
+     * @generated from protobuf field: optional symbolx.bench.SortMode sort_mode = 48;
      */
     sortMode?: SortMode;
     /**
-     * @generated from protobuf field: optional float tolerance = 39;
+     * @generated from protobuf field: optional float tolerance = 49;
      */
     tolerance?: number;
 }
@@ -1211,9 +1219,9 @@ export interface QueryInfoData {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 42;
      */
-    basePtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 43;
      */
@@ -4255,9 +4263,9 @@ export interface QueryData {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 42;
      */
-    basePtr?: NodeReferenceData;
+    blockPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 43;
      */
@@ -12831,10 +12839,12 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.ExpressionOp", ExpressionOp, "EXPRESSION_OP_"] },
             { no: 31, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
-            { no: 35, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 36, name: "value_packed", kind: "message", T: () => Value },
-            { no: 38, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] },
-            { no: 39, name: "tolerance", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
+            { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 33, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 46, name: "value_packed", kind: "message", T: () => Value },
+            { no: 48, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] },
+            { no: 49, name: "tolerance", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<ExpressionData>): ExpressionData {
@@ -12860,16 +12870,22 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* optional symbolx.bench.PropertyReferenceData property_ptr */ 31:
                     message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
                     break;
-                case /* repeated symbolx.bench.ExpressionData clauses */ 35:
+                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 32:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 33:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
+                    break;
+                case /* repeated symbolx.bench.ExpressionData clauses */ 40:
                     message.clauses.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional google.protobuf.Value value_packed */ 36:
+                case /* optional google.protobuf.Value value_packed */ 46:
                     message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.SortMode sort_mode */ 38:
+                case /* optional symbolx.bench.SortMode sort_mode */ 48:
                     message.sortMode = reader.int32();
                     break;
-                case /* optional float tolerance */ 39:
+                case /* optional float tolerance */ 49:
                     message.tolerance = reader.float();
                     break;
                 default:
@@ -12893,18 +12909,24 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* optional symbolx.bench.PropertyReferenceData property_ptr = 31; */
         if (message.propertyPtr)
             PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData clauses = 35; */
+        /* optional symbolx.bench.NodeReferenceData field_ptr = 32; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 33; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData clauses = 40; */
         for (let i = 0; i < message.clauses.length; i++)
-            ExpressionData.internalBinaryWrite(message.clauses[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value value_packed = 36; */
+            ExpressionData.internalBinaryWrite(message.clauses[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value value_packed = 46; */
         if (message.valuePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SortMode sort_mode = 38; */
+            Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SortMode sort_mode = 48; */
         if (message.sortMode !== undefined)
-            writer.tag(38, WireType.Varint).int32(message.sortMode);
-        /* optional float tolerance = 39; */
+            writer.tag(48, WireType.Varint).int32(message.sortMode);
+        /* optional float tolerance = 49; */
         if (message.tolerance !== undefined)
-            writer.tag(39, WireType.Bit32).float(message.tolerance);
+            writer.tag(49, WireType.Bit32).float(message.tolerance);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14440,7 +14462,7 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 40, name: "read_type", kind: "enum", T: () => ["symbolx.bench.ReadType", ReadType, "READ_TYPE_"] },
             { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 42, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 43, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 44, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
         ]);
@@ -14469,8 +14491,8 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
                 case /* symbolx.bench.NodeType node_type */ 41:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 42:
-                    message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 43:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -14499,9 +14521,9 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
         /* symbolx.bench.NodeType node_type = 41; */
         if (message.nodeType !== 0)
             writer.tag(41, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData base_ptr = 42; */
-        if (message.basePtr)
-            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData filter = 43; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
@@ -21260,7 +21282,7 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "read_type", kind: "enum", T: () => ["symbolx.bench.ReadType", ReadType, "READ_TYPE_"] },
             { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 42, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 43, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 44, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
         ]);
@@ -21343,8 +21365,8 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* symbolx.bench.NodeType node_type */ 41:
                     message.nodeType = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 42:
-                    message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 43:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -21421,9 +21443,9 @@ class QueryData$Type extends MessageType<QueryData> {
         /* symbolx.bench.NodeType node_type = 41; */
         if (message.nodeType !== 0)
             writer.tag(41, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData base_ptr = 42; */
-        if (message.basePtr)
-            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData filter = 43; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
@@ -26126,7 +26148,7 @@ export enum QueryProperty {
   orderKey = 31,
   readType = 40,
   nodeType = 41,
-  basePtr = 42,
+  blockPtr = 42,
   filter = 43,
   sort = 44,
 }
@@ -26820,10 +26842,12 @@ export enum ExpressionProperty {
   metatype = 1,
   op = 30,
   propertyPtr = 31,
-  clauses = 35,
-  valuePacked = 36,
-  sortMode = 38,
-  tolerance = 39,
+  fieldPtr = 32,
+  blockPtr = 33,
+  clauses = 40,
+  valuePacked = 46,
+  sortMode = 48,
+  tolerance = 49,
 }
 
 export enum AggregationProperty {
@@ -26847,7 +26871,7 @@ export enum QueryInfoProperty {
   metatype = 1,
   readType = 40,
   nodeType = 41,
-  basePtr = 42,
+  blockPtr = 42,
   filter = 43,
   sort = 44,
 }
@@ -27652,10 +27676,12 @@ export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ExpressionProperty.op]: { id: 30, name: 'op', component: ObjectType.EXPRESSION, enumType: EnumType.EXPRESSION_OP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ExpressionProperty.propertyPtr]: { id: 31, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
-  [ExpressionProperty.clauses]: { id: 35, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ExpressionProperty.sortMode]: { id: 38, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ExpressionProperty.tolerance]: { id: 39, name: 'tolerance', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.fieldPtr]: { id: 32, name: 'field_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ExpressionProperty.blockPtr]: { id: 33, name: 'block_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ExpressionProperty.clauses]: { id: 40, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [ExpressionProperty.valuePacked]: { id: 46, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ExpressionProperty.sortMode]: { id: 48, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.tolerance]: { id: 49, name: 'tolerance', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
   [AggregationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27676,7 +27702,7 @@ export const QueryInfoDataInfo: Record<QueryInfoProperty, PropertyInfo> = {
   [QueryInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [QueryInfoProperty.readType]: { id: 40, name: 'read_type', component: ObjectType.QUERY_INFO, enumType: EnumType.READ_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryInfoProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY_INFO, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryInfoProperty.basePtr]: { id: 42, name: 'base_ptr', component: ObjectType.QUERY_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryInfoProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.QUERY_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [QueryInfoProperty.filter]: { id: 43, name: 'filter', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [QueryInfoProperty.sort]: { id: 44, name: 'sort', component: ObjectType.QUERY_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
@@ -28005,7 +28031,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.10.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28031,7 +28057,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.10.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28054,7 +28080,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.10.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28410,7 +28436,7 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.readType]: { id: 40, name: 'read_type', component: ObjectType.QUERY, enumType: EnumType.READ_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.basePtr]: { id: 42, name: 'base_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.filter]: { id: 43, name: 'filter', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [QueryProperty.sort]: { id: 44, name: 'sort', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }

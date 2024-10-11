@@ -25,7 +25,7 @@ from bench.language.connection import (
 from bench.language.const import AggregationOp, NodeType, ReadType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Node, NodeReference
-from bench.language.query import QueryBuilder, ReadOptions
+from bench.language.query import QueryBuilder
 from bench.language.session import Session
 from bench.proto.wire import (
     AggregationData,
@@ -34,14 +34,12 @@ from bench.proto.wire import (
 )
 from bench.sql.client import PostgresConnection, get_pg_pool
 from bench.sql.engine import (
-    TABLE_BY_NODE_TYPE,
     BenchContext,
-    pg_compile_conditional_maybe,
-    pg_count,
     pg_edit,
-    pg_exists,
-    pg_get_node_graph,
-    pg_search_node_graph,
+    pg_graph_count,
+    pg_graph_exists,
+    pg_graph_get,
+    pg_graph_search,
 )
 from bench.utils.func import bittuple, repr_enums
 
@@ -170,13 +168,8 @@ class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
         assert query._roots, f"{query!r} has no roots"
         graph = NodeDataGraph(scope=self.scope, node_types=self.node_types)
         roots_ptr = [r._to_data() for r in query._roots]
-        _ = await pg_get_node_graph(
-            cur=self.channel.cur,
-            ctx=self.channel.engine.context,
-            root_type=query._node_type,
-            roots=roots_ptr,
-            options=query._options or ReadOptions(),
-            visited_graph=graph,
+        _ = await pg_graph_get(
+            cur=self.channel.cur, ctx=self.channel.engine.context, query=query, visited_graph=graph
         )
         return GetResultData(graph=graph, roots_ptr=roots_ptr, epoch=None, connection_token=None)
 
@@ -187,27 +180,13 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
     @override
     @_pg_method
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
-        node_table = TABLE_BY_NODE_TYPE[query._node_type]
-        roots, graph = await pg_search_node_graph(
+        roots, graph, total = await pg_graph_search(
             cur=self.channel.cur,
             ctx=self.channel.engine.context,
             scope=self.channel.engine.scope,
-            node_type=query._node_type,
-            options=query._options or ReadOptions(),
-            filter=query._filter,
-            sort=query._sort,
-            first=query._first,
-            skip=query._skip,
+            query=query,
+            count=self.options.count,
         )
-        if self.options.count:
-            total = await pg_count(
-                cur=self.channel.cur,
-                ctx=self.channel.engine.context,
-                table=node_table,
-                where=pg_compile_conditional_maybe(query._node_cls, query._filter),
-            )
-        else:
-            total = None
         return SearchResultData(
             graph=graph,
             roots=roots,
@@ -224,19 +203,17 @@ class PostgresAggregateConnection(AggregateConnection):
     @override
     @_pg_method
     async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
-        node_table = TABLE_BY_NODE_TYPE[query._node_type]
         assert query._aggregation is not None
-        where = pg_compile_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
-            exists = await pg_exists(
-                cur=self.channel.cur, ctx=self.channel.engine.context, table=node_table, where=where
+            exists = await pg_graph_exists(
+                cur=self.channel.cur, ctx=self.channel.engine.context, query=query
             )
             return AggregateResultData(
                 aggregation=AggregationData(exists=exists), epoch=None, connection_token=None
             )
         elif query._aggregation.op == AggregationOp.COUNT:
-            count = await pg_count(
-                cur=self.channel.cur, ctx=self.channel.engine.context, table=node_table, where=where
+            count = await pg_graph_count(
+                cur=self.channel.cur, ctx=self.channel.engine.context, query=query
             )
             return AggregateResultData(
                 aggregation=AggregationData(count=count), epoch=None, connection_token=None
