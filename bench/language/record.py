@@ -4,10 +4,12 @@ import structlog
 
 from bench.language.const import NodeType
 from bench.language.field import TypeInfoBase
+from bench.language.list import RemoteNodeList
 from bench.language.node import HasNodeBase, StateNode, local_node_
 from bench.language.property import (
     p_internal,
     p_node_ancestor,
+    p_node_children,
     p_node_parent,
     p_value_packed,
     p_value_runtime,
@@ -17,7 +19,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import describe_type
 
 if TYPE_CHECKING:
-    from bench.language import Block, TypeInfo, ValueObject
+    from bench.language import Block, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,6 +43,10 @@ class Record(StateNode[RecordData], HasNodeBase):
         40, typ=lambda self: cast("Record", self).value_type
     )
 
+    records: RemoteNodeList["Record", RecordData] = p_node_children(
+        NodeType.RECORD, list=RemoteNodeList
+    )
+
     def __content_str__(self):
         return f"{describe_type(self.value) or '<empty>'}"
 
@@ -56,7 +62,3 @@ class Record(StateNode[RecordData], HasNodeBase):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return cast(RecordData, data).block_ptr
-
-    @property
-    def _type(self) -> "TypeInfo":
-        return getattr(self.parent, "as_type")

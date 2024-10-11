@@ -17,7 +17,7 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.field import TypeConstraint
-from bench.language.graph import NodeList
+from bench.language.list import LocalNodeList
 from bench.language.node import (
     BenchNode,
     ClientOrigin,
@@ -80,7 +80,7 @@ class Bench(BenchNode[BenchData]):
     main_handle: Optional["Handle"] = p_system(
         31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )  # not actually optional but Handle.parent = Bench
-    handles: NodeList["Handle"] = p_node_children(NodeType.HANDLE)
+    handles: LocalNodeList["Handle"] = p_node_children(NodeType.HANDLE)
     slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(
@@ -120,11 +120,11 @@ class Bench(BenchNode[BenchData]):
     main_cache: Optional["Cache"] = p_system(
         44, require=False, array=False, references=NodeType.CACHE, fk=True, same_bench=True
     )
-    stores: NodeList["Store"] = p_node_children(NodeType.STORE)
-    servers: NodeList["Server"] = p_node_children(NodeType.SERVER)
-    drives: NodeList["Drive"] = p_node_children(NodeType.DRIVE)
-    vaults: NodeList["Vault"] = p_node_children(NodeType.VAULT)
-    caches: NodeList["Cache"] = p_node_children(NodeType.CACHE)
+    stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)
+    servers: LocalNodeList["Server"] = p_node_children(NodeType.SERVER)
+    drives: LocalNodeList["Drive"] = p_node_children(NodeType.DRIVE)
+    vaults: LocalNodeList["Vault"] = p_node_children(NodeType.VAULT)
+    caches: LocalNodeList["Cache"] = p_node_children(NodeType.CACHE)
 
     # source
     main_branch: Optional["Branch"] = p_regular(
@@ -135,7 +135,7 @@ class Bench(BenchNode[BenchData]):
         fk=True,
         same_bench=True,
     )
-    branches: NodeList["Branch"] = p_node_children(NodeType.BRANCH)
+    branches: LocalNodeList["Branch"] = p_node_children(NodeType.BRANCH)
 
     @property
     def _is_attached(self) -> bool:
@@ -184,7 +184,7 @@ class Branch(BenchNode[BranchData]):
     is_overlay: bool = p_system(60, default=False)
     is_light: bool = p_system(61, default=False)
 
-    packages: NodeList["Package"] = p_node_children(NodeType.PACKAGE)
+    packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
 
 
 @local_node_(NodeType.PACKAGE)
@@ -204,9 +204,9 @@ class Package(BenchNode[PackageData]):
     is_snapshot: bool = p_system(60, default=False)
     is_overlay: bool = p_system(61, default=False)
 
-    blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)
-    spaces: NodeList["Space"] = p_node_children(NodeType.SPACE)
-    dependencies: NodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
+    blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
+    spaces: LocalNodeList["Space"] = p_node_children(NodeType.SPACE)
+    dependencies: LocalNodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
 
     @property
     def _is_attached(self) -> bool:
@@ -402,8 +402,8 @@ class Server(NamedResourceNode[ServerData]):
     active_at: Optional[datetime] = p_internal(60, default=None)
     bumped_at: Optional[datetime] = p_internal(61, default=None)
 
-    clients: NodeList["Client"] = p_node_children(NodeType.CLIENT)
-    machines: NodeList["Machine"] = p_node_children(NodeType.MACHINE)
+    clients: LocalNodeList["Client"] = p_node_children(NodeType.CLIENT)
+    machines: LocalNodeList["Machine"] = p_node_children(NodeType.MACHINE)
 
 
 @node_(NodeType.MACHINE)

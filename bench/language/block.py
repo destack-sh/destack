@@ -11,7 +11,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.field import TypeInfoBase
-from bench.language.graph import NodeList
+from bench.language.list import LocalNodeList, RemoteNodeList
 from bench.language.node import SourceNode, local_node_
 from bench.language.property import (
     p_internal,
@@ -24,6 +24,7 @@ from bench.language.property import (
 )
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
 from bench.proto.wire import BlockData
+from bench.proto.wire.lang_pb2 import RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
         Pipe,
         Policy,
         Property,
+        Record,
         RunKind,
         RunOptions,
         Step,
@@ -113,13 +115,16 @@ class Block(SourceNode[BlockData]):
     )
     # is_test? (for testing)
 
-    blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)
-    badges: NodeList["Badge"] = p_node_children(NodeType.BADGE)
-    fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
-    steps: NodeList["Step"] = p_node_children(NodeType.STEP)
-    pipes: NodeList["Pipe"] = p_node_children(NodeType.PIPE)
-    triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
-    views: NodeList["View"] = p_node_children(NodeType.VIEW)
+    blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
+    badges: LocalNodeList["Badge"] = p_node_children(NodeType.BADGE)
+    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
+    steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
+    pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
+    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
+    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
+    records: RemoteNodeList["Record", RecordData] = p_node_children(
+        NodeType.RECORD, list=RemoteNodeList
+    )
 
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"

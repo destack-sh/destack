@@ -1829,16 +1829,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return cls.query().exclude(*properties)
 
     @classmethod
-    def include_ancestors(cls) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().include_ancestors()
+    def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().include_ancestors(*node_types)
 
     @classmethod
-    def ancestors(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().ancestors(*node_types)
-
-    @classmethod
-    def descendants(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().descendants(*node_types)
+    def include_descendants(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().include_descendants(*node_types)
 
     @overload
     @classmethod

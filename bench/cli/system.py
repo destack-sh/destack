@@ -88,7 +88,7 @@ async def make_machine_client(bench_slug: str, name: str = "Localhost"):
     global_pg_engine = pg_engine_from_store(global_store)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         bench = (
-            await Bench.descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)
+            await Bench.include_descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)
             .select_all()
             .get(slug=bench_slug)
         )
