@@ -29,7 +29,6 @@ from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
     CASCADING_EDIT_TYPES,
     NODE_TYPES,
-    SUB_PACKAGE_NODE_TYPES,
     EditOperationType,
     EditType,
     EnumType,
@@ -39,12 +38,13 @@ from bench.language.const import (
     QueryType,
     ReferenceKind,
     SortOp,
+    TypeKind,
 )
 from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
 from bench.language.query import (
-    DEFAULT_READ_OPTIONS,
+    DEFAULT_SELECT_OPTIONS,
     FILTER_NOT_DELETED,
     QueryBuilder,
 )
@@ -80,7 +80,6 @@ from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY
 from bench.sql.core import (
-    ALL_EXTENSIONS,
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
     GLOBAL_EXTENSIONS,
@@ -124,28 +123,28 @@ from bench.utils.string import Casing, to_casing
 from bench.utils.time import timedelta_from_isoformat
 from bench.utils.uuidt import UUIDT
 
+GLOBAL_CONTEXT = SqlContext()
+BENCH_TABLE_PREFIX = "bench_"
+BENCH_RECORD_TABLE_PREFIX = "bench_record_"
+BENCH_RECORD_VALUE_PREFIX = "value_"
+
 
 @dataclass(slots=True)
 class BenchContext(SqlContext):
-    """A context for a SQL statement."""
+    """Host context for SQL operations (with custom databases)."""
 
-    bench: Bench | None
+    bench: Bench
 
-    def get_crypto_key(self, obj: "Table | Column") -> str | None:
-        """Gets the crypto key for the given table."""
-
-        table = obj if isinstance(obj, Table) else obj.table
-        node_type = NODE_TYPE_BY_TABLE_NAME[table.name]
-        if node_type in SUB_PACKAGE_NODE_TYPES:
-            assert self.bench is not None, f"no bench for crypto key for {table!r}"
+    def get_crypto_key(self, obj: Table | Column) -> str | None:
+        table = obj.table
+        node_type = BUILTIN_NODE_BY_TABLE_NAME.get(table.name)
+        if node_type is None:
+            return None
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        if node_cls.__is_in_bench__:
             return self.bench.encryption_key
         else:
             return GLOBAL_PG_CRYPTO_KEY
-
-
-GLOBAL_CONTEXT = BenchContext(bench=None)
-BENCH_TABLE_PREFIX = "bench_"
-BENCH_RECORD_TABLE_PREFIX = "bench_record_"
 
 
 def _get_node_table_name(node_type: NodeType) -> str:
@@ -156,32 +155,14 @@ def _get_record_table_name(block: Block) -> str:
     return f"{BENCH_RECORD_TABLE_PREFIX}{block.tk}"
 
 
-def map_node_class_to_table(node: type[Node]) -> Table:
+def map_builtin_object_to_table(node: type[Node]) -> Table:
     """Maps a node type into its Table schema."""
     table_name = _get_node_table_name(node.metatype)
     columns: list[Column] = []
-    properties = list(node.__properties__.values())
-    properties.sort(key=lambda p: p.id or -1)
-
-    # extra constraints/indexes
     constraints: list[Constraint] = []
     indexes: list[Index] = []
-    for uniqued_columns in node.__extra_uniques__:
-        uniqued_columns = tuple(sorted(uniqued_columns))  # for consistency
-        index_name = f"bench_idx_{'_'.join(uniqued_columns)}"
-        index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=uniqued_columns)
-        constraint = Constraint(
-            index.inner_name,
-            type=ConstraintType.UNIQUE,
-            columns=uniqued_columns,
-            index=index.inner_name,
-        )
-        indexes.append(index)
-        constraints.append(constraint)
-    for index in node.__extra_indexes__:
-        index_name = f"bench_idx_{'_'.join(index)}"
-        extra_index = Index(index_name, type=IndexType.BTREE, is_unique=False, columns=index)
-        indexes.append(extra_index)
+    properties = list(node.__properties__.values())
+    properties.sort(key=lambda p: p.id or -1)
 
     # map properties to columns, add per-column indices
     for prop in properties:
@@ -247,6 +228,24 @@ def map_node_class_to_table(node: type[Node]) -> Table:
                 constraints.append(constraint)
         columns.append(column)
 
+    # extra constraints/indexes
+    for uniqued_columns in node.__extra_uniques__:
+        uniqued_columns = tuple(sorted(uniqued_columns))  # for consistency
+        index_name = f"bench_idx_{'_'.join(uniqued_columns)}"
+        index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=uniqued_columns)
+        constraint = Constraint(
+            index.inner_name,
+            type=ConstraintType.UNIQUE,
+            columns=uniqued_columns,
+            index=index.inner_name,
+        )
+        indexes.append(index)
+        constraints.append(constraint)
+    for index in node.__extra_indexes__:
+        index_name = f"bench_idx_{'_'.join(index)}"
+        extra_index = Index(index_name, type=IndexType.BTREE, is_unique=False, columns=index)
+        indexes.append(extra_index)
+
     table = Table(
         _source=node.metatype.id,
         name=table_name,
@@ -263,7 +262,34 @@ def map_database_block_to_table(block: Block) -> Table:
     constraints: list[Constraint] = []
     indexes: list[Index] = []
 
-    # nocheckin
+    # map fields into columns
+    for field in block.fields:
+        if field.kind == TypeKind.PRIMITIVE:
+            assert field.primitive_type is not None, f"no primitive type for {field!r}"
+            primitive_type = field.primitive_type
+        elif field.kind == TypeKind.NODE or field.kind == TypeKind.BASED_NODE:
+            # NOTE :Architecture: unravel custom field node refs like in builtin objects?
+            primitive_type = PrimitiveType.JSON
+        elif field.kind == TypeKind.STRUCT:
+            primitive_type = PrimitiveType.JSON
+        elif field.kind == TypeKind.ENUM:
+            primitive_type = PrimitiveType.INT16
+        elif field.kind == TypeKind.BASED_NODE:
+            primitive_type = PrimitiveType.JSON
+        elif field.kind == TypeKind.UNION:
+            continue  # not stored directly
+        else:
+            raise TypeError(f"cannot store field in {block!r}: {field!r}")
+
+        column = Column(
+            name=BENCH_RECORD_VALUE_PREFIX + field.identity_key,
+            type=primitive_type,
+            is_array=field.is_list,
+            is_nullable=not field.is_required,
+            is_primary_key=False,
+            _source=field.tk,
+        )
+        columns.append(column)
 
     return Table(
         _source=block.tk,
@@ -708,18 +734,21 @@ async def pg_graph_select(
     *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
 ) -> list[AnyNodeData]:
     """Selects the nodes from the graph matching the given query."""
-    # nocheckin: pg_graph_select for Records
     # compile
-    options = query._select or DEFAULT_READ_OPTIONS
+    select = query._select or DEFAULT_SELECT_OPTIONS
     node_cls = NODE_CLASS_BY_TYPE[query._node_type]
-    node_table = TABLE_BY_NODE_TYPE[query._node_type]
-    columns = [
-        node_table._columns_by_name[prop.name] for prop in options.get_properties(query._node_type)
-    ]
-    assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
-    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
-    where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
-    order_by = _pg_compile_sorts(node_cls, query._sort) if query._sort else None
+    if query._node_type in BUILTIN_TABLE_BY_NODE_TYPE:
+        node_table = BUILTIN_TABLE_BY_NODE_TYPE[query._node_type]
+        columns = [
+            node_table._columns_by_name[prop.name]
+            for prop in select.get_properties(query._node_type)
+        ]
+        assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
+        filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+        where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
+        order_by = _pg_compile_sorts(node_cls, query._sort) if query._sort else None
+    else:
+        raise NotImplementedError("nocheckin: pg_graph_select (custom table)")
 
     # select
     rows = await pg_select(
@@ -739,12 +768,14 @@ async def pg_graph_select(
 @_trace_pg_span
 async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder) -> int:
     """Counts the nodes from the graph matching the given query."""
-    # nocheckin: pg_graph_count for Records
     # compile
     node_cls = NODE_CLASS_BY_TYPE[query._node_type]
-    node_table = TABLE_BY_NODE_TYPE[query._node_type]
-    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
-    where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
+    if query._node_type in BUILTIN_TABLE_BY_NODE_TYPE:
+        node_table = BUILTIN_TABLE_BY_NODE_TYPE[query._node_type]
+        filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+        where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
+    else:
+        raise NotImplementedError("nocheckin: pg_graph_count (custom table)")
 
     # count
     return await pg_count(cur=cur, ctx=ctx, table=node_table, where=where)
@@ -755,8 +786,7 @@ async def pg_graph_exists(
     *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
 ) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
-    # nocheckin: pg_graph_exists (also for Records)
-    ...
+    raise NotImplementedError("nocheckin: pg_graph_exists")
 
 
 @_trace_pg_span
@@ -773,6 +803,7 @@ async def _pg_graph_walk_down(
 ) -> tuple[list[NodeReferenceData], dict[str, list[NodeReferenceData]]]:
     """
     Gets node pointers to all descendants down from the roots matching the filter.
+    NOTE for now this only works with builtin node tables, not custom tables.
     TODO :Performance: walk graph down in SQL only (no roundtrip recursion)
      (the result of this walk is usually cached, but not for cascading edits)
     """
@@ -790,7 +821,7 @@ async def _pg_graph_walk_down(
         t
         for t in descendant_types
         if NODE_CLASS_BY_TYPE[t].__parent_property__.reference_stored_ids
-        and t in TABLE_BY_NODE_TYPE
+        and t in BUILTIN_TABLE_BY_NODE_TYPE
     ]
 
     # descend
@@ -821,7 +852,7 @@ async def _pg_graph_walk_down(
                 parent_filter = parent_filter & extra_filter
 
             # collect children
-            child_table = TABLE_BY_NODE_TYPE[child_type]
+            child_table = BUILTIN_TABLE_BY_NODE_TYPE[child_type]
             assert child_table, f"no table for {child_cls!r}"
             assert child_table._primary_key, f"no primary key for {child_cls!r}"
             parent_where = _pg_compile_conditional(child_cls, parent_filter)
@@ -1014,13 +1045,23 @@ async def pg_graph_edit(
     if not edits:
         return []
 
+    def _get_node_table(edit: EditData):
+        if edit.node_ptr.node_type in BUILTIN_TABLE_BY_NODE_TYPE:
+            return BUILTIN_TABLE_BY_NODE_TYPE[edit.node_ptr.node_type]
+        else:
+            assert edit.node_ptr.base_ck, f"no base ck for custom table in {edit!r}"
+            table = ctx.get_custom_table(UUID(edit.node_ptr.base_ck))
+            assert table, f"no table for {edit!r} in {ctx!r}"
+            return table
+
     assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
     batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.node_type)]
     batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
     batch: list[EditData] = []
+    batch_node_table: Table = _get_node_table(edits[0])
     all_cascaded_edits: list[EditData] = []
 
-    # batch operations by kind and edit type
+    # batch operations by table and edit type
     for i, prev_edit in enumerate(edits):
         next_edit = edits[i + 1] if i + 1 < len(edits) else None
         assert prev_edit.node_ptr is not None, f"no node ptr for {prev_edit!r}"
@@ -1033,11 +1074,13 @@ async def pg_graph_edit(
             batch_updated_properties[prop_ord] = True
 
         # continue batch if same edit + node types
+        next_node_table = _get_node_table(next_edit) if next_edit is not None else batch_node_table
         if (
             next_edit is not None
             and next_edit.type == prev_edit.type
             and next_edit.node_ptr is not None
             and next_edit.node_ptr.node_type == prev_edit.node_ptr.node_type
+            and next_node_table == batch_node_table
         ):
             continue
 
@@ -1062,6 +1105,7 @@ async def pg_graph_edit(
             ctx=ctx,
             edit_type=edit_type,
             node_type=cast(NodeType, node_type),
+            node_table=batch_node_table,
             batch=batch,
             updated_properties=updated_properties,
         )
@@ -1072,6 +1116,7 @@ async def pg_graph_edit(
                 wiring.unpack_enum(NodeType, next_edit.node_ptr.node_type)
             ]
             batch_updated_properties = bitarray(batch_node_cls.__max_property_ord__ + 1)
+            batch_node_table = next_node_table
             batch.clear()
 
     return all_cascaded_edits
@@ -1139,14 +1184,16 @@ async def _pg_edit_cascade(
             all_cascaded_edits.append(cascaded_edit)
             root_edit_by_cascaded_node_id[cast(str, node_ptr.id)] = root_edit
 
-    # batch operations by edit kind and node type
+    # batch operations by edit kind and node table
     cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.node_type)
     for descendant_node_type, cascaded_edits in cascaded_edits_by_type.items():
+        node_table = BUILTIN_TABLE_BY_NODE_TYPE[NodeType(descendant_node_type)]
         _ = await _pg_edit_batch(
             cur=cur,
             ctx=ctx,
             edit_type=edit_type,
             node_type=cast(NodeType, descendant_node_type),
+            node_table=node_table,
             batch=cascaded_edits,
             updated_properties=(),
         )
@@ -1175,6 +1222,7 @@ async def _pg_edit_batch(
     ctx: SqlContext,
     edit_type: EditType,
     node_type: NodeType,
+    node_table: Table,
     batch: list[EditData],
     updated_properties: tuple[Property, ...],  # across batch
 ) -> None:
@@ -1184,8 +1232,6 @@ async def _pg_edit_batch(
     )
 
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    node_table = TABLE_BY_NODE_TYPE[node_type]
-    assert node_table is not None, f"no table for {node_cls!r}"
     assert node_table._primary_key is not None, f"no primary key for {node_cls!r}: {node_table!r}"
 
     if edit_type in (EditType.CREATE, EditType.UPSERT):
@@ -1311,40 +1357,28 @@ async def _pg_edit_batch(
 
 
 #
-# General table registry
-# (this needs to run after setup)
+# Builtin table registry
 #
 
-TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
+BUILTIN_TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
     # read previously generated tables in schema.py
     node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
     for node_type in NODE_TYPES
     if hasattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
 }
-NODE_TYPE_BY_TABLE_NAME: dict[str, NodeType] = {
-    table.name: node_type for node_type, table in TABLE_BY_NODE_TYPE.items()
+BUILTIN_NODE_BY_TABLE_NAME: dict[str, NodeType] = {
+    table.name: node_type for node_type, table in BUILTIN_TABLE_BY_NODE_TYPE.items()
 }
-NODE_TABLES: tuple[Table, ...] = tuple(TABLE_BY_NODE_TYPE.values())
-GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(
-    TABLE_BY_NODE_TYPE[node.metatype]
+BUILTIN_NODE_TABLES: tuple[Table, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
+BUILTIN_GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(
+    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if not node.__is_local__
-    and node.__is_stored__
-    and not node.__is_stored_custom__
-    and node.metatype in TABLE_BY_NODE_TYPE
+    if not node.__is_local__ and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
-LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
-    TABLE_BY_NODE_TYPE[node.metatype]
+BUILTIN_LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
+    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if node.__is_local__
-    and node.__is_stored__
-    and not node.__is_stored_custom__
-    and node.metatype in TABLE_BY_NODE_TYPE
+    if node.__is_local__ and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
-ALL_TABLES: tuple[Table, ...] = (
-    *GLOBAL_TABLES,
-    *(t for t in LOCAL_TABLES if not any(t.name == g.name for g in GLOBAL_TABLES)),
-)
-GLOBAL_SCHEMA = Schema(GLOBAL_EXTENSIONS, GLOBAL_TABLES)
-LOCAL_SCHEMA = Schema(LOCAL_EXTENSIONS, LOCAL_TABLES)
-OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
+BUILTIN_GLOBAL_SCHEMA = Schema(GLOBAL_EXTENSIONS, BUILTIN_GLOBAL_TABLES)
+BUILTIN_LOCAL_SCHEMA = Schema(LOCAL_EXTENSIONS, BUILTIN_LOCAL_TABLES)

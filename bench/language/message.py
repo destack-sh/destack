@@ -15,7 +15,7 @@ from bench.language.validation import TITLE_CONSTRAINT
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Package, Path, Step, Text, ValueObject, View
+    from bench.language import Block, CustomObject, NodeReference, Package, Path, Step, Text, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -52,7 +52,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
-    value: "ValueObject | None" = p_value_runtime(42, typ=None)  # freely typed
+    value: "CustomObject | None" = p_value_runtime(42, typ=None)  # freely typed
 
     # flags
     is_pinned: bool = p_regular(50, default=False)

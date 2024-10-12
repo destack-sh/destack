@@ -15,7 +15,7 @@ from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunKind
 from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.validation import ValidationError, on_invalid_raise
-from bench.language.value import ValueObject, check_value
+from bench.language.value import CustomObject, check_value
 from bench.runtime.core import (
     BASE_RUN_OPTIONS_BY_KIND,
     DYNAMIC_CODE_GLOBALS,
@@ -90,9 +90,9 @@ class Runtime:
         track: bool,
         code: Code | None = None,
         text: Text | None = None,
-        variables: ValueObject | None = None,
+        variables: CustomObject | None = None,
         # runner
-        inputs: ValueObject | None = None,
+        inputs: CustomObject | None = None,
         options: RunOptions | None = None,
         run: Run | None = None,
     ) -> Runner:
@@ -168,7 +168,7 @@ class Runtime:
             raise RunImpossibleError(f"no node for {run!r}")  # default to package?
         options = node.run_options.override(run.options) if node.run_options else run.options
         if run.inputs is None and run.input_type is not None:
-            inputs = ValueObject.new({}, run.input_type)
+            inputs = CustomObject.new({}, run.input_type)
         else:
             inputs = run.inputs
         return await self.make_runner(
@@ -187,7 +187,7 @@ class Runtime:
         # check inputs
         if runner.input_type is not None:
             with tracer.start_as_current_span("runtime.check_inputs"):
-                inputs = runner.inputs or ValueObject.new({}, runner.input_type)
+                inputs = runner.inputs or CustomObject.new({}, runner.input_type)
                 try:
                     check_value(inputs, runner.input_type, on_invalid_raise)
                 except ValidationError as e:
@@ -230,7 +230,7 @@ class Runtime:
                         if runner.output_type is not None:
                             with tracer.start_as_current_span("runtime.check_outputs"):
                                 if runner.outputs is None:
-                                    runner.outputs = ValueObject.new({}, runner.output_type)
+                                    runner.outputs = CustomObject.new({}, runner.output_type)
                                 check_value(runner.outputs, runner.output_type, on_invalid_raise)
                         attempt._do_set("status", RunStatus.COMPLETED, validate=False)
                         log.debug("runtime.attempt", attempt=attempt, span="current")

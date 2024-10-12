@@ -24,7 +24,7 @@ from bench.language.flow import (
     StepType,
 )
 from bench.language.run import Run, RunError, RunKind
-from bench.language.value import ValueObject
+from bench.language.value import CustomObject
 from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
 from bench.runtime.runner import Runner, RunnerCache
 from bench.utils.func import dict_product, dict_zip_latest
@@ -71,7 +71,7 @@ def evaluate_pipe_filter(pipe: "Pipe", value: Any) -> bool:
 def port_to_incoming_values(
     step: Step,
     port: PortId | PortKey,
-    value: ValueObject | Run | Any,
+    value: CustomObject | Run | Any,
     *,
     values: dict[Field, Any] | None = None,
 ) -> dict[Field, Any]:
@@ -80,7 +80,7 @@ def port_to_incoming_values(
     if port.type == PortType.RUN:
         if isinstance(value, Run):
             value = value.outputs
-        if not isinstance(value, ValueObject):
+        if not isinstance(value, CustomObject):
             return values  # no outputs
         # set all field ports
         input_type = step.input_type
@@ -185,7 +185,7 @@ class StepState:
 
     step: Step
     input_type: TypeInfoBase
-    inputs: ValueObject  # last set values :RunContext
+    inputs: CustomObject  # last set values :RunContext
     runners: list["StepRunner"] = dataclasses.field(default_factory=list)
     active_runners: list["StepRunner"] = dataclasses.field(default_factory=list)
 
@@ -203,7 +203,7 @@ class StepState:
     def has_active_runners(self) -> bool:
         return len(self.active_runners) > 0
 
-    def set_port(self, port: PortKey, value: ValueObject | Run | Any) -> None:
+    def set_port(self, port: PortKey, value: CustomObject | Run | Any) -> None:
         """Sets the value of an incoming port (marking it as ready)."""
         values = port_to_incoming_values(self.step, port, value)
         self.inputs.update(values)
@@ -213,7 +213,7 @@ class StepState:
         """Wrap a Step in a StepState."""
         input_type = step.input_type
         assert input_type is not None, f"{step!r} has no input type"
-        inputs = ValueObject.new({}, input_type)
+        inputs = CustomObject.new({}, input_type)
         return StepState(step=step, input_type=input_type, inputs=inputs)
 
 
@@ -239,7 +239,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
     _step_states: dict[Step, "StepState"] = dataclasses.field(default_factory=dict)
     _pipe_states: dict[Pipe, "PipeState"] = dataclasses.field(default_factory=dict)
     _active_steps: dict[Run, "StepRunner"] = dataclasses.field(default_factory=dict)
-    _force_complete: ValueObject | Literal[True] | None = None
+    _force_complete: CustomObject | Literal[True] | None = None
     _force_fail: RunError | None = None
     _tick_id: int = 0
     _tick_queue: asyncio.Queue[FlowTick] = dataclasses.field(default_factory=asyncio.Queue)
@@ -277,7 +277,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if runner.outer_task is not None:
                 runner.outer_task.cancel()
 
-    def _complete(self, outputs: ValueObject | None) -> None:
+    def _complete(self, outputs: CustomObject | None) -> None:
         """Complete the Flow immediately. Aborts current other steps. Noop if already done."""
         if self._force_complete is not None or self._force_fail is not None:
             logger.debug("flow.complete.skip", flow=self.node, runner=self)
@@ -551,7 +551,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 )
 
             # done, set forced output/error if any
-            if isinstance(self._force_complete, ValueObject):
+            if isinstance(self._force_complete, CustomObject):
                 self.outputs = self._force_complete
             elif self._force_fail:
                 raise ManualRetryableError(self._force_fail)

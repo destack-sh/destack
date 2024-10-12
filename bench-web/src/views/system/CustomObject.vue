@@ -267,7 +267,7 @@ defineExpose<ViewExposed>({ self, id, focus });
                 : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.fieldType, {
                     graph: pkgGraph,
                     wrapScalar: false,
-                    recurseValueObject: false,
+                    recurseCustomObject: false,
                   })
             "
             @update:model-value="
@@ -278,7 +278,7 @@ defineExpose<ViewExposed>({ self, id, focus });
                     : packValue(value, fieldView.fieldType, {
                         graph: pkgGraph,
                         wrapScalar: false,
-                        recurseValueObject: false,
+                        recurseCustomObject: false,
                       });
                 const newObject = { ...focusedValue, [fieldView.storageKey]: valuePacked };
                 if (!valueType?.isList) {

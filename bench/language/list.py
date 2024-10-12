@@ -24,6 +24,7 @@ from bench.utils.fractional import get_key_bounds, get_order_key
 
 if TYPE_CHECKING:
     from bench.language import (
+        CustomObject,
         Expression,
         Field,
         Node,
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
         QueryBuilder,
         SomeNodeReference,
         Struct,
-        ValueObject,
     )
     from bench.proto.wire import AnyNodeData
 
@@ -325,8 +325,8 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         return await self.query().exists(filter, **kwargs)
 
 
-ValueParentT = TypeVar("ValueParentT", bound=Union["ValueObject", "Struct", "Node"])
-ValueT = TypeVar("ValueT", bound=Union["ValueObject", "Struct", "Property"])
+ValueParentT = TypeVar("ValueParentT", bound=Union["CustomObject", "Struct", "Node"])
+ValueT = TypeVar("ValueT", bound=Union["CustomObject", "Struct", "Property"])
 ValueParentKey = Union["Property", "Field"]
 
 
@@ -362,7 +362,7 @@ class ValueList(list, Generic[ValueParentT]):
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)
         if not self.is_property_reference:
-            values = cast(list[Union["ValueObject", "Struct"]], items)
+            values = cast(list[Union["CustomObject", "Struct"]], items)
             if any(item.parent is not None for item in values):
                 values = [e._copy_to(self.parent, self.parent_key) for e in items]  # type: ignore
             else:
@@ -380,6 +380,6 @@ class ValueList(list, Generic[ValueParentT]):
         ancestor_prop: Optional["Property"] = None,
     ):
         """Moves or copies the values in the list to the given parent."""
-        if any(v.parent is not None for v in cast(list[Union["ValueObject", "Struct"]], values)):
+        if any(v.parent is not None for v in cast(list[Union["CustomObject", "Struct"]], values)):
             values = [v._copy_to(parent, parent_key) for v in values]  # type: ignore
         return ValueList(parent, parent_key, ancestor_prop, values)

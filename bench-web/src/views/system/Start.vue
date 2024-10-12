@@ -37,7 +37,7 @@ import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import ValueObject from "@/views/system/ValueObject.vue";
+import CustomObject from "@/views/system/CustomObject.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -213,7 +213,7 @@ defineExpose<ViewExposed>({ self });
         <!-- Inputs -->
         <div class="flex-1">
           <h4 class="font-semibold">Inputs</h4>
-          <ValueObject
+          <CustomObject
             class="w-full py-2"
             :value-type="inputType"
             is-inline
@@ -226,7 +226,7 @@ defineExpose<ViewExposed>({ self });
         <!-- Outputs (last run) -->
         <div v-if="run?.outputsPacked != null" class="flex-1">
           <h4 class="font-semibold">Outputs</h4>
-          <ValueObject
+          <CustomObject
             class="w-full py-2"
             :value-type="outputType"
             is-inline

@@ -19,7 +19,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import describe_type
 
 if TYPE_CHECKING:
-    from bench.language import Block, ValueObject
+    from bench.language import Block, CustomObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,7 +40,7 @@ class Record(StateNode[RecordData], HasNodeBase):
 
     # value
     value_packed: Any = p_value_packed(40)
-    value: "ValueObject | None" = p_value_runtime(
+    value: "CustomObject | None" = p_value_runtime(
         40, typ=lambda self: cast("Record", self).value_type
     )
 

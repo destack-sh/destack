@@ -132,7 +132,7 @@ class Block(SourceNode[BlockData]):
         pass
 
     def __content_str__(self):
-        return ""  # implemented by dynamic components
+        return ""
 
     @final
     def __repr__(self):  # type: ignore we want to override the default repr

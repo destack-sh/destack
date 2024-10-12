@@ -289,7 +289,7 @@ class Column(TableObject):
                 "is_foreign_key_to",
                 "on_delete",
             )
-            if getattr(self, name, None) is not None
+            if getattr(self, name, None)
         )
         table_name = self._table.name if self._table else None
         if args_str:

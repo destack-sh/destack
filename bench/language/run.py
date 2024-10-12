@@ -48,6 +48,7 @@ from bench.utils.tenacity import RetryOptions
 if TYPE_CHECKING:
     from bench.language import (
         Block,
+        CustomObject,
         Expression,
         LogInfo,
         LogLevel,
@@ -55,7 +56,6 @@ if TYPE_CHECKING:
         Package,
         Step,
         TypeInfoBase,
-        ValueObject,
     )
 
 RunnableNode = Union["Block", "Step"]
@@ -414,15 +414,15 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     # content
     inputs_packed: Any = p_value_packed(60)
-    inputs: "ValueObject | None" = p_value_runtime(
+    inputs: "CustomObject | None" = p_value_runtime(
         60, typ=lambda self: cast("Run", self).input_type
     )
     outputs_packed: Any = p_value_packed(61)
-    outputs: "ValueObject | None" = p_value_runtime(
+    outputs: "CustomObject | None" = p_value_runtime(
         61, typ=lambda self: cast("Run", self).output_type
     )
     variables_packed: Any = p_value_packed(62)
-    variables: "ValueObject | None" = p_value_runtime(
+    variables: "CustomObject | None" = p_value_runtime(
         62, typ=lambda self: cast("Run", self).variable_type
     )
     logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
@@ -514,7 +514,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     ) -> "Run":
         """Creates a Run from a Block."""
         from bench.language import Block, Step
-        from bench.language.value import coerce_value_object
+        from bench.language.value import coerce_custom_object
 
         if isinstance(node, Block):
             step = None
@@ -532,7 +532,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         if inputs is None:
             inputs = {}
         if run.input_type is not None:
-            inputs = coerce_value_object(run.input_type, inputs)
+            inputs = coerce_custom_object(run.input_type, inputs)
             run.inputs = inputs
             if kwargs:
                 inputs.update(kwargs)

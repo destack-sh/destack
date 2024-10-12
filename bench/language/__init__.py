@@ -143,7 +143,7 @@ from .transaction import (
 from .trigger import Trigger, TriggerBase, TriggerInfo
 from .user import Handle, Organization, User
 from .validation import TypeConstraintIn, ValidationError
-from .value import Value, ValueObject
+from .value import CustomObject, Value
 from .view import (
     Alignment,
     Anchor,
@@ -217,6 +217,7 @@ __all__ = [
     "ComputedValue",
     "ConditionalOp",
     "Connection",
+    "CustomObject",
     "Dependency",
     "Drive",
     "Edit",
@@ -346,7 +347,6 @@ __all__ = [
     "ValidationError",
     "Value",
     "ValueList",
-    "ValueObject",
     "Variant",
     "Vault",
     "Vector2",

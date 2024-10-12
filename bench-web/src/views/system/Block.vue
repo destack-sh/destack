@@ -92,7 +92,7 @@ const value = computed(() => {
     return unpackValue(block.value?.valuePacked!, block.value.valueType, {
       graph: pkgGraph,
       wrapScalar: true,
-      recurseValueObject: false,
+      recurseCustomObject: false,
     });
   }
 });
@@ -104,7 +104,7 @@ function updateValue(value: any) {
       : packValue(value, block.value.valueType!, {
           graph: pkgGraph,
           wrapScalar: true,
-          recurseValueObject: false,
+          recurseCustomObject: false,
         });
   if (valuePacked != null) {
     pkgConnection.tx.update(block.value, { valuePacked }, { debounce: "short" });

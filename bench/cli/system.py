@@ -6,7 +6,7 @@ import typer
 from more_itertools import first
 from rich import print
 
-from bench.cli.utils import async_to_sync_blocking, check_is_consistent
+from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, User
 from bench.language.const import (
     CLOUD,
@@ -23,12 +23,6 @@ from bench.utils.oracle import REAL_ORACLE
 app = typer.Typer(short_help="some language-level utilities")
 
 logger = structlog.get_logger(__name__)
-
-
-@app.command(help="check whether the current Bench state is properly migrated")
-@async_to_sync_blocking
-async def check(check_db: bool = False):
-    await check_is_consistent(check_db=check_db)
 
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")

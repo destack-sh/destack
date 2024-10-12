@@ -14,7 +14,7 @@ from bench.language.field import TypeInfoBase
 from bench.language.log import LogInfo
 from bench.language.run import Run, RunAttempt, RunError, RunKind, RunnableNode, RunOptions
 from bench.language.text import Text
-from bench.language.value import ValueObject
+from bench.language.value import CustomObject
 
 if TYPE_CHECKING:
     from bench.runtime.runtime import Runtime
@@ -36,7 +36,7 @@ class RunnerCache[T: RunnableNode]:
     node: T
     code: Code | None = None
     text: Text | None = None
-    variables: ValueObject | None = None
+    variables: CustomObject | None = None
 
     def __str__(self):
         return f"{self.kind.bench_name}: {self.id} (in {self.node})"
@@ -57,9 +57,9 @@ class Runner[S: RunnerCache, T: RunnableNode]:
     options: RunOptions
     parent: "Runner | None"  # if nested
     status: RunStatus
-    inputs: ValueObject | None = None
+    inputs: CustomObject | None = None
     input_type: TypeInfoBase | None = None
-    outputs: ValueObject | None = None
+    outputs: CustomObject | None = None
     output_type: TypeInfoBase | None = None
     error: RunError | None = None
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
@@ -121,7 +121,7 @@ class Runner[S: RunnerCache, T: RunnableNode]:
         return self.cache.text
 
     @property
-    def variables(self) -> ValueObject | None:
+    def variables(self) -> CustomObject | None:
         return self.cache.variables
 
     @property

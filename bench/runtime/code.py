@@ -12,7 +12,7 @@ from bench.language.code import Code, CodeType
 from bench.language.file import upload
 from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
-from bench.language.value import ValueObject, coerce_value_object
+from bench.language.value import CustomObject, coerce_custom_object
 from bench.runtime.capture import (
     MAX_LOG_LINE_LENGTH,
     MAX_LOGS_PER_CAPTURE,
@@ -129,10 +129,10 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
         return glbls
 
     @tracer.start_as_current_span("code.coerce_outputs")
-    def _coerce_outputs(self, outputs_raw: Any) -> ValueObject:
+    def _coerce_outputs(self, outputs_raw: Any) -> CustomObject:
         """Coerves raw outputs into the output type for this run."""
         assert self.output_type, f"no output type for {self!r}"
-        outputs = coerce_value_object(self.output_type, outputs_raw)
+        outputs = coerce_custom_object(self.output_type, outputs_raw)
         return outputs
 
 

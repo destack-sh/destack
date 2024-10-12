@@ -157,7 +157,7 @@ class SelectOptions(Struct):
         return SelectOptions(select_all_properties=True, select_all_fields=True)
 
 
-DEFAULT_READ_OPTIONS = SelectOptions.default()
+DEFAULT_SELECT_OPTIONS = SelectOptions.default()
 
 
 class QueryError(BenchError, ValueError):

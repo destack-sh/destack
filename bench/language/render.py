@@ -30,7 +30,7 @@ from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.text import Text
-from bench.language.value import ScalarValue, SomeValue, ValueObject
+from bench.language.value import CustomObject, ScalarValue, SomeValue
 from bench.language.view import Icon, View, reverse_icon
 from bench.utils.time import timedelta_to_isoformat
 
@@ -291,7 +291,7 @@ class Renderer:
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 
-    def render_value_object_scalar_expr(self, value: "ValueObject", typ: "TypeInfoBase") -> str:
+    def render_custom_object_scalar_expr(self, value: "CustomObject", typ: "TypeInfoBase") -> str:
         """Renders single Object into an expression."""
         assert typ.base_type is not None, f"{value!r} has no base type"
         repr_by_name: dict[str, str] = {}
@@ -310,7 +310,7 @@ class Renderer:
 
     def render_value_expr(self, value: "SomeValue | None", typ: "TypeInfoBase") -> str:
         """Renders a value into an expression."""
-        from bench.language.value import ValueObject
+        from bench.language.value import CustomObject
 
         if value is None:
             return "None"
@@ -319,9 +319,9 @@ class Renderer:
         if typ.kind == TypeKind.OBJECT:
             # nested object
             if not typ.is_list:
-                return self.render_value_object_scalar_expr(cast(ValueObject, value), typ)
+                return self.render_custom_object_scalar_expr(cast(CustomObject, value), typ)
             else:
-                return f"[{', '.join(self.render_value_object_scalar_expr(cast(ValueObject, v), typ) for v in cast(list, value))}]"
+                return f"[{', '.join(self.render_custom_object_scalar_expr(cast(CustomObject, v), typ) for v in cast(list, value))}]"
         else:
             # scalar
             if not typ.is_list:
@@ -345,10 +345,10 @@ class Renderer:
         return renderer.render(self, obj)
 
     @tracer.start_as_current_span("renderer.render_object_expr")
-    def render_obj_expr(self, obj: BuiltinObject | ValueObject):
+    def render_obj_expr(self, obj: BuiltinObject | CustomObject):
         """Renders the given objects to a Python expression."""
-        if isinstance(obj, ValueObject):
-            return self.render_value_object_scalar_expr(obj, obj._type)
+        if isinstance(obj, CustomObject):
+            return self.render_custom_object_scalar_expr(obj, obj._type)
         elif isinstance(obj, BuiltinObject):
             return self.render_builtin_object_expr(obj)
         else:
@@ -419,13 +419,13 @@ def render_value_expr(value: SomeValue, typ: TypeInfoBase, options: RenderOption
 
 @tracer.start_as_current_span("render.render_expr")
 def render_expr(
-    value: BuiltinObject | ValueObject, options: RenderOptions, as_ref: bool = False
+    value: BuiltinObject | CustomObject, options: RenderOptions, as_ref: bool = False
 ) -> str:
     """Render the given object to a python expression."""
     renderer = Renderer(options)
     rendered: str
-    if isinstance(value, ValueObject):
-        rendered = renderer.render_value_object_scalar_expr(value, value._type)
+    if isinstance(value, CustomObject):
+        rendered = renderer.render_custom_object_scalar_expr(value, value._type)
     elif isinstance(value, BuiltinObject):
         if isinstance(value, Node) and as_ref:
             rendered = renderer.render_node_ref(value)
@@ -450,7 +450,7 @@ def render_stmt(*objs: Node, options: RenderOptions) -> str:
     return rendered.strip()
 
 
-def render(*objs: BuiltinObject | ValueObject, options: RenderOptions) -> str:
+def render(*objs: BuiltinObject | CustomObject, options: RenderOptions) -> str:
     """Renders the given object to either an expression (for values) or statement (for nodes)."""
     if any(isinstance(obj, Node) for obj in objs):
         # render into single statement block

@@ -14,7 +14,7 @@ from bench.language import Store
 from bench.proto.wire import (
     SupervisorClient,
 )
-from bench.sql.graph import GLOBAL_SCHEMA
+from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA
 from bench.test.conftest import TestProfile
 from bench.test.fixtures import create_test_db, delete_test_db, make_system_store
 from bench.test.simulation.client import ClientHandle, UserHandle
@@ -356,7 +356,7 @@ SIMULATIONS_BY_PROFILE = group_by(AVAILABLE_SIMULATIONS, lambda s: s.profile)
 async def _do_test_simulation(spec: SimulationSpec):
     simulation_id = get_simulation_id(spec)
     global_store = make_system_store(f"test_{simulation_id}")
-    await create_test_db(global_store, GLOBAL_SCHEMA)
+    await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
     simulation = Simulation(simulation_id, spec, global_store)
     try:
         await simulation.run()

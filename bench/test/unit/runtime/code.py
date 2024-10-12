@@ -4,7 +4,7 @@ from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
 from bench.language.node import Node
 from bench.language.run import Run, RunErrorType, RunKind, RunOptions
-from bench.language.value import ValueObject
+from bench.language.value import CustomObject
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -359,7 +359,7 @@ return Shape(kind=ShapeKind.Square)
     await local_runtime.commit()
 
     runner = await local_runtime.run(Function)
-    assert runner.outputs and isinstance(runner.outputs.Result, ValueObject)
+    assert runner.outputs and isinstance(runner.outputs.Result, CustomObject)
     assert runner.outputs.Result.kind == ShapeKind.fields.Square
 
 
