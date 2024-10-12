@@ -9,7 +9,7 @@ from uuid import UUID
 from more_itertools import first
 from psycopg.types.json import Jsonb
 
-from bench.language.const import PrimitiveType
+from bench.language.const import ConditionalOp, PrimitiveType, SortOp
 from bench.utils.func import stable_hash
 
 
@@ -599,6 +599,94 @@ POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
     PrimitiveType.BYTES: PostgresColumnType.BYTEA,
 }
 PRIMITIVE_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_PRIMITIVE_TYPE.items()}
+
+
+PG_CAST_PRIMITIVE_TYPE: dict[PrimitiveType, str] = {
+    PrimitiveType.BOOLEAN: "boolean",
+    PrimitiveType.INT32: "int",
+    PrimitiveType.INT64: "bigint",
+    PrimitiveType.FLOAT32: "float",
+    PrimitiveType.FLOAT64: "double",
+    PrimitiveType.DECIMAL: "decimal",
+    PrimitiveType.STRING: "text",
+    PrimitiveType.VECTOR: "float[]",
+    PrimitiveType.BYTES: "bytea",
+    PrimitiveType.DATETIME: "timestamptz",
+    PrimitiveType.DATE: "date",
+    PrimitiveType.TIME: "time",
+    PrimitiveType.INTERVAL: "interval",
+    PrimitiveType.JSON: "jsonb",
+    PrimitiveType.UUID: "uuid",
+}
+
+
+class PostgresConditionalOp(enum.StrEnum):
+    # logical
+    TRUE = "TRUE"
+    FALSE = "FALSE"
+    AND = "AND"
+    OR = "OR"
+    NOT = "NOT"
+    # standard
+    IS_NULL = "IS NULL"
+    IS_NOT_NULL = "IS NOT NULL"
+    EQ = "="
+    NEQ = "!="
+    LT = "<"
+    LTE = "<="
+    GT = ">"
+    GTE = ">="
+    IN = "IN"
+    NOT_IN = "NOT IN"
+    # string
+    LIKE = "LIKE"
+    ILIKE = "ILIKE"
+    REGEXP = "~"
+    # array/json
+    CONTAINS = "@>"
+    CONTAINED_BY = "<@"
+    OVERLAPS = "&&"
+
+
+class PostgresJoinOp(enum.StrEnum):
+    INNER_JOIN = "INNER JOIN"
+    LEFT_OUTER_JOIN = "LEFT OUTER JOIN"
+    RIGHT_OUTER_JOIN = "RIGHT OUTER JOIN"
+    FULL_OUTER_JOIN = "FULL OUTER JOIN"
+
+
+class PostgresSortOp(enum.StrEnum):
+    ASC = "ASC"
+    DESC = "DESC"
+
+
+PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalOp, PostgresConditionalOp] = {
+    # logical
+    ConditionalOp.AND: PostgresConditionalOp.AND,
+    ConditionalOp.OR: PostgresConditionalOp.OR,
+    ConditionalOp.NOT: PostgresConditionalOp.NOT,
+    # standard
+    ConditionalOp.EXISTS: PostgresConditionalOp.IS_NOT_NULL,
+    ConditionalOp.NOT_EXISTS: PostgresConditionalOp.IS_NULL,
+    ConditionalOp.EQUALS: PostgresConditionalOp.EQ,
+    ConditionalOp.NOT_EQUALS: PostgresConditionalOp.NEQ,
+    ConditionalOp.LESS_THAN: PostgresConditionalOp.LT,
+    ConditionalOp.LESS_THAN_OR_EQUALS: PostgresConditionalOp.LTE,
+    ConditionalOp.GREATER_THAN: PostgresConditionalOp.GT,
+    ConditionalOp.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
+    # string
+    ConditionalOp.MATCHES_REGEX: PostgresConditionalOp.REGEXP,
+    ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
+    # containment
+    ConditionalOp.CONTAINS: PostgresConditionalOp.CONTAINS,
+    ConditionalOp.IN: PostgresConditionalOp.IN,
+    ConditionalOp.NOT_IN: PostgresConditionalOp.NOT_IN,
+}
+POSTGRES_SORT_OP_BY_BENCH: dict[SortOp, PostgresSortOp] = {
+    SortOp.ASCENDING: PostgresSortOp.ASC,
+    SortOp.DESCENDING: PostgresSortOp.DESC,
+}
+
 
 #
 # Default tables

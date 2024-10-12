@@ -13,7 +13,7 @@ from opentelemetry import trace
 from bench.language import Bench, Machine, ResourceStatus, Server
 from bench.language.const import CLOUD, NodeType
 from bench.proto.networking import dockerify_url, minikubeify_url
-from bench.system.host.core import HostApi
+from bench.system.host.core import Host
 from bench.system.provision.kubernetes import (
     KUBERNETES_MACHINE_APP_LABEL,
     KUBERNETES_NAMESPACE,
@@ -112,7 +112,7 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
 
-    def __init__(self, host: HostApi, bench: Bench):
+    def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
         self._local_machine_url = get_from_env_maybe(
             "LOCAL_MACHINE_URL", description="URL for local machine runtime"
@@ -138,7 +138,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
 
-    def __init__(self, host: HostApi, bench: Bench):
+    def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
         self._docker_client = docker.from_env()
 
@@ -204,7 +204,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
 
-    def __init__(self, host: HostApi, bench: Bench):
+    def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
         self._kubernetes_api: KubernetesApi | None = None
         self._kubernetes_pods_by_name: dict[str, k8.V1Pod] = {}

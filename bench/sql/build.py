@@ -1,6 +1,6 @@
 from bench.language.const import VERSION, NodeType
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.sql.engine import map_node_class_to_pg_table
+from bench.sql.graph import map_node_class_to_table
 from bench.utils.utils import format_python
 
 
@@ -16,7 +16,7 @@ def _build_sql_schema():
     for node_t in NodeType:
         node_cls = NODE_CLASS_BY_TYPE[node_t]
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
-            table = map_node_class_to_pg_table(node_cls)
+            table = map_node_class_to_table(node_cls)
             const_name = f"{node_cls.metatype.name}_TABLE"
             table_def = f"{const_name} = {table.source_repr()}"
             chunks.append(table_def)

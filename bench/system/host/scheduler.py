@@ -17,7 +17,7 @@ from bench.language.text import Text
 from bench.language.trigger import Trigger
 from bench.proto.services import get_channel
 from bench.proto.wire import KillRunRequest, PauseRunRequest, ProcessRunRequest, RuntimeClient
-from bench.system.host.core import Commit, DeferredHostPlugin, HostApi, HostPlugin
+from bench.system.host.core import Commit, DeferredHostPlugin, Host, HostPlugin
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
@@ -49,7 +49,7 @@ class RunPlugin(HostPlugin[Run]):
 
     watch_types = bittuple(NodeType.RUN)
 
-    def __init__(self, host: HostApi, bench: Bench, retry: RetryOptions = RETRY_GRPC):
+    def __init__(self, host: Host, bench: Bench, retry: RetryOptions = RETRY_GRPC):
         super().__init__(host, bench)
         self._retry = retry
         self._run_queue: asyncio.Queue[PendingRunOperation] = asyncio.Queue()

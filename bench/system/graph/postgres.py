@@ -35,8 +35,10 @@ from bench.proto.wire import (
 from bench.sql.client import PostgresConnection, get_pg_pool
 from bench.sql.engine import (
     SqlContext,
-    pg_edit,
+)
+from bench.sql.graph import (
     pg_graph_count,
+    pg_graph_edit,
     pg_graph_exists,
     pg_graph_get,
     pg_graph_search,
@@ -137,13 +139,13 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     @override
     @_pg_method
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
-        cascaded_edits = await pg_edit(cur=self.cur, ctx=self.engine.context, edits=edits)
+        cascaded_edits = await pg_graph_edit(cur=self.cur, ctx=self.engine.context, edits=edits)
         return FlushResultData(cascaded_edits=cascaded_edits)
 
     @override
     @_pg_method
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
-        cascaded_edits = await pg_edit(cur=self.cur, ctx=self.engine.context, edits=edits)
+        cascaded_edits = await pg_graph_edit(cur=self.cur, ctx=self.engine.context, edits=edits)
         await self.connection.commit()
         return CommitResultData(cascaded_edits=cascaded_edits)
 

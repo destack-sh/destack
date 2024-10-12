@@ -11,7 +11,7 @@ from bench.language.const import NodeType
 from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate
-from bench.system.host.core import HostApi
+from bench.system.host.core import Host
 from bench.system.provision.provisioner import Provisioner
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import bittuple
@@ -61,7 +61,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
 class NeonStoreProvisioner(StoreProvisioner):
     """Provision Stores with the Neon API."""
 
-    def __init__(self, host: "HostApi", bench: Bench, neon_api: "NeonApi"):
+    def __init__(self, host: "Host", bench: Bench, neon_api: "NeonApi"):
         super().__init__(host, bench)
         self._neon_api = neon_api
 

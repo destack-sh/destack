@@ -18,6 +18,7 @@ from bench.language.graph import NodeGraphLike, NodeSuperGraph
 from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import EditData
+from bench.proto.wire.lang_pb2 import GraphScopeData
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -176,8 +177,12 @@ def unpack_commit(
     return commit
 
 
-class HostApi(abc.ABC):
+class Host(abc.ABC):
     """Base interface for the Host so we can pass it around more easily (and stub it)."""
+
+    @property
+    @abc.abstractmethod
+    def scope(self) -> GraphScopeData: ...
 
     @abc.abstractmethod
     def on_error(self, source: "HostPlugin", error: Exception) -> None:
@@ -207,10 +212,15 @@ class HostApi(abc.ABC):
         return {}
 
 
-class HostProxy(HostApi):
+class HostProxy(Host):
     def __init__(self, global_store: Store, session: Session):
+        self._scope = session._default_scope
         self._global_store = global_store
         self._session = session
+
+    @property
+    def scope(self) -> GraphScopeData:
+        return self._scope
 
     def on_error(self, source: Any, error: Exception) -> None:
         pass
@@ -234,7 +244,7 @@ class HostPlugin[T: Node](abc.ABC):
     """The type of nodes to subscribe to for edits."""
     watch_types: ClassVar[bittuple[NodeType]]
 
-    def __init__(self, host: HostApi, bench: "Bench"):
+    def __init__(self, host: Host, bench: "Bench"):
         self.host = host
         self.bench = bench
         self.tasks = TaskManager(
@@ -303,7 +313,7 @@ class HostPlugin[T: Node](abc.ABC):
 class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     """A Host plugin with async event handlers."""
 
-    def __init__(self, host: HostApi, bench: "Bench"):
+    def __init__(self, host: Host, bench: "Bench"):
         super().__init__(host, bench)
         self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
 

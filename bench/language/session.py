@@ -343,22 +343,23 @@ class Session(RuntimeNode[SessionData]):
             self._channels.append(channel)
             return channel
 
-    async def _get_channel_for(
+    async def _get_channel_for[ChannelT: Channel](
         self,
         scope: GraphScopeData,
         node_types: NodeType | Iterable[NodeType],
         *,
-        is_readonly: bool,
-        include_deleted: bool,
+        is_readonly: bool = False,
+        include_deleted: bool = False,
         best_match: Collection[NodeType] | None = None,
-    ) -> Channel:
+        expect: type[ChannelT] = Channel,
+    ) -> ChannelT:
         """Gets or creates a store channel for a scope and node types."""
         if is_readonly and self._split_read:
             if self._split_read_channel is None:
                 self._split_read_channel = SplitChannel(
                     NullEngine(self._default_scope, NODE_TYPES), self
                 )
-            return self._split_read_channel
+            channel = self._split_read_channel
         else:
             engine = self._get_engine_for(
                 scope=scope,
@@ -367,7 +368,10 @@ class Session(RuntimeNode[SessionData]):
                 include_deleted=include_deleted,
                 best_match=best_match,
             )
-            return await self._get_channel(engine)
+            channel = await self._get_channel(engine)
+        if not isinstance(channel, expect):
+            raise BenchError(f"unexpected channel type {channel!r} for {expect!r}")
+        return channel
 
     def _on_connection_begin(self, connection: Connection):
         """Called when a connection begins."""

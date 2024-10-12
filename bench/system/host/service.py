@@ -65,7 +65,7 @@ from bench.system.graph.graph import (
     validate_edit,
 )
 from bench.system.graph.postgres import PostgresEngine
-from bench.system.host.core import HostApi, HostPlugin, unpack_commit
+from bench.system.host.core import Host, HostPlugin, unpack_commit
 from bench.system.host.database import DatabasePlugin
 from bench.system.host.scheduler import RunPlugin, ScheduleTriggerPlugin, SignalTriggerPlugin
 from bench.system.provision.provisioner import Provisioner, get_provisioners_for
@@ -107,7 +107,7 @@ PACKAGE_QUERY = (
 )
 
 
-class HostService(GraphIoServiceBase, HostApi, HostBase):
+class HostService(GraphIoServiceBase, Host, HostBase):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.
@@ -123,6 +123,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             logger=logger,
             tracer=tracer,
             oracle=oracle,
+            scope=GraphScope(bench_id=bench_id)._to_data(),
         )
 
         self.bench_id = bench_id
@@ -135,7 +136,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         self._client_cache = ClientCache(ttl=60)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
-        self._scope: GraphScopeData = GraphScope(bench_id=bench_id)._to_data()
         self._global_pg_engine: PostgresEngine | None = None
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[GraphEngine, ...] = ()
@@ -152,6 +152,10 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     @override
     def get_service_baggage(self) -> dict[str, Any]:
         return {"bench_id": self.bench_id}
+
+    @property
+    def scope(self) -> GraphScopeData:
+        return self._scope
 
     @property
     def bench(self) -> Bench:
@@ -327,14 +331,14 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             bench=self._bench,
             scope=self._scope,
             node_types=IN_BENCH_GLOBAL_NODE_TYPES,
-            context=database_plugin.context,
+            context=database_plugin._context,
         )
         self._local_pg_engine = PostgresEngine(
             store=self._bench.main_store,
             bench=self._bench,
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,
-            context=database_plugin.context,
+            context=database_plugin._context,
         )
         self._engines = (self._global_pg_engine, self._local_pg_engine)
         if HOST_MEMORY_ENGINE_ENABLED:

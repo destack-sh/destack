@@ -1,10 +1,7 @@
 import psycopg
 
 from bench.sql.core import ObjectKind
-from bench.sql.engine import (
-    GLOBAL_SCHEMA,
-    LOCAL_SCHEMA,
-)
+from bench.sql.graph import BENCH_TABLE_PREFIX, GLOBAL_SCHEMA, LOCAL_SCHEMA
 from bench.sql.migration import (
     generate_sql_migration_ops,
     introspect_sql_schema,
@@ -20,7 +17,7 @@ async def _do_test_stored_migrations(cur: psycopg.AsyncCursor, *, is_global: boo
     await sql_migrate(cur, target=stored_migrations[-1].id, is_global=is_global, oracle=REAL_ORACLE)
 
     # diff again (should be empty now)
-    current_schema = await introspect_sql_schema(cur)
+    current_schema = await introspect_sql_schema(cur, include_table_prefixes=(BENCH_TABLE_PREFIX,))
     new_schema = GLOBAL_SCHEMA if is_global else LOCAL_SCHEMA
     current_ops = generate_sql_migration_ops(current_schema, new_schema)
     current_ops = [op for op in current_ops if op.object_kind != ObjectKind.EXTENSION]

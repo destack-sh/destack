@@ -14,7 +14,7 @@ from bench.language import Store
 from bench.proto.wire import (
     SupervisorClient,
 )
-from bench.sql.engine import GLOBAL_SCHEMA
+from bench.sql.graph import GLOBAL_SCHEMA
 from bench.test.conftest import TestProfile
 from bench.test.fixtures import create_test_db, delete_test_db, make_system_store
 from bench.test.simulation.client import ClientHandle, UserHandle

@@ -12,6 +12,7 @@ from rich.console import Console
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
 from bench.language.const import VERSION, NodeType
+from bench.sql.graph import BENCH_RECORD_TABLE_PREFIX, BENCH_TABLE_PREFIX
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
@@ -34,7 +35,8 @@ async def make(
 ):
     from bench.sql.client import pg_connection
     from bench.sql.core import Schema
-    from bench.sql.engine import GLOBAL_SCHEMA, LOCAL_SCHEMA, SqlUndefinedObjectError
+    from bench.sql.engine import SqlUndefinedObjectError
+    from bench.sql.graph import GLOBAL_SCHEMA, LOCAL_SCHEMA
     from bench.sql.migration import (
         Migration,
         add_migration_to_fs,
@@ -84,7 +86,11 @@ async def make(
                     bench_node = await BENCH_QUERY.get(slug=bench)
                     assert bench_node.main_store, f"{bench!r} has no main store"
                     async with pg_connection(bench_node.main_store) as conn:
-                        old_local_schema = await introspect_sql_schema(conn.cursor)
+                        old_local_schema = await introspect_sql_schema(
+                            conn.cursor,
+                            include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                            exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+                        )
             except SqlUndefinedObjectError as e:
                 # missing from_scratch flag?
                 console.print(f"[red]couldn't make migrations (missing --from-scratch?): {e}[/red]")
@@ -97,7 +103,11 @@ async def make(
 
     # diff global
     async with pg_connection(global_store) as conn:
-        old_global_schema = await introspect_sql_schema(conn.cursor)
+        old_global_schema = await introspect_sql_schema(
+            conn.cursor,
+            include_table_prefixes=(BENCH_TABLE_PREFIX,),
+            exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+        )
     global_migration_ops = generate_sql_migration_ops(old_global_schema, GLOBAL_SCHEMA)
 
     # generate migration
@@ -198,12 +208,22 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
             assert bench_node.main_store, f"{bench!r} has no main environment"
         async with pg_connection(bench_node.main_store) as conn:
             schema = await introspect_sql_schema(
-                conn.cursor, include_columns=True, include_indexes=True, include_constraints=True
+                conn.cursor,
+                include_columns=True,
+                include_indexes=True,
+                include_constraints=True,
+                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
             )
     else:
         async with pg_connection(global_store) as conn:
             schema = await introspect_sql_schema(
-                conn.cursor, include_columns=True, include_indexes=True, include_constraints=True
+                conn.cursor,
+                include_columns=True,
+                include_indexes=True,
+                include_constraints=True,
+                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
             )
             await conn.rollback()
 

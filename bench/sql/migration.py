@@ -43,7 +43,6 @@ from bench.sql.core import (
     TableObject,
 )
 from bench.sql.engine import (
-    GLOBAL_CONTEXT,
     SqlUndefinedObjectError,
     pg_delete,
     pg_select,
@@ -51,6 +50,7 @@ from bench.sql.engine import (
     pg_upsert,
     sqlstr,
 )
+from bench.sql.graph import GLOBAL_CONTEXT
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
 from bench.utils.oracle import Oracle
@@ -839,7 +839,9 @@ async def introspect_sql_schema(
     include_columns: bool = True,
     include_constraints: bool = True,
     include_indexes: bool = True,
-    table_prefix: str = "bench_",
+    include_extensions: bool = True,
+    include_table_prefixes: tuple[str, ...],
+    exclude_table_prefixes: tuple[str, ...] = (),
 ) -> Schema:
     # extensions
     extensions_query = """
@@ -848,8 +850,11 @@ async def introspect_sql_schema(
     FROM
         pg_extension
     """
-    extensions_rows = await pg_select_raw(cur=cur, query=extensions_query)
-    extensions = tuple(Extension(name=row["extname"]) for row in extensions_rows)
+    if include_extensions:
+        extensions_rows = await pg_select_raw(cur=cur, query=extensions_query)
+        extensions = tuple(Extension(name=row["extname"]) for row in extensions_rows)
+    else:
+        extensions = ()
 
     def _strip_condition(condition: str) -> str:
         # remove outermost (...) if present until only one (...) remains
@@ -865,9 +870,14 @@ async def introspect_sql_schema(
         information_schema.tables
     WHERE
         table_schema = 'public'
-        AND table_name LIKE {};
     """
-    tables_query = sqlstr(tables_query).format(sql.Literal(table_prefix + "%"))
+    if include_table_prefixes:
+        include_patterns = ", ".join(f"'{prefix}'" for prefix in include_table_prefixes)
+        tables_query += f" AND table_name LIKE ANY (ARRAY[{include_patterns}])"
+    if exclude_table_prefixes:
+        exclude_patterns = ", ".join(f"'{prefix}'" for prefix in exclude_table_prefixes)
+        tables_query += f" AND table_name NOT LIKE ANY (ARRAY[{exclude_patterns}])"
+
     tables_rows = await pg_select_raw(cur=cur, query=tables_query)
     tables_names: list[str] = [str(row["table_name"]) for row in tables_rows]
 

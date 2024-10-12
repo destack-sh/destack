@@ -8,7 +8,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, ResourceNode
 from bench.language.const import VERSION, NodeType
-from bench.system.host.core import Commit, DeferredHostPlugin, HostApi
+from bench.system.host.core import Commit, DeferredHostPlugin, Host
 from bench.utils.env import ENV, Env
 from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env_maybe
@@ -29,7 +29,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     """The nodes this Provisioner can handle (separate from node types to watch in HostPlugin.)"""
     provision_types: ClassVar[bittuple[NodeType]]
 
-    def __init__(self, host: HostApi, bench: Bench):
+    def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
         self._lock = asyncio.Lock()
 
@@ -183,7 +183,7 @@ MACHINE_PROVISIONER_TYPE = get_from_env_maybe(
 )
 
 
-def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
+def get_provisioners_for(host: Host, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.provision.machine import (
         DockerMachineProvisioner,
@@ -234,7 +234,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
         raise RuntimeError(f"unexpected environment: {ENV!r}")
 
 
-async def provision(host: HostApi, bench: Bench, resources: Collection[ResourceNode]) -> None:
+async def provision(host: Host, bench: Bench, resources: Collection[ResourceNode]) -> None:
     """Provisions the given resources in *this* environment"""
     provisioners = get_provisioners_for(host, bench)
     for resource in resources:
@@ -246,7 +246,7 @@ async def provision(host: HostApi, bench: Bench, resources: Collection[ResourceN
             raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")
 
 
-async def decommission(host: HostApi, bench: Bench, resources: Collection[ResourceNode]) -> None:
+async def decommission(host: Host, bench: Bench, resources: Collection[ResourceNode]) -> None:
     """Decommissions the given resources in *this* environment"""
     provisioners = get_provisioners_for(host, bench)
     for resource in resources:
