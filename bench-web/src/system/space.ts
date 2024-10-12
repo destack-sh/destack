@@ -9,10 +9,10 @@ import {
   typeNodeReference,
   typeNodeReferenceMaybe,
   unwrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
-import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
+import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { createDesktopDefaultSpace, createEmptySpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { setCanvas as _setCanvas } from "@/utils/globals";
@@ -25,7 +25,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
   computed(() => ({
     scope: BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
-    options: { descendantTypes: [NodeType.BRANCH, NodeType.PACKAGE] },
+    descendantTypes: [NodeType.BRANCH, NodeType.PACKAGE],
     isEnabled: local.benchPtr.value != null,
   })),
 );
@@ -35,7 +35,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetConnection(
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
     roots: [local.packagePtr.value!],
-    options: { descendantTypes: SOURCE_NODE_TYPES },
+    descendantTypes: SOURCE_NODE_TYPES,
     isEnabled: local.packagePtr.value != null,
   })),
 );
@@ -155,11 +155,7 @@ export async function goToBench(go: {
   const host = await getHostClient({ id: go.bench.id! });
   const {
     response: { nodes },
-  } = await host.getNodes({
-    roots: [go.bench],
-    scope,
-    options: makeReadOptions({ descendantTypes: [NodeType.BRANCH] }),
-  });
+  } = await host.getNodes({ roots: [go.bench], scope, descendantTypes: [NodeType.BRANCH], ancestorTypes: [] });
   const graph = new NodeGraph({ scope, nodeTypes: [NodeType.BRANCH] });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;

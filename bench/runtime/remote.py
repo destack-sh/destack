@@ -1,6 +1,5 @@
 from functools import wraps
 from typing import AsyncIterator, cast, override
-from xml.etree.ElementInclude import include
 
 import structlog
 from grpclib import GRPCError
@@ -189,8 +188,6 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
             descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
             select=query._select._to_data() if query._select else None,
             include_deleted=query._include_deleted,
-            first=query._first,
-            skip=query._skip,
         )
         try:
             response = await self.channel.engine.remote.get_nodes(

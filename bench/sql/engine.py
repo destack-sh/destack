@@ -1491,7 +1491,8 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: Context, query: Query
 @_trace_pg_span
 async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: Context, query: QueryBuilder) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
-    raise NotImplementedError("nocheckin: pg_graph_exists")
+    # nocheckin: pg_graph_exists (also for Records)
+    ...
 
 
 @_trace_pg_span

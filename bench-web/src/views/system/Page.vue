@@ -72,7 +72,7 @@ const preparedPkgConnection = useGetConnection(
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
     roots: [nodePtr.value!],
-    options: { descendantTypes: [NodeType.BLOCK] },
+    descendantTypes: [NodeType.BLOCK],
     isEnabled: nodePtr.value != null,
   })),
 );
