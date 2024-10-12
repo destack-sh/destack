@@ -11,7 +11,7 @@ from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
 from bench.language.session import Session
 from bench.sql.core import Table
-from bench.sql.graph import BENCH_RECORD_TABLE_PREFIX, BenchContext
+from bench.sql.graph import BENCH_RECORD_TABLE_PREFIX, BenchSqlContext
 from bench.sql.migration import introspect_sql_schema
 from bench.system.graph.postgres import PostgresChannel
 from bench.system.host.core import Commit, Host, HostPlugin
@@ -25,21 +25,21 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True)
-class HostSqlContext(BenchContext):
+class HostSqlContext(BenchSqlContext):
     """Host context for SQL operations (with custom databases)."""
 
     custom_tables_by_block: dict[Block, Table]
     databases_by_ck: dict[UUID, Block]
 
-    def get_custom_table(self, block: UUID | Block) -> Table | None:
+    def get_custom_table(self, block: UUID | Block) -> tuple[Table, Block]:
         if isinstance(block, UUID):
             block = self.databases_by_ck[block]
         if block.type == BlockType.DATABASE:
             table = self.custom_tables_by_block.get(block)
             assert table is not None, f"no table for {block!r}"
-            return table
+            return table, block
         else:
-            return None
+            raise RuntimeError(f"not a database block in {self.bench!r}: {block!r}")
 
 
 class DatabasePlugin(HostPlugin[Block | Field]):

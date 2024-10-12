@@ -25,6 +25,7 @@ from bench.language.const import (
     BenchError,
     ConditionalOp,
     ExpressionKind,
+    FieldType,
     NodeType,
     QueryType,
     StructType,
@@ -119,7 +120,7 @@ class SelectOptions(Struct):
         else:
             return "<default>"
 
-    def get_properties(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
+    def get_selected_properties(self, node_type: NodeType) -> Sequence[Property]:
         # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
         if self.select_all_properties:
             properties = SELECT_ALL_PROPERTIES[node_type]
@@ -148,6 +149,21 @@ class SelectOptions(Struct):
                 )
             return properties
 
+    def get_selected_fields(self, block: "Block") -> Sequence["Field"]:
+        """Get the selected (member) fields for a block."""
+        if self.select_all_fields:
+            fields: list[Field] = []
+            for field in block.fields:
+                if field.type == FieldType.MEMBER:
+                    fields.append(field)
+            return fields
+        else:
+            fields: list[Field] = []
+            for field in self.select_fields:
+                if field.base_ck == block.ck and field.type == FieldType.MEMBER:
+                    fields.append(field)
+            return fields
+
     @staticmethod
     def default():
         return SelectOptions()
@@ -162,7 +178,10 @@ DEFAULT_SELECT_OPTIONS = SelectOptions.default()
 
 class QueryError(BenchError, ValueError):
     def __init__(
-        self, query: "QueryBuilder", result: Any | None = None, cause: Exception | None = None
+        self,
+        query: "QueryBuilder | NodeReference",
+        result: Any | None = None,
+        cause: Exception | None = None,
     ):
         if result is None:
             super().__init__(repr(query))
@@ -299,8 +318,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return chain((self._node_type,), self._ancestor_types, self._descendant_types)
 
     @property
-    def is_aggregation(self) -> bool:
-        return self._aggregation is not None
+    def block(self) -> "Block":
+        assert self._block is not None, f"missing block in {self!r}"
+        return self._block
 
     @property
     def include_deleted(self) -> bool:

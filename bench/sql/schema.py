@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.10.12.0"
+VERSION = "2024.10.12.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1197,13 +1197,13 @@ SESSION_TABLE = Table(
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
+        Index("bench_idx_status", IndexType.BTREE, ("status",)),
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
         Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
         Index(
             "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
         ),
-        Index("bench_idx_status", IndexType.BTREE, ("status",)),
     ),
 )
 

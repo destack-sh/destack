@@ -8,7 +8,7 @@ from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
 from bench.proto.wire import GraphScopeData
-from bench.sql.graph import BenchContext
+from bench.sql.graph import BenchSqlContext
 from bench.system.graph.postgres import PostgresEngine
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
@@ -66,7 +66,7 @@ def pg_engine_from_store(
         bench=bench,
         scope=scope,
         node_types=node_types,
-        context=BenchContext(bench),
+        context=BenchSqlContext(bench),
     )
 
 

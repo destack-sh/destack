@@ -7,7 +7,6 @@ from typing import (
     Any,
     Collection,
     Mapping,
-    Union,
     assert_never,
     cast,
 )
@@ -41,6 +40,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.expression import C, Expression, ExpressionOps
+from bench.language.field import Field
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
 from bench.language.query import (
@@ -48,6 +48,7 @@ from bench.language.query import (
     FILTER_NOT_DELETED,
     QueryBuilder,
 )
+from bench.language.record import Record
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES_IN_STORE,
     HAS_CHILD_NODE_TYPES,
@@ -130,7 +131,7 @@ BENCH_RECORD_VALUE_PREFIX = "value_"
 
 
 @dataclass(slots=True)
-class BenchContext(SqlContext):
+class BenchSqlContext(SqlContext):
     """Host context for SQL operations (with custom databases)."""
 
     bench: Bench
@@ -147,6 +148,11 @@ class BenchContext(SqlContext):
             return GLOBAL_PG_CRYPTO_KEY
 
 
+#
+# Mapping
+#
+
+
 def _get_node_table_name(node_type: NodeType) -> str:
     return f"{BENCH_TABLE_PREFIX}{node_type.name.lower().replace('_', '')}"
 
@@ -155,13 +161,19 @@ def _get_record_table_name(block: Block) -> str:
     return f"{BENCH_RECORD_TABLE_PREFIX}{block.tk}"
 
 
-def map_builtin_object_to_table(node: type[Node]) -> Table:
+def _get_record_field_name(field: Field) -> str:
+    return BENCH_RECORD_VALUE_PREFIX + field.identity_key
+
+
+def map_builtin_object_to_table(
+    node: type[Node], properties: list[Property] | None = None
+) -> Table:
     """Maps a node type into its Table schema."""
     table_name = _get_node_table_name(node.metatype)
     columns: list[Column] = []
     constraints: list[Constraint] = []
     indexes: list[Index] = []
-    properties = list(node.__properties__.values())
+    properties = properties or list(node.__properties__.values())
     properties.sort(key=lambda p: p.id or -1)
 
     # map properties to columns, add per-column indices
@@ -257,10 +269,14 @@ def map_builtin_object_to_table(node: type[Node]) -> Table:
 
 
 def map_database_block_to_table(block: Block) -> Table:
+    base_table = map_builtin_object_to_table(
+        Record,
+        properties=[p for p in Record.__stored_properties__.values() if not p.is_value_packed],
+    )
     table_name = _get_record_table_name(block)
-    columns: list[Column] = []
-    constraints: list[Constraint] = []
-    indexes: list[Index] = []
+    columns: list[Column] = list(base_table.columns)
+    constraints: list[Constraint] = list(base_table.constraints)
+    indexes: list[Index] = list(base_table.indexes)
 
     # map fields into columns
     for field in block.fields:
@@ -282,7 +298,7 @@ def map_database_block_to_table(block: Block) -> Table:
             raise TypeError(f"cannot store field in {block!r}: {field!r}")
 
         column = Column(
-            name=BENCH_RECORD_VALUE_PREFIX + field.identity_key,
+            name=_get_record_field_name(field),
             type=primitive_type,
             is_array=field.is_list,
             is_nullable=not field.is_required,
@@ -300,8 +316,16 @@ def map_database_block_to_table(block: Block) -> Table:
     )
 
 
+#
+# Compilation
+#
+
+
 def _compile_expression_ref(
-    node: Union[type[Node], Block],
+    node_type: NodeType,
+    node_cls: type[Node],
+    node_table: Table,
+    block: Block | None,
     expr: Expression,
 ) -> SqlNode:
     if expr.property is not None:
@@ -310,7 +334,13 @@ def _compile_expression_ref(
         raise TypeError(f"unexpected expression ref: {expr!r}")
 
 
-def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> Expression:
+def _pg_lower_conditional(
+    node_type: NodeType,
+    node_cls: type[Node],
+    node_table: Table,
+    block: Block | None,
+    cond: Expression,
+) -> Expression:
     """'Lowers' a conditional expression to a form that can be compiled to SQL."""
     prop = cond.property
 
@@ -340,10 +370,13 @@ def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> E
 
 
 def _pg_compile_conditional(
-    node: Union[type[Node], Block],
+    node_type: NodeType,
+    node_cls: type[Node],
+    node_table: Table,
+    block: Block | None,
     cond: Expression,
 ) -> SqlNode:
-    cond = _pg_lower_conditional(node, cond)
+    cond = _pg_lower_conditional(node_type, node_cls, node_table, block, cond)
     if cond.op == LiteralOp.TRUE:
         return sqlstr("TRUE")
     elif cond.op == LiteralOp.FALSE:
@@ -351,7 +384,10 @@ def _pg_compile_conditional(
     elif cond.op == LiteralOp.NONE:
         return sqlstr("NULL")
     elif cond.op in ExpressionOps.COND_COMPOUND and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        clauses = [_pg_compile_conditional(node, c) for c in cond.clauses or ()]
+        clauses = [
+            _pg_compile_conditional(node_type, node_cls, node_table, block, c)
+            for c in cond.clauses or ()
+        ]
         if not clauses:
             # and/or/not <nothing> are all TRUE :EmptyCompoundConditional
             return sqlstr("TRUE")
@@ -360,7 +396,7 @@ def _pg_compile_conditional(
     elif (
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        left = _compile_expression_ref(node, cond)
+        left = _compile_expression_ref(node_type, node_cls, node_table, block, cond)
 
         if cond.op == ConditionalOp.IN:
             # map IN to = ANY() construct (IN/NOT IN doesn't work in psycopg)
@@ -388,29 +424,48 @@ def _pg_compile_conditional(
             cond.property is not None and not cond.property.is_required
         ):
             null_clause = SqlUnary(
-                op=PostgresConditionalOp.IS_NULL, left=_compile_expression_ref(node, cond)
+                op=PostgresConditionalOp.IS_NULL,
+                left=_compile_expression_ref(node_type, node_cls, node_table, block, cond),
             )
             clause = SqlCompound(op=PostgresConditionalOp.OR, operands=[clause, null_clause])
 
         return clause
     elif cond.op in ExpressionOps.COND_EXISTENCE:
         clause = SqlUnary(
-            left=_compile_expression_ref(node, cond), op=PG_CONDITIONAL_OP_BY_BENCH[cond.op]
+            left=_compile_expression_ref(node_type, node_cls, node_table, block, cond),
+            op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
         return clause
     raise ChannelIncapableError("postgres", expression=cond, reason="unsupported conditional")
 
 
-def _pg_compile_sort(node: Union[type[Node], Block], sort: Expression) -> sql.Composed:
-    field_ref = _compile_expression_ref(node, sort)
+def _pg_compile_sort(
+    node_type: NodeType,
+    node_cls: type[Node],
+    node_table: Table,
+    block: Block | None,
+    sort: Expression,
+) -> SqlNode:
+    field_ref = _compile_expression_ref(node_type, node_cls, node_table, block, sort)
     sort_op = POSTGRES_SORT_OP_BY_BENCH[cast(SortOp, sort.op)]
     return sqlstr("{} {}").format(sql_node_to_sql(field_ref), sqlstr(sort_op))
 
 
 def _pg_compile_sorts(
-    node: Union[type[Node], Block], sorts: Collection[Expression]
+    node_type: NodeType,
+    node_cls: type[Node],
+    node_table: Table,
+    block: Block | None,
+    sorts: list[Expression],
 ) -> sql.Composed:
-    return sqljoin(", ", (_pg_compile_sort(node, sort) for sort in sorts))
+    return sqljoin(
+        ", ", (_pg_compile_sort(node_type, node_cls, node_table, block, s) for s in sorts)
+    )
+
+
+#
+# Packing/unpacking
+#
 
 
 def _pack_object_data_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
@@ -719,6 +774,11 @@ def _pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> An
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
 
 
+#
+# Graph API
+#
+
+
 def _combine_filter(*, include_deleted: bool, filter: Expression | None) -> Expression | None:
     if include_deleted:
         return filter
@@ -736,21 +796,39 @@ async def pg_graph_select(
     """Selects the nodes from the graph matching the given query."""
     # compile
     select = query._select or DEFAULT_SELECT_OPTIONS
-    node_cls = NODE_CLASS_BY_TYPE[query._node_type]
-    if query._node_type in BUILTIN_TABLE_BY_NODE_TYPE:
-        node_table = BUILTIN_TABLE_BY_NODE_TYPE[query._node_type]
+    node_type = query._node_type
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    block = query._block
+    if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
+        node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
         columns = [
-            node_table._columns_by_name[prop.name]
-            for prop in select.get_properties(query._node_type)
+            node_table.get_column(prop.name) for prop in select.get_selected_properties(node_type)
         ]
-        assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
-        filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
-        where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
-        order_by = _pg_compile_sorts(node_cls, query._sort) if query._sort else None
     else:
-        raise NotImplementedError("nocheckin: pg_graph_select (custom table)")
+        node_table, block = ctx.get_custom_table(query.block)
+        columns = [
+            node_table.get_column(prop.name)
+            for prop in select.get_selected_properties(node_type)
+            if prop.name in node_table._columns_by_name
+        ]
+        for field in select.get_selected_fields(block):
+            field_name = _get_record_field_name(field)
+            column = node_table.get_column(field_name)
+            columns.append(column)
+    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+    where = (
+        _pg_compile_conditional(node_type, node_cls, node_table, block, filter)
+        if filter is not None
+        else None
+    )
+    order_by = (
+        _pg_compile_sorts(node_type, node_cls, node_table, block, query._sort)
+        if query._sort
+        else None
+    )
 
     # select
+    assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
     rows = await pg_select(
         cur=cur,
         ctx=ctx,
@@ -769,13 +847,19 @@ async def pg_graph_select(
 async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder) -> int:
     """Counts the nodes from the graph matching the given query."""
     # compile
-    node_cls = NODE_CLASS_BY_TYPE[query._node_type]
-    if query._node_type in BUILTIN_TABLE_BY_NODE_TYPE:
-        node_table = BUILTIN_TABLE_BY_NODE_TYPE[query._node_type]
-        filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
-        where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
+    node_type = query._node_type
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    block = query._block
+    if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
+        node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
     else:
-        raise NotImplementedError("nocheckin: pg_graph_count (custom table)")
+        node_table, _ = ctx.get_custom_table(query.block)
+    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+    where = (
+        _pg_compile_conditional(node_type, node_cls, node_table, block, filter)
+        if filter is not None
+        else None
+    )
 
     # count
     return await pg_count(cur=cur, ctx=ctx, table=node_table, where=where)
@@ -803,7 +887,7 @@ async def _pg_graph_walk_down(
 ) -> tuple[list[NodeReferenceData], dict[str, list[NodeReferenceData]]]:
     """
     Gets node pointers to all descendants down from the roots matching the filter.
-    NOTE for now this only works with builtin node tables, not custom tables.
+    NOTE :Incomplete: for now graph walk down only works with builtin tables, not custom tables
     TODO :Performance: walk graph down in SQL only (no roundtrip recursion)
      (the result of this walk is usually cached, but not for cascading edits)
     """
@@ -855,7 +939,9 @@ async def _pg_graph_walk_down(
             child_table = BUILTIN_TABLE_BY_NODE_TYPE[child_type]
             assert child_table, f"no table for {child_cls!r}"
             assert child_table._primary_key, f"no primary key for {child_cls!r}"
-            parent_where = _pg_compile_conditional(child_cls, parent_filter)
+            parent_where = _pg_compile_conditional(
+                child_type, child_cls, child_table, None, parent_filter
+            )
             children_rows = await pg_select(
                 cur=cur,
                 ctx=ctx,
@@ -1050,8 +1136,7 @@ async def pg_graph_edit(
             return BUILTIN_TABLE_BY_NODE_TYPE[edit.node_ptr.node_type]
         else:
             assert edit.node_ptr.base_ck, f"no base ck for custom table in {edit!r}"
-            table = ctx.get_custom_table(UUID(edit.node_ptr.base_ck))
-            assert table, f"no table for {edit!r} in {ctx!r}"
+            table, _ = ctx.get_custom_table(UUID(edit.node_ptr.base_ck))
             return table
 
     assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
