@@ -975,7 +975,6 @@ class SplitConnection(Connection):
         from bench.language import NodeReference, QueryBuilder
         from bench.proto import wiring
 
-        assert query._select is not None, f"{query!r} has no options"  # checked by caller
         remaining_ancestors_types = [t for t in query._ancestor_types if t not in initial_types]
         remaining_descendants_types = [t for t in query._descendant_types if t not in initial_types]
         if not remaining_ancestors_types and not remaining_descendants_types:
@@ -1112,7 +1111,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
             query.trim_to(engine.node_types), GetOptions(live=False, unpack=False)
         )
         result = connection.result_data
-        if query._select is None:
+        if not query._ancestor_types and not query._descendant_types:
             return result  # nothing more to read
 
         # combine (keeping the 'roots' from the initial result)

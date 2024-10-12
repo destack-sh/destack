@@ -29,16 +29,17 @@ import {
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   ObjectType,
+  SelectOptionsData,
   type GraphScopeData,
   type NodeReferenceData,
   type NodeTypeMapping,
-  type ReadOptionsData,
 } from "@/proto/wire";
 import { HealthClient } from "@/proto/wire/proto/health.client";
 import {
   EMPTY_SCOPE,
   deepContentEquals,
   describeNode,
+  makeDefaultObject,
   makeScope,
   unwrapSomeNode,
   type TypedNodeReferenceData,
@@ -66,13 +67,6 @@ import {
   type Ref,
   type ShallowRef,
 } from "vue";
-
-export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[ObjectType.SELECT_OPTIONS]!;
-  const data = messageType.create(options);
-  data.metatype = ObjectType.SELECT_OPTIONS;
-  return data;
-}
 
 export function getScopeKey(scope: GraphScopeData): string {
   return JSON.stringify(scope);
@@ -117,10 +111,13 @@ type ConnectionMetadata = {
 // get connection
 type GetConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
-  roots: (Omit<NodeReferenceData, "type"> & { nodeType: T })[];
   scope: GraphScopeData;
+  roots: (Omit<NodeReferenceData, "type"> & { nodeType: T })[];
   isOptional?: boolean;
-  options?: Partial<ReadOptionsData>;
+  ancestorTypes?: NodeType[];
+  descendantTypes?: NodeType[];
+  select?: Partial<SelectOptionsData>;
+  includeDeleted?: boolean;
 };
 type GetConnectionResult<T extends NodeType> = {
   graph: ReadNodeGraph;
@@ -132,16 +129,17 @@ type GetConnectionResult<T extends NodeType> = {
 // search connection
 type SearchConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
-  nodeType: T;
   scope: GraphScopeData;
+  nodeType: T;
   bases?: NodeReferenceData[];
   filter?: ExpressionData;
   sort?: ExpressionData[];
+  ancestorTypes?: NodeType[];
+  descendantTypes?: NodeType[];
   first?: number;
   skip?: number;
-  after?: NodeReferenceData;
-  options?: Partial<ReadOptionsData>;
   count?: boolean;
+  select?: Partial<SelectOptionsData>;
 };
 type SearchConnectionResult<T extends NodeType> = {
   graph: ReadNodeGraph;
@@ -154,8 +152,8 @@ type SearchConnectionResult<T extends NodeType> = {
 // aggregate connection
 type AggregateConnectionParams = {
   isEnabled?: boolean;
-  nodeType: NodeType;
   scope: GraphScopeData;
+  nodeType: NodeType;
   bases?: NodeReferenceData[];
   filter?: ExpressionData;
   sort?: ExpressionData[];
@@ -194,9 +192,11 @@ function getNodeTypesFromParams<T extends NodeType>(
   const nodeTypes: NodeType[] = [];
   if ("roots" in params) nodeTypes.push(...params.roots.map((r) => r.nodeType));
   if ("nodeType" in params) nodeTypes.push(params.nodeType);
-  if ("options" in params) {
-    if (params.options?.ancestorTypes) nodeTypes.push(...params.options.ancestorTypes);
-    if (params.options?.descendantTypes) nodeTypes.push(...params.options.descendantTypes);
+  if ("ancestorTypes" in params && params.ancestorTypes) {
+    nodeTypes.push(...params.ancestorTypes);
+  }
+  if ("descendantTypes" in params && params.descendantTypes) {
+    nodeTypes.push(...params.descendantTypes);
   }
   return nodeTypes;
 }
@@ -560,8 +560,8 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       }
       const thisNodeTypes = [
         ...thisGet.roots.map((r) => r.nodeType),
-        ...(thisGet.options?.ancestorTypes ?? []),
-        ...(thisGet.options?.descendantTypes ?? []),
+        ...(thisGet.ancestorTypes ?? []),
+        ...(thisGet.descendantTypes ?? []),
       ];
       if (thisNodeTypes.some((t) => !SOURCE_NODE_TYPES.includes(t))) {
         // we can only assume that node type overlap is enough for source nodes, otherwise check full params
@@ -570,8 +570,8 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       }
       const otherNodeTypes = [
         ...otherGet.roots.map((r) => r.nodeType),
-        ...(otherGet.options?.ancestorTypes ?? []),
-        ...(otherGet.options?.descendantTypes ?? []),
+        ...(otherGet.ancestorTypes ?? []),
+        ...(otherGet.descendantTypes ?? []),
       ];
       // check whether all the node types overlap
       return otherNodeTypes.every((t) => thisNodeTypes.includes(t));
@@ -597,14 +597,22 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
   ): Promise<GetConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
     const graph = new NodeGraph({ scope, nodeTypes });
-    const options = makeReadOptions(params.options ?? {});
     const subs: (() => void)[] = [];
+    const select: SelectOptionsData | undefined =
+      params.select != null ? makeDefaultObject({ ...params.select, metatype: ObjectType.SELECT_OPTIONS }) : undefined;
 
     // fetch nodes
     const {
       response: { epoch: initialEpoch, nodes, connectionToken },
     } = await client.getNodes(
-      { scope: graph.scope, roots: params.roots, options, isOptional: params.isOptional },
+      {
+        scope: graph.scope,
+        roots: params.roots,
+        ancestorTypes: params.ancestorTypes ?? [],
+        descendantTypes: params.descendantTypes ?? [],
+        select: select,
+        isOptional: params.isOptional,
+      },
       { abort, ...this.operationMeta },
     );
     graph.extend(...nodes.map(unwrapSomeNode));
@@ -645,7 +653,8 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
   ): Promise<SearchConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
     const graph = new NodeGraph({ scope, nodeTypes });
-    const options = makeReadOptions(params.options ?? {});
+    const select: SelectOptionsData | undefined =
+      params.select != null ? makeDefaultObject({ ...params.select, metatype: ObjectType.SELECT_OPTIONS }) : undefined;
     const subs: (() => void)[] = [];
 
     // fetch nodes
@@ -658,7 +667,9 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         bases: params.bases ?? [],
         scope: graph.scope,
         sort: params.sort ?? [],
-        options,
+        ancestorTypes: params.ancestorTypes ?? [],
+        descendantTypes: params.descendantTypes ?? [],
+        select: select,
       },
       { abort, ...this.operationMeta },
     );
@@ -846,7 +857,7 @@ function newConnectionId(): number {
 }
 const localConnection = new LocalGetConnection(
   { id: newConnectionId(), name: "local.space", live: true, options: {} },
-  { scope: EMPTY_SCOPE, roots: [LOCAL_SPACE_PTR], options: makeReadOptions({ descendantTypes: [NodeType.VIEW] }) },
+  { scope: EMPTY_SCOPE, roots: [LOCAL_SPACE_PTR], descendantTypes: [NodeType.VIEW] },
   new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER }),
   // we export it as read-only but it's actually writable
   spaceGraphLocal as ReadNodeGraph & WriteNodeGraph,
