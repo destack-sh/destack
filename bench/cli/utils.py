@@ -8,6 +8,8 @@ import structlog
 import uvloop
 from opentelemetry import trace
 
+from bench.sql.graph import BENCH_RECORD_TABLE_PREFIX, BENCH_TABLE_PREFIX
+
 if TYPE_CHECKING:
     pass
 
@@ -64,7 +66,7 @@ async def check_is_consistent(*, check_db: bool) -> None:
     from bench.proto.wire import VERSION as PROTO_VERSION
     from bench.sql.client import pg_connection
     from bench.sql.core import Schema
-    from bench.sql.engine import GLOBAL_SCHEMA, NODE_TABLES, map_node_class_to_pg_table
+    from bench.sql.graph import GLOBAL_SCHEMA, NODE_TABLES, map_node_class_to_table
     from bench.sql.migration import generate_sql_migration_ops, introspect_sql_schema
     from bench.sql.schema import VERSION as SQL_VERSION
     from bench.system.utils.session import system_store_from_env
@@ -79,7 +81,7 @@ async def check_is_consistent(*, check_db: bool) -> None:
 
     # diff generated SQL schema vs current schema
     declared_tables = tuple(
-        map_node_class_to_pg_table(cls)
+        map_node_class_to_table(cls)
         for cls in NODE_CLASSES
         if cls.__is_stored__ and not cls.__is_stored_custom__
     )
@@ -95,7 +97,11 @@ async def check_is_consistent(*, check_db: bool) -> None:
         # check global
         global_store = system_store_from_env()
         async with pg_connection(global_store) as conn:
-            old_global_schema = await introspect_sql_schema(conn.cursor)
+            old_global_schema = await introspect_sql_schema(
+                conn.cursor,
+                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+            )
             await conn.rollback()
         migration_ops = generate_sql_migration_ops(old_global_schema, GLOBAL_SCHEMA)
         if migration_ops:

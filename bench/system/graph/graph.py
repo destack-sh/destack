@@ -31,7 +31,7 @@ from bench.language.const import (
     QueryType,
 )
 from bench.language.graph import NodeDataGraph, NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
-from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE, GraphScope, Node
+from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE, Node
 from bench.language.query import QueryBuilder
 from bench.language.session import SessionContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -154,14 +154,15 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         logger: structlog.BoundLogger,
         tracer: trace.Tracer,
         oracle: Oracle,
+        scope: GraphScopeData,
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self.epoch: int = 0
         self.bench_id: UUID | None = bench_id
-        self.scope = GraphScope(bench_id=bench_id)._to_data()
         self.node_types: bittuple[NodeType] = node_types
-        self.connector = ConnectionIndex(owner=self, scope=self.scope, oracle=self.oracle)
+        self.connector = ConnectionIndex(owner=self, scope=scope, oracle=self.oracle)
 
+        self._scope = scope
         self._graph_lock = GraphLock()
 
     @abc.abstractmethod
@@ -204,7 +205,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         return Session(
             parent=self.request_session_parent,
             _is_readonly=readonly,
-            _default_scope=self.scope,
+            _default_scope=self._scope,
             _engines=engines if engines is not None else self.get_engines(),
             _local_epoch=self.epoch,
             _extend_commit=self._extend_commit_hook if not raw_commit else None,
@@ -295,7 +296,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             supergraph=subject._supergraph, readonly=False
         ) as session:
             # read the affected nodes into a single graph for evaluation
-            data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
+            data_graph = NodeDataGraph(scope=self._scope, node_types=NODE_TYPES)
             with self.tracer.start_as_current_span("graph.commit.read"):
                 for node_type, node_references in area.scopes_by_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
@@ -379,7 +380,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 try:
                     _, cascaded_edits = await self._do_commit(
                         area=area,
-                        scope=self.scope,
+                        scope=self._scope,
                         subject=subject,
                         context=context,
                         edits=request.edits,

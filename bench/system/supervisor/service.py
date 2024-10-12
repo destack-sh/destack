@@ -17,6 +17,7 @@ from bench.language.const import (
     Region,
 )
 from bench.language.graph import generate_node_name
+from bench.language.node import GraphScope
 from bench.language.session import Session
 from bench.language.user import Handle, Organization, UserStatus
 from bench.proto import wiring
@@ -77,6 +78,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             logger=logger,
             tracer=tracer,
             oracle=oracle,
+            scope=GraphScope()._to_data(),
         )
         self._global_store = global_store
         self._global_pg_engine = pg_engine_from_store(global_store)

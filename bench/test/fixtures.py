@@ -21,7 +21,13 @@ from bench.language.graph import NodeSuperGraph
 from bench.language.validation import clean_name
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, get_pg_pool, pg_connection
 from bench.sql.core import Schema
-from bench.sql.engine import GLOBAL_SCHEMA, OMNI_SCHEMA, sqlstr
+from bench.sql.graph import (
+    BENCH_RECORD_TABLE_PREFIX,
+    BENCH_TABLE_PREFIX,
+    GLOBAL_SCHEMA,
+    OMNI_SCHEMA,
+    sqlstr,
+)
 from bench.sql.migration import (
     apply_sql_migration_ops,
     generate_sql_migration_ops,
@@ -77,7 +83,11 @@ async def create_test_db(store: Store, schema: Schema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(store)
     async with pg_connection(store, autocommit=True) as conn:
-        blank_schema = await introspect_sql_schema(conn.cursor)
+        blank_schema = await introspect_sql_schema(
+            conn.cursor,
+            include_table_prefixes=(BENCH_TABLE_PREFIX,),
+            exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+        )
         migration_ops = generate_sql_migration_ops(blank_schema, schema)
         await apply_sql_migration_ops(conn.cursor, migration_ops)
         await conn.commit()

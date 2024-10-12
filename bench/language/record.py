@@ -32,7 +32,8 @@ class Record(StateNode[RecordData], HasNodeBase):
     A Record from a DatabaseBlock.
     """
 
-    parent: Union["Block", "Record", None] = p_node_parent(4, NodeType.BLOCK, NodeType.RECORD)
+    # NOTE :Incomplete: support nested Records (Record.parent->Record)
+    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
     # type: RecordType?
     order_key: str | None = p_internal(33, default=INTEGER_ZERO)
     block: "Block" = p_node_ancestor(34, NodeType.BLOCK, wire=True)
