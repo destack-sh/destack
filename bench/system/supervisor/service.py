@@ -9,6 +9,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Client, NodeReference, Server, Store, User
 from bench.language.access import Subject
+from bench.language.block import Block
 from bench.language.const import (
     USER_NODE_TYPES,
     ClientType,
@@ -125,6 +126,12 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 )
             else:
                 raise RuntimeError(f"unexpected client: {client!r}")
+
+    @override
+    def resolve_request_block(
+        self, request: ProtoMessage, block_ptr: NodeReference
+    ) -> Block | None:
+        raise RuntimeError("supervisor does not support block-level requests")
 
     #
     # User management

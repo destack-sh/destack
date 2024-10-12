@@ -49,11 +49,11 @@ export interface GetNodesRequest {
      */
     roots: NodeReferenceData[]; // must be of same type
     /**
-     * Whether the roots are considered optional (if not found, return empty result instead of error).
+     * The relevant block (if any).
      *
-     * @generated from protobuf field: optional bool is_optional = 3;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 3;
      */
-    isOptional?: boolean;
+    blockPtr?: NodeReferenceData;
     /**
      * Ancestor nodes to include.
      *
@@ -84,6 +84,12 @@ export interface GetNodesRequest {
      * @generated from protobuf field: optional bool no_cache = 30;
      */
     noCache?: boolean;
+    /**
+     * Whether the roots are considered optional (if not found, return empty result instead of error).
+     *
+     * @generated from protobuf field: optional bool is_optional = 31;
+     */
+    isOptional?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.GetNodesResponse
@@ -182,11 +188,11 @@ export interface SearchNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * Any relevant bases if it's a based node.
+     * The relevant block (if any).
      *
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 3;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 3;
      */
-    bases: NodeReferenceData[];
+    blockPtr?: NodeReferenceData;
     /**
      * Filter for the search.
      *
@@ -361,11 +367,11 @@ export interface AggregateNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * Any relevant bases if it's a based node.
+     * The relevant block (if any).
      *
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData bases = 3;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 3;
      */
-    bases: NodeReferenceData[];
+    blockPtr?: NodeReferenceData;
     /**
      * Filter for the aggregation.
      *
@@ -928,12 +934,13 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         super("symbolx.bench.GetNodesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 3, name: "is_optional", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 3, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 10, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 11, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 20, name: "select", kind: "message", T: () => SelectOptionsData },
             { no: 21, name: "include_deleted", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 31, name: "is_optional", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<GetNodesRequest>): GetNodesRequest {
@@ -956,8 +963,8 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
                 case /* repeated symbolx.bench.NodeReferenceData roots */ 2:
                     message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional bool is_optional */ 3:
-                    message.isOptional = reader.bool();
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 3:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* repeated symbolx.bench.NodeType ancestor_types */ 10:
                     if (wireType === WireType.LengthDelimited)
@@ -982,6 +989,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
                 case /* optional bool no_cache */ 30:
                     message.noCache = reader.bool();
                     break;
+                case /* optional bool is_optional */ 31:
+                    message.isOptional = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -1000,9 +1010,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         /* repeated symbolx.bench.NodeReferenceData roots = 2; */
         for (let i = 0; i < message.roots.length; i++)
             NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_optional = 3; */
-        if (message.isOptional !== undefined)
-            writer.tag(3, WireType.Varint).bool(message.isOptional);
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 3; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeType ancestor_types = 10; */
         if (message.ancestorTypes.length) {
             writer.tag(10, WireType.LengthDelimited).fork();
@@ -1026,6 +1036,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         /* optional bool no_cache = 30; */
         if (message.noCache !== undefined)
             writer.tag(30, WireType.Varint).bool(message.noCache);
+        /* optional bool is_optional = 31; */
+        if (message.isOptional !== undefined)
+            writer.tag(31, WireType.Varint).bool(message.isOptional);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1246,7 +1259,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         super("symbolx.bench.SearchNodesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 3, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 10, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
@@ -1261,7 +1274,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeType = 0;
-        message.bases = [];
         message.sort = [];
         message.ancestorTypes = [];
         message.descendantTypes = [];
@@ -1280,8 +1292,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 2:
                     message.nodeType = reader.int32();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData bases */ 3:
-                    message.bases.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 3:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 4:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -1336,9 +1348,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* symbolx.bench.NodeType node_type = 2; */
         if (message.nodeType !== 0)
             writer.tag(2, WireType.Varint).int32(message.nodeType);
-        /* repeated symbolx.bench.NodeReferenceData bases = 3; */
-        for (let i = 0; i < message.bases.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 3; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData filter = 4; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -1624,7 +1636,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         super("symbolx.bench.AggregateNodesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 3, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 6, name: "aggregation", kind: "message", T: () => ExpressionData },
@@ -1634,7 +1646,6 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeType = 0;
-        message.bases = [];
         message.sort = [];
         if (value !== undefined)
             reflectionMergePartial<AggregateNodesRequest>(this, message, value);
@@ -1651,8 +1662,8 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 2:
                     message.nodeType = reader.int32();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData bases */ 3:
-                    message.bases.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 3:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbolx.bench.ExpressionData filter */ 4:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -1684,9 +1695,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.NodeType node_type = 2; */
         if (message.nodeType !== 0)
             writer.tag(2, WireType.Varint).int32(message.nodeType);
-        /* repeated symbolx.bench.NodeReferenceData bases = 3; */
-        for (let i = 0; i < message.bases.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.bases[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 3; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ExpressionData filter = 4; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(4, WireType.LengthDelimited).fork(), options).join();

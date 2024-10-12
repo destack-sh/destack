@@ -48,8 +48,8 @@ class SqlContext:
     def get_crypto_key(self, obj: "Table | Column") -> str | None:
         return GLOBAL_PG_CRYPTO_KEY
 
-    def get_custom_table(self, block: "UUID | Block") -> Table | None:
-        return None
+    def get_custom_table(self, block: "UUID | Block") -> tuple[Table, Block]:
+        raise NotImplementedError("context does not support custom tables")
 
 
 @dataclass(slots=True)

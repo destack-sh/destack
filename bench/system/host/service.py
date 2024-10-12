@@ -14,6 +14,7 @@ from opentelemetry import trace
 from bench.language import Bench, Drive, NodeReference, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Branch, Client
+from bench.language.block import Block
 from bench.language.connection import GraphEngine, MemoryEngine
 from bench.language.const import (
     CLOUD,
@@ -292,6 +293,16 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             _supergraph=supergraph,
         )
         return subject
+
+    @override
+    def resolve_request_block(
+        self, request: ProtoMessage, block_ptr: NodeReference
+    ) -> Block | None:
+        assert block_ptr.id, f"no block id in {block_ptr!r}"
+        node = self.main_package._graph.get(block_ptr.id)
+        if not isinstance(node, Block):
+            return None
+        return node
 
     async def start(self) -> None:
         trace.get_current_span().set_attribute("bench_id", str(self.bench_id))

@@ -505,6 +505,12 @@ class Table(TableObject):
         # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
 
+    def get_column(self, name: str) -> Column:
+        column = self._columns_by_name.get(name)
+        if column is None:
+            raise KeyError(f"no column {name!r} in {self!r}")
+        return column
+
     def columns_include(self, other: "Table") -> bool:
         """Returns True if the columns are equal, ignoring order."""
         for column in self._columns_by_name:

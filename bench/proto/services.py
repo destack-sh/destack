@@ -1,3 +1,4 @@
+import abc
 import asyncio
 import functools
 from typing import (
@@ -76,7 +77,7 @@ def get_grpc_status_from_bench_error(e: BenchError) -> GRPCStatus:
     return status
 
 
-class ServiceBase:
+class ServiceBase(abc.ABC):
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     kind: ClassVar[ServiceKind]
@@ -106,7 +107,7 @@ class ServiceBase:
     def get_service_baggage(self) -> dict[str, Any]:
         return {}
 
-    async def start(self) -> None:
+    async def start(self) -> None:  # noqa: B027
         """Start the service. Should be ready for service when returning."""
         pass
 
@@ -129,7 +130,7 @@ class ServiceBase:
         assert len(patched_mapping) > 0, f"no RPCs found in {self!r}"
         return patched_mapping
 
-    def _validate_request(self, request: ProtoMessage) -> None:
+    def _validate_request(self, request: ProtoMessage) -> None:  # noqa: B027
         """Validate a request message."""
         pass
 
@@ -156,7 +157,7 @@ class ServiceBase:
         await stream.send_message(response)
 
     async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
-        raise NotImplementedError(f"{self.__class__.__name__} must implement _get_subject")
+        return Subject(is_authenticated=False)
 
     def _wrap_rpc_func(
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
