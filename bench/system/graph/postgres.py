@@ -34,7 +34,7 @@ from bench.proto.wire import (
 )
 from bench.sql.client import PostgresConnection, get_pg_pool
 from bench.sql.engine import (
-    BenchContext,
+    SqlContext,
     pg_edit,
     pg_graph_count,
     pg_graph_exists,
@@ -56,11 +56,12 @@ class PostgresEngine(GraphEngine):
         bench: "Bench",
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
+        context: SqlContext,
     ):
         super().__init__(scope, node_types)
         self.store = store
         self.bench = bench
-        self.context = BenchContext(bench=self.bench)
+        self.context = context
 
     def __str__(self):
         return (

@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, ClassVar, Collection, Generator, Iterable, final, override
+from typing import Any, ClassVar, Collection, Generator, Iterable, Sequence, final, override
 from uuid import UUID
 
 import bitarray
@@ -85,8 +85,8 @@ def unpack_commit(
     session: Session,
     graph: NodeGraphLike,
     supergraph: NodeSuperGraph,  # graph may not be in supergraph :StaleNodes
-    edits: list[EditData],
-    cascaded_edits: list[EditData],
+    edits: Sequence[EditData],
+    cascaded_edits: Sequence[EditData],
     epoch: int,
 ) -> Commit:
     """
@@ -286,7 +286,7 @@ class HostPlugin[T: Node](abc.ABC):
     async def extend_commit(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
         """
         Add edits that logically belong to the same transaction.
-        The nodes are the partial nodes from the edit graph, not the full Host nodes.
+        The commit contains only direct edits, not cascaded edits.,
         Edit nodes directly, flush only when necessary.
         """
         pass
@@ -294,7 +294,7 @@ class HostPlugin[T: Node](abc.ABC):
     async def on_commit(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
         """
         React to the commit in a new transaction (but still in the request lifecycle).
-        The nodes are the fully loaded nodes from the Host.
+        The commit contains edits and cascaded edits.
         Edit nodes directly, flush or commit as necessary.
         """
         pass

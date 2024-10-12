@@ -8,6 +8,7 @@ from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
 from bench.proto.wire import GraphScopeData
+from bench.sql.engine import BenchContext
 from bench.system.graph.postgres import PostgresEngine
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
@@ -58,8 +59,15 @@ def pg_engine_from_store(
     node_types: bittuple[NodeType] = GLOBAL_NODE_TYPES,
 ):
     """Get the postgres engine for a store"""
-    assert store.parent is not None, f"missing parent for {store!r}"
-    return PostgresEngine(store=store, bench=store.parent, scope=scope, node_types=node_types)
+    bench = store.parent
+    assert bench is not None, f"missing parent for {store!r}"
+    return PostgresEngine(
+        store=store,
+        bench=bench,
+        scope=scope,
+        node_types=node_types,
+        context=BenchContext(bench),
+    )
 
 
 def local_pg_engine_from_store(store: Store):

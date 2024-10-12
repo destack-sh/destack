@@ -226,9 +226,15 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
     @final
     async def _extend_commit_hook(
-        self, session: Session, edits: Sequence[EditData]
+        self,
+        session: Session,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraphLike,
+        edits: Sequence[EditData],
     ) -> Sequence[EditData]:
-        return await self.extend_commit(session=session, context=None, edits=edits)
+        return await self.extend_commit(
+            session=session, graph=graph, data_graph=data_graph, context=None, edits=edits
+        )
 
     @final
     async def _on_commit_hook(
@@ -252,6 +258,8 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def extend_commit(
         self,
         session: Session,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraphLike,
         context: SessionContext | None,
         edits: Sequence[EditData],
     ) -> Sequence[EditData]:

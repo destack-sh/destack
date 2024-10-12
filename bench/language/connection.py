@@ -255,7 +255,7 @@ class GraphEngine[C: Channel](abc.ABC):
     @property
     @abc.abstractmethod
     def include_deleted(self) -> bool:
-        """Whether this channel includes hidden nodes."""
+        """Whether this channel includes deleted nodes."""
         ...
 
     @property
