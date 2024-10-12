@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-ScalarValue = Union["ValueObject", PrimitiveValue, "BuiltinObject"]
+ScalarValue = Union["CustomObject", PrimitiveValue, "BuiltinObject"]
 ScalarValueData = Union[
     AnyNodeData,
     AnyStructData,
@@ -80,13 +80,13 @@ SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
 JsonPrimitive = Union[str, int, float, bool, None]
 JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 
-ValueParent = Union["ValueObject", "Struct", "Node"]
+ValueParent = Union["CustomObject", "Struct", "Node"]
 ValueParentKey = Union["Property", "Field"]
 
 
-class ValueObject(Mapping[str, Any]):
+class CustomObject(Mapping[str, Any]):
     """
-    An Object-like Value with fields, the user defined equivalent of our built-in Objects (Structs/Nodes).
+    An custom Object with fields, the user defined equivalent of our built-in Objects (Structs/Nodes).
     Objects can be 'partial' (e.g., Block variable, Run inputs, Class instance).
     """
 
@@ -120,7 +120,7 @@ class ValueObject(Mapping[str, Any]):
             if field_value:
                 if type(field_value) is list:
                     set_fields.append(f"{field.name}[{len(field_value)}]")
-                elif type(field_value) is ValueObject:
+                elif type(field_value) is CustomObject:
                     set_fields.append(f"{field.name}=<{field_value._type_name} (...)>")
                 else:
                     set_fields.append(f"{field.name}={field_value!r}")
@@ -131,7 +131,7 @@ class ValueObject(Mapping[str, Any]):
 
     def equals(self, other: Any) -> bool:
         """Checks if all fields of the two Values are equal (recursively)."""
-        if other is None or type(other) is not ValueObject:
+        if other is None or type(other) is not CustomObject:
             return False
         elif self._value is None:
             return other._value is None
@@ -211,7 +211,7 @@ class ValueObject(Mapping[str, Any]):
 
     def __setattr__(self, item: str, value: SomeValue) -> None:
         # NOTE: __setattr__ is also called for slots so we have to bypass those
-        if item in ValueObject.__slots__:
+        if item in CustomObject.__slots__:
             object.__setattr__(self, item, value)
         self.__setitem__(item, value)
 
@@ -247,7 +247,7 @@ class ValueObject(Mapping[str, Any]):
                 return True
         return False
 
-    def _move_to(self, parent: ValueParent, parent_key: ValueParentKey) -> "ValueObject":
+    def _move_to(self, parent: ValueParent, parent_key: ValueParentKey) -> "CustomObject":
         """Move or copy this object into the given parent/key."""
         if self.parent is None:
             # not yet assigned
@@ -262,15 +262,15 @@ class ValueObject(Mapping[str, Any]):
         self,
         parent: ValueParent,
         parent_key: ValueParentKey,
-    ) -> "ValueObject":
+    ) -> "CustomObject":
         """Copy this object into the given parent/prop."""
-        value_packed = pack_value_object(self, self._type)
-        copy = unpack_value_object(value_packed, self._type, parent, parent_key)
+        value_packed = pack_custom_object(self, self._type)
+        copy = unpack_custom_object(value_packed, self._type, parent, parent_key)
         return copy
 
-    def clone(self) -> "ValueObject":
+    def clone(self) -> "CustomObject":
         """Clones this object."""
-        return ValueObject.new({**self._value} if self._value is not None else None, self._type)
+        return CustomObject.new({**self._value} if self._value is not None else None, self._type)
 
     def update(
         self,
@@ -293,10 +293,10 @@ class ValueObject(Mapping[str, Any]):
         typ: "TypeInfoBase",
         parent: ValueParent | None = None,
         parent_property: ValueParentKey | None = None,
-    ) -> "ValueObject":
+    ) -> "CustomObject":
         """Creates a new Object of the given Object type, coercing the given value."""
         assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object type"
-        return ValueObject(
+        return CustomObject(
             type=typ,
             value=value,
             parent=parent,
@@ -353,7 +353,7 @@ def _object_value_runtime(prop: Property) -> property:
             value_type, value = _do_get_value_runtime(self, prop)
             self.__dict__[cache_key] = value
 
-        # imitate ValueObject._do_get
+        # imitate CustomObject._do_get
         if (
             value is None
             and value_type is not None
@@ -378,9 +378,9 @@ def _object_value_runtime(prop: Property) -> property:
         assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
         value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
         if value is not None and value_type is not None:
-            if type(value) is ValueObject:
+            if type(value) is CustomObject:
                 value = value._move_to(self, wired_prop)
-            elif isinstance(value, list) and value and type(value[0]) is ValueObject:
+            elif isinstance(value, list) and value and type(value[0]) is CustomObject:
                 value = [v._move_to(self, wired_prop) for v in value]  # type: ignore
             value_packed = pack_value(value, value_type)
             self._do_set(wired_prop.name, value_packed, track=False)
@@ -424,15 +424,15 @@ def _coerce_value_scalar(
         raise ValueError(f"could not coerce {value!r} ({type(value)}) as {typ!r}") from e
 
 
-def coerce_value_object_scalar(
-    value: dict | ValueObject,
+def coerce_custom_object_scalar(
+    value: dict | CustomObject,
     typ: "TypeInfoBase",
     as_packed: bool = False,
     parent: ValueParent | None = None,
     parent_prop: ValueParentKey | None = None,
-) -> ValueObject:
+) -> CustomObject:
     """Coerces a single object from a dict representation or existing Object (recursively)."""
-    if type(value) is ValueObject:
+    if type(value) is CustomObject:
         # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
         if parent is not None:
             assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
@@ -457,7 +457,7 @@ def coerce_value_object_scalar(
             value_coerced[field.storage_key] = coerce_value(
                 field_value, field_type, as_packed=as_packed, parent=parent, parent_key=parent_prop
             )
-        return ValueObject.new(
+        return CustomObject.new(
             value=value_coerced, typ=typ, parent=parent, parent_property=parent_prop
         )
 
@@ -476,7 +476,7 @@ def coerce_value(
     """
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
-            return coerce_value_object_scalar(
+            return coerce_custom_object_scalar(
                 cast(dict, value), typ, as_packed=as_packed, parent=parent, parent_prop=parent_key
             )
         else:
@@ -485,7 +485,7 @@ def coerce_value(
                     f"{value!r} ({type(value).__name__}) is not a sequence, expected {typ!r}"
                 )
             return [
-                coerce_value_object_scalar(
+                coerce_custom_object_scalar(
                     cast(dict, element),
                     typ,
                     as_packed=as_packed,
@@ -644,14 +644,14 @@ def _check_is_list(
 
 def _check_is_object(
     value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
-) -> TypeGuard[ValueObject]:
-    if not isinstance(value, ValueObject):
+) -> TypeGuard[CustomObject]:
+    if not isinstance(value, CustomObject):
         invalid(value, "not an object", typ)
         return False
     return True
 
 
-def check_value_object_scalar(
+def check_custom_object_scalar(
     value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
@@ -675,10 +675,10 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
             return
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
-            check_value_object_scalar(value, typ, invalid)
+            check_custom_object_scalar(value, typ, invalid)
         elif _check_is_list(value, typ, invalid):
             for element in value:
-                check_value_object_scalar(element, typ, invalid)
+                check_custom_object_scalar(element, typ, invalid)
     else:
         if not typ.is_list:
             check_value_scalar(value, typ, invalid)
@@ -790,7 +790,7 @@ def sample_builtin_object_scalar(typ: "TypeInfoBase") -> "BuiltinObject":
     return object_cls(**object_kwargs)
 
 
-def sample_value_object_scalar(typ: "TypeInfoBase", recurse_objects: bool = True) -> ValueObject:
+def sample_custom_object_scalar(typ: "TypeInfoBase", recurse_objects: bool = True) -> CustomObject:
     """Samples a representative object value for the given type (recursively)."""
     assert typ.kind == TypeKind.OBJECT, f"expected object type, got {typ!r}"
     value = {}
@@ -800,7 +800,7 @@ def sample_value_object_scalar(typ: "TypeInfoBase", recurse_objects: bool = True
             value[field.storage_key] = [sample_value(field_type, recurse_objects) for _ in range(1)]
         else:
             value[field.storage_key] = sample_value(field_type, recurse_objects)
-    return ValueObject.new(value, typ)
+    return CustomObject.new(value, typ)
 
 
 @tracer.start_as_current_span(name="value.sample")
@@ -810,9 +810,9 @@ def sample_value(typ: "TypeInfoBase", recurse_objects: bool = True) -> SomeValue
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
-            return sample_value_object_scalar(typ, recurse_objects)
+            return sample_custom_object_scalar(typ, recurse_objects)
         else:
-            return [sample_value_object_scalar(typ, recurse_objects) for _ in range(1)]
+            return [sample_custom_object_scalar(typ, recurse_objects) for _ in range(1)]
     else:
         if not typ.is_list:
             return sample_scalar_value(typ)
@@ -1027,7 +1027,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     return value
 
 
-def pack_value_object(value: ValueObject, typ: "TypeInfoBase") -> dict[str, JsonValue]:
+def pack_custom_object(value: CustomObject, typ: "TypeInfoBase") -> dict[str, JsonValue]:
     """
     Packs an object value into a JSON representation.
     """
@@ -1056,12 +1056,12 @@ def pack_value_object(value: ValueObject, typ: "TypeInfoBase") -> dict[str, Json
     return value_packed
 
 
-def unpack_value_object(
+def unpack_custom_object(
     value_packed: dict[str, JsonValue],
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
-) -> ValueObject:
+) -> CustomObject:
     """
     Unpacks an object value from a JSON packed representation.
     """
@@ -1085,7 +1085,7 @@ def unpack_value_object(
                 unpack_value_scalar(element, field_type) for element in field_value_packed
             ]
         value[field.storage_key] = field_value
-    return ValueObject.new(value=value, typ=typ, parent=parent, parent_property=parent_key)
+    return CustomObject.new(value=value, typ=typ, parent=parent, parent_property=parent_key)
 
 
 def pack_value(
@@ -1100,15 +1100,15 @@ def pack_value(
     if typ.kind == TypeKind.OBJECT:
         # nested object
         if not typ.is_list:
-            if type(value) is not ValueObject:
+            if type(value) is not CustomObject:
                 raise TypeError(f"{value!r} is not an Object, expected {typ!r}")
-            return pack_value_object(value, typ)
+            return pack_custom_object(value, typ)
         else:
             value_packed: JsonValue = []
             for element in cast(Collection[SomeValue], value):
-                if type(element) is not ValueObject:
+                if type(element) is not CustomObject:
                     raise TypeError(f"{element!r} is not an Object, expected {typ!r}")
-                inner_value_packed = pack_value_object(element, typ)
+                inner_value_packed = pack_custom_object(element, typ)
                 value_packed.append(inner_value_packed)
             return value_packed
     else:
@@ -1163,14 +1163,14 @@ def unpack_value(
         if not typ.is_list:
             if not isinstance(value_packed, dict):
                 raise TypeError(f"{value_packed!r} is not a dict, expected {typ!r}")
-            return unpack_value_object(
+            return unpack_custom_object(
                 value_packed=value_packed, typ=typ, parent=parent, parent_key=parent_key
             )
         else:
             if not isinstance(value_packed, list):
                 raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
             return [
-                unpack_value_object(
+                unpack_custom_object(
                     value_packed=cast(dict[str, JsonValue], element),
                     typ=typ,
                     parent=parent,
@@ -1317,13 +1317,13 @@ class Value(Struct):
     value: Any = p_value_runtime(35, typ=lambda self: cast("Value", self).type)
 
 
-def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
+def coerce_custom_object(typ: "TypeInfoBase", value_raw: Any) -> CustomObject:
     """
     Tries to coerce a value object from a given raw value.
     We support 4 coercions:
      1. Tuple of return values if there are multiple fields (with same length)
      2. Dict of return values with { FieldName: Value }
-     3. ValueObject of same shape
+     3. CustomObject of same shape
      4. Single return value if there is one field.
 
     If this doesn't work, we raise ValueError/TypeError accordingly.
@@ -1334,7 +1334,7 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
 
     fields = typ._fields
     if isinstance(value_raw, tuple):
-        coerced = ValueObject(typ, value={})
+        coerced = CustomObject(typ, value={})
         if len(value_raw) != len(fields):
             raise ValueError(
                 f"got {len(value_raw)} values for {typ!r}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
@@ -1342,16 +1342,16 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
         for i, field in enumerate(fields):
             coerced[field] = value_raw[i]
     elif isinstance(value_raw, dict):
-        coerced = ValueObject(typ, value={})
+        coerced = CustomObject(typ, value={})
         for field in fields:
             field_value_raw = value_raw.get(field.name)
             if field_value_raw is None:
                 field_value_raw = value_raw.get(field.code_name)
             coerced[field] = field_value_raw
-    elif isinstance(value_raw, ValueObject) and value_raw._type == typ:
+    elif isinstance(value_raw, CustomObject) and value_raw._type == typ:
         coerced = value_raw
     else:
-        coerced = ValueObject(typ, value={})
+        coerced = CustomObject(typ, value={})
         if len(fields) == 0:
             if value_raw is not None:
                 raise ValueError(f"got value for {typ!r}, expected None")

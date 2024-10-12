@@ -48,7 +48,7 @@ def test_project_pages(shared_session: Session, shared_package: Package):
     assert containing_pages == [Writing, GeneralInstruction]
 
 
-def test_project_value_objects(shared_session: Session, shared_package: Package):
+def test_project_custom_objects(shared_session: Session, shared_package: Package):
     # nest node ref in nested value object
     Class1 = Block.new(
         BlockType.CLASS,
@@ -64,8 +64,8 @@ def test_project_value_objects(shared_session: Session, shared_package: Package)
         "Class2",
         fields=[Field.member("Count", int), Field.member("Class1", Class1)],
     )
-    ValueObject1 = Class1(Int=1, String="One", Block=Class2)
-    ValueObject2 = Class2(Count=2, Class1=ValueObject1)
+    CustomObject1 = Class1(Int=1, String="One", Block=Class2)
+    CustomObject2 = Class2(Count=2, Class1=CustomObject1)
 
     # nested node ref in value object in builtin object
     Text1 = Block.new_text("Text1", "Hello, world!")
@@ -77,9 +77,9 @@ def test_project_value_objects(shared_session: Session, shared_package: Package)
     )
 
     # project
-    projection = project(ValueObject2, Variable1, options=ProjectOptions())
-    assert Class2 in projection  # via ValueObject2.Class1.Block
-    assert Text1 in projection  # via ValueObject2.Variable1.Text1
+    projection = project(CustomObject2, Variable1, options=ProjectOptions())
+    assert Class2 in projection  # via CustomObject2.Class1.Block
+    assert Text1 in projection  # via CustomObject2.Variable1.Text1
 
 
 def test_project_unloaded_nodes(shared_session: Session, shared_package: Package):

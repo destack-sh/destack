@@ -9,7 +9,7 @@ from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
 from bench.language.field import TypeInfoBase
 from bench.language.node import BuiltinObject, Node, SomeNodeReference, SourceNode, Struct
-from bench.language.value import SomeValue, ValueObject, _do_get_value_runtime
+from bench.language.value import CustomObject, SomeValue, _do_get_value_runtime
 
 if TYPE_CHECKING:
     pass
@@ -118,7 +118,7 @@ class Projection:
                     self._visit_node(cast(Node, child))
 
     # NOTE :Incomplete: account for missing nodes in builtin object / value object node lookups
-    #  (see ValueObject._do_get, _object_node_ref and :RichReference)
+    #  (see CustomObject._do_get, _object_node_ref and :RichReference)
 
     def _collect_builtin_object_scalar(self, obj: BuiltinObject):
         """Collects a builtin object (recursively)."""
@@ -162,8 +162,8 @@ class Projection:
             if value_type is not None:
                 self._collect_value(wired_prop_value, value_type)
 
-    def _collect_value_object_scalar(self, obj: ValueObject):
-        """Collects a ValueObject (recursively)."""
+    def _collect_custom_object_scalar(self, obj: CustomObject):
+        """Collects a CustomObject (recursively)."""
         if obj._value is None:
             return
         # visit fields / inner objects
@@ -182,9 +182,9 @@ class Projection:
         if typ.kind == TypeKind.OBJECT:
             if typ.is_list:
                 for item in cast(list, value):
-                    self._collect_value_object_scalar(cast(ValueObject, item))
+                    self._collect_custom_object_scalar(cast(CustomObject, item))
             else:
-                self._collect_value_object_scalar(cast(ValueObject, value))
+                self._collect_custom_object_scalar(cast(CustomObject, value))
         elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
             if typ.is_list:
                 for wired_ptr in cast(list, value):
@@ -220,7 +220,7 @@ class Projection:
     @tracer.start_as_current_span("projection.project")
     def project(
         self,
-        *objs: BuiltinObject | ValueObject | None,
+        *objs: BuiltinObject | CustomObject | None,
         max_depth: int | None = None,
         inline_pages: bool | None = None,
     ):
@@ -237,8 +237,8 @@ class Projection:
         for obj in objs:
             if obj is None:
                 continue  # convenient when passing multiple objects
-            elif isinstance(obj, ValueObject):
-                self._collect_value_object_scalar(obj)
+            elif isinstance(obj, CustomObject):
+                self._collect_custom_object_scalar(obj)
             elif isinstance(obj, Node):
                 self._visit_node(obj)
             elif isinstance(obj, BuiltinObject):
@@ -292,7 +292,7 @@ def find_containing_pages(*nodes: Node) -> list[Block]:
     return list(pages_by_id.values())
 
 
-def project(*objs: BuiltinObject | ValueObject | None, options: ProjectOptions) -> Projection:
+def project(*objs: BuiltinObject | CustomObject | None, options: ProjectOptions) -> Projection:
     """
     Project the nodes, objects and values referenced by the given objects recursively.
     If inlining pages, also include all referenced pages (non-recursively).

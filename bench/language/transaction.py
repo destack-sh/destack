@@ -39,7 +39,7 @@ from bench.language.node import (
 from bench.language.property import p_internal, p_system, p_value_packed
 from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.value import (
-    ValueObject,
+    CustomObject,
     pack_proto_json,
     pack_value_data,
     unpack_proto_json,
@@ -580,7 +580,7 @@ class Transaction:
 
 def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
     """Applies an edit operation to a node."""
-    obj: BuiltinObject | ValueObject = node
+    obj: BuiltinObject | CustomObject = node
     for i in range(len(op.path)):
         # map key
         key = op.path[i]
@@ -604,11 +604,11 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
             if prop is not None:  # builtin object property
                 next_obj = getattr(cast("BuiltinObject", obj), prop.name)
             else:  # value object field
-                field = cast(ValueObject, obj)._type._get_field_by_tk(key)
+                field = cast(CustomObject, obj)._type._get_field_by_tk(key)
                 if field is None:
                     return  # invalid path
-                next_obj = cast(ValueObject, obj)._do_get(field)
-            if not (type(next_obj) is ValueObject or isinstance(next_obj, BuiltinObject)):
+                next_obj = cast(CustomObject, obj)._do_get(field)
+            if not (type(next_obj) is CustomObject or isinstance(next_obj, BuiltinObject)):
                 return  # invalid path
             obj = next_obj
         else:
@@ -629,10 +629,10 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                     prop.name, new_value, track=False, validate=validate
                 )
             else:  # value object field
-                field = cast(ValueObject, obj)._type._get_field_by_tk(key)
+                field = cast(CustomObject, obj)._type._get_field_by_tk(key)
                 if field is None:
                     return  # invalid path
-                cast(ValueObject, obj)._do_set(field, new_value, track=False, validate=validate)
+                cast(CustomObject, obj)._do_set(field, new_value, track=False, validate=validate)
 
 
 def apply_edit_operation_data(

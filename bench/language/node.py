@@ -70,8 +70,8 @@ from bench.language.property import (
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES,
     HAS_CHILD_NODE_TYPES,
+    NODE_CLASS_BY_NAME,
     NODE_CLASS_BY_TYPE,
-    NODE_COMPONENT_CLASS_BY_NAME,
     OBJECT_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
@@ -99,6 +99,7 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Branch,
+        CustomObject,
         Expression,
         Field,
         FileReference,
@@ -114,7 +115,6 @@ if TYPE_CHECKING:
         Session,
         Step,
         User,
-        ValueObject,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -501,7 +501,7 @@ def node_component(
                     f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_TYPE[node_type]}"
                 )
             NODE_CLASS_BY_TYPE[node_type] = cls
-        NODE_COMPONENT_CLASS_BY_NAME[cls.__name__] = cls
+        NODE_CLASS_BY_NAME[cls.__name__] = cls
 
         return cls
 
@@ -776,7 +776,7 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
 
 
 def _trace_edit_operation(
-    obj: "ValueObject | Struct | Node | None",
+    obj: "CustomObject | Struct | Node | None",
     key: Union["Property", "Field"],
     operation_type: EditOperationType,
     new_value: Any | None,
@@ -870,7 +870,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
     if TYPE_CHECKING:
-        parent: "BuiltinObject | ValueObject | None" = None
+        parent: "BuiltinObject | CustomObject | None" = None
         _skip_validate_self: InitVar[bool] = False
 
     _session: "Session | None" = p_runtime(default=None)
@@ -1306,7 +1306,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         return mask
 
 
-StructParent = Union["Struct", "Node", "ValueObject"]
+StructParent = Union["Struct", "Node", "CustomObject"]
 StructParentKey = Union["Property", "Field"]
 
 

@@ -6,7 +6,7 @@ import structlog
 import typer
 from grpclib.utils import graceful_exit
 
-from bench.cli.utils import async_to_sync_blocking, check_is_consistent
+from bench.cli.utils import async_to_sync_blocking
 from bench.language.const import ClientType
 from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.thread import RuntimeThread
@@ -19,12 +19,8 @@ app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
 
 
-async def _do_serve(
-    handlers: list[ServiceBase], *, host: str, port: int, watch: bool, no_check: bool
-):
+async def _do_serve(handlers: list[ServiceBase], *, host: str, port: int, watch: bool):
     """Serves the given handlers."""
-    if not no_check:
-        await check_is_consistent(check_db=True)
     logger.info("serve", handlers=handlers, host=host, port=port, env=ENV)
     start = time_ns()
     server = GrpcServer(handlers=handlers, oracle=REAL_ORACLE)
@@ -41,7 +37,10 @@ async def _do_serve(
 @app.command()
 @async_to_sync_blocking
 async def system(
-    host: str, port: int, watch: bool = False, no_supervisor: bool = False, no_check: bool = False
+    host: str,
+    port: int,
+    watch: bool = False,
+    no_supervisor: bool = False,
 ):
     from bench.system.host.router import HostRouterService
     from bench.system.supervisor.service import SupervisorService
@@ -57,7 +56,7 @@ async def system(
             global_store=global_store, oracle=REAL_ORACLE, host_map=host_map
         )
         services.append(supervisor)
-    await _do_serve(handlers=services, host=host, port=port, watch=watch, no_check=no_check)
+    await _do_serve(handlers=services, host=host, port=port, watch=watch)
 
 
 @app.command()
@@ -70,7 +69,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
     global_store = system_store_from_env()
     host_map = host_map_from_env()
     supervisor = SupervisorService(global_store=global_store, oracle=REAL_ORACLE, host_map=host_map)
-    await _do_serve(handlers=[supervisor], host=host, port=port, watch=watch, no_check=no_check)
+    await _do_serve(handlers=[supervisor], host=host, port=port, watch=watch)
 
 
 @app.command()
@@ -81,7 +80,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 
     global_store = system_store_from_env()
     host_router = HostRouterService(global_store=global_store, oracle=REAL_ORACLE)
-    await _do_serve(handlers=[host_router], host=host, port=port, watch=watch, no_check=no_check)
+    await _do_serve(handlers=[host_router], host=host, port=port, watch=watch)
 
 
 @app.command()
@@ -130,7 +129,7 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             oracle=REAL_ORACLE,
             mode=mode,
         )
-        await _do_serve(handlers=[runtime], host=host, port=port, watch=watch, no_check=True)
+        await _do_serve(handlers=[runtime], host=host, port=port, watch=watch)
     else:
         thread = RuntimeThread(
             id=int(thread_id),
@@ -144,4 +143,4 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             oracle=REAL_ORACLE,
             mode=mode,
         )
-        await _do_serve(handlers=[thread], host=host, port=port, watch=watch, no_check=True)
+        await _do_serve(handlers=[thread], host=host, port=port, watch=watch)

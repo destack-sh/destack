@@ -11,7 +11,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import ValueObject from "@/views/system/ValueObject.vue";
+import CustomObject from "@/views/system/CustomObject.vue";
 import { computed, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -82,7 +82,7 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Inputs -->
       <div class="flex-1">
         <h4 class="font-semibold">Inputs</h4>
-        <ValueObject
+        <CustomObject
           class="w-full py-2"
           :value-type="inputType"
           is-inline
@@ -93,7 +93,7 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Outputs (last run) -->
       <div v-if="outputsPacked != null" class="flex-1">
         <h4 class="font-semibold">Outputs</h4>
-        <ValueObject
+        <CustomObject
           class="w-full py-2"
           :value-type="outputType"
           is-inline

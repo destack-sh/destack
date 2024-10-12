@@ -12,7 +12,7 @@ from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.validation import constraint, on_invalid_raise
 from bench.language.value import (
-    ValueObject,
+    CustomObject,
     check_value,
     pack_builtin_object_data,
     pack_value,
@@ -106,12 +106,12 @@ def test_roundtrip_nested_value(session: Session, package: Package):
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
     # outer value
-    value = cast(ValueObject, class1())
+    value = cast(CustomObject, class1())
     value.Field1 = choice1.fields.Option1
     assert value.Field1 is choice1.fields.Option1
     value.Field2 = [24]
     value.Field3 = Text.plain("hello bench!")
-    value.Field4 = cast(ValueObject, class2())
+    value.Field4 = cast(CustomObject, class2())
 
     class1_type = class1.to_type(as_object=True)
     assert class1_type is not None, f"{class1!r} has no type"

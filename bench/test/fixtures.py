@@ -20,12 +20,13 @@ from bench.language.const import NodeType, Region
 from bench.language.graph import NodeSuperGraph
 from bench.language.validation import clean_name
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, get_pg_pool, pg_connection
-from bench.sql.core import Schema
+from bench.sql.core import ALL_EXTENSIONS, Schema, Table
 from bench.sql.graph import (
     BENCH_RECORD_TABLE_PREFIX,
     BENCH_TABLE_PREFIX,
-    GLOBAL_SCHEMA,
-    OMNI_SCHEMA,
+    BUILTIN_GLOBAL_SCHEMA,
+    BUILTIN_GLOBAL_TABLES,
+    BUILTIN_LOCAL_TABLES,
     sqlstr,
 )
 from bench.sql.migration import (
@@ -117,7 +118,7 @@ async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
     store = make_system_store(f"test-{clean_name(request.node.name)}")
-    await create_test_db(store, GLOBAL_SCHEMA)
+    await create_test_db(store, BUILTIN_GLOBAL_SCHEMA)
     try:
         yield store
     finally:
@@ -127,6 +128,16 @@ async def global_store(request: pytest.FixtureRequest):
 @pytest.fixture()
 async def omni_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
+
+    ALL_TABLES: tuple[Table, ...] = (
+        *BUILTIN_GLOBAL_TABLES,
+        *(
+            t
+            for t in BUILTIN_LOCAL_TABLES
+            if not any(t.name == g.name for g in BUILTIN_GLOBAL_TABLES)
+        ),
+    )
+    OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
 
     store = make_system_store(f"test-{clean_name(request.node.name)}")
     await create_test_db(store, OMNI_SCHEMA)

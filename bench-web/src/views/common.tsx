@@ -129,7 +129,7 @@ export function makeViewId(props: { self?: NodeReferenceData; name?: string | nu
 export function getViewTypeByComponentName(name: string): ViewType | null {
   if (name == "NativeInput") {
     return ViewType.STRING;
-  } else if (name == "ValueObject") {
+  } else if (name == "CustomObject") {
     return ViewType.OBJECT;
   } else {
     const capsName = toCasing(name, Casing.ALL_CAPS);

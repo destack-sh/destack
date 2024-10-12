@@ -65,7 +65,7 @@ from bench.language.validation import (
     TypeConstraintIn,
     ValidationHandler,
 )
-from bench.language.value import SomeValue, coerce_value_object_scalar
+from bench.language.value import SomeValue, coerce_custom_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
@@ -415,7 +415,7 @@ class TypeInfoBase(BuiltinObject):
                     raise ValueError(f"no field {args!r} in {typ.base_type!r}")
                 return field
         elif typ.kind == TypeKind.OBJECT:
-            return coerce_value_object_scalar(kwargs, typ, as_packed=True)
+            return coerce_custom_object_scalar(kwargs, typ, as_packed=True)
 
         raise ValueError(f"cannot create {self!r} (resolved={typ!r}) directly")
 
@@ -646,8 +646,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     # ...TypeInfo[40-69]
 
     # member-only flags
-    # is_indexed? # for database fields
-    # is_unique? # for database fields
+    # is_stored/is_computed, is_indexed, is_unique, ...
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

@@ -1,4 +1,3 @@
-import abc
 from dataclasses import dataclass
 from functools import wraps
 from itertools import chain
@@ -11,6 +10,7 @@ from typing import (
     Sequence,
     cast,
 )
+from uuid import UUID
 
 import psycopg
 import structlog
@@ -25,6 +25,7 @@ from bench.language.const import (
     NodeType,
     PrimitiveType,
 )
+from bench.sql.client import GLOBAL_PG_CRYPTO_KEY
 from bench.sql.core import (
     PG_CAST_PRIMITIVE_TYPE,
     Column,
@@ -43,11 +44,11 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class SqlContext(abc.ABC):
-    @abc.abstractmethod
-    def get_crypto_key(self, obj: "Table | Column") -> str | None: ...
+class SqlContext:
+    def get_crypto_key(self, obj: "Table | Column") -> str | None:
+        return GLOBAL_PG_CRYPTO_KEY
 
-    def get_table(self, block: "Block") -> Table | None:
+    def get_custom_table(self, block: "UUID | Block") -> Table | None:
         return None
 
 

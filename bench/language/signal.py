@@ -11,7 +11,7 @@ from bench.language.validation import constraint
 from bench.proto.wire import AnyNodeData, NodeReferenceData, SignalData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, ValueObject
+    from bench.language import Block, CustomObject, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,7 +38,7 @@ class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
 
     # content
     value_packed: Any | None = p_value_packed(42)
-    value: "ValueObject | None" = p_value_runtime(
+    value: "CustomObject | None" = p_value_runtime(
         42, typ=lambda self: cast("Signal", self).value_type
     )
 

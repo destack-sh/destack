@@ -31,7 +31,7 @@ from bench.proto.wire import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package, Text, ValueObject
+    from bench.language import Block, CustomObject, Package, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -58,7 +58,7 @@ class Notification(RuntimeNode[NotificationData], HasNodeBase):
     title: Optional[str] = p_regular(40, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, array=False, struct=StructType.TEXT)
     value_packed: Any | None = p_value_packed(42)
-    value: "ValueObject | None" = p_value_runtime(
+    value: "CustomObject | None" = p_value_runtime(
         42, typ=lambda self: cast("Notification", self).value_type
     )
 

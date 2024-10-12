@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
-NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
+NODE_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
 OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
@@ -69,7 +69,7 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import BuiltinObject, Node, Struct, ValueObject, const
+    from bench.language import BuiltinObject, CustomObject, Node, Struct, const
     from bench.language.node import HasNodeBase
 
     global _COMPLETED_SETUP
@@ -84,7 +84,7 @@ def _complete_bench_setup():
         if isinstance(bench_t, type) and issubclass(bench_t, IdEnum):
             FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
             FINAL_BENCH_CLASSES.append(bench_t)
-    BENCH_CLASSES.extend(chain(get_subclasses(BuiltinObject), (ValueObject,)))
+    BENCH_CLASSES.extend(chain(get_subclasses(BuiltinObject), (CustomObject,)))
     for cls in BENCH_CLASSES:
         BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
