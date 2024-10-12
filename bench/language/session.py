@@ -168,7 +168,11 @@ class Session(RuntimeNode[SessionData]):
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
     _local_epoch: int | None = p_runtime(default=None)
     _extend_commit: (
-        Callable[["Session", Sequence["EditData"]], Awaitable[Sequence[EditData]]] | None
+        Callable[
+            ["Session", NodeGraphLike, NodeDataGraphLike, Sequence["EditData"]],
+            Awaitable[Sequence[EditData]],
+        ]
+        | None
     ) = p_runtime(default=None)
     _on_commit: (
         Callable[
@@ -679,6 +683,14 @@ class Session(RuntimeNode[SessionData]):
             self._tx.reset()
             raise
 
+    def _make_pending_data_graph(self) -> NodeDataGraphLike:
+        """Get graphs with all the pending nodes."""
+        pending_nodes_data_by_id = {
+            str(node.id): node._to_data() for node in self._pending_nodes_by_id.values()
+        }
+        data_graph = NodeDataDict(pending_nodes_data_by_id)
+        return data_graph
+
     @tracer.start_as_current_span("session.commit")
     @async_shield
     async def _do_commit(
@@ -686,6 +698,9 @@ class Session(RuntimeNode[SessionData]):
     ) -> tuple[list[EditData], list[EditData]]:
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
+
+        graph = None
+
         try:
             self._preflush(include_session=True)
             log = logger.bind(session=self, span="current")
@@ -695,7 +710,13 @@ class Session(RuntimeNode[SessionData]):
                 if self._extend_commit is not None:
                     if self._tx.has_pending_edits:  # flush pending edits
                         await self._tx.flush()
-                    new_edits: Sequence[EditData] = await self._extend_commit(self, self._tx._edits)
+                    if graph is None:
+                        graph = NodeDict(self._pending_nodes_by_id)
+                    if data_graph is None:
+                        data_graph = self._make_pending_data_graph()
+                    new_edits: Sequence[EditData] = await self._extend_commit(
+                        self, graph, data_graph, self._tx._edits
+                    )
                     self._tx.add_edits(new_edits)
 
                 # do commit
@@ -704,12 +725,10 @@ class Session(RuntimeNode[SessionData]):
 
             # on commit hook
             if self._on_commit is not None:
-                graph = NodeDict(self._pending_nodes_by_id)
+                if graph is None:
+                    graph = NodeDict(self._pending_nodes_by_id)
                 if data_graph is None:
-                    pending_nodes_data_by_id = {
-                        str(node.id): node._to_data() for node in self._pending_nodes_by_id.values()
-                    }
-                    data_graph = NodeDataDict(pending_nodes_data_by_id)
+                    data_graph = self._make_pending_data_graph()
                 await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
                 self._pending_nodes_by_id = {}
 

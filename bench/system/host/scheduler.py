@@ -44,7 +44,7 @@ class PendingRunOperation:
     is_cancelled: bool = False  # whether this operation was overridden by a more recent one
 
 
-class ProcessRunPlugin(HostPlugin[Run]):
+class RunPlugin(HostPlugin[Run]):
     """Process Runs in appropriate Runtimes."""
 
     watch_types = bittuple(NodeType.RUN)

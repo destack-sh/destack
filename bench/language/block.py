@@ -65,7 +65,7 @@ class Block(SourceNode[BlockData]):
     parent: Union["Block", "Package", None] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
 
     # content
-    type: BlockType = p_internal(30)
+    type: BlockType = p_system(30, description="The type of block. Cannot be changed.")
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(

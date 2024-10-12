@@ -66,7 +66,8 @@ from bench.system.graph.graph import (
 )
 from bench.system.graph.postgres import PostgresEngine
 from bench.system.host.core import HostApi, HostPlugin, unpack_commit
-from bench.system.host.scheduler import ProcessRunPlugin
+from bench.system.host.database import DatabasePlugin
+from bench.system.host.scheduler import RunPlugin, ScheduleTriggerPlugin, SignalTriggerPlugin
 from bench.system.provision.provisioner import Provisioner, get_provisioners_for
 from bench.system.utils.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.utils.aws import get_s3_client_for_presigning
@@ -320,17 +321,20 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
 
         # setup main engines
         # (overwrite global pg engine now that we have the full bench as context)
+        database_plugin = DatabasePlugin(self, self._bench)
         self._global_pg_engine = PostgresEngine(
             store=self.global_store,
             bench=self._bench,
             scope=self._scope,
             node_types=IN_BENCH_GLOBAL_NODE_TYPES,
+            context=database_plugin.context,
         )
         self._local_pg_engine = PostgresEngine(
             store=self._bench.main_store,
             bench=self._bench,
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,
+            context=database_plugin.context,
         )
         self._engines = (self._global_pg_engine, self._local_pg_engine)
         if HOST_MEMORY_ENGINE_ENABLED:
@@ -381,7 +385,13 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
 
         # start plugins
         self._provisioners = tuple(get_provisioners_for(self, self._bench))
-        self._plugins = (ProcessRunPlugin(self, self._bench), *self._provisioners)
+        self._plugins = (
+            RunPlugin(self, self._bench),
+            SignalTriggerPlugin(self, self._bench),
+            ScheduleTriggerPlugin(self, self._bench),
+            database_plugin,
+            *self._provisioners,
+        )
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         # wait for plugins to finish processing any commits (and to error early)
         await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
@@ -432,11 +442,24 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     async def extend_commit(
         self,
         session: Session,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraphLike,
         context: SessionContext | None,
         edits: Sequence[EditData],
     ) -> Sequence[EditData]:
         extended_edits: list[EditData] = []
-        # NOTE :Incomplete: run plugins to extend commit (not needed yet)
+
+        # run plugins
+        commit = unpack_commit(
+            session=session,
+            graph=graph,
+            supergraph=session._supergraph,
+            edits=edits,
+            cascaded_edits=(),
+            epoch=self.epoch,
+        )
+        for plugin in self._plugins:
+            await plugin.extend_commit(session, commit)
 
         # create signals
         ...

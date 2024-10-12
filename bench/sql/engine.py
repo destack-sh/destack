@@ -1,3 +1,4 @@
+import abc
 import datetime
 import enum
 import struct
@@ -51,6 +52,7 @@ from bench.language.const import (
     SortOp,
 )
 from bench.language.expression import C, Expression, ExpressionOps
+from bench.language.field import Field
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
 from bench.language.query import (
@@ -120,8 +122,19 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+class SqlContext(abc.ABC):
+    @abc.abstractmethod
+    def get_crypto_key(self, obj: "Table | Column") -> str | None: ...
+
+    def get_table(self, block: "Block") -> Table | None:
+        return None
+
+    def get_column(self, prop: Field) -> Column | None:
+        return None
+
+
 @dataclass(slots=True)
-class StaticContext:
+class StaticContext(SqlContext):
     crypto_key: str | None = None
 
     def get_crypto_key(self, obj: "Table | Column") -> str | None:
@@ -130,7 +143,7 @@ class StaticContext:
 
 
 @dataclass(slots=True)
-class BenchContext:
+class BenchContext(SqlContext):
     """A context for a SQL statement."""
 
     bench: Bench | None
@@ -145,9 +158,6 @@ class BenchContext:
             return self.bench.encryption_key
         else:
             return GLOBAL_PG_CRYPTO_KEY
-
-
-Context = StaticContext | BenchContext
 
 
 GLOBAL_CONTEXT = BenchContext(bench=None)
@@ -472,15 +482,6 @@ def _compile_expression_ref(
         raise TypeError(f"unexpected expression ref: {expr!r}")
 
 
-def pg_compile_conditional_maybe(
-    node: Union[type[Node], Block],
-    cond: Optional[Expression],
-) -> SqlNode:
-    if cond is None:
-        return sqlstr("TRUE")
-    return pg_compile_conditional(node, cond)
-
-
 def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> Expression:
     """'Lowers' a conditional expression to a form that can be compiled to SQL."""
     prop = cond.property
@@ -712,7 +713,7 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
     return value
 
 
-def _pg_wrap_read_column(ctx: Context, column: Column, value: SqlNode) -> SqlNode:
+def _pg_wrap_read_column(ctx: SqlContext, column: Column, value: SqlNode) -> SqlNode:
     if not column.is_encrypted:
         return value
 
@@ -788,7 +789,7 @@ async def pg_select_raw(
 async def pg_select(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     table: Table,
     columns: Collection[Column] | None = None,
     joins: Collection[SqlJoin] | None = None,
@@ -830,7 +831,7 @@ async def pg_select(
 async def pg_count(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     table: Table,
     where: SqlNode | None = None,
 ) -> int:
@@ -857,7 +858,7 @@ async def pg_count(
 async def pg_exists(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     table: Table,
     where: SqlNode | None = None,
     joins: list[SqlJoin] | None = None,
@@ -888,7 +889,7 @@ async def pg_exists(
 async def pg_insert(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     table: Table,
     rows: Collection[RowIn],
 ) -> None:
@@ -920,7 +921,7 @@ async def pg_insert(
 async def pg_upsert(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     table: Table,
     rows: Collection[RowIn],
     conflict_columns: list[Column] | tuple[Column, ...] | None = None,
@@ -981,7 +982,7 @@ async def pg_upsert(
 async def pg_update_static(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     table: Table,
     where: SqlNode | None = None,
     static_value: RowIn,
@@ -1021,7 +1022,7 @@ async def pg_update_static(
 async def pg_update_variable(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     table: Table,
     dynamic_columns: Collection[Column],
     dynamic_values: Collection[RowIn],
@@ -1094,7 +1095,7 @@ async def pg_update_variable(
 
 @_trace_pg_span
 async def pg_delete(
-    *, cur: psycopg.AsyncCursor, ctx: Context, table: Table, where: SqlNode | None = None
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, table: Table, where: SqlNode | None = None
 ) -> None:
     """Deletes from the given table."""
     statement = sqlstr("DELETE FROM {table}").format(
@@ -1112,7 +1113,7 @@ async def pg_delete(
 
 
 @_trace_pg_span
-async def pg_truncate(cur: psycopg.AsyncCursor, table: Table, ctx: Context) -> None:
+async def pg_truncate(cur: psycopg.AsyncCursor, table: Table, ctx: SqlContext) -> None:
     """Truncates the given table."""
     await _pg_execute(cur, sqlstr("TRUNCATE TABLE {}").format(sqlident(table.name)))
 
@@ -1444,7 +1445,7 @@ def _combine_filter(*, include_deleted: bool, filter: Expression | None) -> Expr
 
 @_trace_pg_span
 async def pg_graph_select(
-    *, cur: psycopg.AsyncCursor, ctx: Context, query: QueryBuilder
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
 ) -> list[AnyNodeData]:
     """Selects the nodes from the graph matching the given query."""
     # nocheckin: pg_graph_select for Records
@@ -1475,7 +1476,7 @@ async def pg_graph_select(
 
 
 @_trace_pg_span
-async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: Context, query: QueryBuilder) -> int:
+async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder) -> int:
     """Counts the nodes from the graph matching the given query."""
     # nocheckin: pg_graph_count for Records
     # compile
@@ -1489,7 +1490,9 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: Context, query: Query
 
 
 @_trace_pg_span
-async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: Context, query: QueryBuilder) -> bool:
+async def pg_graph_exists(
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
+) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
     # nocheckin: pg_graph_exists (also for Records)
     ...
@@ -1499,7 +1502,7 @@ async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: Context, query: Quer
 async def _pg_graph_walk_down(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     roots: list[NodeReferenceData]
     | list[AnyNodeData]
     | tuple[NodeReferenceData, ...]
@@ -1594,7 +1597,7 @@ async def _pg_graph_walk_down(
 async def pg_graph_get(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     query: QueryBuilder,
     visited_graph: NodeDataGraph,
 ) -> None:
@@ -1692,7 +1695,7 @@ async def pg_graph_get(
 @_trace_pg_span
 async def pg_graph_search(
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     scope: GraphScopeData,
     query: QueryBuilder,
     count: bool,
@@ -1742,7 +1745,7 @@ async def pg_graph_search(
 async def pg_edit(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     edits: list[EditData] | tuple[EditData, ...],
     cascade: bittuple[EditType] = CASCADING_EDIT_TYPES,
 ) -> list[EditData]:
@@ -1817,7 +1820,7 @@ async def pg_edit(
 async def _pg_edit_cascade(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     edit_type: EditType,
     node_type: NodeType,
     batch: list[EditData],
@@ -1908,7 +1911,7 @@ async def _pg_edit_cascade(
 async def _pg_edit_batch(
     *,
     cur: psycopg.AsyncCursor,
-    ctx: Context,
+    ctx: SqlContext,
     edit_type: EditType,
     node_type: NodeType,
     batch: list[EditData],

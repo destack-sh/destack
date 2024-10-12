@@ -13,7 +13,7 @@ async def test_crud_database_block(hosted_runtime: RuntimeHandle):
 
     # cannot access database before committing it
     with pytest.raises(GRPCError) as e:  # :BadRemoteErrors
-        await Database1.records.search()
+        _ = await Database1.records.search()
         assert e.value.status == Status.FAILED_PRECONDITION
 
     # commit to create database
