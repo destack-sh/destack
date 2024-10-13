@@ -11,7 +11,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.field import TypeInfoBase
-from bench.language.list import LocalNodeList, RecordNodeList, RemoteNodeList
+from bench.language.list import LocalNodeList, RemoteNodeList
 from bench.language.node import SourceNode, local_node_
 from bench.language.property import (
     p_internal,
@@ -123,7 +123,7 @@ class Block(SourceNode[BlockData]):
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
     records: RemoteNodeList["Record", RecordData] = p_node_children(
-        NodeType.RECORD, list=RecordNodeList
+        NodeType.RECORD, list=RemoteNodeList
     )
 
     def _validate_component(

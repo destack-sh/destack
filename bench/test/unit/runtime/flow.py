@@ -143,7 +143,7 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
             Field.output("Output1", int, is_required=True),
         ),
     )
-    Start = Step.new(StepType.START, "Start", inputs={"Input1": 2})
+    Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(
         StepType.CODE,
         "Code1",
