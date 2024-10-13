@@ -89,7 +89,7 @@ async def create_test_db(store: Store, schema: Schema):
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
             exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
         )
-        migration_ops = generate_sql_migration_ops(blank_schema, schema)
+        migration_ops = generate_sql_migration_ops(old_schema=blank_schema, new_schema=schema)
         await apply_sql_migration_ops(conn.cursor, migration_ops)
         await conn.commit()
 

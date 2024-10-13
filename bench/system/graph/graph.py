@@ -422,6 +422,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
+            # build the query
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = [
                     wiring.unpack_object_validate(r, supergraph=None, expect=NodeReference)
@@ -444,7 +445,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 descendant_types = [
                     wiring.unpack_enum(NodeType, t) for t in request.descendant_types
                 ]
-                select: SelectOptions = (
+                select = (
                     wiring.unpack_object_validate_maybe(
                         request.select, supergraph=None, expect=SelectOptions
                     )
@@ -468,6 +469,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 )
                 adapted_query = adapt_read_query(subject, query)
 
+            # get nodes
             with self.tracer.start_as_current_span("graph.get.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(
@@ -559,6 +561,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
+            # build the query
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 if request.block_ptr.metatype:
@@ -603,6 +606,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 )
                 adapted_query = adapt_read_query(subject, query)
 
+            # read the nodes
             with self.tracer.start_as_current_span("graph.search.read") as span:
                 async with self._graph_lock.read(query):
                     connection = await self.connector.connect(

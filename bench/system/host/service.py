@@ -336,7 +336,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
         # setup main engines
         # (overwrite global pg engine now that we have the full bench as context)
-        database_plugin = DatabasePlugin(self, self._bench)
+        database_plugin = DatabasePlugin(self, self._bench, self._main_package)
         self._global_pg_engine = PostgresEngine(
             store=self.global_store,
             bench=self._bench,

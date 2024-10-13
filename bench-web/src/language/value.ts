@@ -92,7 +92,7 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   }
 }
 
-/** Unpacks a single value into its data representation (except for JSON, which remains as is for value objects). */
+/** Unpacks a single value into its data representation (except for JSON, which remains as is for custom objects). */
 function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
   if (type.kind == TypeKind.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.BYTES) {
@@ -300,7 +300,7 @@ export function packValue(
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
-    // nested value object
+    // nested custom object
     if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
       return null;
@@ -354,7 +354,7 @@ export function unpackValue(
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
-    // nested value object
+    // nested custom object
     if (options.graph == null) {
       throw new Error(
         `missing graph to unpack object type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`,

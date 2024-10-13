@@ -288,7 +288,7 @@ export type FieldView = {
   isFullWidth?: boolean;
 };
 
-/** View the values of a value object */
+/** View the values of a custom object */
 export function getFieldViews(
   fields: FieldData[],
   graph: ReadNodeGraph,

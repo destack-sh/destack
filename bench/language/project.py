@@ -117,7 +117,7 @@ class Projection:
                 for child in cast(list, children):
                     self._visit_node(cast(Node, child))
 
-    # NOTE :Incomplete: account for missing nodes in builtin object / value object node lookups
+    # NOTE :Incomplete: account for missing nodes in builtin object / custom object node lookups
     #  (see CustomObject._do_get, _object_node_ref and :RichReference)
 
     def _collect_builtin_object_scalar(self, obj: BuiltinObject):

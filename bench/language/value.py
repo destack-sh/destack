@@ -86,8 +86,9 @@ ValueParentKey = Union["Property", "Field"]
 
 class CustomObject(Mapping[str, Any]):
     """
-    An custom Object with fields, the user defined equivalent of our built-in Objects (Structs/Nodes).
-    Objects can be 'partial' (e.g., Block variable, Run inputs, Class instance).
+    A custom Object with fields; the user defined equivalent of our built-in Objects (Structs/Nodes).
+    Objects can be 'partial' and include values for only a specific subset of Fields
+      (e.g., Block variable, Run inputs, Class instance).
     """
 
     __slots__ = (
@@ -1319,7 +1320,7 @@ class Value(Struct):
 
 def coerce_custom_object(typ: "TypeInfoBase", value_raw: Any) -> CustomObject:
     """
-    Tries to coerce a value object from a given raw value.
+    Tries to coerce a custom object from a given raw value.
     We support 4 coercions:
      1. Tuple of return values if there are multiple fields (with same length)
      2. Dict of return values with { FieldName: Value }
