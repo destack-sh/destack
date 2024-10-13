@@ -97,7 +97,9 @@ async def make(
                 sys.exit(-1)
         else:
             old_local_schema = Schema.blank()
-        local_migration_ops = generate_sql_migration_ops(old_local_schema, BUILTIN_LOCAL_SCHEMA)
+        local_migration_ops = generate_sql_migration_ops(
+            old_schema=old_local_schema, new_schema=BUILTIN_LOCAL_SCHEMA
+        )
     else:
         local_migration_ops = []
 
@@ -108,7 +110,9 @@ async def make(
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
             exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
         )
-    global_migration_ops = generate_sql_migration_ops(old_global_schema, BUILTIN_GLOBAL_SCHEMA)
+    global_migration_ops = generate_sql_migration_ops(
+        old_schema=old_global_schema, new_schema=BUILTIN_GLOBAL_SCHEMA
+    )
 
     # generate migration
     if not global_migration_ops and not local_migration_ops:

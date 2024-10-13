@@ -1233,7 +1233,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         self, properties: tuple[Property, ...], invalid: "ValidationHandler"
     ) -> None:
         """Check the integrity of this object."""
-        # NOTE :Architecture: BuiltinObject.validate does not validate value objects, but .do_set does
+        # NOTE :Architecture: BuiltinObject.validate does not validate custom objects, but .do_set does
         #  (this is somewhat inconsistent, but also useful because e.g. for Runs we don't want to error
         #   during validation when unpacking, only later when manually checking the inputs;
         #   however Run.inputs = ... directly errors if invalid, which is inconsistent but convenient.
@@ -1444,6 +1444,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
+        parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
 
     # 10-29: reserved for node tracking

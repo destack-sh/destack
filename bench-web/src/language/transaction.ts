@@ -488,7 +488,7 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
         const prop = objProperties[propId];
         valueType = getPropertyType(prop);
       } else {
-        // value object field
+        // custom object field
         valueType = decodeTypeIdentity(key);
       }
       let newValue: any;

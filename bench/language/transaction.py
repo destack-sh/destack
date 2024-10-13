@@ -603,7 +603,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
             # next: descend into object
             if prop is not None:  # builtin object property
                 next_obj = getattr(cast("BuiltinObject", obj), prop.name)
-            else:  # value object field
+            else:  # custom object field
                 field = cast(CustomObject, obj)._type._get_field_by_tk(key)
                 if field is None:
                     return  # invalid path
@@ -628,7 +628,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 cast(BuiltinObject, obj)._do_set(
                     prop.name, new_value, track=False, validate=validate
                 )
-            else:  # value object field
+            else:  # custom object field
                 field = cast(CustomObject, obj)._type._get_field_by_tk(key)
                 if field is None:
                     return  # invalid path
@@ -667,7 +667,7 @@ def apply_edit_operation_data(
             # next: descend into object
             if prop is not None:  # builtin object property
                 next_obj = getattr(cast(AnyObjectData, obj), prop.name)
-            else:  # value object field
+            else:  # custom object field
                 next_obj = cast(ProtoStruct, obj).__getitem__(key)
             if not (type(next_obj) is ProtoStruct or getattr(next_obj, "metatype", None)):
                 return  # invalid path
@@ -701,7 +701,7 @@ def apply_edit_operation_data(
                         wiring.pack_proto_json(old_value_packed),
                     )
                 wiring.set_object_prop(cast(AnyObjectData, obj), prop, new_value)
-            else:  # value object field
+            else:  # custom object field
                 if is_prepass:
                     old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
                     op.old_value_packed.CopyFrom(pack_proto_json(old_value_packed))  # type: ignore

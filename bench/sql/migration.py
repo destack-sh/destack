@@ -4,6 +4,7 @@ import types
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime
+from itertools import chain
 from pathlib import Path
 from textwrap import indent
 from typing import (
@@ -348,7 +349,7 @@ async def _do_sql_migrate(
 #
 
 
-class MigrationOpKind(enum.Enum):
+class MigrationOpType(enum.Enum):
     CREATE = "CREATE"
     RENAME = "RENAME"
     UPDATE = "UPDATE"
@@ -357,21 +358,21 @@ class MigrationOpKind(enum.Enum):
 
 @dataclass
 class MigrationOp:
-    kind: MigrationOpKind
+    type: MigrationOpType
     new_object: Optional[Object]
     old_object: Optional[Object]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:
-        op_str = f"{self.kind.value} {self.object_kind.name}"
-        if self.kind == MigrationOpKind.CREATE:
+        op_str = f"{self.type.value} {self.object_kind.name}"
+        if self.type == MigrationOpType.CREATE:
             assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.new_object.qualified_name}"
-        elif self.kind == MigrationOpKind.RENAME:
+        elif self.type == MigrationOpType.RENAME:
             assert self.old_object is not None, f"old_object not set for {self!r}"
             assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name} -> {self.new_object.qualified_name}"
-        elif self.kind == MigrationOpKind.UPDATE:
+        elif self.type == MigrationOpType.UPDATE:
             assert self.diff_keys is not None, f"diff_keys not set for {self!r}"
             assert self.new_object is not None, f"new_object not set for {self!r}"
             diff_str = ", ".join(
@@ -379,11 +380,11 @@ class MigrationOp:
                 for k in self.diff_keys
             )
             return f"{op_str} {self.new_object.qualified_name} ({diff_str})"
-        elif self.kind == MigrationOpKind.DELETE:
+        elif self.type == MigrationOpType.DELETE:
             assert self.old_object is not None, f"old_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name}"
         else:
-            raise RuntimeError(f"unexpected migration op type: {self.kind}")
+            raise RuntimeError(f"unexpected migration op type: {self.type}")
 
     def __repr__(self) -> str:
         return f"<MigrationOp {self}>"
@@ -408,21 +409,26 @@ class MigrationOp:
 
     def invert(self) -> "MigrationOp":
         """Returns the inverse of this operation for undoing migrations."""
-        if self.kind == MigrationOpKind.CREATE:
-            return MigrationOp(MigrationOpKind.DELETE, None, self.new_object)
-        elif self.kind == MigrationOpKind.RENAME:
-            return MigrationOp(MigrationOpKind.RENAME, self.old_object, self.new_object)
-        elif self.kind == MigrationOpKind.UPDATE:
+        if self.type == MigrationOpType.CREATE:
+            return MigrationOp(MigrationOpType.DELETE, None, self.new_object)
+        elif self.type == MigrationOpType.RENAME:
+            return MigrationOp(MigrationOpType.RENAME, self.old_object, self.new_object)
+        elif self.type == MigrationOpType.UPDATE:
             return MigrationOp(
-                MigrationOpKind.UPDATE, self.old_object, self.new_object, self.diff_keys
+                MigrationOpType.UPDATE, self.old_object, self.new_object, self.diff_keys
             )
-        elif self.kind == MigrationOpKind.DELETE:
-            return MigrationOp(MigrationOpKind.CREATE, self.old_object, None)
-        raise RuntimeError(f"unexpected migration op type: {self.kind}")
+        elif self.type == MigrationOpType.DELETE:
+            return MigrationOp(MigrationOpType.CREATE, self.old_object, None)
+        raise RuntimeError(f"unexpected migration op type: {self.type}")
 
 
 @tracer.start_as_current_span("sql.generate_migration_ops")
-def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[MigrationOp]:
+def generate_sql_migration_ops(
+    *,
+    old_schema: Schema,
+    new_schema: Schema,
+    include_types: tuple[MigrationOpType, ...] = tuple(MigrationOpType),
+) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
     # extensions
@@ -430,7 +436,7 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
     old_extensions = {ext.name for ext in old_schema.extensions}
     new_extensions = {ext.name for ext in new_schema.extensions}
     for ext_name in new_extensions - old_extensions:
-        extension_ops.append(MigrationOp(MigrationOpKind.CREATE, Extension(ext_name), None))
+        extension_ops.append(MigrationOp(MigrationOpType.CREATE, Extension(ext_name), None))
     # NOTE: we don't remove extensions for now
 
     def _to_id(obj: TableObject) -> str:
@@ -461,7 +467,7 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
                     for obj in deleted_table_objects
                 ):
                     continue
-            deleted_table_ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
+            deleted_table_ops.append(MigrationOp(MigrationOpType.DELETE, None, old_object))
             deleted_ids.add(old_id)
     # regular order: table -> column -> index -> constraint
     cru_ops: list[MigrationOp] = []
@@ -476,14 +482,14 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
                 and _to_id(new_object.table) not in old_table_objects_by_id
             ):
                 continue
-            cru_ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
+            cru_ops.append(MigrationOp(MigrationOpType.CREATE, new_object, None))
         elif new_object.name != old_object.name:
-            cru_ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
+            cru_ops.append(MigrationOp(MigrationOpType.RENAME, new_object, old_object))
         elif old_object.hash_flat() != new_object.hash_flat():
             diff = new_object.diff_keys(old_object)
             if not diff:
                 continue  # hashing changed
-            cru_ops.append(MigrationOp(MigrationOpKind.UPDATE, new_object, old_object, diff))
+            cru_ops.append(MigrationOp(MigrationOpType.UPDATE, new_object, old_object, diff))
 
     # fix cyclic dependencies between creates & FKs -> split into two passes:
     #  1. create tables without FK columns
@@ -491,7 +497,7 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
     first_table_cru_ops: list[MigrationOp] = []
     patch_table_cru_ops: list[MigrationOp] = []
     for op in cru_ops:
-        if op.kind != MigrationOpKind.CREATE:
+        if op.type != MigrationOpType.CREATE:
             patch_table_cru_ops.append(op)
             continue
 
@@ -503,10 +509,10 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
                 (c.clone() for c in op.new_object.columns),
             )
             first_table = replace(op.new_object, columns=first_columns, constraints=(), indexes=())
-            first_table_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, first_table, None))
+            first_table_cru_ops.append(MigrationOp(MigrationOpType.CREATE, first_table, None))
             for col in deferred_columns:
                 col._table = first_table
-                patch_table_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, col, None))
+                patch_table_cru_ops.append(MigrationOp(MigrationOpType.CREATE, col, None))
         elif op.object_kind == ObjectKind.COLUMN:
             assert isinstance(op.new_object, Column)
             if op.new_object.is_foreign_key_to:
@@ -516,7 +522,11 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
         else:
             patch_table_cru_ops.append(op)
 
-    ops = [*extension_ops, *deleted_table_ops, *first_table_cru_ops, *patch_table_cru_ops]
+    # combine and filter ops
+    ops: list[MigrationOp] = []
+    for op in chain(extension_ops, deleted_table_ops, first_table_cru_ops, patch_table_cru_ops):
+        if op.type in include_types:
+            ops.append(op)
     return ops
 
 
@@ -680,7 +690,7 @@ async def apply_sql_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationO
 async def force_create_schema(cur: psycopg.AsyncCursor, schema: Schema) -> None:
     """Creates and applies the migrations to create the given objects in the database."""
     # ignore existing tables
-    ops = generate_sql_migration_ops(Schema.blank(), schema)
+    ops = generate_sql_migration_ops(old_schema=Schema.blank(), new_schema=schema)
     await apply_sql_migration_ops(cur, ops)
 
 
@@ -700,7 +710,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
     Renders the given operation into a SQL string.
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
     """
-    if op.kind == MigrationOpKind.CREATE:
+    if op.type == MigrationOpType.CREATE:
         if isinstance(op.new_object, Extension):
             return f'CREATE EXTENSION IF NOT EXISTS "{op.new_object.name}"'
         elif isinstance(op.new_object, Table):
@@ -716,7 +726,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
         elif isinstance(op.new_object, Constraint):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
-    elif op.kind == MigrationOpKind.RENAME:
+    elif op.type == MigrationOpType.RENAME:
         assert op.new_object is not None, f"expected a new object: {op!r}"
         if isinstance(op.old_object, Table):
             return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
@@ -727,7 +737,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
         elif isinstance(op.old_object, Constraint):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME CONSTRAINT "{op.old_object.name}" TO "{op.new_object.name}"'
 
-    elif op.kind == MigrationOpKind.UPDATE:
+    elif op.type == MigrationOpType.UPDATE:
         if isinstance(op.old_object, Table):
             # there are no table properties we can update (outside name, which is handled by rename)
             raise NotImplementedError(f"cannot render {op!r}")
@@ -810,7 +820,7 @@ def _render_migration_op(op: MigrationOp) -> str | None:
                 f" ADD CONSTRAINT {op.new_object.sql()}"
             )
 
-    elif op.kind == MigrationOpKind.DELETE:
+    elif op.type == MigrationOpType.DELETE:
         if isinstance(op.old_object, Extension):
             return f'DROP EXTENSION IF EXISTS "{op.old_object.name}"'
         elif isinstance(op.old_object, Table):
@@ -841,7 +851,7 @@ async def introspect_sql_schema(
     include_indexes: bool = True,
     include_extensions: bool = True,
     include_table_prefixes: tuple[str, ...],
-    exclude_table_prefixes: tuple[str, ...] = (),
+    exclude_table_prefixes: tuple[str, ...],
 ) -> Schema:
     # extensions
     extensions_query = """

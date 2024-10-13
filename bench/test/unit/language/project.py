@@ -49,7 +49,7 @@ def test_project_pages(shared_session: Session, shared_package: Package):
 
 
 def test_project_custom_objects(shared_session: Session, shared_package: Package):
-    # nest node ref in nested value object
+    # nest node ref in nested custom object
     Class1 = Block.new(
         BlockType.CLASS,
         "Class1",
@@ -67,7 +67,7 @@ def test_project_custom_objects(shared_session: Session, shared_package: Package
     CustomObject1 = Class1(Int=1, String="One", Block=Class2)
     CustomObject2 = Class2(Count=2, Class1=CustomObject1)
 
-    # nested node ref in value object in builtin object
+    # nested node ref in custom object in builtin object
     Text1 = Block.new_text("Text1", "Hello, world!")
     Variable1 = Block.new(
         BlockType.VALUE,

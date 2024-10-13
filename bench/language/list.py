@@ -20,6 +20,7 @@ from bench.language.const import NodeType, QueryType
 from bench.language.graph import generate_node_name
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
+from bench.proto.wire.lang_pb2 import RecordData
 from bench.utils.fractional import get_key_bounds, get_order_key
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
         Node,
         Property,
         QueryBuilder,
+        Record,
         SomeNodeReference,
         Struct,
     )
@@ -255,6 +257,23 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     def clear(self):
         raise RuntimeError(f"cannot clear {self!r}")
 
+    @override
+    def create(self, **kwargs) -> V:
+        if "block" in self._child_node_cls.__properties__ and "block" not in kwargs:
+            kwargs["block"] = self._node
+        return super().create(**kwargs)
+
+    @override
+    def append(self, node: V) -> V:
+        node = super().append(node)
+        # automatically associate the node with the block
+        if (
+            "block" in self._child_node_cls.__properties__
+            and getattr(node, "block") is not self._node
+        ):
+            node._do_set("block", self._node)
+        return node
+
     #
     # Querying
     #
@@ -323,6 +342,13 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
 
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
         return await self.query().exists(filter, **kwargs)
+
+
+class RecordNodeList(RemoteNodeList["Record", RecordData]):
+    """Remote node list that automatically converts kwargs into Record values."""
+
+    def create(self, **kwargs) -> "Record":
+        return super().create(**kwargs)  # nocheckin
 
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["CustomObject", "Struct", "Node"])

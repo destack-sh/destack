@@ -168,7 +168,7 @@ def _get_record_field_name(field: Field) -> str:
 def map_builtin_object_to_table(
     node: type[Node], properties: list[Property] | None = None
 ) -> Table:
-    """Maps a node type into its Table schema."""
+    """Maps a node type into its builtin Table schema."""
     table_name = _get_node_table_name(node.metatype)
     columns: list[Column] = []
     constraints: list[Constraint] = []
@@ -269,14 +269,16 @@ def map_builtin_object_to_table(
 
 
 def map_database_block_to_table(block: Block) -> Table:
+    """Maps a DatabaseBlock to its corresponding custom Record Table."""
     base_table = map_builtin_object_to_table(
         Record,
+        # all stored Record properties except value, which we unfurl into columns
         properties=[p for p in Record.__stored_properties__.values() if not p.is_value_packed],
     )
     table_name = _get_record_table_name(block)
-    columns: list[Column] = list(base_table.columns)
-    constraints: list[Constraint] = list(base_table.constraints)
-    indexes: list[Index] = list(base_table.indexes)
+    columns: list[Column] = [column.clone() for column in base_table.columns]
+    constraints: list[Constraint] = [constraint.clone() for constraint in base_table.constraints]
+    indexes: list[Index] = [index.clone() for index in base_table.indexes]
 
     # map fields into columns
     for field in block.fields:

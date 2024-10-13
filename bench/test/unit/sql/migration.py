@@ -17,9 +17,11 @@ async def _do_test_stored_migrations(cur: psycopg.AsyncCursor, *, is_global: boo
     await sql_migrate(cur, target=stored_migrations[-1].id, is_global=is_global, oracle=REAL_ORACLE)
 
     # diff again (should be empty now)
-    current_schema = await introspect_sql_schema(cur, include_table_prefixes=(BENCH_TABLE_PREFIX,))
+    current_schema = await introspect_sql_schema(
+        cur, include_table_prefixes=(BENCH_TABLE_PREFIX,), exclude_table_prefixes=()
+    )
     new_schema = BUILTIN_GLOBAL_SCHEMA if is_global else BUILTIN_LOCAL_SCHEMA
-    current_ops = generate_sql_migration_ops(current_schema, new_schema)
+    current_ops = generate_sql_migration_ops(old_schema=current_schema, new_schema=new_schema)
     current_ops = [op for op in current_ops if op.object_kind != ObjectKind.EXTENSION]
     assert not current_ops, f"out of sync migrations, got {len(current_ops)} ops"
 
