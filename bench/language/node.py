@@ -31,6 +31,7 @@ from uuid import UUID, uuid4
 
 import structlog
 from bitarray import bitarray
+from more_itertools import first
 from opentelemetry import trace
 
 from bench.language.const import (
@@ -876,7 +877,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     _session: "Session | None" = p_runtime(default=None)
     _supergraph: "NodeSuperGraph" = p_runtime(default=None)
 
-    def __init__(self, *, _skip_validate_self: bool = False, **kwargs):
+    def __init__(
+        self, *, _skip_validate_self: bool = False, _skip_extra_kwargs: bool = False, **kwargs
+    ):
         self_dict = self.__dict__
 
         # init session / supergraph context (first)
@@ -993,6 +996,29 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         # validate self
         if self._session is not None and not _skip_validate_self:
             self._validate_self((), invalid=on_invalid_raise)
+
+        # check for extraneous kwargs
+        if not _skip_extra_kwargs:
+            self._init_extra_kwargs(kwargs)
+
+    def _init_extra_kwargs(self, kwargs: dict[str, Any]):
+        """
+        Initialize the object from any extraneous kwargs (try to stuff into values) if relevant.
+        Otherwise just error.
+        """
+        if self._session is not None and any(key not in self.__properties__ for key in kwargs):
+            if not self.__value_runtime_properties__:
+                key = first(key for key in kwargs if key not in self.__properties__)
+                raise AttributeError(f"{self!r} has no attribute '{key}'")
+            # try to stuff extra kwargs into first custom value property
+            value_runtime_key = first(self.__value_runtime_properties__)
+            value = getattr(self, value_runtime_key)
+            if value is None:
+                key = first(key for key in kwargs if key not in self.__properties__)
+                raise AttributeError(f"{self!r} has no attribute '{key}'")
+            for key in kwargs:
+                if key not in self.__properties__:
+                    setattr(value, key, kwargs[key])
 
     def __content_str__(self) -> str:
         return ""  # empty by default
@@ -1494,7 +1520,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def __init__(
         self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs
     ):
-        super().__init__(**kwargs, _skip_validate_self=True)
+        super().__init__(**kwargs, _skip_validate_self=True, _skip_extra_kwargs=True)
 
         # init ck/id
         if isinstance(self, SourceNode):
@@ -1549,6 +1575,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             existing = kwargs.get(name, UNSET)
             if existing is not UNSET:
                 node_list.extend(*existing)
+
+        # check for extraneous kwargs
+        self._init_extra_kwargs(kwargs)
 
         # init session context
         if self._session is not None:

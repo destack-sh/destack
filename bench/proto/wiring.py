@@ -289,8 +289,6 @@ def unpack_object[T: BuiltinObject](
         if session is not None:
             object_kwargs["_session"] = session
         if issubclass(object_cls, Node):
-            if parent is not None:
-                object_kwargs["_parent"] = parent
             if graph is not None:
                 object_kwargs["_graph"] = graph
             if connection is not None:

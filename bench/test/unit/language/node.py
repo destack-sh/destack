@@ -6,6 +6,7 @@ from hypothesis import given
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, Package
 from bench.language.block import Block
+from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
 from bench.language.file import File, FileKind, FileReference, FileType
@@ -25,6 +26,15 @@ def test_builtin_object_properties_are_available():
             if prop.is_introspectable:
                 attr = getattr(cls, prop.name)
                 assert type(attr) is Property, f"{prop!r}->{attr!r} is not a Property"
+
+
+def test_init_with_non_existing_property(session: "Session"):
+    with pytest.raises(AttributeError):
+        _ = Code(_non_existing_property="wadabadaboo")  # type: ignore
+    with pytest.raises(AttributeError):
+        _ = Bench(slug="test", name="Test", _non_existing_property="wadabadaboo")  # type: ignore
+    with pytest.raises(AttributeError):
+        _ = Block.new(BlockType.TEXT, name="Test", _non_existing_property="wadabadaboo")  # type: ignore
 
 
 def test_get_set_non_existing_property(session: "Session"):

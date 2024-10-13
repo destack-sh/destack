@@ -322,12 +322,12 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
     wired_prop = prop.value_packed_ptr
     assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
     value_packed = getattr(obj, wired_prop.name)
-    if value_packed is None or (len(value_packed) == 0 and not prop.is_required):
-        value = None
     value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
-    if (
+    if value_type is not None and value_type.kind == TypeKind.OBJECT:
+        value = CustomObject(value_type, value_packed, parent=obj, parent_key=wired_prop)
+    elif (
         value_packed is None
-        or (len(value_packed) == 0 and not prop.is_required)
+        or (prop.is_list and len(value_packed) == 0 and not prop.is_required)
         or value_type is None
     ):
         value = None
@@ -1034,7 +1034,8 @@ def pack_custom_object(value: CustomObject, typ: "TypeInfoBase") -> dict[str, Js
     """
     value_packed: dict[str, JsonValue] = {}
     _value = value._value
-    assert _value is not None, f"{value!r} has no value"
+    if _value is None:
+        return value_packed  # empty value
 
     for field in typ._base_fields:
         field_type = field._to_resolved()

@@ -8,7 +8,7 @@ from bench.language.session import Session
 from bench.test.unit.conftest import RuntimeHandle
 
 
-def test_create_record_kwargs(shared_session: Session):
+def test_create_record_kwargs(session: Session):
     """Create a Record with keyword arguments into value."""
     Database1 = Block.new(
         BlockType.DATABASE,
@@ -22,7 +22,7 @@ def test_create_record_kwargs(shared_session: Session):
     Record1 = Database1.records.create()
     assert Record1.Name is None  # type: ignore
     assert Record1.Age is None  # type: ignore
-    assert Record1.Aliases == []  # type: ignore
+    assert Record1.Aliases is None  # type: ignore
 
     Record2 = Database1.records.create(Name="Record2", Aliases=["R3", "R4"])
     assert Record2.Name == "Record2"  # type: ignore
