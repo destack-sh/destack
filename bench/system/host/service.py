@@ -373,7 +373,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,
-            _extend_commit=self._extend_commit_hook,
+            _on_commit_prepare=self._on_commit_prepare_hook,
             _on_commit=self._on_commit_hook,
             _supergraph=self._bench._supergraph,
             _split_read=True,
@@ -452,8 +452,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         return scope
 
     @override
-    @tracer.start_as_current_span("host.extend_commit")
-    async def extend_commit(
+    @tracer.start_as_current_span("host.on_commit_prepare")
+    async def on_commit_prepare(
         self,
         session: Session,
         graph: NodeGraphLike,
@@ -473,7 +473,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             epoch=self.epoch,
         )
         for plugin in self._plugins:
-            await plugin.extend_commit(session, commit)
+            await plugin.on_commit_prepare(session, commit)
 
         # create signals
         ...
@@ -659,6 +659,11 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             removed=commit.removed,
             span="current",
         )
+
+    @override
+    async def on_commit_failed(self, session: Session, exc: Exception):
+        for plugin in self._plugins:
+            await plugin.on_commit_failed(session, exc)
 
     #
     # Files

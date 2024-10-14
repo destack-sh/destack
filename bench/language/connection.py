@@ -570,9 +570,6 @@ class Connection[
                         raise  # re-raise immediately
                     await self.session._oracle.sleep(interval)
                     continue
-        except Exception as e:
-            if self.session._on_error:
-                self.session._on_error(e)
         finally:
             self.session._on_connection_end(self)
             self.close()

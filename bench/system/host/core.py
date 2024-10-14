@@ -293,7 +293,7 @@ class HostPlugin[T: Node](abc.ABC):
     # Events
     #
 
-    async def extend_commit(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
+    async def on_commit_prepare(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
         """
         Add edits that logically belong to the same transaction.
         The commit contains only direct edits, not cascaded edits.,
@@ -306,6 +306,12 @@ class HostPlugin[T: Node](abc.ABC):
         React to the commit in a new transaction (but still in the request lifecycle).
         The commit contains edits and cascaded edits.
         Edit nodes directly, flush or commit as necessary.
+        """
+        pass
+
+    async def on_commit_failed(self, session: Session, error: Exception) -> None:  # noqa: B027
+        """
+        React to a failed commit.
         """
         pass
 

@@ -54,7 +54,7 @@ async def test_create_empty_database_block(hosted_runtime: RuntimeHandle):
 
 
 async def test_create_database_and_records_simultaneously(hosted_runtime: RuntimeHandle):
-    """Create a database and records within it at the same time."""
+    """Create a database and records within it in the same transaction/commit."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     hosted_runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Name="Record1")
