@@ -26,7 +26,6 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.node import (
-    HasNodeBase,
     Node,
     NodeReference,
     NodeReferenceBase,
@@ -332,7 +331,9 @@ class Aggregation(Struct):
 
 
 def coerce_conditional(
-    node: Union[type[Node], "Block"],
+    *,
+    node_cls: type[Node],
+    block: Optional["Block"],
     expr: Optional[Expression] = None,
     kwargs: Optional[dict[str, Any]] = None,
 ) -> Expression | None:
@@ -362,16 +363,12 @@ def coerce_conditional(
 
         # map key into field/property
         target: Field | Property | None = None
-        if key in node.__properties__:
-            target = node.__properties__[key]
-        elif "fields" in node.__node_child_properties__ and key in getattr(node, "fields"):
-            target = getattr(node, "fields").get(key)
-        elif isinstance(node, HasNodeBase) and (
-            node.base is not None and "fields" in node.base.__node_child_properties__
-        ):
-            target = getattr(node.base, "fields").get(key)
+        if prop := node_cls.__properties__.get(key):
+            target = prop
+        elif block is not None and (field := block.fields.get(key)):
+            target = field
         if target is None:
-            raise TypeError(f"{node!r} has no attribute {key!r}")
+            raise TypeError(f"{node_cls!r} has no attribute {key!r} in {block!r}")
         # coerce None to NOT_EXISTS/EXISTS
         if value is None:
             if op == ConditionalOp.EQUALS:
@@ -394,35 +391,37 @@ def coerce_conditional(
 
 
 def coerce_sort(
-    node: Union[Node, type[Node], "Block"],
-    sort: "Sequence[Expression | str | Field | Property] | Expression | str | Field | Property | None",
-    *args: str,
+    *,
+    node_cls: type[Node],
+    block: Optional["Block"],
+    expr: "Sequence[Expression | str | Field | Property] | Expression | str | Field | Property | None",
+    args: Sequence[str],
 ) -> Optional[list[Expression]]:
     """
     Coerce a sort expression from either the given expression or args.
     Strings are looked up as field names/identifiers.
     Like in Django, prefix with "-" for descending.
     """
-    from bench.language.field import Field
+    from bench.language import Field, Property
 
     # coerce into list[Expression | str]
-    if sort is None:
+    if expr is None:
         if args is None:
             return None
-        sort = list(args)
-    elif isinstance(sort, str) or (
-        isinstance(sort, Expression) and sort.kind == ExpressionKind.SORT
+        expr = list(args)
+    elif isinstance(expr, (str, Field, Property)) or (
+        isinstance(expr, Expression) and expr.kind == ExpressionKind.SORT
     ):
-        sort = [sort]
-    if not isinstance(sort, (list, tuple)):
-        raise TypeError(f"expected sort to be a list or tuple, got {sort}")
+        expr = [expr]
+    if not isinstance(expr, (list, tuple)):
+        raise TypeError(f"expected sort to be a list or tuple, got {expr}")
     if args:
-        sort = cast("Sequence[Expression | str | Field | Property]", (*sort, *args))
-    sort = cast("Sequence[Expression | str | Field | Property]", sort)
+        expr = cast("Sequence[Expression | str | Field | Property]", (*expr, *args))
+    expr = cast("Sequence[Expression | str | Field | Property]", expr)
 
     # map into sorts
     coerced = []
-    for item in sort:
+    for item in expr:
         if isinstance(item, str):
             # -field or field
             if item.startswith("-"):
@@ -434,16 +433,12 @@ def coerce_sort(
 
             # map key into field/property
             target = None
-            if field_key in node.__properties__:
-                target = node.__properties__[field_key]
-            elif isinstance(node, Node) and "fields" in node.__node_child_properties__:
-                target = getattr(node, "fields").get(field_key)
-            elif isinstance(node, HasNodeBase) and (
-                node.base is not None and "fields" in node.base.__node_child_properties__
-            ):
-                target = getattr(node.base, "fields").get(field_key)
+            if prop := node_cls.__properties__.get(field_key):
+                target = prop
+            elif block is not None and (field := block.fields.get(field_key)):
+                target = field
             if target is None:
-                raise AttributeError(f"{node!r} has no attribute {item!r}")
+                raise AttributeError(f"{node_cls!r} has no attribute {item!r} in {block!r}")
             elif isinstance(target, Property):
                 item = S(op, field=None, property=target)
             else:
