@@ -12,6 +12,9 @@ from psycopg.types.json import Jsonb
 from bench.language.const import ConditionalOp, PrimitiveType, SortOp
 from bench.utils.func import stable_hash
 
+if TYPE_CHECKING:
+    from bench.language import Block, Field
+
 
 @dataclass(slots=True)
 class Schema:
@@ -248,6 +251,7 @@ class Column(TableObject):
     scale: int | None = None
     default: str | None = None
     _source: str | int | None = None
+    _field: Union["Field", None] = None
     _table: Union["Table", None] = None  # type: ignore
     _unencrypted_type: PrimitiveType | None = None  # for encrypted columns
 
@@ -468,7 +472,9 @@ class Table(TableObject):
     indexes: tuple[Index, ...] = ()
     constraints: tuple[Constraint, ...] = ()
     _source: str | int | None = None
+    _block: Union["Block", None] = None  # type: ignore
     _columns_by_name: dict[str, Column] = dataclasses.field(init=False)
+    _columns_by_field: dict["Field", Column] = dataclasses.field(init=False)
     _primary_key: Column | None = dataclasses.field(init=False)
 
     def __post_init__(self):
@@ -477,11 +483,18 @@ class Table(TableObject):
                 raise ValueError(f"{object} is already attached to {object._table}")
             object._table = self
         self._columns_by_name = {}
+        self._columns_by_field = {}
         for column in self.columns:
             existing = self._columns_by_name.get(column.name)
             if existing is not None:
                 raise ValueError(f"column {column!r} is already defined in {self!r}: {existing!r}")
             self._columns_by_name[column.name] = column
+            if column._field is not None:
+                if column._field in self._columns_by_field:
+                    raise ValueError(
+                        f"field {column._field!r} is already bound to {self._columns_by_field[column._field]!r}"
+                    )
+                self._columns_by_field[column._field] = column
         self._primary_key = first((c for c in self.columns if c.is_primary_key), None)
 
     def __str__(self):
@@ -505,11 +518,17 @@ class Table(TableObject):
         # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
 
-    def get_column(self, name: str) -> Column:
-        column = self._columns_by_name.get(name)
-        if column is None:
-            raise KeyError(f"no column {name!r} in {self!r}")
-        return column
+    def get_column(self, key: "str | Field") -> Column:
+        if isinstance(key, str):
+            column = self._columns_by_name.get(key)
+            if column is None:
+                raise KeyError(f"no column {key!r} in {self!r}")
+            return column
+        else:
+            column = self._columns_by_field.get(key)
+            if column is None:
+                raise KeyError(f"no column for field {key!r} in {self!r}")
+            return column
 
     def columns_include(self, other: "Table") -> bool:
         """Returns True if the columns are equal, ignoring order."""
