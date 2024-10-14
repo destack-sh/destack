@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 from uuid import UUID
 
 import structlog
@@ -57,12 +57,10 @@ class DatabasePlugin(HostPlugin[Block | Field]):
     def __init__(self, host: Host, bench: Bench, package: Package):
         super().__init__(host, bench)
         self.package = package
-        self._tables_by_block: dict[Block, Table] = {}
-        self._databases_by_ck: dict[UUID, Block] = {}
-        self._context = HostSqlContext(
+        self.context = HostSqlContext(
             bench=bench,
-            custom_tables_by_block=self._tables_by_block,
-            databases_by_ck=self._databases_by_ck,
+            custom_tables_by_block={},
+            databases_by_ck={},
         )
 
     async def start(self) -> None:
@@ -75,9 +73,11 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         ]
         for database in databases:
             table = map_database_block_to_table(database)
-            self._tables_by_block[database] = table
-            self._databases_by_ck[database.ck] = database
-        new_schema = Schema(extensions=(), tables=tuple(self._tables_by_block.values()))
+            self.context.custom_tables_by_block[database] = table
+            self.context.databases_by_ck[database.ck] = database
+        new_schema = Schema(
+            extensions=(), tables=tuple(self.context.custom_tables_by_block.values())
+        )
 
         # migrate from current to target schema
         # (usually nothing should happen here, but just in case we change something)
@@ -100,27 +100,29 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 await apply_sql_migration_ops(channel.cur, migration_ops)
                 logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
+    @override
     async def extend_commit(self, session: Session, commit: Commit[Block | Field]) -> None:
         # check if any databases were touched
-        touched_databases: dict[UUID, Block] = {}
+        touched_databases_by_ck: dict[UUID, Block] = {}
         for node in commit.edited:
             if isinstance(node, Block) and node.type == BlockType.DATABASE:
-                touched_databases[node.ck] = node
+                touched_databases_by_ck[node.ck] = node
             elif isinstance(node, Field):
                 parent = node.parent
                 if isinstance(parent, Block) and parent.type == BlockType.DATABASE:
-                    touched_databases[parent.ck] = parent
+                    touched_databases_by_ck[parent.ck] = parent
 
         # migrate schema for touched databases (and only those)
-        if touched_databases:
+        if touched_databases_by_ck:
             old_tables = tuple(
-                self._tables_by_block[block]
-                for block in touched_databases.values()
-                if block in self._tables_by_block
+                self.context.custom_tables_by_block[block]
+                for block in touched_databases_by_ck.values()
+                if block in self.context.custom_tables_by_block
             )
             old_schema = Schema(extensions=(), tables=old_tables)
             new_tables_by_block: dict[Block, Table] = {
-                block: map_database_block_to_table(block) for block in touched_databases.values()
+                block: map_database_block_to_table(block)
+                for block in touched_databases_by_ck.values()
             }
             new_schema = Schema(extensions=(), tables=tuple(new_tables_by_block.values()))
             migration_ops = generate_sql_migration_ops(
@@ -132,5 +134,12 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 self.host.scope, NodeType.RECORD, expect=PostgresChannel
             )
             await apply_sql_migration_ops(channel.cur, migration_ops)
-            self._tables_by_block.update(new_tables_by_block)  # patch current tables
+            # patch context
+            self.context.custom_tables_by_block.update(new_tables_by_block)
+            self.context.databases_by_ck.update(touched_databases_by_ck)
             logger.debug("database.migrate", host=self, migration_ops=migration_ops)
+
+    @override
+    async def on_commit(self, session: Session, commit: Commit[Block | Field]) -> None:
+        # nocheckin: update sql context only on commit
+        ...

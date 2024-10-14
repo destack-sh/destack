@@ -712,14 +712,12 @@ class Session(RuntimeNode[SessionData]):
                 assert self._tx is not None, f"no active transaction in {self!r}"
                 # extend commit hook
                 if self._extend_commit is not None:
-                    if self._tx.has_pending_edits:  # flush pending edits
-                        await self._tx.flush()
                     if graph is None:
                         graph = NodeDict(self._pending_nodes_by_id)
                     if data_graph is None:
                         data_graph = self._make_pending_data_graph()
                     new_edits: Sequence[EditData] = await self._extend_commit(
-                        self, graph, data_graph, self._tx._edits
+                        self, graph, data_graph, self._tx._edits + self._tx._pending_edits
                     )
                     self._tx.add_edits(new_edits)
 

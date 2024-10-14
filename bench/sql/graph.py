@@ -7,6 +7,7 @@ from typing import (
     Any,
     Collection,
     Mapping,
+    Sequence,
     assert_never,
     cast,
 )
@@ -17,10 +18,13 @@ import pytz
 from bitarray import bitarray
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message as ProtoMessage
+from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
+from more_itertools import first
 from opentelemetry import trace
 from psycopg import sql
 from psycopg.types.json import Jsonb
+from pydantic import JsonValue
 
 from bench.language import Block, ConditionalOp, NodeReference, Property
 from bench.language.bench import Bench
@@ -31,6 +35,7 @@ from bench.language.const import (
     EditOperationType,
     EditType,
     EnumType,
+    FieldType,
     LiteralOp,
     NodeType,
     PrimitiveType,
@@ -162,7 +167,8 @@ def _get_record_table_name(block: Block) -> str:
 
 
 def _get_record_field_name(field: Field) -> str:
-    return BENCH_RECORD_VALUE_PREFIX + field.identity_key
+    field_type = field._to_resolved()
+    return BENCH_RECORD_VALUE_PREFIX + field.tk + field_type.identity_key
 
 
 def map_builtin_object_to_table(
@@ -303,14 +309,16 @@ def map_database_block_to_table(block: Block) -> Table:
             name=_get_record_field_name(field),
             type=primitive_type,
             is_array=field.is_list,
-            is_nullable=not field.is_required,
+            is_nullable=True,  # NOTE :Incomplete: support field constraints in database
             is_primary_key=False,
             _source=field.tk,
+            _field=field,
         )
         columns.append(column)
 
     return Table(
         _source=block.tk,
+        _block=block,
         name=table_name,
         columns=tuple(columns),
         constraints=tuple(constraints),
@@ -559,6 +567,16 @@ def _unpack_object_data_prop_scalar(prop: Property, value: Any, into: Any | None
         return value
 
 
+def _pack_field_value(field: Field, value: JsonValue) -> SqlPrimitive:
+    """Packs the JSON-value-packed value of a Field for storage in Postgres."""
+    raise NotImplementedError("nocheckin: _pack_field_value")
+
+
+def _unpack_field_value(field: Field, value: Any) -> JsonValue:
+    """Unpacks the JSON-value-packed value of a Field from Postgres."""
+    raise NotImplementedError("nocheckin: _unpack_field_value")
+
+
 def _pg_pack_node_reference_into_row(
     prop: Property | Any,
     row: dict[str, Any],
@@ -703,13 +721,22 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         getattr(node, prop.reference_wired_ptr.name).CopyFrom(ptr)
 
 
-def _pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
+def _pg_pack_node_data_row(
+    node_type: NodeType,
+    node_cls: type[Node],
+    node_table: Table,
+    block: Block | None,
+    node: AnyNodeData,
+) -> dict[str, SqlPrimitive]:
     """Packs a node's data into a row for the respective table."""
-    node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, node.metatype)]
     try:
         row: dict[str, SqlPrimitive] = {}
+
+        # wired properties
         for name, prop in node_cls.__wired_properties__.items():
-            if prop.reference_source is None:
+            if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:
+                continue  # value is stored in unraveled columns
+            elif prop.reference_source is None:
                 # regular non-ref property
                 if prop.is_optional_scalar and not node.HasField(name):
                     value = None
@@ -726,24 +753,52 @@ def _pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
                         wired_name = node.WhichOneof(wired_name)
                     value = getattr(node, wired_name)
                 _pg_pack_node_reference_into_row(prop.reference_source, row, value)
+
+        # unravel value-packed fields
+        if node_cls.__is_stored_value_unraveled__ and block is not None:
+            value_runtime_prop = first(node_cls.__value_runtime_properties__.values())
+            value_packed_prop = value_runtime_prop.value_packed_ptr
+            assert type(value_packed_prop) is Property, f"unexpected packed: {value_packed_prop!r}"
+            value_packed_any: ProtoValue | None = getattr(node, value_packed_prop.name)
+            value_packed = value_packed_any.struct_value if value_packed_any is not None else None
+            for field in block.fields:
+                if field.type != FieldType.MEMBER:
+                    continue
+                column = node_table.get_column(field)
+                if value_packed is not None and value_packed.HasField(field.identity_key):
+                    field_value = value_packed[field.identity_key]
+                else:
+                    field_value = None
+                row[column.name] = _pack_field_value(field, field_value)
+
         return row
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack row {node_cls.metatype.name}: {struct!r}") from e
 
 
-def _pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> AnyNodeData:
+def _pg_unpack_node_data_row(
+    node_type: NodeType,
+    node_cls: type[Node],
+    node_table: Table,
+    block: Block | None,
+    selected_fields: Sequence[Field],
+    row: Mapping[str, Any],
+) -> AnyNodeData:
     """Unpacks a node's data from a row from the respective table."""
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
         obj_data = cast(
             AnyNodeData, proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype))
         )  # type: ignore
+
+        # wired properties
         for name, prop in node_cls.__wired_properties__.items():
+            if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:
+                continue  # value is stored in unraveled columns
             if prop.reference_source is not None:
                 # ravel stored node reference :StoredPointers
                 _pg_unpack_node_reference_from_row(prop.reference_source, row, obj_data)
                 continue
-
             # regular non-ref property
             value = row.get(name)
             if value is None:
@@ -770,6 +825,19 @@ def _pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> An
                         packed_item = _unpack_object_data_prop_scalar(prop, item)
                         packed_value.append(packed_item)
 
+        # ravel value-packed fields
+        if node_cls.__is_stored_value_unraveled__ and block is not None:
+            value_runtime_prop = first(node_cls.__value_runtime_properties__.values())
+            value_packed_prop = value_runtime_prop.value_packed_ptr
+            assert type(value_packed_prop) is Property, f"unexpected packed: {value_packed_prop!r}"
+            value_packed_any: ProtoValue = getattr(obj_data, value_packed_prop.name)
+            value_packed = value_packed_any.struct_value
+            for field in selected_fields:
+                column = node_table.get_column(field)
+                field_value = row.get(column.name)
+                field_value_packed = _unpack_field_value(field, field_value)
+                value_packed.__setitem__(field.identity_key, field_value_packed)
+
         return obj_data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         row_str = repr(row) if IS_DEV else describe_type(row)
@@ -795,27 +863,30 @@ def _combine_filter(*, include_deleted: bool, filter: Expression | None) -> Expr
 async def pg_graph_select(
     *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
 ) -> list[AnyNodeData]:
-    """Selects the nodes from the graph matching the given query."""
+    """
+    Selects the nodes from the graph matching the given query.
+    Only the given node type is selected, no joins are performed (up/down or sideways).
+    """
     # compile
     select = query._select or DEFAULT_SELECT_OPTIONS
     node_type = query._node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     block = query._block
+    selected_properties = select.get_selected_properties(node_type)
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
-        columns = [
-            node_table.get_column(prop.name) for prop in select.get_selected_properties(node_type)
-        ]
+        columns = [node_table.get_column(prop.name) for prop in selected_properties]
+        selected_fields = []
     else:
         node_table, block = ctx.get_custom_table(query.block)
         columns = [
             node_table.get_column(prop.name)
-            for prop in select.get_selected_properties(node_type)
+            for prop in selected_properties
             if prop.name in node_table._columns_by_name
         ]
-        for field in select.get_selected_fields(block):
-            field_name = _get_record_field_name(field)
-            column = node_table.get_column(field_name)
+        selected_fields = select.get_selected_fields(block)
+        for field in selected_fields:
+            column = node_table.get_column(field)
             columns.append(column)
     filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
     where = (
@@ -841,7 +912,17 @@ async def pg_graph_select(
         first=query._first,
         skip=query._skip,
     )
-    nodes_data = [_pg_unpack_node_data_row(node_cls, row) for row in rows]
+    nodes_data = [
+        _pg_unpack_node_data_row(
+            node_type=node_type,
+            node_cls=node_cls,
+            node_table=node_table,
+            block=block,
+            selected_fields=selected_fields,
+            row=row,
+        )
+        for row in rows
+    ]
     return nodes_data
 
 
@@ -1330,7 +1411,13 @@ async def _pg_edit_batch(
             node = wiring.unwrap_some_node(edit.node_data)
             nodes.append(node)
             # inline implicit metadata
-            row: dict[str, SqlPrimitive] = _pg_pack_node_data_row(node)
+            row: dict[str, SqlPrimitive] = _pg_pack_node_data_row(
+                node_type=node_type,
+                node_cls=node_cls,
+                node_table=node_table,
+                block=node_table._block,
+                node=node,
+            )
             row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "created_epoch" in node_cls.__properties__:
                 row["created_epoch"] = row["updated_epoch"] = edit.epoch

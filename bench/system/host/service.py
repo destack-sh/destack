@@ -342,14 +342,14 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             bench=self._bench,
             scope=self._scope,
             node_types=IN_BENCH_GLOBAL_NODE_TYPES,
-            context=database_plugin._context,
+            context=database_plugin.context,
         )
         self._local_pg_engine = PostgresEngine(
             store=self._bench.main_store,
             bench=self._bench,
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,
-            context=database_plugin._context,
+            context=database_plugin.context,
         )
         self._engines = (self._global_pg_engine, self._local_pg_engine)
         if HOST_MEMORY_ENGINE_ENABLED:

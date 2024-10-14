@@ -705,7 +705,7 @@ def apply_edit_operation_data(
                 if is_prepass:
                     old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
                     op.old_value_packed.CopyFrom(pack_proto_json(old_value_packed))  # type: ignore
-                cast(ProtoStruct, obj).__setitem__(key, new_value)  # type: ignore
+                cast(ProtoStruct, obj).__setitem__(key, new_value_packed)  # type: ignore
 
 
 @tracer.start_as_current_span("graph.edit_graph")

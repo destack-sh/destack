@@ -514,7 +514,7 @@ def node_(
     node_type: NodeType,
     passthrough: str | tuple[str, ...] | None = None,
     stored: bool = True,
-    stored_custom: bool = False,
+    stored_value_unraveled: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
     indexes: tuple[tuple[str, ...], ...] = (),
@@ -534,7 +534,7 @@ def node_(
             is_final=True,
         )(cls)
         cls.__is_stored__ = stored
-        cls.__is_stored_custom__ = stored_custom
+        cls.__is_stored_value_unraveled__ = stored_value_unraveled
         cls.__is_local__ = local
 
         cls.__extra_indexes__ = indexes
@@ -1459,7 +1459,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
-    __is_stored_custom__: ClassVar[bool] = False  # custom storage logic (for records)
+    __is_stored_value_unraveled__: ClassVar[bool] = False  # custom storage logic (for records)
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
     __extra_indexes__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra indexes for PG
     __extra_uniques__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra constraints for PG
