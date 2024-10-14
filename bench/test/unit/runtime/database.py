@@ -1,9 +1,11 @@
+from datetime import date, datetime, time, timedelta
+from uuid import UUID
 import pytest
 from grpclib import GRPCError, Status
 
 from bench.language.block import Block
-from bench.language.const import BlockType
-from bench.language.field import Field
+from bench.language.const import BlockType, PrimitiveType
+from bench.language.field import Field, TypeIn
 from bench.language.session import Session
 from bench.language.text import Text, md
 from bench.test.unit.conftest import RuntimeHandle
@@ -68,8 +70,7 @@ async def test_create_database_and_records_simultaneously(hosted_runtime: Runtim
 
 
 async def test_update_record(hosted_runtime: RuntimeHandle):
-    """Update a record and query it."""
-    # nocheckin: check different field types
+    """Update a record with a simple Field and query it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     hosted_runtime.page().blocks.append(Database1)
 
@@ -86,7 +87,49 @@ async def test_update_record(hosted_runtime: RuntimeHandle):
     assert records[0].Name == "Record1.1"  # type: ignore
 
 
+async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
+    """Updates a database and records within and across transactions."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
+
+    sample_types: list[TypeIn] = [
+        str,
+        int,
+        float,
+        datetime,
+        date,
+        timedelta,
+        time,
+        UUID,
+    ]
+    for sample_type in sample_types:
+        ...
+
+    # nocheckin: check different field types
+
+
+async def test_delete_database(hosted_runtime: RuntimeHandle):
+    """Delete a database, querying it shouldn't work. Restore, and it should work again."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
+    Record1 = Database1.records.create(Name="Record1")
+    hosted_runtime.page().blocks.append(Database1)
+    await hosted_runtime.session.commit()
+
+    # delete
+    Database1.delete()
+    await hosted_runtime.session.commit()
+    with pytest.raises(GRPCError) as e:  # :BadRemoteErrors
+        _ = await Database1.records.search()
+        assert e.value.status == Status.NOT_FOUND
+
+    # restore
+    Database1.restore()
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record1]
+
+
 async def test_delete_restore_record(hosted_runtime: RuntimeHandle):
+    """Deleting a Record should remove it from default view, restoring should re-add it."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     hosted_runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Name="Record1")

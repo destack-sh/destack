@@ -163,15 +163,15 @@ class BenchSqlContext(SqlContext):
 #
 
 
-def _get_node_table_name(node_type: NodeType) -> str:
+def get_node_table_name(node_type: NodeType) -> str:
     return f"{BENCH_TABLE_PREFIX}{node_type.name.lower().replace('_', '')}"
 
 
-def _get_record_table_name(block: Block) -> str:
+def get_record_table_name(block: Block) -> str:
     return f"{BENCH_RECORD_TABLE_PREFIX}{block.tk}"
 
 
-def _get_record_field_name(field: Field) -> str:
+def get_record_field_name(field: Field) -> str:
     field_type = field._to_resolved()
     return BENCH_RECORD_VALUE_PREFIX + field.tk + field_type.identity_key
 
@@ -180,7 +180,7 @@ def map_builtin_object_to_table(
     node: type[Node], properties: list[Property] | None = None
 ) -> Table:
     """Maps a node type into its builtin Table schema."""
-    table_name = _get_node_table_name(node.metatype)
+    table_name = get_node_table_name(node.metatype)
     columns: list[Column] = []
     constraints: list[Constraint] = []
     indexes: list[Index] = []
@@ -225,7 +225,7 @@ def map_builtin_object_to_table(
             and (not is_local or node.metatype == prop.reference_nodes[0])
         ):
             assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
-            column.is_foreign_key_to = _get_node_table_name(prop.reference_nodes[0])
+            column.is_foreign_key_to = get_node_table_name(prop.reference_nodes[0])
             if prop.reference_kind in (ReferenceKind.NODE_PARENT, ReferenceKind.NODE_ANCESTOR):
                 column.on_delete = CascadeAction.CASCADE
             else:
@@ -286,7 +286,7 @@ def map_database_block_to_table(block: Block) -> Table:
         # all stored Record properties except value, which we unfurl into columns
         properties=[p for p in Record.__stored_properties__.values() if not p.is_value_packed],
     )
-    table_name = _get_record_table_name(block)
+    table_name = get_record_table_name(block)
     columns: list[Column] = [column.clone() for column in base_table.columns]
     constraints: list[Constraint] = [constraint.clone() for constraint in base_table.constraints]
     indexes: list[Index] = [index.clone() for index in base_table.indexes]
@@ -311,7 +311,7 @@ def map_database_block_to_table(block: Block) -> Table:
             raise TypeError(f"cannot store field in {block!r}: {field!r}")
 
         column = Column(
-            name=_get_record_field_name(field),
+            name=get_record_field_name(field),
             type=primitive_type,
             is_array=field.is_list,
             is_nullable=True,  # NOTE :Incomplete: support field constraints in database
