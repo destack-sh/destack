@@ -11,7 +11,12 @@ from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
 from bench.language.session import Session
 from bench.sql.core import Schema, Table
-from bench.sql.graph import BENCH_RECORD_TABLE_PREFIX, BenchSqlContext, map_database_block_to_table
+from bench.sql.graph import (
+    BENCH_RECORD_TABLE_PREFIX,
+    BenchSqlContext,
+    get_record_table_name,
+    map_database_block_to_table,
+)
 from bench.sql.migration import (
     MigrationOpType,
     apply_sql_migration_ops,
@@ -37,6 +42,7 @@ class HostSqlContext(BenchSqlContext):
      (the same applies for other plugins where we need per-version state :IsolatedHostContext)
     """
 
+    custom_tables_by_name: dict[str, Table]  # may include tables for deleted blocks
     custom_tables_by_block: dict[Block, Table]
     databases_by_ck: dict[UUID, Block]
 
@@ -63,11 +69,12 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         self.package = package
         self.context = HostSqlContext(
             bench=bench,
+            custom_tables_by_name={},
             custom_tables_by_block={},
             databases_by_ck={},
         )
 
-    def _init_context(self) -> None:
+    def _init_context_from_blocks(self) -> None:
         databases = [
             node
             for node in self.package._graph.nodes_of_type(Block)
@@ -81,7 +88,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
     async def start(self) -> None:
         # synchronize schemas
         # get target schema
-        self._init_context()
+        self._init_context_from_blocks()
         new_schema = Schema(
             extensions=(), tables=tuple(self.context.custom_tables_by_block.values())
         )
@@ -98,6 +105,8 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 exclude_table_prefixes=(),
                 include_extensions=False,
             )
+            for table in old_schema.tables:
+                self.context.custom_tables_by_name[table.name] = table
             migration_ops = generate_sql_migration_ops(
                 old_schema=old_schema,
                 new_schema=new_schema,
@@ -118,33 +127,50 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 parent = node.parent
                 if isinstance(parent, Block) and parent.type == BlockType.DATABASE:
                     touched_databases_by_ck[parent.ck] = parent
+        if not touched_databases_by_ck:
+            return  # nothing to do
 
         # migrate schema for touched databases (and only those)
-        if touched_databases_by_ck:
-            old_tables = tuple(
-                self.context.custom_tables_by_block[block]
-                for block in touched_databases_by_ck.values()
-                if block in self.context.custom_tables_by_block
+        channel = await session._get_channel_for(
+            self.host.scope, NodeType.RECORD, expect=PostgresChannel
+        )
+        old_tables = []
+        missing_blocks: list[Block] = []
+        for block in touched_databases_by_ck.values():
+            if block in self.context.custom_tables_by_block:
+                old_tables.append(self.context.custom_tables_by_block[block])
+            else:
+                missing_blocks.append(block)
+        if missing_blocks:
+            # load missing blocks' current schema (in case they were restored)
+            table_prefixes = tuple(get_record_table_name(block) for block in missing_blocks)
+            old_schema = await introspect_sql_schema(
+                channel.cur,
+                include_table_prefixes=table_prefixes,
+                exclude_table_prefixes=(),
+                include_extensions=False,
             )
-            old_schema = Schema(extensions=(), tables=old_tables)
-            new_tables_by_block: dict[Block, Table] = {
-                block: map_database_block_to_table(block)
-                for block in touched_databases_by_ck.values()
-            }
-            new_schema = Schema(extensions=(), tables=tuple(new_tables_by_block.values()))
-            migration_ops = generate_sql_migration_ops(
-                old_schema=old_schema,
-                new_schema=new_schema,
-                include_types=(MigrationOpType.CREATE, MigrationOpType.UPDATE),
-            )
-            channel = await session._get_channel_for(
-                self.host.scope, NodeType.RECORD, expect=PostgresChannel
-            )
+            for table in old_schema.tables:
+                old_tables.append(table)
+        # nocheckin: ensure that restored fields of database are restored in commit in on_commit_prepare
+        #  (so probably have to flush to cascade before on_commit_prepare, but need to exclude
+        #   Records (and other state nodes), since they depend on the table created here.. ugh)
+        old_schema = Schema(extensions=(), tables=tuple(old_tables))
+        new_tables_by_block: dict[Block, Table] = {
+            block: map_database_block_to_table(block) for block in touched_databases_by_ck.values()
+        }
+        new_schema = Schema(extensions=(), tables=tuple(new_tables_by_block.values()))
+        migration_ops = generate_sql_migration_ops(
+            old_schema=old_schema,
+            new_schema=new_schema,
+            include_types=(MigrationOpType.CREATE, MigrationOpType.UPDATE),
+        )
+        if migration_ops:
             await apply_sql_migration_ops(channel.cur, migration_ops)
-            # patch context optimistically
-            self.context.custom_tables_by_block.update(new_tables_by_block)
-            self.context.databases_by_ck.update(touched_databases_by_ck)
-            logger.debug("database.migrate", host=self, migration_ops=migration_ops)
+        # patch context optimistically
+        self.context.custom_tables_by_block.update(new_tables_by_block)
+        self.context.databases_by_ck.update(touched_databases_by_ck)
+        logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
     @override
     async def on_commit(self, session: Session, commit: Commit[Block | Field]) -> None:
@@ -156,4 +182,4 @@ class DatabasePlugin(HostPlugin[Block | Field]):
 
     @override
     async def on_commit_failed(self, session: Session, error: Exception) -> None:
-        self._init_context()  # reset context
+        self._init_context_from_blocks()  # reset context
