@@ -44,6 +44,7 @@ from bench.language.const import (
     SortOp,
     TypeKind,
 )
+from bench.language.database import Record
 from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.field import Field
 from bench.language.graph import NodeDataGraph
@@ -53,7 +54,6 @@ from bench.language.query import (
     FILTER_NOT_DELETED,
     QueryBuilder,
 )
-from bench.language.record import Record
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES_IN_STORE,
     HAS_CHILD_NODE_TYPES,
@@ -61,14 +61,18 @@ from bench.language.setup import (
     PARENT_NODE_TYPES,
 )
 from bench.language.value import (
+    PrimitiveValue,
     pack_builtin_object_data,
     pack_proto_date,
     pack_proto_json,
     pack_proto_time,
+    pack_value,
     unpack_builtin_object_data,
     unpack_proto_date,
     unpack_proto_json,
+    unpack_proto_json_struct,
     unpack_proto_time,
+    unpack_value,
     unpack_value_data,
 )
 from bench.proto import wire, wiring
@@ -541,40 +545,62 @@ def _pack_object_value_prop(prop: Property, value: Any) -> SqlPrimitive:
         return [_pack_object_value_prop_scalar(prop, v) for v in value]
 
 
-def _unpack_object_data_prop_scalar(prop: Property, value: Any, into: Any | None = None) -> Any:
+def _unpack_object_data_prop_scalar(
+    prop: Property, value_packed: Any, into: Any | None = None
+) -> Any:
     """Unpacks the value of a BuiltinObject property from Postgres."""
-    if value is None:
+    if value_packed is None:
         return None
     elif prop.reference_struct:
-        return unpack_builtin_object_data(value, into=into)
+        return unpack_builtin_object_data(value_packed, into=into)
     elif prop.primitive_type == PrimitiveType.UUID:
-        return str(value)
+        return str(value_packed)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return pack_proto_json(value)
+        return pack_proto_json(value_packed)
     elif prop.primitive_type == PrimitiveType.DATETIME:
         ts = Timestamp()
-        ts.FromDatetime(value)
+        ts.FromDatetime(value_packed)
         return ts
     elif prop.primitive_type == PrimitiveType.DATE:
-        return pack_proto_date(value)
+        return pack_proto_date(value_packed)
     elif prop.primitive_type == PrimitiveType.TIME:
-        return pack_proto_time(value)
+        return pack_proto_time(value_packed)
     elif prop.primitive_type == PrimitiveType.INTERVAL:
         dur = Duration()
-        dur.FromTimedelta(value)
+        dur.FromTimedelta(value_packed)
         return dur
     else:
-        return value
+        return value_packed
 
 
 def _pack_field_value(field: Field, value: JsonValue) -> SqlPrimitive:
     """Packs the JSON-value-packed value of a Field for storage in Postgres."""
-    raise NotImplementedError("nocheckin: _pack_field_value")
+    if value is None:
+        return None
+    elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
+        if field.primitive_type == PrimitiveType.JSON:
+            return Jsonb(value)
+        else:
+            return cast(PrimitiveValue, unpack_value(value, field, wrap_primitive=False))
+    elif field.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT, TypeKind.OBJECT):
+        return Jsonb(value)
+    else:
+        raise RuntimeError(f"unexpected field kind: {field!r}")
 
 
-def _unpack_field_value(field: Field, value: Any) -> JsonValue:
+def _unpack_field_value(field: Field, value_packed: Any) -> JsonValue:
     """Unpacks the JSON-value-packed value of a Field from Postgres."""
-    raise NotImplementedError("nocheckin: _unpack_field_value")
+    if value_packed is None:
+        return None
+    elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
+        if field.primitive_type == PrimitiveType.JSON:
+            return value_packed
+        else:
+            return pack_value(value_packed, field, wrap_primitive=False)
+    elif field.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT, TypeKind.OBJECT):
+        return value_packed
+    else:
+        raise RuntimeError(f"unexpected field kind: {field!r}")
 
 
 def _pg_pack_node_reference_into_row(
@@ -760,13 +786,17 @@ def _pg_pack_node_data_row(
             value_packed_prop = value_runtime_prop.value_packed_ptr
             assert type(value_packed_prop) is Property, f"unexpected packed: {value_packed_prop!r}"
             value_packed_any: ProtoValue | None = getattr(node, value_packed_prop.name)
-            value_packed = value_packed_any.struct_value if value_packed_any is not None else None
+            value_packed = (
+                unpack_proto_json_struct(value_packed_any.struct_value)
+                if value_packed_any is not None
+                else None
+            )
             for field in block.fields:
                 if field.type != FieldType.MEMBER:
                     continue
                 column = node_table.get_column(field)
-                if value_packed is not None and value_packed.HasField(field.identity_key):
-                    field_value = value_packed[field.identity_key]
+                if value_packed is not None:
+                    field_value = value_packed.get(field.storage_key)
                 else:
                     field_value = None
                 row[column.name] = _pack_field_value(field, field_value)
@@ -836,7 +866,7 @@ def _pg_unpack_node_data_row(
                 column = node_table.get_column(field)
                 field_value = row.get(column.name)
                 field_value_packed = _unpack_field_value(field, field_value)
-                value_packed.__setitem__(field.identity_key, field_value_packed)
+                value_packed.__setitem__(field.storage_key, field_value_packed)
 
         return obj_data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
@@ -1079,6 +1109,7 @@ async def pg_graph_get(
         root_query = QueryBuilder(
             QueryType.GET,
             node_type=query._node_type,
+            block=query._block,
             filter=root_filter,
             select=query._select,
             include_deleted=query.include_deleted,
@@ -1184,6 +1215,7 @@ async def pg_graph_search(
         get_query = QueryBuilder(
             QueryType.GET,
             query._node_type,
+            block=query._block,
             roots=roots_ptrs,
             ancestor_types=query._ancestor_types,
             descendant_types=query._descendant_types,
@@ -1480,7 +1512,10 @@ async def _pg_edit_batch(
                     new_value_packed = [] if prop.is_list else None
                 else:
                     new_value_packed = unpack_proto_json(op.new_value_packed)
-                if not prop.is_node_reference:
+                if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:
+                    # unravel value
+                    raise NotImplementedError("nocheckin: pg_graph_edit: update value_packed")
+                elif not prop.is_node_reference:
                     # regular non-ref property
                     value = _pack_object_value_prop(prop, new_value_packed)
                     row[prop.name] = value

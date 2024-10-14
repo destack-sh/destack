@@ -64,6 +64,7 @@ from .const import (
     StructType,
     TriggerType,
 )
+from .database import Record
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import (
     Field,
@@ -114,7 +115,6 @@ from .query import (
     QueryInfo,
     SelectOptions,
 )
-from .record import Record
 from .render import render, render_expr, render_stmt
 from .run import (
     Run,

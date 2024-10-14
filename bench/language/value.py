@@ -324,6 +324,9 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
     value_packed = getattr(obj, wired_prop.name)
     value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
     if value_type is not None and value_type.kind == TypeKind.OBJECT:
+        if value_packed is None:
+            value_packed = {}
+            obj._do_set(wired_prop.name, value_packed, track=False, validate=False)
         value = CustomObject(value_type, value_packed, parent=obj, parent_key=wired_prop)
     elif (
         value_packed is None
@@ -1249,7 +1252,7 @@ def pack_proto_json_struct(value: dict[str, Any]) -> ProtoValue:
     return proto_value
 
 
-def unpack_proto_json_struct(value: ProtoValue) -> dict[str, Any]:
+def unpack_proto_json_struct(value: ProtoValue | ProtoStruct) -> dict[str, Any]:
     json = MessageToDict(value)
     return json
 

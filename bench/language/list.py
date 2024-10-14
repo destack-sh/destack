@@ -293,13 +293,16 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     ) -> "QueryBuilder[V, VD]":
         return self.query().order_by(sort, *args)
 
-    def include(self, *properties: FieldOrProperty) -> "QueryBuilder[V, VD]":
+    def include(self, *properties: "Property") -> "QueryBuilder[V, VD]":
         return self.query().include(*properties)
+
+    def select(self, *keys: FieldOrProperty) -> "QueryBuilder[V, VD]":
+        return self.query().select(*keys)
 
     def select_all(self) -> "QueryBuilder[V, VD]":
         return self.query().select_all()
 
-    def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[V, VD]":
+    def exclude(self, *properties: "Property") -> "QueryBuilder[V, VD]":
         return self.query().exclude(*properties)
 
     def include_ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[V, VD]":
