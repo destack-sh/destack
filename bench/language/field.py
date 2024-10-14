@@ -686,6 +686,10 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         return (cast(FieldData, data)).parent_ptr
 
     @property
+    def type_info(self) -> TypeInfoBase:
+        return self
+
+    @property
     def storage_key(self) -> str:
         return encode_storage_key(self)
 

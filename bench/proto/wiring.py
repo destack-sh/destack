@@ -19,7 +19,12 @@ from bench.language.property import Property
 from bench.language.session import Session
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
-from bench.language.value import pack_proto_json, unpack_proto_json
+from bench.language.value import (
+    CustomObject,
+    pack_custom_object,
+    pack_proto_json,
+    unpack_proto_json,
+)
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.proto.wire.lang_pb2 import FileReferenceData, SecretReferenceData
@@ -65,7 +70,7 @@ def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> Enum
 #
 
 
-def pack_object_prop_scalar(prop: Property, value: Any) -> Any:
+def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> Any:
     if value is None:
         return None
     elif prop.is_struct:
@@ -82,6 +87,14 @@ def pack_object_prop_scalar(prop: Property, value: Any) -> Any:
             id=value_id,
             ck=str(value.ck) if value.ck is not None else value_id,
         )
+    elif prop.is_value_packed:  # custom object
+        # NOTE :Performance: avoid roundtripping value unpacking/packing if possible
+        #  (here we force unpack and then repack the value even if it wasn't unpacked before)
+        assert prop.value_runtime_ptr is not None, f"no value_runtime_ptr for {prop!r}"
+        value = getattr(obj, prop.value_runtime_ptr.name)
+        assert type(value) is CustomObject, f"unexpected value {value} {type(value)} for {prop!r}"
+        value_packed = pack_custom_object(value, value._type)
+        return pack_proto_json(value_packed)
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.primitive_type == PrimitiveType.JSON:
@@ -96,15 +109,6 @@ def pack_object_prop_scalar(prop: Property, value: Any) -> Any:
         return dur
     else:
         return value
-
-
-def pack_object_prop(prop: Property, value: Any) -> Any:
-    if value is None:
-        return None
-    elif not prop.is_list:
-        return pack_object_prop_scalar(prop, value)
-    else:
-        return [pack_object_prop_scalar(prop, v) for v in value]
 
 
 def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
@@ -173,10 +177,12 @@ def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> An
     return getattr(obj_data, prop_name)
 
 
-def pack_and_set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
+def pack_and_set_object_prop(
+    obj: BuiltinObject, obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any
+):
     """Pack and set the given property on the given data object."""
     if not prop.is_list:  # scalar
-        packed_value = pack_object_prop_scalar(prop, value)
+        packed_value = pack_object_prop_scalar(obj, prop, value)
         if isinstance(packed_value, ProtoMessage):  # message field
             if prop.reference_is_rich:  # one of field, set appropriate one
                 prop_name = get_rich_reference_prop_name(prop, packed_value)
@@ -198,7 +204,7 @@ def pack_and_set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Proper
                 _ = pack_object(item, into=packed_item)
         else:
             for item in value:
-                packed_item = pack_object_prop_scalar(prop, item)
+                packed_item = pack_object_prop_scalar(obj, prop, item)
                 packed_value.append(packed_item)
 
 
@@ -236,7 +242,7 @@ def pack_object[T: AnyStructData | AnyNodeData](
             value = getattr(obj, prop.name)
             if value is None:
                 continue
-            pack_and_set_object_prop(obj_data, prop, value)
+            pack_and_set_object_prop(obj, obj_data, prop, value)
         return cast(T, obj_data)
     except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e

@@ -282,7 +282,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def __repr__(self):
         if self._block is not None:
-            return f"<{self._block.code_name}Query {self} in {self._block}>"
+            return f"<{self._block.code_name}Query {self}>"
         else:
             return f"<{self._node_type.bench_name}Query {self}>"
 
@@ -372,7 +372,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def order_by(
         self,
-        sort: Union[list[Union["Expression", str]], str, "Expression", None] = None,
+        sort: Union[
+            list[Union["Expression", str]], str, "Expression", "Field", "Property", None
+        ] = None,
         *args: str,
     ) -> "QueryBuilder[NodeT, NodeDataT]":
         """Sorts the query results by the given sort criteria."""

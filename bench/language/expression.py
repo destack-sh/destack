@@ -363,7 +363,7 @@ def coerce_conditional(
 
 def coerce_sort(
     node: Union[Node, type[Node], "Block"],
-    sort: list[Expression | str] | Expression | str | None,
+    sort: "Sequence[Expression | str | Field | Property] | Expression | str | Field | Property | None",
     *args: str,
 ) -> Optional[list[Expression]]:
     """
@@ -371,6 +371,8 @@ def coerce_sort(
     Strings are looked up as field names/identifiers.
     Like in Django, prefix with "-" for descending.
     """
+    from bench.language.field import Field
+
     # coerce into list[Expression | str]
     if sort is None:
         if args is None:
@@ -383,8 +385,8 @@ def coerce_sort(
     if not isinstance(sort, (list, tuple)):
         raise TypeError(f"expected sort to be a list or tuple, got {sort}")
     if args:
-        sort = cast(list[Expression | str], (*sort, *args))
-    sort = cast(list[Expression | str], sort)
+        sort = cast("Sequence[Expression | str | Field | Property]", (*sort, *args))
+    sort = cast("Sequence[Expression | str | Field | Property]", sort)
 
     # map into sorts
     coerced = []
@@ -411,6 +413,12 @@ def coerce_sort(
             else:
                 item = S(op, field=target, property=None)
             _check_type_supports(target.type_info, op)
+        elif isinstance(item, Field):
+            _check_type_supports(item, SortOp.ASCENDING)
+            item = S(SortOp.ASCENDING, field=item)
+        elif isinstance(item, Property):
+            _check_type_supports(item.type_info, SortOp.ASCENDING)
+            item = S(SortOp.ASCENDING, property=item)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)

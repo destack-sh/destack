@@ -104,6 +104,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     is_value_runtime: bool = False  # for user 'value' properties
     is_value_packed: bool = False  # for packed value properties (the underlying value)
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
+    value_runtime_ptr: Union["Property", None] = None  # the runtime value
     value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None = None
 
     # references to nodes or structs
@@ -667,6 +668,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
             if isinstance(self.value_packed_ptr, int):
                 self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
+            self.value_packed_ptr.value_runtime_ptr = self
+            self.value_packed_ptr.value_type_info_getter = self.value_type_info_getter
 
         # resolve py type
         if (

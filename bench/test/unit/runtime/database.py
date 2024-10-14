@@ -5,6 +5,7 @@ from bench.language.block import Block
 from bench.language.const import BlockType
 from bench.language.field import Field
 from bench.language.session import Session
+from bench.language.text import Text, md
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -68,6 +69,7 @@ async def test_create_database_and_records_simultaneously(hosted_runtime: Runtim
 
 async def test_update_record(hosted_runtime: RuntimeHandle):
     """Update a record and query it."""
+    # nocheckin: check different field types
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     hosted_runtime.page().blocks.append(Database1)
 
@@ -82,3 +84,69 @@ async def test_update_record(hosted_runtime: RuntimeHandle):
     await hosted_runtime.session.commit()
     records = await Database1.records.search()
     assert records[0].Name == "Record1.1"  # type: ignore
+
+
+async def test_delete_restore_record(hosted_runtime: RuntimeHandle):
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
+    hosted_runtime.page().blocks.append(Database1)
+    Record1 = Database1.records.create(Name="Record1")
+    Record2 = Database1.records.create(Name="Record2")
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record1, Record2]
+
+    # delete
+    Record1.delete()
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record2]
+
+    # insert
+    Record3 = Database1.records.create(Name="Record3")
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record3, Record2]
+
+    # delete
+    Record2.delete()
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record3]
+
+    # restore
+    Record1.restore()
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record1, Record3]
+
+
+async def test_search_record(hosted_runtime: RuntimeHandle):
+    """Insert, update and query Records with various filters."""
+    Database1 = Block.new(
+        BlockType.DATABASE,
+        "Database1",
+        fields=[
+            Field.member("Name", str),
+            Field.member("Age", int),
+            Field.member("Description", Text),
+        ],
+    )
+    hosted_runtime.page().blocks.append(Database1)
+    Record1 = Database1.records.create(Name="Alice", Age=30, Description=md("Alice is a *person*."))
+    Record2 = Database1.records.create(Name="Bob", Age=40, Description=md("Bob is a *goat*."))
+    Record3 = Database1.records.create(
+        Name="Charlie", Age=50, Description=md("Charlie is a *cat*.")
+    )
+    await hosted_runtime.session.commit()
+
+    Result = await Database1.records.get(Database1.fields.Age == 40)  # type: ignore
+    assert Result == Record2
+
+    Result = await Database1.records.get(Name="Charlie")
+    assert Result == Record3
+
+    Result = await Database1.records.search(Database1.fields.Age >= 40)
+    assert Result == [Record2, Record3]
+
+    Result = await Database1.records.order_by(Database1.fields.Age).search()
+    assert Result == [Record1, Record2, Record3]

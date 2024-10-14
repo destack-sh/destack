@@ -108,7 +108,7 @@ class CustomObject(Mapping[str, Any]):
         parent_key: ValueParentKey | None = None,
     ):
         self._type = type
-        self._value = value
+        self._value = value  # unpacked value
         self.parent = parent
         self.parent_key = parent_key
 
@@ -1031,13 +1031,15 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     return value
 
 
-def pack_custom_object(value: CustomObject, typ: "TypeInfoBase") -> dict[str, JsonValue]:
+def pack_custom_object(
+    value: CustomObject | dict[str, SomeValue], typ: "TypeInfoBase"
+) -> dict[str, JsonValue]:
     """
     Packs an object value into a JSON representation.
     """
     value_packed: dict[str, JsonValue] = {}
-    _value = value._value
-    if _value is None:
+    _value = value._value if isinstance(value, CustomObject) else value
+    if not _value:
         return value_packed  # empty value
 
     for field in typ._base_fields:

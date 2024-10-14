@@ -289,7 +289,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         return self.query().where(filter, **kwargs)
 
     def order_by(
-        self, sort: Optional["Expression"] | str = None, *args: str
+        self, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
     ) -> "QueryBuilder[V, VD]":
         return self.query().order_by(sort, *args)
 
