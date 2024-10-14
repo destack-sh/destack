@@ -118,6 +118,7 @@ from bench.sql.engine import (
     _trace_pg_span,
     pg_count,
     pg_delete,
+    pg_exists,
     pg_insert,
     pg_select,
     pg_update_variable,
@@ -975,7 +976,8 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Qu
     )
 
     # count
-    return await pg_count(cur=cur, ctx=ctx, table=node_table, where=where)
+    count = await pg_count(cur=cur, ctx=ctx, table=node_table, where=where)
+    return count
 
 
 @_trace_pg_span
@@ -983,7 +985,24 @@ async def pg_graph_exists(
     *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder
 ) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
-    raise NotImplementedError("nocheckin: pg_graph_exists")
+    # compile
+    node_type = query._node_type
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    block = query._block
+    if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
+        node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
+    else:
+        node_table, _ = ctx.get_custom_table(query.block)
+    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+    where = (
+        _pg_compile_conditional(node_type, node_cls, node_table, block, filter)
+        if filter is not None
+        else None
+    )
+
+    # exists
+    exists = await pg_exists(cur=cur, ctx=ctx, table=node_table, where=where)
+    return exists
 
 
 @_trace_pg_span

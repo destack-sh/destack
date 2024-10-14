@@ -1598,7 +1598,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if self.__parent_property__ is None:
             return f"{ident_str}{content_str}{status_str}"
         else:
-            return f"'{self.absolute_path}'{content_str}{status_str}"
+            return f"{self.absolute_path}{content_str}{status_str}"
 
     @final
     def __repr__(self):  # type: ignore
@@ -1845,7 +1845,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @classmethod
     def order_by(
-        cls, sort: Optional["Expression"] | str = None, *args: str
+        cls, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
     ) -> "QueryBuilder[Self, NodeDataT]":
         return cls.query().order_by(sort, *args)
 
