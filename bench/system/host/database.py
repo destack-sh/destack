@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, cast, override
 from uuid import UUID
 
 import structlog
@@ -31,7 +31,11 @@ tracer = trace.get_tracer(__name__)
 
 @dataclass(slots=True)
 class HostSqlContext(BenchSqlContext):
-    """Host context for SQL operations (with custom databases)."""
+    """
+    Host context for SQL operations (with custom databases).
+    NOTE :Architecture: ideally context like this should be per-branch (and even per-tx)
+     (the same applies for other plugins where we need per-version state :IsolatedHostContext)
+    """
 
     custom_tables_by_block: dict[Block, Table]
     databases_by_ck: dict[UUID, Block]
@@ -63,9 +67,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             databases_by_ck={},
         )
 
-    async def start(self) -> None:
-        # synchronize schemas
-        # get target schema
+    def _init_context(self) -> None:
         databases = [
             node
             for node in self.package._graph.nodes_of_type(Block)
@@ -75,6 +77,11 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             table = map_database_block_to_table(database)
             self.context.custom_tables_by_block[database] = table
             self.context.databases_by_ck[database.ck] = database
+
+    async def start(self) -> None:
+        # synchronize schemas
+        # get target schema
+        self._init_context()
         new_schema = Schema(
             extensions=(), tables=tuple(self.context.custom_tables_by_block.values())
         )
@@ -101,7 +108,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
     @override
-    async def extend_commit(self, session: Session, commit: Commit[Block | Field]) -> None:
+    async def on_commit_prepare(self, session: Session, commit: Commit[Block | Field]) -> None:
         # check if any databases were touched
         touched_databases_by_ck: dict[UUID, Block] = {}
         for node in commit.edited:
@@ -134,12 +141,19 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 self.host.scope, NodeType.RECORD, expect=PostgresChannel
             )
             await apply_sql_migration_ops(channel.cur, migration_ops)
-            # patch context
+            # patch context optimistically
             self.context.custom_tables_by_block.update(new_tables_by_block)
             self.context.databases_by_ck.update(touched_databases_by_ck)
             logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
     @override
     async def on_commit(self, session: Session, commit: Commit[Block | Field]) -> None:
-        # nocheckin: update sql context only on commit
-        ...
+        # actually remove tables for removed databases
+        for node in commit.removed:
+            if node.ck in self.context.databases_by_ck:
+                del self.context.databases_by_ck[node.ck]
+                del self.context.custom_tables_by_block[cast(Block, node)]
+
+    @override
+    async def on_commit_failed(self, session: Session, error: Exception) -> None:
+        self._init_context()  # reset context

@@ -215,7 +215,6 @@ async def make_remote_session(
         _host=host_client,
         _oracle=oracle,
         _supergraph=supergraph,
-        _on_error=simulation.on_error,
     )
     session.user = unpack_object(
         client.user.user_data,

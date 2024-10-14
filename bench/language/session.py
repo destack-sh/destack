@@ -167,7 +167,7 @@ class Session(RuntimeNode[SessionData]):
     _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
     _local_epoch: int | None = p_runtime(default=None)
-    _extend_commit: (
+    _on_commit_prepare: (
         Callable[
             ["Session", NodeGraphLike, NodeDataGraphLike, Sequence["EditData"]],
             Awaitable[Sequence[EditData]],
@@ -181,7 +181,9 @@ class Session(RuntimeNode[SessionData]):
         ]
         | None
     ) = p_runtime(default=None)
-    _on_error: Callable[[Exception], None] | None = p_runtime(default=None)
+    _on_commit_failed: Callable[["Session", Exception], Awaitable[None]] | None = p_runtime(
+        default=None
+    )
 
     # runtime
     _oracle: Oracle = p_runtime()
@@ -711,12 +713,12 @@ class Session(RuntimeNode[SessionData]):
             async with self._tx_lock:
                 assert self._tx is not None, f"no active transaction in {self!r}"
                 # extend commit hook
-                if self._extend_commit is not None:
+                if self._on_commit_prepare is not None:
                     if graph is None:
                         graph = NodeDict(self._pending_nodes_by_id)
                     if data_graph is None:
                         data_graph = self._make_pending_data_graph()
-                    new_edits: Sequence[EditData] = await self._extend_commit(
+                    new_edits: Sequence[EditData] = await self._on_commit_prepare(
                         self, graph, data_graph, self._tx._edits + self._tx._pending_edits
                     )
                     self._tx.add_edits(new_edits)
@@ -736,9 +738,12 @@ class Session(RuntimeNode[SessionData]):
 
             log.debug("session.commit")
             return edits, cascaded_edits
-        except ChannelUnavailableError as e:
-            logger.error("session.commit.error", session=self, error=e)
-            self._tx.reset()
+        except Exception as e:
+            if isinstance(e, ChannelUnavailableError):
+                logger.error("session.commit.error", error=e)
+                self._tx.reset()
+            if self._on_commit_failed is not None:
+                self._on_commit_failed(self, e)
             raise
 
     @tracer.start_as_current_span("session.flush.schedule")

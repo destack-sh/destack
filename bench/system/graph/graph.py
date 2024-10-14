@@ -214,8 +214,9 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             _default_scope=self._scope,
             _engines=engines if engines is not None else self.get_engines(),
             _local_epoch=self.epoch,
-            _extend_commit=self._extend_commit_hook if not raw_commit else None,
+            _on_commit_prepare=self._on_commit_prepare_hook if not raw_commit else None,
             _on_commit=self._on_commit_hook if not raw_commit else None,
+            _on_commit_failed=self._on_commit_failed_hook if not raw_commit else None,
             _supergraph=supergraph,
             _split_read=self.split_reads,
             _oracle=self.oracle,
@@ -232,18 +233,28 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         return area
 
     @final
-    async def _extend_commit_hook(
+    async def _on_commit_prepare_hook(
         self,
         session: Session,
         graph: NodeGraphLike,
         data_graph: NodeDataGraphLike,
         edits: Sequence[EditData],
     ) -> Sequence[EditData]:
-        return await self.extend_commit(
+        return await self.on_commit_prepare(
             session=session, graph=graph, data_graph=data_graph, context=None, edits=edits
         )
 
-    @final
+    async def on_commit_prepare(
+        self,
+        session: Session,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraphLike,
+        context: SessionContext | None,
+        edits: Sequence[EditData],
+    ) -> Sequence[EditData]:
+        """Extend a commit. Returns any new edits."""
+        return []  # do nothing by default
+
     async def _on_commit_hook(
         self,
         session: Session,
@@ -262,17 +273,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             cascaded_edits=cascaded_edits,
         )
 
-    async def extend_commit(
-        self,
-        session: Session,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
-        context: SessionContext | None,
-        edits: Sequence[EditData],
-    ) -> Sequence[EditData]:
-        """Extend a commit. Returns any new edits."""
-        return []  # do nothing by default
-
     async def on_commit(
         self,
         session: Session,
@@ -283,6 +283,18 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     ):
         """Handle an accepted commit."""
         self.connector.on_commit(data_graph, edits, cascaded_edits, self.epoch)  # update cache
+
+    @final
+    async def _on_commit_failed_hook(
+        self,
+        session: Session,
+        exc: Exception,
+    ) -> None:
+        await self.on_commit_failed(session=session, exc=exc)
+
+    async def on_commit_failed(self, session: Session, exc: Exception):
+        """Handle a failed commit."""
+        pass  # do nothing by default
 
     async def _do_commit(
         self,
