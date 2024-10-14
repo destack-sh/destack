@@ -1596,7 +1596,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             ident_str = str(self.id)
         status_str = " [deleted]" if self.deleted_at is not None else ""
         if self.__parent_property__ is None:
-            return f"'{ident_str}'{content_str}{status_str}"
+            return f"{ident_str}{content_str}{status_str}"
         else:
             return f"'{self.absolute_path}'{content_str}{status_str}"
 
@@ -1850,15 +1850,19 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return cls.query().order_by(sort, *args)
 
     @classmethod
-    def include(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+    def include(cls, *properties: Property) -> "QueryBuilder[Self, NodeDataT]":
         return cls.query().include(*properties)
+
+    @classmethod
+    def select(cls, *keys: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+        return cls.query().select(*keys)
 
     @classmethod
     def select_all(cls) -> "QueryBuilder[Self, NodeDataT]":
         return cls.query().select_all()
 
     @classmethod
-    def exclude(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+    def exclude(cls, *properties: Property) -> "QueryBuilder[Self, NodeDataT]":
         return cls.query().exclude(*properties)
 
     @classmethod

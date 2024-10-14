@@ -30,6 +30,8 @@ def test_create_record_kwargs(session: Session):
     assert Record2.Aliases == ["R3", "R4"]  # type: ignore
     with pytest.raises(AttributeError):
         _ = Record2.NonExistent  # type: ignore
+    assert Record2.value_packed is not None
+    assert Record2.value_packed[Database1.fields.Name.storage_key] == "Record2"
 
 
 async def test_create_empty_database_block(hosted_runtime: RuntimeHandle):
@@ -60,3 +62,5 @@ async def test_create_database_and_records_simultaneously(hosted_runtime: Runtim
 
     records = await Database1.records.search()
     assert records == [Record1, Record2]
+    assert records[0].Name == "Record1"  # type: ignore
+    assert records[1].Name == "Record2"  # type: ignore

@@ -45,8 +45,8 @@ class Record(StateNode[RecordData], HasNodeBase):
     def __repr__(self):  # type: ignore
         # override the default __repr__ for records
         block = self.block
-        type_name = block.code_name if block is not None else "?Record"
-        return f"<{type_name} {self!s}>"
+        type_name = block.code_name if block is not None else "?"
+        return f"<{type_name}Record {self!s}>"
 
     def __content_str__(self):
         value = self.value

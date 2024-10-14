@@ -102,7 +102,7 @@ class SelectOptions(Struct):
     )
 
     # fields
-    select_all_fields: bool = p_regular(50, default=False)
+    select_all_fields: bool = p_regular(50, default=True)
     select_fields: list["Field"] = p_regular(
         51, require=True, array=True, references=NodeType.FIELD
     )
@@ -281,20 +281,13 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return ", ".join(content_parts) if content_parts else "<empty>"
 
     def __repr__(self):
-        return f"<{self._node_type.bench_name}Query.{self._type.bench_name} {self}>"
+        if self._block is not None:
+            return f"<{self._block.code_name}Query {self} in {self._block}>"
+        else:
+            return f"<{self._node_type.bench_name}Query {self}>"
 
     def _stable_hash(self):
         return stable_hash(
-            # self._type,
-            # self._node_type,
-            # self._block._stable_hash() if self._block is not None else None,
-            # self._filter._stable_hash() if self._filter is not None else None,
-            # tuple(r._stable_hash() for r in self._roots) if self._roots is not None else None,
-            # tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
-            # self._first,
-            # self._skip,
-            # self._aggregation._stable_hash() if self._aggregation is not None else None,
-            # self._select._stable_hash() if self._select is not None else None,
             # root
             self._type,
             self._node_type,
@@ -410,18 +403,32 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         clone._aggregation = aggregation
         return clone
 
-    def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
+    def include(self, *properties: Property) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.include_properties += self._to_properties(properties)
         return clone
 
+    def select(self, *keys: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
+        """Selects only the given properties/fields in the results."""
+        clone = self.clone()
+        clone._select = self._clone_select()
+        for key in keys:
+            if isinstance(key, Property):
+                clone._select.select_all_properties = False
+                clone._select.select_properties.append(key)
+            else:
+                clone._select.select_all_fields = False
+                clone._select.select_fields.append(key)
+        return clone
+
     def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
-        """Includes all (non-relational) properties in the results."""
+        """Includes all properties/fields in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.select_all_properties = True
+        clone._select.select_all_fields = True
         return clone
 
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
@@ -719,7 +726,6 @@ class Query(SourceNode[QueryData], QueryInfoBase):
             first=None,
             skip=None,
             aggregation=None,
-            select=self.select,
         )
 
     # ... ReadQueryBase methods
