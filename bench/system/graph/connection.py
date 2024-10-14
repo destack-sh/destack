@@ -386,7 +386,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
         assert self._result_data is not None, f"no result for {self!r}"
         assert self._result_roots_ids is not None, f"no result for {self!r}"
 
-        # NOTE :Incomplete: support ancestors/descendants in (live) search connection
+        # NOTE :Incomplete: support ancestors/descendants/joins in (live) search connection
         #  This seems tricky because we'll have to re-query somehow when a new root is added
         #   (we don't have its ancestors/descendants ready anywhere),
         #  and because we need to somehow split roots from descendants/ancestors if they

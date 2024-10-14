@@ -128,9 +128,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 raise RuntimeError(f"unexpected client: {client!r}")
 
     @override
-    def resolve_request_block(
-        self, request: ProtoMessage, block_ptr: NodeReference
-    ) -> Block | None:
+    def resolve_request_block(self, block_ptr: UUID | NodeReference) -> Block | None:
         raise RuntimeError("supervisor does not support block-level requests")
 
     #
@@ -255,7 +253,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
             user = (
-                await User.include(User.password_salt, User.password_hash)
+                await User.include(
+                    User.get_property("password_salt"), User.get_property("password_hash")
+                )
                 .include_descendants(NodeType.CLIENT)
                 .get(User.__properties__[key_name] == key_value)
             )

@@ -118,7 +118,7 @@ async def get_client(client_id: UUID, client_access_token: str):
 async def _do_get_client(client_id: UUID) -> Client:
     try:
         client: Client = (
-            await Client.include(User.email, Client.access_token)
+            await Client.include(User.get_property("email"), Client.get_property("access_token"))
             .include_ancestors(User, Server, Bench)
             .get(id=client_id)
         )

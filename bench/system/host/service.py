@@ -295,11 +295,10 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         return subject
 
     @override
-    def resolve_request_block(
-        self, request: ProtoMessage, block_ptr: NodeReference
-    ) -> Block | None:
-        assert block_ptr.id, f"no block id in {block_ptr!r}"
-        node = self.main_package._graph.get(block_ptr.id)
+    def resolve_request_block(self, block_ptr: NodeReference | UUID) -> Block | None:
+        block_ck = block_ptr.ck if isinstance(block_ptr, NodeReference) else block_ptr
+        assert block_ck, f"no block ck in {block_ptr!r}"
+        node = self.main_package._graph.get(block_ck)
         if not isinstance(node, Block):
             return None
         return node

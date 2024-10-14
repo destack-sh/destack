@@ -1,3 +1,4 @@
+import { TK_LENGHT_IN_CK, TK_LENGTH_B64 } from "@/language/const";
 import { decodeTypeIdentity, getPropertyType, TypeIdentity } from "@/language/field";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
@@ -74,8 +75,8 @@ export function newTransactionId(): string {
 // Transaction
 //
 
-// connection ids are positive, so this connection id is used to prevent an edit from being used in an overlay graph 
-export const CONNECTION_IGNORE = Number.MIN_SAFE_INTEGER; 
+// connection ids are positive, so this connection id is used to prevent an edit from being used in an overlay graph
+export const CONNECTION_IGNORE = Number.MIN_SAFE_INTEGER;
 
 /** Metadata for a transaction (mostly local only). */
 export type TransactionMeta = {
@@ -489,7 +490,7 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
         valueType = getPropertyType(prop);
       } else {
         // custom object field
-        valueType = decodeTypeIdentity(key);
+        valueType = decodeTypeIdentity(key.slice(TK_LENGTH_B64));
       }
       let newValue: any;
       if (operation.type == EditOperationType.SET) {
