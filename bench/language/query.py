@@ -363,7 +363,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Adds a filter clause to the query."""
         from bench.language.expression import coerce_conditional
 
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        filter = coerce_conditional(
+            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+        )
         clone = self.clone()
         clone._filter = (
             filter & self._filter if filter is not None and self._filter is not None else filter
@@ -381,7 +383,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.expression import coerce_sort
 
         clone = self.clone()
-        clone._sort = coerce_sort(self._node_cls, sort, *args)
+        clone._sort = coerce_sort(node_cls=self._node_cls, block=self._block, expr=sort, args=args)
         return clone
 
     def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
@@ -537,7 +539,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
                 return cast(list[NodeT], connection.result.roots)
         else:
             # search which should only have one result
-            filter = coerce_conditional(self._node_cls, filter, kwargs)
+            filter = coerce_conditional(
+                node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+            )
             query = self.where(filter) if filter is not None else self.clone()
             results = await query.search()
             if len(results) != 1:
@@ -552,7 +556,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Fetches the nodes matching the query."""
         from bench.language.connection import SearchOptions
 
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        filter = coerce_conditional(
+            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+        )
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
         connection = await channel.search(
@@ -567,7 +573,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Fetches the nodes matching the query (live)."""
         from bench.language.connection import SearchOptions
 
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        filter = coerce_conditional(
+            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+        )
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
         connection = await channel.search(query, SearchOptions(live=True, unpack=True, count=False))
@@ -582,7 +590,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.expression import A, coerce_conditional
 
         # prepare
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        filter = coerce_conditional(
+            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+        )
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
         query._type = QueryType.AGGREGATE
@@ -601,7 +611,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.expression import A, coerce_conditional
 
         # prepare
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        filter = coerce_conditional(
+            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+        )
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
         query._type = QueryType.AGGREGATE
