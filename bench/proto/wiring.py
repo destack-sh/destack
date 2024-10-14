@@ -12,7 +12,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.connection import Connection
-from bench.language.const import NodeType, ObjectType, PrimitiveType
+from bench.language.const import NodeType, ObjectType, PrimitiveType, TypeKind
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph, NodeReference
 from bench.language.property import Property
@@ -90,10 +90,18 @@ def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> A
     elif prop.is_value_packed:  # custom object
         # NOTE :Performance: avoid roundtripping value unpacking/packing if possible
         #  (here we force unpack and then repack the value even if it wasn't unpacked before)
-        assert prop.value_runtime_ptr is not None, f"no value_runtime_ptr for {prop!r}"
-        value = getattr(obj, prop.value_runtime_ptr.name)
-        assert type(value) is CustomObject, f"unexpected value {value} {type(value)} for {prop!r}"
-        value_packed = pack_custom_object(value, value._type)
+        assert prop.value_type_info_getter is not None, f"no value_type_info_getter for {prop!r}"
+        typ = prop.value_type_info_getter(obj)
+        assert typ is not None, f"no type for {prop!r}"
+        if typ.kind == TypeKind.OBJECT:
+            assert prop.value_runtime_ptr is not None, f"no value_runtime_ptr for {prop!r}"
+            value = getattr(obj, prop.value_runtime_ptr.name)
+            assert (
+                type(value) is CustomObject
+            ), f"unexpected value {value} {type(value)} for {prop!r}"
+            value_packed = pack_custom_object(value, value._type)
+        else:
+            value_packed = value
         return pack_proto_json(value_packed)
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings

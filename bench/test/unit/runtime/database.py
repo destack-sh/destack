@@ -139,14 +139,26 @@ async def test_search_record(hosted_runtime: RuntimeHandle):
     )
     await hosted_runtime.session.commit()
 
+    # get by ref
+    Result = await Database1.records.get(Record1.to_ref())
+    assert Result == Record1
+
+    # get by id
+    Result = await Database1.records.get(id=Record2.id)
+    assert Result == Record2
+
+    # get by custom column
     Result = await Database1.records.get(Database1.fields.Age == 40)  # type: ignore
     assert Result == Record2
 
+    # get by custom column
     Result = await Database1.records.get(Name="Charlie")
     assert Result == Record3
 
+    # filter by custom column
     Result = await Database1.records.search(Database1.fields.Age >= 40)
     assert Result == [Record2, Record3]
 
+    # order by custom column
     Result = await Database1.records.order_by(Database1.fields.Age).search()
     assert Result == [Record1, Record2, Record3]

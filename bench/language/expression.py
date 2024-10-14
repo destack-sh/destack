@@ -26,6 +26,7 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.node import (
+    HasNodeBase,
     Node,
     NodeReference,
     NodeReferenceBase,
@@ -126,7 +127,12 @@ class Expression(Struct):
         32, require=False, default=None, array=False, references=NodeType.FIELD
     )
     block: Optional["Block"] = p_regular(
-        33, require=False, default=None, array=False, references=NodeType.FIELD
+        33,
+        require=False,
+        default=None,
+        array=False,
+        references=NodeType.FIELD,
+        description="The Block the Field refers to (if ambiguous).",
     )
     if TYPE_CHECKING:
         property_ptr: Optional[PropertyReference] = None
@@ -171,8 +177,12 @@ class Expression(Struct):
 
     @property_
     def value_type(self) -> "TypeInfoBase | None":
-        if self.property is not None:
-            typ = self.property.type_info
+        prop = self.property
+        field = self.field
+        if prop is not None:
+            typ = prop.type_info
+        elif field is not None:
+            typ = field.type_info
         else:
             return None
         # wrap as list if needed (NOTE :Performance)
@@ -224,10 +234,13 @@ class Expression(Struct):
 
     @property_
     def target(self) -> Union["Field", Property, None]:
-        if self.property is not None:
-            return self.property
-        else:
-            return None
+        prop = self.property
+        if prop is not None:
+            return prop
+        field = self.field
+        if field is not None:
+            return field
+        return None
 
     def _collect_ops(self) -> set[ExpressionOp]:
         """Collect all ops in this expression and its clauses (recursively)."""
@@ -338,15 +351,27 @@ def coerce_conditional(
     for arg, value in (kwargs or {}).items():
         # parse out django str if present
         if "__" in arg:
-            key, op = arg.split("__", 1)
-            op = CONDITIONAL_OP_BY_DJANGO_STR[op]
+            key, op_str = arg.split("__", 1)
+            op = CONDITIONAL_OP_BY_DJANGO_STR.get(op_str)
+            if op is None:
+                raise TypeError(
+                    f"unsupported conditional operator {op_str!r} (allowed: {list(CONDITIONAL_OP_BY_DJANGO_STR)})"
+                )
         else:
             key, op = arg, ConditionalOp.EQUALS
 
         # map key into field/property
-        target = node.__properties__.get(key)
+        target: Field | Property | None = None
+        if key in node.__properties__:
+            target = node.__properties__[key]
+        elif "fields" in node.__node_child_properties__ and key in getattr(node, "fields"):
+            target = getattr(node, "fields").get(key)
+        elif isinstance(node, HasNodeBase) and (
+            node.base is not None and "fields" in node.base.__node_child_properties__
+        ):
+            target = getattr(node.base, "fields").get(key)
         if target is None:
-            raise TypeError(f"{node!r} has no field {key}")
+            raise TypeError(f"{node!r} has no attribute {key!r}")
         # coerce None to NOT_EXISTS/EXISTS
         if value is None:
             if op == ConditionalOp.EQUALS:
@@ -354,7 +379,14 @@ def coerce_conditional(
             elif op == ConditionalOp.NOT_EQUALS:
                 op = ConditionalOp.EXISTS
         _check_type_supports(target.type_info, op)
-        clauses.append(Expression(op=op, property=target, value=value))
+        clauses.append(
+            Expression(
+                op=op,
+                property=target if type(target) is Property else None,
+                field=target if not isinstance(target, Property) else None,
+                value=value,
+            )
+        )
     if not clauses:
         return None
     else:
@@ -406,8 +438,12 @@ def coerce_sort(
                 target = node.__properties__[field_key]
             elif isinstance(node, Node) and "fields" in node.__node_child_properties__:
                 target = getattr(node, "fields").get(field_key)
+            elif isinstance(node, HasNodeBase) and (
+                node.base is not None and "fields" in node.base.__node_child_properties__
+            ):
+                target = getattr(node.base, "fields").get(field_key)
             if target is None:
-                raise TypeError(f"{node!r} has no field {item!r}")
+                raise AttributeError(f"{node!r} has no attribute {item!r}")
             elif isinstance(target, Property):
                 item = S(op, field=None, property=target)
             else:

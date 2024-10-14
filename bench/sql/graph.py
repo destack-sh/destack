@@ -343,10 +343,16 @@ def _compile_expression_ref(
     block: Block | None,
     expr: Expression,
 ) -> SqlNode:
-    if expr.property is not None:
-        return sqlident(expr.property.name)
-    else:
-        raise TypeError(f"unexpected expression ref: {expr!r}")
+    prop = expr.property
+    if prop is not None:
+        return sqlident(prop.name)
+    field = expr.field
+    if field is not None:
+        if field.parent is not block:  # must belong to the block (for now?)
+            raise RuntimeError(f"unexpected field {field!r} for {block!r} in {expr!r}")
+        column = node_table.get_column(field)
+        return sqlident(column.name)
+    raise RuntimeError(f"unexpected expression ref: {expr!r}")
 
 
 def _pg_lower_conditional(
@@ -959,7 +965,7 @@ async def pg_graph_select(
 
 @_trace_pg_span
 async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: QueryBuilder) -> int:
-    """Counts the nodes from the graph matching the given query."""
+    """Counts the nodes from the graph matching the given query. Ignores pagination parameters."""
     # compile
     node_type = query._node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
