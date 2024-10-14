@@ -478,10 +478,10 @@ class TypeInfoBase(BuiltinObject):
                 return field
         return None
 
-    def _get_field_by_tk(self, tk: str) -> Optional["Field"]:
+    def _get_field_by_key(self, key: str) -> Optional["Field"]:
         """Resolves a field in this type by its tk"""
         for field in self._base_fields:
-            if field.tk == tk:
+            if field.key == key:
                 return field
         return None
 
@@ -685,11 +685,11 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return (cast(FieldData, data)).parent_ptr
 
-    key = SourceNode.tk
-
     @property
     def storage_key(self) -> str:
         return encode_storage_key(self)
+
+    key = storage_key
 
     @staticmethod
     def new(

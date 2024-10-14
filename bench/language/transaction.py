@@ -7,12 +7,14 @@ from uuid import UUID
 import pytz
 import structlog
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
+from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.connection import Channel, WritableChannel
 from bench.language.const import (
     NODE_TYPES,
+    TK_LENGTH_B64,
     ChangeCategory,
     EditOperationType,
     EditType,
@@ -604,7 +606,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
             if prop is not None:  # builtin object property
                 next_obj = getattr(cast("BuiltinObject", obj), prop.name)
             else:  # custom object field
-                field = cast(CustomObject, obj)._type._get_field_by_tk(key)
+                field = cast(CustomObject, obj)._type._get_field_by_key(key)
                 if field is None:
                     return  # invalid path
                 next_obj = cast(CustomObject, obj)._do_get(field)
@@ -616,7 +618,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
             if prop is not None:
                 value_type = cast(BuiltinObject, obj).__properties__[key].type_info
             else:
-                value_type = decode_type_identity(key)
+                value_type = decode_type_identity(key[TK_LENGTH_B64:])
             if op.type == EditOperationType.SET:
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 new_value = unpack_value(new_value_packed, value_type, wrap_primitive=False)
@@ -629,7 +631,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                     prop.name, new_value, track=False, validate=validate
                 )
             else:  # custom object field
-                field = cast(CustomObject, obj)._type._get_field_by_tk(key)
+                field = cast(CustomObject, obj)._type._get_field_by_key(key)
                 if field is None:
                     return  # invalid path
                 cast(CustomObject, obj)._do_set(field, new_value, track=False, validate=validate)
@@ -667,6 +669,8 @@ def apply_edit_operation_data(
             # next: descend into object
             if prop is not None:  # builtin object property
                 next_obj = getattr(cast(AnyObjectData, obj), prop.name)
+                if type(next_obj) is ProtoValue:
+                    next_obj = cast(ProtoValue, next_obj).struct_value
             else:  # custom object field
                 next_obj = cast(ProtoStruct, obj).__getitem__(key)
             if not (type(next_obj) is ProtoStruct or getattr(next_obj, "metatype", None)):
@@ -678,7 +682,7 @@ def apply_edit_operation_data(
                 assert obj_type is not None, f"missing object type for {op!r}"
                 value_type = obj_type.__properties__[key].type_info
             else:
-                value_type = decode_type_identity(key)
+                value_type = decode_type_identity(key[TK_LENGTH_B64:])
             if op.type == EditOperationType.SET:
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 new_value = unpack_value_data(new_value_packed, value_type, wrap_primitive=False)

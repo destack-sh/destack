@@ -245,10 +245,13 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
             ),
             ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
             descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
-            first=query._first,
             count=self.options.count,
             select=query._select._to_data() if query._select else None,
         )
+        if query._first:
+            request.first = query._first
+        if query._skip:
+            request.skip = query._skip
         try:
             response = await self.channel.engine.remote.search_nodes(
                 request, metadata=engine.rpc_headers

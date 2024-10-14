@@ -64,3 +64,21 @@ async def test_create_database_and_records_simultaneously(hosted_runtime: Runtim
     assert records == [Record1, Record2]
     assert records[0].Name == "Record1"  # type: ignore
     assert records[1].Name == "Record2"  # type: ignore
+
+
+async def test_update_record(hosted_runtime: RuntimeHandle):
+    """Update a record and query it."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
+    hosted_runtime.page().blocks.append(Database1)
+
+    # create & query
+    Record1 = Database1.records.create(Name="Record1")
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records[0].Name == "Record1"  # type: ignore
+
+    # update & query
+    Record1.Name = "Record1.1"  # type: ignore
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records[0].Name == "Record1.1"  # type: ignore

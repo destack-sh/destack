@@ -1248,17 +1248,17 @@ async def pg_graph_edit(
 
     def _get_node_table(edit: EditData):
         if edit.node_ptr.node_type in BUILTIN_TABLE_BY_NODE_TYPE:
-            return BUILTIN_TABLE_BY_NODE_TYPE[edit.node_ptr.node_type]
+            return BUILTIN_TABLE_BY_NODE_TYPE[edit.node_ptr.node_type], None
         else:
             assert edit.node_ptr.base_ck, f"no base ck for custom table in {edit!r}"
-            table, _ = ctx.get_custom_table(UUID(edit.node_ptr.base_ck))
-            return table
+            table, block = ctx.get_custom_table(UUID(edit.node_ptr.base_ck))
+            return table, block
 
     assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
     batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.node_type)]
     batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
     batch: list[EditData] = []
-    batch_node_table: Table = _get_node_table(edits[0])
+    batch_node_table, batch_block = _get_node_table(edits[0])
     all_cascaded_edits: list[EditData] = []
 
     # batch operations by table and edit type
@@ -1274,7 +1274,9 @@ async def pg_graph_edit(
             batch_updated_properties[prop_ord] = True
 
         # continue batch if same edit + node types
-        next_node_table = _get_node_table(next_edit) if next_edit is not None else batch_node_table
+        next_node_table, next_block = (
+            _get_node_table(next_edit) if next_edit is not None else (batch_node_table, batch_block)
+        )
         if (
             next_edit is not None
             and next_edit.type == prev_edit.type
@@ -1306,6 +1308,7 @@ async def pg_graph_edit(
             edit_type=edit_type,
             node_type=cast(NodeType, node_type),
             node_table=batch_node_table,
+            block=batch_block,
             batch=batch,
             updated_properties=updated_properties,
         )
@@ -1316,7 +1319,7 @@ async def pg_graph_edit(
                 wiring.unpack_enum(NodeType, next_edit.node_ptr.node_type)
             ]
             batch_updated_properties = bitarray(batch_node_cls.__max_property_ord__ + 1)
-            batch_node_table = next_node_table
+            batch_node_table, batch_block = next_node_table, next_block
             batch.clear()
 
     return all_cascaded_edits
@@ -1394,6 +1397,7 @@ async def _pg_edit_cascade(
             edit_type=edit_type,
             node_type=cast(NodeType, descendant_node_type),
             node_table=node_table,
+            block=None,
             batch=cascaded_edits,
             updated_properties=(),
         )
@@ -1423,6 +1427,7 @@ async def _pg_edit_batch(
     edit_type: EditType,
     node_type: NodeType,
     node_table: Table,
+    block: Block | None,
     batch: list[EditData],
     updated_properties: tuple[Property, ...],  # across batch
 ) -> None:
@@ -1480,8 +1485,15 @@ async def _pg_edit_batch(
         if edit_type in (EditType.DELETE, EditType.RESTORE):
             implicit_properties.append(node_cls.deleted_at)
         dynamic_columns: list[Column] = [node_table._primary_key]
+        dynamic_fields: list[Field] = (
+            [f for f in block.fields if f.type == FieldType.MEMBER] if block is not None else []
+        )
         for prop in chain(implicit_properties, updated_properties):
-            if prop.is_node_reference:
+            if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:  # unravel value
+                assert block is not None, f"no block for {prop!r}"
+                for field in dynamic_fields:
+                    dynamic_columns.append(node_table.get_column(field))
+            elif prop.is_node_reference:
                 dynamic_columns.extend(
                     node_table._columns_by_name[p.name] for p in prop.reference_stored_props or ()
                 )
@@ -1513,8 +1525,14 @@ async def _pg_edit_batch(
                 else:
                     new_value_packed = unpack_proto_json(op.new_value_packed)
                 if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:
+                    assert (
+                        type(new_value_packed) is dict
+                    ), f"unexpected packed: {new_value_packed!r} in {op!r}"
                     # unravel value
-                    raise NotImplementedError("nocheckin: pg_graph_edit: update value_packed")
+                    for field in dynamic_fields:
+                        field_value = new_value_packed.get(field.key)
+                        column = node_table.get_column(field)
+                        row[column.name] = _pack_field_value(field, field_value)
                 elif not prop.is_node_reference:
                     # regular non-ref property
                     value = _pack_object_value_prop(prop, new_value_packed)

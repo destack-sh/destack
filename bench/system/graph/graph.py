@@ -186,9 +186,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
     @abc.abstractmethod
-    def resolve_request_block(
-        self, request: ProtoMessage, block_ptr: NodeReference
-    ) -> Block | None:
+    def resolve_request_block(self, block_ptr: UUID | NodeReference) -> Block | None:
         """Resolve a block pointer from a request message."""
         ...
 
@@ -306,11 +304,13 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             # read the affected nodes into a single graph for evaluation
             data_graph = NodeDataGraph(scope=self._scope, node_types=NODE_TYPES)
             with self.tracer.start_as_current_span("graph.commit.read"):
-                for node_type, node_references in area.scopes_by_type.items():
+                for (base_ck, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
+                    block = self.resolve_request_block(base_ck) if base_ck else None
                     query = QueryBuilder(
                         type=QueryType.GET,
                         node_type=node_type,
+                        block=block,
                         roots=node_references,
                         include_deleted=include_deleted,
                     )
@@ -436,7 +436,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     block_ptr = wiring.unpack_object(
                         request.block_ptr, supergraph=None, expect=NodeReference
                     )
-                    block = self.resolve_request_block(request, block_ptr)
+                    block = self.resolve_request_block(block_ptr)
                     if block is None:
                         raise NodeNotFoundError(block_ptr)
                 else:
@@ -568,7 +568,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     block_ptr = wiring.unpack_object(
                         request.block_ptr, supergraph=None, expect=NodeReference
                     )
-                    block = self.resolve_request_block(request, block_ptr)
+                    block = self.resolve_request_block(block_ptr)
                     if block is None:
                         raise NodeNotFoundError(block_ptr)
                 else:
@@ -600,8 +600,8 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     sort=sort,
                     ancestor_types=ancestor_types,
                     descendant_types=descendant_types,
-                    first=request.first,
-                    skip=request.skip,
+                    first=request.first or None,
+                    skip=request.skip or None,
                     select=select,
                 )
                 adapted_query = adapt_read_query(subject, query)
@@ -745,7 +745,7 @@ class CommitArea(NamedTuple):
 
     edited_node_ids: set[str]
     node_types: set[NodeType]
-    scopes_by_type: dict[NodeType, list[NodeReference]]
+    scopes_by_base_and_type: dict[tuple[UUID | None, NodeType], list[NodeReference]]
     graph_scopes: tuple[GraphScopeData, ...]
 
 
@@ -821,11 +821,11 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
         UUID(k): wiring.unpack_object(v, supergraph=None, expect=NodeReference)
         for k, v in node_scopes_by_id.items()
     }
-    node_scopes_by_type = group_by(node_scopes.values(), lambda n: n.node_type)
+    node_scopes_by_type = group_by(node_scopes.values(), lambda n: (n.base_ck, n.node_type))
     return CommitArea(
         edited_node_ids=edited_node_ids,
         node_types=node_types,
-        scopes_by_type=node_scopes_by_type,
+        scopes_by_base_and_type=node_scopes_by_type,
         graph_scopes=tuple(graph_scopes.values()),
     )
 
