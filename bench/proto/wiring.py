@@ -28,7 +28,7 @@ from bench.language.value import (
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.proto.wire.lang_pb2 import FileReferenceData, SecretReferenceData
-from bench.utils.func import IdEnumOrUnion, to_uuid
+from bench.utils.func import IdEnumOrUnion
 from bench.utils.string import Casing, to_casing
 
 logger = structlog.get_logger(__name__)
@@ -274,7 +274,6 @@ def unpack_object[T: BuiltinObject](
     connection: Connection | None = None,
     # for nodes
     graph: NodeGraph | None = None,
-    parent: Node | None = None,
     # NOTE: by default new Nodes add themselves to their graph, but during
     #  unpacking we almost never want this (because we manage unpacking manually).
     skip_add_self: bool = True,
@@ -302,7 +301,7 @@ def unpack_object[T: BuiltinObject](
         object_kwargs["_supergraph"] = supergraph
         if session is not None:
             object_kwargs["_session"] = session
-        if issubclass(object_cls, Node):
+        if object_cls.__is_node__:
             if graph is not None:
                 object_kwargs["_graph"] = graph
             if connection is not None:
@@ -321,13 +320,12 @@ def unpack_object_validate[T: BuiltinObject](
     *,
     supergraph: NodeSuperGraph | None,
     graph: NodeGraph | None = None,
-    parent: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
     """Unpack a builtin object and validate it."""
     obj = unpack_object(
-        obj_data, supergraph=supergraph, graph=graph, parent=parent, expect=expect, session=session
+        obj_data, supergraph=supergraph, graph=graph, expect=expect, session=session
     )
     obj._validate_rec(invalid=on_invalid_raise)
     return obj
@@ -378,23 +376,11 @@ def unpack_node_graph(
         ):
             if node_data.metatype in exclude:
                 continue
-            node_parent_id: UUID | None = (
-                to_uuid(node_data.parent_ptr.id) if node_data.parent_ptr is not None else None
-            )
-            if node_parent_id is None or node_parent_id == parent_id:
-                node_parent = parent
-            else:
-                node_parent = graph.get(node_parent_id)
-                # NOTE :Architecture: enable loading nodes without ancestors :LoadOrphanNode?
-                #  (this errors here, but sometimes we just want a node without ancestors)
-                # if node_parent is None:
-                #     raise ValueError(f"parent {node_parent_id} not found in {unpacked_graph!r}")
             node = unpack_object(
                 node_data,
                 graph=graph,
                 supergraph=supergraph,
                 connection=connection,
-                parent=node_parent,
                 expect=Node,
             )
             graph.add(node)

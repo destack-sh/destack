@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.12.1"
+VERSION = "2024.10.15.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -257,6 +257,42 @@ class NodeType(IdEnum):
     #
 
     SKIP = 9000
+
+    @property
+    def is_universe(self) -> bool:
+        return self.id < 100
+
+    @property
+    def is_global(self) -> bool:
+        return self.id < 500
+
+    @property
+    def is_resource(self) -> bool:
+        return self.id >= 500 and self.id < 600
+
+    @property
+    def is_named_resource(self) -> bool:
+        return self.id >= 500 and self.id < 550
+
+    @property
+    def is_anonymous_resource(self) -> bool:
+        return self.id >= 550 and self.id < 600
+
+    @property
+    def is_local(self) -> bool:
+        return self.id >= 1000 and self.id < 2000
+
+    @property
+    def is_source(self) -> bool:
+        return self.id >= 1000 and self.id < 1100
+
+    @property
+    def is_state(self) -> bool:
+        return self.id >= 1100 and self.id < 1200
+
+    @property
+    def is_runtime(self) -> bool:
+        return self.id >= 1900 and self.id < 2000
 
 
 # :NodeTypes

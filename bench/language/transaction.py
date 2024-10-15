@@ -504,7 +504,9 @@ class Transaction:
         self._pending_edits.extend(accumulated_edits)
         return accumulated_edits
 
-    async def _do_flush(self, *, is_commit: bool) -> tuple[list[EditData], list[EditData]]:
+    async def _do_flush(
+        self, *, is_commit: bool, filter: Callable[[EditData], bool] | None = None
+    ) -> tuple[list[EditData], list[EditData]]:
         """Flush any pending edits."""
         assert self.session is not None, f"no session for {self!r}"
 
@@ -512,11 +514,17 @@ class Transaction:
         _, accumulated_edits = self._accumulate_edits(self._pending_edit_events)
         if self.session._local_epoch is not None:
             self._track_edits(accumulated_edits)  # track new edits
-        edits = [*accumulated_edits, *self._pending_edits]
-        log = logger.bind(transaction=self, edits=len(edits))
-        self._edits.extend(edits)
         self._pending_edit_events = []
-        self._pending_edits = []
+        edits = [*accumulated_edits]
+        if filter is not None:
+            # add existing pending edits
+            edits.extend(e for e in self._pending_edits if filter(e))
+            self._pending_edits = [e for e in self._pending_edits if not filter(e)]
+        else:
+            edits.extend(self._pending_edits)
+            self._pending_edits = []
+        self._edits.extend(edits)
+        log = logger.bind(transaction=self, edits=len(edits))
 
         # assign edits to engines
         edits_by_engine_id: dict[Any, list[EditData]] = defaultdict(list)
@@ -557,9 +565,11 @@ class Transaction:
         return edits, cascaded_edits
 
     @tracer.start_as_current_span("transaction.flush")
-    async def flush(self) -> tuple[list[EditData], list[EditData]]:
+    async def flush(
+        self, filter: Callable[[EditData], bool] | None = None
+    ) -> tuple[list[EditData], list[EditData]]:
         """Flushes any pending edits (without committing)."""
-        return await self._do_flush(is_commit=False)
+        return await self._do_flush(is_commit=False, filter=filter)
 
     @tracer.start_as_current_span("transaction.commit")
     async def commit(self) -> tuple[list[EditData], list[EditData]]:

@@ -31,7 +31,7 @@ from bench.language.const import (
     PolicyEffect,
     QueryType,
 )
-from bench.language.graph import NodeDataGraph, NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE, Node
 from bench.language.query import NodeNotFoundError, QueryBuilder
 from bench.language.session import SessionContext
@@ -236,21 +236,28 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def _on_commit_prepare_hook(
         self,
         session: Session,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
+        graph: NodeGraph,
+        data_graph: NodeDataGraph,
         edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
         return await self.on_commit_prepare(
-            session=session, graph=graph, data_graph=data_graph, context=None, edits=edits
+            session=session,
+            graph=graph,
+            data_graph=data_graph,
+            context=None,
+            edits=edits,
+            cascaded_edits=cascaded_edits,
         )
 
     async def on_commit_prepare(
         self,
         session: Session,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
+        graph: NodeGraph,
+        data_graph: NodeDataGraph,
         context: SessionContext | None,
         edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
         """Extend a commit. Returns any new edits."""
         return []  # do nothing by default
@@ -258,10 +265,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def _on_commit_hook(
         self,
         session: Session,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeGraph,
+        data_graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
     ) -> None:
         assert session._local_epoch is not None, f"no system epoch in {session!r}"
         self.epoch = session._local_epoch
@@ -276,10 +283,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def on_commit(
         self,
         session: Session,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeGraph,
+        data_graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
     ):
         """Handle an accepted commit."""
         self.connector.on_commit(data_graph, edits, cascaded_edits, self.epoch)  # update cache

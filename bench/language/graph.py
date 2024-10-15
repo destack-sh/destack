@@ -6,9 +6,7 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
-    Mapping,
     Optional,
-    Union,
     cast,
     override,
 )
@@ -499,49 +497,6 @@ class NodeSuperGraph:
 
 
 NULL_SUPERGRAPH = NodeSuperGraph(root_ptr=None)
-
-
-class _NodeDictBase[K, V]:
-    """A simple graph-like wrapper for a dict of nodes that has some of the same methods."""
-
-    key_type: type[K]
-
-    def __init__(self, nodes_by_id: Mapping[K, V]):
-        self._nodes_by_id = nodes_by_id
-
-    def __str__(self):
-        return f"{len(self._nodes_by_id)} nodes"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
-    @property
-    def nodes(self):
-        return self._nodes_by_id.values()
-
-    def __getitem__(self, item: K) -> V:
-        assert item in self._nodes_by_id, f"expected {self.key_type}, got {item!r}"
-        return self._nodes_by_id[item]
-
-    def __contains__(self, item: K) -> bool:
-        assert isinstance(item, self.key_type), f"expected {self.key_type}, got {item!r}"
-        return item in self._nodes_by_id
-
-    def get(self, item: K) -> V | None:
-        assert isinstance(item, self.key_type), f"expected {self.key_type}, got {item!r}"
-        return self._nodes_by_id.get(item)
-
-
-class NodeDict(_NodeDictBase[UUID, "Node"]):
-    key_type = UUID
-
-
-class NodeDataDict(_NodeDictBase[str, AnyNodeData]):
-    key_type = str
-
-
-NodeGraphLike = Union[NodeGraph, NodeDict]
-NodeDataGraphLike = Union[NodeDataGraph, NodeDataDict]
 
 
 def extract_name_id(name: str) -> Optional[int]:

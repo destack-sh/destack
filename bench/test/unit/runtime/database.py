@@ -1,10 +1,11 @@
 from datetime import date, datetime, time, timedelta
 from uuid import UUID
+
 import pytest
 from grpclib import GRPCError, Status
 
 from bench.language.block import Block
-from bench.language.const import BlockType, PrimitiveType
+from bench.language.const import BlockType
 from bench.language.field import Field, TypeIn
 from bench.language.session import Session
 from bench.language.text import Text, md
