@@ -313,15 +313,6 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
 
 def _pg_wrap_read_column(ctx: SqlContext, column: Column, value: SqlNode) -> SqlNode:
     if column.is_encrypted:
-        # nocheckin
-        print(
-            "using context "
-            + repr(ctx)
-            + " key="
-            + repr(ctx.get_crypto_key(column))
-            + " column="
-            + repr(column)
-        )
         # decrypt and convert
         assert not column.is_array, f"cannot encrypt array column: {column!r}"
         original = value
