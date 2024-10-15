@@ -882,10 +882,10 @@ async def introspect_sql_schema(
         table_schema = 'public'
     """
     if include_table_prefixes:
-        include_patterns = ", ".join(f"'{prefix}'" for prefix in include_table_prefixes)
+        include_patterns = ", ".join(f"'{prefix}%'" for prefix in include_table_prefixes)
         tables_query += f" AND table_name LIKE ANY (ARRAY[{include_patterns}])"
     if exclude_table_prefixes:
-        exclude_patterns = ", ".join(f"'{prefix}'" for prefix in exclude_table_prefixes)
+        exclude_patterns = ", ".join(f"'{prefix}%'" for prefix in exclude_table_prefixes)
         tables_query += f" AND table_name NOT LIKE ANY (ARRAY[{exclude_patterns}])"
 
     tables_rows = await pg_select_raw(cur=cur, query=tables_query)
@@ -893,8 +893,8 @@ async def introspect_sql_schema(
 
     # columns
     if include_columns:
-        # TODO :Performance: improve introspect tables performance
-        #  (maybe the big joins in this query are the bottleneck)
+        # NOTE :Performance: improve introspect tables performance
+        #  (maybe the big joins in this query are the bottleneck?)
         columns_query = """
 SELECT 
    col.table_name, 
