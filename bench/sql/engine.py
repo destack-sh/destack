@@ -9,6 +9,7 @@ from typing import (
     Mapping,
     Sequence,
     cast,
+    override,
 )
 from uuid import UUID
 
@@ -56,6 +57,7 @@ class SqlContext:
 class StaticContext(SqlContext):
     crypto_key: str | None = None
 
+    @override
     def get_crypto_key(self, obj: "Table | Column") -> str | None:
         """Gets the crypto key for the given table."""
         return self.crypto_key
@@ -288,51 +290,60 @@ async def _pg_executemany(
 
 
 def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
-    if not column.is_encrypted:
-        return value
+    if column.is_encrypted:
+        # convert and decrypt
+        assert not column.is_array, f"cannot encrypt array column: {column!r}"
+        if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
+            value = Jsonb(value)  # adapt json
+        # first to bytea
+        if column._unencrypted_type == PrimitiveType.BYTES:
+            value = sqlstr("{}::bytea").format(value)
+        elif column._unencrypted_type in (PrimitiveType.STRING, PrimitiveType.JSON):
+            value = sqlstr("convert_to({}::text, 'UTF8')").format(value)
+        else:
+            pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
+            value = sqlstr("{}::{}::text::bytea").format(value, sqlstr(pg_cast))
+        # then encrypt
+        value = sqlstr("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
+            sql_node_to_sql(value)
+        )
 
-    # convert and decrypt
-    assert not column.is_array, f"cannot encrypt array column: {column!r}"
-    if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
-        value = Jsonb(value)  # adapt json
-    # first to bytea
-    if column._unencrypted_type == PrimitiveType.BYTES:
-        value = sqlstr("{}::bytea").format(value)
-    elif column._unencrypted_type in (PrimitiveType.STRING, PrimitiveType.JSON):
-        value = sqlstr("convert_to({}::text, 'UTF8')").format(value)
-    else:
-        pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
-        value = sqlstr("{}::{}::text::bytea").format(value, sqlstr(pg_cast))
-    # then encrypt
-    value = sqlstr("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-        sql_node_to_sql(value)
-    )
     return value
 
 
 def _pg_wrap_read_column(ctx: SqlContext, column: Column, value: SqlNode) -> SqlNode:
-    if not column.is_encrypted:
-        return value
+    if column.is_encrypted:
+        # nocheckin
+        print(
+            "using context "
+            + repr(ctx)
+            + " key="
+            + repr(ctx.get_crypto_key(column))
+            + " column="
+            + repr(column)
+        )
+        # decrypt and convert
+        assert not column.is_array, f"cannot encrypt array column: {column!r}"
+        original = value
+        # first decrypt with
+        value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
+            sql_node_to_sql(value), sql.Literal(ctx.get_crypto_key(column))
+        )
+        # then convert from bytea to the correct type
+        if column._unencrypted_type == PrimitiveType.BYTES:
+            value = sqlstr("{}::bytea").format(value)
+        else:
+            pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
+            value = sqlstr("convert_from({}::bytea, 'UTF8')::text::{}").format(
+                value, sqlstr(pg_cast)
+            )
+        # and bail if original value is null
+        value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
+            sql_node_to_sql(original), value
+        )
+        # and label column
+        value = sqlstr("{} as {}").format(value, sqlident(column.name))
 
-    # decrypt and convert
-    assert not column.is_array, f"cannot encrypt array column: {column!r}"
-    original = value
-    # first decrypt with
-    value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-        sql_node_to_sql(value), sql.Literal(ctx.get_crypto_key(column))
-    )
-    # then convert from bytea to the correct type
-    if column._unencrypted_type == PrimitiveType.BYTES:
-        value = sqlstr("{}::bytea").format(value)
-    else:
-        pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
-        value = sqlstr("convert_from({}::bytea, 'UTF8')::text::{}").format(value, sqlstr(pg_cast))
-    # and bail if original value is null
-    value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
-        sql_node_to_sql(original), value
-    )
-    # and label column
-    value = sqlstr("{} as {}").format(value, sqlident(column.name))
     return value
 
 

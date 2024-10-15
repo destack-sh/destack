@@ -34,6 +34,7 @@ import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
+import Database from "@/views/system/Database.vue";
 import Flow from "@/views/system/Flow.vue";
 import Type from "@/views/system/Type.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
@@ -307,6 +308,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :self="props.self"
         :variant="Variant.COMPACT"
         :prepared-connection="pkgGetConnection"
+      />
+      <Database
+        v-if="block.type == BlockType.DATABASE"
+        :node-ptr="props.nodePtr"
+        :self="props.self"
+        :variant="Variant.COMPACT"
       />
     </div>
   </div>

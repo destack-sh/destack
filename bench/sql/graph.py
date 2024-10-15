@@ -10,6 +10,7 @@ from typing import (
     Sequence,
     assert_never,
     cast,
+    override,
 )
 from uuid import UUID
 
@@ -147,6 +148,7 @@ class BenchSqlContext(SqlContext):
 
     bench: Bench
 
+    @override
     def get_crypto_key(self, obj: Table | Column) -> str | None:
         table = obj.table
         node_type = BUILTIN_NODE_BY_TABLE_NAME.get(table.name)
