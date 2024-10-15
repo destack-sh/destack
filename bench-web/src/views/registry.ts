@@ -24,6 +24,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.PAGE]: () => import("@/views/system/Page.vue"),
   [ViewType.BLOCK]: () => import("@/views/system/Block.vue"),
   [ViewType.FIELD]: () => import("@/views/system/Field.vue"),
+  [ViewType.DATABASE]: () => import("@/views/system/Database.vue"),
   [ViewType.FLOW]: () => import("@/views/system/Flow.vue"),
   [ViewType.STEP]: () => import("@/views/system/Step.vue"),
   [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
