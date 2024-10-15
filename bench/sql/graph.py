@@ -279,7 +279,7 @@ def map_builtin_object_to_table(
     return table
 
 
-def map_database_block_to_table(block: Block) -> Table:
+def map_database_block_to_table(block: Block, fields: Sequence[Field] | None = None) -> Table:
     """Maps a DatabaseBlock to its corresponding custom Record Table."""
     base_table = map_builtin_object_to_table(
         Record,
@@ -292,7 +292,7 @@ def map_database_block_to_table(block: Block) -> Table:
     indexes: list[Index] = [index.clone() for index in base_table.indexes]
 
     # map fields into columns
-    for field in block.fields:
+    for field in fields if fields is not None else block.fields:
         if field.kind == TypeKind.PRIMITIVE:
             assert field.primitive_type is not None, f"no primitive type for {field!r}"
             primitive_type = field.primitive_type

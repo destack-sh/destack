@@ -9,7 +9,9 @@ from bench.language.const import BlockType
 from bench.language.field import Field, TypeIn
 from bench.language.session import Session
 from bench.language.text import Text, md
+from bench.language.value import sample_value
 from bench.test.unit.conftest import RuntimeHandle
+from bench.utils.string import Casing, to_casing
 
 
 def test_create_record_kwargs(session: Session):
@@ -90,10 +92,12 @@ async def test_update_record(hosted_runtime: RuntimeHandle):
 
 async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
     """Updates a database and records within and across transactions."""
-    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Id", int)])
+    hosted_runtime.page().blocks.append(Database1)
 
     sample_types: list[TypeIn] = [
         str,
+        # nocheckin
         int,
         float,
         datetime,
@@ -102,10 +106,36 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
         time,
         UUID,
     ]
-    for sample_type in sample_types:
-        ...
 
-    # nocheckin: check different field types
+    # create records with value for every field type
+    cached_records = []
+    for i, sample_type in enumerate(sample_types):
+        field_name = to_casing(sample_type.__name__, Casing.CAMEL)
+        sample_field = Field.member(field_name, sample_type)
+        Database1.fields.append(sample_field)
+        sample_field_value = sample_value(sample_field)
+        RecordX = Database1.records.create(Id=i, **{field_name: sample_field_value})
+        cached_records.append(RecordX)
+        await hosted_runtime.session.commit()
+
+    # query
+    stored_records = await Database1.records.order_by(Database1.fields.Id).search()
+    for stored_record, cached_record in zip(stored_records, cached_records):
+        assert stored_record.equals(cached_record)
+
+    # update
+    for sample_type, record in zip(sample_types, stored_records):
+        field_name = to_casing(sample_type.__name__, Casing.CAMEL)
+        sample_field = Database1.fields.get(field_name)
+        assert sample_field is not None
+        sample_field_value = sample_value(sample_field)
+        setattr(record, field_name, sample_field_value)
+    await hosted_runtime.session.commit()
+
+    # query again
+    stored_records = await Database1.records.order_by(Database1.fields.Id).search()
+    for stored_record, cached_record in zip(stored_records, cached_records):
+        assert stored_record.equals(cached_record)
 
 
 async def test_delete_database(hosted_runtime: RuntimeHandle):

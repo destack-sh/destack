@@ -130,6 +130,19 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         if not touched_databases_by_ck:
             return  # nothing to do
 
+        # collect the new list of Fields per DatabaseBlock
+        # (if the DatabaseBlock itself is not new, the Block in Field.parent will point to the old
+        #  Block, so Block.fields doesn't contain the new Fields (yet :OptimisticGraphs))
+        fields_by_block: dict[Block, list[Field]] = {
+            block: list(block.fields) for block in touched_databases_by_ck.values()
+        }
+        for node in commit.added:
+            if isinstance(node, Field):
+                parent = node.parent
+                if isinstance(parent, Block) and parent.type == BlockType.DATABASE:
+                    if node not in fields_by_block[parent]:
+                        fields_by_block[parent].append(node)
+
         # migrate schema for touched databases (and only those)
         channel = await session._get_channel_for(
             self.host.scope, NodeType.RECORD, expect=PostgresChannel
@@ -154,7 +167,8 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 old_tables.append(table)
         old_schema = Schema(extensions=(), tables=tuple(old_tables))
         new_tables_by_block: dict[Block, Table] = {
-            block: map_database_block_to_table(block) for block in touched_databases_by_ck.values()
+            block: map_database_block_to_table(block, fields=fields_by_block[block])
+            for block in touched_databases_by_ck.values()
         }
         new_schema = Schema(extensions=(), tables=tuple(new_tables_by_block.values()))
         migration_ops = generate_sql_migration_ops(
@@ -179,4 +193,5 @@ class DatabasePlugin(HostPlugin[Block | Field]):
 
     @override
     async def on_commit_failed(self, session: Session, error: Exception) -> None:
-        self._init_context_from_blocks()  # reset context
+        # reset context
+        self._init_context_from_blocks()
