@@ -736,6 +736,10 @@ def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
             return None
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return datetime(2024, 6, 12, tzinfo=pytz.utc)
+        elif typ.primitive_type == PrimitiveType.DATE:
+            return date(2024, 6, 12)
+        elif typ.primitive_type == PrimitiveType.TIME:
+            return time(12, 34, 56)
         elif typ.primitive_type == PrimitiveType.INTERVAL:
             return timedelta(seconds=42)
         else:

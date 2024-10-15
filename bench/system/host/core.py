@@ -234,7 +234,7 @@ class HostPlugin[T: Node](abc.ABC):
     """A plugin into the Host operating system of a Bench."""
 
     """The type of nodes to subscribe to for edits."""
-    watch_types: ClassVar[bittuple[NodeType]]
+    watch_types: ClassVar[bittuple[NodeType] | None] = None
 
     def __init__(self, host: Host, bench: "Bench"):
         self.host = host
@@ -285,11 +285,16 @@ class HostPlugin[T: Node](abc.ABC):
     # Events
     #
 
-    async def on_commit_prepare(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
+    async def on_commit_prepare(
+        self, session: Session, commit: Commit[T]
+    ) -> None | Sequence[EditData]:  # noqa: B027
         """
         Add edits that logically belong to the same transaction.
-        The commit contains only direct edits, not cascaded edits.,
-        Edit nodes directly, flush only when necessary.
+        The commit contains only direct edits, not cascaded edits.
+        Add any new Edits to the Session *or* return them.
+        NOTE: Nodes not in Commit reflect the old/prior graph state (until committed)
+         (for instance, when adding a Field to a Block, the Field will be in Commit.added,
+          but `Field not in Field.parent.fields` until committed! :OptimisticGraph)
         """
         pass
 
@@ -297,7 +302,6 @@ class HostPlugin[T: Node](abc.ABC):
         """
         React to the commit in a new transaction (but still in the request lifecycle).
         The commit contains edits and cascaded edits.
-        Edit nodes directly, flush or commit as necessary.
         """
         pass
 

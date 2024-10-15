@@ -222,7 +222,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             _oracle=self.oracle,
         )
 
-    def _prepare_commit(
+    def _parse_commit(
         self, subject: Subject, context: SessionContext, edits: Sequence[EditData]
     ) -> "CommitArea":
         """Prepares and validates the edits for a commit."""
@@ -372,10 +372,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             # actually commit
             session.add_edits(flat_edits)
             _, cascaded_edits = await session.commit(_data_graph=data_graph)
-            # NOTE :Robustness: edited nodes are unsynced copies (from unpack) :StaleNodes
+            # NOTE :Robustness: edited nodes are 'disconnected' copies (from unpack) :StaleNodes
             #  So we should really untrack them (to disable further edits) or keep them in sync,
             #   but I'm not sure how that should work yet, and we need to edit them async sometimes
-            #   (e.g. in the scheduler we try scheduling new runs and then mark them as failed).
+            #   (e.g. in the scheduler we try scheduling new Runs and then update them accordingly).
 
         return edits, cascaded_edits
 
@@ -399,7 +399,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 _supergraph=subject._supergraph,
             )
 
-        area = self._prepare_commit(subject, context, request.edits)
+        area = self._parse_commit(subject, context, request.edits)
         async with self._graph_lock.write(area):
             retry = COMMIT_RETRY.new(self.oracle)
             while retry.should_retry:
