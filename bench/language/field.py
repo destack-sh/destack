@@ -338,7 +338,7 @@ class TypeInfoBase(BuiltinObject):
         if self.is_secret:
             flags.append("is_secret")
         if len(flags) > 0:
-            info_str += f" ({', '.join(flags)})"
+            info_str += f", {', '.join(flags)}"
         if self.base_field_type:
             info_str += f" [{self.base_field_type.bench_name}]"
         if self.constraint is not None:

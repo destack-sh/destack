@@ -269,6 +269,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         data_graph: NodeDataGraph,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
+        new_edits: Sequence[EditData],
     ) -> None:
         assert session._local_epoch is not None, f"no system epoch in {session!r}"
         self.epoch = session._local_epoch
@@ -278,6 +279,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             data_graph=data_graph,
             edits=edits,
             cascaded_edits=cascaded_edits,
+            new_edits=new_edits,
         )
 
     async def on_commit(
@@ -287,6 +289,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         data_graph: NodeDataGraph,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
+        new_edits: Sequence[EditData],
     ):
         """Handle an accepted commit."""
         self.connector.on_commit(data_graph, edits, cascaded_edits, self.epoch)  # update cache

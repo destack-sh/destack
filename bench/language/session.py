@@ -188,6 +188,7 @@ class Session(RuntimeNode[SessionData]):
                 NodeDataGraph,
                 Sequence["EditData"],
                 Sequence["EditData"],
+                Sequence["EditData"],
             ],
             Awaitable[None],
         ]
@@ -745,6 +746,8 @@ class Session(RuntimeNode[SessionData]):
                         self, graph, data_graph, edits, cascaded_edits
                     )
                     self._tx.add_edits(new_edits)
+                else:
+                    new_edits = []
 
                 # do commit
                 self._preflush(include_runtime=True, include_state=True)
@@ -756,17 +759,17 @@ class Session(RuntimeNode[SessionData]):
                 graph = self._make_pending_graph()
                 if data_graph is None:
                     data_graph = self._make_pending_data_graph()
-                await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
+                await self._on_commit(self, graph, data_graph, edits, cascaded_edits, new_edits)
                 self._pending_nodes_by_id = {}
 
             log.debug("session.commit")
             return edits, cascaded_edits
         except Exception as e:
+            if self._on_commit_failed is not None:
+                self._on_commit_failed(self, e)
             if isinstance(e, ChannelUnavailableError):
                 logger.error("session.commit.error", error=e)
                 self._tx.reset()
-            if self._on_commit_failed is not None:
-                self._on_commit_failed(self, e)
             raise
 
     @tracer.start_as_current_span("session.flush.schedule")

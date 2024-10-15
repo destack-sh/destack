@@ -35,6 +35,7 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
+from bench.language.value import unpack_proto_json
 from bench.proto.wire import AnyNodeData, FileReferenceData, NodeReferenceData, SecretReferenceData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -458,7 +459,7 @@ def coerce_sort(
     return coerced
 
 
-def _lower_expression_value(prop: Property, value: Any) -> Any:
+def _lower_expression_value(typ: "TypeInfoBase", value: Any) -> Any:
     """
     'Lowers' the given value to enable direct comparison.
     This is related to the lower_conditional pass we do in the sql engine backend,
@@ -466,7 +467,7 @@ def _lower_expression_value(prop: Property, value: Any) -> Any:
     """
     # auto lower collections
     if isinstance(value, Sequence) and type(value) is not str:
-        return [_lower_expression_value(prop, v) for v in value]
+        return [_lower_expression_value(typ, v) for v in value]
 
     # identity
     if isinstance(value, Node):
@@ -479,14 +480,14 @@ def _lower_expression_value(prop: Property, value: Any) -> Any:
         value = str(value)
 
     # time
-    if prop.primitive_type == PrimitiveType.DATETIME:
+    if typ.primitive_type == PrimitiveType.DATETIME:
         if isinstance(value, Timestamp):
             value = value.ToNanoseconds()
         elif isinstance(value, datetime.datetime):
             value = value.timestamp() * 1e9
         else:
             raise ValueError(f"unexpected value type: {type(value).__name__}")
-    elif prop.primitive_type == PrimitiveType.INTERVAL:
+    elif typ.primitive_type == PrimitiveType.INTERVAL:
         if isinstance(value, Duration):
             value = value.seconds + value.nanos / 1e9
         elif isinstance(value, datetime.timedelta):
@@ -497,7 +498,7 @@ def _lower_expression_value(prop: Property, value: Any) -> Any:
     return value
 
 
-def _get_node_expression_value(node: Node | AnyNodeData, prop: Property) -> Any:
+def _get_node_prop_expression_value(node: Node | AnyNodeData, prop: Property) -> Any:
     """Gets the value of a property from a Node / packed node data."""
     if isinstance(node, Node):
         value = getattr(node, prop.code_name)
@@ -506,7 +507,17 @@ def _get_node_expression_value(node: Node | AnyNodeData, prop: Property) -> Any:
             value = None
         else:
             value = getattr(node, prop.name)
-    return _lower_expression_value(prop, value)
+    return _lower_expression_value(prop.type_info, value)
+
+
+def _get_node_field_expression_value(node: Node | AnyNodeData, field: "Field") -> Any:
+    if isinstance(node, Node):
+        value = getattr(node, field.name)
+    else:
+        value_packed = getattr(node, "value_packed")
+        value_packed = unpack_proto_json(value_packed)
+        value = value_packed.get(field.name) if type(value_packed) is dict else None
+    return _lower_expression_value(field, value)
 
 
 def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
@@ -528,9 +539,9 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     assert prop is not None, f"expected Conditional with property, got {cond!r}"
     if prop.reference_wired_ptr is not None:
         prop = prop.reference_wired_ptr
-    node_value = _get_node_expression_value(node, prop)
+    node_value = _get_node_prop_expression_value(node, prop)
     cond_value = cond.value
-    cond_value = _lower_expression_value(prop, cond_value)
+    cond_value = _lower_expression_value(prop.type_info, cond_value)
     # basic comparison
     if cond.op == ConditionalOp.EQUALS:
         return node_value == cond_value
@@ -584,24 +595,29 @@ def _compare_sort_key(
     """Compares the two values based on the given sort expressions."""
     for sort in sorts:
         prop = sort.property
-        assert prop is not None, f"expected Sort with property, got {sort!r}"
-        if prop.reference_wired_ptr is not None:
-            prop = prop.reference_wired_ptr
-        a_value = _get_node_expression_value(a, prop)
-        b_value = _get_node_expression_value(b, prop)
+        typ = None
+        if prop is not None:
+            if prop.reference_wired_ptr is not None:
+                prop = prop.reference_wired_ptr
+            typ = prop.type_info
+            a_value = _get_node_prop_expression_value(a, prop)
+            b_value = _get_node_prop_expression_value(b, prop)
+        else:
+            field = sort.field
+            if field is None:
+                continue  # invalid sort
+            typ = field
+            a_value = _get_node_field_expression_value(a, field)
+            b_value = _get_node_field_expression_value(b, field)
         if a_value == b_value:
             continue
-        if prop.primitive_type is not None and (
-            prop.primitive_type.is_numeric
-            or prop.primitive_type
-            in (PrimitiveType.STRING, PrimitiveType.DATETIME, PrimitiveType.INTERVAL)
-        ):
+        if typ is not None and typ.primitive_type is not None:
             cmp = -1 if a_value < b_value else 1
             if sort.op == SortOp.DESCENDING:
                 cmp = -cmp
             return cmp
         else:
-            raise RuntimeError(f"unsupported sort {sort!r}")
+            continue  # invalid sort
     return 0
 
 
