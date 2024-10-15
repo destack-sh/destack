@@ -1,7 +1,7 @@
 import abc
 import asyncio
 from itertools import chain
-from typing import Any, ClassVar, final, override
+from typing import Any, ClassVar, Sequence, final, override
 
 import structlog
 from opentelemetry import trace
@@ -20,7 +20,7 @@ from bench.language.connection import (
 )
 from bench.language.const import ROOT_NODE_TYPES, EditType, NodeType, QueryType
 from bench.language.expression import apply_sort, evaluate_conditional
-from bench.language.graph import NodeDataGraphLike
+from bench.language.graph import NodeDataGraph
 from bench.language.query import QueryBuilder
 from bench.proto.wire import (
     AnyNodeData,
@@ -145,9 +145,9 @@ class Connection[
     @abc.abstractmethod
     def on_commit(
         self,
-        graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
         epoch: int,
     ):
         """Update result according to the commit, updating subscribers (maybe asynchronously)."""
@@ -200,7 +200,7 @@ class ConnectionSubscription[UpdateT: Any]:
 #  (need some per-connection-type subscription info?)
 
 
-def _get_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> AnyNodeData | None:
+def _get_edited_node(updated_graph: NodeDataGraph, edit: EditData) -> AnyNodeData | None:
     """Get the full edited node data."""
     node_id = edit.node_ptr.id
     assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
@@ -232,8 +232,8 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
 
     def _apply_node_edits_in_scope(
         self,
-        updated_graph: NodeDataGraphLike,
-        edits: list[EditData],
+        updated_graph: NodeDataGraph,
+        edits: Sequence[EditData],
         is_cascaded: bool,
     ):
         """
@@ -317,9 +317,9 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
 
     def on_commit(
         self,
-        graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
         epoch: int,
     ):
         # filter to relevant edits & update result graph
@@ -378,9 +378,9 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
 
     def on_commit(
         self,
-        graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
         epoch: int,
     ):
         assert self._result_data is not None, f"no result for {self!r}"
@@ -512,9 +512,9 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
 
     def on_commit(
         self,
-        graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
         epoch: int,
     ):
         pass  # not yet implemented (watch_aggregate errors with not implemented for now)
@@ -631,9 +631,9 @@ class ConnectionIndex:
     @tracer.start_as_current_span("connection.on_commit")
     def on_commit(
         self,
-        graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
         epoch: int,
     ):
         """Updates all active connections with a new commit (maybe async)."""

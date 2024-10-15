@@ -14,7 +14,7 @@ from bench.language import Bench, Node, NodeType, Store
 from bench.language.const import (
     EditType,
 )
-from bench.language.graph import NodeGraphLike, NodeSuperGraph
+from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import EditData
@@ -84,7 +84,7 @@ class Commit[T: Node]:
 
 def unpack_commit(
     session: Session,
-    graph: NodeGraphLike,
+    graph: NodeGraph,
     supergraph: NodeSuperGraph,  # graph may not be in supergraph :StaleNodes
     edits: Sequence[EditData],
     cascaded_edits: Sequence[EditData],
@@ -104,7 +104,7 @@ def unpack_commit(
 
     def _add_edit(edit: EditData, node: Node):
         if edit.type in (EditType.CREATE, EditType.RESTORE):
-            # TODO :Broken: not sure how to handle upsert here yet (just error for now)
+            # NOTE :Broken: not sure how to handle upsert here yet (just error for now)
             removed.pop(node.id, None)
             added[node.id] = node
         elif edit.type in (EditType.MOVE, EditType.UPDATE):
@@ -147,20 +147,12 @@ def unpack_commit(
                 node.ClearField("deleted_at")
         else:
             raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
-        assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"
-        parent_id = UUID(node.parent_ptr.id)
-        parent = supergraph.get(parent_id)
-        if parent is None:
-            # cascaded edits should be in pre-order, so the parent must exist somewhere
-            raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
         # cascaded nodes may also be regularly edited nodes, so we add/update them
-        node = wiring.unpack_object(
-            node, supergraph=supergraph, parent=parent, session=session, expect=Node
-        )
-        if node.id not in parent._graph:
-            parent._graph.add(node)
+        node = wiring.unpack_object(node, supergraph=supergraph, session=session, expect=Node)
+        if node.id not in graph:
+            graph.add(node)
         else:
-            parent._graph.update(node)
+            graph.update(node)
 
         # map
         _add_edit(edit, node)

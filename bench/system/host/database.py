@@ -152,9 +152,6 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             )
             for table in old_schema.tables:
                 old_tables.append(table)
-        # nocheckin: ensure that restored fields of database are restored in commit in on_commit_prepare
-        #  (so probably have to flush to cascade before on_commit_prepare, but need to exclude
-        #   Records (and other state nodes), since they depend on the table created here.. ugh)
         old_schema = Schema(extensions=(), tables=tuple(old_tables))
         new_tables_by_block: dict[Block, Table] = {
             block: map_database_block_to_table(block) for block in touched_databases_by_ck.values()

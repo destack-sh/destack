@@ -38,7 +38,7 @@ from bench.language.const import (
     StructType,
     _active_session,
 )
-from bench.language.graph import NodeDataDict, NodeDataGraphLike, NodeDict, NodeGraphLike
+from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EMPTY_SCOPE,
     BenchNode,
@@ -169,14 +169,26 @@ class Session(RuntimeNode[SessionData]):
     _local_epoch: int | None = p_runtime(default=None)
     _on_commit_prepare: (
         Callable[
-            ["Session", NodeGraphLike, NodeDataGraphLike, Sequence["EditData"]],
+            [
+                "Session",
+                NodeGraph,
+                NodeDataGraph,
+                Sequence["EditData"],
+                Sequence["EditData"],
+            ],
             Awaitable[Sequence[EditData]],
         ]
         | None
     ) = p_runtime(default=None)
     _on_commit: (
         Callable[
-            ["Session", NodeGraphLike, NodeDataGraphLike, list["EditData"], list["EditData"]],
+            [
+                "Session",
+                NodeGraph,
+                NodeDataGraph,
+                Sequence["EditData"],
+                Sequence["EditData"],
+            ],
             Awaitable[None],
         ]
         | None
@@ -645,27 +657,26 @@ class Session(RuntimeNode[SessionData]):
         else:
             return False
 
-    def _preflush(self, *, include_session: bool) -> list[EditData]:
+    def _preflush(self, *, include_runtime: bool, include_state: bool) -> list[EditData]:
         """
         Creates an "edit boundary" by accumulating edit events & marking all nodes as 'flushed'.
         This means any new edits won't be debounced after this point (e.g. to create before update).
         """
         assert self._tx is not None, f"no active transaction in {self!r}"
 
-        if include_session:
-            for node in self._pending_nodes_by_id.values():
+        def _filter(node: Node) -> bool:
+            if not include_runtime and self._is_current_session_node(node):
+                return False
+            if not include_state and node.metatype.is_state:  # noqa: SIM103
+                return False
+            return True
+
+        # return new_edits
+        for node in self._pending_nodes_by_id.values():
+            if node._is_new and _filter(node):
                 node._is_new = False
-            new_edits = self._tx.preflush()
-            return new_edits
-        else:
-            # exclude session node edits (like Runs from this Session) to reduce edit churn
-            for node in self._pending_nodes_by_id.values():
-                if not self._is_current_session_node(node):
-                    node._is_new = False
-            new_edits = self._tx.preflush(
-                filter=lambda e: not self._is_current_session_node(e.node)
-            )
-            return new_edits
+        new_edits = self._tx.preflush(filter=lambda e: _filter(e.node))
+        return new_edits
 
     @tracer.start_as_current_span("session.flush")
     @async_shield
@@ -673,7 +684,7 @@ class Session(RuntimeNode[SessionData]):
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
         try:
-            self._preflush(include_session=True)
+            self._preflush(include_runtime=True, include_state=True)
             async with self._tx_lock:
                 edits, cascaded_edits = await self._tx.flush()
                 logger.trace(
@@ -689,48 +700,60 @@ class Session(RuntimeNode[SessionData]):
             self._tx.reset()
             raise
 
-    def _make_pending_data_graph(self) -> NodeDataGraphLike:
+    def _make_pending_graph(self) -> NodeGraph:
+        graph = NodeGraph(
+            scope=self._default_scope,
+            node_types=NODE_TYPES,
+            nodes=self._pending_nodes_by_id.values(),
+            supergraph=self._supergraph,
+        )
+        self._supergraph.add_graph(graph)  # is this right? :TransientGraphs
+        return graph
+
+    def _make_pending_data_graph(self) -> NodeDataGraph:
         """Get graphs with all the pending nodes."""
-        pending_nodes_data_by_id = {
-            str(node.id): node._to_data() for node in self._pending_nodes_by_id.values()
-        }
-        data_graph = NodeDataDict(pending_nodes_data_by_id)
+        data_graph = NodeDataGraph(scope=self._default_scope, node_types=NODE_TYPES)
+        for node in self._pending_nodes_by_id.values():
+            data_graph.add(node._to_data())
         return data_graph
 
     @tracer.start_as_current_span("session.commit")
     @async_shield
     async def _do_commit(
-        self, *, data_graph: NodeDataGraphLike | None = None
+        self, *, data_graph: NodeDataGraph | None = None
     ) -> tuple[list[EditData], list[EditData]]:
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
-        graph = None
+        log = logger.bind(session=self, span="current")
 
         try:
-            self._preflush(include_session=True)
-            log = logger.bind(session=self, span="current")
             async with self._tx_lock:
                 assert self._tx is not None, f"no active transaction in {self!r}"
-                # extend commit hook
+                # prepare commit
                 if self._on_commit_prepare is not None:
-                    if graph is None:
-                        graph = NodeDict(self._pending_nodes_by_id)
+                    # NOTE :Architecture: we exclude state nodes from preflush before commit prepare
+                    #  because our DatabasePlugin needs to update schemas before touching any Records.
+                    self._preflush(include_runtime=True, include_state=False)
+                    edits, cascaded_edits = await self._tx.flush(
+                        filter=lambda e: not NodeType(e.node_ptr.node_type).is_state
+                    )
+                    graph = self._make_pending_graph()
                     if data_graph is None:
                         data_graph = self._make_pending_data_graph()
                     new_edits: Sequence[EditData] = await self._on_commit_prepare(
-                        self, graph, data_graph, self._tx._edits + self._tx._pending_edits
+                        self, graph, data_graph, edits, cascaded_edits
                     )
                     self._tx.add_edits(new_edits)
 
                 # do commit
+                self._preflush(include_runtime=True, include_state=True)
                 edits, cascaded_edits = await self._tx.commit()
                 log = log.bind(edits=len(edits), cascaded_edits=len(cascaded_edits))
 
             # on commit hook
             if self._on_commit is not None:
-                if graph is None:
-                    graph = NodeDict(self._pending_nodes_by_id)
+                graph = self._make_pending_graph()
                 if data_graph is None:
                     data_graph = self._make_pending_data_graph()
                 await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
@@ -757,7 +780,7 @@ class Session(RuntimeNode[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
 
         if optimistic:
-            new_edits = self._preflush(include_session=False)
+            new_edits = self._preflush(include_runtime=False, include_state=True)
             logger.trace("session.flush.mark", session=self, edits=len(new_edits), span="current")
             return new_edits, []
         else:
@@ -772,7 +795,7 @@ class Session(RuntimeNode[SessionData]):
         # schedule a new commit
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
-        new_edits = self._preflush(include_session=False)
+        new_edits = self._preflush(include_runtime=False, include_state=True)
         event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
         if not self._tx.has_edits:
             return [], []  # nothing to do
@@ -781,7 +804,7 @@ class Session(RuntimeNode[SessionData]):
         return event.new_edits, []
 
     async def commit(
-        self, *, optimistic: bool = False, _data_graph: NodeDataGraphLike | None = None
+        self, *, optimistic: bool = False, _data_graph: NodeDataGraph | None = None
     ) -> tuple[list[EditData], list[EditData]]:
         """
         Commits all edits. Returns *all* edits & cascaded edits. Resets tx state.

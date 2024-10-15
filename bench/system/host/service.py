@@ -31,7 +31,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C
 from bench.language.file import File, FileInfoBase, FileKind
-from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.node import GraphScope
 from bench.language.property import Property
@@ -173,7 +173,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         pass  # error is already reported, we just keep running?
 
     @property
-    def graphs(self) -> tuple[NodeGraphLike, ...]:
+    def graphs(self) -> tuple[NodeGraph, ...]:
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"main package not loaded in {self!r}"
         return self._bench._graph, self._main_package._graph
@@ -456,12 +456,13 @@ class HostService(GraphIoServiceBase, Host, HostBase):
     async def on_commit_prepare(
         self,
         session: Session,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
+        graph: NodeGraph,
+        data_graph: NodeDataGraph,
         context: SessionContext | None,
         edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
-        extended_edits: list[EditData] = []
+        new_edits: list[EditData] = []
 
         # run plugins
         commit = unpack_commit(
@@ -469,14 +470,11 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             graph=graph,
             supergraph=session._supergraph,
             edits=edits,
-            cascaded_edits=(),
+            cascaded_edits=cascaded_edits,
             epoch=self.epoch,
         )
         for plugin in self._plugins:
             await plugin.on_commit_prepare(session, commit)
-
-        # create signals
-        ...
 
         def _trim_node_packed_sensitive(node_type: NodeType, node_packed: dict[str, Any] | None):
             if node_packed is None:
@@ -496,7 +494,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         package_ptr = session.package._to_plain_ref_data()
         bench_ptr = session.bench._to_plain_ref_data()
         log_edits: list[EditData] = []
-        for edit in chain(edits, extended_edits):
+        for edit in chain(edits, new_edits):
             node_type = NodeType(edit.node_ptr.node_type)
             if node_type in RUNTIME_NODE_TYPES:
                 continue
@@ -572,19 +570,19 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             log_edits.append(create_log_edit)
 
         # add edits to session
-        extended_edits.extend(log_edits)
+        new_edits.extend(log_edits)
 
-        return extended_edits
+        return new_edits
 
     @override
     @tracer.start_as_current_span("host.on_commit")
     async def on_commit(
         self,
         session: Session,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
+        graph: NodeGraph,
+        data_graph: NodeDataGraph,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
     ):
         await super().on_commit(session, graph, data_graph, edits, cascaded_edits)
 
