@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Any, Mapping, Sequence, cast, override
+from typing import Any, Literal, Mapping, Sequence, cast, override
 from uuid import UUID
 
 import structlog
@@ -443,6 +443,49 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
         return scope
 
+    def _apply_commit(
+        self,
+        *,
+        edits: Sequence[EditData],
+        cascaded_edits: Sequence[EditData],
+        scope: Literal["unpacked", "data", "both"],
+    ) -> None:
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        assert self._main_package is not None, f"package not loaded in {self!r}"
+
+        bench_edits: list[EditData] = []
+        package_edits: list[EditData] = []
+        for i, edit in enumerate(chain(edits, cascaded_edits)):
+            is_cascaded = i >= len(edits)
+            if is_cascaded and edit.type in (EditType.DELETE, EditType.ERASE):
+                continue  # remove cascades are implicit
+            node_type = NodeType(edit.node_ptr.node_type)
+            if node_type not in LOADED_HOST_NODE_TYPES:
+                continue  # not loaded
+            if node_type in LOADED_BENCH_NODE_TYPES:
+                bench_edits.append(edit)
+            if node_type in SOURCE_NODE_TYPES:
+                assert edit.scope.package_id, f"no package id in {edit!r}"
+                package_id = to_uuid(edit.scope.package_id)
+                assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
+                package_edits.append(edit)
+        for root_node, subedits in (
+            (self._bench, bench_edits),
+            (self._main_package, package_edits),
+        ):
+            # filter the in memory edits to only those with an origin (we = system has origin = null)
+            external_edits = tuple(e for e in subedits if e.origin.id)
+            if scope == "both" or scope == "unpacked":
+                edit_graph(
+                    graph=root_node._graph,
+                    supergraph=self._supergraph,
+                    edits=external_edits,
+                    include_deleted=False,
+                    validate=False,
+                )
+            if scope == "both" or scope == "data":
+                edit_data_graph(root_node._data_graph, subedits, include_deleted=False)
+
     @override
     @tracer.start_as_current_span("host.on_commit_prepare")
     async def on_commit_prepare(
@@ -455,6 +498,9 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
         new_edits: list[EditData] = []
+
+        # optimistically apply commit (to in-memory unpacked only)
+        self._apply_commit(edits=edits, cascaded_edits=cascaded_edits, scope="unpacked")
 
         # run plugins
         commit = unpack_commit(
@@ -481,45 +527,17 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         data_graph: NodeDataGraph,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
+        new_edits: Sequence[EditData],
     ):
-        await super().on_commit(session, graph, data_graph, edits, cascaded_edits)
+        await super().on_commit(session, graph, data_graph, edits, cascaded_edits, new_edits)
 
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
-        # apply edits to loaded graphs (bench/package)
-        bench_edits: list[EditData] = []
-        package_edits: list[EditData] = []
-        for i, edit in enumerate(chain(edits, cascaded_edits)):
-            is_cascaded = i >= len(edits)
-            if is_cascaded and edit.type in (EditType.DELETE, EditType.ERASE):
-                continue  # remove cascades are implicit
-            node_type = NodeType(edit.node_ptr.node_type)
-            if node_type not in LOADED_HOST_NODE_TYPES:
-                continue  # not loaded
-            if node_type in LOADED_BENCH_NODE_TYPES:
-                bench_edits.append(edit)
-            if node_type in SOURCE_NODE_TYPES:
-                assert edit.scope.package_id, f"no package id in {edit!r}"
-                package_id = to_uuid(edit.scope.package_id)
-                assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
-                package_edits.append(edit)
-        for root_node, subedits in (
-            (self._bench, bench_edits),
-            (self._main_package, package_edits),
-        ):
-            # filter the in memory edits to only those with an origin (we = system has origin = null)
-            external_edits = tuple(e for e in subedits if e.origin.id)
-            edit_graph(
-                graph=root_node._graph,
-                supergraph=self._supergraph,
-                edits=external_edits,
-                include_deleted=False,
-                validate=False,
-            )
-            # and apply all edits to our cached data graphs
-            edit_data_graph(root_node._data_graph, subedits, include_deleted=False)
+        # apply edits to loaded data graphs (see above for optimistic counterpart)
+        self._apply_commit(edits=edits, cascaded_edits=cascaded_edits, scope="data")
+        self._apply_commit(edits=new_edits, cascaded_edits=(), scope="both")
 
         # run plugins on commit (in main session)
         async with self._session.active():
@@ -561,6 +579,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     @override
     async def on_commit_failed(self, session: Session, exc: Exception):
+        # nocheckin: restore
         for plugin in self._plugins:
             await plugin.on_commit_failed(session, exc)
 

@@ -230,7 +230,7 @@ class HostProxy(Host):
         yield self._session
 
 
-class HostPlugin[T: Node](abc.ABC):
+class HostPlugin[T: Node]:
     """A plugin into the Host operating system of a Bench."""
 
     """The type of nodes to subscribe to for edits."""
@@ -265,7 +265,7 @@ class HostPlugin[T: Node](abc.ABC):
     # Lifecycle
     #
 
-    async def start(self) -> None:  # noqa: B027
+    async def start(self) -> None:
         """Start any work for this plugin, returning when the plugin is ready."""
         pass
 
@@ -277,7 +277,7 @@ class HostPlugin[T: Node](abc.ABC):
         """After closing, wait for any stuff you need to wait for (if any)."""
         await self.tasks.wait_closed()
 
-    async def wait_idle(self, timeout: float) -> None:  # noqa: B027
+    async def wait_idle(self, timeout: float) -> None:
         """Wait for any pending events to finish processing."""
         pass
 
@@ -287,25 +287,22 @@ class HostPlugin[T: Node](abc.ABC):
 
     async def on_commit_prepare(
         self, session: Session, commit: Commit[T]
-    ) -> None | Sequence[EditData]:  # noqa: B027
+    ) -> None | Sequence[EditData]:
         """
         Add edits that logically belong to the same transaction.
         The commit contains only direct edits, not cascaded edits.
         Add any new Edits to the Session *or* return them.
-        NOTE: Nodes not in Commit reflect the old/prior graph state (until committed)
-         (for instance, when adding a Field to a Block, the Field will be in Commit.added,
-          but `Field not in Field.parent.fields` until committed! :OptimisticGraph)
         """
         pass
 
-    async def on_commit(self, session: Session, commit: Commit[T]) -> None:  # noqa: B027
+    async def on_commit(self, session: Session, commit: Commit[T]) -> None:
         """
         React to the commit in a new transaction (but still in the request lifecycle).
         The commit contains edits and cascaded edits.
         """
         pass
 
-    async def on_commit_failed(self, session: Session, error: Exception) -> None:  # noqa: B027
+    async def on_commit_failed(self, session: Session, error: Exception) -> None:
         """
         React to a failed commit.
         """

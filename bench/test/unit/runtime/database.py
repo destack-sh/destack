@@ -97,7 +97,6 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
 
     sample_types: list[TypeIn] = [
         str,
-        # nocheckin
         int,
         float,
         datetime,
