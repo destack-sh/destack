@@ -208,7 +208,7 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       Common: [BlockProperty.type],
       Run: [],
     };
-    if (RUNNABLE_BLOCK_TYPES.includes(node.type) || PAGE_BLOCK_TYPES.includes(node.type)) {
+    if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
       properties.Run.push(BlockProperty.identityPtr);
       const runOptionProperties = [...RUNNABLE_PROPERTIES];
       if (node.type == BlockType.TEXT) {
