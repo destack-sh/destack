@@ -314,6 +314,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :node-ptr="props.nodePtr"
         :self="props.self"
         :variant="Variant.COMPACT"
+        is-input
       />
     </div>
   </div>
