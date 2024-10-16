@@ -143,6 +143,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           :size="variant == Variant.STEALTH ? ((currentValue as string)?.length ?? 0) + 1 : undefined"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :disabled="isDisabled"
+          @keydown.enter.stop.prevent="emit('apply')"
           @input="currentValue = ($event.target as HTMLInputElement).value"
         />
         <!-- Clear -->

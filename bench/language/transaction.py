@@ -631,7 +631,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 value_type = decode_type_identity(key[TK_LENGTH_B64:])
             if op.type == EditOperationType.SET:
                 new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value(new_value_packed, value_type, wrap_primitive=False)
+                new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
             elif op.type == EditOperationType.CLEAR:
                 new_value = None
             else:
@@ -695,8 +695,9 @@ def apply_edit_operation_data(
                 value_type = decode_type_identity(key[TK_LENGTH_B64:])
             if op.type == EditOperationType.SET:
                 new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value_data(new_value_packed, value_type, wrap_primitive=False)
+                new_value = unpack_value_data(new_value_packed, value_type, wrap_scalar=False)
             elif op.type == EditOperationType.CLEAR:
+                new_value_packed = None
                 new_value = None
             else:
                 raise NotImplementedError(f"unsupported edit operation: {op!r}")
@@ -708,7 +709,7 @@ def apply_edit_operation_data(
                         old_value = None
                     else:
                         old_value = getattr(cast(AnyObjectData, obj), prop.name)
-                    old_value_packed = pack_value_data(old_value, value_type, wrap_primitive=False)
+                    old_value_packed = pack_value_data(old_value, value_type, wrap_scalar=False)
                     wiring.set_object_prop(
                         op,
                         EditOperation.get_property("old_value_packed"),
@@ -902,7 +903,7 @@ def edit_data_graph(
                         else:
                             new_value = getattr(node, prop.name)
                             new_value_packed = pack_value_data(
-                                new_value, prop.type_info, wrap_primitive=False
+                                new_value, prop.type_info, wrap_scalar=False
                             )
                             op_type = wire.EDIT_OPERATION_TYPE_SET
                         flat_op = EditOperationData(

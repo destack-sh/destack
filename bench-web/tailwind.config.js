@@ -84,6 +84,10 @@ export default {
         // extend 'colors' to include opacity
         colors: "color, background-color, border-color, text-decoration-color, fill, stroke, opacity",
       },
+      transitionDuration: {
+        0: "0ms",
+        2000: "2000ms",
+      }
     },
   },
   variants: {

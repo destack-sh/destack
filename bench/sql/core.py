@@ -614,6 +614,7 @@ POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
     PrimitiveType.INT32: PostgresColumnType.INTEGER,
     PrimitiveType.INT64: PostgresColumnType.BIGINT,
     PrimitiveType.FLOAT32: PostgresColumnType.REAL,
+    PrimitiveType.FLOAT64: PostgresColumnType.REAL,
     PrimitiveType.DATETIME: PostgresColumnType.TIMESTAMP,
     PrimitiveType.DATE: PostgresColumnType.DATE,
     PrimitiveType.TIME: PostgresColumnType.TIME,

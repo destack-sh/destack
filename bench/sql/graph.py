@@ -590,7 +590,7 @@ def _pack_field_value(field: Field, value: JsonValue) -> SqlPrimitive:
         if field.primitive_type == PrimitiveType.JSON:
             return Jsonb(value)
         else:
-            return cast(PrimitiveValue, unpack_value(value, field, wrap_primitive=False))
+            return cast(PrimitiveValue, unpack_value(value, field, wrap_scalar=False))
     elif field.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT, TypeKind.OBJECT):
         return Jsonb(value)
     else:
@@ -605,7 +605,7 @@ def _unpack_field_value(field: Field, value_packed: Any) -> JsonValue:
         if field.primitive_type == PrimitiveType.JSON:
             return value_packed
         else:
-            return pack_value(value_packed, field, wrap_primitive=False)
+            return pack_value(value_packed, field, wrap_scalar=False)
     elif field.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT, TypeKind.OBJECT):
         return value_packed
     else:
@@ -1573,7 +1573,7 @@ async def _pg_edit_batch(
                         row[wired_name] = Jsonb(new_value_packed)
                     else:
                         new_value = unpack_value_data(
-                            new_value_packed, prop.type_info, wrap_primitive=False
+                            new_value_packed, prop.type_info, wrap_scalar=False
                         )
                         _pg_pack_node_reference_into_row(prop, row, new_value)  # type: ignore
 

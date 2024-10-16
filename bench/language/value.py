@@ -332,7 +332,7 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
             value = CustomObject(value_type, value_packed, parent=obj, parent_key=wired_prop)
         else:
             value = unpack_value(
-                value_packed, value_type, parent=obj, parent_key=wired_prop, wrap_primitive=False
+                value_packed, value_type, parent=obj, parent_key=wired_prop, wrap_scalar=False
             )
     elif (
         value_packed is None
@@ -342,7 +342,7 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
         value = None
     else:
         value = unpack_value(
-            value_packed, value_type, parent=obj, parent_key=wired_prop, wrap_primitive=True
+            value_packed, value_type, parent=obj, parent_key=wired_prop, wrap_scalar=True
         )
     return value_type, value
 
@@ -1089,7 +1089,7 @@ def unpack_custom_object(
         if field_value_packed is None:
             continue
         elif field_type.kind == TypeKind.OBJECT:
-            field_value = unpack_value(field_value_packed, field_type, wrap_primitive=False)
+            field_value = unpack_value(field_value_packed, field_type, wrap_scalar=False)
             if field_value is None:
                 continue
         elif not field_type.is_list:
@@ -1106,7 +1106,7 @@ def unpack_custom_object(
 
 
 def pack_value(
-    value: SomeValue | None, typ: "TypeInfoBase", wrap_primitive: bool = True
+    value: SomeValue | None, typ: "TypeInfoBase", wrap_scalar: bool = True
 ) -> JsonValue:
     """
     Packs a value into a JSON representation.
@@ -1137,13 +1137,13 @@ def pack_value(
             value_packed = pack_value_scalar(cast(ScalarValue, value), typ)
         else:
             value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
-        if wrap_primitive:
+        if wrap_scalar:
             value_packed = {typ.identity_key: value_packed}
         return value_packed
 
 
 def pack_value_data(
-    value: SomeValueData, typ: "TypeInfoBase", wrap_primitive: bool = True
+    value: SomeValueData, typ: "TypeInfoBase", wrap_scalar: bool = True
 ) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
     typ = typ._to_resolved()
@@ -1157,7 +1157,7 @@ def pack_value_data(
         value_packed = pack_value_scalar(cast(ScalarValueData, value), typ)
     else:
         value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
-    if wrap_primitive:
+    if wrap_scalar:
         value_packed = {typ.identity_key: value_packed}
     return value_packed
 
@@ -1168,7 +1168,7 @@ def unpack_value(
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
     *,
-    wrap_primitive: bool,
+    wrap_scalar: bool,
 ) -> SomeValue | None:
     """
     Unpacks a value from its JSON representation.
@@ -1197,7 +1197,7 @@ def unpack_value(
             ]
     else:
         # unwrap scalar
-        if wrap_primitive and isinstance(value_packed, dict):
+        if wrap_scalar and isinstance(value_packed, dict):
             value_packed = value_packed.get(typ.identity_key)
         if value_packed is None:
             return None
@@ -1210,7 +1210,7 @@ def unpack_value(
 
 
 def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeInfoBase", wrap_primitive: bool
+    value_packed: JsonValue, typ: "TypeInfoBase", wrap_scalar: bool
 ) -> SomeValueData | JsonValue | None:
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
@@ -1222,7 +1222,7 @@ def unpack_value_data(
         return value_packed
     else:
         # scalar
-        if wrap_primitive and isinstance(value_packed, dict):
+        if wrap_scalar and isinstance(value_packed, dict):
             value_packed = value_packed.get(typ.identity_key)
         if value_packed is None:
             return None

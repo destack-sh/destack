@@ -22,6 +22,7 @@ const popoverInnerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
 const popoverValues: Ref<Record<number, any>> = ref({});
 const topPopoverContainer = computed(() => popoverContainerRefs.value[topPopover.value?.id]);
 const topPopoverSize = useElementSize(topPopoverContainer, undefined, { box: "border-box" });
+const shouldAnimate = computed(() => !activePopovers.value.some((popover) => popover.info.dontAnimate));
 
 function registerContainerRef(popover: PopoverInstance, ref: any | undefined) {
   popover.element = ref;
@@ -136,8 +137,8 @@ function toComponent(info: PopoverInfo): any {
   else return getViewComponent(info.component);
 }
 
-function onApply(popover: PopoverInstance) {
-  popover.info.onApply?.(popoverValues.value[popover.id]);
+function onApply(popover: PopoverInstance, value: any | undefined) {
+  popover.info.onApply?.(value ?? popoverValues.value[popover.id]);
 }
 
 function close(popover: PopoverInstance | undefined) {
@@ -149,10 +150,10 @@ function close(popover: PopoverInstance | undefined) {
 </script>
 <template>
   <TransitionGroup
-    enter-active-class="transition-all ease-in duration-75"
+    :enter-active-class="'transition-all ease-in ' + shouldAnimate ? 'duration-75' : 'duration-0'"
     :enter-from-class="'opacity-0 ' + getEnterFrom(topPopover?.info?.placement ?? 'top')"
     enter-to-class="opacity-100 scale-100 translate-x-0 translate-y-0"
-    leave-active-class="transition-all ease-out duration-75"
+    :leave-active-class="'transition-all ease-out ' + shouldAnimate ? 'duration-75' : 'duration-0'"
     leave-from-class="opacity-100 scale-100 translate-x-0 translate-y-0"
     :leave-to-class="'opacity-0 ' + getEnterFrom(topPopover?.info?.placement ?? 'top')"
   >
@@ -180,6 +181,7 @@ function close(popover: PopoverInstance | undefined) {
         data-outside-view="true"
         @keydown.esc.stop.prevent="() => close(popover)"
       >
+        {{ shouldAnimate /* nocheckin */ }}
         <component
           :is="toComponent(popover.info)"
           :ref="(el: any) => registerInnerRef(popover.id, el)"
@@ -197,7 +199,7 @@ function close(popover: PopoverInstance | undefined) {
               updatePopover(popover, { props: { ...popover.info.props, ...newProps } });
             }
           "
-          @apply="(value: any, keepOpen?: boolean) => (onApply(popover), keepOpen || close(popover))"
+          @apply="(value: any, keepOpen?: boolean) => (onApply(popover, value), keepOpen || close(popover))"
           @close="() => close(popover)"
         />
       </div>

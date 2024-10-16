@@ -136,6 +136,7 @@ export type PopoverInfo = (
   container?: HTMLElement | SVGElement | "containingRoot";
   containerClass?: string;
   dontFocus?: boolean;
+  dontAnimate?: boolean;
   onUpdate?(value?: any): void;
   onApply?(value?: any): void;
   onClose?(): void;
