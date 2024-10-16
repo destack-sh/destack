@@ -67,9 +67,9 @@ watch(results, () => {
 
 function fire(item: IconMetadata) {
   const icon = metadataToIcon(item, color.value ?? undefined);
-  apply(icon);
+  set(icon);
 }
-function apply(icon: IconData | undefined) {
+function set(icon: IconData | undefined) {
   emit("update:modelValue", icon);
   emit("apply", icon);
 }

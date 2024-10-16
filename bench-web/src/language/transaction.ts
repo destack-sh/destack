@@ -348,7 +348,7 @@ export class TransactionBuilder implements Transaction {
     // convert update to operations
     let operations: EditOperationData[];
     if (!Array.isArray(update)) {
-      operations = makeEditOperations(node, update);
+      operations = makeEditOperationsFromPartial(node, update);
     } else {
       operations = update;
     }
@@ -395,7 +395,7 @@ export class TransactionBuilder implements Transaction {
     }
   }
 
-  update<T extends AnyNodeData>(node: T, update: Partial<T>, options?: { debounce?: DebounceLevel }) {
+  update<T extends AnyNodeData>(node: T, update: Partial<T> | EditOperationData[], options?: { debounce?: DebounceLevel }) {
     this._doUpdate(EditType.UPDATE, node, update, options);
   }
 
@@ -421,7 +421,7 @@ export class TransactionBuilder implements Transaction {
 }
 
 /** Turns a top-level node partial update into its corresponding edit operations (set/clear) */
-export function makeEditOperations<T extends AnyNodeData>(node: T, update: Partial<T>): EditOperationData[] {
+export function makeEditOperationsFromPartial<T extends AnyNodeData>(node: T, update: Partial<T>): EditOperationData[] {
   const operations: EditOperationData[] = [];
   const propertiesInfos = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
   const properties = PROPERTY_ENUM_BY_TYPE[node.metatype]!;

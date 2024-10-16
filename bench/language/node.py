@@ -820,11 +820,11 @@ def _trace_edit_operation(
     if old_value is None:
         old_value_packed = None
     else:
-        old_value_packed = pack_value_data(old_value, typ, wrap_primitive=False)
+        old_value_packed = pack_value_data(old_value, typ, wrap_scalar=False)
     if new_value is None:
         new_value_packed = None
     else:
-        new_value_packed = pack_value_data(new_value, typ, wrap_primitive=False)
+        new_value_packed = pack_value_data(new_value, typ, wrap_scalar=False)
 
     operation = EditOperationData(
         metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,

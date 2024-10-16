@@ -9,13 +9,18 @@ import {
   resolveType,
   TypeIdentity,
 } from "@/language/field";
+import { DebounceLevel } from "@/language/transaction";
+import { packValue } from "@/language/value";
 import {
   BenchType,
+  EditOperationData,
+  EditOperationType,
   FieldData,
   FieldType,
   IconData,
   NodeType,
   ObjectType,
+  PrimitiveType,
   PropertyInfo,
   RecordData,
   RecordProperty,
@@ -41,7 +46,7 @@ import { computed, ref, Ref, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT = 32;
-const MIN_COLUMN_WIDTH = 32;
+const MIN_COLUMN_WIDTH = 64;
 const SELECT_COLUMN_WIDTH = 32;
 const ROW_PADDING_X = 8; // per side, so ROW_PADDING*2 per side
 const ROW_PADDING_Y = 4; // per side, so ROW_PADDING*2 per side
@@ -116,7 +121,11 @@ const containerRef = ref<HTMLDivElement | null>(null);
 const containerSize = useElementSize(containerRef);
 
 function getMinColumnWidth(type: TypeIdentity, viewType: ViewType | undefined) {
-  return 50; // nocheckin: size column widths for types
+  return MIN_COLUMN_WIDTH; // nocheckin: size column widths for types
+}
+
+function getColumnDebounce(type: TypeIdentity, viewType: ViewType | undefined): DebounceLevel {
+  return "short"; // nocheckin: calibrate debounce levels properly
 }
 
 // nocheckin: store column views somewhere
@@ -130,6 +139,7 @@ type ColumnView = {
   viewComponent: any | undefined;
   viewProps: any | undefined;
   width: number;
+  debounce: DebounceLevel;
 } & (
   | {
       kind: "property";
@@ -162,6 +172,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       viewComponent: view?.type != null ? getViewComponent(view?.type) : null,
       viewProps: view,
       width: 0,
+      debounce: getColumnDebounce(propertyType, view?.type),
     };
     columns.push(column);
   }
@@ -181,6 +192,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       viewComponent: view?.type != null ? getViewComponent(view?.type) : null,
       viewProps: view,
       width: 0,
+      debounce: getColumnDebounce(fieldType, view?.type),
     };
     columns.push(column);
   }
@@ -213,8 +225,32 @@ function readColumnValue(record: RecordData, column: ColumnView) {
   }
 }
 
-function writeColumnValue(record: RecordData, column: ColumnView, value?: any) {
-  throw new Error("nocheckin: writeColumnValue");
+function writeColumnValue(
+  record: RecordData,
+  column: ColumnView,
+  newValue: any | undefined,
+  options?: { debounce?: DebounceLevel },
+) {
+  if (options?.debounce == null) options = { ...(options ?? {}), debounce: column.debounce };
+  if (column.kind == "property") {
+    recordConnection.tx.update(record, { [column.propertyName]: newValue }, options);
+  } else if (column.kind == "field") {
+    const oldValue = readColumnValue(record, column);
+    const newValuePacked = packValue(newValue, column.type, { wrapScalar: false });
+    const oldValuePacked = packValue(oldValue, column.type, { wrapScalar: false });
+    const operations: EditOperationData[] = [
+      {
+        metatype: ObjectType.EDIT_OPERATION,
+        type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
+        path: [RecordProperty.valuePacked.toString(), column.storageKey],
+        newValuePacked,
+        oldValuePacked,
+      },
+    ];
+    recordConnection.tx.update(record, operations, options);
+  } else {
+    assertNever(column);
+  }
 }
 
 canvas.registerView(self, id);
@@ -258,7 +294,7 @@ defineExpose<ViewExposed>({ self, id });
         </Transition>
 
         <!-- Pagination -->
-        <span v-if="page?.total != null">{{ page?.total }}</span>
+        <span v-if="page?.total != null">{{ page.size }} / {{ page?.total }}</span>
 
         <!-- Add field -->
         <button
@@ -306,7 +342,7 @@ defineExpose<ViewExposed>({ self, id });
         <div
           v-for="(column, i) in columns"
           :key="column.id"
-          class="flex h-full cursor-pointer items-center border-transparent px-2 py-1 hover:bg-gray-100"
+          class="flex h-full flex-shrink-0 cursor-pointer items-center border-transparent px-2 py-1 hover:bg-gray-100"
           :class="[i > 0 ? 'border-l' : '']"
           :style="{
             width: `${column.width}px`,
@@ -331,7 +367,7 @@ defineExpose<ViewExposed>({ self, id });
           />
           <NativeInput
             v-if="column.kind == 'field'"
-            class="font-medium"
+            class="truncate font-medium"
             :model-value="column.title"
             :value-type="NAME_TYPE"
             :variant="Variant.STEALTH"
@@ -340,7 +376,7 @@ defineExpose<ViewExposed>({ self, id });
               (newValue) => pkgConnection.tx.update(column.field, { name: newValue }, { debounce: 'long' })
             "
           />
-          <span v-else class="font-medium">{{ column.title }}</span>
+          <span v-else class="truncate font-medium">{{ column.title }}</span>
         </div>
       </div>
 
@@ -358,33 +394,41 @@ defineExpose<ViewExposed>({ self, id });
         <!-- Columns -->
         <div
           v-for="(column, i) in columns"
-          class="cursor-pointer border-gray-200 px-2 py-1 text-gray-900"
+          class="flex-shrink-0 cursor-pointer border-gray-200 px-2 py-1 text-gray-900"
           :class="[i > 0 ? 'border-l' : '']"
           :style="{
             width: `${column.width}px`,
             minHeight: `${ROW_HEIGHT}px`,
           }"
+          :data-column-id="column.id /* used to mark this as a column for click handler below */"
           @click="
             (event) => {
               if (column.viewType == ViewType.TOGGLE) {
                 const value = readColumnValue(record, column);
                 writeColumnValue(record, column, !value);
               } else {
+                const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]');
+                if (columnEl == null) return;
                 pushPopover({
-                  trigger: event.target as HTMLElement,
-                  reference: event.target as HTMLElement,
+                  trigger: columnEl as HTMLElement,
+                  reference: columnEl as HTMLElement,
                   info: {
                     component: column.viewComponent,
                     placement: 'inside-top-left',
-										referenceMargin: 0,
+                    referenceMargin: 0,
                     props: {
                       ...column.viewProps,
-											isInput: true,
-											// size: { metatype: ObjectType.BOX, width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!) },
-											isInline: true,
+                      isInput: true,
+                      size: {
+                        metatype: ObjectType.BOX,
+                        width: Math.max(100, columnEl?.getBoundingClientRect().width!),
+                      },
+                      isInline: true,
                       modelValue: readColumnValue(record, column),
                     },
-                    onApply: (value) => writeColumnValue(record, column, value),
+                    dontAnimate: true,
+                    onUpdate: (value: any) => writeColumnValue(record, column, value),
+                    onApply: (value: any) => writeColumnValue(record, column, value, { debounce: 'tick' }),
                   },
                 });
               }
@@ -397,7 +441,7 @@ defineExpose<ViewExposed>({ self, id });
             v-bind="column.viewProps"
             :model-value="readColumnValue(record, column)"
             :variant="Variant.STEALTH"
-            @update:model-value="writeColumnValue(record, column)"
+            @update:model-value="(value: any) => writeColumnValue(record, column, value)"
           />
           <span v-else class="text-danger-600">{{ column.viewType != null ? ViewType[column.viewType] : "???" }}</span>
         </div>
