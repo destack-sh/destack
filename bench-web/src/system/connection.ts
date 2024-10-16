@@ -109,17 +109,18 @@ type ConnectionMetadata = {
 };
 
 // get connection
-type GetConnectionParams<T extends NodeType> = {
+export type GetConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   scope: GraphScopeData;
   roots: (Omit<NodeReferenceData, "type"> & { nodeType: T })[];
+  blockPtr?: NodeReferenceData;
   isOptional?: boolean;
   ancestorTypes?: NodeType[];
   descendantTypes?: NodeType[];
   select?: Partial<SelectOptionsData>;
   includeDeleted?: boolean;
 };
-type GetConnectionResult<T extends NodeType> = {
+export type GetConnectionResult<T extends NodeType> = {
   graph: ReadNodeGraph;
   overlay: ReadNodeGraph | null;
   roots: Ref<NodeTypeMapping[T][]>;
@@ -127,11 +128,11 @@ type GetConnectionResult<T extends NodeType> = {
 };
 
 // search connection
-type SearchConnectionParams<T extends NodeType> = {
+export type SearchConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   scope: GraphScopeData;
   nodeType: T;
-  bases?: NodeReferenceData[];
+  blockPtr?: NodeReferenceData;
   filter?: ExpressionData;
   sort?: ExpressionData[];
   ancestorTypes?: NodeType[];
@@ -141,7 +142,7 @@ type SearchConnectionParams<T extends NodeType> = {
   count?: boolean;
   select?: Partial<SelectOptionsData>;
 };
-type SearchConnectionResult<T extends NodeType> = {
+export type SearchConnectionResult<T extends NodeType> = {
   graph: ReadNodeGraph;
   overlay: ReadNodeGraph | null;
   rootsPtr: Ref<TypedNodeReferenceData<T>[]>;
@@ -150,7 +151,7 @@ type SearchConnectionResult<T extends NodeType> = {
 };
 
 // aggregate connection
-type AggregateConnectionParams = {
+export type AggregateConnectionParams = {
   isEnabled?: boolean;
   scope: GraphScopeData;
   nodeType: NodeType;
@@ -159,7 +160,7 @@ type AggregateConnectionParams = {
   sort?: ExpressionData[];
   aggregation: ExpressionData;
 };
-type AggregateConnectionResult = {
+export type AggregateConnectionResult = {
   aggregation: Ref<AggregationData>;
   epoch: Ref<bigint>;
 };
@@ -608,6 +609,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
       {
         scope: graph.scope,
         roots: params.roots,
+        blockPtr: params.blockPtr,
         ancestorTypes: params.ancestorTypes ?? [],
         descendantTypes: params.descendantTypes ?? [],
         select: select,
@@ -664,7 +666,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
       {
         ...params,
         nodeType: params.nodeType,
-        bases: params.bases ?? [],
+        blockPtr: params.blockPtr,
         scope: graph.scope,
         sort: params.sort ?? [],
         ancestorTypes: params.ancestorTypes ?? [],

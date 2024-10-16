@@ -18,6 +18,7 @@ import {
   PipeFilter,
   PipeModulation,
   PrimitiveType,
+  PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
   RecordData,
   RunData,
@@ -358,4 +359,10 @@ export function getPropertyTitle(property: PropertyInfo): string {
   if (pythonName.endsWith("_packed")) pythonName = pythonName.slice(0, -7);
   const title = toCasing(pythonName, Casing.CAMEL, true);
   return title;
+}
+
+export function getPropertyName(property: PropertyInfo): string {
+  const properties = PROPERTY_ENUM_BY_TYPE[property.component];
+  if (!properties) throw new Error(`invalid property component: ${property.component}`);
+  return properties[property.id];
 }

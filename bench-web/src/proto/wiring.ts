@@ -198,7 +198,7 @@ export function propertyReference(metatype: ObjectType | NodeType | StructType, 
   return { metatype: ObjectType.PROPERTY_REFERENCE, type: metatype as unknown as ObjectType, id };
 }
 
-export function propertyInfo(metatype: ObjectType, id: number): PropertyInfo {
+export function propertyInfo(metatype: ObjectType | NodeType | StructType, id: number): PropertyInfo {
   return PROPERTY_INFOS_BY_TYPE[metatype]![id];
 }
 

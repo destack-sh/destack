@@ -740,6 +740,27 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
+    } else if ((isNode(node, NodeType.BLOCK) && node.type == BlockType.DATABASE) || isNode(node, NodeType.RECORD)) {
+      let view: ViewData;
+      if (isNode(node, NodeType.RECORD)) {
+        const block = graph.get(node.blockPtr!);
+        if (block == null) throw new Error(`no containing block for record: ${describeNode(node)}`);
+        view = this.addView(
+          {
+            type: ViewType.DATABASE,
+            nodePtr: toNodeRefOneOf(block),
+            focus: makeSelection([node]),
+            ...options?.props,
+          },
+          { ifPresent: "upsertAndFocus", ...options },
+        );
+      } else {
+        view = this.addView(
+          { type: ViewType.DATABASE, nodePtr: toNodeRefOneOf(node), ...options?.props },
+          { ifPresent: "upsertAndFocus", ...options },
+        );
+      }
+      this.inspect({ node: nodePtr, view });
     } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW && !options?.preferPage) {
       // open as view
       this.addView(
