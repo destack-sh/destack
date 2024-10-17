@@ -15,6 +15,7 @@ import {
   FileType,
   NodeType,
   ObjectType,
+  Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -180,8 +181,9 @@ defineExpose<ViewExposed>({ self, id });
           }),
         } as HoverMenuOptions
       "
-      class="group/dropdown flex w-full flex-row items-center truncate rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
+      class="group/dropdown flex w-full flex-row items-center truncate rounded px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
+        variant != Variant.STEALTH ? 'border' : '',
         isInDropZone
           ? 'border-primary-900 outline outline-1 outline-primary-900'
           : 'border-gray-200 hover:border-gray-300',
@@ -217,10 +219,7 @@ defineExpose<ViewExposed>({ self, id });
         <span>Upload {{ facetName }}</span>
       </span>
       <!-- Controls -->
-      <div
-        v-if="!isDisabled && isInput"
-        class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1 pl-1.5"
-      >
+      <div v-if="!isDisabled && isInput" class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1 pl-1.5">
         <!-- Clear -->
         <button
           v-if="modelValue != null && !valueType?.isRequired"
@@ -240,8 +239,9 @@ defineExpose<ViewExposed>({ self, id });
     <div
       v-else-if="optimisticValue == null"
       ref="containerRef"
-      class="flex h-full min-h-[80px] w-full cursor-pointer flex-col justify-center rounded border px-2.5 py-1 text-center transition-all duration-75"
+      class="flex h-full w-full cursor-pointer flex-col justify-center rounded px-2.5 py-1 text-center transition-all duration-75"
       :class="[
+        variant != Variant.STEALTH ? 'min-h-[80px] border' : 'opacity-0 hover:opacity-100',
         isInDropZone
           ? 'border-primary-900 text-primary-900 outline outline-2 outline-primary-900'
           : 'border-gray-200 text-gray-400 hover:border-gray-300',
@@ -258,8 +258,11 @@ defineExpose<ViewExposed>({ self, id });
     <div
       v-else
       ref="containerRef"
-      class="group/inline relative flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
-      :class="[isInDropZone ? 'border-primary-900 outline outline-2 outline-primary-900' : '']"
+      class="group/inline relative flex h-full w-full flex-col justify-center rounded border-gray-200"
+      :class="[
+        variant != Variant.STEALTH ? 'min-h-[80px] border' : '',
+        isInDropZone ? 'border-primary-900 outline outline-2 outline-primary-900' : '',
+      ]"
       :style="{
         aspectRatio: (download?.file.value ?? modelValue)?.aspectRatio ?? undefined,
       }"

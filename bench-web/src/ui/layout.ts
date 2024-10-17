@@ -35,7 +35,6 @@ export type SplitLayout = {
   dividerSize: number; // should this even affect the layout?
 };
 
-
 /**
  * Calculates positions and sizes for views in a split view container.
  * Sizes are distributed alongside the given orientation (the relative views subdividing the space not taken up by absolute views).
@@ -333,6 +332,15 @@ export function useScrollArea(area: {
   });
   watch(isThumbScrolling, () => (_isDraggingGlobal.value = isThumbScrolling.value));
 
+  const isAtEnd = computed(() => {
+    if (area.container.value == null) return false;
+    const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
+    const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
+    const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
+    const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
+    return scrollPos + clientSize >= scrollSize - 1;
+  });
+
   return {
     thumb,
     setThumb,
@@ -340,14 +348,7 @@ export function useScrollArea(area: {
     isThumbScrolling,
     isNativeScrolling: scroll.isScrolling,
     isOverflown,
-    isAtEnd: computed(() => {
-      if (area.container.value == null) return false;
-      const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
-      const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
-      const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
-      const scrollPos = isHorizontal ? scroll.x.value : scroll.y.value;
-      return scrollPos + clientSize >= scrollSize - 1;
-    }),
+    isAtEnd,
     scroll,
     containerSize,
     innerSize,

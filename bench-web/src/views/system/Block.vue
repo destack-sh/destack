@@ -11,6 +11,7 @@ import {
   FieldType,
   NodeReferenceData,
   NodeType,
+  Orientation,
   TypeInfoData,
   TypeKind,
   Variant,
@@ -23,12 +24,13 @@ import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import { onMouseReleasedOnce } from "@/ui/layout";
+import { onMouseReleasedOnce, ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import Scroll from "@/views/containers/Scroll.vue";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -315,7 +317,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :self="props.self"
         :variant="Variant.COMPACT"
         is-input
-      />
+        />
     </div>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
