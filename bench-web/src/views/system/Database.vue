@@ -125,6 +125,9 @@ const containerSize = useElementSize(containerRef);
 const rowBodyWidth = computed(() => {
   return containerSize.width.value - ROW_ACTIONS_WIDTH;
 });
+const bodySize = computed(() => {
+  return { width: containerSize.width.value, height: containerSize.height.value - ACTION_HEADER_HEIGHT };
+});
 
 function getMinColumnWidth(type: TypeIdentity, viewType: ViewType | undefined) {
   if (type.primitiveType == PrimitiveType.BOOLEAN) {
@@ -379,10 +382,10 @@ defineExpose<ViewExposed>({ self, id });
       </button>
     </div>
 
-    <!-- Body (scroll horizontally & vertically) -->
+    <!-- Body (scroll horizontally, and vertically if not compact) -->
     <Scroll
-      :size="{ width: containerSize.width.value }"
-      :orientation="Orientation.HORIZONTAL"
+      :size="bodySize"
+      :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
     >

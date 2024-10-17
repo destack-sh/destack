@@ -317,7 +317,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :self="props.self"
         :variant="Variant.COMPACT"
         is-input
-        />
+      />
     </div>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
