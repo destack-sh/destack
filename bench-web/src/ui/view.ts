@@ -15,8 +15,7 @@ import {
   ObjectType,
   PrimitiveType,
   SelectionData,
-  SelectionKind,
-  SelectionTarget,
+  SelectionType,
   StructType,
   TransformData,
   TypeConstraintData,
@@ -357,9 +356,9 @@ export function makeSelection(
   nodes = Array.isArray(nodes) ? nodes : [nodes];
   return {
     metatype: ObjectType.SELECTION,
-    target: SelectionTarget.NODE,
-    kind: SelectionKind.LIST,
+    type: SelectionType.LIST,
     nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
+    fieldsPtr: [],
   };
 }
 
@@ -375,8 +374,9 @@ export function expandSelection(
   nodes: (AnyNodeData | NodeReferenceData)[],
 ): SelectionData {
   return {
-    ...(selection ?? { metatype: ObjectType.SELECTION, target: SelectionTarget.NODE, kind: SelectionKind.LIST }),
+    ...(selection ?? { metatype: ObjectType.SELECTION, type: SelectionType.LIST }),
     nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
+    fieldsPtr: [],
   };
 }
 

@@ -80,33 +80,21 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 
 @enum_(EnumType.SELECTION_KIND)
-class SelectionKind(IdEnum):
-    RANGE = 1
+class SelectionType(IdEnum):
     LIST = 2
-
-
-@enum_(EnumType.SELECTION_TARGET)
-class SelectionTarget(IdEnum):
-    NODE = 1
-    VALUE = 2
 
 
 @struct_(StructType.SELECTION)
 class Selection(Struct):
-    """A selection of nodes/values."""
+    """A selection of Nodes."""
 
-    kind: SelectionKind = p_regular(30, require=True)
-    target: SelectionTarget = p_regular(31, require=True)
+    type: SelectionType = p_regular(30, require=True)
 
-    # node selection
     nodes: list[Node] | None = p_regular(
         40, require=False, array=True, references=IN_BENCH_NODE_TYPES.tuple
     )
-    from_node: Optional[Node] = p_regular(
-        41, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
-    )
-    to_node: Optional[Node] = p_regular(
-        42, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
+    fields: list["Field"] | None = p_regular(
+        41, require=False, array=True, references=NodeType.FIELD
     )
 
 
