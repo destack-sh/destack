@@ -25,18 +25,25 @@ const containerRef = ref<HTMLElement | null>(null);
 const innerRef = ref<HTMLElement | null>(null);
 const areaMouse = useMouseInElement(containerRef);
 const isMouseInArea = computed(() => !areaMouse.isOutside.value);
-const { thumb, isThumbScrolling, isNativeScrolling, isOverflown, scroll, innerSize, isAtEnd } = useScrollArea({
+const horizontalScrollArea = useScrollArea({
   container: containerRef,
   inner: innerRef,
-  orientation: toRef(props, "orientation"),
+  orientation: Orientation.HORIZONTAL,
+  trackWidth: toRef(props, "trackWidth"),
+});
+const verticalScrollArea = useScrollArea({
+  container: containerRef,
+  inner: innerRef,
+  orientation: Orientation.VERTICAL,
   trackWidth: toRef(props, "trackWidth"),
 });
 
 function scrollToEnd() {
-  if (props.orientation == Orientation.HORIZONTAL) {
-    scroll.x.value = innerSize.width.value;
-  } else {
-    scroll.y.value = innerSize.height.value;
+  if (props.orientation == null || props.orientation == Orientation.HORIZONTAL) {
+    horizontalScrollArea.scroll.x.value = horizontalScrollArea.innerSize.width.value;
+  }
+  if (props.orientation == null || props.orientation == Orientation.VERTICAL) {
+    verticalScrollArea.scroll.y.value = verticalScrollArea.innerSize.height.value;
   }
 }
 
@@ -56,7 +63,7 @@ const sizeStyles = computed(() => {
 
 // auto-scroll to end if sticky
 watch(
-  () => [props.stickToEnd, innerSize.width.value, innerSize.height.value],
+  () => [props.stickToEnd, horizontalScrollArea.innerSize.width.value, verticalScrollArea.innerSize.height.value],
   () => {
     if (props.stickToEnd) scrollToEnd();
   },
@@ -64,13 +71,20 @@ watch(
 );
 
 // show scrolling instantly, fade out once inactive
+const isSomeScrolling = computed(
+  () =>
+    horizontalScrollArea.isThumbScrolling.value ||
+    horizontalScrollArea.isNativeScrolling.value ||
+    verticalScrollArea.isThumbScrolling.value ||
+    verticalScrollArea.isNativeScrolling.value,
+);
 const showScrolling = ref(false);
-watch([isThumbScrolling, isNativeScrolling], () => {
-  if (isThumbScrolling.value || isNativeScrolling.value) {
+watch([isSomeScrolling], () => {
+  if (isSomeScrolling.value) {
     showScrolling.value = true;
   } else {
     setTimeout(() => {
-      if (!isThumbScrolling.value && !isNativeScrolling.value) {
+      if (!isSomeScrolling.value) {
         showScrolling.value = false;
       }
     }, 1000);
@@ -82,8 +96,8 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; scrollToEnd: () => void }>({
   self,
   id,
-  isScrolling: computed(() => isThumbScrolling.value || isNativeScrolling.value),
-  isAtEnd,
+  isScrolling: isSomeScrolling,
+  isAtEnd: computed(() => horizontalScrollArea.isAtEnd.value && verticalScrollArea.isAtEnd.value),
   scrollToEnd,
 });
 </script>
@@ -96,9 +110,9 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
       ref="containerRef"
       class="scrollbar-none relative"
       :class="[
-        orientation == Orientation.HORIZONTAL
-          ? 'touch-pan-x overflow-y-hidden overflow-x-scroll'
-          : 'touch-pan-y overflow-x-hidden overflow-y-scroll',
+        orientation == Orientation.HORIZONTAL ? 'touch-pan-x overflow-y-hidden overflow-x-scroll' : '',
+        orientation == Orientation.VERTICAL ? 'touch-pan-y overflow-x-hidden overflow-y-scroll' : '',
+        orientation == null ? 'touch-pan-xy overflow-scroll' : '',
         $attrs.class,
       ]"
       :style="{ ...sizeStyles }"
@@ -110,19 +124,27 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
     </div>
     <!-- Scroll track  -->
     <div
+      v-for="{ orientation, area } in props.orientation != null
+        ? [
+            {
+              orientation: props.orientation,
+              area: props.orientation == Orientation.HORIZONTAL ? horizontalScrollArea : verticalScrollArea,
+            },
+          ]
+        : [
+            { orientation: Orientation.HORIZONTAL, area: horizontalScrollArea },
+            { orientation: Orientation.VERTICAL, area: verticalScrollArea },
+          ]"
       :class="[
         'group absolute z-30',
-        props.orientation == Orientation.HORIZONTAL ? 'bottom-0 left-0 w-full' : 'right-0 top-0 h-full',
+        orientation == Orientation.HORIZONTAL ? 'bottom-0 left-0 w-full' : 'right-0 top-0 h-full',
       ]"
       :style="
-        props.orientation == Orientation.HORIZONTAL
-          ? { height: props.trackWidth + 'px' }
-          : { width: props.trackWidth + 'px' }
+        orientation == Orientation.HORIZONTAL ? { height: props.trackWidth + 'px' } : { width: props.trackWidth + 'px' }
       "
     >
-      <!-- Scroll thumb -->
       <div
-        v-if="isOverflown"
+        v-if="area.isOverflown"
         class="absolute z-40 rounded transition-colors duration-300"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
@@ -135,13 +157,14 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
             : '',
         ]"
         :style="{
-          left: thumb.left + 'px',
-          top: thumb.top + 'px',
-          width: thumb.width + 'px',
-          height: thumb.height + 'px',
+          left: area.thumb.value.left + 'px',
+          top: area.thumb.value.top + 'px',
+          width: area.thumb.value.width + 'px',
+          height: area.thumb.value.height + 'px',
         }"
-        @mousedown="isThumbScrolling = true"
+        @mousedown="area.isThumbScrolling.value = true"
       />
     </div>
+    <!-- Scroll track (horizontal) -->
   </div>
 </template>
