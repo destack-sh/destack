@@ -395,7 +395,11 @@ export class TransactionBuilder implements Transaction {
     }
   }
 
-  update<T extends AnyNodeData>(node: T, update: Partial<T> | EditOperationData[], options?: { debounce?: DebounceLevel }) {
+  update<T extends AnyNodeData>(
+    node: T,
+    update: Partial<T> | EditOperationData[],
+    options?: { debounce?: DebounceLevel },
+  ) {
     this._doUpdate(EditType.UPDATE, node, update, options);
   }
 
@@ -500,7 +504,7 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
       } else {
         throw new Error(`unexpected operation type: ${operation.type}`);
       }
-      Object.assign(node, { [key]: newValue });
+      Object.assign(obj, { [key]: newValue });
     }
   }
 }
