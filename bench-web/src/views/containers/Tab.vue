@@ -211,7 +211,8 @@ defineExpose<ViewExposed>({ self, actions });
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
-      :size="{ width: innerSize.width, height: HEADER_HEIGHT }"
+      :size="{ width: innerSize.width }"
+      :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Tab button -->
       <button

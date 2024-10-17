@@ -13,7 +13,7 @@ const props = defineProps<
     trackWidth: ScrollbarWidth;
     trackIsOverlay?: boolean;
     trackIsAlwaysVisible?: boolean;
-    size: Required<Pick<BoxData, "width" | "height">>;
+    size: Pick<BoxData, "width" | "height">;
     sizeIsDynamic?: boolean;
     stickToEnd?: boolean;
   } & Pick<ViewData, "orientation" | "variant">
@@ -39,6 +39,20 @@ function scrollToEnd() {
     scroll.y.value = innerSize.height.value;
   }
 }
+
+const sizeStyles = computed(() => {
+  if (props.orientation == Orientation.HORIZONTAL) {
+    const width = props.trackIsOverlay ? props.size.width : (props.size.width ?? 0) - props.trackWidth;
+    return {
+      [props.sizeIsDynamic ? "maxWidth" : "width"]: width + "px",
+    };
+  } else {
+    const height = props.trackIsOverlay ? props.size.height : (props.size.height ?? 0) - props.trackWidth;
+    return {
+      [props.sizeIsDynamic ? "maxHeight" : "height"]: height + "px",
+    };
+  }
+});
 
 // auto-scroll to end if sticky
 watch(
@@ -75,21 +89,22 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
 </script>
 <template>
   <div class="relative">
+    <!-- TODO :UX: Scroll view captures scroll in both directions, not just its own orientation -->
+    <!-- (so if we have a horizontal Scroll, it will prevent vertical scrolling, sometimes annoying) -->
     <!-- Scroll area -->
     <div
       ref="containerRef"
       class="scrollbar-none relative"
-      :class="[orientation == Orientation.HORIZONTAL ? 'overflow-x-scroll' : 'overflow-y-scroll', $attrs.class]"
-      :style="{
-        [sizeIsDynamic ? 'maxWidth' : 'width']:
-          (orientation == Orientation.HORIZONTAL || trackIsOverlay ? size.width : size.width - trackWidth) + 'px',
-        [sizeIsDynamic ? 'maxHeight' : 'height']:
-          (orientation == Orientation.VERTICAL || trackIsOverlay ? size.height : size.height - trackWidth) + 'px',
-      }"
-      @scroll="(e) => $emit('scroll', e)"
+      :class="[
+        orientation == Orientation.HORIZONTAL
+          ? 'touch-pan-x overflow-y-hidden overflow-x-scroll'
+          : 'touch-pan-y overflow-x-hidden overflow-y-scroll',
+        $attrs.class,
+      ]"
+      :style="{ ...sizeStyles }"
     >
       <!-- Inner wrapper -->
-      <div ref="innerRef" class="h-full w-full" :class="$attrs.class">
+      <div ref="innerRef" class="" :class="$attrs.class">
         <slot />
       </div>
     </div>
