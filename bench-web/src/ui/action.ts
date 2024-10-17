@@ -540,7 +540,7 @@ declareActionMap<"common">({
     shortcuts: ["mod+d"],
   },
   "common.edit.delete": {
-    icon: "fas fa-trash",
+    icon: "fas fa-trash-can",
     title: "Delete",
     text: "Delete this item",
     shortcuts: ["del", "backspace"],

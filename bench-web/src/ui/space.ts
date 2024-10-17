@@ -298,11 +298,22 @@ export class SpaceCanvas {
   }
 
   /** Inspects the given node */
-  inspect(inspect: { node: AnyNodeData | AnyNodeReferenceData; view: SomeView; focusInspector?: boolean }): void {
+  inspect(inspect: {
+    node: AnyNodeData | AnyNodeReferenceData;
+    view: SomeView | ViewComponent | ComponentInstance<any> | HTMLElement | SVGElement;
+    focusInspector?: boolean;
+  }): void {
     log.trace("canvas.inspect", inspect);
 
     const nodePtr = toPlainNodeRef(inspect.node as AnyNodeData);
-    const viewAncestors = this.graph.getAncestors(inspect.view, { metatypes: [NodeType.VIEW], includeSelf: true });
+    let view: SomeView | null;
+    if (isNodeRef(inspect.view) || isNode(inspect.view)) {
+      view = inspect.view as SomeView;
+    } else {
+      view = this.findViewData(inspect.view);
+    }
+    if (view == null) throw new Error(`no view for ${inspect.view}`);
+    const viewAncestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
     const rootViewIdx = viewAncestors.findIndex((v) => ROOT_VIEW_TYPES.has(v.type));
     const baseNodePtr = unwrapProtoOneOf(viewAncestors[rootViewIdx - 1]?.nodePtr);
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {

@@ -362,7 +362,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 graph=data_graph, edits=edits, include_deleted=True, is_prepass=True
             )
             assert flat_edits, f"no flat edits from prepass for {edits!r}"
-            assert len(flat_edits) == len(edits), f"bad flatten: {len(flat_edits)} != {len(edits)}"
             unpacked_graph = wiring.unpack_node_graph(
                 data_graph, supergraph=subject._supergraph, parent=None, session=session
             )
@@ -375,6 +374,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
             # actually commit
             session.add_edits(flat_edits)  # (assigns epochs)
+            assert len(flat_edits) == len(edits), f"bad flatten: {len(flat_edits)} != {len(edits)}"
             for flat_edit, edit in zip(flat_edits, edits):  # copy epoch from flat_edit
                 edit.epoch = flat_edit.epoch
             _, cascaded_edits = await session.commit(_data_graph=data_graph)

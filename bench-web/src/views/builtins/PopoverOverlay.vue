@@ -150,10 +150,10 @@ function close(popover: PopoverInstance | undefined) {
 </script>
 <template>
   <TransitionGroup
-    :enter-active-class="'transition-all ease-in ' + shouldAnimate ? 'duration-75' : 'duration-0'"
+    :enter-active-class="'transition-all ease-in ' + (shouldAnimate ? 'duration-75' : 'duration-0')"
     :enter-from-class="'opacity-0 ' + getEnterFrom(topPopover?.info?.placement ?? 'top')"
     enter-to-class="opacity-100 scale-100 translate-x-0 translate-y-0"
-    :leave-active-class="'transition-all ease-out ' + shouldAnimate ? 'duration-75' : 'duration-0'"
+    :leave-active-class="'transition-all ease-out ' + (shouldAnimate ? 'duration-75' : 'duration-0')"
     leave-from-class="opacity-100 scale-100 translate-x-0 translate-y-0"
     :leave-to-class="'opacity-0 ' + getEnterFrom(topPopover?.info?.placement ?? 'top')"
   >
@@ -181,7 +181,6 @@ function close(popover: PopoverInstance | undefined) {
         data-outside-view="true"
         @keydown.esc.stop.prevent="() => close(popover)"
       >
-        {{ shouldAnimate /* nocheckin */ }}
         <component
           :is="toComponent(popover.info)"
           :ref="(el: any) => registerInnerRef(popover.id, el)"
