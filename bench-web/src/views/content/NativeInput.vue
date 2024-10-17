@@ -115,14 +115,14 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Input -->
     <div
       v-if="isInput"
-      class="group flex select-text flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-300"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-300"
       :class="[
         isDisabled
           ? 'bg-gray-100 text-gray-700'
           : variant != Variant.STEALTH
             ? 'bg-white text-gray-900'
             : 'text-gray-900',
-        variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1 outline-1 focus-within:outline' : '',
+        variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-1 outline-1 focus-within:outline' : '',
         validationError != null ? 'outline-danger-600' : 'outline-primary-900',
       ]"
     >
@@ -195,8 +195,8 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Read-only -->
     <div
       v-else
-      class="group flex select-text flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
-      :class="[variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1' : '']"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
+      :class="[variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-1' : '']"
     >
       <template v-if="!valueType?.isList">
         <!-- Scalar -->

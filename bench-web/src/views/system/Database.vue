@@ -9,7 +9,8 @@ import {
   resolveType,
   TypeIdentity,
 } from "@/language/field";
-import { DebounceLevel } from "@/language/transaction";
+import { cloneNode } from "@/language/node";
+import { DebounceLevel, newChangeId } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
   BenchType,
@@ -24,6 +25,7 @@ import {
   PropertyInfo,
   RecordData,
   RecordProperty,
+  Timestamp,
   Variant,
   ViewData,
   ViewType,
@@ -35,7 +37,7 @@ import { canvas } from "@/system/space";
 import { getNodeIcon, getTypeIcon, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { PopoverInfoIn, pushPopover } from "@/ui/popover";
-import { getViewForValueType, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { collapseSelection, expandSelection, getViewForValueType, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -43,7 +45,7 @@ import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize } from "@vueuse/core";
-import { computed, ref, Ref, toRef } from "vue";
+import { computed, ref, Ref, toRef, watch } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT = 32;
@@ -61,6 +63,8 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const selfView = spaceGraph.getRef(self);
 
 // NOTE :UX: Database view should be factored out into Table/Feed/etc. query views (?)
 
@@ -121,6 +125,7 @@ function addRecord() {
 //
 
 const containerRef = ref<HTMLDivElement | null>(null);
+const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const containerSize = useElementSize(containerRef);
 const rowBodyWidth = computed(() => {
   return containerSize.width.value - ROW_ACTIONS_WIDTH;
@@ -148,7 +153,7 @@ function getColumnDebounce(type: TypeIdentity, viewType: ViewType | undefined): 
   return "short"; // nocheckin: calibrate debounce levels properly
 }
 
-// nocheckin: store column views somewhere
+// nocheckin: store column views somewhere (in TableView/DatabaseView?)
 type ColumnView = {
   idx: number;
   id: string;
@@ -274,12 +279,65 @@ function writeColumnValue(
   }
 }
 
-function duplicateSelection() {
-  throw new Error("nocheckin: duplicateSelection");
+// selection
+
+const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
+  const selectedRecord = new Set(props.selection?.nodesPtr?.map((ptr) => ptr.id));
+  return records.value
+    .filter((record) => selectedRecord.has(record.id))
+    .reduce(
+      (acc, record) => {
+        acc[record.id] = record;
+        return acc;
+      },
+      {} as Record<string, RecordData>,
+    );
+});
+const hasSelection = computed(() => Object.keys(selectedRecordsById.value).length > 0);
+const numSelected = computed(() => Object.keys(selectedRecordsById.value).length);
+
+function addSelection(record: RecordData) {
+  if (selfView.value == null) throw new Error("no self view");
+  spaceConnection.tx.update(
+    selfView.value,
+    { selection: expandSelection(props.selection, [record]) },
+    { debounce: "tick" },
+  );
+}
+
+function removeSelection(record: RecordData) {
+  if (selfView.value == null || props.selection == null) throw new Error("no self view");
+  spaceConnection.tx.update(
+    selfView.value,
+    { selection: collapseSelection(props.selection, [record]) },
+    { debounce: "tick" },
+  );
+}
+
+function setSelection(record: RecordData, selected: boolean) {
+  if (selected) {
+    addSelection(record);
+  } else {
+    removeSelection(record);
+  }
+}
+
+function duplicateSelection(): RecordData[] {
+  const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Duplicate records" } });
+  const now = Timestamp.now();
+  const clonedRecords: RecordData[] = [];
+  for (const record of Object.values(selectedRecordsById.value)) {
+    const clonedRecord = cloneNode(tx, recordGraph, record, { now });
+    clonedRecords.push(clonedRecord);
+  }
+  return clonedRecords;
 }
 
 function deleteSelection() {
-  throw new Error("nocheckin: deleteSelection");
+  const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Delete records" } });
+  for (const record of Object.values(selectedRecordsById.value)) {
+    tx.delete(record);
+  }
 }
 
 canvas.registerView(self, id);
@@ -288,7 +346,7 @@ defineExpose<ViewExposed>({ self, id });
 <template>
   <div
     ref="containerRef"
-    class="h-full"
+    class="h-full select-none"
     :style="{
       marginLeft: variant == Variant.COMPACT ? '0' : `${FULL_PADDING}px`,
       marginRight: variant == Variant.COMPACT ? '0' : `${FULL_PADDING}px`,
@@ -330,8 +388,8 @@ defineExpose<ViewExposed>({ self, id });
           </span>
         </Transition>
         <!-- Selection -->
-        <div v-if="true" class="flex flex-row items-center rounded border">
-          <span class="h-full px-2 py-0.5 font-medium text-primary-900">2 selected</span>
+        <div v-if="hasSelection" class="flex flex-row items-center rounded border">
+          <span class="h-full px-2 py-0.5 font-medium text-primary-900">{{ numSelected }} selected</span>
           <button
             v-tooltip="{ title: 'Duplicate', small: true }"
             class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
@@ -384,15 +442,16 @@ defineExpose<ViewExposed>({ self, id });
 
     <!-- Body (scroll horizontally, and vertically if not compact) -->
     <Scroll
+      ref="bodyRef"
       :size="bodySize"
       :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
-      :track-width="ScrollbarWidth.sm"
-      track-is-overlay
+      :track-width="ScrollbarWidth.md"
     >
       <div class="flex flex-col border-gray-200">
         <!-- Column headers (sticky) -->
         <div
-          class="flex flex-row items-center border-gray-200"
+          class="flex flex-row items-center border-gray-200 bg-white"
+          :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
             height: `${ROW_HEIGHT}px`,
           }"
@@ -460,8 +519,10 @@ defineExpose<ViewExposed>({ self, id });
         <div
           v-for="(record, j) in records"
           :key="record.id"
-          class="flex flex-row border-gray-200"
-          :class="[]"
+          class="group/row flex flex-row border-gray-200 transition-colors duration-75"
+          :class="[
+            canvas.isInspected(record) ? 'bg-primary-100' : selectedRecordsById[record.id] ? 'bg-primary-50' : '',
+          ]"
           :data-node-id="record.id"
           :data-node-ck="record.id"
           :data-node-type="record.metatype"
@@ -476,13 +537,22 @@ defineExpose<ViewExposed>({ self, id });
             }"
           >
             <!-- Selection checkbox -->
-            <input type="checkbox" class="h-4 w-4 rounded border-gray-200 text-gray-200 focus:ring-0" />
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
+              :class="[
+                hasSelection ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100',
+                selectedRecordsById[record.id] ? 'checked' : '',
+              ]"
+              :checked="selectedRecordsById[record.id] != null"
+              @change="(e) => setSelection(record, (e.target as HTMLInputElement).checked)"
+            />
           </div>
 
           <!-- Columns -->
           <div
             v-for="(column, i) in columns"
-            class="flex-shrink-0 cursor-pointer border-b border-gray-200 px-2 py-1 text-gray-900"
+            class="flex-shrink-0 cursor-pointer select-none border-b border-gray-200 px-2 py-1 text-gray-900"
             :class="[i > 0 ? 'border-l' : '']"
             :style="{
               width: `${column.width}px`,
@@ -528,6 +598,7 @@ defineExpose<ViewExposed>({ self, id });
               :is="column.viewComponent"
               v-if="column.viewComponent != null"
               v-bind="column.viewProps"
+              class="select-none"
               :model-value="readColumnValue(record, column)"
               :variant="Variant.STEALTH"
               @update:model-value="(value: any) => writeColumnValue(record, column, value)"
