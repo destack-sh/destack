@@ -25,20 +25,23 @@ import {
   PropertyInfo,
   RecordData,
   RecordProperty,
+  SelectionType,
   Timestamp,
   Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { propertyInfo, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { propertyInfo, toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
+import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { getNodeIcon, getTypeIcon, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { PopoverInfoIn, pushPopover } from "@/ui/popover";
 import { collapseSelection, expandSelection, getViewForValueType, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
@@ -105,27 +108,28 @@ const {
 );
 
 //
-// Interaction
+// State
 //
 
-// nocheckin: add records optimistically (?)
+// NOTE :UX: add records optimistically in Database?
+//  (right now, they only show up once committed in the backend and the search connection is updated from there)
 function addRecord() {
   if (nodePtr.value == null || block.value == null) throw new Error("no block to add record to");
-  recordConnection.tx.create({
+  const record = recordConnection.tx.create({
     metatype: NodeType.RECORD,
     blockPtr: nodePtr.value,
     packagePtr: block.value.packagePtr,
     parentPtr: nodePtr.value,
     valuePacked: {},
   });
+  canvas.inspect({ node: record, view: containerRef });
 }
 
-//
-// Presentation
-//
-
 const containerRef = ref<HTMLDivElement | null>(null);
+const headerRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
+const columnRefs: Ref<Record<string, HTMLElement | null>> = ref({});
+
 const containerSize = useElementSize(containerRef);
 const rowBodyWidth = computed(() => {
   return containerSize.width.value - ROW_ACTIONS_WIDTH;
@@ -150,10 +154,27 @@ function getMinColumnWidth(type: TypeIdentity, viewType: ViewType | undefined) {
 }
 
 function getColumnDebounce(type: TypeIdentity, viewType: ViewType | undefined): DebounceLevel {
-  return "short"; // nocheckin: calibrate debounce levels properly
+  if (type.primitiveType == PrimitiveType.BOOLEAN) {
+    return "tick";
+  } else if (type.benchType == BenchType.TEXT || type.benchType == BenchType.CODE) {
+    return "long";
+  } else {
+    return "short";
+  }
 }
 
-// nocheckin: store column views somewhere (in TableView/DatabaseView?)
+// nocheckin: store column views somewhere (in TableView/DatabaseView?) :RichColumns
+type ColumnContent =
+  | {
+      kind: "property";
+      property: PropertyInfo;
+      propertyName: string;
+    }
+  | {
+      kind: "field";
+      field: FieldData;
+      storageKey: string;
+    };
 type ColumnView = {
   idx: number;
   id: string;
@@ -165,66 +186,58 @@ type ColumnView = {
   viewProps: any | undefined;
   width: number;
   debounce: DebounceLevel;
-} & (
-  | {
-      kind: "property";
-      property: PropertyInfo;
-      propertyName: string;
-    }
-  | {
-      kind: "field";
-      field: FieldData;
-      storageKey: string;
-    }
-);
+  isInspected: boolean;
+  isHighlighted: boolean;
+} & ColumnContent;
 const columns: Ref<ColumnView[]> = computed(() => {
-  const properties = [RecordProperty.createdEpoch, RecordProperty.updatedEpoch];
+  // NOTE :UX: support Table property columns properly :RichColumns
+  const properties: RecordProperty[] = [];
   const columns: ColumnView[] = [];
-  for (const propertyId of properties) {
-    const property = propertyInfo(NodeType.RECORD, propertyId);
-    const propertyType = getPropertyType(property);
-    const view = getViewForValueType(propertyType);
+
+  function addColumn(
+    columnIn: Pick<ColumnView, "id" | "icon" | "title" | "type" | "isHighlighted" | "isInspected"> & ColumnContent,
+  ) {
+    const view = getViewForValueType(columnIn.type);
     const column: ColumnView = {
-      kind: "property",
+      ...columnIn,
       idx: columns.length,
-      id: propertyId.toString(),
-      icon: getTypeIcon(propertyType),
-      title: getPropertyTitle(property),
-      type: propertyType,
-      property,
-      propertyName: getPropertyName(property),
       viewType: view?.type,
       viewComponent: view?.type != null ? getViewComponent(view?.type) : null,
       viewProps: view,
-      width: 0,
-      debounce: getColumnDebounce(propertyType, view?.type),
-    };
-    columns.push(column);
-  }
-  for (const field of fields.value) {
-    const fieldType = resolveType(field, pkgGraph);
-    const view = getViewForValueType(field);
-    const column: ColumnView = {
-      kind: "field",
-      idx: columns.length,
-      id: field.ck,
-      title: field.name,
-      icon: getNodeIcon(field),
-      type: field,
-      field,
-      storageKey: getStorageKey(field, fieldType),
-      viewType: view?.type,
-      viewComponent: view?.type != null ? getViewComponent(view?.type) : null,
-      viewProps: view,
-      width: 0,
-      debounce: getColumnDebounce(fieldType, view?.type),
+      width: getMinColumnWidth(columnIn.type, view?.type),
+      debounce: getColumnDebounce(columnIn.type, view?.type),
     };
     columns.push(column);
   }
 
-  // assign widths according to type
-  for (const column of columns) {
-    column.width = getMinColumnWidth(column.type, column.viewType);
+  for (const propertyId of properties) {
+    const property = propertyInfo(NodeType.RECORD, propertyId);
+    const propertyType = getPropertyType(property);
+    addColumn({
+      id: propertyId.toString(),
+      icon: getTypeIcon(propertyType),
+      title: getPropertyTitle(property),
+      type: propertyType,
+      kind: "property",
+      property,
+      propertyName: getPropertyName(property),
+      isInspected: false,
+      isHighlighted: false,
+    });
+  }
+  for (const field of fields.value) {
+    const fieldType = resolveType(field, pkgGraph);
+    addColumn({
+      kind: "field",
+      id: field.id,
+      title: field.name,
+      icon: getNodeIcon(field),
+      type: fieldType,
+      field,
+      storageKey: getStorageKey(field, fieldType),
+      isHighlighted: canvas.isHighlighted(field),
+      isInspected: canvas.isInspected(field),
+    });
   }
 
   // grow columns to fit container (if possible)
@@ -295,6 +308,7 @@ const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
 });
 const hasSelection = computed(() => Object.keys(selectedRecordsById.value).length > 0);
 const numSelected = computed(() => Object.keys(selectedRecordsById.value).length);
+const isAllSelected = computed(() => numSelected.value >= records.value.length);
 
 function addSelection(record: RecordData) {
   if (selfView.value == null) throw new Error("no self view");
@@ -322,6 +336,25 @@ function setSelection(record: RecordData, selected: boolean) {
   }
 }
 
+function selectAll() {
+  spaceConnection.tx.update(
+    selfView.value!,
+    {
+      selection: {
+        metatype: ObjectType.SELECTION,
+        type: SelectionType.LIST,
+        nodesPtr: records.value.map(toPlainNodeRef),
+        fieldsPtr: [],
+      },
+    },
+    { debounce: "tick" },
+  );
+}
+
+function clearSelection() {
+  spaceConnection.tx.update(selfView.value!, { selection: undefined }, { debounce: "tick" });
+}
+
 function duplicateSelection(): RecordData[] {
   const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Duplicate records" } });
   const now = Timestamp.now();
@@ -340,6 +373,27 @@ function deleteSelection() {
   }
 }
 
+// drag & drop
+
+const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
+  name: "database.header",
+  container: headerRef,
+  targets: columnRefs,
+  orientation: Orientation.HORIZONTAL,
+  kinds: ["node"],
+  metatypes: [NodeType.BLOCK, NodeType.FIELD],
+  fallbackToClosest: true,
+  onDrop(dragged, anchor, targetId, event) {
+    console.log("database.drop", dragged, anchor, targetId, event);
+  },
+});
+
+//
+// Actions
+//
+
+// nocheckin: actions
+
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
@@ -355,14 +409,14 @@ defineExpose<ViewExposed>({ self, id });
   >
     <!-- Action header -->
     <div
-      class="flex w-full flex-row items-center"
+      class="flex w-full flex-row items-center gap-x-1"
       :style="{
         height: `${ACTION_HEADER_HEIGHT}px`,
       }"
     >
       <!-- Expressions (filters/sorts) -->
       <!-- TODO :Incomplete: filter/sort Database -->
-      <template v-if="false">
+      <template v-if="true">
         <button class="group/button rounded px-1 hover:bg-gray-100">
           <i class="fa fa-plus mr-1.5 text-center text-gray-300 group-hover/button:text-primary-900" />
           <span class="text-gray-400 group-hover/button:text-primary-900">Filter</span>
@@ -450,37 +504,67 @@ defineExpose<ViewExposed>({ self, id });
       <div class="flex flex-col border-gray-200">
         <!-- Column headers (sticky) -->
         <div
-          class="flex flex-row items-center border-gray-200 bg-white"
+          ref="headerRef"
+          class="z-20 flex flex-row items-center border-gray-200 bg-white"
           :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
             height: `${ROW_HEIGHT}px`,
           }"
         >
-          <!-- Row actions -->
+          <!-- Composite actions -->
           <div
             v-if="variant != Variant.COMPACT"
-            class="flex flex-shrink-0 flex-row items-center"
+            class="group sticky left-0 z-30 flex flex-shrink-0 flex-row items-center transition-colors duration-150"
+            :class="[hasSelection ? 'bg-white' : 'bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
             }"
-          ></div>
-          <!-- Column header -->
+          >
+            <!-- Selection checkbox -->
+            <input
+              type="checkbox"
+              class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
+              :class="[hasSelection ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
+              :checked="isAllSelected"
+              @change="(e) => (!isAllSelected ? selectAll() : clearSelection())"
+            />
+          </div>
+
+          <!-- Column headers -->
           <div
             v-for="(column, i) in columns"
             :key="column.id"
-            class="flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 py-1 hover:bg-gray-100"
-            :class="[i > 0 ? 'border-l' : '']"
+            :ref="(ref: any) => (ref != null ? (columnRefs[column.id] = ref) : delete columnRefs[column.id])"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 py-1 data-[dragging=true]:opacity-50"
+            :class="[
+              i > 0 ? 'border-l' : '',
+              column.isInspected ? 'bg-primary-100' : column.isHighlighted ? 'bg-primary-50' : 'hover:bg-gray-100',
+            ]"
             :style="{
               width: `${column.width}px`,
             }"
+            :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
+            :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
+            :data-node-type="column.kind == 'field' ? column.field.metatype : undefined"
+            :draggable="column.kind == 'field'"
+            @dragstart.stop="
+              (e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, pkgGraph, column.field)
+            "
             @click="
-              () => {
+              (e) => {
                 if (column.kind == 'field') {
-                  canvas.inspect({ node: column.field, view: self });
+                  canvas.inspect({ node: column.field, view: e.target as HTMLElement });
                 }
               }
             "
           >
+            <!-- Drop indicator -->
+            <div
+              v-if="column.kind == 'field' && activeHeaderDropZone?.targetId == column.field.id"
+              class="absolute z-10 h-full w-1 rounded-sm bg-primary-900"
+              :class="[activeHeaderDropZone?.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
+            />
+            <!-- Icon/Name -->
             <IconInline
               v-menu="
                 (): PopoverInfoIn => ({
@@ -495,7 +579,7 @@ defineExpose<ViewExposed>({ self, id });
                   },
                 })
               "
-              class="mr-1.5 rounded p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+              class="mr-1.5 rounded p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
               v-bind="column.icon"
             />
             <NativeInput
@@ -512,26 +596,56 @@ defineExpose<ViewExposed>({ self, id });
             <span v-else class="truncate font-medium">{{ column.title }}</span>
           </div>
         </div>
+        <!-- Empty columns -->
+        <div
+          v-if="columns.length == 0"
+          class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
+          :style="{ height: `${ROW_HEIGHT}px` }"
+        >
+          No columns.
+        </div>
 
-        <!-- nocheckin: show status for rows if loading/error -->
+        <!-- Status (if not connected or empty) -->
+        <div v-if="!isConnected" class="w-full" :style="{ height: `${ROW_HEIGHT}px` }">
+          <!-- Loading -->
+          <Transition
+            enter-from-class="opacity-0"
+            enter-active-class="transition-opacity duration-200"
+            enter-to-class="opacity-100"
+            appear
+            mode="out-in"
+          >
+            <i class="fas fa-spinner-third animate-spin text-gray-400" />
+          </Transition>
+        </div>
+        <!-- No rows -->
+        <button
+          v-else-if="records.length == 0"
+          class="w-full text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+          :style="{ height: `${ROW_HEIGHT}px` }"
+          @click="addRecord"
+        >
+          <i class="fas fa-empty-set mr-1.5" />
+          <span class="">No records. Click to add.</span>
+        </button>
 
         <!-- Row -->
         <div
           v-for="(record, j) in records"
           :key="record.id"
-          class="group/row flex flex-row border-gray-200 transition-colors duration-75"
-          :class="[
-            canvas.isInspected(record) ? 'bg-primary-100' : selectedRecordsById[record.id] ? 'bg-primary-50' : '',
-          ]"
+          class="group/row flex flex-row border-gray-200"
+          :class="[]"
           :data-node-id="record.id"
           :data-node-ck="record.id"
           :data-node-type="record.metatype"
           @click="() => canvas.inspect({ node: record, view: containerRef })"
         >
+          <!-- nocheckin: fix row alignment -->
           <!-- Row actions -->
           <div
             v-if="variant != Variant.COMPACT"
-            class="flex flex-shrink-0 flex-row items-start py-1"
+            class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start py-1 transition-colors duration-150"
+            :class="[hasSelection ? 'bg-white' : 'bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
             }"
@@ -540,10 +654,7 @@ defineExpose<ViewExposed>({ self, id });
             <input
               type="checkbox"
               class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
-              :class="[
-                hasSelection ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100',
-                selectedRecordsById[record.id] ? 'checked' : '',
-              ]"
+              :class="[hasSelection ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
               :checked="selectedRecordsById[record.id] != null"
               @change="(e) => setSelection(record, (e.target as HTMLInputElement).checked)"
             />
@@ -552,8 +663,11 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Columns -->
           <div
             v-for="(column, i) in columns"
-            class="flex-shrink-0 cursor-pointer select-none border-b border-gray-200 px-2 py-1 text-gray-900"
-            :class="[i > 0 ? 'border-l' : '']"
+            class="flex-shrink-0 cursor-pointer border-b border-gray-200 px-2 py-1 text-gray-900"
+            :class="[
+              i > 0 ? 'border-l' : '',
+              canvas.isInspected(record) ? 'bg-primary-100' : selectedRecordsById[record.id] ? 'bg-primary-50' : '',
+            ]"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT}px`,
@@ -608,6 +722,12 @@ defineExpose<ViewExposed>({ self, id });
               {{ column.viewType != null ? ViewType[column.viewType] : "???" }}
             </span>
           </div>
+          <!-- No columns -->
+          <div
+            v-if="columns.length == 0"
+            class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+            :style="{ height: `${ROW_HEIGHT}px` }"
+          ></div>
         </div>
       </div>
     </Scroll>

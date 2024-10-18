@@ -24,7 +24,6 @@ import { generateOrderKey } from "@/utils/fractional";
 
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
-  "common.edit.morph",
   "common.edit.duplicate",
   "common.edit.delete",
   "session.run.start",
