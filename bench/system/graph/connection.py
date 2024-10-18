@@ -354,6 +354,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
     def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._filter = query._filter
+        self._block_ck = str(query._block.ck) if query._block else None
         self._result_roots_ids: set[str] | None = None
 
     read_type: ClassVar[QueryType] = QueryType.SEARCH
@@ -411,7 +412,9 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
                 if not is_extant:
                     continue  # ignore irrelevant remove
                 node = self._result_data.graph[node_id]
-            is_relevant = self._filter is None or evaluate_conditional(self._filter, node)
+            is_relevant = (
+                self._block_ck is None or self._block_ck == getattr(node, "block_ptr").ck
+            ) and (self.query._filter is None or evaluate_conditional(self.query._filter, node))
             if not is_relevant:
                 continue  # ignore irrelevant edit
             is_add = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE)
