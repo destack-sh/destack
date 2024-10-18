@@ -88,7 +88,7 @@ const outgoingZoneRef: Ref<HTMLElement | null> = ref(null);
 const incomingPortRefs: Ref<Record<string, HTMLElement>> = ref({});
 const outgoingPortRefs: Ref<Record<string, HTMLElement>> = ref({});
 
-// dragging
+// dragging :TypeDragAndDrop
 // NOTE: port dragging only supports field ports for now
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
   if (dragged.kind != "node") return false;

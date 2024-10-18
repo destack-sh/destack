@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { getPropertyName, getPropertyTitle } from "@/language/const";
+import { blockToType } from "@/language/block";
+import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
 import {
   createField,
   getPropertyType,
@@ -9,7 +10,7 @@ import {
   resolveType,
   TypeIdentity,
 } from "@/language/field";
-import { cloneNode } from "@/language/node";
+import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import { DebounceLevel, newChangeId } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
@@ -17,6 +18,7 @@ import {
   EditOperationData,
   EditOperationType,
   FieldData,
+  FieldType,
   IconData,
   NodeType,
   ObjectType,
@@ -31,14 +33,22 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { propertyInfo, toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  describeNode,
+  isNode,
+  propertyInfo,
+  toPlainNodeRef,
+  unwrapProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
+import { ActionContext, ActionMapImplementation } from "@/ui/action";
+import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { getNodeIcon, getTypeIcon, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { PopoverInfoIn, pushPopover } from "@/ui/popover";
+import { menuActionsLike, PopoverContext, PopoverInfoIn, pushPopover } from "@/ui/popover";
 import { collapseSelection, expandSelection, getViewForValueType, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -113,7 +123,7 @@ const {
 
 // NOTE :UX: add records optimistically in Database?
 //  (right now, they only show up once committed in the backend and the search connection is updated from there)
-function addRecord() {
+function createRecord() {
   if (nodePtr.value == null || block.value == null) throw new Error("no block to add record to");
   const record = recordConnection.tx.create({
     metatype: NodeType.RECORD,
@@ -163,7 +173,7 @@ function getColumnDebounce(type: TypeIdentity, viewType: ViewType | undefined): 
   }
 }
 
-// nocheckin: store column views somewhere (in TableView/DatabaseView?) :RichColumns
+// TODO :Incomplete!: store column views somewhere (in TableView/DatabaseView?) :RichColumns
 type ColumnContent =
   | {
       kind: "property";
@@ -373,8 +383,37 @@ function deleteSelection() {
   }
 }
 
-// drag & drop
+// drag & drop :TypeDragAndDrop
 
+function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
+  if (dragged.kind != "node") return false;
+  const node = pkgGraph.getOrError(dragged.node);
+  return isNode(node, NodeType.FIELD) || (isNode(node, NodeType.BLOCK) && TYPE_BLOCK_TYPES.includes(node.type));
+}
+function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
+  if (dragged.kind != "node") return;
+  const node = pkgGraph.getOrError(dragged.node);
+  const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
+  if (isNode(node, NodeType.FIELD)) {
+    // move field
+    if (target != null) {
+      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
+    } else {
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
+    }
+  } else if (isNode(node, NodeType.BLOCK)) {
+    // add field with block type
+    const type = blockToType(node);
+    const fieldIn = { ...type, zone: FieldType.MEMBER };
+    if (target != null) {
+      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor, target });
+    } else {
+      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor: "inside", target: block.value! });
+    }
+  }
+}
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   name: "database.header",
   container: headerRef,
@@ -383,9 +422,8 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   kinds: ["node"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],
   fallbackToClosest: true,
-  onDrop(dragged, anchor, targetId, event) {
-    console.log("database.drop", dragged, anchor, targetId, event);
-  },
+  allowDrop,
+  onDrop,
 });
 
 //
@@ -393,9 +431,40 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 //
 
 // nocheckin: actions
+const getNodeFromContext = (ctx: ActionContext | undefined): { node: FieldData | RecordData | null } => {
+  const node = ctx?.triggerNode;
+  if (isNode(node, NodeType.FIELD) || isNode(node, NodeType.RECORD)) {
+    return { node };
+  }
+  return { node: null };
+};
+const actions: Partial<ActionMapImplementation<"common" | "database">> = {
+  "common.create.record": () => createRecord(),
+  "common.edit.delete": (action, ctx) => {
+    if (hasSelection.value) {
+      deleteSelection();
+    } else {
+      const { node } = getNodeFromContext(ctx);
+      if (node != null) {
+        pkgConnection.tx.delete(node);
+      }
+    }
+  },
+  "common.edit.duplicate": (action, ctx) => {
+    if (hasSelection.value) {
+      duplicateSelection();
+    } else {
+      const { node } = getNodeFromContext(ctx);
+      if (node != null) {
+        const tx = pkgConnection.tx.with({ change: { key: newChangeId(), title: "Duplicate record" } });
+        cloneNode(tx, recordGraph, node);
+      }
+    }
+  },
+};
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div
@@ -415,7 +484,7 @@ defineExpose<ViewExposed>({ self, id });
       }"
     >
       <!-- Expressions (filters/sorts) -->
-      <!-- TODO :Incomplete: filter/sort Database -->
+      <!-- nocheckin :Incomplete: filter/sort Database -->
       <template v-if="true">
         <button class="group/button rounded px-1 hover:bg-gray-100">
           <i class="fa fa-plus mr-1.5 text-center text-gray-300 group-hover/button:text-primary-900" />
@@ -460,7 +529,7 @@ defineExpose<ViewExposed>({ self, id });
           </button>
         </div>
         <!-- Pagination -->
-        <span v-if="page?.total != null">{{ page.size }} / {{ page?.total }}</span>
+        <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
         <!-- Add field -->
         <button
           class="group/button rounded px-1 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
@@ -488,7 +557,7 @@ defineExpose<ViewExposed>({ self, id });
         </button>
       </div>
       <!-- Add record -->
-      <button class="group/button rounded px-1 hover:bg-gray-100" @click="() => addRecord()">
+      <button class="group/button rounded px-1 hover:bg-gray-100" @click="() => createRecord()">
         <i class="fa fa-plus mr-1.5 text-center text-gray-700 group-hover/button:text-primary-900" />
         <span class="group-hover/button:text-primary-900">Record</span>
       </button>
@@ -535,6 +604,19 @@ defineExpose<ViewExposed>({ self, id });
             v-for="(column, i) in columns"
             :key="column.id"
             :ref="(ref: any) => (ref != null ? (columnRefs[column.id] = ref) : delete columnRefs[column.id])"
+            v-contextmenu="
+              (context: PopoverContext): PopoverInfoIn => {
+                context = { ...context, triggerNode: column.kind == 'field' ? column.field : undefined };
+                return {
+                  kind: 'menu',
+                  placement: 'bottom-right',
+                  items: menuActionsLike(['common.edit.rename', 'common.edit.duplicate', 'common.edit.delete'], {
+                    context,
+                  }),
+                  context,
+                };
+              }
+            "
             class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 py-1 data-[dragging=true]:opacity-50"
             :class="[
               i > 0 ? 'border-l' : '',
@@ -623,7 +705,7 @@ defineExpose<ViewExposed>({ self, id });
           v-else-if="records.length == 0"
           class="w-full text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
           :style="{ height: `${ROW_HEIGHT}px` }"
-          @click="addRecord"
+          @click="createRecord"
         >
           <i class="fas fa-empty-set mr-1.5" />
           <span class="">No records. Click to add.</span>
@@ -633,6 +715,17 @@ defineExpose<ViewExposed>({ self, id });
         <div
           v-for="(record, j) in records"
           :key="record.id"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfoIn => {
+              context = { ...context, triggerNode: record };
+              return {
+                kind: 'menu',
+                placement: 'bottom-right',
+                items: menuActionsLike(['common.edit.duplicate', 'common.edit.delete'], { context }),
+                context,
+              };
+            }
+          "
           class="group/row flex flex-row border-gray-200"
           :class="[]"
           :data-node-id="record.id"

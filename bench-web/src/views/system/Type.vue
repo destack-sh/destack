@@ -69,7 +69,7 @@ const rightFields = computed(() => {
   }
 });
 
-// dragging
+// dragging :TypeDragAndDrop
 // NOTE: we have separate drop zones for left/right (for function types)
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
   if (dragged.kind != "node") return false;

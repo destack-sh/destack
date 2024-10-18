@@ -70,6 +70,7 @@ export const ACTION_BUILTIN_IDS = [
   "common.create.above",
   "common.create.below",
   "common.create.block",
+  "common.create.record",
   "common.create.step",
   "common.create.pipe",
   "common.create.trigger",
@@ -486,6 +487,11 @@ declareActionMap<"common">({
     icon: "fas fa-cube",
     title: "Create Block",
     text: "Create a new Block",
+  },
+  "common.create.record": {
+    icon: "fas fa-record-vinyl",
+    title: "Create Record",
+    text: "Create a new Record",
   },
   "common.create.step": {
     icon: "fas fa-step-forward",

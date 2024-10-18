@@ -193,6 +193,10 @@ async def test_delete_restore_record(hosted_runtime: RuntimeHandle):
     assert records == [Record1, Record3]
 
 
+# nocheckin: test delete restore field
+# nocheckin: test change type of field (incl. flags like array to not array, vice versa, ...)
+
+
 async def test_search_record(hosted_runtime: RuntimeHandle):
     """Insert, update and query Records with various filters."""
     Database1 = Block.new(
