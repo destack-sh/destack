@@ -369,7 +369,7 @@ class Transaction:
             node._is_new = False
         self._pending_edit_events.append(edit_event)
 
-    def add_edits(self, edits: Sequence[EditData]):
+    def _add_pending_edits(self, edits: Sequence[EditData]):
         """Adds full edits to the transaction directly."""
         self._pending_edits.extend(edits)
         if self.session._local_epoch is not None:

@@ -252,11 +252,6 @@ class Session(RuntimeNode[SessionData]):
         """Whether this session has any pending (unflushed) edits."""
         return self._tx is not None and self._tx.has_pending_edits
 
-    def add_edits(self, edits: Sequence[EditData]):
-        """Adds the given edits to this session."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        self._tx.add_edits(edits)
-
     @property
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None
@@ -745,7 +740,9 @@ class Session(RuntimeNode[SessionData]):
                     new_edits: Sequence[EditData] = await self._on_commit_prepare(
                         self, graph, data_graph, edits, cascaded_edits
                     )
-                    self._tx.add_edits(new_edits)
+                    if new_edits:
+                        self._tx._track_edits(new_edits)
+                        self._tx._add_pending_edits(new_edits)
                 else:
                     new_edits = []
 

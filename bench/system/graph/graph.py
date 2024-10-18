@@ -358,10 +358,11 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
             # apply edits in copy to validate
             # (and update true 'old' values in prepass, simplify edits for sql engine)
+            session.tx._track_edits(edits)  # (assign epochs)
             flat_edits = edit_data_graph(
                 graph=data_graph, edits=edits, include_deleted=True, is_prepass=True
             )
-            assert flat_edits, f"no flat edits from prepass for {edits!r}"
+            assert flat_edits and len(flat_edits) == len(edits), f"{flat_edits} != {edits}"
             unpacked_graph = wiring.unpack_node_graph(
                 data_graph, supergraph=subject._supergraph, parent=None, session=session
             )
@@ -373,10 +374,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 session._pending_nodes_by_id[node.id] = node
 
             # actually commit
-            session.add_edits(flat_edits)  # (assigns epochs)
-            assert len(flat_edits) == len(edits), f"bad flatten: {len(flat_edits)} != {len(edits)}"
-            for flat_edit, edit in zip(flat_edits, edits):  # copy epoch from flat_edit
-                edit.epoch = flat_edit.epoch
+            session.tx._add_pending_edits(flat_edits)
             _, cascaded_edits = await session.commit(_data_graph=data_graph)
             # NOTE :Robustness: edited nodes are 'disconnected' copies (from unpack) :StaleNodes
             #  So we should really untrack them (to disable further edits) or keep them in sync,
