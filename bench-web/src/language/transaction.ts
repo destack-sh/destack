@@ -486,23 +486,16 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
       }
     } else {
       // done: set value
-      let valueType: TypeIdentity;
+      let newValue: any;
       if (!Number.isNaN(propId)) {
         // builtin object property
         const objProperties = PROPERTY_INFOS_BY_TYPE[obj.metatype as ObjectType];
         const prop = objProperties[propId];
-        valueType = getPropertyType(prop);
-      } else {
-        // custom object field
-        valueType = decodeTypeIdentity(key.slice(TK_LENGTH_B64));
-      }
-      let newValue: any;
-      if (operation.type == EditOperationType.SET) {
+        const valueType = getPropertyType(prop);
         newValue = unpackValue(operation.newValuePacked!, valueType, { wrapScalar: false });
-      } else if (operation.type == EditOperationType.CLEAR) {
-        newValue = undefined;
       } else {
-        throw new Error(`unexpected operation type: ${operation.type}`);
+        // custom object field (packed by default)
+        newValue = operation.newValuePacked;
       }
       Object.assign(obj, { [key]: newValue });
     }

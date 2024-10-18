@@ -31,9 +31,9 @@ const activeResultId: Ref<ColorType | null> = ref(props.modelValue?.type ?? null
 
 function fire(item: ColorType | ColorData) {
   if (typeof item == "number") item = makeColor(item);
-  set(item);
+  apply(item);
 }
-function set(color: ColorData) {
+function apply(color: ColorData) {
   emit("update:modelValue", color);
   emit("apply", color);
 }
