@@ -1105,9 +1105,7 @@ def unpack_custom_object(
     return CustomObject.new(value=value, typ=typ, parent=parent, parent_property=parent_key)
 
 
-def pack_value(
-    value: SomeValue | None, typ: "TypeInfoBase", wrap_scalar: bool = True
-) -> JsonValue:
+def pack_value(value: SomeValue | None, typ: "TypeInfoBase", wrap_scalar: bool = True) -> JsonValue:
     """
     Packs a value into a JSON representation.
     """
@@ -1286,6 +1284,10 @@ def pack_proto_json(value: JsonValue) -> ProtoValue:
         struct_value = ProtoStruct()
         struct_value.update(value)  # type: ignore
         return ProtoValue(struct_value=struct_value)
+    elif t is ProtoList:
+        return ProtoValue(list_value=value)  # type: ignore
+    elif t is ProtoStruct:
+        return ProtoValue(struct_value=value)  # type: ignore
     else:
         raise ValueError(f"unsupported JSON value {value} ({type(value)})")
 
