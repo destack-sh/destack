@@ -110,8 +110,8 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
       ref="containerRef"
       class="scrollbar-none relative"
       :class="[
-        orientation == Orientation.HORIZONTAL ? 'touch-pan-x overflow-y-hidden overflow-x-scroll' : '',
-        orientation == Orientation.VERTICAL ? 'touch-pan-y overflow-x-hidden overflow-y-scroll' : '',
+        orientation == Orientation.HORIZONTAL ? 'touch-pan-x overflow-x-scroll' : '',
+        orientation == Orientation.VERTICAL ? 'touch-pan-y overflow-y-scroll' : '',
         orientation == null ? 'touch-pan-xy overflow-scroll' : '',
         $attrs.class,
       ]"
@@ -144,7 +144,7 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
       "
     >
       <div
-        v-if="area.isOverflown"
+        v-if="area.isOverflown.value"
         class="absolute z-40 rounded transition-colors duration-300"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',

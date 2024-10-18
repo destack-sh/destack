@@ -181,14 +181,14 @@ defineExpose<ViewExposed>({ self, id });
           }),
         } as HoverMenuOptions
       "
-      class="group/dropdown flex w-full flex-row items-center truncate rounded px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
+      class="group/dropdown flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
-        variant != Variant.STEALTH ? 'border' : '',
+        variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
         isInDropZone
           ? 'border-primary-900 outline outline-1 outline-primary-900'
           : 'border-gray-200 hover:border-gray-300',
       ]"
-      @click="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
+      @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
     >
       <!-- Current value -->
       <span v-if="optimisticValue != null" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'">
@@ -239,14 +239,14 @@ defineExpose<ViewExposed>({ self, id });
     <div
       v-else-if="optimisticValue == null"
       ref="containerRef"
-      class="flex h-full w-full cursor-pointer flex-col justify-center rounded px-2.5 py-1 text-center transition-all duration-75"
+      class="flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
       :class="[
-        variant != Variant.STEALTH ? 'min-h-[80px] border' : 'opacity-0 hover:opacity-100',
+        variant != Variant.STEALTH ? 'min-h-[80px] border px-2.5 py-1' : 'opacity-0 hover:opacity-100',
         isInDropZone
           ? 'border-primary-900 text-primary-900 outline outline-2 outline-primary-900'
           : 'border-gray-200 text-gray-400 hover:border-gray-300',
       ]"
-      @click="fileInputRef!.click()"
+      @click.stop="fileInputRef!.click()"
     >
       <span class="select-none transition-colors duration-75">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
@@ -301,7 +301,10 @@ defineExpose<ViewExposed>({ self, id });
           </span>
           <!-- Transferring -->
           <i
-            v-if="(upload != null && upload.isActive.value) || (download != null && download.isActive.value)"
+            v-if="
+              (upload != null && upload.isActive.value) ||
+              (download != null && download.isActive.value && variant != Variant.STEALTH)
+            "
             class="fas fa-spinner-third ml-2 animate-spin text-gray-400"
           />
         </span>
