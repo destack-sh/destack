@@ -60,11 +60,15 @@ import { useElementSize } from "@vueuse/core";
 import { computed, ref, Ref, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const ROW_HEIGHT = 32;
-const MIN_COLUMN_WIDTH = 50;
+const ROW_HEIGHT_MIN = 32;
+const ROW_HEIGHT_MAX = 200;
 const ROW_ACTIONS_WIDTH = 32;
 const ROW_PADDING_X = 8; // per side, so ROW_PADDING*2 per side
 const ROW_PADDING_Y = 4; // per side, so ROW_PADDING*2 per side
+const POPOVER_HEIGHT_MIN = 32;
+const POPOVER_HEIGHT_MAX = 400;
+const POPOVER_WIDTH_MIN = 32;
+const POPOVER_WIDTH_MAX = 400;
 const FULL_PADDING = 12;
 
 const props = defineProps<
@@ -90,7 +94,7 @@ const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 // Search/filter
 //
 
-const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 40));
+const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 25));
 const {
   graph: recordGraph,
   roots: records,
@@ -206,7 +210,7 @@ type ColumnView = {
   debounce: DebounceLevel;
   isInspected: boolean;
   isHighlighted: boolean;
-  paddingTop: number;
+  paddingY: number;
 } & ColumnContent;
 const columns: Ref<ColumnView[]> = computed(() => {
   // NOTE :UX: support Table property columns properly :RichColumns
@@ -225,7 +229,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       viewProps: view,
       width: getMinColumnWidth(columnIn.type, view?.type),
       debounce: getColumnDebounce(columnIn.type, view?.type),
-      paddingTop: getColumnPadding(columnIn.type, view?.type),
+      paddingY: getColumnPadding(columnIn.type, view?.type),
     };
     columns.push(column);
   }
@@ -586,7 +590,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           class="z-20 flex flex-row items-center border-gray-200"
           :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
-            height: `${ROW_HEIGHT}px`,
+            height: `${ROW_HEIGHT_MIN}px`,
           }"
         >
           <!-- Composite actions -->
@@ -596,7 +600,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :class="[hasSelection ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
-              height: `${ROW_HEIGHT}px`,
+              height: `${ROW_HEIGHT_MIN}px`,
             }"
           >
             <!-- Selection checkbox -->
@@ -692,13 +696,13 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-if="columns.length == 0"
           class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
-          :style="{ height: `${ROW_HEIGHT}px` }"
+          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
         >
           No columns.
         </div>
 
         <!-- Status (if not connected or empty) -->
-        <div v-if="!isConnected" class="w-full" :style="{ height: `${ROW_HEIGHT}px` }">
+        <div v-if="!isConnected" class="w-full" :style="{ height: `${ROW_HEIGHT_MIN}px` }">
           <!-- Loading -->
           <Transition
             enter-from-class="opacity-0"
@@ -714,7 +718,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <button
           v-else-if="records.length == 0"
           class="w-full text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
-          :style="{ height: `${ROW_HEIGHT}px` }"
+          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           @click="createRecord"
         >
           <i class="fas fa-empty-set mr-1.5" />
@@ -747,7 +751,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="variant != Variant.COMPACT"
             class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
-            :class="[hasSelection ? 'border-gray-200 bg-white' : 'border-gray-200 bg-transparent']"
+            :class="[hasSelection ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
             }"
@@ -765,15 +769,17 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Columns -->
           <div
             v-for="(column, i) in columns"
-            class="flex-shrink-0 cursor-pointer border-b border-gray-200 px-2 text-gray-900"
+            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
             :class="[
               i > 0 ? 'border-l' : '',
               canvas.isInspected(record) ? 'bg-primary-100' : selectedRecordsById[record.id] ? 'bg-primary-50' : '',
             ]"
             :style="{
               width: `${column.width}px`,
-              minHeight: `${ROW_HEIGHT}px`,
-              paddingTop: `${column.paddingTop}px`,
+              minHeight: `${ROW_HEIGHT_MIN}px`,
+              maxHeight: `${ROW_HEIGHT_MAX}px`,
+              paddingTop: `${column.paddingY}px`,
+              paddingBottom: `${column.paddingY}px`,
             }"
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
             @click="
@@ -786,9 +792,20 @@ defineExpose<ViewExposed>({ self, id, actions });
                 } else {
                   const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]');
                   if (columnEl == null) return;
+                  const width = Math.max(POPOVER_WIDTH_MIN, Math.min(POPOVER_WIDTH_MAX, column.width));
+                  const height = Math.max(
+                    POPOVER_HEIGHT_MIN,
+                    Math.min(POPOVER_HEIGHT_MAX, columnEl?.getBoundingClientRect().height!),
+                  );
+                  const columnPos = (columnEl as HTMLElement).getBoundingClientRect();
+                  const position = { x: columnPos.left, y: columnPos.top };
+                  // center inside cell if popover width is less than cell width
+                  if (width < column.width) {
+                    position.x += (column.width - width) / 2;
+                  }
                   pushPopover({
                     trigger: columnEl as HTMLElement,
-                    reference: columnEl as HTMLElement,
+                    reference: position,
                     info: {
                       component: column.viewComponent,
                       placement: 'inside-top-left',
@@ -796,10 +813,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                       props: {
                         ...column.viewProps,
                         isInput: true,
-                        size: {
-                          metatype: ObjectType.BOX,
-                          width: Math.max(100, columnEl?.getBoundingClientRect().width!),
-                        },
+                        size: { metatype: ObjectType.BOX, width, height },
                         isInline: true,
                         modelValue: readColumnValue(record, column),
                       },
@@ -820,6 +834,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               class="select-none"
               :model-value="readColumnValue(record, column)"
               :variant="Variant.STEALTH"
+              :size="{ width: column.width, height: ROW_HEIGHT_MAX }"
               @update:model-value="(value: any) => writeColumnValue(record, column, value)"
             />
             <!-- No view available (internal bug / missing feature) -->
@@ -831,8 +846,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="columns.length == 0"
             class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
-            :style="{ height: `${ROW_HEIGHT}px` }"
-          ></div>
+            :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+          />
         </div>
       </div>
     </Scroll>

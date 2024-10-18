@@ -32,6 +32,9 @@ import { humanizeBytes } from "@/utils/string";
 import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed, type ViewProps } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
+const FILE_POPOVER_WIDTH_MIN = 400;
+const FILE_POPOVER_WIDTH_MAX = 800;
+
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -172,7 +175,10 @@ defineExpose<ViewExposed>({ self, id });
               title: undefined,
               size: {
                 metatype: ObjectType.BOX,
-                width: Math.max(400, Math.min(800, getElement(context.triggerElement)!.getBoundingClientRect().width)),
+                width: Math.max(
+                  FILE_POPOVER_WIDTH_MIN,
+                  Math.min(FILE_POPOVER_WIDTH_MAX, getElement(context.triggerElement)!.getBoundingClientRect().width),
+                ),
               },
               isInline: true,
               isInput: false,
@@ -266,9 +272,6 @@ defineExpose<ViewExposed>({ self, id });
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone ? 'border-primary-900 outline outline-2 outline-primary-900' : '',
       ]"
-      :style="{
-        aspectRatio: (download?.file.value ?? modelValue)?.aspectRatio ?? undefined,
-      }"
     >
       <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
       <!-- Image File -->
@@ -276,8 +279,13 @@ defineExpose<ViewExposed>({ self, id });
         <img
           :key="download.getUrl.value"
           :src="download.getUrl.value"
-          class="h-full w-full rounded object-contain object-center"
           :alt="optimisticValue?.title ?? '???'"
+          class="h-full w-full rounded object-contain object-center"
+          :style="{
+            maxWidth: size?.width != null ? `${size.width}px` : undefined,
+            maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
+            aspectRatio: (download?.file.value ?? modelValue)?.aspectRatio ?? undefined,
+          }"
         />
       </div>
       <!-- Generic File -->
