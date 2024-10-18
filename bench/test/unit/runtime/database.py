@@ -235,3 +235,29 @@ async def test_search_record(hosted_runtime: RuntimeHandle):
     # order by custom column
     Result = await Database1.records.order_by(Database1.fields.Age).search()
     assert Result == [Record1, Record2, Record3]
+
+
+async def test_database_isolation(hosted_runtime: RuntimeHandle):
+    """Create two databases and ensure they don't interfere with each other."""
+
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
+    Database2 = Block.new(BlockType.DATABASE, "Database2", fields=[Field.member("Name", str)])
+    hosted_runtime.page().blocks.extend(Database1, Database2)
+
+    Record1 = Database1.records.create(Name="Record1")
+    Record2 = Database2.records.create(Name="Record2")
+    await hosted_runtime.session.commit()
+
+    records1 = await Database1.records.search()
+    assert records1 == [Record1]
+    records2 = await Database2.records.search()
+    assert records2 == [Record2]
+
+    Record3 = Database1.records.create(Name="Record3")
+    Record4 = Database2.records.create(Name="Record4")
+    await hosted_runtime.session.commit()
+
+    records1 = await Database1.records.search()
+    assert records1 == [Record3, Record1]
+    records2 = await Database2.records.search()
+    assert records2 == [Record4, Record2]
