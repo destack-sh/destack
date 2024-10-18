@@ -123,7 +123,7 @@ function openFile() {
   window.open(download.value.getUrl.value, "_blank");
 }
 
-// NOTE :UX: constrain drop mime types to file types
+// NOTE :UX: should constrain drop mime types to file types
 const { isInDropZone } = useDropZone({
   name: "file",
   container: containerRef,
