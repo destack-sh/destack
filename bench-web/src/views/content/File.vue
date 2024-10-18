@@ -184,6 +184,7 @@ defineExpose<ViewExposed>({ self, id });
       class="group/dropdown flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
+        variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-900 outline outline-1 outline-primary-900'
           : 'border-gray-200 hover:border-gray-300',
@@ -241,7 +242,8 @@ defineExpose<ViewExposed>({ self, id });
       ref="containerRef"
       class="flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
       :class="[
-        variant != Variant.STEALTH ? 'min-h-[80px] border px-2.5 py-1' : 'opacity-0 hover:opacity-100',
+        variant != Variant.STEALTH ? 'border px-2.5 py-1' : 'opacity-0 hover:opacity-100',
+        variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-900 text-primary-900 outline outline-2 outline-primary-900'
           : 'border-gray-200 text-gray-400 hover:border-gray-300',
@@ -260,7 +262,8 @@ defineExpose<ViewExposed>({ self, id });
       ref="containerRef"
       class="group/inline relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
-        variant != Variant.STEALTH ? 'min-h-[80px] border' : '',
+        variant != Variant.STEALTH ? 'border py-1' : '',
+        variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone ? 'border-primary-900 outline outline-2 outline-primary-900' : '',
       ]"
       :style="{

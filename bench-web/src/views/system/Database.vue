@@ -10,7 +10,7 @@ import {
   resolveType,
   TypeIdentity,
 } from "@/language/field";
-import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
+import { cloneNode, moveNode } from "@/language/node";
 import { DebounceLevel, newChangeId } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
@@ -51,14 +51,13 @@ import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, PopoverContext, PopoverInfoIn, pushPopover } from "@/ui/popover";
 import { collapseSelection, expandSelection, getViewForValueType, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize } from "@vueuse/core";
-import { computed, ref, Ref, toRef, watch } from "vue";
+import { computed, ref, Ref, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT = 32;
@@ -132,7 +131,7 @@ function createRecord() {
     parentPtr: nodePtr.value,
     valuePacked: {},
   });
-  canvas.inspect({ node: record, view: containerRef });
+  canvas.inspect({ node: record, view: containerRef.value });
 }
 
 const containerRef = ref<HTMLDivElement | null>(null);
@@ -173,6 +172,15 @@ function getColumnDebounce(type: TypeIdentity, viewType: ViewType | undefined): 
   }
 }
 
+function getColumnPadding(type: TypeIdentity, viewType: ViewType | undefined) {
+  // calibrated against ROW_HEIGHT to ensure all types look center-aligned at the default height
+  if (viewType == ViewType.TOGGLE) {
+    return 7;
+  } else {
+    return 5;
+  }
+}
+
 // TODO :Incomplete!: store column views somewhere (in TableView/DatabaseView?) :RichColumns
 type ColumnContent =
   | {
@@ -198,6 +206,7 @@ type ColumnView = {
   debounce: DebounceLevel;
   isInspected: boolean;
   isHighlighted: boolean;
+  paddingTop: number;
 } & ColumnContent;
 const columns: Ref<ColumnView[]> = computed(() => {
   // NOTE :UX: support Table property columns properly :RichColumns
@@ -216,6 +225,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       viewProps: view,
       width: getMinColumnWidth(columnIn.type, view?.type),
       debounce: getColumnDebounce(columnIn.type, view?.type),
+      paddingTop: getColumnPadding(columnIn.type, view?.type),
     };
     columns.push(column);
   }
@@ -430,7 +440,6 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 // Actions
 //
 
-// nocheckin: actions
 const getNodeFromContext = (ctx: ActionContext | undefined): { node: FieldData | RecordData | null } => {
   const node = ctx?.triggerNode;
   if (isNode(node, NodeType.FIELD) || isNode(node, NodeType.RECORD)) {
@@ -574,7 +583,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Column headers (sticky) -->
         <div
           ref="headerRef"
-          class="z-20 flex flex-row items-center border-gray-200 bg-white"
+          class="z-20 flex flex-row items-center border-gray-200"
           :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
             height: `${ROW_HEIGHT}px`,
@@ -583,10 +592,11 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Composite actions -->
           <div
             v-if="variant != Variant.COMPACT"
-            class="group sticky left-0 z-30 flex flex-shrink-0 flex-row items-center transition-colors duration-150"
-            :class="[hasSelection ? 'bg-white' : 'bg-transparent']"
+            class="group sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
+            :class="[hasSelection ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
+              height: `${ROW_HEIGHT}px`,
             }"
           >
             <!-- Selection checkbox -->
@@ -617,7 +627,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 py-1 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
             :class="[
               i > 0 ? 'border-l' : '',
               column.isInspected ? 'bg-primary-100' : column.isHighlighted ? 'bg-primary-50' : 'hover:bg-gray-100',
@@ -733,12 +743,11 @@ defineExpose<ViewExposed>({ self, id, actions });
           :data-node-type="record.metatype"
           @click="() => canvas.inspect({ node: record, view: containerRef })"
         >
-          <!-- nocheckin: fix row alignment -->
           <!-- Row actions -->
           <div
             v-if="variant != Variant.COMPACT"
-            class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start py-1 transition-colors duration-150"
-            :class="[hasSelection ? 'bg-white' : 'bg-transparent']"
+            class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
+            :class="[hasSelection ? 'border-gray-200 bg-white' : 'border-gray-200 bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
             }"
@@ -756,7 +765,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Columns -->
           <div
             v-for="(column, i) in columns"
-            class="flex-shrink-0 cursor-pointer border-b border-gray-200 px-2 py-1 text-gray-900"
+            class="flex-shrink-0 cursor-pointer border-b border-gray-200 px-2 text-gray-900"
             :class="[
               i > 0 ? 'border-l' : '',
               canvas.isInspected(record) ? 'bg-primary-100' : selectedRecordsById[record.id] ? 'bg-primary-50' : '',
@@ -764,6 +773,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT}px`,
+              paddingTop: `${column.paddingTop}px`,
             }"
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
             @click="
@@ -771,6 +781,8 @@ defineExpose<ViewExposed>({ self, id, actions });
                 if (column.viewType == ViewType.TOGGLE) {
                   const value = readColumnValue(record, column);
                   writeColumnValue(record, column, !value);
+                } else if (column.viewType == ViewType.FILE) {
+                  // nocheckin handle click-to-edit better in cells
                 } else {
                   const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]');
                   if (columnEl == null) return;
