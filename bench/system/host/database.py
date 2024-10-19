@@ -96,7 +96,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
 
         # migrate from current to target schema
         # (usually nothing should happen here, but just in case we change something)
-        async with self.host.session(readonly=True) as session:
+        async with self.host.session(readonly=False) as session:
             channel = await session._get_channel_for(
                 self.host.scope, NodeType.RECORD, expect=PostgresChannel
             )
@@ -115,6 +115,8 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             )
             if migration_ops:
                 await apply_sql_migration_ops(channel.cur, migration_ops)
+                session._touch_channel(channel)
+                await session.commit()
                 logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
     @override

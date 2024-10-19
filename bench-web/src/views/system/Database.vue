@@ -777,7 +777,11 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
 
         <!-- Status (if not connected or empty) -->
-        <div v-if="!isConnected" class="w-full" :style="{ height: `${ROW_HEIGHT_MIN}px` }">
+        <div
+          v-if="!isConnected"
+          class="flex w-full flex-row items-center text-center justify-center"
+          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+        >
           <!-- Loading -->
           <Transition
             enter-from-class="opacity-0"

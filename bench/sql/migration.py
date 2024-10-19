@@ -752,22 +752,22 @@ def _render_migration_op(op: MigrationOp) -> str | None:
             if any(k in diff_keys for k in ("type", "is_array", "length")):
                 # change type
                 updates.append(
-                    f"ALTER COLUMN {op.old_object.name}"
+                    f'ALTER COLUMN "{op.old_object.name}"'
                     f" SET DATA TYPE {op.new_object.type_sql()}"
                 )
             if "is_nullable" in diff_keys:
                 # change nullability
                 updates.append(
-                    f"ALTER COLUMN {op.old_object.name}"
+                    f'ALTER COLUMN "{op.old_object.name}"'
                     f" {(op.new_object.is_nullable and 'DROP') or 'SET'} NOT NULL"
                 )
             if "default" in diff_keys:
                 # change default
                 if op.new_object.default is None:
-                    updates.append(f"ALTER COLUMN {op.old_object.name}" f" DROP DEFAULT")
+                    updates.append(f'ALTER COLUMN "{op.old_object.name}" DROP DEFAULT')
                 else:
                     updates.append(
-                        f"ALTER COLUMN {op.old_object.name} SET DEFAULT {op.new_object.default}"
+                        f'ALTER COLUMN "{op.old_object.name}" SET DEFAULT {op.new_object.default}'
                     )
             if "is_foreign_key_to" in diff_keys or "on_delete" in diff_keys:
                 # drop and recreate foreign key constraint
