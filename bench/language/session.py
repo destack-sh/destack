@@ -353,6 +353,10 @@ class Session(RuntimeNode[SessionData]):
             self._channels.append(channel)
             return channel
 
+    def _touch_channel(self, channel: Channel):
+        """Touch a channel to mark it as used in the current transaction."""
+        self.tx._touched_engine_ids.add(channel.engine.id)
+
     async def _get_channel_for[ChannelT: Channel](
         self,
         scope: GraphScopeData,
@@ -824,7 +828,7 @@ class Session(RuntimeNode[SessionData]):
             # wait for any pending commit, then commit directly
             with tracer.start_as_current_span("session.commit.wait"):
                 await self._commit_queue.join()
-            if not self._tx.has_edits:
+            if not self._tx.has_edits and not self._tx._touched_engine_ids:
                 return [], []  # nothing to do
             new_edits, cascaded_edits = await self._do_commit(data_graph=_data_graph)
             return new_edits, cascaded_edits
