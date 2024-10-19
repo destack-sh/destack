@@ -43,7 +43,7 @@ class HostSqlContext(BenchSqlContext):
     """
 
     custom_tables_by_name: dict[str, Table]  # may include tables for deleted blocks
-    custom_tables_by_block: dict[Block, Table]
+    custom_tables_by_database: dict[Block, Table]
     databases_by_ck: dict[UUID, Block]
 
     def get_custom_table(self, block: UUID | Block) -> tuple[Table, Block]:
@@ -52,7 +52,7 @@ class HostSqlContext(BenchSqlContext):
                 raise RuntimeError(f"no database block for {block!r} in {self.bench!r}")
             block = self.databases_by_ck[block]
         if block.type == BlockType.DATABASE:
-            table = self.custom_tables_by_block.get(block)
+            table = self.custom_tables_by_database.get(block)
             assert table is not None, f"no table for {block!r}"
             return table, block
         else:
@@ -70,7 +70,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         self.context = HostSqlContext(
             bench=bench,
             custom_tables_by_name={},
-            custom_tables_by_block={},
+            custom_tables_by_database={},
             databases_by_ck={},
         )
 
@@ -81,8 +81,9 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             if node.type == BlockType.DATABASE
         ]
         for database in databases:
-            table = map_database_block_to_table(database)
-            self.context.custom_tables_by_block[database] = table
+            old_table = self.context.custom_tables_by_database.get(database)
+            new_table = map_database_block_to_table(database, old_table=old_table)
+            self.context.custom_tables_by_database[database] = new_table
             self.context.databases_by_ck[database.ck] = database
 
     async def start(self) -> None:
@@ -90,7 +91,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         # get target schema
         self._init_context_from_blocks()
         new_schema = Schema(
-            extensions=(), tables=tuple(self.context.custom_tables_by_block.values())
+            extensions=(), tables=tuple(self.context.custom_tables_by_database.values())
         )
 
         # migrate from current to target schema
@@ -134,16 +135,17 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         channel = await session._get_channel_for(
             self.host.scope, NodeType.RECORD, expect=PostgresChannel
         )
+
+        # load missing blocks' current schema (in case they were restored)
         old_tables = []
-        missing_blocks: list[Block] = []
+        restored_databases: list[Block] = []
         for block in touched_databases_by_ck.values():
-            if block in self.context.custom_tables_by_block:
-                old_tables.append(self.context.custom_tables_by_block[block])
+            if block in self.context.custom_tables_by_database:
+                old_tables.append(self.context.custom_tables_by_database[block])
             else:
-                missing_blocks.append(block)
-        if missing_blocks:
-            # load missing blocks' current schema (in case they were restored)
-            table_prefixes = tuple(get_record_table_name(block) for block in missing_blocks)
+                restored_databases.append(block)
+        if restored_databases:
+            table_prefixes = tuple(get_record_table_name(block) for block in restored_databases)
             old_schema = await introspect_sql_schema(
                 channel.cur,
                 include_table_prefixes=table_prefixes,
@@ -153,9 +155,14 @@ class DatabasePlugin(HostPlugin[Block | Field]):
             for table in old_schema.tables:
                 old_tables.append(table)
         old_schema = Schema(extensions=(), tables=tuple(old_tables))
-        new_tables_by_block: dict[Block, Table] = {
-            block: map_database_block_to_table(block) for block in touched_databases_by_ck.values()
-        }
+
+        # get new schema and migrate
+        new_tables_by_block: dict[Block, Table] = {}
+        for block in touched_databases_by_ck.values():
+            table_name = get_record_table_name(block)
+            old_table = old_schema._tables_by_name.get(table_name)
+            new_table = map_database_block_to_table(block, old_table=old_table)
+            new_tables_by_block[block] = new_table
         new_schema = Schema(extensions=(), tables=tuple(new_tables_by_block.values()))
         migration_ops = generate_sql_migration_ops(
             old_schema=old_schema,
@@ -164,8 +171,9 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         )
         if migration_ops:
             await apply_sql_migration_ops(channel.cur, migration_ops)
+
         # patch context optimistically
-        self.context.custom_tables_by_block.update(new_tables_by_block)
+        self.context.custom_tables_by_database.update(new_tables_by_block)
         self.context.databases_by_ck.update(touched_databases_by_ck)
         logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
@@ -175,7 +183,7 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         for node in commit.removed:
             if node.ck in self.context.databases_by_ck:
                 del self.context.databases_by_ck[node.ck]
-                del self.context.custom_tables_by_block[cast(Block, node)]
+                del self.context.custom_tables_by_database[cast(Block, node)]
 
     @override
     async def on_commit_failed(self, session: Session, error: Exception) -> None:
