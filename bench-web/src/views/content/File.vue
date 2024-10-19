@@ -246,9 +246,9 @@ defineExpose<ViewExposed>({ self, id });
     <div
       v-else-if="optimisticValue == null"
       ref="containerRef"
-      class="flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
+      class="group flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
       :class="[
-        variant != Variant.STEALTH ? 'border px-2.5 py-1' : 'opacity-0 hover:opacity-100',
+        variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-900 text-primary-900 outline outline-2 outline-primary-900'
@@ -256,7 +256,10 @@ defineExpose<ViewExposed>({ self, id });
       ]"
       @click.stop="fileInputRef!.click()"
     >
-      <span class="select-none transition-colors duration-75">
+      <span
+        class="select-none transition-colors duration-75"
+        :class="variant == Variant.STEALTH && !isInDropZone ? 'opacity-0 group-hover:opacity-100' : ''"
+      >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
         <span>Upload {{ facetName }}</span>
       </span>
@@ -357,7 +360,7 @@ defineExpose<ViewExposed>({ self, id });
         </div>
         <!-- Meta/Controls -->
         <div
-          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover/inline:text-gray-700 group-hover/inline:opacity-100"
+          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover/inline:text-gray-700 group-hover/inline:opacity-100"
         >
           <!-- Format -->
           <span v-if="optimisticValue?.format" class="">
