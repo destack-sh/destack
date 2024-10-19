@@ -393,6 +393,9 @@ class TypeInfoBase(BuiltinObject):
             PrimitiveType.STRING,
             PrimitiveType.UUID,
             PrimitiveType.DATETIME,
+            PrimitiveType.DATE,
+            PrimitiveType.TIME,
+            PrimitiveType.INTERVAL,
         ):
             return True
         else:

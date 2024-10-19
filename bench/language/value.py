@@ -814,7 +814,7 @@ def sample_value(typ: "TypeInfoBase", recurse_objects: bool = True) -> SomeValue
         if not typ.is_list:
             return sample_custom_object_scalar(typ, recurse_objects)
         else:
-            return [sample_custom_object_scalar(typ, recurse_objects) for _ in range(1)]
+            return [sample_custom_object_scalar(typ, recurse_objects) for _ in range(2)]
     else:
         if not typ.is_list:
             return sample_scalar_value(typ)

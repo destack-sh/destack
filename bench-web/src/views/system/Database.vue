@@ -393,6 +393,12 @@ function isSelectedField(field: FieldData) {
   return selectedFieldsByCk.value[field.ck] != null;
 }
 
+function isSelectedCell(record: RecordData, column: ColumnView) {
+  if (!isSelectedRecord(record)) return false;
+  if ((props.selection?.fieldsPtr?.length ?? 0) == 0) return true;
+  return column.kind == "field" && isSelectedField(column.field);
+}
+
 function addSelectionRecord(record: RecordData) {
   if (selfView.value == null) throw new Error("no self view");
   spaceConnection.tx.update(
@@ -845,7 +851,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
-            :class="[i > 0 ? 'border-l' : '', selectedRecordsById[record.id] ? 'bg-primary-100' : '']"
+            :class="[i > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-primary-100' : '']"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT_MIN}px`,
