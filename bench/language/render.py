@@ -298,9 +298,8 @@ class Renderer:
         for field in typ._base_fields:
             if typ.base_field_type is not None and field.type != typ.base_field_type:
                 continue
-            field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
-            field_value_repr = self.render_value_expr(field_value, field_type)
+            field_value_repr = self.render_value_expr(field_value, field)
             field_code_name = field.code_name
             assert field_code_name, f"{field!r} has no code name"
             repr_by_name[field_code_name] = field_value_repr
@@ -314,8 +313,6 @@ class Renderer:
 
         if value is None:
             return "None"
-        typ = typ._to_resolved()
-        assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
         if typ.kind == TypeKind.OBJECT:
             # nested object
             if not typ.is_list:

@@ -191,13 +191,10 @@ class CustomObject(Mapping[str, Any]):
             field = item
         if self._type.base_field_type is not None and field.type != self._type.base_field_type:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
-        field_type = field._to_resolved()
         # coerce & copy if needed
-        new_value = coerce_value(
-            new_value, field_type, as_packed=True, parent=self, parent_key=field
-        )
+        new_value = coerce_value(new_value, field, as_packed=True, parent=self, parent_key=field)
         if validate:
-            check_value(new_value, field_type, invalid=on_invalid_raise)
+            check_value(new_value, field, invalid=on_invalid_raise)
         if self._value is None:
             self._value = {}
         storage_key = field.storage_key
@@ -307,9 +304,7 @@ class CustomObject(Mapping[str, Any]):
     @property
     def _type_name(self) -> str:
         if self._type.kind != TypeKind.OBJECT or self._type.base_type is None:
-            if self._type._resolved_type is not None:
-                return cast(TypeKind, self._type._resolved_type.kind).bench_name
-            elif self._type.kind is not None:
+            if self._type.kind is not None:
                 return self._type.kind.bench_name
             else:
                 return "?Object"
@@ -455,7 +450,6 @@ def coerce_custom_object_scalar(
             raise TypeError(f"{value!r} is a {type(value).__name__}, expected {typ!r}")
         value_coerced = {}
         for field in typ._base_fields:
-            field_type = field._to_resolved()
             # try getting value by storage key, name and ident
             field_value = value.get(field.storage_key)
             if field_value is None:
@@ -465,7 +459,7 @@ def coerce_custom_object_scalar(
             if field_value is None:
                 continue
             value_coerced[field.storage_key] = coerce_value(
-                field_value, field_type, as_packed=as_packed, parent=parent, parent_key=parent_prop
+                field_value, field, as_packed=as_packed, parent=parent, parent_key=parent_prop
             )
         return CustomObject.new(
             value=value_coerced, typ=typ, parent=parent, parent_property=parent_prop
@@ -667,17 +661,14 @@ def check_custom_object_scalar(
     """Checks whether the given object value has the expected type (recursively)."""
     if _check_is_object(value, typ, invalid):
         for field in typ._fields:
-            field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
-            check_value(field_value, field_type, invalid)
+            check_value(field_value, field, invalid)
 
 
 def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
     """
     Checks whether the given value has the expected type (recursively).
     """
-    typ = typ._to_resolved()
-    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if value is None:
         if typ.is_required:
             invalid(value, "missing required value", typ)
@@ -809,19 +800,16 @@ def sample_custom_object_scalar(typ: "TypeInfoBase", recurse_objects: bool = Tru
     assert typ.kind == TypeKind.OBJECT, f"expected object type, got {typ!r}"
     value = {}
     for field in typ._base_fields:
-        field_type = field._to_resolved()
         if field.is_list:
-            value[field.storage_key] = [sample_value(field_type, recurse_objects) for _ in range(1)]
+            value[field.storage_key] = [sample_value(field, recurse_objects) for _ in range(1)]
         else:
-            value[field.storage_key] = sample_value(field_type, recurse_objects)
+            value[field.storage_key] = sample_value(field, recurse_objects)
     return CustomObject.new(value, typ)
 
 
 @tracer.start_as_current_span(name="value.sample")
 def sample_value(typ: "TypeInfoBase", recurse_objects: bool = True) -> SomeValue:
     """Samples a representative value for the given type (recursively)."""
-    typ = typ._to_resolved()
-    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
             return sample_custom_object_scalar(typ, recurse_objects)
@@ -1053,22 +1041,21 @@ def pack_custom_object(
         return value_packed  # empty value
 
     for field in typ._base_fields:
-        field_type = field._to_resolved()
         field_value = cast(SomeValue, _value.get(field.storage_key))
         if field_value is None:
             continue
-        elif field_type.kind == TypeKind.OBJECT:
-            value_packed[field.storage_key] = pack_value(field_value, field_type)
-        elif not field_type.is_list:
+        elif field.kind == TypeKind.OBJECT:
+            value_packed[field.storage_key] = pack_value(field_value, field)
+        elif not field.is_list:
             value_packed[field.storage_key] = pack_value_scalar(
-                cast(ScalarValue, field_value), field_type
+                cast(ScalarValue, field_value), field
             )
         else:  # scalar list
             assert isinstance(
                 field_value, list
             ), f"{field_value!r} is not a list, expected {field!r}"
             value_packed[field.storage_key] = [
-                pack_value_scalar(element, field_type) for element in field_value
+                pack_value_scalar(element, field) for element in field_value
             ]
     return value_packed
 
@@ -1084,23 +1071,20 @@ def unpack_custom_object(
     """
     value: dict[str, SomeValue] = {}
     for field in typ._base_fields:
-        field_type = field._to_resolved()
         field_value_packed = value_packed.get(field.storage_key)
         if field_value_packed is None:
             continue
-        elif field_type.kind == TypeKind.OBJECT:
-            field_value = unpack_value(field_value_packed, field_type, wrap_scalar=False)
+        elif field.kind == TypeKind.OBJECT:
+            field_value = unpack_value(field_value_packed, field, wrap_scalar=False)
             if field_value is None:
                 continue
-        elif not field_type.is_list:
-            field_value = unpack_value_scalar(field_value_packed, field_type)
+        elif not field.is_list:
+            field_value = unpack_value_scalar(field_value_packed, field)
         else:  # scalar list
             assert isinstance(
                 field_value_packed, list
             ), f"{field_value_packed!r} is not a list, expected {field!r}"
-            field_value = [
-                unpack_value_scalar(element, field_type) for element in field_value_packed
-            ]
+            field_value = [unpack_value_scalar(element, field) for element in field_value_packed]
         value[field.storage_key] = field_value
     return CustomObject.new(value=value, typ=typ, parent=parent, parent_property=parent_key)
 
@@ -1110,8 +1094,6 @@ def pack_value(value: SomeValue | None, typ: "TypeInfoBase", wrap_scalar: bool =
     Packs a value into a JSON representation.
     """
 
-    typ = typ._to_resolved()
-    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         # nested object
         if not typ.is_list:
@@ -1144,8 +1126,6 @@ def pack_value_data(
     value: SomeValueData, typ: "TypeInfoBase", wrap_scalar: bool = True
 ) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
-    typ = typ._to_resolved()
-    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     assert typ.kind != TypeKind.OBJECT, f"cannot pack data for {typ!r}"
     # wrap scalar
     value_packed: JsonValue
@@ -1171,8 +1151,6 @@ def unpack_value(
     """
     Unpacks a value from its JSON representation.
     """
-    typ = typ._to_resolved()
-    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         # nested object
         if not typ.is_list:
@@ -1213,8 +1191,6 @@ def unpack_value_data(
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
     """
-    typ = typ._to_resolved()
-    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
     if typ.kind == TypeKind.OBJECT:
         # nested object
         return value_packed
@@ -1348,7 +1324,6 @@ def coerce_custom_object(typ: "TypeInfoBase", value_raw: Any) -> CustomObject:
     If this doesn't work, we raise ValueError/TypeError accordingly.
     """
 
-    typ = typ._to_resolved()
     assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object"
 
     fields = typ._fields

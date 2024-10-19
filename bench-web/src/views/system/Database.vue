@@ -93,6 +93,7 @@ const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 // Search/filter
 //
 
+// nocheckin: wait with search until Database is actually committed? (else optimistic commit makes us query too early and errors)
 const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 25));
 const {
   graph: recordGraph,
@@ -209,6 +210,7 @@ type ColumnView = {
   debounce: DebounceLevel;
   isInspected: boolean;
   isHighlighted: boolean;
+  isSelected: boolean;
   paddingY: number;
 } & ColumnContent;
 const columns: Ref<ColumnView[]> = computed(() => {
@@ -217,7 +219,8 @@ const columns: Ref<ColumnView[]> = computed(() => {
   const columns: ColumnView[] = [];
 
   function addColumn(
-    columnIn: Pick<ColumnView, "id" | "icon" | "title" | "type" | "isHighlighted" | "isInspected"> & ColumnContent,
+    columnIn: Pick<ColumnView, "id" | "icon" | "title" | "type" | "isHighlighted" | "isInspected" | "isSelected"> &
+      ColumnContent,
   ) {
     const view = getViewForValueType(columnIn.type);
     const column: ColumnView = {
@@ -234,6 +237,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
   }
 
   for (const propertyId of properties) {
+    // :RichColumns
     const property = propertyInfo(NodeType.RECORD, propertyId);
     const propertyType = getPropertyType(property);
     addColumn({
@@ -246,6 +250,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       propertyName: getPropertyName(property),
       isInspected: false,
       isHighlighted: false,
+      isSelected: false,
     });
   }
   for (const field of fields.value) {
@@ -260,6 +265,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       storageKey: getStorageKey(field, fieldType),
       isHighlighted: canvas.isHighlighted(field),
       isInspected: canvas.isInspected(field),
+      isSelected: isSelectedField(field),
     });
   }
 
@@ -315,12 +321,14 @@ function writeColumnValue(
   }
 }
 
-// selection
+//
+// Selection
+//
 
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
-  const selectedRecord = new Set(props.selection?.nodesPtr?.map((ptr) => ptr.id));
+  const selectedRecords = new Set(props.selection?.nodesPtr?.map((ptr) => ptr.id));
   return records.value
-    .filter((record) => selectedRecord.has(record.id))
+    .filter((record) => selectedRecords.has(record.id))
     .reduce(
       (acc, record) => {
         acc[record.id] = record;
@@ -329,11 +337,31 @@ const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
       {} as Record<string, RecordData>,
     );
 });
+const selectedFieldsByCk: Ref<Record<string, FieldData>> = computed(() => {
+  const selectedFields = new Set(props.selection?.nodesPtr?.map((ptr) => ptr.ck));
+  return fields.value
+    .filter((field) => selectedFields.has(field.ck))
+    .reduce(
+      (acc, field) => {
+        acc[field.ck] = field;
+        return acc;
+      },
+      {} as Record<string, FieldData>,
+    );
+});
 const hasSelection = computed(() => Object.keys(selectedRecordsById.value).length > 0);
-const numSelected = computed(() => Object.keys(selectedRecordsById.value).length);
-const isAllSelected = computed(() => numSelected.value >= records.value.length);
+const numSelectedRecords = computed(() => Object.keys(selectedRecordsById.value).length);
+const isAllSelected = computed(() => numSelectedRecords.value >= records.value.length);
 
-function addSelection(record: RecordData) {
+function isSelectedRecord(record: RecordData) {
+  return selectedRecordsById.value[record.id] != null;
+}
+
+function isSelectedField(field: FieldData) {
+  return selectedFieldsByCk.value[field.ck] != null;
+}
+
+function addSelectionRecord(record: RecordData) {
   if (selfView.value == null) throw new Error("no self view");
   spaceConnection.tx.update(
     selfView.value,
@@ -342,7 +370,7 @@ function addSelection(record: RecordData) {
   );
 }
 
-function removeSelection(record: RecordData) {
+function removeSelectionRecord(record: RecordData) {
   if (selfView.value == null || props.selection == null) throw new Error("no self view");
   spaceConnection.tx.update(
     selfView.value,
@@ -351,32 +379,31 @@ function removeSelection(record: RecordData) {
   );
 }
 
-function setSelection(record: RecordData, selected: boolean) {
+function setSelectionRecord(record: RecordData, selected: boolean) {
   if (selected) {
-    addSelection(record);
+    addSelectionRecord(record);
   } else {
-    removeSelection(record);
+    removeSelectionRecord(record);
   }
 }
 
 function selectAll() {
-  spaceConnection.tx.update(
-    selfView.value!,
-    {
-      selection: {
-        metatype: ObjectType.SELECTION,
-        type: SelectionType.LIST,
-        nodesPtr: records.value.map(toPlainNodeRef),
-        fieldsPtr: [],
-      },
-    },
-    { debounce: "tick" },
-  );
+  const selection = {
+    metatype: ObjectType.SELECTION,
+    type: SelectionType.LIST,
+    nodesPtr: records.value.map(toPlainNodeRef),
+    fieldsPtr: [],
+  };
+  spaceConnection.tx.update(selfView.value!, { selection }, { debounce: "tick" });
 }
 
-function clearSelection() {
+function selectNone() {
   spaceConnection.tx.update(selfView.value!, { selection: undefined }, { debounce: "tick" });
 }
+
+// nocheckin: field selection
+
+// working with selection
 
 function duplicateSelection(): RecordData[] {
   const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Duplicate records" } });
@@ -396,7 +423,9 @@ function deleteSelection() {
   }
 }
 
-// drag & drop :TypeDragAndDrop
+//
+// Drag & drop :TypeDragAndDrop
+// 
 
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
   if (dragged.kind != "node") return false;
@@ -525,7 +554,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
         <!-- Selection -->
         <div v-if="hasSelection" class="flex flex-row items-center rounded border">
-          <span class="h-full px-2 py-0.5 font-medium text-primary-900">{{ numSelected }} selected</span>
+          <span class="h-full px-2 py-0.5 font-medium text-primary-900">{{ numSelectedRecords }} selected</span>
           <button
             v-tooltip="{ title: 'Duplicate', small: true }"
             class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
@@ -615,7 +644,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelection ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
               :checked="isAllSelected"
-              @change="(e) => (!isAllSelected ? selectAll() : clearSelection())"
+              @change="(e) => (!isAllSelected ? selectAll() : selectNone())"
             />
           </div>
 
@@ -768,7 +797,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelection ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
               :checked="selectedRecordsById[record.id] != null"
-              @change="(e) => setSelection(record, (e.target as HTMLInputElement).checked)"
+              @change="(e) => setSelectionRecord(record, (e.target as HTMLInputElement).checked)"
             />
           </div>
 
@@ -797,7 +826,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   // nocheckin handle click-to-edit better in cells
                 } else {
                   const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]')?.firstElementChild;
-                  console.log(columnEl)
+                  console.log(columnEl);
                   if (columnEl == null) return;
                   const width = Math.max(POPOVER_WIDTH_MIN, Math.min(POPOVER_WIDTH_MAX, column.width));
                   const height = Math.max(

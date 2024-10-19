@@ -103,7 +103,7 @@ def test_roundtrip_nested_value(session: Session, package: Package):
         name="Field2", primitive_type=PrimitiveType.INT32, kind=TypeKind.PRIMITIVE, is_list=True
     )
     class1.fields.create(name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT)
-    class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
+    class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.OBJECT)
 
     # outer value
     value = cast(CustomObject, class1())

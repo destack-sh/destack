@@ -984,8 +984,7 @@ class TypeKind(IdEnum):
     BASED_NODE = 5
     OBJECT = 6
     LITERAL = 7
-    UNION = 9
-    ALIAS = 10
+    UNION = 8
 
 
 @enum_(EnumType.FIELD_ZONE)

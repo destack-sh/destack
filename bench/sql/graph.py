@@ -174,8 +174,7 @@ def get_record_table_name(block: Block) -> str:
 
 
 def get_record_field_name(field: Field) -> str:
-    field_type = field._to_resolved()
-    return BENCH_RECORD_VALUE_PREFIX + field.tk + field_type.identity_key
+    return f"{BENCH_RECORD_VALUE_PREFIX}{field.tk}{field.identity_key}"
 
 
 def map_builtin_object_to_table(

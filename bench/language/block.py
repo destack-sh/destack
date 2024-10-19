@@ -191,7 +191,7 @@ class Block(SourceNode[BlockData]):
         if self.type == BlockType.CLASS:
             # NOTE: we turn Class Blocks into Alias Types here for correctness, but that means
             #  we have to resolve them again (unnecessarily) before instantiating.
-            typ = TypeInfo(kind=TypeKind.ALIAS, base_type=self)
+            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self)
         elif self.type == BlockType.CHOICE:
             typ = TypeInfo(
                 kind=TypeKind.BASED_NODE,
@@ -210,7 +210,7 @@ class Block(SourceNode[BlockData]):
                 )
         elif self.type == BlockType.VALUE:
             assert self.value_type is not None, f"{self!r} has no builtin base"
-            return self.value_type._to_resolved()
+            return self.value_type
         elif self.type == BlockType.DATABASE:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
@@ -227,7 +227,6 @@ class Block(SourceNode[BlockData]):
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
         else:
             return None
-        typ._resolve_type()  # pre-resolve
         return typ
 
     @property

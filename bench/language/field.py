@@ -106,27 +106,7 @@ TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
 }
 
 
-def get_implied_type_kind(typ: "TypeInfoBase") -> TypeKind | None:
-    """Figure out which 'kind' of type is implied by the type info (ignoring its current 'kind')"""
-    if typ.primitive_type:
-        return TypeKind.PRIMITIVE
-    elif typ.bench_type:
-        if is_node_type(typ.bench_type):
-            if typ.base_type_ptr:
-                return TypeKind.BASED_NODE
-            else:
-                return TypeKind.NODE
-        elif is_struct_type(typ.bench_type):
-            return TypeKind.STRUCT
-        elif is_enum_type(typ.bench_type):
-            return TypeKind.ENUM
-    elif typ.base_type_ptr:
-        return TypeKind.ALIAS
-    # couldn't figure it out
-    return None
-
-
-def encode_type_identity(typ: "TypeInfoBase") -> str | None:
+def encode_type_identity(typ: "TypeInfoBase") -> str:
     """
     Encodes the type identity into a key for storage & implicit typing.
     Format is <kind>[id] (with id encoded as base64).
@@ -146,7 +126,7 @@ def encode_type_identity(typ: "TypeInfoBase") -> str | None:
         assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
         value = get_tk_b64_from_ptr(typ.base_type_ptr)
     else:
-        return None
+        raise ValueError(f"unsupported type kind {typ.kind} for {typ!r}")
 
     prefix: str
     prefix = LETTER_BY_TYPE_KIND[typ.kind].upper() if typ.is_list else LETTER_BY_TYPE_KIND[typ.kind]
@@ -200,8 +180,7 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
 
 def encode_storage_key(field: "Field") -> str:
     """Gets the key used to identify values of this field in storage. :FieldStorageKey"""
-    resolved_field = field._to_resolved()
-    return f"{get_tk_b64_from_ck(field.ck)}{resolved_field.identity_key}"
+    return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
 
 
 @struct_(StructType.TYPE_CONSTRAINT)
@@ -244,10 +223,10 @@ class TypeInfoBase(BuiltinObject):
     A type one of these TypeKinds:
        1. Primitive (= column type, value is scalar, like int32, string, bool, datetime, ...)
           [primitive_type] | [base_type = Block aliased to primitive_type]
-       2. Node (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-          [bench_type~NodeType | None]
-       3. Struct (value is 'robust json', like Expression, File, Path, Text, Code, ...)
+       2. Struct (value is 'robust json', like Expression, File, Path, Text, Code, ...)
           [bench_type~StructType]
+       3. Node (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+          [bench_type~NodeType | None]
        4. Enum (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
           [bench_type~EnumType]
        5. Based Node (value is NodeReference that is an 'instance' of the block)
@@ -259,9 +238,8 @@ class TypeInfoBase(BuiltinObject):
             ...
        6. Object (value is Object value of classy type, like Code inputs, Step outputs, Record value, ...)
           [base_type~Block[is_classy]|Step]
-       7. Alias (value is whatever base_type resolves to, must be resolved to pack/unpack)
-       8. Literal (only allowable value is the type itself / or some constant value)
-       9. Union (type is union of Field children with oneof=self)
+       7. Literal (only allowable value is the type itself / or some constant value)
+       8. Union (type is union of Field children with oneof=self)
 
     Types may also specify:
        - field type, narrowing the fields included from the base type (if any)
@@ -306,10 +284,6 @@ class TypeInfoBase(BuiltinObject):
     is_list: bool = p_regular(61, default=False)
     is_secret: bool = p_regular(62, default=False)
 
-    # resolved
-    _resolved_type: Optional["TypeInfoBase"] = p_runtime(default=None)
-    _resolved_identity_key: str | None = p_runtime(default=None)
-
     _from_property: Optional["Property"] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
@@ -350,39 +324,6 @@ class TypeInfoBase(BuiltinObject):
 
         return info_str
 
-    def _resolve_type(self):
-        # TODO :Incomplete: proper type resolution (consider multi-step aliases, inheritance, ...)
-        #  (also when do we even call this to react to edits? how do we get this into bench-web?)
-
-        # resolve the actual type :TypeResolution
-        resolved_type = self
-        if self.kind == TypeKind.ALIAS:
-            from bench.language import Block
-
-            assert self.base_type_ptr is not None, f"missing base type for alias {self!r}"
-            base_type = self.base_type
-            if base_type is not None:  # may not be resolved
-                if base_type.metatype == NodeType.STEP or (
-                    isinstance(base_type, Block) and base_type.type.is_classy
-                ):
-                    resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=base_type)
-                elif base_type.metatype == NodeType.BLOCK and base_type.variable_type is not None:
-                    resolved_type = base_type.variable_type
-
-        self._resolved_type = resolved_type
-        self._resolved_identity_key = encode_type_identity(resolved_type)
-        if resolved_type is not None and resolved_type is not self:
-            # ensure the resolved type resolves to itself
-            resolved_type._resolved_type = resolved_type
-            resolved_type._resolved_identity_key = self._resolved_identity_key
-        return resolved_type
-
-    def _to_resolved(self) -> "TypeInfoBase":
-        if self._resolved_type is None:
-            return self._resolve_type()
-        else:
-            return self._resolved_type
-
     def morph_to(
         self,
         typ: "TypeIn",
@@ -411,14 +352,6 @@ class TypeInfoBase(BuiltinObject):
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
-        implied_kind = get_implied_type_kind(self)
-        if (
-            implied_kind is not None
-            and implied_kind != self.kind
-            and implied_kind != TypeKind.ALIAS
-        ):
-            actual_kind = self.kind.name if self.kind else "None"
-            invalid(self, f"kind is {actual_kind} but should be {implied_kind.name}", None)
         if self.is_list and not self.supports_list:
             invalid(self, "list type is not supported", None)
 
@@ -426,22 +359,21 @@ class TypeInfoBase(BuiltinObject):
         """Converts the given value to this type."""
         # TODO :Cleanup :Architecture: TypeInfo.__call__ feels a lot like coerce_value
         #  But it's not quite the same. Here we want to error if we can't coerce, return full nodes, etc.
-        typ = self._to_resolved()
-        if typ.kind == TypeKind.PRIMITIVE:
-            py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
-            assert py_type is not None, f"{typ!r} does not have a python type"
+        if self.kind == TypeKind.PRIMITIVE:
+            py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, self.primitive_type))
+            assert py_type is not None, f"{self!r} does not have a python type"
             return py_type(*args, **kwargs)
-        elif typ.kind == TypeKind.BASED_NODE:
-            if typ.bench_type == NodeType.FIELD:
-                assert typ.base_type is not None, f"missing base type for {typ!r}"
-                field = typ.base_type.fields.get(*args, **kwargs)
+        elif self.kind == TypeKind.BASED_NODE:
+            if self.bench_type == NodeType.FIELD:
+                assert self.base_type is not None, f"missing base type for {self!r}"
+                field = self.base_type.fields.get(*args, **kwargs)
                 if field is None:
-                    raise ValueError(f"no field {args!r} in {typ.base_type!r}")
+                    raise ValueError(f"no field {args!r} in {self.base_type!r}")
                 return field
-        elif typ.kind == TypeKind.OBJECT:
-            return coerce_custom_object_scalar(kwargs, typ, as_packed=True)
+        elif self.kind == TypeKind.OBJECT:
+            return coerce_custom_object_scalar(kwargs, self, as_packed=True)
 
-        raise ValueError(f"cannot create {self!r} (resolved={typ!r}) directly")
+        raise ValueError(f"cannot create {self!r} (resolved={self!r}) directly")
 
     @property
     def supports_list(self) -> bool:  # :ListableTypes
@@ -474,24 +406,19 @@ class TypeInfoBase(BuiltinObject):
     @property
     def identity_key(self) -> str:
         """The identity of this type for packing."""
-        assert self._resolved_identity_key is not None, f"unresolved type {self!r}"
-        return self._resolved_identity_key
+        return encode_type_identity(self)
 
     @property
     def _base_fields(self) -> LocalNodeList["Field"]:
-        assert self._resolved_type is not None, f"unresolved type {self!r}"
-        assert self._resolved_type.base_type is not None, f"missing base type {self!r}"
-        return self._resolved_type.base_type.fields
+        assert self.base_type is not None, f"missing base type {self!r}"
+        return self.base_type.fields
 
     @property
     def _fields(self) -> LocalNodeList["Field"] | Sequence["Field"]:
-        assert self._resolved_type is not None, f"unresolved type {self!r}"
-        if self._resolved_type.base_field_type is None:
+        if self.base_field_type is None:
             return self._base_fields
         else:
-            return tuple(
-                f for f in self._base_fields if f.type == self._resolved_type.base_field_type
-            )
+            return tuple(f for f in self._base_fields if f.type == self.base_field_type)
 
     def _get_field(self, ident: str) -> Optional["Field"]:
         """Resolves a field in this type by an identifier (name or py_name)"""

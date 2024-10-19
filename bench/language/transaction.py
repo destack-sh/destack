@@ -718,8 +718,11 @@ def apply_edit_operation_data(
                 wiring.set_object_prop(cast(AnyObjectData, obj), prop, new_value)
             else:  # custom object field
                 if is_prepass:
-                    old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
-                    op.old_value_packed.CopyFrom(pack_proto_json(old_value_packed))  # type: ignore
+                    if key in cast(ProtoStruct, obj):
+                        old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
+                        op.old_value_packed.CopyFrom(pack_proto_json(old_value_packed))  # type: ignore
+                    else:
+                        op.ClearField("old_value_packed")
                 cast(ProtoStruct, obj).__setitem__(key, new_value_packed)  # type: ignore
 
 
