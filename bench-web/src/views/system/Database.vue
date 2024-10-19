@@ -49,14 +49,20 @@ import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone }
 import { getNodeIcon, getTypeIcon, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, PopoverContext, PopoverInfoIn, pushPopover } from "@/ui/popover";
-import { collapseSelection, expandSelection, getViewForValueType, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import {
+  collapseSelection,
+  expandSelection,
+  focusInElement,
+  getViewForValueType,
+  VIEW_DEFAULT_HEADER_HEIGHT,
+} from "@/ui/view";
 import { assertNever } from "@/utils/functools";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, ViewComponent, viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
-import { useElementSize } from "@vueuse/core";
+import { MaybeElement, useElementSize } from "@vueuse/core";
 import { computed, ref, Ref, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -124,6 +130,29 @@ const {
 // State
 //
 
+const containerRef = ref<HTMLDivElement | null>(null);
+const headerRef: Ref<HTMLDivElement | null> = ref(null);
+const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
+const columnHeaderRefs: Ref<Record<string, HTMLElement | null>> = ref({});
+const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
+const cellComponentRefs: Ref<Record<string, MaybeElement>> = ref({});
+
+const containerSize = useElementSize(containerRef);
+const rowBodyWidth = computed(() => {
+  if (props.variant == Variant.COMPACT) {
+    return containerSize.width.value;
+  } else {
+    return containerSize.width.value - ROW_ACTIONS_WIDTH;
+  }
+});
+const bodySize = computed(() => {
+  return { width: rowBodyWidth.value, height: containerSize.height.value - ACTION_HEADER_HEIGHT };
+});
+
+function getCellId(record: RecordData, column: ColumnView) {
+  return `${record.id}.${column.id}`;
+}
+
 // NOTE :UX: add records optimistically in Database?
 //  (right now, they only show up once committed in the backend and the search connection is updated from there)
 function createRecord() {
@@ -137,19 +166,6 @@ function createRecord() {
   });
   canvas.inspect({ node: record, view: containerRef.value });
 }
-
-const containerRef = ref<HTMLDivElement | null>(null);
-const headerRef: Ref<HTMLDivElement | null> = ref(null);
-const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
-const columnRefs: Ref<Record<string, HTMLElement | null>> = ref({});
-
-const containerSize = useElementSize(containerRef);
-const rowBodyWidth = computed(() => {
-  return containerSize.width.value - ROW_ACTIONS_WIDTH;
-});
-const bodySize = computed(() => {
-  return { width: containerSize.width.value, height: containerSize.height.value - ACTION_HEADER_HEIGHT };
-});
 
 function getMinColumnWidth(type: TypeIdentity, viewType: ViewType | undefined) {
   if (type.primitiveType == PrimitiveType.BOOLEAN) {
@@ -176,12 +192,17 @@ function getColumnDebounce(type: TypeIdentity, viewType: ViewType | undefined): 
   }
 }
 
-function getColumnPadding(type: TypeIdentity, viewType: ViewType | undefined) {
+function getColumnPadding(
+  type: TypeIdentity,
+  viewType: ViewType | undefined,
+): { paddingTop: number; paddingBottom: number } {
   // calibrated against ROW_HEIGHT to ensure all types look center-aligned at the default height
   if (viewType == ViewType.TOGGLE) {
-    return 7;
+    return { paddingTop: 7, paddingBottom: 0 };
+  } else if (viewType == ViewType.TEXT) {
+    return { paddingTop: 5, paddingBottom: 2 };
   } else {
-    return 5;
+    return { paddingTop: 5, paddingBottom: 5 };
   }
 }
 
@@ -208,10 +229,13 @@ type ColumnView = {
   viewProps: any | undefined;
   width: number;
   debounce: DebounceLevel;
+  isInput: boolean;
+  isPopover: boolean;
   isInspected: boolean;
   isHighlighted: boolean;
   isSelected: boolean;
-  paddingY: number;
+  paddingTop: number;
+  paddingBottom: number;
 } & ColumnContent;
 const columns: Ref<ColumnView[]> = computed(() => {
   // NOTE :UX: support Table property columns properly :RichColumns
@@ -219,19 +243,25 @@ const columns: Ref<ColumnView[]> = computed(() => {
   const columns: ColumnView[] = [];
 
   function addColumn(
-    columnIn: Pick<ColumnView, "id" | "icon" | "title" | "type" | "isHighlighted" | "isInspected" | "isSelected"> &
+    columnIn: Pick<
+      ColumnView,
+      "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isSelected"
+    > &
       ColumnContent,
   ) {
     const view = getViewForValueType(columnIn.type);
+    const padding = getColumnPadding(columnIn.type, view?.type);
     const column: ColumnView = {
       ...columnIn,
       idx: columns.length,
       viewType: view?.type,
       viewComponent: view?.type != null ? getViewComponent(view?.type) : null,
-      viewProps: view,
+      viewProps: { ...view, isInput: columnIn.isInput },
       width: getMinColumnWidth(columnIn.type, view?.type),
       debounce: getColumnDebounce(columnIn.type, view?.type),
-      paddingY: getColumnPadding(columnIn.type, view?.type),
+      paddingTop: padding.paddingTop,
+      paddingBottom: padding.paddingBottom,
+      isPopover: false, // not sure which views/cells should open as popover
     };
     columns.push(column);
   }
@@ -248,6 +278,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       kind: "property",
       property,
       propertyName: getPropertyName(property),
+      isInput: false,
       isInspected: false,
       isHighlighted: false,
       isSelected: false,
@@ -263,6 +294,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       type: fieldType,
       field,
       storageKey: getStorageKey(field, fieldType),
+      isInput: true,
       isHighlighted: canvas.isHighlighted(field),
       isInspected: canvas.isInspected(field),
       isSelected: isSelectedField(field),
@@ -425,7 +457,7 @@ function deleteSelection() {
 
 //
 // Drag & drop :TypeDragAndDrop
-// 
+//
 
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
   if (dragged.kind != "node") return false;
@@ -459,7 +491,7 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   name: "database.header",
   container: headerRef,
-  targets: columnRefs,
+  targets: columnHeaderRefs,
   orientation: Orientation.HORIZONTAL,
   kinds: ["node"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],
@@ -652,7 +684,9 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-for="(column, i) in columns"
             :key="column.id"
-            :ref="(ref: any) => (ref != null ? (columnRefs[column.id] = ref) : delete columnRefs[column.id])"
+            :ref="
+              (ref: any) => (ref != null ? (columnHeaderRefs[column.id] = ref) : delete columnHeaderRefs[column.id])
+            "
             v-contextmenu="
               (context: PopoverContext): PopoverInfoIn => {
                 context = { ...context, triggerNode: column.kind == 'field' ? column.field : undefined };
@@ -801,32 +835,34 @@ defineExpose<ViewExposed>({ self, id, actions });
             />
           </div>
 
-          <!-- Columns -->
+          <!-- Cells -->
           <div
             v-for="(column, i) in columns"
+            :ref="
+              (ref: any) =>
+                ref != null
+                  ? (cellWrapperRefs[getCellId(record, column)] = ref)
+                  : delete cellWrapperRefs[getCellId(record, column)]
+            "
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
-            :class="[
-              i > 0 ? 'border-l' : '',
-              canvas.isInspected(record) ? 'bg-primary-100' : selectedRecordsById[record.id] ? 'bg-primary-50' : '',
-            ]"
+            :class="[i > 0 ? 'border-l' : '', selectedRecordsById[record.id] ? 'bg-primary-100' : '']"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT_MIN}px`,
               maxHeight: `${ROW_HEIGHT_MAX}px`,
-              paddingTop: `${column.paddingY}px`,
-              paddingBottom: `${column.paddingY}px`,
+              paddingTop: `${column.paddingTop}px`,
+              paddingBottom: `${column.paddingBottom}px`,
             }"
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
             @click="
               (event) => {
                 if (column.viewType == ViewType.TOGGLE) {
+                  // just toggle it directly
                   const value = readColumnValue(record, column);
                   writeColumnValue(record, column, !value);
-                } else if (column.viewType == ViewType.FILE) {
-                  // nocheckin handle click-to-edit better in cells
-                } else {
+                } else if (column.isPopover) {
+                  // open popover cell edit
                   const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]')?.firstElementChild;
-                  console.log(columnEl);
                   if (columnEl == null) return;
                   const width = Math.max(POPOVER_WIDTH_MIN, Math.min(POPOVER_WIDTH_MAX, column.width));
                   const height = Math.max(
@@ -834,7 +870,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     Math.min(POPOVER_HEIGHT_MAX, columnEl?.getBoundingClientRect().height!),
                   );
                   const columnPos = (columnEl as HTMLElement).getBoundingClientRect();
-                  const position = { x: columnPos.left - ROW_PADDING_X, y: columnPos.top - column.paddingY };
+                  const position = { x: columnPos.left - ROW_PADDING_X, y: columnPos.top - column.paddingTop };
                   // center inside cell if popover width is less than cell width
                   if (width < column.width) {
                     position.x += (column.width - width) / 2;
@@ -858,6 +894,10 @@ defineExpose<ViewExposed>({ self, id, actions });
                       onApply: (value: any) => writeColumnValue(record, column, value, { debounce: 'tick' }),
                     },
                   });
+                } else {
+                  // focus cell component
+                  const componentEl = cellComponentRefs[getCellId(record, column)];
+                  if (componentEl != null) focusInElement(componentEl);
                 }
               }
             "
@@ -866,6 +906,12 @@ defineExpose<ViewExposed>({ self, id, actions });
             <component
               :is="column.viewComponent"
               v-if="column.viewComponent != null"
+              :ref="
+                (ref: any) =>
+                  ref != null
+                    ? (cellComponentRefs[getCellId(record, column)] = ref)
+                    : delete cellComponentRefs[getCellId(record, column)]
+              "
               v-bind="column.viewProps"
               class="select-none"
               :model-value="readColumnValue(record, column)"

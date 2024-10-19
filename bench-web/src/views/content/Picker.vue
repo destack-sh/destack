@@ -33,8 +33,8 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
 
-const MIN_WIDTH = 200;
-const DEFAULT_WIDTH = 280;
+const MIN_WIDTH = 320;
+const DEFAULT_WIDTH = 400;
 const MAX_HEIGHT = 360;
 
 const props = defineProps<
@@ -180,7 +180,7 @@ function select(option: string | PickerItem | undefined) {
     } else if (!isSelected(option)) {
       apply([...((props.modelValue as any[]) ?? []), value]);
     }
-    query.value = '';
+    query.value = "";
   }
 }
 function deselect(option: PickerItem | number) {
@@ -231,23 +231,36 @@ defineExpose<ViewExposed>({ self, id, focus });
       v-if="!isInline && variant != Variant.COMPACT"
       ref="buttonRef"
       v-menu="
-        (): PopoverInfoIn => ({
-          component: ViewType.PICKER,
-          placement: 'inside-top-left',
-          isEnabled: !isDisabled && isInput,
-          referenceMargin: 0,
-          props: {
-            ...(props as ViewProps),
-            title: undefined, // clear title
-            size: { metatype: ObjectType.BOX, width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!) },
-            isInline: true,
-          },
-          onApply: (value: any) => apply(value),
-        })
+        (): PopoverInfoIn => {
+          return {
+            component: ViewType.PICKER,
+            placement: 'inside-top-left',
+            isEnabled: !isDisabled && isInput,
+            // stealth picker has no padding, but popover picker does, so add offset to ensure it's aligned
+            offset: variant == Variant.STEALTH ? { x: -10, y: -5 } : undefined,
+            referenceMargin: 0,
+            dontAnimate: variant == Variant.STEALTH,
+            props: {
+              ...(props as ViewProps),
+              variant: Variant.PRIMARY, // full dropdown
+              title: undefined, // clear title
+              size: {
+                metatype: ObjectType.BOX,
+                width: Math.max(
+                  MIN_WIDTH,
+                  buttonRef?.getBoundingClientRect().width! + (variant == Variant.STEALTH ? 10 : 0), // see above
+                ),
+              },
+              isInline: true,
+            },
+            onApply: (value: any) => apply(value),
+          };
+        }
       "
       role="button"
       :disabled="props.isDisabled || !props.isInput"
-      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border-gray-200 bg-white hover:border-gray-300 data-[popover=true]:border-gray-300"
+      :class="[variant != Variant.STEALTH ? 'border px-2.5 py-1' : '']"
     >
       <!-- Current value -->
       <template v-if="hasValue">
@@ -261,7 +274,11 @@ defineExpose<ViewExposed>({ self, id, focus });
           <span class="truncate">{{ v.title ?? "???" }}</span>
         </button>
       </template>
-      <div v-else class="mr-2">
+      <div
+        v-else
+        class="mr-2 transition-colors duration-150"
+        :class="variant == Variant.STEALTH ? 'opacity-0 group-hover:opacity-100' : ''"
+      >
         <IconInline v-if="facetIcon" v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
         <span class="truncate text-gray-400">{{ facetName ?? "Select" }}</span>
       </div>
@@ -273,7 +290,11 @@ defineExpose<ViewExposed>({ self, id, focus });
         <i class="fas fa-plus" />
       </button>
       <!-- Controls -->
-      <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-1.5">
+      <div
+        v-if="!isDisabled && isInput"
+        class="ml-auto flex-shrink-0 pl-1.5 transition-colors duration-150"
+        :class="variant == Variant.STEALTH ? 'opacity-0 group-hover:opacity-100' : ''"
+      >
         <!-- Clear -->
         <button
           v-if="hasValue && !valueType?.isRequired"
@@ -383,15 +404,17 @@ defineExpose<ViewExposed>({ self, id, focus });
                 :class="isActive(item) ? 'text-primary-900' : 'text-gray-700'"
               />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
-              <span
-                class="select-none truncate"
-                :class="isActive(item) ? 'text-primary-900' : ''"
-                v-html="item.titleMarked ?? item.title"
-              />
-              <!-- Metadata -->
-              <span class="ml-auto truncate pl-2">
+              <span class="flex-1 select-none">
+                <span
+                  class="truncate"
+                  :class="isActive(item) ? 'text-primary-900' : ''"
+                  v-html="item.titleMarked ?? item.title"
+                />
                 <!-- Checked -->
                 <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
+              </span>
+              <!-- Metadata -->
+              <span class="ml-auto flex-1 truncate pl-2">
                 <!-- Path -->
                 <span
                   v-if="valueType?.kind != TypeKind.BASED_NODE && 'path' in item"
