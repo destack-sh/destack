@@ -571,6 +571,7 @@ class Session(RuntimeNode[SessionData]):
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.RESTORE, node, now=now)
             node.deleted_at = None
+            node._graph.add(node)
 
     def _erase(self, *nodes: Node):
         """Irreversibly wipe a node and its descendants from the graph."""
@@ -763,7 +764,7 @@ class Session(RuntimeNode[SessionData]):
             return edits, cascaded_edits
         except Exception as e:
             if self._on_commit_failed is not None:
-                self._on_commit_failed(self, e)
+                await self._on_commit_failed(self, e)
             if isinstance(e, ChannelUnavailableError):
                 logger.error("session.commit.error", error=e)
                 self._tx.reset()

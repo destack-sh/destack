@@ -20,15 +20,31 @@ if TYPE_CHECKING:
 class Schema:
     extensions: tuple["Extension", ...]
     tables: tuple["Table", ...]
+    _tables_by_name: dict[str, "Table"] = dataclasses.field(init=False)
 
-    @staticmethod
-    def blank():
-        return Schema(extensions=(), tables=())
+    def __post_init__(self):
+        self._tables_by_name = {table.name: table for table in self.tables}
+
+    def __str__(self):
+        return f"extensions={len(self.extensions)}, tables={len(self.tables)}"
+
+    def __repr__(self):
+        return f"<Schema {self}>"
+
+    def get_table(self, name: str) -> "Table":
+        table = self._tables_by_name.get(name)
+        if table is None:
+            raise KeyError(f"no table {name!r} in {self!r}")
+        return table
 
     def walk(self):
         yield from self.extensions
         for table in self.tables:
             yield from table.walk()
+
+    @staticmethod
+    def blank():
+        return Schema(extensions=(), tables=())
 
 
 class ObjectKind(enum.StrEnum):

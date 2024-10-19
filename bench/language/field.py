@@ -383,6 +383,30 @@ class TypeInfoBase(BuiltinObject):
         else:
             return self._resolved_type
 
+    def morph_to(
+        self,
+        typ: "TypeIn",
+        as_object: bool = False,
+        type: FieldType | None = None,
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        is_required: bool = False,
+        is_list: bool = False,
+    ):
+        """Change this type to another type."""
+        typ = to_type(
+            typ,
+            as_object=as_object,
+            type=type,
+            constraint=constraint,
+            is_required=is_required,
+            is_list=is_list,
+        )
+        for prop in TypeInfoBase.__declared_properties__.values():
+            new_typ_value = getattr(typ, prop.name)
+            old_typ_value = getattr(self, prop.name)
+            if new_typ_value != old_typ_value:
+                setattr(self, prop.name, new_typ_value)
+
     @override
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"

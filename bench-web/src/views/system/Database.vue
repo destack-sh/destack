@@ -64,7 +64,6 @@ const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
 const ROW_ACTIONS_WIDTH = 32;
 const ROW_PADDING_X = 8; // per side, so ROW_PADDING*2 per side
-const ROW_PADDING_Y = 4; // per side, so ROW_PADDING*2 per side
 const POPOVER_HEIGHT_MIN = 32;
 const POPOVER_HEIGHT_MAX = 400;
 const POPOVER_WIDTH_MIN = 32;
@@ -523,6 +522,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <i class="fas fa-circle-small animate-pulse text-gray-400" />
           </span>
         </Transition>
+
         <!-- Selection -->
         <div v-if="hasSelection" class="flex flex-row items-center rounded border">
           <span class="h-full px-2 py-0.5 font-medium text-primary-900">{{ numSelected }} selected</span>
@@ -541,8 +541,14 @@ defineExpose<ViewExposed>({ self, id, actions });
             <i class="fas fa-trash-can" />
           </button>
         </div>
+
         <!-- Pagination -->
-        <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
+        <!-- nocheckin: pagination -->
+        <div>
+          <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
+        </div>
+
+        <!-- Controls -->
         <!-- Add field -->
         <button
           class="group/button rounded px-1 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
@@ -568,12 +574,12 @@ defineExpose<ViewExposed>({ self, id, actions });
           <i class="fa fa-plus mr-1.5 text-center text-gray-700 group-hover/button:text-primary-900" />
           <span>Field</span>
         </button>
+        <!-- Add record -->
+        <button class="group/button rounded px-1 hover:bg-gray-100" @click="() => createRecord()">
+          <i class="fa fa-plus mr-1.5 text-center text-gray-700 group-hover/button:text-primary-900" />
+          <span class="group-hover/button:text-primary-900">Record</span>
+        </button>
       </div>
-      <!-- Add record -->
-      <button class="group/button rounded px-1 hover:bg-gray-100" @click="() => createRecord()">
-        <i class="fa fa-plus mr-1.5 text-center text-gray-700 group-hover/button:text-primary-900" />
-        <span class="group-hover/button:text-primary-900">Record</span>
-      </button>
     </div>
 
     <!-- Body (scroll horizontally, and vertically if not compact) -->
@@ -790,7 +796,8 @@ defineExpose<ViewExposed>({ self, id, actions });
                 } else if (column.viewType == ViewType.FILE) {
                   // nocheckin handle click-to-edit better in cells
                 } else {
-                  const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]');
+                  const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]')?.firstElementChild;
+                  console.log(columnEl)
                   if (columnEl == null) return;
                   const width = Math.max(POPOVER_WIDTH_MIN, Math.min(POPOVER_WIDTH_MAX, column.width));
                   const height = Math.max(
@@ -798,7 +805,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     Math.min(POPOVER_HEIGHT_MAX, columnEl?.getBoundingClientRect().height!),
                   );
                   const columnPos = (columnEl as HTMLElement).getBoundingClientRect();
-                  const position = { x: columnPos.left, y: columnPos.top };
+                  const position = { x: columnPos.left - ROW_PADDING_X, y: columnPos.top - column.paddingY };
                   // center inside cell if popover width is less than cell width
                   if (width < column.width) {
                     position.x += (column.width - width) / 2;

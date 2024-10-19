@@ -193,8 +193,58 @@ async def test_delete_restore_record(hosted_runtime: RuntimeHandle):
     assert records == [Record1, Record3]
 
 
-# nocheckin: test delete restore field
-# nocheckin: test change type of field (incl. flags like array to not array, vice versa, ...)
+async def test_delete_restore_database_field(hosted_runtime: RuntimeHandle):
+    """Delete and restore a Field in a Database."""
+    Field1 = Field.member("Field1", str)
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1])
+    hosted_runtime.page().blocks.append(Database1)
+    Record1 = Database1.records.create(Field1="Record1")
+    await hosted_runtime.session.commit()
+
+    # delete
+    Field1.delete()
+    await hosted_runtime.session.commit()
+    with pytest.raises(AttributeError):  # can't update anymore (Field1 is gone)
+        Record1.Field1 = "Value1"  # type: ignore
+
+    # restore
+    Field1.restore()
+    await hosted_runtime.session.commit()
+    Record1.Field1 = "Value1"  # type: ignore
+    await hosted_runtime.session.commit()
+
+
+async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
+    """Update a Fields type and set/get its values."""
+    Field1 = Field.member("Field1", str)
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1])
+    hosted_runtime.page().blocks.append(Database1)
+    Record1 = Database1.records.create(Field1="Record1")
+    await hosted_runtime.session.commit()
+
+    # morph str is_list=False -> str is_list=True
+    Field1.is_list = True
+    Record1.Field1 = ["Record1.1", "Record1.2"]  # type: ignore
+    await hosted_runtime.session.commit()
+
+    # morph str is_list=True -> int is_list=False
+    Field1.morph_to(int, is_list=False)
+    Record1.Field1 = 42  # type: ignore
+    await hosted_runtime.session.commit()
+
+    # morph back and read value again (should still exist)
+
+    # morph back to str is_list=True
+    Field1.morph_to(str, is_list=True)
+    await hosted_runtime.session.commit()
+    Record1 = await Database1.records.get(Record1.to_ref())
+    assert Record1.Field1 == ["Record1.1", "Record1.2"]  # type: ignore
+
+    # morph back to str is_list=False
+    Field1.morph_to(str, is_list=False)
+    await hosted_runtime.session.commit()
+    Record1 = await Database1.records.get(Record1.to_ref())
+    assert Record1.Field1 == "Record1"  # type: ignore
 
 
 async def test_search_record(hosted_runtime: RuntimeHandle):

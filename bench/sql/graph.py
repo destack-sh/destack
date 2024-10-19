@@ -281,8 +281,12 @@ def map_builtin_object_to_table(
     return table
 
 
-def map_database_block_to_table(block: Block, fields: Sequence[Field] | None = None) -> Table:
-    """Maps a DatabaseBlock to its corresponding custom Record Table."""
+def map_database_block_to_table(block: Block, old_table: Table | None) -> Table:
+    """
+    Maps a DatabaseBlock to its corresponding custom Record Table.
+    If a previous table is passed in, all its constructs will exist in the new table
+     (if they are not already present in the new table).
+    """
     base_table = map_builtin_object_to_table(
         Record,
         # all stored Record properties except value, which we unfurl into columns
@@ -294,7 +298,7 @@ def map_database_block_to_table(block: Block, fields: Sequence[Field] | None = N
     indexes: list[Index] = [index.clone() for index in base_table.indexes]
 
     # map fields into columns
-    for field in fields if fields is not None else block.fields:
+    for field in block.fields:
         if field.kind == TypeKind.PRIMITIVE:
             assert field.primitive_type is not None, f"no primitive type for {field!r}"
             primitive_type = field.primitive_type
@@ -322,6 +326,13 @@ def map_database_block_to_table(block: Block, fields: Sequence[Field] | None = N
             _field=field,
         )
         columns.append(column)
+
+    if old_table is not None:
+        # keep old columns
+        columns_by_name: dict[str, Column] = {c.name: c for c in columns}
+        for old_column in old_table.columns:
+            if old_column.name not in columns_by_name:
+                columns.append(old_column.clone())
 
     return Table(
         _source=block.tk,
