@@ -171,14 +171,12 @@ class Projection:
             wired_field_value = obj._value.get(field.storage_key)
             if wired_field_value is None:
                 continue
-            field_type = field._to_resolved()
-            self._collect_value(wired_field_value, field_type)
+            self._collect_value(wired_field_value, field)
 
     def _collect_value(self, value: SomeValue, typ: TypeInfoBase):
         """Collects a specific value (recursively)."""
         if value is None:
             return
-        typ = typ._to_resolved()
         if typ.kind == TypeKind.OBJECT:
             if typ.is_list:
                 for item in cast(list, value):

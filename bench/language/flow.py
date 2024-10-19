@@ -538,7 +538,6 @@ class Step(SourceNode[StepData]):
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
-            typ._resolve_type()  # auto resolve type
             return typ
 
     @property

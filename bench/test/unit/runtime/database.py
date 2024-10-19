@@ -215,8 +215,12 @@ async def test_delete_restore_database_field(hosted_runtime: RuntimeHandle):
 
 
 async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
-    """Update a Fields type and set/get its values."""
-    Field1 = Field.member("Field1", str)
+    """
+    Update a Fields type and set/get its values.
+    The values belonging to different types should be preserved (should map to different columns).
+    """
+    # initial str is_list=False
+    Field1 = Field.member("Field1", str, is_list=False)
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1])
     hosted_runtime.page().blocks.append(Database1)
     Record1 = Database1.records.create(Field1="Record1")
@@ -232,17 +236,17 @@ async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
     Record1.Field1 = 42  # type: ignore
     await hosted_runtime.session.commit()
 
-    # morph back and read value again (should still exist)
-
-    # morph back to str is_list=True
+    # morph back to str is_list=True (should still have old value)
     Field1.morph_to(str, is_list=True)
     await hosted_runtime.session.commit()
     Record1 = await Database1.records.get(Record1.to_ref())
     assert Record1.Field1 == ["Record1.1", "Record1.2"]  # type: ignore
 
-    # morph back to str is_list=False
+    # morph back to str is_list=False (should still have old value)
     Field1.morph_to(str, is_list=False)
     await hosted_runtime.session.commit()
+    # nocheckin: fix connection caching leading to stale Record return
+    #  (because fields and their identities are not part of the query...)
     Record1 = await Database1.records.get(Record1.to_ref())
     assert Record1.Field1 == "Record1"  # type: ignore
 

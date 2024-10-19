@@ -276,6 +276,10 @@ class Column(TableObject):
             self._unencrypted_type = self.type
             self.type = PrimitiveType.BYTES
 
+    def clone(self) -> "Self":
+        """Deep copy this table object without the table reference."""
+        return dataclasses.replace(self, _table=None, _field=None)
+
     @property
     def underlying_type(self):
         return self._unencrypted_type or self.type
