@@ -6,7 +6,7 @@ from grpclib import GRPCError, Status
 
 from bench.language.block import Block
 from bench.language.const import BlockType
-from bench.language.field import Field, TypeIn
+from bench.language.field import Field
 from bench.language.session import Session
 from bench.language.text import Text, md
 from bench.language.value import sample_value
@@ -95,27 +95,27 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Id", int)])
     hosted_runtime.page().blocks.append(Database1)
 
-    sample_types: list[TypeIn] = [
-        str,
-        int,
-        float,
-        datetime,
-        date,
-        timedelta,
-        time,
-        UUID,
-    ]
-
     # create records with value for every field type
     cached_records = []
-    for i, sample_type in enumerate(sample_types):
-        field_name = to_casing(sample_type.__name__, Casing.CAMEL)
-        sample_field = Field.member(field_name, sample_type)
-        Database1.fields.append(sample_field)
-        sample_field_value = sample_value(sample_field)
-        RecordX = Database1.records.create(Id=i, **{field_name: sample_field_value})
-        cached_records.append(RecordX)
-        await hosted_runtime.session.commit()
+    for i, sample_type in enumerate(
+        (
+            str,
+            int,
+            float,
+            datetime,
+            date,
+            timedelta,
+            time,
+            UUID,
+        )
+    ):
+        for is_list in (False, True):
+            field_name = f"{to_casing(sample_type.__name__, Casing.CAMEL)}{'s' if is_list else ''}"
+            field = Database1.fields.append(Field.member(field_name, sample_type, is_list=is_list))
+            sample_field_value = sample_value(field)
+            record = Database1.records.create(Id=i, **{field_name: sample_field_value})
+            cached_records.append(record)
+            await hosted_runtime.session.commit()
 
     # query
     stored_records = await Database1.records.order_by(Database1.fields.Id).search()
@@ -123,18 +123,31 @@ async def test_update_database_and_record(hosted_runtime: RuntimeHandle):
         assert stored_record.equals(cached_record)
 
     # update
-    for sample_type, record in zip(sample_types, stored_records):
-        field_name = to_casing(sample_type.__name__, Casing.CAMEL)
-        sample_field = Database1.fields.get(field_name)
-        assert sample_field is not None
-        sample_field_value = sample_value(sample_field)
-        setattr(record, field_name, sample_field_value)
+    for field, record in zip(Database1.fields, stored_records):
+        sample_field_value = sample_value(field)
+        setattr(record, field.name, sample_field_value)
     await hosted_runtime.session.commit()
 
     # query again
     stored_records = await Database1.records.order_by(Database1.fields.Id).search()
     for stored_record, cached_record in zip(stored_records, cached_records):
         assert stored_record.equals(cached_record)
+
+
+async def test_create_record_with_ptrs(hosted_runtime: RuntimeHandle):
+    """Create a Database with pointer fields (scalar and list)."""
+    Database1 = Block.new(
+        BlockType.DATABASE,
+        "Database1",
+        fields=[Field.member("Block", Block), Field.member("Blocks", Block, is_list=True)],
+    )
+    hosted_runtime.page().blocks.append(Database1)
+    await hosted_runtime.session.commit()
+
+    Record1 = Database1.records.create(Block=Database1, Blocks=[Database1])
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record1]
 
 
 async def test_delete_database(hosted_runtime: RuntimeHandle):

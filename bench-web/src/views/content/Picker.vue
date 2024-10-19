@@ -259,7 +259,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       "
       role="button"
       :disabled="props.isDisabled || !props.isInput"
-      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border-gray-200 bg-white hover:border-gray-300 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border-gray-200 hover:border-gray-300 data-[popover=true]:border-gray-300"
       :class="[variant != Variant.STEALTH ? 'border px-2.5 py-1' : '']"
     >
       <!-- Current value -->

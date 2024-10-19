@@ -596,13 +596,18 @@ def _pack_field_value(field: Field, value: JsonValue) -> SqlPrimitive:
     """Packs the JSON-value-packed value of a Field for storage in Postgres."""
     if value is None:
         return None
-    elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
-        if field.primitive_type == PrimitiveType.JSON:
-            return Jsonb(value)
+    elif field.primitive_type == PrimitiveType.JSON or field.kind in (
+        TypeKind.NODE,
+        TypeKind.BASED_NODE,
+        TypeKind.STRUCT,
+        TypeKind.OBJECT,
+    ):
+        if field.is_list:
+            return [Jsonb(v) for v in value]  # type: ignore
         else:
-            return cast(PrimitiveValue, unpack_value(value, field, wrap_scalar=False))
-    elif field.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT, TypeKind.OBJECT):
-        return Jsonb(value)
+            return Jsonb(value)
+    elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
+        return cast(PrimitiveValue, unpack_value(value, field, wrap_scalar=False))
     else:
         raise RuntimeError(f"unexpected field kind: {field!r}")
 
@@ -611,13 +616,15 @@ def _unpack_field_value(field: Field, value_packed: Any) -> JsonValue:
     """Unpacks the JSON-value-packed value of a Field from Postgres."""
     if value_packed is None:
         return None
-    elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
-        if field.primitive_type == PrimitiveType.JSON:
-            return value_packed
-        else:
-            return pack_value(value_packed, field, wrap_scalar=False)
-    elif field.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT, TypeKind.OBJECT):
+    elif field.primitive_type == PrimitiveType.JSON or field.kind in (
+        TypeKind.NODE,
+        TypeKind.BASED_NODE,
+        TypeKind.STRUCT,
+        TypeKind.OBJECT,
+    ):
         return value_packed
+    elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:
+        return pack_value(value_packed, field, wrap_scalar=False)
     else:
         raise RuntimeError(f"unexpected field kind: {field!r}")
 

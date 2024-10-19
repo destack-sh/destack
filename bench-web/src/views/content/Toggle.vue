@@ -48,7 +48,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
     <input
       v-else
       type="checkbox"
-      class="h-4 w-4 rounded border-gray-200 text-gray-200 focus:ring-0"
+      class="h-4 w-4 rounded border-gray-200 focus:ring-0"
       :checked="modelValue"
       @input="(e) => apply((e.target as HTMLInputElement).checked)"
     />
