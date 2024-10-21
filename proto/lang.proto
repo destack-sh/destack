@@ -224,7 +224,6 @@ enum BenchType {
   BENCH_TYPE_AGGREGATION_OP = 20205;
   BENCH_TYPE_SORT_MODE = 20206;
   BENCH_TYPE_SORT_OP = 20207;
-  BENCH_TYPE_SELECTION_KIND = 20208;
   BENCH_TYPE_PATH_TOKEN_TYPE = 20210;
   BENCH_TYPE_LOG_KIND = 20500;
   BENCH_TYPE_LOG_LEVEL = 20501;
@@ -499,7 +498,6 @@ enum EnumType {
   ENUM_TYPE_AGGREGATION_OP = 20205;
   ENUM_TYPE_SORT_MODE = 20206;
   ENUM_TYPE_SORT_OP = 20207;
-  ENUM_TYPE_SELECTION_KIND = 20208;
   ENUM_TYPE_PATH_TOKEN_TYPE = 20210;
   ENUM_TYPE_LOG_KIND = 20500;
   ENUM_TYPE_LOG_LEVEL = 20501;
@@ -1231,11 +1229,6 @@ enum ScheduleType {
   SCHEDULE_TYPE_CRON = 2;
 }
 
-enum SelectionType {
-  SELECTION_TYPE_UNSPECIFIED = 0;
-  SELECTION_TYPE_LIST = 2;
-}
-
 enum SessionStatus {
   SESSION_STATUS_UNSPECIFIED = 0;
   SESSION_STATUS_PENDING = 1;
@@ -1439,8 +1432,7 @@ enum TypeKind {
   TYPE_KIND_BASED_NODE = 5;
   TYPE_KIND_OBJECT = 6;
   TYPE_KIND_LITERAL = 7;
-  TYPE_KIND_UNION = 9;
-  TYPE_KIND_ALIAS = 10;
+  TYPE_KIND_UNION = 8;
 }
 
 // Ways to use nodes.
@@ -2095,7 +2087,6 @@ message SelectOptionsData {
 // A selection of Nodes.
 message SelectionData {
   ObjectType metatype = 1;
-  SelectionType type = 30;
   repeated NodeReferenceData nodes_ptr = 40;
   repeated NodeReferenceData fields_ptr = 41;
 }

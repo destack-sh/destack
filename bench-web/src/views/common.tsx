@@ -63,6 +63,8 @@ export type ViewExposed = (
   focus?: (
     anchor?: FocusAnchor | NodeReferenceData,
   ) => void | boolean | ViewComponent | HTMLElement | SVGElement | null;
+  /** 'Interact's with the primary interaction of the view. */
+  interact?: () => void;
   /** Map the relevant node at the given element. */
   mapToNode?: (element: HTMLElement | SVGElement | ViewComponent) => NodeReferenceData | null;
 } & {};

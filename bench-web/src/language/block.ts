@@ -21,6 +21,7 @@ import type { Ref } from "vue";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { makeTypeInfo } from "@/language/field";
 import { generateOrderKey } from "@/utils/fractional";
+import { assertNever } from "@/utils/functools";
 
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
@@ -255,7 +256,7 @@ export function blockToType(block: BlockData): TypeInfoData {
     benchType = BenchType.RECORD;
     kind = TypeKind.BASED_NODE;
   } else {
-    kind = TypeKind.ALIAS;
+    throw new Error(`unsupported block type: ${block.type}`);
   }
   const type = makeTypeInfo({ kind, benchType, baseFieldType });
   type.baseTypePtr = toNodeRef(block);

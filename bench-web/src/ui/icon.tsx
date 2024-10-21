@@ -457,7 +457,6 @@ export const ICON_BY_TYPE_KIND: Partial<Record<TypeKind, IconData>> = _makeIcons
   [TypeKind.OBJECT]: "fas fa-shapes",
   [TypeKind.LITERAL]: "fas fa-circle-dot",
   [TypeKind.UNION]: "fas fa-circle-dot",
-  [TypeKind.ALIAS]: "fas fa-circle-dot",
 });
 
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({

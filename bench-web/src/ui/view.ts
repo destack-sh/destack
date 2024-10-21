@@ -1,5 +1,5 @@
 import { isEnumType, isNodeType } from "@/language/const";
-import { getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
+import { getStorageKey, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { type DebounceLevel, type Transaction } from "@/language/transaction";
 import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
@@ -15,7 +15,6 @@ import {
   ObjectType,
   PrimitiveType,
   SelectionData,
-  SelectionType,
   StructType,
   TransformData,
   TypeConstraintData,
@@ -280,7 +279,6 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
 
 export type FieldView = {
   field: FieldData;
-  fieldType: TypeIdentity;
   storageKey: string;
   viewType?: ViewType;
   viewProps?: any;
@@ -296,12 +294,10 @@ export function getFieldViews(
   const fieldViews: FieldView[] = [];
   for (const field of fields) {
     if (options?.types != null && !options.types.includes(field.type)) continue;
-    const fieldType = resolveType(field, graph);
-    const storageKey = getStorageKey(field, fieldType);
-    const view = getViewForValueType(fieldType);
+    const storageKey = getStorageKey(field, field);
+    const view = getViewForValueType(field);
     fieldViews.push({
       field,
-      fieldType,
       storageKey,
       viewType: view?.type,
       viewProps: { ...view, isInput: options?.isInput },
@@ -356,7 +352,6 @@ export function makeSelection(
   nodes = Array.isArray(nodes) ? nodes : [nodes];
   return {
     metatype: ObjectType.SELECTION,
-    type: SelectionType.LIST,
     nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
     fieldsPtr: [],
   };
@@ -374,7 +369,7 @@ export function expandSelection(
   nodes: (AnyNodeData | NodeReferenceData)[],
 ): SelectionData {
   return {
-    ...(selection ?? { metatype: ObjectType.SELECTION, type: SelectionType.LIST }),
+    ...(selection ?? { metatype: ObjectType.SELECTION }),
     nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
     fieldsPtr: [],
   };

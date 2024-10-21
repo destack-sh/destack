@@ -14,7 +14,6 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     AggregationOp,
     ConditionalOp,
-    EnumType,
     ExpressionKind,
     ExpressionOp,
     NodeType,
@@ -23,7 +22,6 @@ from bench.language.const import (
     SortOp,
     StructType,
     TypeKind,
-    enum_,
 )
 from bench.language.node import (
     Node,
@@ -37,7 +35,6 @@ from bench.language.node import (
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.value import unpack_proto_json
 from bench.proto.wire import AnyNodeData, FileReferenceData, NodeReferenceData, SecretReferenceData
-from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -79,16 +76,9 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 }
 
 
-@enum_(EnumType.SELECTION_KIND)
-class SelectionType(IdEnum):
-    LIST = 2
-
-
 @struct_(StructType.SELECTION)
 class Selection(Struct):
     """A selection of Nodes."""
-
-    type: SelectionType = p_regular(30, require=True)
 
     nodes: list[Node] | None = p_regular(
         40, require=False, array=True, references=IN_BENCH_NODE_TYPES.tuple

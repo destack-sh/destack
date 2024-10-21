@@ -5,7 +5,6 @@ import {
   getPropertyType,
   getStorageKey,
   resolveFields,
-  resolveType,
   type TypeIdentity,
 } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
@@ -219,14 +218,13 @@ function packCustomObject(
   const fields = resolveFields(type, options.graph);
   const valuePacked: { [key: string]: JsonValue } = {};
   for (const field of fields) {
-    const fieldType = resolveType(field, options.graph);
-    const fieldStorageKey = getStorageKey(field, fieldType);
+    const fieldStorageKey = getStorageKey(field, field);
     const fieldValue = (value as any)[fieldStorageKey];
     if (fieldValue == null) {
       continue;
-    } else if (fieldType.kind == TypeKind.OBJECT) {
+    } else if (field.kind == TypeKind.OBJECT) {
       if (options.recurseCustomObject) {
-        valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, {
+        valuePacked[fieldStorageKey] = packValue(fieldValue, field, {
           graph: options.graph,
           wrapScalar: false,
           recurseCustomObject: options.recurseCustomObject,
@@ -234,10 +232,10 @@ function packCustomObject(
       } else {
         valuePacked[fieldStorageKey] = fieldValue; // keep packed as is
       }
-    } else if (!fieldType.isList) {
-      valuePacked[fieldStorageKey] = packValueScalar(fieldValue, fieldType);
+    } else if (!field.isList) {
+      valuePacked[fieldStorageKey] = packValueScalar(fieldValue, field);
     } else {
-      valuePacked[fieldStorageKey] = fieldValue.map((v: any) => packValueScalar(v, fieldType));
+      valuePacked[fieldStorageKey] = fieldValue.map((v: any) => packValueScalar(v, field));
     }
   }
   return valuePacked;
@@ -252,14 +250,13 @@ function unpackCustomObject(
   const fields = resolveFields(type, options.graph);
   const value: { [key: string]: SomeValue } = {};
   for (const field of fields) {
-    const fieldType = resolveType(field, options.graph);
-    const fieldStorageKey = getStorageKey(field, fieldType);
+    const fieldStorageKey = getStorageKey(field, field);
     const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
     if (fieldValuePacked == null) {
       continue;
-    } else if (fieldType.kind == TypeKind.OBJECT) {
+    } else if (field.kind == TypeKind.OBJECT) {
       if (options.recurseCustomObject) {
-        const fieldValue = unpackValue(fieldValuePacked, fieldType, {
+        const fieldValue = unpackValue(fieldValuePacked, field, {
           graph: options.graph,
           wrapScalar: false,
           recurseCustomObject: options.recurseCustomObject,
@@ -270,10 +267,10 @@ function unpackCustomObject(
       } else {
         value[fieldStorageKey] = fieldValuePacked; // keep packed as is
       }
-    } else if (!fieldType.isList) {
-      value[fieldStorageKey] = unpackValueScalar(fieldValuePacked, fieldType);
+    } else if (!field.isList) {
+      value[fieldStorageKey] = unpackValueScalar(fieldValuePacked, field);
     } else {
-      value[fieldStorageKey] = fieldValuePacked.map((v: any) => unpackValueScalar(v, fieldType));
+      value[fieldStorageKey] = fieldValuePacked.map((v: any) => unpackValueScalar(v, field));
     }
   }
   return value;
@@ -293,13 +290,7 @@ export function packValue(
   },
   previous?: JsonValue,
 ): JsonValue {
-  if (type.kind == TypeKind.ALIAS) {
-    if (options.graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
-    type = resolveType(type, options.graph);
-  }
-  if (type.kind == TypeKind.ALIAS) {
-    throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
-  } else if (type.kind == TypeKind.OBJECT) {
+  if (type.kind == TypeKind.OBJECT) {
     // nested custom object
     if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
@@ -346,14 +337,7 @@ export function unpackValue(
     recurseCustomObject: true,
   },
 ): any {
-  if (type.kind == TypeKind.ALIAS) {
-    if (options.graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
-    type = resolveType(type, options.graph);
-  }
-
-  if (type.kind == TypeKind.ALIAS) {
-    throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
-  } else if (type.kind == TypeKind.OBJECT) {
+  if (type.kind == TypeKind.OBJECT) {
     // nested custom object
     if (options.graph == null) {
       throw new Error(

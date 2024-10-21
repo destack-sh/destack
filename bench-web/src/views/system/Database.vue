@@ -1,20 +1,13 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
-import {
-  createField,
-  getPropertyType,
-  getStorageKey,
-  makeTypeInfo,
-  NAME_TYPE,
-  resolveType,
-  TypeIdentity,
-} from "@/language/field";
+import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { cloneNode, moveNode } from "@/language/node";
-import { DebounceLevel, newChangeId } from "@/language/transaction";
+import { DebounceLevel, newChangeId, Transaction } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
   BenchType,
+  ChangeCategory,
   EditOperationData,
   EditOperationType,
   FieldData,
@@ -27,7 +20,7 @@ import {
   PropertyInfo,
   RecordData,
   RecordProperty,
-  SelectionType,
+  SelectionData,
   Timestamp,
   Variant,
   ViewData,
@@ -57,12 +50,13 @@ import {
   VIEW_DEFAULT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
+import { deepValueEquals } from "@/utils/ref";
 import { makeViewId, ViewComponent, viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
-import { MaybeElement, useElementSize } from "@vueuse/core";
+import { MaybeElement, useElementSize, useEventListener } from "@vueuse/core";
 import { computed, ref, Ref, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -85,6 +79,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const spaceTx = () => spaceConnection.tx.with({ category: ChangeCategory.SPACE });
 const selfView = spaceGraph.getRef(self);
 
 // NOTE :UX: Database view should be factored out into Table/Feed/etc. query views (?)
@@ -110,10 +105,7 @@ const {
   isConnecting,
   page,
 } = useSearchConnection(
-  {
-    name: "database.records",
-    live: true,
-  },
+  { name: "database.records", live: true },
   computed(
     (): SearchConnectionParams<NodeType.RECORD> => ({
       scope: PACKAGE_SCOPE.value,
@@ -135,7 +127,7 @@ const headerRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const columnHeaderRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
-const cellComponentRefs: Ref<Record<string, MaybeElement>> = ref({});
+const cellComponentRefs: Ref<Record<string, ViewExposed>> = ref({});
 
 const containerSize = useElementSize(containerRef);
 const rowBodyWidth = computed(() => {
@@ -230,7 +222,6 @@ type ColumnView = {
   width: number;
   debounce: DebounceLevel;
   isInput: boolean;
-  isPopover: boolean;
   isInspected: boolean;
   isHighlighted: boolean;
   isSelected: boolean;
@@ -261,7 +252,6 @@ const columns: Ref<ColumnView[]> = computed(() => {
       debounce: getColumnDebounce(columnIn.type, view?.type),
       paddingTop: padding.paddingTop,
       paddingBottom: padding.paddingBottom,
-      isPopover: false, // not sure which views/cells should open as popover
     };
     columns.push(column);
   }
@@ -285,19 +275,18 @@ const columns: Ref<ColumnView[]> = computed(() => {
     });
   }
   for (const field of fields.value) {
-    const fieldType = resolveType(field, pkgGraph);
     addColumn({
       kind: "field",
       id: field.id,
       title: field.name,
       icon: getNodeIcon(field),
-      type: fieldType,
+      type: field,
       field,
-      storageKey: getStorageKey(field, fieldType),
+      storageKey: getStorageKey(field),
       isInput: true,
       isHighlighted: canvas.isHighlighted(field),
       isInspected: canvas.isInspected(field),
-      isSelected: isSelectedField(field),
+      isSelected: isSelectedColumn(field),
     });
   }
 
@@ -329,11 +318,12 @@ function writeColumnValue(
   record: RecordData,
   column: ColumnView,
   newValue: any | undefined,
-  options?: { debounce?: DebounceLevel },
+  options?: { tx?: Transaction; debounce?: DebounceLevel },
 ) {
+  const tx = options?.tx ?? recordConnection.tx;
   if (options?.debounce == null) options = { ...(options ?? {}), debounce: column.debounce };
   if (column.kind == "property") {
-    recordConnection.tx.update(record, { [column.propertyName]: newValue }, options);
+    tx.update(record, { [column.propertyName]: newValue }, options);
   } else if (column.kind == "field") {
     const oldValue = readColumnValue(record, column);
     const newValuePacked = packValue(newValue, column.type, { wrapScalar: false });
@@ -347,7 +337,7 @@ function writeColumnValue(
         oldValuePacked,
       },
     ];
-    recordConnection.tx.update(record, operations, options);
+    tx.update(record, operations, options);
   } else {
     assertNever(column);
   }
@@ -370,7 +360,7 @@ const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
     );
 });
 const selectedFieldsByCk: Ref<Record<string, FieldData>> = computed(() => {
-  const selectedFields = new Set(props.selection?.nodesPtr?.map((ptr) => ptr.ck));
+  const selectedFields = new Set(props.selection?.fieldsPtr?.map((ptr) => ptr.ck));
   return fields.value
     .filter((field) => selectedFields.has(field.ck))
     .reduce(
@@ -381,69 +371,104 @@ const selectedFieldsByCk: Ref<Record<string, FieldData>> = computed(() => {
       {} as Record<string, FieldData>,
     );
 });
-const hasSelection = computed(() => Object.keys(selectedRecordsById.value).length > 0);
-const numSelectedRecords = computed(() => Object.keys(selectedRecordsById.value).length);
-const isAllSelected = computed(() => numSelectedRecords.value >= records.value.length);
+const selectedColumns = computed(() => columns.value.filter((column) => column.isSelected));
+const hasSelectionRows = computed(
+  () => Object.keys(selectedRecordsById.value).length > 0 && numSelectedColumns.value == 0,
+);
+const numSelectedColumns = computed(() => Object.keys(selectedFieldsByCk.value).length);
+const hasSelectionRegion = computed(() => numSelectedRows.value > 0 || numSelectedColumns.value > 0);
+const numSelectedRows = computed(() => Object.keys(selectedRecordsById.value).length);
+const isAllSelectedRows = computed(() => numSelectedRows.value >= records.value.length);
+const isAllSelectedColumns = computed(() => numSelectedColumns.value == 0);
 
-function isSelectedRecord(record: RecordData) {
+function isSelectedRow(record: RecordData) {
   return selectedRecordsById.value[record.id] != null;
 }
 
-function isSelectedField(field: FieldData) {
+function isSelectedColumn(field: FieldData) {
   return selectedFieldsByCk.value[field.ck] != null;
 }
 
 function isSelectedCell(record: RecordData, column: ColumnView) {
-  if (!isSelectedRecord(record)) return false;
+  if (!isSelectedRow(record)) return false;
   if ((props.selection?.fieldsPtr?.length ?? 0) == 0) return true;
-  return column.kind == "field" && isSelectedField(column.field);
+  return column.kind == "field" && isSelectedColumn(column.field);
 }
 
-function addSelectionRecord(record: RecordData) {
+function addSelectionRow(record: RecordData) {
   if (selfView.value == null) throw new Error("no self view");
-  spaceConnection.tx.update(
-    selfView.value,
-    { selection: expandSelection(props.selection, [record]) },
-    { debounce: "tick" },
-  );
+  spaceTx().update(selfView.value, { selection: expandSelection(props.selection, [record]) }, { debounce: "tick" });
 }
 
-function removeSelectionRecord(record: RecordData) {
+function removeSelectionRow(record: RecordData) {
   if (selfView.value == null || props.selection == null) throw new Error("no self view");
-  spaceConnection.tx.update(
-    selfView.value,
-    { selection: collapseSelection(props.selection, [record]) },
-    { debounce: "tick" },
-  );
+  spaceTx().update(selfView.value, { selection: collapseSelection(props.selection, [record]) }, { debounce: "tick" });
 }
 
-function setSelectionRecord(record: RecordData, selected: boolean) {
+function setSelectionRow(record: RecordData, selected: boolean) {
+  if (props.selection != null && hasSelectionRegion.value) {
+    // deselect fields first to turn into row selection
+    const selection = { ...props.selection, fieldsPtr: [] };
+    spaceTx().update(selfView.value!, { selection }, { debounce: "tick" });
+  }
   if (selected) {
-    addSelectionRecord(record);
+    addSelectionRow(record);
   } else {
-    removeSelectionRecord(record);
+    removeSelectionRow(record);
   }
 }
 
 function selectAll() {
-  const selection = {
-    metatype: ObjectType.SELECTION,
-    type: SelectionType.LIST,
-    nodesPtr: records.value.map(toPlainNodeRef),
-    fieldsPtr: [],
-  };
-  spaceConnection.tx.update(selfView.value!, { selection }, { debounce: "tick" });
+  const selection = { metatype: ObjectType.SELECTION, nodesPtr: records.value.map(toPlainNodeRef), fieldsPtr: [] };
+  spaceTx().update(selfView.value!, { selection }, { debounce: "tick" });
 }
 
 function selectNone() {
-  spaceConnection.tx.update(selfView.value!, { selection: undefined }, { debounce: "tick" });
+  spaceTx().update(selfView.value!, { selection: undefined }, { debounce: "tick" });
 }
 
-// nocheckin: field selection
+// local selection region
+const selectedRegionOrigin = ref<{ x: number; y: number } | null>(null);
+const selectedRegionEnd = ref<{ x: number; y: number } | null>(null);
+
+function beginSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number, column: ColumnView) {
+  selectedRegionOrigin.value = { x, y };
+  updateSelectRegion(e, y, row, x, column);
+}
+
+function updateSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number, column: ColumnView) {
+  if (selectedRegionOrigin.value == null) return; // not selecting
+  if (selectedRegionEnd.value != null && y == selectedRegionEnd.value.y && x == selectedRegionEnd.value.x) return; // no change
+  selectedRegionEnd.value = { x, y };
+  const region = {
+    x1: Math.min(selectedRegionOrigin.value.x, selectedRegionEnd.value.x),
+    x2: Math.max(selectedRegionOrigin.value.x, selectedRegionEnd.value.x),
+    y1: Math.min(selectedRegionOrigin.value.y, selectedRegionEnd.value.y),
+    y2: Math.max(selectedRegionOrigin.value.y, selectedRegionEnd.value.y),
+  };
+
+  const selection: SelectionData = {
+    metatype: ObjectType.SELECTION,
+    nodesPtr: records.value.slice(region.y1, region.y2 + 1).map(toPlainNodeRef),
+    fieldsPtr: columns.value
+      .slice(region.x1, region.x2 + 1)
+      .filter((column) => column.kind == "field")
+      .map((column) => toPlainNodeRef(column.field)),
+  };
+  spaceTx().update(selfView.value!, { selection }, { debounce: "long" });
+}
+
+function endSelectRegion() {
+  selectedRegionOrigin.value = null;
+  selectedRegionEnd.value = null;
+}
+
+useEventListener(window, "mouseup", endSelectRegion);
 
 // working with selection
 
 function duplicateSelection(): RecordData[] {
+  if (!hasSelectionRows.value) throw new Error("no row selection to duplicate");
   const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Duplicate records" } });
   const now = Timestamp.now();
   const clonedRecords: RecordData[] = [];
@@ -455,9 +480,24 @@ function duplicateSelection(): RecordData[] {
 }
 
 function deleteSelection() {
-  const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Delete records" } });
-  for (const record of Object.values(selectedRecordsById.value)) {
-    tx.delete(record);
+  if (hasSelectionRows.value) {
+    // delete all selected records
+    const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Delete records" } });
+    for (const record of Object.values(selectedRecordsById.value)) {
+      tx.delete(record);
+    }
+  } else if (hasSelectionRegion.value) {
+    // clear selected fields
+    const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Clear cells" } });
+    for (const record of Object.values(selectedRecordsById.value)) {
+      for (const column of selectedColumns.value) {
+        if (column.kind == "field") {
+          writeColumnValue(record, column, undefined, { tx });
+        }
+      }
+    }
+  } else {
+    throw new Error("no selection to delete");
   }
 }
 
@@ -520,7 +560,7 @@ const getNodeFromContext = (ctx: ActionContext | undefined): { node: FieldData |
 const actions: Partial<ActionMapImplementation<"common" | "database">> = {
   "common.create.record": () => createRecord(),
   "common.edit.delete": (action, ctx) => {
-    if (hasSelection.value) {
+    if (hasSelectionRows.value || hasSelectionRegion.value) {
       deleteSelection();
     } else {
       const { node } = getNodeFromContext(ctx);
@@ -530,7 +570,9 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
     }
   },
   "common.edit.duplicate": (action, ctx) => {
-    if (hasSelection.value) {
+    if (hasSelectionRegion.value) {
+      return false; // can't duplicate region selection
+    } else if (hasSelectionRows.value) {
       duplicateSelection();
     } else {
       const { node } = getNodeFromContext(ctx);
@@ -591,8 +633,10 @@ defineExpose<ViewExposed>({ self, id, actions });
         </Transition>
 
         <!-- Selection -->
-        <div v-if="hasSelection" class="flex flex-row items-center rounded border">
-          <span class="h-full px-2 py-0.5 font-medium text-primary-900">{{ numSelectedRecords }} selected</span>
+        <div v-if="hasSelectionRows" class="flex flex-row items-center rounded border">
+          <button class="h-full px-2 py-0.5 font-medium text-primary-900 hover:bg-gray-100" @click="selectNone">
+            {{ numSelectedRows }} selected
+          </button>
           <button
             v-tooltip="{ title: 'Duplicate', small: true }"
             class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
@@ -655,6 +699,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :size="bodySize"
       :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
       :track-width="ScrollbarWidth.md"
+      track-is-overlay
     >
       <div class="flex flex-col border-gray-200">
         <!-- Column headers (sticky) -->
@@ -670,7 +715,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="variant != Variant.COMPACT"
             class="group sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
-            :class="[hasSelection ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
+            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
@@ -680,15 +725,15 @@ defineExpose<ViewExposed>({ self, id, actions });
             <input
               type="checkbox"
               class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
-              :class="[hasSelection ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
-              :checked="isAllSelected"
-              @change="(e) => (!isAllSelected ? selectAll() : selectNone())"
+              :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
+              :checked="isAllSelectedRows"
+              @change="(e) => (!isAllSelectedRows ? selectAll() : selectNone())"
             />
           </div>
 
           <!-- Column headers -->
           <div
-            v-for="(column, i) in columns"
+            v-for="(column, x) in columns"
             :key="column.id"
             :ref="
               (ref: any) => (ref != null ? (columnHeaderRefs[column.id] = ref) : delete columnHeaderRefs[column.id])
@@ -708,7 +753,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             "
             class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
             :class="[
-              i > 0 ? 'border-l' : '',
+              x > 0 ? 'border-l' : '',
               column.isInspected ? 'bg-primary-100' : column.isHighlighted ? 'bg-primary-50' : 'hover:bg-gray-100',
             ]"
             :style="{
@@ -733,7 +778,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <div
               v-if="column.kind == 'field' && activeHeaderDropZone?.targetId == column.field.id"
               class="absolute z-10 h-full w-1 rounded-sm bg-primary-900"
-              :class="[activeHeaderDropZone?.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
+              :class="[activeHeaderDropZone?.anchor == 'start' ? (x == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
             />
             <!-- Icon/Name -->
             <IconInline
@@ -771,7 +816,11 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-if="columns.length == 0"
           class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
-          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+          :style="{
+            height: `${ROW_HEIGHT_MIN}px`,
+            marginLeft: variant == Variant.COMPACT ? undefined : `${ROW_ACTIONS_WIDTH}px`,
+            width: variant == Variant.COMPACT ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
+          }"
         >
           No columns.
         </div>
@@ -779,7 +828,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Status (if not connected or empty) -->
         <div
           v-if="!isConnected"
-          class="flex w-full flex-row items-center text-center justify-center"
+          class="flex w-full flex-row items-center justify-center text-center"
           :style="{ height: `${ROW_HEIGHT_MIN}px` }"
         >
           <!-- Loading -->
@@ -806,7 +855,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
         <!-- Row -->
         <div
-          v-for="(record, j) in records"
+          v-for="(record, y) in records"
           :key="record.id"
           v-contextmenu="
             (context: PopoverContext): PopoverInfoIn => {
@@ -830,7 +879,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="variant != Variant.COMPACT"
             class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
-            :class="[hasSelection ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
+            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
             }"
@@ -839,15 +888,15 @@ defineExpose<ViewExposed>({ self, id, actions });
             <input
               type="checkbox"
               class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
-              :class="[hasSelection ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
-              :checked="selectedRecordsById[record.id] != null"
-              @change="(e) => setSelectionRecord(record, (e.target as HTMLInputElement).checked)"
+              :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
+              :checked="hasSelectionRows && isSelectedRow(record)"
+              @change="(e) => setSelectionRow(record, (e.target as HTMLInputElement).checked)"
             />
           </div>
 
           <!-- Cells -->
           <div
-            v-for="(column, i) in columns"
+            v-for="(column, x) in columns"
             :ref="
               (ref: any) =>
                 ref != null
@@ -855,7 +904,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
-            :class="[i > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-primary-100' : '']"
+            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-primary-100' : '']"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT_MIN}px`,
@@ -866,51 +915,16 @@ defineExpose<ViewExposed>({ self, id, actions });
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
             @click="
               (event) => {
-                if (column.viewType == ViewType.TOGGLE) {
-                  // just toggle it directly
-                  const value = readColumnValue(record, column);
-                  writeColumnValue(record, column, !value);
-                } else if (column.isPopover) {
-                  // open popover cell edit
-                  const columnEl = (event.target as HTMLElement)?.closest('[data-column-id]')?.firstElementChild;
-                  if (columnEl == null) return;
-                  const width = Math.max(POPOVER_WIDTH_MIN, Math.min(POPOVER_WIDTH_MAX, column.width));
-                  const height = Math.max(
-                    POPOVER_HEIGHT_MIN,
-                    Math.min(POPOVER_HEIGHT_MAX, columnEl?.getBoundingClientRect().height!),
-                  );
-                  const columnPos = (columnEl as HTMLElement).getBoundingClientRect();
-                  const position = { x: columnPos.left - ROW_PADDING_X, y: columnPos.top - column.paddingTop };
-                  // center inside cell if popover width is less than cell width
-                  if (width < column.width) {
-                    position.x += (column.width - width) / 2;
-                  }
-                  pushPopover({
-                    trigger: columnEl as HTMLElement,
-                    reference: position,
-                    info: {
-                      component: column.viewComponent,
-                      placement: 'inside-top-left',
-                      referenceMargin: 0,
-                      props: {
-                        ...column.viewProps,
-                        isInput: true,
-                        size: { metatype: ObjectType.BOX, width, height },
-                        isInline: true,
-                        modelValue: readColumnValue(record, column),
-                      },
-                      dontAnimate: true,
-                      onUpdate: (value: any) => writeColumnValue(record, column, value),
-                      onApply: (value: any) => writeColumnValue(record, column, value, { debounce: 'tick' }),
-                    },
-                  });
-                } else {
-                  // focus cell component
-                  const componentEl = cellComponentRefs[getCellId(record, column)];
-                  if (componentEl != null) focusInElement(componentEl);
+                // interact with / focus cell component
+                const componentEl = cellComponentRefs[getCellId(record, column)];
+                if (componentEl != null) {
+                  if (componentEl?.interact != null) componentEl.interact();
+                  else focusInElement(componentEl as unknown as MaybeElement);
                 }
               }
             "
+            @mousedown="(e) => beginSelectRegion(e, y, record, x, column)"
+            @mousemove="(e) => updateSelectRegion(e, y, record, x, column)"
           >
             <!-- Inner column view -->
             <component
@@ -923,7 +937,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     : delete cellComponentRefs[getCellId(record, column)]
               "
               v-bind="column.viewProps"
-              class="select-none"
+              class="cursor-pointer select-none"
               :model-value="readColumnValue(record, column)"
               :variant="Variant.STEALTH"
               :size="{ width: column.width, height: ROW_HEIGHT_MAX }"

@@ -237,7 +237,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_AGGREGATION_OP: _ClassVar[BenchType]
     BENCH_TYPE_SORT_MODE: _ClassVar[BenchType]
     BENCH_TYPE_SORT_OP: _ClassVar[BenchType]
-    BENCH_TYPE_SELECTION_KIND: _ClassVar[BenchType]
     BENCH_TYPE_PATH_TOKEN_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_LOG_KIND: _ClassVar[BenchType]
     BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
@@ -502,7 +501,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_AGGREGATION_OP: _ClassVar[EnumType]
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_OP: _ClassVar[EnumType]
-    ENUM_TYPE_SELECTION_KIND: _ClassVar[EnumType]
     ENUM_TYPE_PATH_TOKEN_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_LOG_KIND: _ClassVar[EnumType]
     ENUM_TYPE_LOG_LEVEL: _ClassVar[EnumType]
@@ -1220,11 +1218,6 @@ class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCHEDULE_TYPE_INTERVAL: _ClassVar[ScheduleType]
     SCHEDULE_TYPE_CRON: _ClassVar[ScheduleType]
 
-class SelectionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SELECTION_TYPE_UNSPECIFIED: _ClassVar[SelectionType]
-    SELECTION_TYPE_LIST: _ClassVar[SelectionType]
-
 class SessionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SESSION_STATUS_UNSPECIFIED: _ClassVar[SessionStatus]
@@ -1426,7 +1419,6 @@ class TypeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TYPE_KIND_OBJECT: _ClassVar[TypeKind]
     TYPE_KIND_LITERAL: _ClassVar[TypeKind]
     TYPE_KIND_UNION: _ClassVar[TypeKind]
-    TYPE_KIND_ALIAS: _ClassVar[TypeKind]
 
 class UseType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1725,7 +1717,6 @@ BENCH_TYPE_CONDITIONAL_OP: BenchType
 BENCH_TYPE_AGGREGATION_OP: BenchType
 BENCH_TYPE_SORT_MODE: BenchType
 BENCH_TYPE_SORT_OP: BenchType
-BENCH_TYPE_SELECTION_KIND: BenchType
 BENCH_TYPE_PATH_TOKEN_TYPE: BenchType
 BENCH_TYPE_LOG_KIND: BenchType
 BENCH_TYPE_LOG_LEVEL: BenchType
@@ -1942,7 +1933,6 @@ ENUM_TYPE_CONDITIONAL_OP: EnumType
 ENUM_TYPE_AGGREGATION_OP: EnumType
 ENUM_TYPE_SORT_MODE: EnumType
 ENUM_TYPE_SORT_OP: EnumType
-ENUM_TYPE_SELECTION_KIND: EnumType
 ENUM_TYPE_PATH_TOKEN_TYPE: EnumType
 ENUM_TYPE_LOG_KIND: EnumType
 ENUM_TYPE_LOG_LEVEL: EnumType
@@ -2518,8 +2508,6 @@ RUN_STATUS_COMPLETED: RunStatus
 SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
 SCHEDULE_TYPE_INTERVAL: ScheduleType
 SCHEDULE_TYPE_CRON: ScheduleType
-SELECTION_TYPE_UNSPECIFIED: SelectionType
-SELECTION_TYPE_LIST: SelectionType
 SESSION_STATUS_UNSPECIFIED: SessionStatus
 SESSION_STATUS_PENDING: SessionStatus
 SESSION_STATUS_OPEN: SessionStatus
@@ -2683,7 +2671,6 @@ TYPE_KIND_BASED_NODE: TypeKind
 TYPE_KIND_OBJECT: TypeKind
 TYPE_KIND_LITERAL: TypeKind
 TYPE_KIND_UNION: TypeKind
-TYPE_KIND_ALIAS: TypeKind
 USE_TYPE_UNSPECIFIED: UseType
 USE_TYPE_START: UseType
 USE_TYPE_PAUSE: UseType
@@ -4161,19 +4148,16 @@ class SelectOptionsData(_message.Message):
     ) -> None: ...
 
 class SelectionData(_message.Message):
-    __slots__ = ("metatype", "type", "nodes_ptr", "fields_ptr")
+    __slots__ = ("metatype", "nodes_ptr", "fields_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    type: SelectionType
     nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        type: _Optional[_Union[SelectionType, str]] = ...,
         nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
     ) -> None: ...

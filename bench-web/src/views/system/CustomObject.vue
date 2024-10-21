@@ -262,9 +262,9 @@ defineExpose<ViewExposed>({ self, id, focus });
             :style="{ width: fieldView.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="fieldView.viewProps"
             :model-value="
-              fieldView.fieldType.kind == TypeKind.OBJECT
+              fieldView.field.kind == TypeKind.OBJECT
                 ? focusedValue?.[fieldView.storageKey]
-                : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.fieldType, {
+                : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.field, {
                     graph: pkgGraph,
                     wrapScalar: false,
                     recurseCustomObject: false,
@@ -273,9 +273,9 @@ defineExpose<ViewExposed>({ self, id, focus });
             @update:model-value="
               (value: any) => {
                 const valuePacked =
-                  fieldView.fieldType.kind == TypeKind.OBJECT
+                  fieldView.field.kind == TypeKind.OBJECT
                     ? value
-                    : packValue(value, fieldView.fieldType, {
+                    : packValue(value, fieldView.field, {
                         graph: pkgGraph,
                         wrapScalar: false,
                         recurseCustomObject: false,

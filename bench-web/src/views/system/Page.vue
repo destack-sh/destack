@@ -340,20 +340,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :style="{ width: widths.gutter + 'px', marginTop: SEPARATOR_WIDTH + 'px' }"
             >
               <!-- Activity / Run / ... -->
-              <!-- Handle -->
-              <div
-                class="h-full rounded transition-colors duration-75"
-                :class="
-                  canvas.isInspected(block)
-                    ? 'bg-primary-900'
-                    : canvas.isHighlighted(block)
-                      ? 'bg-primary-400'
-                      : focusedNodePtr?.id == block?.id
-                        ? 'bg-gray-300'
-                        : 'bg-transparent group-hover/block-line:bg-gray-200'
-                "
-                :style="{ width: HANDLE_WIDTH + 'px' }"
-              />
             </div>
 
             <!-- Block wrapper -->
