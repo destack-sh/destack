@@ -60,7 +60,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
-import { MaybeElement, useElementSize, useEventListener } from "@vueuse/core";
+import { MaybeElement, onClickOutside, useElementSize, useEventListener } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -476,6 +476,7 @@ function selectAll() {
 }
 
 function selectNone() {
+  if (props.selection == undefined) return; // nothing to clear
   spaceTx().update(selfView.value!, { selection: undefined }, { debounce: "tick" });
 }
 
@@ -516,6 +517,14 @@ function endSelectRegion() {
 }
 
 useEventListener(window, "mouseup", endSelectRegion);
+useEventListener(containerRef, "mousedown", (e) => {
+  // clear selection if we're not inside a row
+  if (props.selection == null) return;
+  const node = canvas.getNodeAt(e.target as HTMLElement);
+  if (node?.nodeType != NodeType.RECORD) {
+    selectNone();
+  }
+});
 
 // working with selection
 
