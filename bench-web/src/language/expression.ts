@@ -14,7 +14,9 @@ import { supergraph } from "@/system/connection";
 import { getPropertyType } from "@/language/field";
 import { packValue } from "@/language/value";
 
-export function makeExpression(options: { type: ExpressionType; value?: any } & Partial<ExpressionData>): ExpressionData {
+export function makeExpression(
+  options: { type: ExpressionType; value?: any } & Partial<ExpressionData>,
+): ExpressionData {
   let valuePacked;
   if (options.value != null) {
     if (options.propertyPtr == null) throw new Error("propertyPtr required to pack Expression.value");
@@ -35,8 +37,15 @@ export function makeExpression(options: { type: ExpressionType; value?: any } & 
   };
 }
 
-export function makeSort(options: Pick<ExpressionData, "sortMode" | "propertyPtr"> & { type: SortType }): ExpressionData {
+export function makeSort(
+  options: Pick<ExpressionData, "sortMode" | "propertyPtr"> & { type: SortType },
+): ExpressionData {
   return makeExpression({ ...(options as unknown as ExpressionData) });
+}
+
+export function makeAndConditional(clauses: ExpressionData[]): ExpressionData | undefined {
+  if (clauses.length == 0) return undefined;
+  else return makeExpression({ type: ExpressionType.AND, clauses });
 }
 
 export type EditSubject = UserData | RunData | BlockData | StepData;

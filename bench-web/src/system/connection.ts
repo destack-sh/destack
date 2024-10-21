@@ -1039,17 +1039,28 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
   watch(
     toValueRef(paramsRef),
     async () => {
-      if (paramsRef.value.isEnabled === false) return; // disabled
+      if (paramsRef.value.isEnabled === false) {
+        return; // disabled
+      }
       const oldConnection = connection.value;
       let newConnection = findExistingConnection(kind, paramsRef.value, match);
-      if (oldConnection != null && oldConnection === newConnection) return; // no change
+      if (oldConnection != null && oldConnection === newConnection) {
+        return; // no change
+      }
 
       // acquire new connection
-      if (oldConnection) isStale.value = true;
-      if (newConnection) newConnection.incRefCount();
-      else if (!newConnection) newConnection = await acquireNewConnection(kind, metaIn, paramsRef.value);
+      if (oldConnection) {
+        isStale.value = true;
+      }
+      if (newConnection) {
+        newConnection.incRefCount();
+      } else if (!newConnection) {
+        newConnection = await acquireNewConnection(kind, metaIn, paramsRef.value);
+      }
       connection.value = newConnection;
-      if (oldConnection) releaseConnection(oldConnection);
+      if (oldConnection) {
+        releaseConnection(oldConnection);
+      }
       isStale.value = false;
       isConnected.value = true;
     },

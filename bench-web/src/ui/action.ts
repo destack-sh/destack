@@ -130,6 +130,12 @@ export const ACTION_BUILTIN_IDS = [
   "type.edit.isSecret",
   // block
   // ...
+  // database
+  "database.column.sortAscending",
+  "database.column.sortDescending",
+  "database.column.filter",
+  "database.column.wrap",
+  "database.column.hide",
   // step
   // ...
   // pipe
@@ -822,6 +828,36 @@ declareActionMap<"type">({
     icon: "fas fa-lock",
     title: "Secret",
     text: "Mark this type as secret",
+  },
+});
+
+// database
+declareActionMap<"database">({
+  "database.column.sortAscending": {
+    icon: "fas fa-arrow-up",
+    title: "Sort Ascending",
+    text: "Sort this column in ascending order",
+  },
+  "database.column.sortDescending": {
+    icon: "fas fa-arrow-down",
+    title: "Sort Descending",
+    text: "Sort this column in descending order",
+  },
+  "database.column.filter": {
+    icon: "fas fa-filter",
+    title: "Filter",
+    text: "Filter this column",
+  },
+  "database.column.wrap": {
+    icon: "fas fa-align-justify",
+    title: "Wrap",
+    text: "Wrap this column",
+  },
+  "database.column.hide": {
+    type: "toggle",
+    icon: "fas fa-eye-slash",
+    title: "Hide",
+    text: "Hide this column",
   },
 });
 

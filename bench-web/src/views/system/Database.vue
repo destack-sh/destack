@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
-import { makeExpression } from "@/language/expression";
+import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { cloneNode, moveNode } from "@/language/node";
 import { DebounceLevel, newChangeId, Transaction } from "@/language/transaction";
@@ -11,6 +11,7 @@ import {
   ChangeCategory,
   EditOperationData,
   EditOperationType,
+  ExpressionData,
   ExpressionType,
   FieldData,
   FieldType,
@@ -23,6 +24,7 @@ import {
   RecordData,
   RecordProperty,
   SelectionData,
+  SortType,
   Timestamp,
   Variant,
   ViewData,
@@ -42,7 +44,7 @@ import { SearchConnectionParams, useExistingConnection, useSearchConnection } fr
 import { canvas } from "@/system/space";
 import { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
-import { getNodeIcon, getTypeIcon, IconInline } from "@/ui/icon";
+import { getNodeIcon, getTypeIcon, ICON_BY_EXPRESSION_OP as ICON_BY_EXPRESSION_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, PopoverContext, PopoverInfoIn, pushPopover } from "@/ui/popover";
 import {
@@ -53,14 +55,13 @@ import {
   VIEW_DEFAULT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
-import { deepValueEquals } from "@/utils/ref";
-import { makeViewId, ViewComponent, viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useEventListener } from "@vueuse/core";
-import { computed, ref, Ref, toRef } from "vue";
+import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT_MIN = 32;
@@ -97,6 +98,47 @@ const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 // Search/filter
 //
 
+const DEFAULT_SORT = makeExpression({
+  type: ExpressionType.DESCENDING,
+  propertyPtr: propertyReference(NodeType.RECORD, RecordProperty.createdAt),
+});
+const filters: Ref<ExpressionData[]> = shallowRef([]);
+const sorts: Ref<ExpressionData[]> = shallowRef([]);
+
+/** Finds the column associated with the given expression in this Table view (if any) */
+function findColumn(expression: ExpressionData): ColumnView | null {
+  if (expression.propertyPtr != null) {
+    return columns.value.find((c) => c.kind == "property" && c.property.id == expression.propertyPtr?.id) ?? null;
+  } else if (expression.fieldPtr != null) {
+    return columns.value.find((c) => c.kind == "field" && c.field.ck == expression.fieldPtr?.ck) ?? null;
+  } else {
+    return null;
+  }
+}
+
+/** Add/replace sort for the given column */
+function addSort(column: ColumnView, type: ExpressionType) {
+  if (column.kind == "property") {
+    const existing = sorts.value.find((sort) => sort.propertyPtr?.id == column.property.id);
+    const sort = makeExpression({ type, propertyPtr: propertyReference(NodeType.RECORD, column.property.id) });
+    if (existing != null) {
+      sorts.value = [...sorts.value.filter((sort) => sort.propertyPtr?.id != column.property.id), sort];
+    } else {
+      sorts.value = [...sorts.value, sort];
+    }
+  } else if (column.kind == "field") {
+    const existing = sorts.value.find((sort) => sort.fieldPtr?.ck == column.field.ck);
+    const sort = makeExpression({ type, blockPtr: nodePtr.value, fieldPtr: toPlainNodeRef(column.field) });
+    if (existing != null) {
+      sorts.value = [...sorts.value.filter((sort) => sort.fieldPtr?.ck != column.field.ck), sort];
+    } else {
+      sorts.value = [...sorts.value, sort];
+    }
+  } else {
+    assertNever(column);
+  }
+}
+
 // nocheckin: wait with search until Database is actually committed?
 // (else optimistic commit makes us query too early and errors)
 // (maybe we can just fix this generally in useSearchConnection?)
@@ -119,12 +161,8 @@ const {
       count: true,
       blockPtr: nodePtr.value,
       isEnabled: nodePtr.value != null,
-      sort: [
-        makeExpression({
-          type: ExpressionType.DESCENDING,
-          propertyPtr: propertyReference(NodeType.RECORD, RecordProperty.createdAt),
-        }),
-      ],
+      sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
+      filter: makeAndConditional(filters.value),
     }),
   ),
 );
@@ -170,7 +208,7 @@ function createRecord() {
   canvas.inspect({ node: record, view: containerRef.value });
 }
 
-function getMinColumnWidth(type: TypeIdentity, viewType: ViewType | undefined) {
+function getColumnMinWidth(type: TypeIdentity, viewType: ViewType | undefined) {
   if (type.primitiveType == PrimitiveType.BOOLEAN) {
     return 100;
   } else if (
@@ -259,7 +297,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       viewType: view?.type,
       viewComponent: view?.type != null ? getViewComponent(view?.type) : null,
       viewProps: { ...view, isInput: columnIn.isInput },
-      width: getMinColumnWidth(columnIn.type, view?.type),
+      width: getColumnMinWidth(columnIn.type, view?.type),
       debounce: getColumnDebounce(columnIn.type, view?.type),
       paddingTop: padding.paddingTop,
       paddingBottom: padding.paddingBottom,
@@ -417,10 +455,9 @@ function removeSelectionRow(record: RecordData) {
 }
 
 function setSelectionRow(record: RecordData, selected: boolean) {
-  if (props.selection != null && hasSelectionRegion.value) {
-    // deselect fields first to turn into row selection
-    const selection = { ...props.selection, fieldsPtr: [] };
-    spaceTx().update(selfView.value!, { selection }, { debounce: "tick" });
+  if (hasSelectionRegion.value) {
+    // clear selection first
+    selectNone();
   }
   if (selected) {
     addSelectionRow(record);
@@ -569,6 +606,7 @@ const getNodeFromContext = (ctx: ActionContext | undefined): { node: FieldData |
   return { node: null };
 };
 const actions: Partial<ActionMapImplementation<"common" | "database">> = {
+  // common
   "common.create.record": () => createRecord(),
   "common.edit.delete": (action, ctx) => {
     if (hasSelectionRows.value || hasSelectionRegion.value) {
@@ -593,6 +631,21 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
       }
     }
   },
+  // database
+  "database.column.sortAscending": (action, ctx) => {
+    const { node } = getNodeFromContext(ctx);
+    if (!isNode(node, NodeType.FIELD)) return false;
+    const column = columns.value.find((column) => column.kind == "field" && column.field == node);
+    if (column == null) return false;
+    addSort(column, ExpressionType.ASCENDING);
+  },
+  "database.column.sortDescending": (action, ctx) => {
+    const { node } = getNodeFromContext(ctx);
+    if (!isNode(node, NodeType.FIELD)) return false;
+    const column = columns.value.find((column) => column.kind == "field" && column.field == node);
+    if (column == null) return false;
+    addSort(column, ExpressionType.DESCENDING);
+  },
 };
 
 canvas.registerView(self, id);
@@ -616,17 +669,23 @@ defineExpose<ViewExposed>({ self, id, actions });
       }"
     >
       <!-- Expressions (filters/sorts) -->
-      <!-- nocheckin :Incomplete: filter/sort Database -->
-      <template v-if="true">
-        <button class="group/button rounded px-1 hover:bg-gray-100">
-          <i class="fa fa-plus mr-1.5 text-center text-gray-300 group-hover/button:text-primary-900" />
-          <span class="text-gray-400 group-hover/button:text-primary-900">Filter</span>
-        </button>
-        <button class="group/button rounded px-1 hover:bg-gray-100">
-          <i class="fa fa-plus mr-1.5 text-center text-gray-300 group-hover/button:text-primary-900" />
-          <span class="text-gray-400 group-hover/button:text-primary-900">Sort</span>
-        </button>
-      </template>
+      <!-- TODO :UX: Incomplete: filter/sort Database view better -->
+      <div class="flex flex-row items-center gap-x-1">
+        <!-- (this should of course be Expression views) -->
+        <div
+          v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
+          :key="i"
+          class="rounded border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
+        >
+          <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5" />
+          <span class="text-gray-700">{{
+            findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
+          }}</span>
+          <button class="ml-1.5 text-gray-400 hover:text-primary-900" @click="() => sorts.splice(i, 1)">
+            <i class="fas fa-xmark" />
+          </button>
+        </div>
+      </div>
       <!-- Meta (pagination, status, controls) -->
       <div class="ml-auto flex flex-row items-center gap-x-2">
         <!-- Staleness/Loading -->
@@ -752,12 +811,25 @@ defineExpose<ViewExposed>({ self, id, actions });
             v-contextmenu="
               (context: PopoverContext): PopoverInfoIn => {
                 context = { ...context, triggerNode: column.kind == 'field' ? column.field : undefined };
+                const items = [
+                  ...menuActionsLike(
+                    [
+                      'common.edit.rename',
+                      'common.edit.duplicate',
+                      'common.edit.delete',
+                      'database.column.sortAscending',
+                      'database.column.sortDescending',
+                      'database.column.filter',
+                    ],
+                    {
+                      context,
+                    },
+                  ),
+                ];
                 return {
                   kind: 'menu',
                   placement: 'bottom-right',
-                  items: menuActionsLike(['common.edit.rename', 'common.edit.duplicate', 'common.edit.delete'], {
-                    context,
-                  }),
+                  items,
                   context,
                 };
               }
