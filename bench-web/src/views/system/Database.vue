@@ -40,12 +40,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
-import {
-  SearchConnectionParams,
-  useExistingConnection,
-  useNodeIsCommitted,
-  useSearchConnection,
-} from "@/system/connection";
+import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
@@ -95,9 +90,11 @@ const selfView = spaceGraph.getRef(self);
 
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
 const preparedPkgConnection = useExistingConnection(nodePtr);
-const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
+const { graph: pkgGraph, graphRaw: pkgGraphRaw, connection: pkgConnection } = preparedPkgConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: true });
+const blockRaw = pkgGraphRaw.getRef(nodePtr);
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
+const fieldsRaw = pkgGraphRaw.getChildrenRef(blockRaw, NodeType.FIELD);
 
 //
 // Search/filter
@@ -145,7 +142,6 @@ function addSort(column: ColumnView, type: ExpressionType) {
 }
 
 // NOTE :Cleanup: unfortunately we need to wait until the block we're querying actually exists remotely :SearchWithMissingBlock
-const blockIsCommitted = useNodeIsCommitted(pkgConnection, nodePtr);
 const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 25));
 const {
   graph: recordGraph,
@@ -164,12 +160,12 @@ const {
       first: limit.value,
       count: true,
       blockPtr: nodePtr.value,
-      isEnabled: nodePtr.value != null && blockIsCommitted.value,
+      isEnabled: nodePtr.value != null && blockRaw.value != null,
       sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
       filter: makeAndConditional(filters.value),
       select: {
         metatype: ObjectType.SELECT_OPTIONS,
-        selectFieldsPtr: fields.value.map(toPlainNodeRef),
+        selectFieldsPtr: fieldsRaw.value.map(toPlainNodeRef),
       },
     }),
   ),
