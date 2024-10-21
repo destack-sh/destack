@@ -5,7 +5,7 @@ import { isRunnable, isRunTerminal, type RunnableNode } from "@/language/session
 import {
   BoxData,
   ChangeCategory,
-  ExpressionOp,
+  ExpressionType,
   FeedViewStateData,
   FieldType,
   NodeType,
@@ -86,7 +86,7 @@ const feedState = computed((): FeedViewStateData => {
   const runNodeProperty = runnablePtr.value?.nodeType == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
   const clauses = [
     makeExpression({
-      op: ExpressionOp.EQUALS,
+      type: ExpressionType.EQUALS,
       propertyPtr: propertyReference(ObjectType.RUN, runNodeProperty),
       value: runnablePtr.value,
     }),
@@ -94,7 +94,7 @@ const feedState = computed((): FeedViewStateData => {
   if (runnablePtr.value?.nodeType == NodeType.BLOCK) {
     clauses.push(
       makeExpression({
-        op: ExpressionOp.NOT_EXISTS,
+        type: ExpressionType.NOT_EXISTS,
         propertyPtr: propertyReference(ObjectType.RUN, RunProperty.stepPtr),
         value: runnablePtr.value,
       }),
@@ -104,7 +104,7 @@ const feedState = computed((): FeedViewStateData => {
     // pre-filter to only runs of this node
     metatype: ObjectType.FEED_VIEW_STATE,
     nodeType: NodeType.RUN,
-    filter: makeExpression({ op: ExpressionOp.AND, clauses }),
+    filter: makeExpression({ type: ExpressionType.AND, clauses }),
     filterPills: state.value.feed?.filterPills ?? [],
   };
   return feedState;

@@ -10,6 +10,7 @@ import {
   ColorType,
   EditType,
   EnumType,
+  ExpressionType,
   FieldData,
   FieldType,
   FileFormat,
@@ -555,6 +556,21 @@ export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons
   [EditType.MOVE]: "fas fa-arrows-turn-right",
   [EditType.DELETE]: "fas fa-trash",
   [EditType.RESTORE]: "fas fa-trash-undo",
+});
+
+export const ICON_BY_EXPRESSION_OP: Partial<Record<ExpressionType, IconData>> = _makeIcons<ExpressionType>({
+  [ExpressionType.NOT]: "fas fa-exclamation",
+  [ExpressionType.AND]: "fas fa-ampersand",
+  [ExpressionType.OR]: "fas fa-pipe",
+  [ExpressionType.EQUALS]: "fas fa-equals",
+  [ExpressionType.NOT_EQUALS]: "fas fa-not-equals",
+  [ExpressionType.GREATER_THAN]: "fas fa-greater-than",
+  [ExpressionType.GREATER_THAN_OR_EQUALS]: "fas fa-greater-than-equal",
+  [ExpressionType.LESS_THAN]: "fas fa-less-than",
+  [ExpressionType.LESS_THAN_OR_EQUALS]: "fas fa-less-than-equal",
+  [ExpressionType.MATCHES_REGEX]: "fas fa-regex",
+  [ExpressionType.STARTS_WITH]: "fas fa-arrow-right-from-line",
+  [ExpressionType.ENDS_WITH]: "fas fa-arrow-left-from-line",
 });
 
 export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({

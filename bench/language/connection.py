@@ -25,7 +25,7 @@ from opentelemetry import trace
 
 from bench.language.const import (
     BenchError,
-    ConditionalOp,
+    ConditionalType,
     NodeType,
     QueryType,
 )
@@ -34,7 +34,7 @@ from bench.language.graph import NodeDataGraph, NodeGraph, patch_graph
 from bench.language.node import Node
 from bench.language.setup import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
-    AggregationData,
+    AggregationResultData,
     AnyNodeData,
     BenchData,
     ClientOriginData,
@@ -48,7 +48,7 @@ from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
-        Aggregation,
+        AggregationResult,
         Expression,
         Field,
         Property,
@@ -193,19 +193,19 @@ class AggregateOptions(_ConnectOptions):
 
 @dataclass(slots=True)
 class AggregateResultData:
-    aggregation: AggregationData
+    aggregation: AggregationResultData
     epoch: int | None
     connection_token: str | None
 
 
 @dataclass(slots=True)
 class AggregateResult:
-    aggregation: "Aggregation"
+    aggregation: "AggregationResult"
 
 
 @dataclass(slots=True)
 class WatchAggregateUpdate:
-    aggregation: AggregationData
+    aggregation: AggregationResultData
     epoch: int
 
 
@@ -771,11 +771,11 @@ class AggregateConnection[ChannelT: Channel](
 
     @override
     def _unpack_result(self, result_data: AggregateResultData) -> AggregateResult:
-        from bench.language import Aggregation
+        from bench.language import AggregationResult
         from bench.proto import wiring
 
         aggregation = wiring.unpack_object(
-            result_data.aggregation, supergraph=self.session._supergraph, expect=Aggregation
+            result_data.aggregation, supergraph=self.session._supergraph, expect=AggregationResult
         )
         return AggregateResult(aggregation=aggregation)
 
@@ -797,7 +797,7 @@ class AggregateConnection[ChannelT: Channel](
         result_data.aggregation = update.aggregation
         if result is not None:
             result.aggregation = wiring.unpack_object(
-                update.aggregation, supergraph=self.session._supergraph, expect=Aggregation
+                update.aggregation, supergraph=self.session._supergraph, expect=AggregationResult
             )
 
 
@@ -1011,7 +1011,7 @@ class SplitConnection(Connection):
                         type=QueryType.SEARCH,
                         node_type=child_type,
                         filter=C(
-                            ConditionalOp.IN,
+                            ConditionalType.IN,
                             property=child_cls.get_property("parent_id"),
                             value=parent_ids,
                         ),

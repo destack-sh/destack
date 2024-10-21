@@ -24,7 +24,7 @@ from bench.language.const import (
     LOCAL_NODE_TYPES,
     SOURCE_NODE_TYPES,
     ClientType,
-    ConditionalOp,
+    ConditionalType,
     EditType,
     NodeType,
 )
@@ -667,7 +667,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                 for ref in request.files
             ]
             files = await File.search(
-                C(ConditionalOp.IN, property=File.id, value=[f.id for f in files_refs])
+                C(ConditionalType.IN, property=File.id, value=[f.id for f in files_refs])
             )
 
         # get pre-signed URLs

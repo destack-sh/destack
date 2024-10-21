@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.21.0"
+VERSION = "2024.10.21.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -78,7 +78,7 @@ class EnumType(IdEnum):
     # access
     ACCESS_MODE = 20030
     ACCESS_KIND = 20031
-    QueryType = 20032
+    QUEYR_TYPE = 20032
     EDIT_TYPE = 20033
     USE_TYPE = 20034
     ACCESS_TYPE = 20035  # ReadType | EditType | UseType
@@ -116,12 +116,12 @@ class EnumType(IdEnum):
     # expression
     EXPRESSION_KIND = 20200
     EXPRESSION_OP = 20201
-    LITERAL_OP = 20202
-    FUNCTIONAL_OP = 20203
-    CONDITIONAL_OP = 20204
-    AGGREGATION_OP = 20205
+    LITERAL_TYPE = 20202
+    FUNCTIONAL_TYPE = 20203
+    CONDITIONAL_TYPE = 20204
+    AGGREGATION_TYPE = 20205
     SORT_MODE = 20206
-    SORT_OP = 20207
+    SORT_TYPE = 20207
     PATH_TOKEN_TYPE = 20210
 
     # run
@@ -406,7 +406,7 @@ class StructType(IdEnum):
 
     # expressions
     EXPRESSION = 10300
-    AGGREGATION = 10301
+    AGGREGATION_RESULT = 10301
     SELECTION = 10302
     QUERY_INFO = 10303
     SELECT_OPTIONS = 10304
@@ -742,7 +742,7 @@ class ReferenceKind(IdEnum):
 #
 
 
-@enum_(EnumType.QueryType)
+@enum_(EnumType.QUEYR_TYPE)
 class QueryType(IdEnum):
     """Ways to read nodes."""
 
@@ -1109,8 +1109,8 @@ class ExpressionKind(IdEnum):
     AGGREGATION = 5
 
 
-@enum_(EnumType.LITERAL_OP)
-class LiteralOp(IdEnum):
+@enum_(EnumType.LITERAL_TYPE)
+class LiteralType(IdEnum):
     VALUE = 100  # any freeform value
     NONE = 101
     TRUE = 102
@@ -1121,8 +1121,8 @@ class LiteralOp(IdEnum):
         return ExpressionKind.LITERAL
 
 
-@enum_(EnumType.FUNCTIONAL_OP)
-class FunctionalOp(IdEnum):
+@enum_(EnumType.FUNCTIONAL_TYPE)
+class FunctionalType(IdEnum):
     # math
     ADD = 200
     SUBTRACT = 201
@@ -1137,8 +1137,8 @@ class FunctionalOp(IdEnum):
         return ExpressionKind.FUNCTIONAL
 
 
-@enum_(EnumType.CONDITIONAL_OP)
-class ConditionalOp(IdEnum):
+@enum_(EnumType.CONDITIONAL_TYPE)
+class ConditionalType(IdEnum):
     # logical
     NOT = 301
     AND = 302
@@ -1154,7 +1154,7 @@ class ConditionalOp(IdEnum):
     MATCHES_REGEX = 320
     STARTS_WITH = 321
     ENDS_WITH = 322
-    # containment
+    # collections
     CONTAINS = 330
     NOT_CONTAINS = 331
     IN = 332
@@ -1170,8 +1170,8 @@ class ConditionalOp(IdEnum):
         return ExpressionKind.CONDITIONAL
 
 
-@enum_(EnumType.AGGREGATION_OP)
-class AggregationOp(IdEnum):
+@enum_(EnumType.AGGREGATION_TYPE)
+class AggregationType(IdEnum):
     EXISTS = 400
     COUNT = 401
     SUM = 402
@@ -1186,8 +1186,8 @@ class AggregationOp(IdEnum):
         return ExpressionKind.AGGREGATION
 
 
-@enum_(EnumType.SORT_OP)
-class SortOp(IdEnum):
+@enum_(EnumType.SORT_TYPE)
+class SortType(IdEnum):
     ASCENDING = 500
     DESCENDING = 501
 
@@ -1205,27 +1205,27 @@ class SortMode(IdEnum):
     MEDIAN = 5
 
 
-EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bittuple["ExpressionOp"]] = {  # type: ignore
-    ExpressionKind.LITERAL: bittuple(*LiteralOp),
-    ExpressionKind.FUNCTIONAL: bittuple(*FunctionalOp),
-    ExpressionKind.CONDITIONAL: bittuple(*ConditionalOp),
-    ExpressionKind.AGGREGATION: bittuple(*AggregationOp),
-    ExpressionKind.SORT: bittuple(*SortOp),
+EXPRESSION_OPS_BY_KIND: Mapping[ExpressionKind, bittuple["ExpressionType"]] = {  # type: ignore
+    ExpressionKind.LITERAL: bittuple(*LiteralType),
+    ExpressionKind.FUNCTIONAL: bittuple(*FunctionalType),
+    ExpressionKind.CONDITIONAL: bittuple(*ConditionalType),
+    ExpressionKind.AGGREGATION: bittuple(*AggregationType),
+    ExpressionKind.SORT: bittuple(*SortType),
 }
-EXPRESSION_KIND_BY_OP: Mapping["ExpressionOp", ExpressionKind] = {  # type: ignore
+EXPRESSION_KIND_BY_OP: Mapping["ExpressionType", ExpressionKind] = {  # type: ignore
     op: kind
     for kind, ops in EXPRESSION_OPS_BY_KIND.items()  # type: ignore
     for op in ops
 }
 
 if typing.TYPE_CHECKING:
-    ExpressionOp = LiteralOp | FunctionalOp | ConditionalOp | AggregationOp | SortOp
+    ExpressionType = LiteralType | FunctionalType | ConditionalType | AggregationType | SortType
 else:
-    ExpressionOp = IdEnum.combine(
-        "ExpressionOp", LiteralOp, FunctionalOp, ConditionalOp, AggregationOp, SortOp
+    ExpressionType = IdEnum.combine(
+        "ExpressionType", LiteralType, FunctionalType, ConditionalType, AggregationType, SortType
     )
-    ExpressionOp.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
-    enum_(EnumType.EXPRESSION_OP)(ExpressionOp)
+    ExpressionType.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
+    enum_(EnumType.EXPRESSION_OP)(ExpressionType)
 
 
 @enum_(EnumType.CLIENT_TYPE)

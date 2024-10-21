@@ -1,6 +1,6 @@
 import {
   BlockData,
-  ExpressionOp,
+  ExpressionType,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -8,18 +8,18 @@ import {
   StepData,
   UserData,
   type ExpressionData,
-  type SortOp,
+  type SortType,
 } from "@/proto/wire";
 import { supergraph } from "@/system/connection";
 import { getPropertyType } from "@/language/field";
 import { packValue } from "@/language/value";
 
-export function makeExpression(options: { op: ExpressionOp; value?: any } & Partial<ExpressionData>): ExpressionData {
+export function makeExpression(options: { type: ExpressionType; value?: any } & Partial<ExpressionData>): ExpressionData {
   let valuePacked;
   if (options.value != null) {
     if (options.propertyPtr == null) throw new Error("propertyPtr required to pack Expression.value");
     let propertyType = getPropertyType(options.propertyPtr);
-    if (options.op == ExpressionOp.IN || options.op == ExpressionOp.NOT_IN) {
+    if (options.type == ExpressionType.IN || options.type == ExpressionType.NOT_IN) {
       propertyType = { ...propertyType, isList: true }; // coerce type to list
     }
     valuePacked = packValue(options.value, propertyType);
@@ -35,7 +35,7 @@ export function makeExpression(options: { op: ExpressionOp; value?: any } & Part
   };
 }
 
-export function makeSort(options: Pick<ExpressionData, "sortMode" | "propertyPtr"> & { op: SortOp }): ExpressionData {
+export function makeSort(options: Pick<ExpressionData, "sortMode" | "propertyPtr"> & { type: SortType }): ExpressionData {
   return makeExpression({ ...(options as unknown as ExpressionData) });
 }
 

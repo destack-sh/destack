@@ -7,7 +7,7 @@ import { CONNECTION_IGNORE, type Transaction } from "@/language/transaction";
 import {
   BlockData,
   ChangeCategory,
-  ExpressionOp,
+  ExpressionType,
   NodeType,
   ObjectType,
   RunProperty,
@@ -124,14 +124,14 @@ export class Runtime {
         scope: graph.scope,
         nodeType: NodeType.RUN,
         filter: makeExpression({
-          op: ExpressionOp.AND,
+          type: ExpressionType.AND,
           clauses: [
             makeExpression({
-              op: ExpressionOp.NOT_EXISTS,
+              type: ExpressionType.NOT_EXISTS,
               propertyPtr: propertyReference(NodeType.RUN, RunProperty.rootPtr),
             }),
             makeExpression({
-              op: ExpressionOp.IN,
+              type: ExpressionType.IN,
               propertyPtr: propertyReference(ObjectType.RUN, RunProperty.status),
               value: ACTIVE_RUN_STATUSES,
             }),

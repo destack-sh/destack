@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
+import { makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { cloneNode, moveNode } from "@/language/node";
 import { DebounceLevel, newChangeId, Transaction } from "@/language/transaction";
@@ -10,6 +11,7 @@ import {
   ChangeCategory,
   EditOperationData,
   EditOperationType,
+  ExpressionType,
   FieldData,
   FieldType,
   IconData,
@@ -30,6 +32,7 @@ import {
   describeNode,
   isNode,
   propertyInfo,
+  propertyReference,
   toPlainNodeRef,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
@@ -94,7 +97,9 @@ const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 // Search/filter
 //
 
-// nocheckin: wait with search until Database is actually committed? (else optimistic commit makes us query too early and errors)
+// nocheckin: wait with search until Database is actually committed?
+// (else optimistic commit makes us query too early and errors)
+// (maybe we can just fix this generally in useSearchConnection?)
 const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 25));
 const {
   graph: recordGraph,
@@ -114,6 +119,12 @@ const {
       count: true,
       blockPtr: nodePtr.value,
       isEnabled: nodePtr.value != null,
+      sort: [
+        makeExpression({
+          type: ExpressionType.DESCENDING,
+          propertyPtr: propertyReference(NodeType.RECORD, RecordProperty.createdAt),
+        }),
+      ],
     }),
   ),
 );
@@ -654,7 +665,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
 
         <!-- Pagination -->
-        <!-- nocheckin: pagination -->
+        <!-- TODO :Incomplete: Database pagination -->
         <div>
           <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
         </div>

@@ -27,7 +27,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 from pydantic import JsonValue
 
-from bench.language import Block, ConditionalOp, NodeReference, Property
+from bench.language import Block, ConditionalType, NodeReference, Property
 from bench.language.bench import Bench
 from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
@@ -38,16 +38,16 @@ from bench.language.const import (
     EditType,
     EnumType,
     FieldType,
-    LiteralOp,
+    LiteralType,
     NodeType,
     PrimitiveType,
     QueryType,
     ReferenceKind,
-    SortOp,
+    SortType,
     TypeKind,
 )
 from bench.language.database import Record
-from bench.language.expression import C, Expression, ExpressionOps
+from bench.language.expression import C, Expression, ExpressionTypes
 from bench.language.field import Field
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
@@ -380,9 +380,9 @@ def _pg_lower_conditional(
     # translate general pointer queries into underlying id/ck queries
     if prop is not None and prop.reference_kind is not None:
         assert prop.reference_stored_ids, f"unexpected stored ids: {prop!r}"
-        is_list = cond.op == ConditionalOp.IN or cond.op == ConditionalOp.NOT_IN
+        is_list = cond.type == ConditionalType.IN or cond.type == ConditionalType.NOT_IN
         id_prop = prop.reference_stored_ids[0]
-        id_clause = C(op=cond.op, property=id_prop)
+        id_clause = C(op=cond.type, property=id_prop)
         if cond.value_packed is not None:
             id_clause.value = cond.value.id if not is_list else [r.id for r in cond.value]
         if (
@@ -391,10 +391,10 @@ def _pg_lower_conditional(
             and prop.reference_stored_metas["ck"] is not id_prop
         ):
             ck_prop = prop.reference_stored_metas["ck"]
-            ck_clause = C(op=cond.op, property=ck_prop)
+            ck_clause = C(op=cond.type, property=ck_prop)
             if cond.value_packed is not None:
                 ck_clause.value = cond.value.ck if not is_list else [r.ck for r in cond.value]
-            joint_clause = C(ConditionalOp.OR, clauses=[id_clause, ck_clause])
+            joint_clause = C(ConditionalType.OR, clauses=[id_clause, ck_clause])
             return joint_clause
         else:
             return id_clause
@@ -410,13 +410,13 @@ def _pg_compile_conditional(
     cond: Expression,
 ) -> SqlNode:
     cond = _pg_lower_conditional(node_type, node_cls, node_table, block, cond)
-    if cond.op == LiteralOp.TRUE:
+    if cond.type == LiteralType.TRUE:
         return sqlstr("TRUE")
-    elif cond.op == LiteralOp.FALSE:
+    elif cond.type == LiteralType.FALSE:
         return sqlstr("FALSE")
-    elif cond.op == LiteralOp.NONE:
+    elif cond.type == LiteralType.NONE:
         return sqlstr("NULL")
-    elif cond.op in ExpressionOps.COND_COMPOUND and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
+    elif cond.type in ExpressionTypes.COND_COMPOUND and cond.type in PG_CONDITIONAL_OP_BY_BENCH:
         clauses = [
             _pg_compile_conditional(node_type, node_cls, node_table, block, c)
             for c in cond.clauses or ()
@@ -424,36 +424,36 @@ def _pg_compile_conditional(
         if not clauses:
             # and/or/not <nothing> are all TRUE :EmptyCompoundConditional
             return sqlstr("TRUE")
-        clause = SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
+        clause = SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.type], operands=clauses)
         return clause
     elif (
-        cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
-    ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
+        cond.type in ExpressionTypes.COND_COMPARISON or cond.type in ExpressionTypes.COND_STRING
+    ) and cond.type in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_expression_ref(node_type, node_cls, node_table, block, cond)
 
-        if cond.op == ConditionalOp.IN:
+        if cond.type == ConditionalType.IN:
             # map IN to = ANY() construct (IN/NOT IN doesn't work in psycopg)
             # see https://www.psycopg.org/psycopg3/docs/basic/from_pg2.html#you-cannot-use-in-s-with-a-tuple
             value = list(cond.value) if not isinstance(cond.value, list) else cond.value
             right = sqlstr("ANY({})").format(sql.Literal(value))
             return SqlComparison(left=left, op=PostgresConditionalOp.EQ, right=right)
-        elif cond.op == ConditionalOp.NOT_IN:
+        elif cond.type == ConditionalType.NOT_IN:
             # and map NOT IN to != ALL() construct (see above)
             value = list(cond.value) if not isinstance(cond.value, list) else cond.value
             right = sqlstr("ALL({})").format(sql.Literal(value))
             return SqlComparison(left=left, op=PostgresConditionalOp.NEQ, right=right)
-        elif cond.op == ConditionalOp.STARTS_WITH:
+        elif cond.type == ConditionalType.STARTS_WITH:
             right = sqlstr("{} || '%'").format(sql.Literal(cond.value))
-        elif cond.op == ConditionalOp.ENDS_WITH:
+        elif cond.type == ConditionalType.ENDS_WITH:
             right = sqlstr("'%s' || {}").format(sql.Literal(cond.value))
         else:
             assert cond.value is not None, f"cannot compare {cond!r} with None"
             right = sql.Literal(cond.value)
 
-        clause = SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
+        clause = SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.type], right=right)
 
         # coerce (x != y) -> (x != y or x IS NULL) if x is nullable
-        if cond.op == ConditionalOp.NOT_EQUALS and (
+        if cond.type == ConditionalType.NOT_EQUALS and (
             cond.property is not None and not cond.property.is_required
         ):
             null_clause = SqlUnary(
@@ -463,10 +463,10 @@ def _pg_compile_conditional(
             clause = SqlCompound(op=PostgresConditionalOp.OR, operands=[clause, null_clause])
 
         return clause
-    elif cond.op in ExpressionOps.COND_EXISTENCE:
+    elif cond.type in ExpressionTypes.COND_EXISTENCE:
         clause = SqlUnary(
             left=_compile_expression_ref(node_type, node_cls, node_table, block, cond),
-            op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
+            op=PG_CONDITIONAL_OP_BY_BENCH[cond.type],
         )
         return clause
     raise ChannelIncapableError("postgres", expression=cond, reason="unsupported conditional")
@@ -480,7 +480,7 @@ def _pg_compile_sort(
     sort: Expression,
 ) -> SqlNode:
     field_ref = _compile_expression_ref(node_type, node_cls, node_table, block, sort)
-    sort_op = POSTGRES_SORT_OP_BY_BENCH[cast(SortOp, sort.op)]
+    sort_op = POSTGRES_SORT_OP_BY_BENCH[cast(SortType, sort.type)]
     return sqlstr("{} {}").format(sql_node_to_sql(field_ref), sqlstr(sort_op))
 
 
@@ -1085,7 +1085,7 @@ async def _pg_graph_walk_down(
             if not parent_ids:
                 continue  # nothing to do
             parent_filter = C(
-                op=ConditionalOp.IN,
+                op=ConditionalType.IN,
                 property=child_cls.__parent_property__.reference_stored_ids[0],
                 value=parent_ids,
             )
@@ -1149,7 +1149,7 @@ async def pg_graph_get(
     if isinstance(roots[0], (NodeReferenceData, FileReferenceData, SecretReferenceData)):
         # select roots
         roots_ids = [node.id for node in roots]
-        root_filter = C(ConditionalOp.IN, property=Node.id, value=roots_ids)
+        root_filter = C(ConditionalType.IN, property=Node.id, value=roots_ids)
         root_query = QueryBuilder(
             QueryType.GET,
             node_type=query._node_type,
@@ -1186,7 +1186,7 @@ async def pg_graph_get(
             # select next parents
             next_parents = []
             for node_type, node_ids in to_select_by_type.items():
-                parents_filter = C(ConditionalOp.IN, property=Node.id, value=node_ids)
+                parents_filter = C(ConditionalType.IN, property=Node.id, value=node_ids)
                 parents_query = QueryBuilder(
                     QueryType.SEARCH,
                     node_type,
@@ -1214,7 +1214,7 @@ async def pg_graph_get(
         for wire_node_type, node_ptrs in descendant_node_ptrs_by_type.items():
             node_type = NodeType(wire_node_type)
             children_filter = C(
-                ConditionalOp.IN, property=Node.id, value=[ptr.id for ptr in node_ptrs]
+                ConditionalType.IN, property=Node.id, value=[ptr.id for ptr in node_ptrs]
             )
             children_query = QueryBuilder(
                 QueryType.SEARCH,
@@ -1392,7 +1392,7 @@ async def _pg_edit_cascade(
             removed_at = root_edit.old_edited_at.ToDatetime(tzinfo=pytz.utc)
             removed_dts.append(removed_at)
             removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)] = removed_at
-        extra_filter = C(op=ConditionalOp.IN, property=Node.deleted_at, value=removed_dts)
+        extra_filter = C(op=ConditionalType.IN, property=Node.deleted_at, value=removed_dts)
     elif edit_type == EditType.ERASE:
         # cascade to all
         extra_filter = None
@@ -1449,7 +1449,7 @@ async def _pg_edit_cascade(
         descendant_query = QueryBuilder(
             QueryType.GET,
             node_type=NodeType(descendant_node_type),
-            filter=C(ConditionalOp.IN, property=Node.id, value=nodes_ids),
+            filter=C(ConditionalType.IN, property=Node.id, value=nodes_ids),
             include_deleted=True,
         )
         nodes = await pg_graph_select(cur=cur, ctx=ctx, query=descendant_query)

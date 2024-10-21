@@ -108,17 +108,17 @@ export interface AccessZoneData {
 /**
  * The result of an aggregation expression.
  *
- * @generated from protobuf message symbolx.bench.AggregationData
+ * @generated from protobuf message symbolx.bench.AggregationResultData
  */
-export interface AggregationData {
+export interface AggregationResultData {
     /**
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.AggregationOp op = 30;
+     * @generated from protobuf field: symbolx.bench.AggregationType op = 30;
      */
-    op: AggregationOp;
+    op: AggregationType;
     /**
      * @generated from protobuf field: optional bool exists = 31;
      */
@@ -537,9 +537,9 @@ export interface ExpressionData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.ExpressionOp op = 30;
+     * @generated from protobuf field: symbolx.bench.ExpressionType type = 30;
      */
-    op: ExpressionOp;
+    type: ExpressionType;
     /**
      * @generated from protobuf field: optional symbolx.bench.PropertyReferenceData property_ptr = 31;
      */
@@ -6107,43 +6107,43 @@ export enum AccessType {
     RECEIVE = 46
 }
 /**
- * @generated from protobuf enum symbolx.bench.AggregationOp
+ * @generated from protobuf enum symbolx.bench.AggregationType
  */
-export enum AggregationOp {
+export enum AggregationType {
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_EXISTS = 400;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_EXISTS = 400;
      */
     EXISTS = 400,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_COUNT = 401;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_COUNT = 401;
      */
     COUNT = 401,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_SUM = 402;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_SUM = 402;
      */
     SUM = 402,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MIN = 403;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_MIN = 403;
      */
     MIN = 403,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MAX = 404;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_MAX = 404;
      */
     MAX = 404,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_AVERAGE = 405;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_AVERAGE = 405;
      */
     AVERAGE = 405,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_MEDIAN = 406;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_MEDIAN = 406;
      */
     MEDIAN = 406,
     /**
-     * @generated from protobuf enum value: AGGREGATION_OP_HISTOGRAM = 407;
+     * @generated from protobuf enum value: AGGREGATION_TYPE_HISTOGRAM = 407;
      */
     HISTOGRAM = 407
 }
@@ -6506,9 +6506,9 @@ export enum BenchType {
      */
     EXPRESSION = 10300,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION = 10301;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_RESULT = 10301;
      */
-    AGGREGATION = 10301,
+    AGGREGATION_RESULT = 10301,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 10302;
      */
@@ -6662,9 +6662,9 @@ export enum BenchType {
      */
     ACCESS_KIND = 20031,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_QueryType = 20032;
+     * @generated from protobuf enum value: BENCH_TYPE_QUEYR_TYPE = 20032;
      */
-    QueryType = 20032,
+    QUEYR_TYPE = 20032,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20033;
      */
@@ -6782,29 +6782,29 @@ export enum BenchType {
      */
     EXPRESSION_OP = 20201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_OP = 20202;
+     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_TYPE = 20202;
      */
-    LITERAL_OP = 20202,
+    LITERAL_TYPE = 20202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_OP = 20203;
+     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_TYPE = 20203;
      */
-    FUNCTIONAL_OP = 20203,
+    FUNCTIONAL_TYPE = 20203,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_OP = 20204;
+     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 20204;
      */
-    CONDITIONAL_OP = 20204,
+    CONDITIONAL_TYPE = 20204,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_OP = 20205;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 20205;
      */
-    AGGREGATION_OP = 20205,
+    AGGREGATION_TYPE = 20205,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 20206;
      */
     SORT_MODE = 20206,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_OP = 20207;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 20207;
      */
-    SORT_OP = 20207,
+    SORT_TYPE = 20207,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 20210;
      */
@@ -7405,87 +7405,87 @@ export enum ColorType {
     ROSE = 47
 }
 /**
- * @generated from protobuf enum symbolx.bench.ConditionalOp
+ * @generated from protobuf enum symbolx.bench.ConditionalType
  */
-export enum ConditionalOp {
+export enum ConditionalType {
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT = 301;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_NOT = 301;
      */
     NOT = 301,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_AND = 302;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_AND = 302;
      */
     AND = 302,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_OR = 303;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_OR = 303;
      */
     OR = 303,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_EQUALS = 310;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_EQUALS = 310;
      */
     EQUALS = 310,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_EQUALS = 311;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_NOT_EQUALS = 311;
      */
     NOT_EQUALS = 311,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_GREATER_THAN = 312;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_GREATER_THAN = 312;
      */
     GREATER_THAN = 312,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_GREATER_THAN_OR_EQUALS = 313;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_GREATER_THAN_OR_EQUALS = 313;
      */
     GREATER_THAN_OR_EQUALS = 313,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_LESS_THAN = 314;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_LESS_THAN = 314;
      */
     LESS_THAN = 314,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_LESS_THAN_OR_EQUALS = 315;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_LESS_THAN_OR_EQUALS = 315;
      */
     LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_MATCHES_REGEX = 320;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_MATCHES_REGEX = 320;
      */
     MATCHES_REGEX = 320,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_STARTS_WITH = 321;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_STARTS_WITH = 321;
      */
     STARTS_WITH = 321,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_ENDS_WITH = 322;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_ENDS_WITH = 322;
      */
     ENDS_WITH = 322,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_CONTAINS = 330;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_CONTAINS = 330;
      */
     CONTAINS = 330,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_CONTAINS = 331;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_NOT_CONTAINS = 331;
      */
     NOT_CONTAINS = 331,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_IN = 332;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_IN = 332;
      */
     IN = 332,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_IN = 333;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_NOT_IN = 333;
      */
     NOT_IN = 333,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_EXISTS = 340;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_EXISTS = 340;
      */
     EXISTS = 340,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NOT_EXISTS = 341;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_NOT_EXISTS = 341;
      */
     NOT_EXISTS = 341,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_OP_NEAR = 350;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_NEAR = 350;
      */
     NEAR = 350
 }
@@ -7625,9 +7625,9 @@ export enum EnumType {
      */
     ACCESS_KIND = 20031,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_QueryType = 20032;
+     * @generated from protobuf enum value: ENUM_TYPE_QUEYR_TYPE = 20032;
      */
-    QueryType = 20032,
+    QUEYR_TYPE = 20032,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20033;
      */
@@ -7745,29 +7745,29 @@ export enum EnumType {
      */
     EXPRESSION_OP = 20201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_OP = 20202;
+     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_TYPE = 20202;
      */
-    LITERAL_OP = 20202,
+    LITERAL_TYPE = 20202,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_OP = 20203;
+     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_TYPE = 20203;
      */
-    FUNCTIONAL_OP = 20203,
+    FUNCTIONAL_TYPE = 20203,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_OP = 20204;
+     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 20204;
      */
-    CONDITIONAL_OP = 20204,
+    CONDITIONAL_TYPE = 20204,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_OP = 20205;
+     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_TYPE = 20205;
      */
-    AGGREGATION_OP = 20205,
+    AGGREGATION_TYPE = 20205,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 20206;
      */
     SORT_MODE = 20206,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_OP = 20207;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_TYPE = 20207;
      */
-    SORT_OP = 20207,
+    SORT_TYPE = 20207,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 20210;
      */
@@ -7967,163 +7967,163 @@ export enum ExpressionKind {
     AGGREGATION = 5
 }
 /**
- * @generated from protobuf enum symbolx.bench.ExpressionOp
+ * @generated from protobuf enum symbolx.bench.ExpressionType
  */
-export enum ExpressionOp {
+export enum ExpressionType {
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_VALUE = 100;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_VALUE = 100;
      */
     VALUE = 100,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NONE = 101;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_NONE = 101;
      */
     NONE = 101,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_TRUE = 102;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_TRUE = 102;
      */
     TRUE = 102,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_FALSE = 103;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_FALSE = 103;
      */
     FALSE = 103,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_ADD = 200;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_ADD = 200;
      */
     ADD = 200,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_SUBTRACT = 201;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_SUBTRACT = 201;
      */
     SUBTRACT = 201,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MULTIPLY = 202;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MULTIPLY = 202;
      */
     MULTIPLY = 202,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_DIVIDE = 203;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_DIVIDE = 203;
      */
     DIVIDE = 203,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MODULO = 204;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MODULO = 204;
      */
     MODULO = 204,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_POWER = 205;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_POWER = 205;
      */
     POWER = 205,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT = 301;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_NOT = 301;
      */
     NOT = 301,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_AND = 302;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_AND = 302;
      */
     AND = 302,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_OR = 303;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_OR = 303;
      */
     OR = 303,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_EQUALS = 310;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_EQUALS = 310;
      */
     EQUALS = 310,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_EQUALS = 311;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_NOT_EQUALS = 311;
      */
     NOT_EQUALS = 311,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_GREATER_THAN = 312;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_GREATER_THAN = 312;
      */
     GREATER_THAN = 312,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_GREATER_THAN_OR_EQUALS = 313;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_GREATER_THAN_OR_EQUALS = 313;
      */
     GREATER_THAN_OR_EQUALS = 313,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_LESS_THAN = 314;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_LESS_THAN = 314;
      */
     LESS_THAN = 314,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_LESS_THAN_OR_EQUALS = 315;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_LESS_THAN_OR_EQUALS = 315;
      */
     LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MATCHES_REGEX = 320;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MATCHES_REGEX = 320;
      */
     MATCHES_REGEX = 320,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_STARTS_WITH = 321;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_STARTS_WITH = 321;
      */
     STARTS_WITH = 321,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_ENDS_WITH = 322;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_ENDS_WITH = 322;
      */
     ENDS_WITH = 322,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_CONTAINS = 330;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_CONTAINS = 330;
      */
     CONTAINS = 330,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_CONTAINS = 331;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_NOT_CONTAINS = 331;
      */
     NOT_CONTAINS = 331,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_IN = 332;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_IN = 332;
      */
     IN = 332,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_IN = 333;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_NOT_IN = 333;
      */
     NOT_IN = 333,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_EXISTS = 400;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_EXISTS = 400;
      */
     EXISTS = 400,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NOT_EXISTS = 341;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_NOT_EXISTS = 341;
      */
     NOT_EXISTS = 341,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_NEAR = 350;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_NEAR = 350;
      */
     NEAR = 350,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_COUNT = 401;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_COUNT = 401;
      */
     COUNT = 401,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_SUM = 402;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_SUM = 402;
      */
     SUM = 402,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MIN = 403;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MIN = 403;
      */
     MIN = 403,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MAX = 404;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MAX = 404;
      */
     MAX = 404,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_AVERAGE = 405;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_AVERAGE = 405;
      */
     AVERAGE = 405,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_MEDIAN = 406;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MEDIAN = 406;
      */
     MEDIAN = 406,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_HISTOGRAM = 407;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_HISTOGRAM = 407;
      */
     HISTOGRAM = 407,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_ASCENDING = 500;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_ASCENDING = 500;
      */
     ASCENDING = 500,
     /**
-     * @generated from protobuf enum value: EXPRESSION_OP_DESCENDING = 501;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_DESCENDING = 501;
      */
     DESCENDING = 501
 }
@@ -8728,35 +8728,35 @@ export enum FontWeight {
     BLACK = 900
 }
 /**
- * @generated from protobuf enum symbolx.bench.FunctionalOp
+ * @generated from protobuf enum symbolx.bench.FunctionalType
  */
-export enum FunctionalOp {
+export enum FunctionalType {
     /**
-     * @generated from protobuf enum value: FUNCTIONAL_OP_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: FUNCTIONAL_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FUNCTIONAL_OP_ADD = 200;
+     * @generated from protobuf enum value: FUNCTIONAL_TYPE_ADD = 200;
      */
     ADD = 200,
     /**
-     * @generated from protobuf enum value: FUNCTIONAL_OP_SUBTRACT = 201;
+     * @generated from protobuf enum value: FUNCTIONAL_TYPE_SUBTRACT = 201;
      */
     SUBTRACT = 201,
     /**
-     * @generated from protobuf enum value: FUNCTIONAL_OP_MULTIPLY = 202;
+     * @generated from protobuf enum value: FUNCTIONAL_TYPE_MULTIPLY = 202;
      */
     MULTIPLY = 202,
     /**
-     * @generated from protobuf enum value: FUNCTIONAL_OP_DIVIDE = 203;
+     * @generated from protobuf enum value: FUNCTIONAL_TYPE_DIVIDE = 203;
      */
     DIVIDE = 203,
     /**
-     * @generated from protobuf enum value: FUNCTIONAL_OP_MODULO = 204;
+     * @generated from protobuf enum value: FUNCTIONAL_TYPE_MODULO = 204;
      */
     MODULO = 204,
     /**
-     * @generated from protobuf enum value: FUNCTIONAL_OP_POWER = 205;
+     * @generated from protobuf enum value: FUNCTIONAL_TYPE_POWER = 205;
      */
     POWER = 205
 }
@@ -8791,27 +8791,27 @@ export enum IdEnum {
     UNSPECIFIED = 0
 }
 /**
- * @generated from protobuf enum symbolx.bench.LiteralOp
+ * @generated from protobuf enum symbolx.bench.LiteralType
  */
-export enum LiteralOp {
+export enum LiteralType {
     /**
-     * @generated from protobuf enum value: LITERAL_OP_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: LITERAL_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: LITERAL_OP_VALUE = 100;
+     * @generated from protobuf enum value: LITERAL_TYPE_VALUE = 100;
      */
     VALUE = 100,
     /**
-     * @generated from protobuf enum value: LITERAL_OP_NONE = 101;
+     * @generated from protobuf enum value: LITERAL_TYPE_NONE = 101;
      */
     NONE = 101,
     /**
-     * @generated from protobuf enum value: LITERAL_OP_TRUE = 102;
+     * @generated from protobuf enum value: LITERAL_TYPE_TRUE = 102;
      */
     TRUE = 102,
     /**
-     * @generated from protobuf enum value: LITERAL_OP_FALSE = 103;
+     * @generated from protobuf enum value: LITERAL_TYPE_FALSE = 103;
      */
     FALSE = 103
 }
@@ -9433,9 +9433,9 @@ export enum ObjectType {
      */
     EXPRESSION = 10300,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION = 10301;
+     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION_RESULT = 10301;
      */
-    AGGREGATION = 10301,
+    AGGREGATION_RESULT = 10301,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 10302;
      */
@@ -10380,19 +10380,19 @@ export enum SortMode {
     MEDIAN = 5
 }
 /**
- * @generated from protobuf enum symbolx.bench.SortOp
+ * @generated from protobuf enum symbolx.bench.SortType
  */
-export enum SortOp {
+export enum SortType {
     /**
-     * @generated from protobuf enum value: SORT_OP_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: SORT_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: SORT_OP_ASCENDING = 500;
+     * @generated from protobuf enum value: SORT_TYPE_ASCENDING = 500;
      */
     ASCENDING = 500,
     /**
-     * @generated from protobuf enum value: SORT_OP_DESCENDING = 501;
+     * @generated from protobuf enum value: SORT_TYPE_DESCENDING = 501;
      */
     DESCENDING = 501
 }
@@ -10730,9 +10730,9 @@ export enum StructType {
      */
     EXPRESSION = 10300,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 10301;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_RESULT = 10301;
      */
-    AGGREGATION = 10301,
+    AGGREGATION_RESULT = 10301,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 10302;
      */
@@ -11435,7 +11435,19 @@ export enum ViewType {
     /**
      * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 1356;
      */
-    DOCUMENT = 1356
+    DOCUMENT = 1356,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CONDITIONAL = 1361;
+     */
+    CONDITIONAL = 1361,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_SORT = 1362;
+     */
+    SORT = 1362,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_AGGREGATION = 1363;
+     */
+    AGGREGATION = 1363
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -11689,25 +11701,25 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
  */
 export const AccessZoneData = new AccessZoneData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class AggregationData$Type extends MessageType<AggregationData> {
+class AggregationResultData$Type extends MessageType<AggregationResultData> {
     constructor() {
-        super("symbolx.bench.AggregationData", [
+        super("symbolx.bench.AggregationResultData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.AggregationOp", AggregationOp, "AGGREGATION_OP_"] },
+            { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.AggregationType", AggregationType, "AGGREGATION_TYPE_"] },
             { no: 31, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 32, name: "count", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "scalar", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
-    create(value?: PartialMessage<AggregationData>): AggregationData {
+    create(value?: PartialMessage<AggregationResultData>): AggregationResultData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.op = 0;
         if (value !== undefined)
-            reflectionMergePartial<AggregationData>(this, message, value);
+            reflectionMergePartial<AggregationResultData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AggregationData): AggregationData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AggregationResultData): AggregationResultData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -11715,7 +11727,7 @@ class AggregationData$Type extends MessageType<AggregationData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.AggregationOp op */ 30:
+                case /* symbolx.bench.AggregationType op */ 30:
                     message.op = reader.int32();
                     break;
                 case /* optional bool exists */ 31:
@@ -11738,11 +11750,11 @@ class AggregationData$Type extends MessageType<AggregationData> {
         }
         return message;
     }
-    internalBinaryWrite(message: AggregationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: AggregationResultData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.AggregationOp op = 30; */
+        /* symbolx.bench.AggregationType op = 30; */
         if (message.op !== 0)
             writer.tag(30, WireType.Varint).int32(message.op);
         /* optional bool exists = 31; */
@@ -11761,9 +11773,9 @@ class AggregationData$Type extends MessageType<AggregationData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.AggregationData
+ * @generated MessageType for protobuf message symbolx.bench.AggregationResultData
  */
-export const AggregationData = new AggregationData$Type();
+export const AggregationResultData = new AggregationResultData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BoxData$Type extends MessageType<BoxData> {
     constructor() {
@@ -12830,7 +12842,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
     constructor() {
         super("symbolx.bench.ExpressionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.ExpressionOp", ExpressionOp, "EXPRESSION_OP_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ExpressionType", ExpressionType, "EXPRESSION_TYPE_"] },
             { no: 31, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -12843,7 +12855,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
     create(value?: PartialMessage<ExpressionData>): ExpressionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.op = 0;
+        message.type = 0;
         message.clauses = [];
         if (value !== undefined)
             reflectionMergePartial<ExpressionData>(this, message, value);
@@ -12857,8 +12869,8 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.ExpressionOp op */ 30:
-                    message.op = reader.int32();
+                case /* symbolx.bench.ExpressionType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* optional symbolx.bench.PropertyReferenceData property_ptr */ 31:
                     message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
@@ -12896,9 +12908,9 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.ExpressionOp op = 30; */
-        if (message.op !== 0)
-            writer.tag(30, WireType.Varint).int32(message.op);
+        /* symbolx.bench.ExpressionType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional symbolx.bench.PropertyReferenceData property_ptr = 31; */
         if (message.propertyPtr)
             PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -24941,10 +24953,10 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | VaultData | CacheData | FileData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | SignalData | LogData | NotificationData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | SelectOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationResultData | SelectionData | QueryInfoData | SelectOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof VaultData | typeof CacheData | typeof FileData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof QueryInfoData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -25172,7 +25184,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.SECRET_REFERENCE]: SecretReferenceData,
   [ObjectType.TRIGGER_INFO]: TriggerInfoData,
   [ObjectType.EXPRESSION]: ExpressionData,
-  [ObjectType.AGGREGATION]: AggregationData,
+  [ObjectType.AGGREGATION_RESULT]: AggregationResultData,
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.QUERY_INFO]: QueryInfoData,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
@@ -25272,7 +25284,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.SecretReferenceData"]: ObjectType.SECRET_REFERENCE,
   ["symbolx.bench.TriggerInfoData"]: ObjectType.TRIGGER_INFO,
   ["symbolx.bench.ExpressionData"]: ObjectType.EXPRESSION,
-  ["symbolx.bench.AggregationData"]: ObjectType.AGGREGATION,
+  ["symbolx.bench.AggregationResultData"]: ObjectType.AGGREGATION_RESULT,
   ["symbolx.bench.SelectionData"]: ObjectType.SELECTION,
   ["symbolx.bench.QueryInfoData"]: ObjectType.QUERY_INFO,
   ["symbolx.bench.SelectOptionsData"]: ObjectType.SELECT_OPTIONS,
@@ -25315,7 +25327,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.CHANGE_KIND]: ChangeKind,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.QueryType]: QueryType,
+  [EnumType.QUEYR_TYPE]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
@@ -25344,13 +25356,13 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.ICON_KIND]: IconKind,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
-  [EnumType.EXPRESSION_OP]: ExpressionOp,
-  [EnumType.LITERAL_OP]: LiteralOp,
-  [EnumType.FUNCTIONAL_OP]: FunctionalOp,
-  [EnumType.CONDITIONAL_OP]: ConditionalOp,
-  [EnumType.AGGREGATION_OP]: AggregationOp,
+  [EnumType.EXPRESSION_OP]: ExpressionType,
+  [EnumType.LITERAL_TYPE]: LiteralType,
+  [EnumType.FUNCTIONAL_TYPE]: FunctionalType,
+  [EnumType.CONDITIONAL_TYPE]: ConditionalType,
+  [EnumType.AGGREGATION_TYPE]: AggregationType,
   [EnumType.SORT_MODE]: SortMode,
-  [EnumType.SORT_OP]: SortOp,
+  [EnumType.SORT_TYPE]: SortType,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
@@ -25429,7 +25441,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.SECRET_REFERENCE]: SecretReferenceData,
   [StructType.TRIGGER_INFO]: TriggerInfoData,
   [StructType.EXPRESSION]: ExpressionData,
-  [StructType.AGGREGATION]: AggregationData,
+  [StructType.AGGREGATION_RESULT]: AggregationResultData,
   [StructType.SELECTION]: SelectionData,
   [StructType.QUERY_INFO]: QueryInfoData,
   [StructType.SELECT_OPTIONS]: SelectOptionsData,
@@ -25567,7 +25579,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.SECRET_REFERENCE]: SecretReferenceData,
   [ObjectType.TRIGGER_INFO]: TriggerInfoData,
   [ObjectType.EXPRESSION]: ExpressionData,
-  [ObjectType.AGGREGATION]: AggregationData,
+  [ObjectType.AGGREGATION_RESULT]: AggregationResultData,
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.QUERY_INFO]: QueryInfoData,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
@@ -25610,7 +25622,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.CHANGE_KIND]: ChangeKind,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.QueryType]: QueryType,
+  [EnumType.QUEYR_TYPE]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
@@ -25639,13 +25651,13 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.ICON_KIND]: IconKind,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
-  [EnumType.EXPRESSION_OP]: ExpressionOp,
-  [EnumType.LITERAL_OP]: LiteralOp,
-  [EnumType.FUNCTIONAL_OP]: FunctionalOp,
-  [EnumType.CONDITIONAL_OP]: ConditionalOp,
-  [EnumType.AGGREGATION_OP]: AggregationOp,
+  [EnumType.EXPRESSION_OP]: ExpressionType,
+  [EnumType.LITERAL_TYPE]: LiteralType,
+  [EnumType.FUNCTIONAL_TYPE]: FunctionalType,
+  [EnumType.CONDITIONAL_TYPE]: ConditionalType,
+  [EnumType.AGGREGATION_TYPE]: AggregationType,
   [EnumType.SORT_MODE]: SortMode,
-  [EnumType.SORT_OP]: SortOp,
+  [EnumType.SORT_TYPE]: SortType,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
@@ -26943,7 +26955,7 @@ export enum TriggerInfoProperty {
 
 export enum ExpressionProperty {
   metatype = 1,
-  op = 30,
+  type = 30,
   propertyPtr = 31,
   fieldPtr = 32,
   blockPtr = 33,
@@ -26953,7 +26965,7 @@ export enum ExpressionProperty {
   tolerance = 49,
 }
 
-export enum AggregationProperty {
+export enum AggregationResultProperty {
   metatype = 1,
   op = 30,
   exists = 31,
@@ -27213,11 +27225,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -27288,7 +27300,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.SECRET_REFERENCE]: SecretReferenceProperty,
   [ObjectType.TRIGGER_INFO]: TriggerInfoProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
-  [ObjectType.AGGREGATION]: AggregationProperty,
+  [ObjectType.AGGREGATION_RESULT]: AggregationResultProperty,
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
@@ -27388,7 +27400,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.SECRET_REFERENCE]: SecretReferenceProperty,
   [ObjectType.TRIGGER_INFO]: TriggerInfoProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
-  [ObjectType.AGGREGATION]: AggregationProperty,
+  [ObjectType.AGGREGATION_RESULT]: AggregationResultProperty,
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
@@ -27781,7 +27793,7 @@ export const TriggerInfoDataInfo: Record<TriggerInfoProperty, PropertyInfo> = {
 }
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ExpressionProperty.op]: { id: 30, name: 'op', component: ObjectType.EXPRESSION, enumType: EnumType.EXPRESSION_OP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ExpressionProperty.type]: { id: 30, name: 'type', component: ObjectType.EXPRESSION, enumType: EnumType.EXPRESSION_OP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ExpressionProperty.propertyPtr]: { id: 31, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ExpressionProperty.fieldPtr]: { id: 32, name: 'field_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ExpressionProperty.blockPtr]: { id: 33, name: 'block_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
@@ -27790,12 +27802,12 @@ export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.sortMode]: { id: 48, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ExpressionProperty.tolerance]: { id: 49, name: 'tolerance', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
-export const AggregationDataInfo: Record<AggregationProperty, PropertyInfo> = {
-  [AggregationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [AggregationProperty.op]: { id: 30, name: 'op', component: ObjectType.AGGREGATION, enumType: EnumType.AGGREGATION_OP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.exists]: { id: 31, name: 'exists', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.count]: { id: 32, name: 'count', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [AggregationProperty.scalar]: { id: 33, name: 'scalar', component: ObjectType.AGGREGATION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+export const AggregationResultDataInfo: Record<AggregationResultProperty, PropertyInfo> = {
+  [AggregationResultProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AGGREGATION_RESULT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [AggregationResultProperty.op]: { id: 30, name: 'op', component: ObjectType.AGGREGATION_RESULT, enumType: EnumType.AGGREGATION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [AggregationResultProperty.exists]: { id: 31, name: 'exists', component: ObjectType.AGGREGATION_RESULT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [AggregationResultProperty.count]: { id: 32, name: 'count', component: ObjectType.AGGREGATION_RESULT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [AggregationResultProperty.scalar]: { id: 33, name: 'scalar', component: ObjectType.AGGREGATION_RESULT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
   [SelectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SELECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27804,7 +27816,7 @@ export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
 }
 export const QueryInfoDataInfo: Record<QueryInfoProperty, PropertyInfo> = {
   [QueryInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [QueryInfoProperty.type]: { id: 40, name: 'type', component: ObjectType.QUERY_INFO, enumType: EnumType.QueryType, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryInfoProperty.type]: { id: 40, name: 'type', component: ObjectType.QUERY_INFO, enumType: EnumType.QUEYR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryInfoProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY_INFO, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryInfoProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.QUERY_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [QueryInfoProperty.rootsPtr]: { id: 43, name: 'roots_ptr', component: ObjectType.QUERY_INFO, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
@@ -28142,7 +28154,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28168,7 +28180,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28191,7 +28203,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28545,7 +28557,7 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.type]: { id: 40, name: 'type', component: ObjectType.QUERY, enumType: EnumType.QueryType, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.type]: { id: 40, name: 'type', component: ObjectType.QUERY, enumType: EnumType.QUEYR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.rootsPtr]: { id: 43, name: 'roots_ptr', component: ObjectType.QUERY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
@@ -28922,7 +28934,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.SECRET_REFERENCE]: SecretReferenceDataInfo,
   [ObjectType.TRIGGER_INFO]: TriggerInfoDataInfo,
   [ObjectType.EXPRESSION]: ExpressionDataInfo,
-  [ObjectType.AGGREGATION]: AggregationDataInfo,
+  [ObjectType.AGGREGATION_RESULT]: AggregationResultDataInfo,
   [ObjectType.SELECTION]: SelectionDataInfo,
   [ObjectType.QUERY_INFO]: QueryInfoDataInfo,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsDataInfo,

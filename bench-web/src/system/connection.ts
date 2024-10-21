@@ -24,7 +24,7 @@ import {
   type OperationMetadata,
 } from "@/proto/services";
 import {
-  AggregationData,
+  AggregationResultData,
   ExpressionData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
@@ -161,7 +161,7 @@ export type AggregateConnectionParams = {
   aggregation: ExpressionData;
 };
 export type AggregateConnectionResult = {
-  aggregation: Ref<AggregationData>;
+  aggregation: Ref<AggregationResultData>;
   epoch: Ref<bigint>;
 };
 

@@ -165,6 +165,11 @@ class ViewType(IdEnum):
     DOCUMENT = 1356
     ...
 
+    # expression
+    CONDITIONAL = 1361
+    SORT = 1362
+    AGGREGATION = 1363
+
 
 @enum_(EnumType.VARIANT)
 class Variant(IdEnum):

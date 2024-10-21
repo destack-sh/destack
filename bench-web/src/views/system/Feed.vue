@@ -10,7 +10,7 @@ import {
   ChangeCategory,
   EditType,
   ExpressionData,
-  ExpressionOp,
+  ExpressionType,
   IconData,
   LogData,
   LogProperty,
@@ -142,12 +142,12 @@ const pills: Ref<FilterPill[]> = computed(() => {
       isEnabled: true,
       group: "log-category",
       filterIfActive: makeExpression({
-        op: ExpressionOp.EQUALS,
+        type: ExpressionType.EQUALS,
         propertyPtr: logCategory,
         value: ChangeCategory.SPACE,
       }),
       filterIfInactive: makeExpression({
-        op: ExpressionOp.NOT_EQUALS,
+        type: ExpressionType.NOT_EQUALS,
         propertyPtr: logCategory,
         value: ChangeCategory.SPACE,
       }),
@@ -158,7 +158,7 @@ const pills: Ref<FilterPill[]> = computed(() => {
       isEnabled: user.value != null,
       group: "log-subject",
       filterIfActive: makeExpression({
-        op: ExpressionOp.EQUALS,
+        type: ExpressionType.EQUALS,
         propertyPtr: propertyReference(ObjectType.LOG, LogProperty.createdByPtr),
         value: toPlainNodeRef(user.value!),
       }),
@@ -169,7 +169,7 @@ const pills: Ref<FilterPill[]> = computed(() => {
       isEnabled: user.value != null,
       group: "log-subject",
       filterIfActive: makeExpression({
-        op: ExpressionOp.NOT_EQUALS,
+        type: ExpressionType.NOT_EQUALS,
         propertyPtr: propertyReference(ObjectType.LOG, LogProperty.createdByPtr),
         value: toPlainNodeRef(user.value!),
       }),
@@ -182,7 +182,7 @@ const pills: Ref<FilterPill[]> = computed(() => {
       isEnabled: true,
       group: "run-status",
       filterIfActive: makeExpression({
-        op: ExpressionOp.IN,
+        type: ExpressionType.IN,
         propertyPtr: runStatus,
         value: [RunStatus.SCHEDULED, RunStatus.QUEUED],
       }),
@@ -192,21 +192,21 @@ const pills: Ref<FilterPill[]> = computed(() => {
       name: "Active",
       isEnabled: true,
       group: "run-status",
-      filterIfActive: makeExpression({ op: ExpressionOp.IN, propertyPtr: runStatus, value: ACTIVE_RUN_STATUSES }),
+      filterIfActive: makeExpression({ type: ExpressionType.IN, propertyPtr: runStatus, value: ACTIVE_RUN_STATUSES }),
     });
     pills.push({
       key: "run-status-terminated",
       name: "Terminated",
       isEnabled: true,
       group: "run-status",
-      filterIfActive: makeExpression({ op: ExpressionOp.IN, propertyPtr: runStatus, value: TERMINAL_RUN_STATUSES }),
+      filterIfActive: makeExpression({ type: ExpressionType.IN, propertyPtr: runStatus, value: TERMINAL_RUN_STATUSES }),
     });
     pills.push({
       key: "run-status-failed",
       name: "Failed",
       isEnabled: true,
       group: "run-status",
-      filterIfActive: makeExpression({ op: ExpressionOp.EQUALS, propertyPtr: runStatus, value: RunStatus.FAILED }),
+      filterIfActive: makeExpression({ type: ExpressionType.EQUALS, propertyPtr: runStatus, value: RunStatus.FAILED }),
     });
   }
   return pills;
@@ -243,7 +243,7 @@ const effectiveFilter: Ref<ExpressionData> = computed(() => {
       clauses.push(pill.filterIfInactive);
     }
   }
-  const filter = makeExpression({ op: ExpressionOp.AND, clauses });
+  const filter = makeExpression({ type: ExpressionType.AND, clauses });
   return filter;
 });
 
@@ -268,7 +268,7 @@ const {
     count: true,
     sort: [
       makeExpression({
-        op: ExpressionOp.DESCENDING,
+        type: ExpressionType.DESCENDING,
         propertyPtr: propertyReference(nodeType.value, LogProperty.createdAt),
       }),
     ],
