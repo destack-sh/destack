@@ -26,7 +26,6 @@ import {
 import {
   AggregationResultData,
   ExpressionData,
-  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   ObjectType,
   SelectOptionsData,
@@ -37,6 +36,7 @@ import {
 import { HealthClient } from "@/proto/wire/proto/health.client";
 import {
   EMPTY_SCOPE,
+  SomeNodeReferenceData,
   deepContentEquals,
   describeNode,
   makeDefaultObject,
@@ -47,11 +47,11 @@ import {
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent } from "@/utils/functools";
-import { GRPC_KEEPALIVE_INTERVAL as GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV } from "@/utils/globals";
+import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
+import { tryOnBeforeUnmount, useInterval, useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
 import {
   computed,
@@ -1071,7 +1071,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 }
 
 /** The graph of a node connection overlaid with its local overlay */
-function useConnectionOverlayGraph<T extends NodeType>(
+function useConnectionGraphWithOverlay<T extends NodeType>(
   connection: Ref<ConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
   const graph = new LayerNodeGraph({ filter: DEFAULT_NODE_FILTER });
@@ -1113,7 +1113,7 @@ export function useExistingConnection<T extends NodeType = any>(
 
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
-  const graph = useConnectionOverlayGraph(connection);
+  const graph = useConnectionGraphWithOverlay(connection);
 
   // route to the appropriate connection
   const refreshConnection = () => {
@@ -1184,7 +1184,7 @@ export function useGetConnection<T extends NodeType>(
 
   // map results
   // NOTE :Cleanup: mapping connection results is a deep ref chain?
-  const graph = useConnectionOverlayGraph(connection);
+  const graph = useConnectionGraphWithOverlay(connection);
   const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
   // no overlay because already overlaid
@@ -1257,7 +1257,7 @@ export function useSearchConnection<T extends NodeType>(
   const { connection, isConnecting, isConnected, isStale } = useConnection<"search", T>("search", metaIn, paramsRef);
 
   // map results
-  const graph = useConnectionOverlayGraph(connection);
+  const graph = useConnectionGraphWithOverlay(connection);
   const rootsPtr: Ref<TypedNodeReferenceData<T>[]> = computed(
     () => connection.value?.result?.value?.rootsPtr?.value ?? [],
   );
@@ -1291,6 +1291,34 @@ export function useAggregateConnection(
   throw new Error("aggregate not yet implemented");
 }
 
+/**
+ * Checks whether the node exists in the backend graph or only in our optimistic overlay.
+ * (useful when waiting to perform operations until a node has been committed, but feels hacky.. :SearchWithMissingBlock)
+ **/
+export function useNodeIsCommitted<T extends NodeType>(
+  connection: Connection<"get" | "search", T>,
+  node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<T> | null | undefined>,
+): Ref<boolean> {
+  const nodePtrRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
+  const checkIsCommitted = () =>
+    nodePtrRef.value != null && (connection.result?.value?.graph.has(nodePtrRef.value) ?? false);
+  const isCommitted: Ref<boolean> = ref(checkIsCommitted());
+
+  if (!isCommitted.value) {
+    // NOTE :Cleanup: this is a bad way to wait for the node to be committed, but we only use this
+    //  in one place and will hopefully have a better way soon :SearchWithMissingBlock
+    // watch node ref until node exists in graph
+    const check = setInterval(() => {
+      if (checkIsCommitted()) {
+        isCommitted.value = true;
+        clearInterval(check);
+      }
+    }, 500);
+  }
+
+  return isCommitted;
+}
+
 //
 // Connection keep-alive for active streaming connections
 //
@@ -1304,7 +1332,7 @@ const _activeRemoteBenchIds = computed(() => {
   return [...benchIds];
 });
 
-async function _sendRemoteKeepAlives() {
+export async function sendRemoteKeepAlives() {
   const healthChecks = [];
   for (const benchId of _activeRemoteBenchIds.value) {
     const transport = getGraphTransport({ benchId });
@@ -1316,5 +1344,3 @@ async function _sendRemoteKeepAlives() {
   }
   await Promise.all(healthChecks);
 }
-
-setInterval(_sendRemoteKeepAlives, GRPC_KEEPALIVE_INTERVAL_SECONDS * 1000);

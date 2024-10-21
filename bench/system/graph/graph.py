@@ -592,7 +592,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                         request.block_ptr, supergraph=None, expect=NodeReference
                     )
                     block = self.resolve_request_block(block_ptr)
-                    if block is None:
+                    if block is None:  # raising here is not great.. :SearchWithMissingBlock
                         raise NodeNotFoundError(block_ptr)
                 else:
                     block = None
