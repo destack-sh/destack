@@ -121,8 +121,9 @@ export type GetConnectionParams<T extends NodeType> = {
   includeDeleted?: boolean;
 };
 export type GetConnectionResult<T extends NodeType> = {
+  graphRaw: ReadNodeGraph; // graph without overlay (if different)
+  graphOverlay: ReadNodeGraph | null;
   graph: ReadNodeGraph;
-  overlay: ReadNodeGraph | null;
   roots: Ref<NodeTypeMapping[T][]>;
   epoch: Ref<bigint>;
 };
@@ -143,8 +144,9 @@ export type SearchConnectionParams<T extends NodeType> = {
   select?: Partial<SelectOptionsData>;
 };
 export type SearchConnectionResult<T extends NodeType> = {
+  graphRaw: ReadNodeGraph; // graph without overlay (if different)
+  graphOverlay: ReadNodeGraph | null;
   graph: ReadNodeGraph;
-  overlay: ReadNodeGraph | null;
   rootsPtr: Ref<TypedNodeReferenceData<T>[]>;
   page: Ref<PageInfo>;
   epoch: Ref<bigint>;
@@ -639,7 +641,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
 
     const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
     subs.push(sub);
-    return { graph, overlay, roots: graph.getManyRef(params.roots), epoch, subs };
+    return { graph, graphRaw: graph, graphOverlay: overlay, roots: graph.getManyRef(params.roots), epoch, subs };
   }
 }
 
@@ -713,7 +715,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
 
     const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
     subs.push(sub);
-    return { graph, overlay, rootsPtr, page, subs, epoch };
+    return { graph, graphRaw: graph, graphOverlay: overlay, rootsPtr, page, subs, epoch };
   }
 }
 
@@ -736,7 +738,8 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
     this.isConnected.value = true;
     this.result.value = {
       graph: this.graph,
-      overlay: null,
+      graphRaw: this.graph,
+      graphOverlay: null,
       roots: this.graph.getManyRef(params.roots),
       epoch: ref(-1n),
     };
@@ -752,7 +755,13 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
     nodeTypes: NodeType[],
     params: GetConnectionParams<T>,
   ): Promise<GetConnectionResult<T>> {
-    return { graph: this.graph, overlay: null, roots: this.graph.getManyRef(params.roots), epoch: ref(-1n) };
+    return {
+      graph: this.graph,
+      graphRaw: this.graph,
+      graphOverlay: null,
+      roots: this.graph.getManyRef(params.roots),
+      epoch: ref(-1n),
+    };
   }
 }
 
@@ -1080,11 +1089,26 @@ function useConnectionGraphWithOverlay<T extends NodeType>(
     () => {
       if (connection.value?.result.value == null) {
         graph.layers.value = [];
-      } else if (connection.value?.result.value.overlay == null) {
+      } else if (connection.value?.result.value.graphOverlay == null) {
         graph.layers.value = [connection.value.result.value.graph];
       } else {
-        graph.layers.value = [connection.value.result.value.graph, connection.value.result.value.overlay];
+        graph.layers.value = [connection.value.result.value.graph, connection.value.result.value.graphOverlay];
       }
+    },
+    { immediate: true },
+  );
+  return markRaw(graph); // ensure it's never proxied
+}
+
+/** The graph of a node connection without its overlay */
+function useConnectionGraphRaw<T extends NodeType>(
+  connection: Ref<ConnectionBase<"get" | "search", T> | null>,
+): ReadNodeGraph {
+  const graph = new ProxyNodeGraph({ filter: DEFAULT_NODE_FILTER });
+  watch(
+    () => connection.value?.result.value,
+    () => {
+      graph.graph = connection.value?.result.value?.graph ?? null;
     },
     { immediate: true },
   );
@@ -1105,6 +1129,7 @@ export function useExistingConnection<T extends NodeType = any>(
   },
 ): {
   graph: ReadNodeGraph;
+  graphRaw: ReadNodeGraph;
   connection: Connection<"get", T>;
 } {
   // NOTE :Architecture: the graphs and the current bench/pkg/space pointers are not atomically updated,
@@ -1114,6 +1139,7 @@ export function useExistingConnection<T extends NodeType = any>(
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
   const graph = useConnectionGraphWithOverlay(connection);
+  const graphRaw = useConnectionGraphRaw(connection);
 
   // route to the appropriate connection
   const refreshConnection = () => {
@@ -1163,7 +1189,7 @@ export function useExistingConnection<T extends NodeType = any>(
     if (connection.value) releaseConnection(connection.value);
   });
 
-  return { graph, connection: new ProxyConnection(connection) };
+  return { graph, graphRaw, connection: new ProxyConnection(connection) };
 }
 
 /**
@@ -1185,12 +1211,14 @@ export function useGetConnection<T extends NodeType>(
   // map results
   // NOTE :Cleanup: mapping connection results is a deep ref chain?
   const graph = useConnectionGraphWithOverlay(connection);
+  const graphRaw: ReadNodeGraph = useConnectionGraphRaw(connection);
   const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
   // no overlay because already overlaid
   return {
     graph,
-    overlay: null,
+    graphRaw: graphRaw,
+    graphOverlay: null,
     connection: new ProxyConnection(connection),
     roots,
     epoch: computed(() => connection.value?.epoch ?? -1n),
@@ -1258,6 +1286,7 @@ export function useSearchConnection<T extends NodeType>(
 
   // map results
   const graph = useConnectionGraphWithOverlay(connection);
+  const graphRaw = useConnectionGraphRaw(connection);
   const rootsPtr: Ref<TypedNodeReferenceData<T>[]> = computed(
     () => connection.value?.result?.value?.rootsPtr?.value ?? [],
   );
@@ -1269,7 +1298,8 @@ export function useSearchConnection<T extends NodeType>(
   // no overlay because already overlaid
   return {
     graph,
-    overlay: null,
+    graphRaw: graphRaw,
+    graphOverlay: null,
     connection: new ProxyConnection(connection),
     rootsPtr,
     roots,
@@ -1289,34 +1319,6 @@ export function useAggregateConnection(
   params: MaybeRef<AggregateConnectionParams>,
 ): AggregateConnectionResult & { connection: ConnectionBase<"aggregate", NodeType> } {
   throw new Error("aggregate not yet implemented");
-}
-
-/**
- * Checks whether the node exists in the backend graph or only in our optimistic overlay.
- * (useful when waiting to perform operations until a node has been committed, but feels hacky.. :SearchWithMissingBlock)
- **/
-export function useNodeIsCommitted<T extends NodeType>(
-  connection: Connection<"get" | "search", T>,
-  node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<T> | null | undefined>,
-): Ref<boolean> {
-  const nodePtrRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
-  const checkIsCommitted = () =>
-    nodePtrRef.value != null && (connection.result?.value?.graph.has(nodePtrRef.value) ?? false);
-  const isCommitted: Ref<boolean> = ref(checkIsCommitted());
-
-  if (!isCommitted.value) {
-    // NOTE :Cleanup: this is a bad way to wait for the node to be committed, but we only use this
-    //  in one place and will hopefully have a better way soon :SearchWithMissingBlock
-    // watch node ref until node exists in graph
-    const check = setInterval(() => {
-      if (checkIsCommitted()) {
-        isCommitted.value = true;
-        clearInterval(check);
-      }
-    }, 500);
-  }
-
-  return isCommitted;
 }
 
 //
