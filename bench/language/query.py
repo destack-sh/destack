@@ -51,7 +51,14 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
-    from bench.language import Block, Channel, Field, NodeReference, SelectOptions
+    from bench.language import (
+        Block,
+        Channel,
+        Field,
+        NodeReference,
+        PropertyReference,
+        SelectOptions,
+    )
 
 
 logger = structlog.get_logger(__name__)
@@ -102,23 +109,44 @@ class SelectOptions(Struct):
     )
 
     # fields
-    select_all_fields: bool = p_regular(50, default=True)
     select_fields: list["Field"] = p_regular(
         51, require=True, array=True, references=NodeType.FIELD
     )
 
+    if TYPE_CHECKING:
+        include_properties_ptr: tuple["PropertyReference", ...] = ()
+        exclude_properties_ptr: tuple["PropertyReference", ...] = ()
+        select_properties_ptr: tuple["PropertyReference", ...] = ()
+        select_fields_ptr: tuple["NodeReference", ...] = ()
+
     def __content_str__(self) -> str:
         content_parts = []
-        for key, prop in self.__declared_properties__.items():
-            value = getattr(self, key)
-            if value:
-                if prop.is_enum:
-                    value = "|".join(v.bench_name for v in value)
-                content_parts.append(f"{prop.name}={value}")
-        if content_parts:
-            return ", ".join(content_parts)
+        if self.select_all_properties:
+            content_parts.append("<all properties>")
         else:
-            return "<default>"
+            if self.include_properties_ptr:
+                content_parts.append(
+                    f"include=[{','.join(p.name for p in self.include_properties)}]"
+                )
+        if self.exclude_properties_ptr:
+            content_parts.append(f"exclude=[{','.join(p.name for p in self.exclude_properties)}]")
+        if self.select_fields_ptr:
+            content_parts.append(
+                f"fields=[{','.join(f.code_name or '???' for f in self.select_fields)}]"
+            )
+        return ", ".join(content_parts) if content_parts else "<default>"
+
+    def _stable_hash(self) -> int:
+        # NOTE: we override stable_hash to ensure SelectOptions hash differs per field identities
+        #  (otherwise when we cache per query and the field identity changes, we wouldn't re-query)
+        return stable_hash(
+            self.select_all_properties,
+            tuple(r._stable_hash() for r in self.include_properties_ptr),
+            tuple(r._stable_hash() for r in self.exclude_properties_ptr),
+            tuple(r._stable_hash() for r in self.select_properties_ptr),
+            tuple(r._stable_hash() for r in self.select_fields_ptr),
+            tuple(r.identity_key for r in self.select_fields),
+        )
 
     def get_selected_properties(self, node_type: NodeType) -> Sequence[Property]:
         # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
@@ -151,18 +179,11 @@ class SelectOptions(Struct):
 
     def get_selected_fields(self, block: "Block") -> Sequence["Field"]:
         """Get the selected (member) fields for a block."""
-        if self.select_all_fields:
-            fields: list[Field] = []
-            for field in block.fields:
-                if field.type == FieldType.MEMBER:
-                    fields.append(field)
-            return fields
-        else:
-            fields: list[Field] = []
-            for field in self.select_fields:
-                if field.base_ck == block.ck and field.type == FieldType.MEMBER:
-                    fields.append(field)
-            return fields
+        fields: list[Field] = []
+        for field in self.select_fields:
+            if field.base_ck == block.ck and field.type == FieldType.MEMBER:
+                fields.append(field)
+        return fields
 
     @staticmethod
     def default():
@@ -170,7 +191,7 @@ class SelectOptions(Struct):
 
     @staticmethod
     def all():
-        return SelectOptions(select_all_properties=True, select_all_fields=True)
+        return SelectOptions(select_all_properties=True)
 
 
 DEFAULT_SELECT_OPTIONS = SelectOptions.default()
@@ -423,7 +444,6 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
                 clone._select.select_all_properties = False
                 clone._select.select_properties.append(key)
             else:
-                clone._select.select_all_fields = False
                 clone._select.select_fields.append(key)
         return clone
 
@@ -432,7 +452,10 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.select_all_properties = True
-        clone._select.select_all_fields = True
+        if self._block is not None:
+            clone._select.select_fields = list(self._block.fields)
+        else:
+            clone._select.select_fields = []
         return clone
 
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":

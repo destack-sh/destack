@@ -40,7 +40,12 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
-import { SearchConnectionParams, useExistingConnection, useNodeIsCommitted, useSearchConnection } from "@/system/connection";
+import {
+  SearchConnectionParams,
+  useExistingConnection,
+  useNodeIsCommitted,
+  useSearchConnection,
+} from "@/system/connection";
 import { canvas } from "@/system/space";
 import { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
@@ -140,7 +145,7 @@ function addSort(column: ColumnView, type: ExpressionType) {
 }
 
 // NOTE :Cleanup: unfortunately we need to wait until the block we're querying actually exists remotely :SearchWithMissingBlock
-const blockIsCommitted = useNodeIsCommitted(pkgConnection, nodePtr) 
+const blockIsCommitted = useNodeIsCommitted(pkgConnection, nodePtr);
 const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 25));
 const {
   graph: recordGraph,
@@ -162,6 +167,10 @@ const {
       isEnabled: nodePtr.value != null && blockIsCommitted.value,
       sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
       filter: makeAndConditional(filters.value),
+      select: {
+        metatype: ObjectType.SELECT_OPTIONS,
+        selectFieldsPtr: fields.value.map(toPlainNodeRef),
+      },
     }),
   ),
 );

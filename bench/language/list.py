@@ -277,11 +277,15 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     #
 
     def query(self) -> "QueryBuilder[V, VD]":
-        from bench.language import Block, QueryBuilder
+        from bench.language import Block, QueryBuilder, SelectOptions
 
         assert isinstance(self._node, Block), f"can only query from a block: {self._node!r}"
         query = QueryBuilder(
-            type=QueryType.SEARCH, node_type=self._child_node_type, block=self._node
+            type=QueryType.SEARCH,
+            node_type=self._child_node_type,
+            block=self._node,
+            # select all fields by default
+            select=SelectOptions(select_fields=list(self._node.fields)),
         )
         return query
 
