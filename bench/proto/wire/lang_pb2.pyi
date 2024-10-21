@@ -4125,7 +4125,6 @@ class SelectOptionsData(_message.Message):
         "include_properties_ptr",
         "exclude_properties_ptr",
         "select_properties_ptr",
-        "select_all_fields",
         "select_fields_ptr",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4133,14 +4132,12 @@ class SelectOptionsData(_message.Message):
     INCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
     SELECT_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
-    SELECT_ALL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     SELECT_FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     select_all_properties: bool
     include_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
     exclude_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
     select_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
-    select_all_fields: bool
     select_fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     def __init__(
         self,
@@ -4149,7 +4146,6 @@ class SelectOptionsData(_message.Message):
         include_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ...,
         exclude_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ...,
         select_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ...,
-        select_all_fields: bool = ...,
         select_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
     ) -> None: ...
 

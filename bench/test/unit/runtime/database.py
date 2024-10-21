@@ -258,8 +258,6 @@ async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
     # morph back to str is_list=False (should still have old value)
     Field1.morph_to(str, is_list=False)
     await hosted_runtime.session.commit()
-    # nocheckin: fix connection caching leading to stale Record return
-    #  (because fields and their identities are not part of the query...)
     Record1 = await Database1.records.get(Record1.to_ref())
     assert Record1.Field1 == "Record1"  # type: ignore
 
