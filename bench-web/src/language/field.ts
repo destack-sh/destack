@@ -337,26 +337,6 @@ export function typeIsNumeric(type: { kind: TypeKind } & Partial<TypeInfoData>):
 
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.
 
-/** Resolves the actual type identity :TypeResolution */
-export function resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
-  if (type.kind == TypeKind.ALIAS && type.baseTypePtr != null) {
-    if (type.baseTypePtr.nodeType == NodeType.STEP) {
-      return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
-    } else if (type.baseTypePtr.nodeType == NodeType.BLOCK) {
-      const block = graph.get(type.baseTypePtr) as BlockData | null;
-      if (CLASSY_BLOCK_TYPES.includes(block?.type!)) {
-        return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
-      } else if (block?.valueType != null) {
-        return block.valueType;
-      }
-    }
-  } else {
-    return type;
-  }
-
-  throw new Error(`unexpected base ${describeNode(type.baseTypePtr)} for type ${describeTypeIdentity(type)}`);
-}
-
 /** Resolves the actual fields of the given type. :TypeResolution */
 export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
   if (type.baseTypePtr == null) return [];
@@ -382,7 +362,7 @@ function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): 
     } else {
       return getEnumTitle(EnumType.TYPE_KIND, field.kind);
     }
-  } else if (field.kind == TypeKind.BASED_NODE || field.kind == TypeKind.OBJECT || field.kind == TypeKind.ALIAS) {
+  } else if (field.kind == TypeKind.BASED_NODE || field.kind == TypeKind.OBJECT) {
     if (field?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(field)}`);
     const baseType = graph.getOrError(field.baseTypePtr);
     if ((baseType as any).name != null) {

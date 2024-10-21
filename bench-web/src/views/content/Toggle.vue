@@ -27,7 +27,7 @@ function apply(value: boolean) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
+defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value, interact: () => toggle() });
 </script>
 <template>
   <ViewContentWrapper :type="ViewType.TOGGLE" v-bind="props">

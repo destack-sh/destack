@@ -141,7 +141,17 @@ const { isInDropZone } = useDropZone({
 });
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({
+  self,
+  id,
+  interact: () => {
+    if (props.modelValue != null) {
+      openFile();
+    } else {
+      fileInputRef.value?.click();
+    }
+  },
+});
 </script>
 <template>
   <ViewContentWrapper v-bind="props" :class="[size?.height != null ? 'h-full' : 's']">

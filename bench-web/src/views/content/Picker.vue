@@ -220,7 +220,18 @@ function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus });
+defineExpose<ViewExposed>({
+  self,
+  id,
+  focus,
+  interact: () => {
+    if (!props.isInline) {
+      buttonRef.value?.click();
+    } else {
+      queryRef.value?.focus();
+    }
+  },
+});
 </script>
 <template>
   <ViewContentWrapper :type="ViewType.PICKER" v-bind="props">

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
 import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, makeTypeInfo, NAME_TYPE, resolveType, type TypeIdentity } from "@/language/field";
+import { createField, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
 import { isGeneratedNodeName } from "@/language/node";
 import { isRunnable } from "@/language/session";
 import { packValue, unpackValue } from "@/language/value";
@@ -11,7 +11,6 @@ import {
   FieldType,
   NodeReferenceData,
   NodeType,
-  Orientation,
   TypeInfoData,
   TypeKind,
   Variant,
@@ -24,13 +23,12 @@ import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import { onMouseReleasedOnce, ScrollbarWidth } from "@/ui/layout";
+import { onMouseReleasedOnce } from "@/ui/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import Scroll from "@/views/containers/Scroll.vue";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -271,11 +269,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div class="flex flex-col gap-y-1.5 py-1">
       <Value
         v-if="block.type == BlockType.VALUE"
-        :value-type="
-          block.valueType != null
-            ? (resolveType(block.valueType, pkgGraph) as TypeInfoData) /* close enough */
-            : undefined
-        "
+        :value-type="block.valueType"
         :model-value="value"
         @update:model-value="(newValue) => updateValue(newValue)"
       />

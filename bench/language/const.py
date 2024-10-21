@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.19.1"
+VERSION = "2024.10.21.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -122,7 +122,6 @@ class EnumType(IdEnum):
     AGGREGATION_OP = 20205
     SORT_MODE = 20206
     SORT_OP = 20207
-    SELECTION_KIND = 20208
     PATH_TOKEN_TYPE = 20210
 
     # run
