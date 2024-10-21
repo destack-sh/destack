@@ -211,3 +211,15 @@ defineExpose<ViewExposed & { select: () => void }>({
     </div>
   </ViewContentWrapper>
 </template>
+<style scoped>
+/* hide up/down buttons for number input */
+input[type="number"]:not(:focus)::-webkit-outer-spin-button,
+input[type="number"]:not(:focus)::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"]:not(:focus) {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+</style>
