@@ -571,6 +571,8 @@ export const ICON_BY_EXPRESSION_OP: Partial<Record<ExpressionType, IconData>> = 
   [ExpressionType.MATCHES_REGEX]: "fas fa-regex",
   [ExpressionType.STARTS_WITH]: "fas fa-arrow-right-from-line",
   [ExpressionType.ENDS_WITH]: "fas fa-arrow-left-from-line",
+  [ExpressionType.ASCENDING]: "fas fa-arrow-up",
+  [ExpressionType.DESCENDING]: "fas fa-arrow-down",
 });
 
 export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({

@@ -493,14 +493,9 @@ export function useSearch<T extends SearchItem>(search: {
     }
     const candidates: SearchCandidate[] = [];
     for (const [indexName, index] of Object.entries(indicesRef.value)) {
-      const indexCandidates = index.candidates().map(
-        (item) =>
-          ({
-            ...item,
-            category: item.category ?? indexName,
-            index: indexName,
-          }) as SearchCandidate,
-      );
+      const indexCandidates = index
+        .candidates()
+        .map((item) => ({ ...item, category: item.category ?? indexName, index: indexName }) as SearchCandidate);
       candidates.push(...indexCandidates);
     }
     candidatesRef.value = candidates;

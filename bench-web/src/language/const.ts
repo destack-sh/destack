@@ -20,6 +20,7 @@ import {
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
+  PropertyReferenceData,
   RecordData,
   RunData,
   RunStatus,
@@ -32,7 +33,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { describeNode } from "@/proto/wiring";
+import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
 
 export const FLOAT_EPSILON = 1e-6;
@@ -353,7 +354,8 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
   },
 };
 
-export function getPropertyTitle(property: PropertyInfo): string {
+export function getPropertyTitle(property: PropertyInfo | PropertyReferenceData): string {
+  if (isStruct(property, StructType.PROPERTY_REFERENCE)) property = propertyInfo(property.type!, property.id);
   let pythonName = property.name;
   if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
   if (pythonName.endsWith("_packed")) pythonName = pythonName.slice(0, -7);
