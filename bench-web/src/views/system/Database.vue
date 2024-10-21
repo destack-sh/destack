@@ -40,7 +40,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
-import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
+import { SearchConnectionParams, useExistingConnection, useNodeIsCommitted, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
@@ -139,9 +139,8 @@ function addSort(column: ColumnView, type: ExpressionType) {
   }
 }
 
-// nocheckin: wait with search until Database is actually committed?
-// (else optimistic commit makes us query too early and errors)
-// (maybe we can just fix this generally in useSearchConnection?)
+// NOTE :Cleanup: unfortunately we need to wait until the block we're querying actually exists remotely :SearchWithMissingBlock
+const blockIsCommitted = useNodeIsCommitted(pkgConnection, nodePtr) 
 const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 25));
 const {
   graph: recordGraph,
@@ -160,7 +159,7 @@ const {
       first: limit.value,
       count: true,
       blockPtr: nodePtr.value,
-      isEnabled: nodePtr.value != null,
+      isEnabled: nodePtr.value != null && blockIsCommitted.value,
       sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
       filter: makeAndConditional(filters.value),
     }),
@@ -669,7 +668,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       }"
     >
       <!-- Expressions (filters/sorts) -->
-      <!-- TODO :UX: Incomplete: filter/sort Database view better -->
+      <!-- TODO :UX: Incomplete: filter/sort Database/Table view properly -->
       <div class="flex flex-row items-center gap-x-1">
         <!-- (this should of course be Expression views) -->
         <div
@@ -677,7 +676,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           :key="i"
           class="rounded border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
         >
-          <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5" />
+          <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
           <span class="text-gray-700">{{
             findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
           }}</span>

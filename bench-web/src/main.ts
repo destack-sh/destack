@@ -3,7 +3,7 @@ import "./assets/index.css";
 
 import { toaster } from "@/ui/toast";
 import { startTransactionRotation as startTransactionBuffers } from "@/language/transaction";
-import { COMMIT, ENV, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/ui/keymap";
 import { CONTEXT_MENU_DIRECTIVE, HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
@@ -12,6 +12,7 @@ import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
 import { log } from "@/utils/log";
+import { sendRemoteKeepAlives } from "@/system/connection";
 
 async function init() {
   const app = createApp(Space);
@@ -59,7 +60,8 @@ async function init() {
   toaster.run();
   keytrap.track(document);
   startTransactionBuffers();
-
+  setInterval(sendRemoteKeepAlives, GRPC_KEEPALIVE_INTERVAL_SECONDS * 1000);
+  
   app.mount("#app");
 }
 
