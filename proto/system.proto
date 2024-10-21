@@ -144,7 +144,7 @@ message AggregateNodesResponse {
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // An updated aggregation result.
-  AggregationData aggregation = 3;
+  AggregationResultData aggregation = 3;
   // Current epoch.
   uint64 epoch = 10;
 }
@@ -157,7 +157,7 @@ message WatchAggregateRequest {
   uint64 since_epoch = 3;
 }
 message WatchAggregateResponse {
-  AggregationData aggregation = 1;
+  AggregationResultData aggregation = 1;
   uint64 epoch = 10;
 }
 

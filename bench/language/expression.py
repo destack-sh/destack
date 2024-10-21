@@ -12,14 +12,14 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
-    AggregationOp,
-    ConditionalOp,
+    AggregationType,
+    ConditionalType,
     ExpressionKind,
-    ExpressionOp,
+    ExpressionType,
     NodeType,
     PrimitiveType,
     SortMode,
-    SortOp,
+    SortType,
     StructType,
     TypeKind,
 )
@@ -47,32 +47,32 @@ if TYPE_CHECKING:
 #
 
 
-_CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
+_CONDITIONAL_OP_SIGN: dict[ConditionalType, str] = {
     # logical
-    ConditionalOp.NOT: "~",
-    ConditionalOp.AND: "&",
-    ConditionalOp.OR: "|",
+    ConditionalType.NOT: "~",
+    ConditionalType.AND: "&",
+    ConditionalType.OR: "|",
     # comparison
-    ConditionalOp.EQUALS: "==",
-    ConditionalOp.NOT_EQUALS: "!=",
-    ConditionalOp.GREATER_THAN: ">",
-    ConditionalOp.GREATER_THAN_OR_EQUALS: ">=",
-    ConditionalOp.LESS_THAN: "<",
-    ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
+    ConditionalType.EQUALS: "==",
+    ConditionalType.NOT_EQUALS: "!=",
+    ConditionalType.GREATER_THAN: ">",
+    ConditionalType.GREATER_THAN_OR_EQUALS: ">=",
+    ConditionalType.LESS_THAN: "<",
+    ConditionalType.LESS_THAN_OR_EQUALS: "<=",
     # string comparison
-    ConditionalOp.MATCHES_REGEX: "$re=",
-    ConditionalOp.STARTS_WITH: "^=",
-    ConditionalOp.ENDS_WITH: "$=",
+    ConditionalType.MATCHES_REGEX: "$re=",
+    ConditionalType.STARTS_WITH: "^=",
+    ConditionalType.ENDS_WITH: "$=",
     # containment
-    ConditionalOp.CONTAINS: "∋",
-    ConditionalOp.NOT_CONTAINS: "!∋",
-    ConditionalOp.IN: "∈",
-    ConditionalOp.NOT_IN: "!∈",
+    ConditionalType.CONTAINS: "∋",
+    ConditionalType.NOT_CONTAINS: "!∋",
+    ConditionalType.IN: "∈",
+    ConditionalType.NOT_IN: "!∈",
     # existence
-    ConditionalOp.EXISTS: "!",
-    ConditionalOp.NOT_EXISTS: "!!",
+    ConditionalType.EXISTS: "!",
+    ConditionalType.NOT_EXISTS: "!!",
     # vector
-    ConditionalOp.NEAR: "~=",
+    ConditionalType.NEAR: "~=",
 }
 
 
@@ -97,7 +97,7 @@ class Expression(Struct):
     An expression like a value, function, comparison or such.
     """
 
-    op: ExpressionOp = p_regular(30, require=True)
+    type: ExpressionType = p_regular(30, require=True)
     property: Optional[Property] = p_regular(
         31, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
@@ -125,13 +125,13 @@ class Expression(Struct):
     tolerance: Optional[float] = p_regular(49, default=None)
 
     def __content_str__(self):
-        if self.op in ExpressionOps.COND_COMPOUND:
-            inner = f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses or ())
+        if self.type in ExpressionTypes.COND_COMPOUND:
+            inner = f" {_CONDITIONAL_OP_SIGN[self.type]} ".join(str(q) for q in self.clauses or ())
             return f"({inner})"
         elif (
-            self.op in ExpressionOps.COND_EXACT
-            or self.op in ExpressionOps.COND_RANGE
-            or self.op in ExpressionOps.COND_STRING
+            self.type in ExpressionTypes.COND_EXACT
+            or self.type in ExpressionTypes.COND_RANGE
+            or self.type in ExpressionTypes.COND_STRING
         ):
             code_name = self.target.code_name if self.target is not None else "???"
             try:
@@ -140,18 +140,18 @@ class Expression(Struct):
                 value_str = "???"
             if len(value_str) > 60:
                 value_str = f"{value_str[:48]}...{value_str[-12:]}"
-            return f"{code_name}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
-        elif self.op in ExpressionOps.COND_EXISTENCE:
+            return f"{code_name}{_CONDITIONAL_OP_SIGN[self.type]}{value_str}"
+        elif self.type in ExpressionTypes.COND_EXISTENCE:
             code_name = self.target.code_name if self.target is not None else "???"
-            return f"{code_name}{_CONDITIONAL_OP_SIGN[self.op]}"
-        elif self.op in ExpressionOps.SORT:
+            return f"{code_name}{_CONDITIONAL_OP_SIGN[self.type]}"
+        elif self.type in ExpressionTypes.SORT:
             code_name = self.target.code_name if self.target is not None else "???"
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{code_name}"
-        return to_casing(self.op.name, Casing.CAMEL)
+            return f"{'-' if self.type == SortType.DESCENDING else ''}{code_name}"
+        return to_casing(self.type.name, Casing.CAMEL)
 
     @property_
     def kind(self) -> ExpressionKind:
-        return EXPRESSION_KIND_BY_OP[self.op]
+        return EXPRESSION_KIND_BY_OP[self.type]
 
     @property_
     def value_type(self) -> "TypeInfoBase | None":
@@ -164,7 +164,9 @@ class Expression(Struct):
         else:
             return None
         # wrap as list if needed (NOTE :Performance)
-        if not typ.is_list and (self.op == ConditionalOp.IN or self.op == ConditionalOp.NOT_IN):
+        if not typ.is_list and (
+            self.type == ConditionalType.IN or self.type == ConditionalType.NOT_IN
+        ):
             typ = typ.clone()
             typ.is_list = True
         return typ
@@ -176,39 +178,43 @@ class Expression(Struct):
     def __invert__(self):
         if self.kind != ExpressionKind.CONDITIONAL:
             raise TypeError(f"cannot invert {self!r}, expected Conditional, got {self.kind}")
-        elif self.op == ConditionalOp.NOT:
+        elif self.type == ConditionalType.NOT:
             assert (
                 self.clauses is not None and len(self.clauses) == 1
             ), f"expected 1 clause, got {self}"
             return self.clauses[0]
-        elif self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.NOT_EXISTS, property=self.property)
-        elif self.op == ConditionalOp.NOT_EXISTS:
-            return C(ConditionalOp.EXISTS, property=self.property)
+        elif self.type == ConditionalType.EXISTS:
+            return C(ConditionalType.NOT_EXISTS, property=self.property)
+        elif self.type == ConditionalType.NOT_EXISTS:
+            return C(ConditionalType.EXISTS, property=self.property)
         else:
-            return C(ConditionalOp.NOT, clauses=[self])
+            return C(ConditionalType.NOT, clauses=[self])
 
     def __and__(self, other: "Expression"):
         if not isinstance(other, Expression) or other.kind != ExpressionKind.CONDITIONAL:
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
-        if self.op == ConditionalOp.AND:
-            if isinstance(other, Expression) and other.op == ConditionalOp.AND:
-                return C(ConditionalOp.AND, clauses=[*(self.clauses or ()), *(other.clauses or ())])
+        if self.type == ConditionalType.AND:
+            if isinstance(other, Expression) and other.type == ConditionalType.AND:
+                return C(
+                    ConditionalType.AND, clauses=[*(self.clauses or ()), *(other.clauses or ())]
+                )
             else:
-                return C(ConditionalOp.AND, clauses=[*(self.clauses or ()), other])
+                return C(ConditionalType.AND, clauses=[*(self.clauses or ()), other])
         else:
-            return C(ConditionalOp.AND, clauses=[self, other])
+            return C(ConditionalType.AND, clauses=[self, other])
 
     def __or__(self, other: "Expression"):
         if not isinstance(other, Expression) or other.kind != ExpressionKind.CONDITIONAL:
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
-        if self.op == ConditionalOp.OR:
-            if isinstance(other, Expression) and other.op == ConditionalOp.OR:
-                return C(ConditionalOp.OR, clauses=[*(self.clauses or ()), *(other.clauses or ())])
+        if self.type == ConditionalType.OR:
+            if isinstance(other, Expression) and other.type == ConditionalType.OR:
+                return C(
+                    ConditionalType.OR, clauses=[*(self.clauses or ()), *(other.clauses or ())]
+                )
             else:
-                return C(ConditionalOp.OR, clauses=[*(self.clauses or ()), other])
+                return C(ConditionalType.OR, clauses=[*(self.clauses or ()), other])
         else:
-            return C(ConditionalOp.OR, clauses=[self, other])
+            return C(ConditionalType.OR, clauses=[self, other])
 
     @property_
     def target(self) -> Union["Field", Property, None]:
@@ -220,9 +226,9 @@ class Expression(Struct):
             return field
         return None
 
-    def _collect_ops(self) -> set[ExpressionOp]:
+    def _collect_ops(self) -> set[ExpressionType]:
         """Collect all ops in this expression and its clauses (recursively)."""
-        ops = {self.op}
+        ops = {self.type}
         if self.clauses:
             for clause in self.clauses:
                 ops |= clause._collect_ops()
@@ -242,68 +248,72 @@ class Expression(Struct):
         return base
 
 
-class ExpressionOps:  # :ExpressionOps
+class ExpressionTypes:  # :ExpressionOps
     # conditionals
-    COND_COMPOUND = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
+    COND_COMPOUND = {ConditionalType.NOT, ConditionalType.AND, ConditionalType.OR}
     COND_EXACT = {
-        ConditionalOp.EQUALS,
-        ConditionalOp.NOT_EQUALS,
-        ConditionalOp.IN,
-        ConditionalOp.NOT_IN,
+        ConditionalType.EQUALS,
+        ConditionalType.NOT_EQUALS,
+        ConditionalType.IN,
+        ConditionalType.NOT_IN,
     }
     COND_RANGE = {
-        ConditionalOp.GREATER_THAN,
-        ConditionalOp.GREATER_THAN_OR_EQUALS,
-        ConditionalOp.LESS_THAN,
-        ConditionalOp.LESS_THAN_OR_EQUALS,
+        ConditionalType.GREATER_THAN,
+        ConditionalType.GREATER_THAN_OR_EQUALS,
+        ConditionalType.LESS_THAN,
+        ConditionalType.LESS_THAN_OR_EQUALS,
     }
     COND_COMPARISON = {*COND_EXACT, *COND_RANGE}
-    COND_SET = {ConditionalOp.CONTAINS, ConditionalOp.NOT_CONTAINS}
-    COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS}
-    COND_VECTOR = {ConditionalOp.NEAR}
-    COND_STRING = {ConditionalOp.MATCHES_REGEX, ConditionalOp.STARTS_WITH, ConditionalOp.ENDS_WITH}
-    COND_SCORED = {ConditionalOp.NEAR, *COND_STRING}
-    # aggregations
-    AGG_BOOLEAN = {AggregationOp.EXISTS}
-    AGG_SCALAR = {
-        AggregationOp.COUNT,
-        AggregationOp.SUM,
-        AggregationOp.AVERAGE,
-        AggregationOp.MIN,
-        AggregationOp.MAX,
-        AggregationOp.MEDIAN,
+    COND_SET = {ConditionalType.CONTAINS, ConditionalType.NOT_CONTAINS}
+    COND_EXISTENCE = {ConditionalType.EXISTS, ConditionalType.NOT_EXISTS}
+    COND_VECTOR = {ConditionalType.NEAR}
+    COND_STRING = {
+        ConditionalType.MATCHES_REGEX,
+        ConditionalType.STARTS_WITH,
+        ConditionalType.ENDS_WITH,
     }
-    AGG_BUCKET = {AggregationOp.HISTOGRAM}
+    COND_SCORED = {ConditionalType.NEAR, *COND_STRING}
+    # aggregations
+    AGG_BOOLEAN = {AggregationType.EXISTS}
+    AGG_SCALAR = {
+        AggregationType.COUNT,
+        AggregationType.SUM,
+        AggregationType.AVERAGE,
+        AggregationType.MIN,
+        AggregationType.MAX,
+        AggregationType.MEDIAN,
+    }
+    AGG_BUCKET = {AggregationType.HISTOGRAM}
     # sorts
-    SORT = {SortOp.ASCENDING, SortOp.DESCENDING}
+    SORT = {SortType.ASCENDING, SortType.DESCENDING}
 
 
-EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
-    ExpressionKind.CONDITIONAL: {*ConditionalOp},
-    ExpressionKind.AGGREGATION: {*AggregationOp},
-    ExpressionKind.SORT: {*SortOp},
+EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionType]] = {
+    ExpressionKind.CONDITIONAL: {*ConditionalType},
+    ExpressionKind.AGGREGATION: {*AggregationType},
+    ExpressionKind.SORT: {*SortType},
 }
-EXPRESSION_KIND_BY_OP: dict[ExpressionOp, ExpressionKind] = {
+EXPRESSION_KIND_BY_OP: dict[ExpressionType, ExpressionKind] = {
     op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
 }
 
-CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
-    "eq": ConditionalOp.EQUALS,
-    "ne": ConditionalOp.NOT_EQUALS,
-    "gt": ConditionalOp.GREATER_THAN,
-    "gte": ConditionalOp.GREATER_THAN_OR_EQUALS,
-    "lt": ConditionalOp.LESS_THAN,
-    "lte": ConditionalOp.LESS_THAN_OR_EQUALS,
-    "in": ConditionalOp.IN,
-    "nin": ConditionalOp.NOT_IN,
+CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalType] = {
+    "eq": ConditionalType.EQUALS,
+    "ne": ConditionalType.NOT_EQUALS,
+    "gt": ConditionalType.GREATER_THAN,
+    "gte": ConditionalType.GREATER_THAN_OR_EQUALS,
+    "lt": ConditionalType.LESS_THAN,
+    "lte": ConditionalType.LESS_THAN_OR_EQUALS,
+    "in": ConditionalType.IN,
+    "nin": ConditionalType.NOT_IN,
 }
 
 
-@struct_(StructType.AGGREGATION)
-class Aggregation(Struct):
+@struct_(StructType.AGGREGATION_RESULT)
+class AggregationResult(Struct):
     """The result of an aggregation expression."""
 
-    op: AggregationOp = p_regular(30, require=True)
+    op: AggregationType = p_regular(30, require=True)
     exists: Optional[bool] = p_regular(31, default=None)
     count: Optional[int] = p_regular(32, default=None)
     scalar: Optional[float] = p_regular(33, default=None)
@@ -338,7 +348,7 @@ def coerce_conditional(
                     f"unsupported conditional operator {op_str!r} (allowed: {list(CONDITIONAL_OP_BY_DJANGO_STR)})"
                 )
         else:
-            key, op = arg, ConditionalOp.EQUALS
+            key, op = arg, ConditionalType.EQUALS
 
         # map key into field/property
         target: Field | Property | None = None
@@ -350,14 +360,14 @@ def coerce_conditional(
             raise TypeError(f"{node_cls!r} has no attribute {key!r} in {block!r}")
         # coerce None to NOT_EXISTS/EXISTS
         if value is None:
-            if op == ConditionalOp.EQUALS:
-                op = ConditionalOp.NOT_EXISTS
-            elif op == ConditionalOp.NOT_EQUALS:
-                op = ConditionalOp.EXISTS
+            if op == ConditionalType.EQUALS:
+                op = ConditionalType.NOT_EXISTS
+            elif op == ConditionalType.NOT_EQUALS:
+                op = ConditionalType.EXISTS
         _check_type_supports(target.type_info, op)
         clauses.append(
             Expression(
-                op=op,
+                type=op,
                 property=target if type(target) is Property else None,
                 field=target if not isinstance(target, Property) else None,
                 value=value,
@@ -404,10 +414,10 @@ def coerce_sort(
         if isinstance(item, str):
             # -field or field
             if item.startswith("-"):
-                op = SortOp.DESCENDING
+                op = SortType.DESCENDING
                 field_key = item[1:]
             else:
-                op = SortOp.ASCENDING
+                op = SortType.ASCENDING
                 field_key = item
 
             # map key into field/property
@@ -424,11 +434,11 @@ def coerce_sort(
                 item = S(op, field=target, property=None)
             _check_type_supports(target.type_info, op)
         elif isinstance(item, Field):
-            _check_type_supports(item, SortOp.ASCENDING)
-            item = S(SortOp.ASCENDING, field=item)
+            _check_type_supports(item, SortType.ASCENDING)
+            item = S(SortType.ASCENDING, field=item)
         elif isinstance(item, Property):
-            _check_type_supports(item.type_info, SortOp.ASCENDING)
-            item = S(SortOp.ASCENDING, property=item)
+            _check_type_supports(item.type_info, SortType.ASCENDING)
+            item = S(SortType.ASCENDING, property=item)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
@@ -502,14 +512,14 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     """Evaluates the conditional expression on a Node / packed node data."""
     assert cond.kind == ExpressionKind.CONDITIONAL, f"expected Conditional, got {cond!r}"
     # logical
-    if cond.op in ExpressionOps.COND_COMPOUND:
+    if cond.type in ExpressionTypes.COND_COMPOUND:
         if not cond.clauses:
             return True  # empty compound is True :EmptyCompoundConditional
-        if cond.op == ConditionalOp.NOT:
+        if cond.type == ConditionalType.NOT:
             return not evaluate_conditional(cond.clauses[0], node)
-        elif cond.op == ConditionalOp.AND:
+        elif cond.type == ConditionalType.AND:
             return all(evaluate_conditional(clause, node) for clause in cond.clauses)
-        elif cond.op == ConditionalOp.OR:
+        elif cond.type == ConditionalType.OR:
             return any(evaluate_conditional(clause, node) for clause in cond.clauses)
 
     # some property-based comparison
@@ -521,46 +531,46 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     cond_value = cond.value
     cond_value = _lower_expression_value(prop.type_info, cond_value)
     # basic comparison
-    if cond.op == ConditionalOp.EQUALS:
+    if cond.type == ConditionalType.EQUALS:
         return node_value == cond_value
-    elif cond.op == ConditionalOp.NOT_EQUALS:
+    elif cond.type == ConditionalType.NOT_EQUALS:
         return node_value != cond_value
-    elif cond.op == ConditionalOp.GREATER_THAN:
+    elif cond.type == ConditionalType.GREATER_THAN:
         return node_value > cond_value
-    elif cond.op == ConditionalOp.GREATER_THAN_OR_EQUALS:
+    elif cond.type == ConditionalType.GREATER_THAN_OR_EQUALS:
         return node_value >= cond_value
-    elif cond.op == ConditionalOp.LESS_THAN:
+    elif cond.type == ConditionalType.LESS_THAN:
         return node_value < cond_value
-    elif cond.op == ConditionalOp.LESS_THAN_OR_EQUALS:
+    elif cond.type == ConditionalType.LESS_THAN_OR_EQUALS:
         return node_value <= cond_value
     # string comparison
-    elif cond.op == ConditionalOp.MATCHES_REGEX:
+    elif cond.type == ConditionalType.MATCHES_REGEX:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
         return node_value is not None and regex.match(cond_value, node_value) is not None
-    elif cond.op == ConditionalOp.STARTS_WITH:
+    elif cond.type == ConditionalType.STARTS_WITH:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
         return node_value is not None and node_value.startswith(cond_value)
-    elif cond.op == ConditionalOp.ENDS_WITH:
+    elif cond.type == ConditionalType.ENDS_WITH:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
         return node_value is not None and node_value.endswith(cond_value)
     # containment
-    elif cond.op == ConditionalOp.CONTAINS:
+    elif cond.type == ConditionalType.CONTAINS:
         return isinstance(node_value, Collection) and cond_value in node_value
-    elif cond.op == ConditionalOp.NOT_CONTAINS:
+    elif cond.type == ConditionalType.NOT_CONTAINS:
         return isinstance(node_value, Collection) and cond_value not in node_value
-    elif cond.op == ConditionalOp.IN:
+    elif cond.type == ConditionalType.IN:
         assert isinstance(cond_value, Collection), f"expected Collection value, got {cond_value!r}"
         return node_value in cond_value
-    elif cond.op == ConditionalOp.NOT_IN:
+    elif cond.type == ConditionalType.NOT_IN:
         assert isinstance(cond_value, Collection), f"expected Collection value, got {cond_value!r}"
         return node_value not in cond_value
     # existence
-    elif cond.op == ConditionalOp.EXISTS:
-        return node_value is not None
-    elif cond.op == ConditionalOp.NOT_EXISTS:
-        return node_value is None
+    elif cond.type == ConditionalType.EXISTS:
+        return bool(node_value)
+    elif cond.type == ConditionalType.NOT_EXISTS:
+        return not bool(node_value)
     # vector
-    elif cond.op == ConditionalOp.NEAR:
+    elif cond.type == ConditionalType.NEAR:
         raise RuntimeError(f"cannot evaluate vector expression {cond!r}")
     # unknown
     else:
@@ -591,7 +601,7 @@ def _compare_sort_key(
             continue
         if typ is not None and typ.primitive_type is not None:
             cmp = -1 if a_value < b_value else 1
-            if sort.op == SortOp.DESCENDING:
+            if sort.type == SortType.DESCENDING:
                 cmp = -cmp
             return cmp
         else:
@@ -610,12 +620,12 @@ def apply_sort[T: AnyNodeData | Node](sorts: Sequence[Expression], values: list[
 
 # single-letter convenience constructors
 def E(  # noqa: N802
-    op: ExpressionOp, *, _expect_kind: type[ExpressionKind] | None = None, **kwargs
+    op: ExpressionType, *, _expect_kind: type[ExpressionKind] | None = None, **kwargs
 ) -> Expression:
     if _expect_kind is not None and op.kind != _expect_kind:
         raise TypeError(f"expected {_expect_kind}, got {op} ({op.kind})")
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in Expression.__properties__}
-    return Expression(op=op, **kwargs)
+    return Expression(type=op, **kwargs)
 
 
 C = functools.partial(E, _expect_t=ExpressionKind.CONDITIONAL)
@@ -634,9 +644,9 @@ class UnsupportedExpressionError(ValueError):
         super().__init__(f"{type!r} does not support {thing!r}")
 
 
-def _check_type_supports(typ: "TypeInfoBase", op: ExpressionOp):
+def _check_type_supports(typ: "TypeInfoBase", op: ExpressionType):
     """Asserts that the field supports the given expression operator."""
-    if op in SortOp:
+    if op in SortType:
         if typ.primitive_type is not None and (
             typ.primitive_type.is_numeric
             or typ.primitive_type
@@ -660,8 +670,8 @@ def _check_type_supports(typ: "TypeInfoBase", op: ExpressionOp):
 
 
 # should probably also have expression support per query engine?
-_ExprOps = ExpressionOps  # alias
-SUPPORTED_PRIMITIVE_OPS: dict[PrimitiveType, set[ConditionalOp]] = {
+_ExprOps = ExpressionTypes  # alias
+SUPPORTED_PRIMITIVE_OPS: dict[PrimitiveType, set[ConditionalType]] = {
     # cumulative supported query ops by type
     PrimitiveType.UUID: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.INT16: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
@@ -685,7 +695,7 @@ FieldOrProperty = Union["Field", "Property", Any]
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
-def _require_expression_op(op: ExpressionOp):
+def _require_expression_op(op: ExpressionType):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self: "_TypeQueryBuilder", *args, **kwargs):
@@ -697,14 +707,14 @@ def _require_expression_op(op: ExpressionOp):
     return decorator
 
 
-def _to_conditional(op: ConditionalOp, target: Union["Field", "Property"], value: Any = None):
+def _to_conditional(op: ConditionalType, target: Union["Field", "Property"], value: Any = None):
     if isinstance(target, Property):
         return C(op, field=None, property=target, value=value)
     else:
         return C(op, field=target, property=None, value=value)
 
 
-def _to_sort(op: SortOp, target: Union["Field", "Property"]):
+def _to_sort(op: SortType, target: Union["Field", "Property"]):
     if isinstance(target, Property):
         return S(op, field=None, property=target)
     else:
@@ -727,31 +737,31 @@ class _TypeQueryBuilder:
 
     # comparison
 
-    @_require_expression_op(ConditionalOp.EQUALS)
+    @_require_expression_op(ConditionalType.EQUALS)
     def is_equal(self: Any, value: Any) -> "Expression":
         if value is None:
             return self.not_exists()
-        return _to_conditional(ConditionalOp.EQUALS, self, value=value)
+        return _to_conditional(ConditionalType.EQUALS, self, value=value)
 
-    @_require_expression_op(ConditionalOp.NOT_EQUALS)
+    @_require_expression_op(ConditionalType.NOT_EQUALS)
     def not_equal(self: Any, value: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.NOT_EQUALS, self, value=value)
+        return _to_conditional(ConditionalType.NOT_EQUALS, self, value=value)
 
-    @_require_expression_op(ConditionalOp.GREATER_THAN)
+    @_require_expression_op(ConditionalType.GREATER_THAN)
     def greater_than(self: Any, value: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.GREATER_THAN, self, value=value)
+        return _to_conditional(ConditionalType.GREATER_THAN, self, value=value)
 
-    @_require_expression_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
+    @_require_expression_op(ConditionalType.GREATER_THAN_OR_EQUALS)
     def greater_than_or_equals(self: Any, value: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self, value=value)
+        return _to_conditional(ConditionalType.GREATER_THAN_OR_EQUALS, self, value=value)
 
-    @_require_expression_op(ConditionalOp.LESS_THAN)
+    @_require_expression_op(ConditionalType.LESS_THAN)
     def less_than(self: Any, value: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.LESS_THAN, self, value=value)
+        return _to_conditional(ConditionalType.LESS_THAN, self, value=value)
 
-    @_require_expression_op(ConditionalOp.LESS_THAN_OR_EQUALS)
+    @_require_expression_op(ConditionalType.LESS_THAN_OR_EQUALS)
     def less_than_or_equals(self: Any, value: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self, value=value)
+        return _to_conditional(ConditionalType.LESS_THAN_OR_EQUALS, self, value=value)
 
     def __eq__(self, other):  # type: ignore
         if isinstance(self, Node) and isinstance(other, Node):
@@ -778,71 +788,71 @@ class _TypeQueryBuilder:
 
     # string
 
-    @_require_expression_op(ConditionalOp.MATCHES_REGEX)
+    @_require_expression_op(ConditionalType.MATCHES_REGEX)
     def matches_regex(self: Any, value: str | regex.Pattern) -> "Expression":
         if isinstance(value, regex.Pattern):
             value = value.pattern
-        return _to_conditional(ConditionalOp.MATCHES_REGEX, self, value=value)
+        return _to_conditional(ConditionalType.MATCHES_REGEX, self, value=value)
 
-    @_require_expression_op(ConditionalOp.STARTS_WITH)
+    @_require_expression_op(ConditionalType.STARTS_WITH)
     def starts_with(self: Any, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.STARTS_WITH, self, value=value)
+        return _to_conditional(ConditionalType.STARTS_WITH, self, value=value)
 
     startswith = starts_with
 
-    @_require_expression_op(ConditionalOp.ENDS_WITH)
+    @_require_expression_op(ConditionalType.ENDS_WITH)
     def ends_with(self: Any, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.ENDS_WITH, self, value=value)
+        return _to_conditional(ConditionalType.ENDS_WITH, self, value=value)
 
     endswith = ends_with
 
-    # containment
+    # collections
 
-    @_require_expression_op(ConditionalOp.IN)
+    @_require_expression_op(ConditionalType.IN)
     def in_(self: Any, *values: list[Any]) -> "Expression":
-        return _to_conditional(ConditionalOp.IN, self, value=values)
+        return _to_conditional(ConditionalType.IN, self, value=values)
 
-    @_require_expression_op(ConditionalOp.NOT_IN)
+    @_require_expression_op(ConditionalType.NOT_IN)
     def not_in(self: Any, *values: list[Any]) -> "Expression":
-        return _to_conditional(ConditionalOp.NOT_IN, self, value=values)
+        return _to_conditional(ConditionalType.NOT_IN, self, value=values)
 
-    @_require_expression_op(ConditionalOp.CONTAINS)
+    @_require_expression_op(ConditionalType.CONTAINS)
     def contains(self: Any, value: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.CONTAINS, self, value=value)
+        return _to_conditional(ConditionalType.CONTAINS, self, value=value)
 
-    @_require_expression_op(ConditionalOp.NOT_CONTAINS)
+    @_require_expression_op(ConditionalType.NOT_CONTAINS)
     def not_contains(self: Any, value: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.NOT_CONTAINS, self, value=value)
+        return _to_conditional(ConditionalType.NOT_CONTAINS, self, value=value)
 
     # existence
 
-    @_require_expression_op(ConditionalOp.EXISTS)
+    @_require_expression_op(ConditionalType.EXISTS)
     def exists(self: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.EXISTS, self)
+        return _to_conditional(ConditionalType.EXISTS, self)
 
-    @_require_expression_op(ConditionalOp.NOT_EXISTS)
+    @_require_expression_op(ConditionalType.NOT_EXISTS)
     def not_exists(self: Any) -> "Expression":
-        return _to_conditional(ConditionalOp.NOT_EXISTS, self)
+        return _to_conditional(ConditionalType.NOT_EXISTS, self)
 
     # knn
 
-    @_require_expression_op(ConditionalOp.NEAR)
+    @_require_expression_op(ConditionalType.NEAR)
     def near(self: Any, value: list[float]) -> "Expression":
-        return _to_conditional(ConditionalOp.NEAR, self, value=value)
+        return _to_conditional(ConditionalType.NEAR, self, value=value)
 
     #
     # Sort
     #
 
-    @_require_expression_op(SortOp.ASCENDING)
+    @_require_expression_op(SortType.ASCENDING)
     def asc(self: Any) -> "Expression":
-        return _to_sort(SortOp.ASCENDING, self)
+        return _to_sort(SortType.ASCENDING, self)
 
     ascending = asc
 
-    @_require_expression_op(SortOp.DESCENDING)
+    @_require_expression_op(SortType.DESCENDING)
     def desc(self: Any) -> "Expression":
-        return _to_sort(SortOp.DESCENDING, self)
+        return _to_sort(SortType.DESCENDING, self)
 
     descending = desc
 

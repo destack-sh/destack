@@ -57,17 +57,17 @@ class AccessType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACCESS_TYPE_SEND: _ClassVar[AccessType]
     ACCESS_TYPE_RECEIVE: _ClassVar[AccessType]
 
-class AggregationOp(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class AggregationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    AGGREGATION_OP_UNSPECIFIED: _ClassVar[AggregationOp]
-    AGGREGATION_OP_EXISTS: _ClassVar[AggregationOp]
-    AGGREGATION_OP_COUNT: _ClassVar[AggregationOp]
-    AGGREGATION_OP_SUM: _ClassVar[AggregationOp]
-    AGGREGATION_OP_MIN: _ClassVar[AggregationOp]
-    AGGREGATION_OP_MAX: _ClassVar[AggregationOp]
-    AGGREGATION_OP_AVERAGE: _ClassVar[AggregationOp]
-    AGGREGATION_OP_MEDIAN: _ClassVar[AggregationOp]
-    AGGREGATION_OP_HISTOGRAM: _ClassVar[AggregationOp]
+    AGGREGATION_TYPE_UNSPECIFIED: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_EXISTS: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_COUNT: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_SUM: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_MIN: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_MAX: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_AVERAGE: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_MEDIAN: _ClassVar[AggregationType]
+    AGGREGATION_TYPE_HISTOGRAM: _ClassVar[AggregationType]
 
 class Alignment(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -162,7 +162,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SECRET_REFERENCE: _ClassVar[BenchType]
     BENCH_TYPE_TRIGGER_INFO: _ClassVar[BenchType]
     BENCH_TYPE_EXPRESSION: _ClassVar[BenchType]
-    BENCH_TYPE_AGGREGATION: _ClassVar[BenchType]
+    BENCH_TYPE_AGGREGATION_RESULT: _ClassVar[BenchType]
     BENCH_TYPE_SELECTION: _ClassVar[BenchType]
     BENCH_TYPE_QUERY_INFO: _ClassVar[BenchType]
     BENCH_TYPE_SELECT_OPTIONS: _ClassVar[BenchType]
@@ -201,7 +201,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CHANGE_KIND: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_QueryType: _ClassVar[BenchType]
+    BENCH_TYPE_QUEYR_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_EDIT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_TYPE: _ClassVar[BenchType]
@@ -231,12 +231,12 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ICON_KIND: _ClassVar[BenchType]
     BENCH_TYPE_EXPRESSION_KIND: _ClassVar[BenchType]
     BENCH_TYPE_EXPRESSION_OP: _ClassVar[BenchType]
-    BENCH_TYPE_LITERAL_OP: _ClassVar[BenchType]
-    BENCH_TYPE_FUNCTIONAL_OP: _ClassVar[BenchType]
-    BENCH_TYPE_CONDITIONAL_OP: _ClassVar[BenchType]
-    BENCH_TYPE_AGGREGATION_OP: _ClassVar[BenchType]
+    BENCH_TYPE_LITERAL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FUNCTIONAL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CONDITIONAL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_AGGREGATION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SORT_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_SORT_OP: _ClassVar[BenchType]
+    BENCH_TYPE_SORT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PATH_TOKEN_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_LOG_KIND: _ClassVar[BenchType]
     BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
@@ -403,28 +403,28 @@ class ColorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COLOR_TYPE_PINK: _ClassVar[ColorType]
     COLOR_TYPE_ROSE: _ClassVar[ColorType]
 
-class ConditionalOp(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ConditionalType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    CONDITIONAL_OP_UNSPECIFIED: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_NOT: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_AND: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_OR: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_EQUALS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_NOT_EQUALS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_GREATER_THAN: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_GREATER_THAN_OR_EQUALS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_LESS_THAN: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_LESS_THAN_OR_EQUALS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_MATCHES_REGEX: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_STARTS_WITH: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_ENDS_WITH: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_CONTAINS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_NOT_CONTAINS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_IN: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_NOT_IN: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_EXISTS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_NOT_EXISTS: _ClassVar[ConditionalOp]
-    CONDITIONAL_OP_NEAR: _ClassVar[ConditionalOp]
+    CONDITIONAL_TYPE_UNSPECIFIED: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_NOT: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_AND: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_OR: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_EQUALS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_NOT_EQUALS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_GREATER_THAN: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_GREATER_THAN_OR_EQUALS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_LESS_THAN: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_LESS_THAN_OR_EQUALS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_MATCHES_REGEX: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_STARTS_WITH: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_ENDS_WITH: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_CONTAINS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_NOT_CONTAINS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_IN: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_NOT_IN: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_EXISTS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_NOT_EXISTS: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_NEAR: _ClassVar[ConditionalType]
 
 class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -465,7 +465,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_CHANGE_KIND: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
-    ENUM_TYPE_QueryType: _ClassVar[EnumType]
+    ENUM_TYPE_QUEYR_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_USE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_TYPE: _ClassVar[EnumType]
@@ -495,12 +495,12 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ICON_KIND: _ClassVar[EnumType]
     ENUM_TYPE_EXPRESSION_KIND: _ClassVar[EnumType]
     ENUM_TYPE_EXPRESSION_OP: _ClassVar[EnumType]
-    ENUM_TYPE_LITERAL_OP: _ClassVar[EnumType]
-    ENUM_TYPE_FUNCTIONAL_OP: _ClassVar[EnumType]
-    ENUM_TYPE_CONDITIONAL_OP: _ClassVar[EnumType]
-    ENUM_TYPE_AGGREGATION_OP: _ClassVar[EnumType]
+    ENUM_TYPE_LITERAL_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_FUNCTIONAL_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumType]
-    ENUM_TYPE_SORT_OP: _ClassVar[EnumType]
+    ENUM_TYPE_SORT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PATH_TOKEN_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_LOG_KIND: _ClassVar[EnumType]
     ENUM_TYPE_LOG_LEVEL: _ClassVar[EnumType]
@@ -553,47 +553,47 @@ class ExpressionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EXPRESSION_KIND_SORT: _ClassVar[ExpressionKind]
     EXPRESSION_KIND_AGGREGATION: _ClassVar[ExpressionKind]
 
-class ExpressionOp(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ExpressionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    EXPRESSION_OP_UNSPECIFIED: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_VALUE: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_NONE: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_TRUE: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_FALSE: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_ADD: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_SUBTRACT: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_MULTIPLY: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_DIVIDE: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_MODULO: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_POWER: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_NOT: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_AND: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_OR: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_EQUALS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_NOT_EQUALS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_GREATER_THAN: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_GREATER_THAN_OR_EQUALS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_LESS_THAN: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_LESS_THAN_OR_EQUALS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_MATCHES_REGEX: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_STARTS_WITH: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_ENDS_WITH: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_CONTAINS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_NOT_CONTAINS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_IN: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_NOT_IN: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_EXISTS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_NOT_EXISTS: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_NEAR: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_COUNT: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_SUM: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_MIN: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_MAX: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_AVERAGE: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_MEDIAN: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_HISTOGRAM: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_ASCENDING: _ClassVar[ExpressionOp]
-    EXPRESSION_OP_DESCENDING: _ClassVar[ExpressionOp]
+    EXPRESSION_TYPE_UNSPECIFIED: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_VALUE: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_NONE: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_TRUE: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_FALSE: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_ADD: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_SUBTRACT: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MULTIPLY: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_DIVIDE: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MODULO: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_POWER: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_NOT: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_AND: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_OR: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_EQUALS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_NOT_EQUALS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_GREATER_THAN: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_GREATER_THAN_OR_EQUALS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_LESS_THAN: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_LESS_THAN_OR_EQUALS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MATCHES_REGEX: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_STARTS_WITH: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_ENDS_WITH: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_CONTAINS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_NOT_CONTAINS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_IN: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_NOT_IN: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_EXISTS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_NOT_EXISTS: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_NEAR: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_COUNT: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_SUM: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MIN: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MAX: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_AVERAGE: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MEDIAN: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_HISTOGRAM: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_ASCENDING: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_DESCENDING: _ClassVar[ExpressionType]
 
 class FieldType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -758,15 +758,15 @@ class FontWeight(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FONT_WEIGHT_EXTRA_BOLD: _ClassVar[FontWeight]
     FONT_WEIGHT_BLACK: _ClassVar[FontWeight]
 
-class FunctionalOp(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class FunctionalType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    FUNCTIONAL_OP_UNSPECIFIED: _ClassVar[FunctionalOp]
-    FUNCTIONAL_OP_ADD: _ClassVar[FunctionalOp]
-    FUNCTIONAL_OP_SUBTRACT: _ClassVar[FunctionalOp]
-    FUNCTIONAL_OP_MULTIPLY: _ClassVar[FunctionalOp]
-    FUNCTIONAL_OP_DIVIDE: _ClassVar[FunctionalOp]
-    FUNCTIONAL_OP_MODULO: _ClassVar[FunctionalOp]
-    FUNCTIONAL_OP_POWER: _ClassVar[FunctionalOp]
+    FUNCTIONAL_TYPE_UNSPECIFIED: _ClassVar[FunctionalType]
+    FUNCTIONAL_TYPE_ADD: _ClassVar[FunctionalType]
+    FUNCTIONAL_TYPE_SUBTRACT: _ClassVar[FunctionalType]
+    FUNCTIONAL_TYPE_MULTIPLY: _ClassVar[FunctionalType]
+    FUNCTIONAL_TYPE_DIVIDE: _ClassVar[FunctionalType]
+    FUNCTIONAL_TYPE_MODULO: _ClassVar[FunctionalType]
+    FUNCTIONAL_TYPE_POWER: _ClassVar[FunctionalType]
 
 class IconKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -779,13 +779,13 @@ class IdEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ID_ENUM_UNSPECIFIED: _ClassVar[IdEnum]
 
-class LiteralOp(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class LiteralType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    LITERAL_OP_UNSPECIFIED: _ClassVar[LiteralOp]
-    LITERAL_OP_VALUE: _ClassVar[LiteralOp]
-    LITERAL_OP_NONE: _ClassVar[LiteralOp]
-    LITERAL_OP_TRUE: _ClassVar[LiteralOp]
-    LITERAL_OP_FALSE: _ClassVar[LiteralOp]
+    LITERAL_TYPE_UNSPECIFIED: _ClassVar[LiteralType]
+    LITERAL_TYPE_VALUE: _ClassVar[LiteralType]
+    LITERAL_TYPE_NONE: _ClassVar[LiteralType]
+    LITERAL_TYPE_TRUE: _ClassVar[LiteralType]
+    LITERAL_TYPE_FALSE: _ClassVar[LiteralType]
 
 class LogKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -954,7 +954,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_SECRET_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_TRIGGER_INFO: _ClassVar[ObjectType]
     OBJECT_TYPE_EXPRESSION: _ClassVar[ObjectType]
-    OBJECT_TYPE_AGGREGATION: _ClassVar[ObjectType]
+    OBJECT_TYPE_AGGREGATION_RESULT: _ClassVar[ObjectType]
     OBJECT_TYPE_SELECTION: _ClassVar[ObjectType]
     OBJECT_TYPE_QUERY_INFO: _ClassVar[ObjectType]
     OBJECT_TYPE_SELECT_OPTIONS: _ClassVar[ObjectType]
@@ -1234,11 +1234,11 @@ class SortMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SORT_MODE_SUM: _ClassVar[SortMode]
     SORT_MODE_MEDIAN: _ClassVar[SortMode]
 
-class SortOp(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class SortType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    SORT_OP_UNSPECIFIED: _ClassVar[SortOp]
-    SORT_OP_ASCENDING: _ClassVar[SortOp]
-    SORT_OP_DESCENDING: _ClassVar[SortOp]
+    SORT_TYPE_UNSPECIFIED: _ClassVar[SortType]
+    SORT_TYPE_ASCENDING: _ClassVar[SortType]
+    SORT_TYPE_DESCENDING: _ClassVar[SortType]
 
 class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1329,7 +1329,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_SECRET_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_TRIGGER_INFO: _ClassVar[StructType]
     STRUCT_TYPE_EXPRESSION: _ClassVar[StructType]
-    STRUCT_TYPE_AGGREGATION: _ClassVar[StructType]
+    STRUCT_TYPE_AGGREGATION_RESULT: _ClassVar[StructType]
     STRUCT_TYPE_SELECTION: _ClassVar[StructType]
     STRUCT_TYPE_QUERY_INFO: _ClassVar[StructType]
     STRUCT_TYPE_SELECT_OPTIONS: _ClassVar[StructType]
@@ -1522,6 +1522,9 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_AUDIO: _ClassVar[ViewType]
     VIEW_TYPE_VIDEO: _ClassVar[ViewType]
     VIEW_TYPE_DOCUMENT: _ClassVar[ViewType]
+    VIEW_TYPE_CONDITIONAL: _ClassVar[ViewType]
+    VIEW_TYPE_SORT: _ClassVar[ViewType]
+    VIEW_TYPE_AGGREGATION: _ClassVar[ViewType]
 
 ACCESS_KIND_UNSPECIFIED: AccessKind
 ACCESS_KIND_READ: AccessKind
@@ -1548,15 +1551,15 @@ ACCESS_TYPE_STOP: AccessType
 ACCESS_TYPE_KILL: AccessType
 ACCESS_TYPE_SEND: AccessType
 ACCESS_TYPE_RECEIVE: AccessType
-AGGREGATION_OP_UNSPECIFIED: AggregationOp
-AGGREGATION_OP_EXISTS: AggregationOp
-AGGREGATION_OP_COUNT: AggregationOp
-AGGREGATION_OP_SUM: AggregationOp
-AGGREGATION_OP_MIN: AggregationOp
-AGGREGATION_OP_MAX: AggregationOp
-AGGREGATION_OP_AVERAGE: AggregationOp
-AGGREGATION_OP_MEDIAN: AggregationOp
-AGGREGATION_OP_HISTOGRAM: AggregationOp
+AGGREGATION_TYPE_UNSPECIFIED: AggregationType
+AGGREGATION_TYPE_EXISTS: AggregationType
+AGGREGATION_TYPE_COUNT: AggregationType
+AGGREGATION_TYPE_SUM: AggregationType
+AGGREGATION_TYPE_MIN: AggregationType
+AGGREGATION_TYPE_MAX: AggregationType
+AGGREGATION_TYPE_AVERAGE: AggregationType
+AGGREGATION_TYPE_MEDIAN: AggregationType
+AGGREGATION_TYPE_HISTOGRAM: AggregationType
 ALIGNMENT_UNSPECIFIED: Alignment
 ALIGNMENT_START: Alignment
 ALIGNMENT_MIDDLE: Alignment
@@ -1642,7 +1645,7 @@ BENCH_TYPE_ICON: BenchType
 BENCH_TYPE_SECRET_REFERENCE: BenchType
 BENCH_TYPE_TRIGGER_INFO: BenchType
 BENCH_TYPE_EXPRESSION: BenchType
-BENCH_TYPE_AGGREGATION: BenchType
+BENCH_TYPE_AGGREGATION_RESULT: BenchType
 BENCH_TYPE_SELECTION: BenchType
 BENCH_TYPE_QUERY_INFO: BenchType
 BENCH_TYPE_SELECT_OPTIONS: BenchType
@@ -1681,7 +1684,7 @@ BENCH_TYPE_BENCH_TYPE: BenchType
 BENCH_TYPE_CHANGE_KIND: BenchType
 BENCH_TYPE_ACCESS_MODE: BenchType
 BENCH_TYPE_ACCESS_KIND: BenchType
-BENCH_TYPE_QueryType: BenchType
+BENCH_TYPE_QUEYR_TYPE: BenchType
 BENCH_TYPE_EDIT_TYPE: BenchType
 BENCH_TYPE_USE_TYPE: BenchType
 BENCH_TYPE_ACCESS_TYPE: BenchType
@@ -1711,12 +1714,12 @@ BENCH_TYPE_TEXT_LINE_TYPE: BenchType
 BENCH_TYPE_ICON_KIND: BenchType
 BENCH_TYPE_EXPRESSION_KIND: BenchType
 BENCH_TYPE_EXPRESSION_OP: BenchType
-BENCH_TYPE_LITERAL_OP: BenchType
-BENCH_TYPE_FUNCTIONAL_OP: BenchType
-BENCH_TYPE_CONDITIONAL_OP: BenchType
-BENCH_TYPE_AGGREGATION_OP: BenchType
+BENCH_TYPE_LITERAL_TYPE: BenchType
+BENCH_TYPE_FUNCTIONAL_TYPE: BenchType
+BENCH_TYPE_CONDITIONAL_TYPE: BenchType
+BENCH_TYPE_AGGREGATION_TYPE: BenchType
 BENCH_TYPE_SORT_MODE: BenchType
-BENCH_TYPE_SORT_OP: BenchType
+BENCH_TYPE_SORT_TYPE: BenchType
 BENCH_TYPE_PATH_TOKEN_TYPE: BenchType
 BENCH_TYPE_LOG_KIND: BenchType
 BENCH_TYPE_LOG_LEVEL: BenchType
@@ -1849,26 +1852,26 @@ COLOR_TYPE_PURPLE: ColorType
 COLOR_TYPE_FUCHSIA: ColorType
 COLOR_TYPE_PINK: ColorType
 COLOR_TYPE_ROSE: ColorType
-CONDITIONAL_OP_UNSPECIFIED: ConditionalOp
-CONDITIONAL_OP_NOT: ConditionalOp
-CONDITIONAL_OP_AND: ConditionalOp
-CONDITIONAL_OP_OR: ConditionalOp
-CONDITIONAL_OP_EQUALS: ConditionalOp
-CONDITIONAL_OP_NOT_EQUALS: ConditionalOp
-CONDITIONAL_OP_GREATER_THAN: ConditionalOp
-CONDITIONAL_OP_GREATER_THAN_OR_EQUALS: ConditionalOp
-CONDITIONAL_OP_LESS_THAN: ConditionalOp
-CONDITIONAL_OP_LESS_THAN_OR_EQUALS: ConditionalOp
-CONDITIONAL_OP_MATCHES_REGEX: ConditionalOp
-CONDITIONAL_OP_STARTS_WITH: ConditionalOp
-CONDITIONAL_OP_ENDS_WITH: ConditionalOp
-CONDITIONAL_OP_CONTAINS: ConditionalOp
-CONDITIONAL_OP_NOT_CONTAINS: ConditionalOp
-CONDITIONAL_OP_IN: ConditionalOp
-CONDITIONAL_OP_NOT_IN: ConditionalOp
-CONDITIONAL_OP_EXISTS: ConditionalOp
-CONDITIONAL_OP_NOT_EXISTS: ConditionalOp
-CONDITIONAL_OP_NEAR: ConditionalOp
+CONDITIONAL_TYPE_UNSPECIFIED: ConditionalType
+CONDITIONAL_TYPE_NOT: ConditionalType
+CONDITIONAL_TYPE_AND: ConditionalType
+CONDITIONAL_TYPE_OR: ConditionalType
+CONDITIONAL_TYPE_EQUALS: ConditionalType
+CONDITIONAL_TYPE_NOT_EQUALS: ConditionalType
+CONDITIONAL_TYPE_GREATER_THAN: ConditionalType
+CONDITIONAL_TYPE_GREATER_THAN_OR_EQUALS: ConditionalType
+CONDITIONAL_TYPE_LESS_THAN: ConditionalType
+CONDITIONAL_TYPE_LESS_THAN_OR_EQUALS: ConditionalType
+CONDITIONAL_TYPE_MATCHES_REGEX: ConditionalType
+CONDITIONAL_TYPE_STARTS_WITH: ConditionalType
+CONDITIONAL_TYPE_ENDS_WITH: ConditionalType
+CONDITIONAL_TYPE_CONTAINS: ConditionalType
+CONDITIONAL_TYPE_NOT_CONTAINS: ConditionalType
+CONDITIONAL_TYPE_IN: ConditionalType
+CONDITIONAL_TYPE_NOT_IN: ConditionalType
+CONDITIONAL_TYPE_EXISTS: ConditionalType
+CONDITIONAL_TYPE_NOT_EXISTS: ConditionalType
+CONDITIONAL_TYPE_NEAR: ConditionalType
 DAY_UNSPECIFIED: Day
 DAY_MONDAY: Day
 DAY_TUESDAY: Day
@@ -1897,7 +1900,7 @@ ENUM_TYPE_BENCH_TYPE: EnumType
 ENUM_TYPE_CHANGE_KIND: EnumType
 ENUM_TYPE_ACCESS_MODE: EnumType
 ENUM_TYPE_ACCESS_KIND: EnumType
-ENUM_TYPE_QueryType: EnumType
+ENUM_TYPE_QUEYR_TYPE: EnumType
 ENUM_TYPE_EDIT_TYPE: EnumType
 ENUM_TYPE_USE_TYPE: EnumType
 ENUM_TYPE_ACCESS_TYPE: EnumType
@@ -1927,12 +1930,12 @@ ENUM_TYPE_TEXT_LINE_TYPE: EnumType
 ENUM_TYPE_ICON_KIND: EnumType
 ENUM_TYPE_EXPRESSION_KIND: EnumType
 ENUM_TYPE_EXPRESSION_OP: EnumType
-ENUM_TYPE_LITERAL_OP: EnumType
-ENUM_TYPE_FUNCTIONAL_OP: EnumType
-ENUM_TYPE_CONDITIONAL_OP: EnumType
-ENUM_TYPE_AGGREGATION_OP: EnumType
+ENUM_TYPE_LITERAL_TYPE: EnumType
+ENUM_TYPE_FUNCTIONAL_TYPE: EnumType
+ENUM_TYPE_CONDITIONAL_TYPE: EnumType
+ENUM_TYPE_AGGREGATION_TYPE: EnumType
 ENUM_TYPE_SORT_MODE: EnumType
-ENUM_TYPE_SORT_OP: EnumType
+ENUM_TYPE_SORT_TYPE: EnumType
 ENUM_TYPE_PATH_TOKEN_TYPE: EnumType
 ENUM_TYPE_LOG_KIND: EnumType
 ENUM_TYPE_LOG_LEVEL: EnumType
@@ -1981,45 +1984,45 @@ EXPRESSION_KIND_FUNCTIONAL: ExpressionKind
 EXPRESSION_KIND_CONDITIONAL: ExpressionKind
 EXPRESSION_KIND_SORT: ExpressionKind
 EXPRESSION_KIND_AGGREGATION: ExpressionKind
-EXPRESSION_OP_UNSPECIFIED: ExpressionOp
-EXPRESSION_OP_VALUE: ExpressionOp
-EXPRESSION_OP_NONE: ExpressionOp
-EXPRESSION_OP_TRUE: ExpressionOp
-EXPRESSION_OP_FALSE: ExpressionOp
-EXPRESSION_OP_ADD: ExpressionOp
-EXPRESSION_OP_SUBTRACT: ExpressionOp
-EXPRESSION_OP_MULTIPLY: ExpressionOp
-EXPRESSION_OP_DIVIDE: ExpressionOp
-EXPRESSION_OP_MODULO: ExpressionOp
-EXPRESSION_OP_POWER: ExpressionOp
-EXPRESSION_OP_NOT: ExpressionOp
-EXPRESSION_OP_AND: ExpressionOp
-EXPRESSION_OP_OR: ExpressionOp
-EXPRESSION_OP_EQUALS: ExpressionOp
-EXPRESSION_OP_NOT_EQUALS: ExpressionOp
-EXPRESSION_OP_GREATER_THAN: ExpressionOp
-EXPRESSION_OP_GREATER_THAN_OR_EQUALS: ExpressionOp
-EXPRESSION_OP_LESS_THAN: ExpressionOp
-EXPRESSION_OP_LESS_THAN_OR_EQUALS: ExpressionOp
-EXPRESSION_OP_MATCHES_REGEX: ExpressionOp
-EXPRESSION_OP_STARTS_WITH: ExpressionOp
-EXPRESSION_OP_ENDS_WITH: ExpressionOp
-EXPRESSION_OP_CONTAINS: ExpressionOp
-EXPRESSION_OP_NOT_CONTAINS: ExpressionOp
-EXPRESSION_OP_IN: ExpressionOp
-EXPRESSION_OP_NOT_IN: ExpressionOp
-EXPRESSION_OP_EXISTS: ExpressionOp
-EXPRESSION_OP_NOT_EXISTS: ExpressionOp
-EXPRESSION_OP_NEAR: ExpressionOp
-EXPRESSION_OP_COUNT: ExpressionOp
-EXPRESSION_OP_SUM: ExpressionOp
-EXPRESSION_OP_MIN: ExpressionOp
-EXPRESSION_OP_MAX: ExpressionOp
-EXPRESSION_OP_AVERAGE: ExpressionOp
-EXPRESSION_OP_MEDIAN: ExpressionOp
-EXPRESSION_OP_HISTOGRAM: ExpressionOp
-EXPRESSION_OP_ASCENDING: ExpressionOp
-EXPRESSION_OP_DESCENDING: ExpressionOp
+EXPRESSION_TYPE_UNSPECIFIED: ExpressionType
+EXPRESSION_TYPE_VALUE: ExpressionType
+EXPRESSION_TYPE_NONE: ExpressionType
+EXPRESSION_TYPE_TRUE: ExpressionType
+EXPRESSION_TYPE_FALSE: ExpressionType
+EXPRESSION_TYPE_ADD: ExpressionType
+EXPRESSION_TYPE_SUBTRACT: ExpressionType
+EXPRESSION_TYPE_MULTIPLY: ExpressionType
+EXPRESSION_TYPE_DIVIDE: ExpressionType
+EXPRESSION_TYPE_MODULO: ExpressionType
+EXPRESSION_TYPE_POWER: ExpressionType
+EXPRESSION_TYPE_NOT: ExpressionType
+EXPRESSION_TYPE_AND: ExpressionType
+EXPRESSION_TYPE_OR: ExpressionType
+EXPRESSION_TYPE_EQUALS: ExpressionType
+EXPRESSION_TYPE_NOT_EQUALS: ExpressionType
+EXPRESSION_TYPE_GREATER_THAN: ExpressionType
+EXPRESSION_TYPE_GREATER_THAN_OR_EQUALS: ExpressionType
+EXPRESSION_TYPE_LESS_THAN: ExpressionType
+EXPRESSION_TYPE_LESS_THAN_OR_EQUALS: ExpressionType
+EXPRESSION_TYPE_MATCHES_REGEX: ExpressionType
+EXPRESSION_TYPE_STARTS_WITH: ExpressionType
+EXPRESSION_TYPE_ENDS_WITH: ExpressionType
+EXPRESSION_TYPE_CONTAINS: ExpressionType
+EXPRESSION_TYPE_NOT_CONTAINS: ExpressionType
+EXPRESSION_TYPE_IN: ExpressionType
+EXPRESSION_TYPE_NOT_IN: ExpressionType
+EXPRESSION_TYPE_EXISTS: ExpressionType
+EXPRESSION_TYPE_NOT_EXISTS: ExpressionType
+EXPRESSION_TYPE_NEAR: ExpressionType
+EXPRESSION_TYPE_COUNT: ExpressionType
+EXPRESSION_TYPE_SUM: ExpressionType
+EXPRESSION_TYPE_MIN: ExpressionType
+EXPRESSION_TYPE_MAX: ExpressionType
+EXPRESSION_TYPE_AVERAGE: ExpressionType
+EXPRESSION_TYPE_MEDIAN: ExpressionType
+EXPRESSION_TYPE_HISTOGRAM: ExpressionType
+EXPRESSION_TYPE_ASCENDING: ExpressionType
+EXPRESSION_TYPE_DESCENDING: ExpressionType
 FIELD_TYPE_UNSPECIFIED: FieldType
 FIELD_TYPE_VARIABLE: FieldType
 FIELD_TYPE_MEMBER: FieldType
@@ -2159,23 +2162,23 @@ FONT_WEIGHT_SEMI_BOLD: FontWeight
 FONT_WEIGHT_BOLD: FontWeight
 FONT_WEIGHT_EXTRA_BOLD: FontWeight
 FONT_WEIGHT_BLACK: FontWeight
-FUNCTIONAL_OP_UNSPECIFIED: FunctionalOp
-FUNCTIONAL_OP_ADD: FunctionalOp
-FUNCTIONAL_OP_SUBTRACT: FunctionalOp
-FUNCTIONAL_OP_MULTIPLY: FunctionalOp
-FUNCTIONAL_OP_DIVIDE: FunctionalOp
-FUNCTIONAL_OP_MODULO: FunctionalOp
-FUNCTIONAL_OP_POWER: FunctionalOp
+FUNCTIONAL_TYPE_UNSPECIFIED: FunctionalType
+FUNCTIONAL_TYPE_ADD: FunctionalType
+FUNCTIONAL_TYPE_SUBTRACT: FunctionalType
+FUNCTIONAL_TYPE_MULTIPLY: FunctionalType
+FUNCTIONAL_TYPE_DIVIDE: FunctionalType
+FUNCTIONAL_TYPE_MODULO: FunctionalType
+FUNCTIONAL_TYPE_POWER: FunctionalType
 ICON_KIND_UNSPECIFIED: IconKind
 ICON_KIND_EMOJI: IconKind
 ICON_KIND_FONT_AWESOME: IconKind
 ICON_KIND_VS_CODE: IconKind
 ID_ENUM_UNSPECIFIED: IdEnum
-LITERAL_OP_UNSPECIFIED: LiteralOp
-LITERAL_OP_VALUE: LiteralOp
-LITERAL_OP_NONE: LiteralOp
-LITERAL_OP_TRUE: LiteralOp
-LITERAL_OP_FALSE: LiteralOp
+LITERAL_TYPE_UNSPECIFIED: LiteralType
+LITERAL_TYPE_VALUE: LiteralType
+LITERAL_TYPE_NONE: LiteralType
+LITERAL_TYPE_TRUE: LiteralType
+LITERAL_TYPE_FALSE: LiteralType
 LOG_KIND_UNSPECIFIED: LogKind
 LOG_KIND_CHANGE: LogKind
 LOG_KIND_EDIT: LogKind
@@ -2320,7 +2323,7 @@ OBJECT_TYPE_ICON: ObjectType
 OBJECT_TYPE_SECRET_REFERENCE: ObjectType
 OBJECT_TYPE_TRIGGER_INFO: ObjectType
 OBJECT_TYPE_EXPRESSION: ObjectType
-OBJECT_TYPE_AGGREGATION: ObjectType
+OBJECT_TYPE_AGGREGATION_RESULT: ObjectType
 OBJECT_TYPE_SELECTION: ObjectType
 OBJECT_TYPE_QUERY_INFO: ObjectType
 OBJECT_TYPE_SELECT_OPTIONS: ObjectType
@@ -2518,9 +2521,9 @@ SORT_MODE_MIN: SortMode
 SORT_MODE_AVERAGE: SortMode
 SORT_MODE_SUM: SortMode
 SORT_MODE_MEDIAN: SortMode
-SORT_OP_UNSPECIFIED: SortOp
-SORT_OP_ASCENDING: SortOp
-SORT_OP_DESCENDING: SortOp
+SORT_TYPE_UNSPECIFIED: SortType
+SORT_TYPE_ASCENDING: SortType
+SORT_TYPE_DESCENDING: SortType
 SPACE_TYPE_UNSPECIFIED: SpaceType
 SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
@@ -2599,7 +2602,7 @@ STRUCT_TYPE_ICON: StructType
 STRUCT_TYPE_SECRET_REFERENCE: StructType
 STRUCT_TYPE_TRIGGER_INFO: StructType
 STRUCT_TYPE_EXPRESSION: StructType
-STRUCT_TYPE_AGGREGATION: StructType
+STRUCT_TYPE_AGGREGATION_RESULT: StructType
 STRUCT_TYPE_SELECTION: StructType
 STRUCT_TYPE_QUERY_INFO: StructType
 STRUCT_TYPE_SELECT_OPTIONS: StructType
@@ -2759,6 +2762,9 @@ VIEW_TYPE_IMAGE: ViewType
 VIEW_TYPE_AUDIO: ViewType
 VIEW_TYPE_VIDEO: ViewType
 VIEW_TYPE_DOCUMENT: ViewType
+VIEW_TYPE_CONDITIONAL: ViewType
+VIEW_TYPE_SORT: ViewType
+VIEW_TYPE_AGGREGATION: ViewType
 
 class AccessData(_message.Message):
     __slots__ = ("metatype", "mode", "decision", "verb", "node_type", "allowed_properties_ptr")
@@ -2829,7 +2835,7 @@ class AccessZoneData(_message.Message):
         rules: _Optional[_Iterable[_Union[PolicyRuleData, _Mapping]]] = ...,
     ) -> None: ...
 
-class AggregationData(_message.Message):
+class AggregationResultData(_message.Message):
     __slots__ = ("metatype", "op", "exists", "count", "scalar")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     OP_FIELD_NUMBER: _ClassVar[int]
@@ -2837,14 +2843,14 @@ class AggregationData(_message.Message):
     COUNT_FIELD_NUMBER: _ClassVar[int]
     SCALAR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    op: AggregationOp
+    op: AggregationType
     exists: bool
     count: int
     scalar: float
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        op: _Optional[_Union[AggregationOp, str]] = ...,
+        op: _Optional[_Union[AggregationType, str]] = ...,
         exists: bool = ...,
         count: _Optional[int] = ...,
         scalar: _Optional[float] = ...,
@@ -3190,7 +3196,7 @@ class EditOperationData(_message.Message):
 class ExpressionData(_message.Message):
     __slots__ = (
         "metatype",
-        "op",
+        "type",
         "property_ptr",
         "field_ptr",
         "block_ptr",
@@ -3200,7 +3206,7 @@ class ExpressionData(_message.Message):
         "tolerance",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    OP_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
     FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3209,7 +3215,7 @@ class ExpressionData(_message.Message):
     SORT_MODE_FIELD_NUMBER: _ClassVar[int]
     TOLERANCE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    op: ExpressionOp
+    type: ExpressionType
     property_ptr: PropertyReferenceData
     field_ptr: NodeReferenceData
     block_ptr: NodeReferenceData
@@ -3220,7 +3226,7 @@ class ExpressionData(_message.Message):
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
-        op: _Optional[_Union[ExpressionOp, str]] = ...,
+        type: _Optional[_Union[ExpressionType, str]] = ...,
         property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ...,
         field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,

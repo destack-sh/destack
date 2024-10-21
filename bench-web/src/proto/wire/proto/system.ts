@@ -22,7 +22,7 @@ import { ClientData } from "./lang";
 import { UserData } from "./lang";
 import { ClientType } from "./lang";
 import { SessionContextData } from "./lang";
-import { AggregationData } from "./lang";
+import { AggregationResultData } from "./lang";
 import { ExpressionData } from "./lang";
 import { EditData } from "./lang";
 import { SomeNodeData } from "./lang";
@@ -414,9 +414,9 @@ export interface AggregateNodesResponse {
     /**
      * An updated aggregation result.
      *
-     * @generated from protobuf field: symbolx.bench.AggregationData aggregation = 3;
+     * @generated from protobuf field: symbolx.bench.AggregationResultData aggregation = 3;
      */
-    aggregation?: AggregationData;
+    aggregation?: AggregationResultData;
     /**
      * Current epoch.
      *
@@ -450,9 +450,9 @@ export interface WatchAggregateRequest {
  */
 export interface WatchAggregateResponse {
     /**
-     * @generated from protobuf field: symbolx.bench.AggregationData aggregation = 1;
+     * @generated from protobuf field: symbolx.bench.AggregationResultData aggregation = 1;
      */
-    aggregation?: AggregationData;
+    aggregation?: AggregationResultData;
     /**
      * @generated from protobuf field: uint64 epoch = 10;
      */
@@ -1726,7 +1726,7 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
         super("symbolx.bench.AggregateNodesResponse", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "aggregation", kind: "message", T: () => AggregationData },
+            { no: 3, name: "aggregation", kind: "message", T: () => AggregationResultData },
             { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
@@ -1749,8 +1749,8 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
                     break;
-                case /* symbolx.bench.AggregationData aggregation */ 3:
-                    message.aggregation = AggregationData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                case /* symbolx.bench.AggregationResultData aggregation */ 3:
+                    message.aggregation = AggregationResultData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
                 case /* uint64 epoch */ 10:
                     message.epoch = reader.uint64().toBigInt();
@@ -1773,9 +1773,9 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
-        /* symbolx.bench.AggregationData aggregation = 3; */
+        /* symbolx.bench.AggregationResultData aggregation = 3; */
         if (message.aggregation)
-            AggregationData.internalBinaryWrite(message.aggregation, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+            AggregationResultData.internalBinaryWrite(message.aggregation, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* uint64 epoch = 10; */
         if (message.epoch !== 0n)
             writer.tag(10, WireType.Varint).uint64(message.epoch);
@@ -1855,7 +1855,7 @@ export const WatchAggregateRequest = new WatchAggregateRequest$Type();
 class WatchAggregateResponse$Type extends MessageType<WatchAggregateResponse> {
     constructor() {
         super("symbolx.bench.WatchAggregateResponse", [
-            { no: 1, name: "aggregation", kind: "message", T: () => AggregationData },
+            { no: 1, name: "aggregation", kind: "message", T: () => AggregationResultData },
             { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
@@ -1871,8 +1871,8 @@ class WatchAggregateResponse$Type extends MessageType<WatchAggregateResponse> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.AggregationData aggregation */ 1:
-                    message.aggregation = AggregationData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                case /* symbolx.bench.AggregationResultData aggregation */ 1:
+                    message.aggregation = AggregationResultData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
                 case /* uint64 epoch */ 10:
                     message.epoch = reader.uint64().toBigInt();
@@ -1889,9 +1889,9 @@ class WatchAggregateResponse$Type extends MessageType<WatchAggregateResponse> {
         return message;
     }
     internalBinaryWrite(message: WatchAggregateResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.AggregationData aggregation = 1; */
+        /* symbolx.bench.AggregationResultData aggregation = 1; */
         if (message.aggregation)
-            AggregationData.internalBinaryWrite(message.aggregation, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            AggregationResultData.internalBinaryWrite(message.aggregation, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* uint64 epoch = 10; */
         if (message.epoch !== 0n)
             writer.tag(10, WireType.Varint).uint64(message.epoch);

@@ -21,9 +21,9 @@ from opentelemetry import trace
 from bench.language.connection import AggregateOptions, SearchConnection
 from bench.language.const import (
     NODE_TYPES,
-    AggregationOp,
+    AggregationType,
     BenchError,
-    ConditionalOp,
+    ConditionalType,
     ExpressionKind,
     FieldType,
     NodeType,
@@ -58,14 +58,14 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 # default read options
-FILTER_NOT_DELETED: Expression = C(ConditionalOp.AND, clauses=[])
+FILTER_NOT_DELETED: Expression = C(ConditionalType.AND, clauses=[])
 SELECT_DEFAULT_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 
 
 @_on_completing_setup
 def _populate_default_query():
-    FILTER_NOT_DELETED.clauses = [C(ConditionalOp.NOT_EXISTS, property=Node.deleted_at)]
+    FILTER_NOT_DELETED.clauses = [C(ConditionalType.NOT_EXISTS, property=Node.deleted_at)]
     for node_t in NODE_CLASSES:
         SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
             prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
@@ -594,7 +594,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
-        query = query.aggregate(A(AggregationOp.COUNT))
+        query = query.aggregate(A(AggregationType.COUNT))
         query._type = QueryType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
 
@@ -615,7 +615,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
-        query = query.aggregate(A(AggregationOp.EXISTS))
+        query = query.aggregate(A(AggregationType.EXISTS))
         query._type = QueryType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
 

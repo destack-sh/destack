@@ -22,13 +22,13 @@ from bench.language.connection import (
     SearchResultData,
     WritableChannel,
 )
-from bench.language.const import AggregationOp, NodeType, QueryType
+from bench.language.const import AggregationType, NodeType, QueryType
 from bench.language.graph import NodeDataGraph
 from bench.language.node import Node, NodeReference
 from bench.language.query import QueryBuilder
 from bench.language.session import Session
 from bench.proto.wire import (
-    AggregationData,
+    AggregationResultData,
     EditData,
     GraphScopeData,
 )
@@ -207,19 +207,19 @@ class PostgresAggregateConnection(AggregateConnection):
     @_pg_method
     async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
         assert query._aggregation is not None
-        if query._aggregation.op == AggregationOp.EXISTS:
+        if query._aggregation.type == AggregationType.EXISTS:
             exists = await pg_graph_exists(
                 cur=self.channel.cur, ctx=self.channel.engine.context, query=query
             )
             return AggregateResultData(
-                aggregation=AggregationData(exists=exists), epoch=None, connection_token=None
+                aggregation=AggregationResultData(exists=exists), epoch=None, connection_token=None
             )
-        elif query._aggregation.op == AggregationOp.COUNT:
+        elif query._aggregation.type == AggregationType.COUNT:
             count = await pg_graph_count(
                 cur=self.channel.cur, ctx=self.channel.engine.context, query=query
             )
             return AggregateResultData(
-                aggregation=AggregationData(count=count), epoch=None, connection_token=None
+                aggregation=AggregationResultData(count=count), epoch=None, connection_token=None
             )
         else:
             raise ChannelIncapableError(

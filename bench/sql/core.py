@@ -9,7 +9,7 @@ from uuid import UUID
 from more_itertools import first
 from psycopg.types.json import Jsonb
 
-from bench.language.const import ConditionalOp, PrimitiveType, SortOp
+from bench.language.const import ConditionalType, PrimitiveType, SortType
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
@@ -706,31 +706,31 @@ class PostgresSortOp(enum.StrEnum):
     DESC = "DESC"
 
 
-PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalOp, PostgresConditionalOp] = {
+PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalType, PostgresConditionalOp] = {
     # logical
-    ConditionalOp.AND: PostgresConditionalOp.AND,
-    ConditionalOp.OR: PostgresConditionalOp.OR,
-    ConditionalOp.NOT: PostgresConditionalOp.NOT,
+    ConditionalType.AND: PostgresConditionalOp.AND,
+    ConditionalType.OR: PostgresConditionalOp.OR,
+    ConditionalType.NOT: PostgresConditionalOp.NOT,
     # standard
-    ConditionalOp.EXISTS: PostgresConditionalOp.IS_NOT_NULL,
-    ConditionalOp.NOT_EXISTS: PostgresConditionalOp.IS_NULL,
-    ConditionalOp.EQUALS: PostgresConditionalOp.EQ,
-    ConditionalOp.NOT_EQUALS: PostgresConditionalOp.NEQ,
-    ConditionalOp.LESS_THAN: PostgresConditionalOp.LT,
-    ConditionalOp.LESS_THAN_OR_EQUALS: PostgresConditionalOp.LTE,
-    ConditionalOp.GREATER_THAN: PostgresConditionalOp.GT,
-    ConditionalOp.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
+    ConditionalType.EXISTS: PostgresConditionalOp.IS_NOT_NULL,
+    ConditionalType.NOT_EXISTS: PostgresConditionalOp.IS_NULL,
+    ConditionalType.EQUALS: PostgresConditionalOp.EQ,
+    ConditionalType.NOT_EQUALS: PostgresConditionalOp.NEQ,
+    ConditionalType.LESS_THAN: PostgresConditionalOp.LT,
+    ConditionalType.LESS_THAN_OR_EQUALS: PostgresConditionalOp.LTE,
+    ConditionalType.GREATER_THAN: PostgresConditionalOp.GT,
+    ConditionalType.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
     # string
-    ConditionalOp.MATCHES_REGEX: PostgresConditionalOp.REGEXP,
-    ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
+    ConditionalType.MATCHES_REGEX: PostgresConditionalOp.REGEXP,
+    ConditionalType.STARTS_WITH: PostgresConditionalOp.LIKE,
     # containment
-    ConditionalOp.CONTAINS: PostgresConditionalOp.CONTAINS,
-    ConditionalOp.IN: PostgresConditionalOp.IN,
-    ConditionalOp.NOT_IN: PostgresConditionalOp.NOT_IN,
+    ConditionalType.CONTAINS: PostgresConditionalOp.CONTAINS,
+    ConditionalType.IN: PostgresConditionalOp.IN,
+    ConditionalType.NOT_IN: PostgresConditionalOp.NOT_IN,
 }
-POSTGRES_SORT_OP_BY_BENCH: dict[SortOp, PostgresSortOp] = {
-    SortOp.ASCENDING: PostgresSortOp.ASC,
-    SortOp.DESCENDING: PostgresSortOp.DESC,
+POSTGRES_SORT_OP_BY_BENCH: dict[SortType, PostgresSortOp] = {
+    SortType.ASCENDING: PostgresSortOp.ASC,
+    SortType.DESCENDING: PostgresSortOp.DESC,
 }
 
 

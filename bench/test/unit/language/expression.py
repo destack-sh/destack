@@ -1,6 +1,6 @@
 from bench.language.bench import Package
 from bench.language.block import Block
-from bench.language.const import SortOp
+from bench.language.const import SortType
 from bench.language.expression import Expression, S, apply_sort, evaluate_conditional
 from bench.language.field import Field
 from bench.language.run import Run
@@ -50,22 +50,28 @@ def test_apply_sort_stringy(session: Session):
 
     # 1 sort, asc
     assert apply_sort(
-        (S(SortOp.ASCENDING, property=Field.order_key),),
+        (S(SortType.ASCENDING, property=Field.order_key),),
         [field_0, field_1, field_2, field_3, field_4],
     ) == [field_0, field_1, field_2, field_3, field_4]
     # 1 sort, desc
     # (field_2/field_3 share 'a2' so they'll remain in the given order)
     assert apply_sort(
-        (S(SortOp.DESCENDING, property=Field.order_key),),
+        (S(SortType.DESCENDING, property=Field.order_key),),
         [field_0, field_1, field_2, field_3, field_4],
     ) == [field_4, field_2, field_3, field_1, field_0]
 
     # 2 sorts
     assert apply_sort(
-        (S(SortOp.ASCENDING, property=Field.order_key), S(SortOp.ASCENDING, property=Field.name)),
+        (
+            S(SortType.ASCENDING, property=Field.order_key),
+            S(SortType.ASCENDING, property=Field.name),
+        ),
         [field_0, field_1, field_2, field_3, field_4],
     ) == [field_0, field_1, field_2, field_3, field_4]
     assert apply_sort(
-        (S(SortOp.ASCENDING, property=Field.order_key), S(SortOp.DESCENDING, property=Field.name)),
+        (
+            S(SortType.ASCENDING, property=Field.order_key),
+            S(SortType.DESCENDING, property=Field.name),
+        ),
         [field_0, field_1, field_2, field_3, field_4],
     ) == [field_0, field_1, field_3, field_2, field_4]

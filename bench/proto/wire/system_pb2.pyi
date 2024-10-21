@@ -289,13 +289,13 @@ class AggregateNodesResponse(_message.Message):
     EPOCH_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.GraphScopeData
     connection_token: str
-    aggregation: _lang_pb2.AggregationData
+    aggregation: _lang_pb2.AggregationResultData
     epoch: int
     def __init__(
         self,
         scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ...,
         connection_token: _Optional[str] = ...,
-        aggregation: _Optional[_Union[_lang_pb2.AggregationData, _Mapping]] = ...,
+        aggregation: _Optional[_Union[_lang_pb2.AggregationResultData, _Mapping]] = ...,
         epoch: _Optional[int] = ...,
     ) -> None: ...
 
@@ -318,11 +318,11 @@ class WatchAggregateResponse(_message.Message):
     __slots__ = ("aggregation", "epoch")
     AGGREGATION_FIELD_NUMBER: _ClassVar[int]
     EPOCH_FIELD_NUMBER: _ClassVar[int]
-    aggregation: _lang_pb2.AggregationData
+    aggregation: _lang_pb2.AggregationResultData
     epoch: int
     def __init__(
         self,
-        aggregation: _Optional[_Union[_lang_pb2.AggregationData, _Mapping]] = ...,
+        aggregation: _Optional[_Union[_lang_pb2.AggregationResultData, _Mapping]] = ...,
         epoch: _Optional[int] = ...,
     ) -> None: ...
 

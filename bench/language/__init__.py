@@ -52,7 +52,7 @@ from .const import (
     BlockType,
     ClientType,
     Cloud,
-    ConditionalOp,
+    ConditionalType,
     NodeType,
     ObjectType,
     PolicyEffect,
@@ -60,12 +60,12 @@ from .const import (
     Region,
     ScheduleType,
     SortMode,
-    SortOp,
+    SortType,
     StructType,
     TriggerType,
 )
 from .database import Record
-from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
+from .expression import A, AggregationResult, C, ComputedValue, Expression, S, coerce_conditional
 from .field import (
     Field,
     FieldType,
@@ -176,7 +176,7 @@ __all__ = [
     "AggregateOptions",
     "AggregateResult",
     "AggregateResultData",
-    "Aggregation",
+    "AggregationResult",
     "Alignment",
     "Anchor",
     "AnonymousResourceNode",
@@ -209,7 +209,7 @@ __all__ = [
     "ColorType",
     "ColorType",
     "ComputedValue",
-    "ConditionalOp",
+    "ConditionalType",
     "Connection",
     "CustomObject",
     "Dependency",
@@ -313,7 +313,7 @@ __all__ = [
     "SomeNodeReference",
     "SomeNodeReferenceData",
     "SortMode",
-    "SortOp",
+    "SortType",
     "SourceNode",
     "Space",
     "Spacing",
