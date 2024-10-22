@@ -114,10 +114,10 @@ class SelectOptions(Struct):
     )
 
     if TYPE_CHECKING:
-        include_properties_ptr: tuple["PropertyReference", ...] = ()
-        exclude_properties_ptr: tuple["PropertyReference", ...] = ()
-        select_properties_ptr: tuple["PropertyReference", ...] = ()
-        select_fields_ptr: tuple["NodeReference", ...] = ()
+        include_properties_ptr: list["PropertyReference"] = []
+        exclude_properties_ptr: list["PropertyReference"] = []
+        select_properties_ptr: list["PropertyReference"] = []
+        select_fields_ptr: list["NodeReference"] = []
 
     def __content_str__(self) -> str:
         content_parts = []
@@ -442,9 +442,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         for key in keys:
             if isinstance(key, Property):
                 clone._select.select_all_properties = False
-                clone._select.select_properties.append(key)
+                clone._select.select_properties_ptr.append(key.to_ref())
             else:
-                clone._select.select_fields.append(key)
+                clone._select.select_fields_ptr.append(key.to_plain_ref())
         return clone
 
     def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":

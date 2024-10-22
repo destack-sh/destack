@@ -707,6 +707,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         page.value = { size: rep.rootsPtr.length, total: rep.total };
         // apply edits
         editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
+        console.log("connection.update", this.meta.name, this.meta.id, [...rep.edits, ...rep.cascadedEdits]);
         this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);

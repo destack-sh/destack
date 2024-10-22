@@ -329,12 +329,18 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 for (base_ck, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
                     block = self.resolve_request_block(base_ck) if base_ck else None
+                    select = (
+                        SelectOptions(select_fields=list(block.fields))
+                        if block is not None
+                        else None
+                    )
                     query = QueryBuilder(
                         type=QueryType.GET,
                         node_type=node_type,
                         block=block,
                         roots=node_references,
                         include_deleted=include_deleted,
+                        select=select,
                     )
                     adapted_query = adapt_read_query(subject, query)
                     channel = await session._get_channel_for(
