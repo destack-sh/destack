@@ -526,22 +526,22 @@ def generate_node_name(
     return f"{base_name}{max_id + 1}"
 
 
-def patch_graph(existing: NodeGraph, patch: NodeGraph) -> None:
-    """Patches the graph (and the shared nodes in it) in place with the new graph."""
-    for existing_node in list(existing.nodes):
-        if existing_node.id not in patch:
+def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
+    """Patches the existing graph in place from the new graph."""
+    for existing_node in list(old_graph.nodes):
+        if existing_node.id not in new_graph:
             # node removed: leave as is, remove from existing graph
-            existing.remove(existing_node)
+            old_graph.remove(existing_node)
             continue
         else:
             # node updated: patch in place
-            patch_node = patch[existing_node.id]
+            patch_node = new_graph[existing_node.id]
             for prop in existing_node.__wired_properties__.values():
                 if prop.is_computed:
                     continue  # ignore computed properties
                 prop_value = getattr(existing_node, prop.name)
                 existing_node._do_set(prop.name, prop_value, track=False, validate=False)
-    for patch_node in list(patch.nodes):
-        if patch_node.id not in existing:
+    for patch_node in list(new_graph.nodes):
+        if patch_node.id not in old_graph:
             # node added: add to existing graph
-            existing.add(patch_node)
+            old_graph.add(patch_node)
