@@ -93,7 +93,6 @@ const BENCH_MENU_ITEMS = computed(() => {
     menuItemFromAction("space.launch.explorer"),
     menuItemFromAction("space.launch.outline"),
     menuItemFromAction("space.launch.inspect"),
-    menuItemFromAction("space.launch.logs"),
     menuItemFromAction("space.launch.create"),
     menuItemFromAction("space.launch.docs"),
     menuItemFromAction("space.launch.discord"),
