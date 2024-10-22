@@ -61,15 +61,6 @@ const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
 const runnable = computed(() => block.value != null && isRunnable(block.value, pkgGraph, fields.value));
-const isGeneratedName = computed(
-  () => block.value != null && isGeneratedNodeName(block.value.metatype, block.value.name),
-);
-const isQuasiAnonymous = computed(
-  () =>
-    (block.value?.type == BlockType.TEXT && !hasFunctionFields.value) ||
-    (isGeneratedName.value &&
-      ((block.value?.type == BlockType.CODE && !hasFunctionFields.value) || block.value?.type == BlockType.VALUE)),
-);
 const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
   () =>
@@ -166,8 +157,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             })
           "
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-          :class="isQuasiAnonymous ? 'text-gray-400' : 'text-gray-700'"
+          class="w-5 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         />
         <NativeInput
           ref="nameRef"

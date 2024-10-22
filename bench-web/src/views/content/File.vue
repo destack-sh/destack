@@ -93,6 +93,30 @@ const facetName = computed(() => {
 // Interaction
 //
 
+const HOVER_MENU: HoverMenuOptions = {
+  reference: 'trigger',
+  isEnabled: () =>
+    optimisticValue.value != null &&
+    [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.value.type),
+  popover: (context: PopoverContext) => ({
+    component: ViewType.FILE,
+    props: {
+      ...(props as ViewProps),
+      title: undefined,
+      size: {
+        metatype: ObjectType.BOX,
+        width: Math.max(
+          FILE_POPOVER_WIDTH_MIN,
+          Math.min(FILE_POPOVER_WIDTH_MAX, getElement(context.triggerElement)!.getBoundingClientRect().width),
+        ),
+      },
+      isInline: true,
+      isInput: false,
+      modelValue: optimisticValue.value,
+    },
+  }),
+};
+
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 const upload: Ref<FileUpload | null> = ref(null);
@@ -175,30 +199,7 @@ defineExpose<ViewExposed>({
     <button
       v-if="!isInline"
       ref="containerRef"
-      v-hovermenu="
-        {
-          isEnabled: () =>
-            optimisticValue != null &&
-            [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.type),
-          popover: (context: PopoverContext) => ({
-            component: ViewType.FILE,
-            props: {
-              ...(props as ViewProps),
-              title: undefined,
-              size: {
-                metatype: ObjectType.BOX,
-                width: Math.max(
-                  FILE_POPOVER_WIDTH_MIN,
-                  Math.min(FILE_POPOVER_WIDTH_MAX, getElement(context.triggerElement)!.getBoundingClientRect().width),
-                ),
-              },
-              isInline: true,
-              isInput: false,
-              modelValue: optimisticValue,
-            },
-          }),
-        } as HoverMenuOptions
-      "
+      v-hovermenu="HOVER_MENU"
       class="group flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
