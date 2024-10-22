@@ -24,11 +24,10 @@ import {
   RecordData,
   RecordProperty,
   SelectionData,
-  SortType,
   Timestamp,
   Variant,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import {
   describeNode,
@@ -60,7 +59,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
-import { MaybeElement, onClickOutside, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
+import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -68,10 +67,6 @@ const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
 const ROW_ACTIONS_WIDTH = 32;
 const ROW_PADDING_X = 8; // per side, so ROW_PADDING*2 per side
-const POPOVER_HEIGHT_MIN = 32;
-const POPOVER_HEIGHT_MAX = 400;
-const POPOVER_WIDTH_MIN = 32;
-const POPOVER_WIDTH_MAX = 400;
 const FULL_PADDING = 12;
 
 const props = defineProps<

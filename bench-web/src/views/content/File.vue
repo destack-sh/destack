@@ -35,6 +35,8 @@ import { computed, ref, toRef, type Ref } from "vue";
 const FILE_POPOVER_WIDTH_MIN = 400;
 const FILE_POPOVER_WIDTH_MAX = 800;
 
+const INLINE_FILE_TYPES = [FileType.IMAGE];
+
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -146,7 +148,7 @@ defineExpose<ViewExposed>({
   id,
   interact: () => {
     if (props.modelValue != null) {
-      openFile();
+      return false; // used to openFile here, but that's a bit annoying
     } else {
       fileInputRef.value?.click();
     }
@@ -306,7 +308,20 @@ defineExpose<ViewExposed>({
       <div
         v-else-if="optimisticValue != null"
         class="flex h-full w-full items-center justify-center text-center"
-        :class="[loadFailed ? 'text-danger-600' : '']"
+        :class="[
+          loadFailed ? 'text-danger-600' : '',
+          (upload != null && upload.isActive.value) ||
+          (download != null && download.isActive.value && variant != Variant.STEALTH)
+            ? 'animate-pulse'
+            : '',
+        ]"
+        :style="{
+          maxWidth: size?.width != null ? `${size.width}px` : undefined,
+          maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
+          aspectRatio: INLINE_FILE_TYPES.includes(optimisticValue.type)
+            ? ((download?.file.value ?? modelValue)?.aspectRatio ?? undefined)
+            : undefined,
+        }"
       >
         <span>
           <IconInline
@@ -324,14 +339,6 @@ defineExpose<ViewExposed>({
           <span v-if="optimisticValue.size != null" class="ml-1.5 text-xs text-gray-400">
             {{ humanizeBytes(Number(optimisticValue?.size)) }}
           </span>
-          <!-- Transferring -->
-          <i
-            v-if="
-              (upload != null && upload.isActive.value) ||
-              (download != null && download.isActive.value && variant != Variant.STEALTH)
-            "
-            class="fas fa-spinner-third ml-2 animate-spin text-gray-400"
-          />
         </span>
       </div>
       <!-- Not ready -->
