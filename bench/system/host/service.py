@@ -30,7 +30,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C
 from bench.language.file import File, FileInfoBase, FileKind
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph, patch_graph
 from bench.language.log import Log
 from bench.language.node import GraphScope
 from bench.language.property import Property
@@ -51,6 +51,7 @@ from bench.proto.wire import (
 )
 from bench.proto.wire.common_pb2 import RpcMetadata
 from bench.proto.wiring import (
+    unpack_node_graph,
     unpack_object_validate,
 )
 from bench.system.graph.graph import (
@@ -443,13 +444,14 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
         return scope
 
-    def _apply_commit(
+    def _update_loaded_graphs(
         self,
         *,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
         scope: Literal["unpacked", "data", "both"],
     ) -> None:
+        """Applies the given edits to our unpacked or data (or both) graphs."""
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
@@ -486,6 +488,23 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             if scope == "both" or scope == "data":
                 edit_data_graph(root_node._data_graph, subedits, include_deleted=False)
 
+    def _reset_loaded_graphs(self):
+        """
+        Resets the in-memory graphs to match the data graphs. Patches in-place.
+        """
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        assert self._main_package is not None, f"package not loaded in {self!r}"
+
+        new_bench_graph = unpack_node_graph(
+            self._bench._data_graph, self._supergraph, session=self._session
+        )
+        patch_graph(old_graph=self._bench._graph, new_graph=new_bench_graph)
+
+        new_package_graph = unpack_node_graph(
+            self._main_package._data_graph, self._supergraph, session=self._session
+        )
+        patch_graph(old_graph=self._main_package._graph, new_graph=new_package_graph)
+
     @override
     @tracer.start_as_current_span("host.on_commit_prepare")
     async def on_commit_prepare(
@@ -500,7 +519,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         new_edits: list[EditData] = []
 
         # optimistically apply commit (to in-memory unpacked only)
-        self._apply_commit(edits=edits, cascaded_edits=cascaded_edits, scope="unpacked")
+        self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="unpacked")
 
         # run plugins
         commit = unpack_commit(
@@ -536,8 +555,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # apply edits to loaded data graphs (see above for optimistic counterpart)
-        self._apply_commit(edits=edits, cascaded_edits=cascaded_edits, scope="data")
-        self._apply_commit(edits=new_edits, cascaded_edits=(), scope="both")
+        self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="data")
+        self._update_loaded_graphs(edits=new_edits, cascaded_edits=(), scope="both")
 
         # run plugins on commit (in main session)
         async with self._session.active():
@@ -579,7 +598,11 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     @override
     async def on_commit_failed(self, session: Session, exc: Exception):
-        # nocheckin: restore
+        # restore in memory unpacked graphs from data graphs
+        #  (we apply edits optimistically above in on_commit_prepare)
+        self._reset_loaded_graphs()
+
+        # run plugins
         for plugin in self._plugins:
             await plugin.on_commit_failed(session, exc)
 

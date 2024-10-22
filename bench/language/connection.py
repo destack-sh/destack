@@ -639,7 +639,7 @@ class GetConnection[ChannelT: Channel, T: Node](
 
     @override
     def _patch_result(self, old_result: GetResult, new_result: GetResult) -> GetResult:
-        _ = patch_graph(existing=old_result.graph, patch=new_result.graph)
+        _ = patch_graph(old_graph=old_result.graph, new_graph=new_result.graph)
         old_result.roots = [old_result.graph.get(root.id) for root in new_result.roots]
         return old_result
 
@@ -688,7 +688,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
 
     @override
     def _patch_result(self, old_result: SearchResult, new_result: SearchResult) -> SearchResult:
-        _ = patch_graph(existing=old_result.graph, patch=new_result.graph)
+        patch_graph(old_graph=old_result.graph, new_graph=new_result.graph)
         old_result.roots = [old_result.graph.get(root.id) for root in new_result.roots]
         old_result.total = new_result.total
         return old_result

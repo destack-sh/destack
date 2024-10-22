@@ -119,7 +119,7 @@ export class Runtime {
 
     this.focusedRunTree = new RunTree(graph, runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>);
     const { roots: activeRuns } = useSearchConnection(
-      { name: "runtime.activeRuns", live: true },
+      { name: "runtime.runs.active", live: true },
       computed(() => ({
         scope: graph.scope,
         nodeType: NodeType.RUN,
