@@ -9,7 +9,7 @@ from bench.language.node import (
     SourceNode,
     Struct,
     local_node_,
-    object_,
+    node_subtype_,
     struct_,
 )
 from bench.language.property import (
@@ -639,17 +639,6 @@ def reverse_icon(icon: Icon) -> IconIn:
 
 icon = to_icon
 
-#
-# Custom view state :NodeInheritance
-#
-
-
-@object_()
-class ViewState(Struct):  # :NodeInheritance
-    """Builtin special Value as the state of some specific view type (in View.value)."""
-
-    pass
-
 
 @enum_(EnumType.TREE_VIEW_PRESET)
 class TreeViewPreset(IdEnum):
@@ -657,10 +646,8 @@ class TreeViewPreset(IdEnum):
     OUTLINE = 2
 
 
-@struct_(StructType.TREE_VIEW_STATE)
-class TreeViewState(ViewState):
-    """The state of a Tree view."""
-
+@node_subtype_(ViewType.TREE)
+class TreeView(View):
     node_types: list[NodeType] = p_regular(35, array=True)
     filter_is_page: Optional[bool] = p_regular(36, default=None, require=False)
     is_default_expanded: Optional[bool] = p_regular(37, default=None, require=False)
@@ -668,21 +655,14 @@ class TreeViewState(ViewState):
     preset: Optional[TreeViewPreset] = p_regular(99, default=None, require=False)
 
 
-@struct_(StructType.START_VIEW_STATE)
-class StartViewState(ViewState):
-    """The state of a Start view."""
-
+@node_subtype_(ViewType.START)
+class StartView(View):
     inputs_packed: Any = p_value_packed(30)
     run: "Run | None" = p_regular(40, default=None, require=False, references=NodeType.RUN)
-    feed: "FeedViewState | None" = p_regular(
-        50, default=None, require=False, struct=StructType.FEED_VIEW_STATE
-    )
 
 
-@struct_(StructType.FEED_VIEW_STATE)
-class FeedViewState(ViewState):
-    """The state of a Feed view."""
-
+@node_subtype_(ViewType.FEED)
+class FeedView(View):
     node_type: NodeType | None = p_regular(30, require=False)
     filter: "Expression | None" = p_regular(
         31, default=None, require=False, struct=StructType.EXPRESSION
@@ -698,8 +678,6 @@ class UserWizardViewStage(IdEnum):
     LOG_IN = 2
 
 
-@struct_(StructType.USER_WIZARD_VIEW_STATE)
-class UserWizardViewState(ViewState):
-    """The state of a User view."""
-
+@node_subtype_(ViewType.USER_WIZARD)
+class UserWizardView(View):
     stage: UserWizardViewStage | None = p_regular(30)

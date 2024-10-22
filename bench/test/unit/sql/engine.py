@@ -16,6 +16,7 @@ from bench.language import (
     Server,
     Store,
 )
+from bench.language.block import ViewBlock
 from bench.language.const import ClientType, EnumType, NodeType, Region, UserStatus
 from bench.language.field import TypeKind
 from bench.language.query import NodeNotFoundError
@@ -292,7 +293,7 @@ async def test_crud_node_pointers(omni_session: Session):
         bench._untrack_rec()
 
         session.track(bench)
-        block1 = package.blocks.create(type=BlockType.CODE)
+        block1 = cast(ViewBlock, package.blocks.create(type=BlockType.VIEW))
         block1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
         view11 = block1.views.create(type=ViewType.COLOR, name="View1")
         view11.node = block1

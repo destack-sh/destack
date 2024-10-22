@@ -112,6 +112,7 @@ class EnumType(IdEnum):
     MONTH = 20103
     TEXT_LINE_TYPE = 20110
     ICON_KIND = 20111
+    MESSAGE_TYPE = 20120
 
     # expression
     EXPRESSION_KIND = 20200
@@ -438,10 +439,6 @@ class StructType(IdEnum):
     VECTOR4 = 11022
     LINE = 11035
     ...
-    START_VIEW_STATE = 11200
-    FEED_VIEW_STATE = 11201
-    USER_WIZARD_VIEW_STATE = 11205
-    TREE_VIEW_STATE = 11207
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)

@@ -4,7 +4,7 @@ import structlog
 
 from bench.language.const import BlockType, NodeType
 from bench.language.field import TypeInfoBase
-from bench.language.node import HasNodeBase, RuntimeNode, Struct, object_, timed_node_
+from bench.language.node import HasNodeBase, RuntimeNode, timed_node_
 from bench.language.property import p_internal, p_node_parent, p_value_packed, p_value_runtime
 from bench.language.session import HasSessionContext
 from bench.language.validation import constraint
@@ -56,15 +56,3 @@ class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return (cast(SignalData, data)).block_ptr
-
-
-#
-# Custom signal state :NodeInheritance
-#
-
-
-@object_()
-class SignalState(Struct):  # :NodeInheritance
-    """Builtin special Value as the state of some specific signal type (in Signal.value)."""
-
-    pass

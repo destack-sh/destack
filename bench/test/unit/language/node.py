@@ -1,11 +1,12 @@
 from itertools import chain
+from typing import cast
 
 import pytest
 from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, Package
-from bench.language.block import Block
+from bench.language.block import Block, ViewBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
@@ -108,7 +109,7 @@ def test_node_pointers_consistency(session: "Session"):
     branch_a = bench_a.branches.create(name="main a")
     package_a = branch_a.packages.create()
     assert package_a.bench_id == bench_a.id
-    block_a_1 = package_a.blocks.create(type=BlockType.CODE)
+    block_a_1 = cast(ViewBlock, package_a.blocks.create(type=BlockType.VIEW))
     assert block_a_1.bench_id == bench_a.id
     assert block_a_1.to_ref().equals(
         NodeReference(

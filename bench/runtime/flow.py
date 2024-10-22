@@ -8,7 +8,7 @@ import structlog
 from opentelemetry import trace
 from sortedcontainers import SortedDict
 
-from bench.language.block import Block
+from bench.language.block import Block, FlowBlock
 from bench.language.const import RunStatus
 from bench.language.field import Field, TypeInfoBase
 from bench.language.flow import (
@@ -233,7 +233,7 @@ class FlowTick:
 
 
 @dataclass(slots=True, repr=False)
-class FlowRunner(Runner[RunnerCache, Block]):
+class FlowRunner(Runner[RunnerCache, FlowBlock]):
     """Runs an entire Flow."""
 
     _step_states: dict[Step, "StepState"] = dataclasses.field(default_factory=dict)

@@ -10,11 +10,10 @@ import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language.block import Block
+from bench.language.block import Block, FlowBlock, ViewBlock
 from bench.language.code import Code, format_code
 from bench.language.const import (
     NODE_TYPES_SET,
-    BlockType,
     EnumType,
     FieldType,
     NodeType,
@@ -462,9 +461,9 @@ def render(*objs: BuiltinObject | CustomObject, options: RenderOptions) -> str:
                 if not isinstance(obj, Block):
                     continue  # only blocks can be a page
                 child_nodes.extend(obj.blocks)
-                if obj.type == BlockType.VIEW:
+                if isinstance(obj, ViewBlock):
                     child_nodes.extend(obj.views)
-                if obj.type == BlockType.FLOW:
+                elif isinstance(obj, FlowBlock):
                     child_nodes.extend(obj.steps)
         else:
             child_nodes = []

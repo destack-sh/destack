@@ -1,9 +1,10 @@
-from typing import List, Tuple
+from typing import List, Tuple, cast
 
 import pytest
 from more_itertools import first
 
 from bench.language.bench import Bench, Package
+from bench.language.block import FlowBlock
 from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
 from bench.language.file import File, FileKind, FileType
@@ -157,12 +158,12 @@ def mock_package_populated(session: Session):
     page2 = package.blocks.create(name="Page2", type=BlockType.PAGE)
     page11 = page1.blocks.create(name="Page11", type=BlockType.PAGE)
     page21 = page2.blocks.create(name="Page21", type=BlockType.PAGE)
-    flow111 = page11.blocks.create(name="Flow111", type=BlockType.CHOICE)
+    flow111 = cast(FlowBlock, page11.blocks.create(name="Flow111", type=BlockType.FLOW))
     step1111 = flow111.steps.append(Step.new(StepType.START, "Step1111"))  # noqa: F841
     field1111 = flow111.fields.append(Field.input("Field1111", bool))  # noqa: F841
     step1112 = flow111.steps.append(Step.new(StepType.START, "Step1112"))
     step11121 = step1112.steps.append(Step.new(StepType.START, "Step11121"))  # noqa: F841
-    flow211 = page21.blocks.create(name="Flow211", type=BlockType.FLOW)
+    flow211 = cast(FlowBlock, page21.blocks.create(name="Flow211", type=BlockType.FLOW))
     step2111 = flow211.steps.append(Step.new(StepType.START, "Step2111"))  # noqa: F841
     step2112 = flow211.steps.append(Step.new(StepType.START, "Step2112"))  # noqa: F841
     step2112_t_st = flow211.steps.append(Step.new(StepType.START, "Step2112 TÖST"))  # noqa: F841

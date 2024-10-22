@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import structlog
 
-from bench.language.const import NODE_TYPES, NodeType, StructType
+from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.node import (
     BenchNode,
     HasNodeBase,
@@ -13,6 +13,7 @@ from bench.language.node import (
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import TITLE_CONSTRAINT
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Block, CustomObject, NodeReference, Package, Path, Step, Text, View
@@ -31,6 +32,14 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (
 )
 
 
+@enum_(EnumType.MESSAGE_TYPE)
+class MessageType(IdEnum):
+    NATIVE = 1
+    EMAIL = 10
+    SMS = 11
+    # WHATSAPP, TELEGRAM, ...?
+
+
 @timed_node_(NodeType.MESSAGE, passthrough="value")
 class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
@@ -39,6 +48,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
 
     parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
+    type: MessageType = p_regular(30, require=True, default=MessageType.NATIVE)
     origin: BenchNode = p_regular(32, require=True, references=NODE_TYPES.tuple)
     path: Optional["Path"] = p_regular(33, require=False, array=False, struct=StructType.PATH)
     reply_to: Optional["Message"] = p_regular(
