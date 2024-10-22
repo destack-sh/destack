@@ -269,8 +269,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div class="flex flex-col gap-y-1.5 py-1">
       <Value
         v-if="block.type == BlockType.VALUE"
+        class="max-h-[320px]"
         :value-type="block.valueType"
         :model-value="value"
+        :size="{ height: 320 }"
         @update:model-value="(newValue) => updateValue(newValue)"
       />
       <Type

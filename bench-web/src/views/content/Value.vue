@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, ViewData, ViewType } from "@/proto/wire";
+import { BoxData, NodeType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -13,8 +13,12 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     modelValue?: any;
     preparedConnection?: PreparedGetConnection;
+    size?: Partial<Pick<BoxData, "width" | "height">>;
   } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
+    Pick<
+      ViewData,
+      "name" | "title" | "text" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled"
+    >
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -35,7 +39,7 @@ defineExpose<ViewExposed>({ self, id });
       :is="getViewComponent(valueView.type)"
       v-if="valueType != null && valueView?.type != null && hasViewComponent(valueView.type)"
       class="ml-auto flex-shrink-0"
-      v-bind="{ isInput: true, variant: props.variant, valueType, ...valueView }"
+      v-bind="{ isInput: true, variant: props.variant, size: props.size, valueType, ...valueView }"
       :model-value="modelValue"
       :prepared-connection="props.preparedConnection"
       @update:model-value="$emit('update:modelValue', $event)"
