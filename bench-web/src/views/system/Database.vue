@@ -60,7 +60,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
-import { MaybeElement, onClickOutside, useElementSize, useEventListener } from "@vueuse/core";
+import { MaybeElement, onClickOutside, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -181,6 +181,7 @@ const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const columnHeaderRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellComponentRefs: Ref<Record<string, ViewExposed>> = ref({});
+const shiftKey = useKeyModifier("Shift");
 
 const containerSize = useElementSize(containerRef);
 const rowBodyWidth = computed(() => {
@@ -429,10 +430,11 @@ const hasSelectionRows = computed(
   () => Object.keys(selectedRecordsById.value).length > 0 && numSelectedColumns.value == 0,
 );
 const numSelectedColumns = computed(() => Object.keys(selectedFieldsByCk.value).length);
-const hasSelectionRegion = computed(() => numSelectedRows.value > 0 || numSelectedColumns.value > 0);
+const hasSelectionRegion = computed(() => numSelectedRows.value > 0 && numSelectedColumns.value > 0);
 const numSelectedRows = computed(() => Object.keys(selectedRecordsById.value).length);
 const isAllSelectedRows = computed(() => numSelectedRows.value >= records.value.length);
 const isAllSelectedColumns = computed(() => numSelectedColumns.value == 0);
+const lastSelectedRow: Ref<RecordData | null> = ref(null);
 
 function isSelectedRow(record: RecordData) {
   return selectedRecordsById.value[record.id] != null;
@@ -458,13 +460,27 @@ function removeSelectionRow(record: RecordData) {
   spaceTx().update(selfView.value, { selection: collapseSelection(props.selection, [record]) }, { debounce: "tick" });
 }
 
-function setSelectionRow(record: RecordData, selected: boolean) {
+function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: boolean) {
   if (hasSelectionRegion.value) {
     // clear selection first
     selectNone();
   }
   if (selected) {
-    addSelectionRow(record);
+    const lastSelectedY = records.value.findIndex((r) => r.id == lastSelectedRow.value?.id);
+    const currentY = records.value.findIndex((r) => r.id == record.id);
+    if (expandFromLast && lastSelectedY >= 0 && currentY >= 0) {
+      const from = Math.min(lastSelectedY, currentY);
+      const to = Math.max(lastSelectedY, currentY);
+      const selection = records.value.slice(from, to + 1);
+      spaceTx().update(
+        selfView.value!,
+        { selection: expandSelection(props.selection, selection) },
+        { debounce: "tick" },
+      );
+    } else {
+      addSelectionRow(record);
+    }
+    lastSelectedRow.value = record;
   } else {
     removeSelectionRow(record);
   }
@@ -476,8 +492,10 @@ function selectAll() {
 }
 
 function selectNone() {
-  if (props.selection == undefined) return; // nothing to clear
-  spaceTx().update(selfView.value!, { selection: undefined }, { debounce: "tick" });
+  lastSelectedRow.value = null;
+  if (props.selection != undefined) {
+    spaceTx().update(selfView.value!, { selection: undefined }, { debounce: "tick" });
+  }
 }
 
 // local selection region
@@ -518,10 +536,10 @@ function endSelectRegion() {
 
 useEventListener(window, "mouseup", endSelectRegion);
 useEventListener(containerRef, "mousedown", (e) => {
-  // clear selection if we're not inside a row
+  // clear selection if we're not inside a row or the header
   if (props.selection == null) return;
   const node = canvas.getNodeAt(e.target as HTMLElement);
-  if (node?.nodeType != NodeType.RECORD) {
+  if (node?.nodeType != NodeType.RECORD && !headerRef.value?.contains(e.target as HTMLElement)) {
     selectNone();
   }
 });
@@ -810,7 +828,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
               :checked="isAllSelectedRows"
-              @change="(e) => (!isAllSelectedRows ? selectAll() : selectNone())"
+              @change="(e) => ((e.target as HTMLInputElement).checked ? selectAll() : selectNone())"
             />
           </div>
 
@@ -986,7 +1004,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
               :checked="hasSelectionRows && isSelectedRow(record)"
-              @change="(e) => setSelectionRow(record, (e.target as HTMLInputElement).checked)"
+              @change="(e) => setSelectionRow(record, (e.target as HTMLInputElement).checked, shiftKey ?? false)"
             />
           </div>
 

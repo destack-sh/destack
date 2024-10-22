@@ -59,7 +59,6 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.explorer",
   "space.launch.outline",
   "space.launch.docs",
-  "space.launch.logs",
   "space.launch.start",
   "space.launch.discord",
   "space.launch.notifications",
@@ -1242,14 +1241,6 @@ contributeActionMap<"space">({
     icon: "fas fa-bell",
     isEnabled: ref(false),
     action: ACTION_COMING_SOON,
-  },
-  "space.launch.logs": {
-    title: "Open Logs",
-    text: "Read the Logs",
-    icon: "fas fa-clipboard-list",
-    action: () => {
-      canvas.addView({ type: ViewType.FEED, title: "Logs" }, { ifPresent: "upsertAndFocus" });
-    },
   },
   "space.launch.start": {
     title: "Open Start",
