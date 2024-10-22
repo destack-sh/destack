@@ -4,7 +4,7 @@ import pytest
 from hypothesis import given
 
 from bench.language.bench import Package
-from bench.language.block import Block
+from bench.language.block import Block, ValueBlock
 from bench.language.const import STRUCT_TYPES, BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
 from bench.language.node import BuiltinObject
@@ -68,7 +68,7 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
 
     # first set in constructor
     type_info = to_type_scalar(PrimitiveType.INT32)
-    block = Block(type=BlockType.VALUE, name="Variable1", value_type=type_info, variables=7)
+    block = ValueBlock(type=BlockType.VALUE, name="Variable1", value_type=type_info, variables=7)
     assert block.variables == 7
     assert unpack_value(block.variables_packed, type_info, wrap_scalar=True) == 7
 

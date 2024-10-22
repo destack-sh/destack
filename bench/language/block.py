@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast, final
+from abc import ABC
+from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast, final
 
 import cachetools
 
@@ -12,7 +13,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfoBase
 from bench.language.list import LocalNodeList, RemoteNodeList
-from bench.language.node import SourceNode, local_node_
+from bench.language.node import SourceNode, local_node_, node_subtype_
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -55,8 +56,6 @@ if TYPE_CHECKING:
 #   auto-naming currently only works in NodeList where we know the siblings).
 #  see :AutoNaming
 
-# NOTE :Architecture: blocks should be factored into type-specific info :NodeInheritance
-
 
 @local_node_(NodeType.BLOCK, passthrough=("value", "fields"))
 class Block(SourceNode[BlockData]):
@@ -68,44 +67,30 @@ class Block(SourceNode[BlockData]):
     type: BlockType = p_system(30, description="The type of block. Cannot be changed.")
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    text: Optional["Text"] = p_regular(
-        36, default=None, require=False, array=False, struct=StructType.TEXT
-    )
     icon: Optional["Icon"] = p_regular(
-        37, default=None, require=False, array=False, struct=StructType.ICON
+        34, default=None, require=False, array=False, struct=StructType.ICON
     )
-    variables_packed: Any = p_value_packed(38)
-    variables: Any = p_value_runtime(38, typ=lambda self: cast("Block", self).variable_type)
-    value_type: Optional["TypeInfo"] = p_regular(39, default=None, struct=StructType.TYPE_INFO)
-    value_packed: Any = p_value_packed(40)
-    value: Any = p_value_runtime(40, typ=lambda self: cast("Block", self).value_type)
-    code: Optional["Code"] = p_regular(
-        42, default=None, require=False, array=False, struct=StructType.CODE
-    )
-    run_options: Optional["RunOptions"] = p_regular(
-        43, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+
+    variables_packed: Any = p_value_packed(40)
+    variables: Any = p_value_runtime(41, typ=lambda self: cast("Block", self).variable_type)
+
+    policies: list["Policy"] = p_regular(42, require=False, array=True, struct=StructType.POLICY)
+    delegated_policies: list["Policy"] = p_regular(
+        43, require=False, array=True, struct=StructType.POLICY
     )
     roles: list["Block"] = p_regular(
-        46,
+        44,
         require=False,
         array=True,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ROLE]),
     )
     identity: Optional["Block"] = p_regular(
-        47,
+        45,
         require=False,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.IDENTITY]),
     )
-    policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
-    delegated_policies: list["Policy"] = p_regular(
-        49, require=False, array=True, struct=StructType.POLICY
-    )
-    if TYPE_CHECKING:
-        roles_ptr: tuple["NodeReference", ...] = ()
-        identity_ptr: Optional["NodeReference"] = None
-
     # flags
     is_builtin: bool = p_system(
         60, default=False, description="Whether this is an intrinsic provided by the system."
@@ -118,13 +103,6 @@ class Block(SourceNode[BlockData]):
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     badges: LocalNodeList["Badge"] = p_node_children(NodeType.BADGE)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
-    pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
-    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
-    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
-    records: RemoteNodeList["Record", RecordData] = p_node_children(
-        NodeType.RECORD, list=RemoteNodeList
-    )
 
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"
@@ -208,9 +186,6 @@ class Block(SourceNode[BlockData]):
                     base_type=self,
                     base_field_type=field_type or FieldType.MEMBER,
                 )
-        elif self.type == BlockType.VALUE:
-            assert self.value_type is not None, f"{self!r} has no builtin base"
-            return self.value_type
         elif self.type == BlockType.DATABASE:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
@@ -249,11 +224,13 @@ class Block(SourceNode[BlockData]):
         return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod
-    def new(typ: BlockType, name: str, **kwargs) -> "Block":
-        return Block(type=typ, name=name, **kwargs)
+    def new[BlockT: Block](typ: BlockType | Type[BlockT], name: str, **kwargs) -> "BlockT":
+        if isinstance(typ, type):
+            typ = Block._get_subtype(typ, BlockType)
+        return Block(type=typ, name=name, **kwargs)  # type: ignore
 
     @staticmethod
-    def new_code(name: str, code: "str | Code", **kwargs) -> "Block":
+    def new_code(name: str, code: "str | Code", **kwargs) -> "CodeBlock":
         if isinstance(code, str):
             from bench.language.code import Code
 
@@ -261,9 +238,59 @@ class Block(SourceNode[BlockData]):
         return Block.new(BlockType.CODE, name, code=code, **kwargs)
 
     @staticmethod
-    def new_text(name: str, text: "str | Text", **kwargs) -> "Block":
+    def new_text(name: str, text: "str | Text", **kwargs) -> "TextBlock":
         if isinstance(text, str):
             from bench.language.text import Text
 
             text = Text.plain(text)
         return Block.new(BlockType.TEXT, name, text=text, **kwargs)
+
+
+class RunnableBlock(Block, ABC):
+    run_options: Optional["RunOptions"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
+    if TYPE_CHECKING:
+        roles_ptr: tuple["NodeReference", ...] = ()
+        identity_ptr: Optional["NodeReference"] = None
+
+    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
+
+
+@node_subtype_(BlockType.VALUE)
+class ValueBlock(Block):
+    value_type: Optional["TypeInfo"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
+    value_packed: Any = p_value_packed(101)
+    value: Any = p_value_runtime(102, typ=lambda self: cast("ValueBlock", self).value_type)
+
+
+@node_subtype_(BlockType.TEXT)
+class TextBlock(RunnableBlock):
+    text: Optional["Text"] = p_regular(
+        36, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+
+
+@node_subtype_(BlockType.CODE)
+class CodeBlock(RunnableBlock):
+    code: Optional["Code"] = p_regular(
+        36, default=None, require=False, array=False, struct=StructType.CODE
+    )
+
+
+@node_subtype_(BlockType.FLOW)
+class FlowBlock(RunnableBlock):
+    steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
+    pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
+
+
+@node_subtype_(BlockType.VIEW)
+class ViewBlock(Block):
+    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
+
+
+@node_subtype_(BlockType.DATABASE)
+class DatabaseBlock(Block):
+    records: RemoteNodeList["Record", RecordData] = p_node_children(
+        NodeType.RECORD, list=RemoteNodeList
+    )

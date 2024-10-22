@@ -583,8 +583,7 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
 @local_node_(NodeType.FIELD)
 class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder):
     """
-    A used-defined attribute of some value
-     (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
+    A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)

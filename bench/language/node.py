@@ -414,7 +414,6 @@ _ObjectT = TypeVar("_ObjectT", bound="BuiltinObject")
 def object_(
     struct_type: StructType | None = None,
     is_final: bool = False,
-    is_inlined: bool = False,
 ):
     """
     Mark a class as an object component (or concrete struct for a StructType).
@@ -439,21 +438,16 @@ def object_(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_(struct_type: StructType, inline: bool = False):
+def struct_(struct_type: StructType):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: Type[_ObjectT]) -> Type[_ObjectT]:
-        cls = object_(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
+        cls = object_(struct_type=struct_type, is_final=True)(cls)
         if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "Struct":
             if not issubclass(cls, (Struct, Struct)):
                 raise ValueError(f"{cls} is not a struct")
             if issubclass(cls, Node):
                 raise ValueError(f"{cls} is a node for {struct_type}")
-
-            # check that inline matches inheriting Struct
-            is_cls_inlined = not issubclass(cls, Struct)
-            if is_cls_inlined != inline:
-                raise ValueError(f"inline mismatch for {cls}: ={is_cls_inlined}, inline={inline}")
 
         return cls
 
@@ -549,6 +543,18 @@ def node_(
                 raise ValueError(f"{cls} is a struct")
 
         return cls
+
+    return decorate
+
+
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
+def node_subtype_(subtype: int):
+    """
+    Mark a class as a subtype class of the ancestor object class.
+    """
+
+    def decorate(cls: Type["Node"]) -> Type["Node"]:
+        return cls  # nocheckin
 
     return decorate
 
@@ -1451,6 +1457,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
     __node_child_properties__: ClassVar[dict[str, Property]] = {}
+    __subclass_by_subtype__: ClassVar[dict[int, type["Node"]]] = {}
+    __subtype_by_subclass__: ClassVar[dict[type["Node"], int]] = {}
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET
     __is_struct__: ClassVar[bool] = False
@@ -1507,6 +1515,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
 
+    # nocheckin: :NodeInheritance extensions?
+    #  (somewhere to keep the packed properties of subtypes)
+    # subpacked: dict[int, dict[int, Any]] = p_internal(20)
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
 
     # 30+ for 'user' node/struct properties
@@ -1911,6 +1922,19 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     async def exists(cls, filter: Optional["Expression"] = None, **kwargs) -> bool:
         return await cls.query().exists(filter, **kwargs)
+
+    @classmethod
+    def _get_subclass(cls, subtype: int) -> type["Node"]:
+        """Gets the implementing subclass for a subtype (may be the parent class itself.)"""
+        return cls.__subclass_by_subtype__.get(subtype, cls)
+
+    @classmethod
+    def _get_subtype[TypeT: int](cls, subclass: type["Node"], expect_t: type[TypeT]) -> TypeT:
+        """Gets the subtype for a subclass. Errors if not found or not the expected type."""
+        typ = cls.__subtype_by_subclass__.get(subclass)
+        if type(typ) is not expect_t:
+            raise ValueError(f"subclass {subclass} is not expected type {expect_t}")
+        return typ  # type: ignore
 
 
 @node_component()

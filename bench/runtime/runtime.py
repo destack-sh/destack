@@ -7,7 +7,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import baggage, context, trace
 
-from bench.language.block import Block
+from bench.language.block import Block, CodeBlock, RunnableBlock, TextBlock
 from bench.language.code import Code
 from bench.language.const import BenchError, RunErrorKind, RunStatus
 from bench.language.flow import Step, StepType
@@ -100,9 +100,11 @@ class Runtime:
 
         # figure out which runner we need
         if kind == RunKind.CODE:
-            code = code or node.code or Code.empty()
+            if code is None:
+                code = node.code if isinstance(node, CodeBlock) else Code.empty()
         elif kind == RunKind.TEXT:
-            text = text or node.text
+            if text is None:
+                text = node.text if isinstance(node, TextBlock) else Text.empty()
         elif kind == RunKind.STEP:
             assert isinstance(node, Step), f"unexpected node type: {node!r}"
 
@@ -166,7 +168,11 @@ class Runtime:
         node = run.step or run.block
         if node is None:
             raise RunImpossibleError(f"no node for {run!r}")  # default to package?
-        options = node.run_options.override(run.options) if node.run_options else run.options
+        options = (
+            node.run_options.override(run.options)
+            if isinstance(node, (Step, RunnableBlock)) and node.run_options
+            else run.options
+        )
         if run.inputs is None and run.input_type is not None:
             inputs = CustomObject.new({}, run.input_type)
         else:
@@ -423,7 +429,8 @@ def get_runner_cls(
     if kind == RunKind.CODE:
         from bench.runtime.code import CodeFunctionRunner, CodeScriptRunner
 
-        code = code or node.code or Code.empty()
+        if code is None:
+            code = node.code if isinstance(node, CodeBlock) else Code.empty()
         if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
             return CodeFunctionRunner
         else:
