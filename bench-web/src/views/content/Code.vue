@@ -42,13 +42,15 @@ function makeEditorState(code?: CodeData, options?: { restoreSelection?: boolean
     EditorView.lineWrapping,
     syntaxHighlighting(defaultHighlightStyle),
     autocompletion({}),
-    lineNumbers(),
     python(),
     indentUnit.of("    "), // 4 spaces
-    keymap.of([commands.indentWithTab]),
+    keymap.of([...commands.defaultKeymap, commands.indentWithTab]),
   ];
   const dynamicExtensions = computed(() => {
     const extensions = [];
+    if (props.variant != Variant.STEALTH) {
+      extensions.push(lineNumbers());
+    }
     if (!props.isInput) {
       extensions.push(EditorView.editable.of(false));
     }
@@ -199,11 +201,11 @@ defineExpose<ViewExposed>({ self, id, actions });
       "
       data-suppress-actions="common.move.left,common.move.right"
       data-suppress-drag="true"
-      class="code rounded px-1 py-1.5 hover:cursor-text"
+      class="code rounded hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-200 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
-          : '',
+          ? 'border border-gray-200 px-1 py-1.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
+          : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
     />
@@ -234,5 +236,8 @@ defineExpose<ViewExposed>({ self, id, actions });
 }
 .code:focus-within .cm-editor .cm-gutters {
   @apply border-primary-900 text-gray-700;
+}
+.stealth .ͼ1 .cm-line {
+  padding: 0;
 }
 </style>

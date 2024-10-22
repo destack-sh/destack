@@ -44,7 +44,6 @@ export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 export const OMNIBAR_MODES = ["everywhere", "actions", "space", "views", "view"];
 export type OmnibarMode = (typeof OMNIBAR_MODES)[number];
 
-export type ActionCategory = "bench" | "package" | "space" | "common" | "view" | "user" | "organization" | "developer";
 export const ACTION_BUILTIN_IDS = [
   // space
   // (:OmnibarModes)
