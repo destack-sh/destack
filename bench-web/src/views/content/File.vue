@@ -197,21 +197,22 @@ defineExpose<ViewExposed>({
           }),
         } as HoverMenuOptions
       "
-      class="group/dropdown flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-900 outline outline-1 outline-primary-900'
           : 'border-gray-200 hover:border-gray-300',
+        variant == Variant.STEALTH && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
       ]"
       @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
     >
       <!-- Current value -->
-      <span v-if="optimisticValue != null" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'">
+      <span v-if="optimisticValue != null" :class="[loadFailed ? 'text-danger-600' : 'text-gray-700']">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'" />
         <a
-          class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover/dropdown:underline group-hover/dropdown:decoration-primary-900"
+          class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover:underline group-hover:decoration-primary-900"
           :class="download?.getUrl.value != null ? 'hover:underline' : ''"
           :href="download?.getUrl.value ?? undefined"
           target="_blank"
@@ -230,7 +231,7 @@ defineExpose<ViewExposed>({
       <span
         v-else
         class="select-none transition-colors duration-75"
-        :class="isInDropZone ? 'text-primary-900' : 'text-gray-400'"
+        :class="[isInDropZone ? 'text-primary-900' : 'text-gray-400']"
       >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
         <span>Upload {{ facetName }}</span>
@@ -240,7 +241,7 @@ defineExpose<ViewExposed>({
         <!-- Clear -->
         <button
           v-if="modelValue != null && !valueType?.isRequired"
-          class="px-0.5 text-gray-400 opacity-0 hover:text-primary-900 group-hover/dropdown:opacity-100"
+          class="px-0.5 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="emit('update:modelValue', undefined)"
         >
           <i class="fas fa-xmark" />
@@ -279,7 +280,7 @@ defineExpose<ViewExposed>({
     <div
       v-else
       ref="containerRef"
-      class="group/inline relative flex h-full w-full flex-col justify-center rounded border-gray-200"
+      class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
         variant != Variant.STEALTH ? 'border py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
@@ -370,7 +371,7 @@ defineExpose<ViewExposed>({
         </div>
         <!-- Meta/Controls -->
         <div
-          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover/inline:text-gray-700 group-hover/inline:opacity-100"
+          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
           <span v-if="optimisticValue?.format" class="">
