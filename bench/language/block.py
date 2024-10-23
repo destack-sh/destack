@@ -13,7 +13,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfoBase
 from bench.language.list import LocalNodeList, RemoteNodeList
-from bench.language.node import SourceNode, local_node_, node_subtype_
+from bench.language.node import NodeSubtypeStub, SourceNode, local_node_, node_subtype_
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 #  see :AutoNaming
 
 
-@local_node_(NodeType.BLOCK)
+@local_node_(NodeType.BLOCK, passthrough=("fields",))
 class Block(SourceNode[BlockData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
@@ -235,9 +235,13 @@ class Block(SourceNode[BlockData]):
         return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod
-    def new[BlockT: Block](typ: BlockType | Type[BlockT], name: str, **kwargs) -> "BlockT":
+    def new[BlockT: Block](
+        typ: BlockType | Type[BlockT] | NodeSubtypeStub, name: str, **kwargs
+    ) -> "BlockT":
         if isinstance(typ, type):
             typ = Block._get_subtype(typ, BlockType)
+        elif isinstance(typ, NodeSubtypeStub):
+            typ = cast(BlockType, typ._node_subtype)
         return Block(type=typ, name=name, **kwargs)  # type: ignore
 
     @staticmethod
@@ -270,21 +274,21 @@ class ValueBlock(Block):
     value: Any = p_value_runtime(101, typ=lambda self: cast("ValueBlock", self).value_type)
 
 
-@node_subtype_(BlockType.TEXT, passthrough=("fields",))
+@node_subtype_(BlockType.TEXT)
 class TextBlock(RunnableBlock):
     text: Optional["Text"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.TEXT
     )
 
 
-@node_subtype_(BlockType.CODE, passthrough=("fields",))
+@node_subtype_(BlockType.CODE)
 class CodeBlock(RunnableBlock):
     code: Optional["Code"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.CODE
     )
 
 
-@node_subtype_(BlockType.FLOW, passthrough=("fields",))
+@node_subtype_(BlockType.FLOW)
 class FlowBlock(RunnableBlock):
     pass
 
@@ -294,6 +298,6 @@ class ViewBlock(Block):
     pass
 
 
-@node_subtype_(BlockType.DATABASE, passthrough=("fields",))
+@node_subtype_(BlockType.DATABASE)
 class DatabaseBlock(Block):
     pass

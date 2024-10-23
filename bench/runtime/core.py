@@ -14,7 +14,7 @@ from bench.language.file import upload
 from bench.language.node import Node
 from bench.language.path import get_node
 from bench.language.run import RunError, RunErrorType, RunKind, RunOptions
-from bench.language.setup import BENCH_CLASS_BY_NAME
+from bench.language.setup import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
 from bench.runtime.capture import LogSink
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
@@ -101,6 +101,7 @@ class ModelFailedError(RetryableError):
 STATIC_CODE_GLOBALS: dict[str, Any] = {
     **{k: v for k, v in vars(language).items() if not k.startswith("__")},
     **BENCH_CLASS_BY_NAME,
+    **NODE_CLASS_STUBS_BY_NAME,
     "Image": Image,
     # some error types
     "NonRetryableError": NonRetryableError,
