@@ -485,6 +485,10 @@ def node_component(
                     list_properties_by_child[ref_t].append(prop)
         cls.__node_child_properties__ = frozendict(list_properties)
 
+        if is_final and not is_subtype:
+            cls.__subclass_by_subtype__ = {}
+            cls.__subtype_by_subclass__ = {}
+
         # register as concrete node class for node_type
         if node_type:
             cls.metatype = node_type
@@ -1497,9 +1501,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
-    __node_child_properties__: ClassVar[dict[str, Property]] = {}
-    __subclass_by_subtype__: ClassVar[dict[int, type["Node"]]] = {}
-    __subtype_by_subclass__: ClassVar[dict[type["Node"], int]] = {}
+    __node_child_properties__: ClassVar[dict[str, Property]] = frozendict()
+    __subclass_by_subtype__: ClassVar[dict[int, type["Node"]]] = frozendict()
+    __subtype_by_subclass__: ClassVar[dict[type["Node"], int]] = frozendict()
     __has_subtypes__: ClassVar[bool] = False
     __base_class__: ClassVar[type["Node"] | None] = None
     __subtype__: ClassVar[int | None] = None
