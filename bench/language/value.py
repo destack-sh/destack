@@ -19,7 +19,6 @@ from opentelemetry import trace
 from bench.language.const import (
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
-    EditOperationType,
     EnumType,
     NodeType,
     ObjectType,
@@ -203,7 +202,7 @@ class CustomObject(Mapping[str, Any]):
         if track:
             from bench.language.node import _trace_edit_operation
 
-            _trace_edit_operation(self, field, EditOperationType.SET, new_value, old_value)
+            _trace_edit_operation(self, field, new_value, old_value)
 
     __setitem__ = _do_set
 

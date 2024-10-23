@@ -20,7 +20,7 @@ from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject, Node, Struct
+    from bench.language import BuiltinObject, Node, NodeSubtypeStub, Struct
 
 # some global indexes for language types/classes
 # NOTE :Cleanup: organize global type/class indexes better
@@ -28,6 +28,8 @@ ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular import
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_CLASS_BY_NAME: dict[str, type["Node"]] = {}
+NODE_CLASS_STUBS_BY_TYPE: dict[NodeType, dict[int, "NodeSubtypeStub"]] = {}
+NODE_CLASS_STUBS_BY_NAME: dict[str, "NodeSubtypeStub"] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
 OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
@@ -179,6 +181,21 @@ def _complete_bench_setup():
         CHILD_NODE_TYPES[node_type] = bittuple(*child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:
             HAS_CHILD_NODE_TYPES.add(node_type)
+
+    # add all subtype stubs
+    from bench.language.node import NodeSubtypeStub
+
+    for node_type in NODE_TYPES:
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        if node_cls.__has_subtypes__:
+            subtype_prop = node_cls.__subtype_base_property__
+            assert subtype_prop is not None and subtype_prop.enum_type is not None
+            enum_cls = ENUM_CLASS_BY_TYPE[subtype_prop.enum_type]
+            NODE_CLASS_STUBS_BY_TYPE[node_type] = {}
+            for subtype in enum_cls:
+                stub = NodeSubtypeStub(node_cls, node_type, subtype)
+                NODE_CLASS_STUBS_BY_TYPE[node_type][subtype] = stub
+                NODE_CLASS_STUBS_BY_NAME[stub._name] = stub
 
     _COMPLETED_SETUP = True
 

@@ -6,7 +6,7 @@ from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, Package
-from bench.language.block import Block, ViewBlock
+from bench.language.block import Block, TextBlock, ViewBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
@@ -14,6 +14,7 @@ from bench.language.file import File, FileKind, FileReference, FileType
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
+from bench.language.text import md
 from bench.language.view import View, ViewType
 from bench.proto.wiring import unpack_object
 from bench.test.strategies import structs
@@ -64,6 +65,24 @@ def test_node_passthrough(session: "Session"):
     )
     assert WeatherCondition.fields.Sunny is WeatherCondition.fields.get("Sunny")
     assert WeatherCondition.Sunny is WeatherCondition.fields.get("Sunny")  # type: ignore
+
+
+def test_node_subtype(session: "Session"):
+    block = Block.new(TextBlock, "Text1", text=md("Hello!"))
+
+    # get/set subtype properties
+    assert block.text is not None and block.text.to_markdown() == "Hello!"
+
+    # instance check
+    assert isinstance(block, TextBlock)
+    assert issubclass(TextBlock, Block)
+
+    # pack/unpack wiring
+    block_data = block._to_data()
+    unpacked_block = unpack_object(block_data, expect=Block, supergraph=None)
+    assert isinstance(unpacked_block, TextBlock)
+    assert unpacked_block.equals(block)
+    assert unpacked_block.text is not None and unpacked_block.text.to_markdown() == "Hello!"
 
 
 def test_node_pointers_consistency(session: "Session"):
@@ -173,6 +192,11 @@ def test_node_pointers_consistency(session: "Session"):
     view_a_1_1.node = file1
     assert isinstance(view_a_1_1.node_ptr, FileReference)
     assert view_a_1_1.node == file1
+
+
+#
+# Trees
+#
 
 
 @given(obj=structs)

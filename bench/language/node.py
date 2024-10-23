@@ -89,8 +89,8 @@ from bench.proto.wire import (
 )
 from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import bittuple, is_close, stable_hash
-from bench.utils.string import to_code_name
+from bench.utils.func import IdEnum, bittuple, is_close, stable_hash
+from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -485,6 +485,7 @@ def node_component(
                     list_properties_by_child[ref_t].append(prop)
         cls.__node_child_properties__ = frozendict(list_properties)
 
+        # subtypes for every final node base
         if is_final and not is_subtype:
             cls.__subclass_by_subtype__ = {}
             cls.__subtype_by_subclass__ = {}
@@ -551,7 +552,7 @@ def node_(
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_subtype_(
-    subtype: int,
+    subtype: IdEnum,
     passthrough: str | tuple[str, ...] | None = None,
 ):
     """
@@ -575,8 +576,19 @@ def node_subtype_(
             is_subtype=True,
         )(cls)
 
+        # cannot instantiate node subtypes directly (only through base class)
+        def _fail_init(self, *args, **kwargs):
+            raise TypeError(f"cannot instantiate node subtype {cls} directly")
+
+        cls.__init__ = _fail_init
+
         # check
         if IS_DEV:
+            # check name is good
+            target_name = f"{to_casing(subtype.name, Casing.CAMEL)}{base_cls.__name__}"
+            assert cls.__name__ == target_name, f"expected {target_name}, got {cls.__name__}"
+
+            # check properties
             for prop in cls.__declared_properties__.values():
                 if prop.reference_kind == ReferenceKind.NODE_CHILDREN:
                     raise ValueError(f"can't have children {prop!r} in subtype {cls}")
@@ -590,7 +602,12 @@ def node_subtype_(
         base_cls.__subclass_by_subtype__[subtype] = cls
         base_cls.__subtype_by_subclass__[cls] = subtype
         base_cls.__has_subtypes__ = True
+        base_cls.__subtype_base_property__ = base_cls.__properties__["type"]
         cls.__subtype__ = subtype
+        subtype_extra_properties = {
+            p.name: p for p in cls.__properties__.values() if p.name not in base_cls.__properties__
+        }
+        cls.__subtype_extra_properties__ = frozendict(subtype_extra_properties)
 
         return cls
 
@@ -823,7 +840,6 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
 def _trace_edit_operation(
     obj: "CustomObject | Struct | Node | None",
     key: Union["Property", "Field"],
-    operation_type: EditOperationType,
     new_value: Any | None,
     old_value: Any | None,
 ):
@@ -854,8 +870,7 @@ def _trace_edit_operation(
         obj = parent
 
     # pack edit operation content
-    if operation_type == EditOperationType.SET and new_value is None:
-        operation_type = EditOperationType.CLEAR
+    operation_type = EditOperationType.CLEAR if new_value is None else EditOperationType.SET
     if type(key) is Property:
         typ = key._type_info
         assert typ is not None, f"{key!r} in {obj!r} has no type info"
@@ -869,6 +884,8 @@ def _trace_edit_operation(
         new_value_packed = None
     else:
         new_value_packed = pack_value_data(new_value, typ, wrap_scalar=False)
+
+    # nocheckin: trace set for subtype properties
 
     operation = EditOperationData(
         metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
@@ -1048,23 +1065,28 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         if not _skip_extra_kwargs:
             self._init_extra_kwargs(kwargs)
 
+    def _get_effective_cls(self) -> type["BuiltinObject"]:
+        """Gets the class we're imitating (for subtypes)."""
+        return type(self)
+
     def _init_extra_kwargs(self, kwargs: dict[str, Any]):
         """
         Initialize the object from any extraneous kwargs (try to stuff into values) if relevant.
         Otherwise just error.
         """
-        if self._session is not None and any(key not in self.__properties__ for key in kwargs):
+        cls = self._get_effective_cls()
+        if self._session is not None and any(key not in cls.__properties__ for key in kwargs):
             if not self.__value_runtime_properties__:
-                key = first(key for key in kwargs if key not in self.__properties__)
+                key = first(key for key in kwargs if key not in cls.__properties__)
                 raise AttributeError(f"{self!r} has no attribute '{key}'")
             # try to stuff extra kwargs into first custom value property
             value_runtime_key = first(self.__value_runtime_properties__)
             value = getattr(self, value_runtime_key)
             if value is None:
-                key = first(key for key in kwargs if key not in self.__properties__)
+                key = first(key for key in kwargs if key not in cls.__properties__)
                 raise AttributeError(f"{self!r} has no attribute '{key}'")
             for key in kwargs:
-                if key not in self.__properties__:
+                if key not in cls.__properties__:
                     setattr(value, key, kwargs[key])
 
     def __content_str__(self) -> str:
@@ -1166,8 +1188,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _do_get(self, key):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
 
-        # nocheckin: check subtype in Node._do_get
-
         # check passthrough (if in a session)
         if self.__passthrough__ is not None and self._session is not None:
             for passthrough_key in self.__passthrough__:
@@ -1186,10 +1206,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this builtin object."""
         prop = self.__properties__.get(key)
-
-        # nocheckin: check subtype in Node._do_set
-
         if prop is not None:
+            # set regular property
             if prop.is_untracked:
                 object.__setattr__(self, key, new_value)
                 return
@@ -1223,7 +1241,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     _trace_edit_operation(
                         cast("Struct | Node", self),
                         prop.value_packed_ptr,  # type: ignore
-                        EditOperationType.SET,
                         getattr(self, prop.value_packed_ptr.name),  # type: ignore
                         old_value,
                     )
@@ -1231,7 +1248,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     _trace_edit_operation(
                         cast("Struct | Node", self),
                         prop,
-                        EditOperationType.SET,
                         new_value,
                         old_value,
                     )
@@ -1502,11 +1518,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
     __node_child_properties__: ClassVar[dict[str, Property]] = frozendict()
-    __subclass_by_subtype__: ClassVar[dict[int, type["Node"]]] = frozendict()
-    __subtype_by_subclass__: ClassVar[dict[type["Node"], int]] = frozendict()
+    __subclass_by_subtype__: ClassVar[dict[IdEnum, type["Node"]]] = frozendict()
+    __subtype_by_subclass__: ClassVar[dict[type["Node"], IdEnum]] = frozendict()
     __has_subtypes__: ClassVar[bool] = False
     __base_class__: ClassVar[type["Node"] | None] = None
+    __subtype_base_property__: ClassVar["Property | None"] = None
     __subtype__: ClassVar[int | None] = None
+    __subtype_extra_properties__: ClassVar[dict[str, Property]] = frozendict()
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET
     __is_struct__: ClassVar[bool] = False
@@ -1643,6 +1661,27 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 self._validate_self((), invalid=on_invalid_raise)
             self._track_self(self._session)
 
+    @override
+    def _get_effective_cls(self) -> type["Node"]:
+        # extend BuiltinObject to point to subtype class if we have one
+        if self.__has_subtypes__:
+            subtype = self.__dict__["type"]
+            subtype_cls = self.__subclass_by_subtype__.get(subtype)
+            if subtype_cls is not None:
+                return subtype_cls
+        return type(self)
+
+    @override
+    def _init_extra_kwargs(self, kwargs: dict[str, Any]):
+        # extend BuiltinObject to initialise subtype properties
+        super()._init_extra_kwargs(kwargs)
+        if self.__has_subtypes__:
+            cls = self._get_effective_cls()
+            for prop in cls.__subtype_extra_properties__.values():
+                prop_value = kwargs.get(prop.name, UNSET)
+                if prop_value is not UNSET:
+                    self._do_set(prop.name, prop_value, track=False, validate=False)
+
     @final
     def __str__(self):  # type: ignore
         # override the default __str__ for nodes
@@ -1704,6 +1743,107 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore
+
+    @override
+    def _do_get(self, key):
+        """Called if an attribute doesn't exist in __dict__ / the usual places."""
+
+        if self.__has_subtypes__:
+            subtype = self.__dict__["type"]
+            subtype_cls = self.__subclass_by_subtype__.get(subtype)
+            if subtype_cls is not None:
+                # check subtype cls properties
+                prop = subtype_cls.__properties__.get(key)
+                if prop is not None:
+                    subnode_packed = self.__dict__.get("subnode_packed", EMPTY_DICT)
+                    if subnode_packed is not None:
+                        subnode_packed = subnode_packed.get(subtype)
+                        if subnode_packed is not None:
+                            subnode_value = subnode_packed.get(prop.id)
+                            return subnode_value
+                    if prop.is_list and not prop.is_optional:
+                        return ()
+                    else:
+                        return None
+                else:
+                    # check subtype passthrough
+                    if subtype_cls.__passthrough__ is not None and self._session is not None:
+                        for passthrough_key in subtype_cls.__passthrough__:
+                            target = getattr(self, passthrough_key, UNSET)
+                            attr = getattr(target, key, UNSET)
+                            if attr is not UNSET:
+                                return attr
+
+        # check passthrough (if in a session)
+        if self.__passthrough__ is not None and self._session is not None:
+            for passthrough_key in self.__passthrough__:
+                target = getattr(self, passthrough_key, UNSET)
+                attr = getattr(target, key, UNSET)
+                if attr is not UNSET:
+                    return attr
+
+        # attribute error
+        try:
+            self_str = repr(self)
+        except Exception:
+            self_str = self.__class__.__name__
+        raise AttributeError(f"{self_str} has no attribute '{key}'")
+
+    @override
+    def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = True):
+        """Sets *any* attribute on this builtin object."""
+        if self.__has_subtypes__ and key not in self.__properties__:
+            # set subtype property
+            subtype = self.__dict__["type"]
+            subtype_cls = self.__subclass_by_subtype__.get(subtype)
+            if subtype_cls is not None:
+                prop = subtype_cls.__properties__.get(key)
+                if prop is not None:
+                    if validate:
+                        # coerce & check type
+                        if prop._type_info is not None and prop.reference_source is None:
+                            new_value = coerce_value(
+                                new_value,
+                                prop._type_info,
+                                as_packed=False,
+                                parent=self,
+                                parent_key=prop,
+                            )
+                            check_value(new_value, prop._type_info, invalid=on_invalid_raise)
+
+                    # set
+                    if self.subnode_packed is None:
+                        old_value = None
+                        self.subnode_packed = {subtype: {prop.id: new_value}}
+                    elif subtype not in self.subnode_packed:
+                        old_value = None
+                        self.subnode_packed[subtype] = {prop.id: new_value}
+                    else:
+                        if prop.is_value_runtime:
+                            old_value = getattr(self, prop.value_packed_ptr.name)  # type: ignore
+                        else:
+                            old_value = getattr(self, key)
+                        self.subnode_packed[subtype][prop.id] = new_value
+
+                    # track
+                    if track:
+                        if prop.is_value_runtime:
+                            _trace_edit_operation(
+                                self,
+                                prop.value_packed_ptr,  # type: ignore
+                                getattr(self, prop.value_packed_ptr.name),  # type: ignore
+                                old_value,
+                            )
+                        else:
+                            _trace_edit_operation(self, prop, new_value, old_value)
+
+                    return
+
+        super()._do_set(key, new_value, track=track, validate=validate)
+
+    if not TYPE_CHECKING:  # (see above in BuiltinObject)
+        __getattr__ = _do_get
+        __setattr__ = _do_set
 
     @property
     def connection(self):
@@ -1972,7 +2112,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return await cls.query().exists(filter, **kwargs)
 
     @classmethod
-    def _get_subclass(cls, subtype: int) -> type["Node"]:
+    def _get_subclass(cls, subtype: IdEnum) -> type["Node"]:
         """Gets the implementing subclass for a subtype (may be the parent class itself.)"""
         return cls.__subclass_by_subtype__.get(subtype, cls)
 
@@ -1983,6 +2123,25 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if type(typ) is not expect_t:
             raise ValueError(f"subclass {subclass} is not expected type {expect_t}")
         return typ  # type: ignore
+
+
+class NodeSubtypeStub:
+    """
+    The stub for the virtual subclass of a Node for a specific subtype.
+    Basically, we use this so we can have instantiate & instance check with subnodes,
+     like with DatabaseBlock or TreeView (even when the actual subtype-class doesn't exist).
+    """
+
+    __slots__ = ("_name", "_node_cls", "_node_subtype", "_node_type")
+
+    def __init__(self, cls: type[Node], type: NodeType, subtype: IdEnum):
+        self._node_cls = cls
+        self._node_type = type
+        self._node_subtype = subtype
+        self._name = f"{to_casing(subtype.name, Casing.CAMEL)}{cls.__name__}"
+
+    def __call__(self, **kwargs: Any) -> Any:
+        return self._node_cls(type=self._node_subtype, **kwargs)
 
 
 @node_component()
