@@ -105,6 +105,10 @@ def map_builtin_object_to_proto(
     alias: str | None = None,
     properties: Sequence["Property"] | None = None,
 ) -> Message:
+    if cls in cache:
+        message = cache[cls]
+        assert isinstance(message, Message), f"unexpected cached {message!r} for {cls!r}"
+        return message
     message = Message(name=alias or cls.__name__, reserved_names=[], reserved_ids=[], fields=[])
     doc = (
         cls.__doc__ or cls.__base_class__.__doc__
@@ -199,10 +203,10 @@ def generate_proto_schema(
     for enum_t in EnumType:
         enum_cls = cast(type[IdEnum], BENCH_CLASS_BY_TYPE[enum_t])
         proto_types.append(map_builtin_enum_to_proto(enum_cls, proto_types_cache))
-    for struct_t, struct_cls in STRUCT_CLASS_BY_TYPE.items():
+    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
         proto_types.append(map_builtin_object_to_proto(struct_cls, proto_types_cache))
     proto_types.append(map_builtin_object_to_proto(Node, proto_types_cache, alias="BaseNode"))
-    for node_t, node_cls in NODE_CLASS_BY_TYPE.items():
+    for node_cls in NODE_CLASS_BY_TYPE.values():
         proto_types.append(map_builtin_object_to_proto(node_cls, proto_types_cache))
         if node_cls.__has_subtypes__:
             for subnode_type, subnode_cls in node_cls.__subclass_by_subtype__.items():

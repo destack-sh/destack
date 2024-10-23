@@ -1556,9 +1556,9 @@ message PropertyReferenceData {
 
 message ValueData {
   ObjectType metatype = 1;
-  TypeInfo type = 31;
+  TypeInfoData type = 31;
   optional string name = 32;
-  optional Text text = 34;
+  optional TextData text = 34;
   optional google.protobuf.Value value_packed = 35;
 }
 
@@ -1591,7 +1591,7 @@ message AggregationResultData {
 message ComputedValueData {
   ObjectType metatype = 1;
   optional ExpressionData expression = 35;
-  optional Code code = 36;
+  optional CodeData code = 36;
 }
 
 message TypeConstraintData {
@@ -1635,8 +1635,8 @@ message TextSpanData {
   optional string content = 33;
   oneof node_ptr {
     NodeReferenceData node_ptr_node = 340;
-    FileReference node_ptr_file = 341;
-    SecretReference node_ptr_secret = 342;
+    FileReferenceData node_ptr_file = 341;
+    SecretReferenceData node_ptr_secret = 342;
   };
   optional ColorType color = 50;
   optional bool is_bold = 60;
@@ -1667,7 +1667,7 @@ message PolicyData {
   ObjectType metatype = 1;
   string name = 30;
   optional TextData text = 31;
-  repeated PolicyRule rules = 32;
+  repeated PolicyRuleData rules = 32;
   repeated NodeReferenceData scopes_ptr = 33;
 }
 
@@ -1802,7 +1802,7 @@ message ChangeVignetteData {
   optional string name = 30;
   optional string title = 31;
   optional int32 subtype = 32;
-  optional Icon icon = 35;
+  optional IconData icon = 35;
 }
 
 message EditOperationData {
@@ -1840,7 +1840,7 @@ message EditData {
   optional ChangeCategory category = 62;
   optional NodeReferenceData subject_ptr = 63;
   optional ClientOriginData origin = 64;
-  optional EditContext context = 65;
+  optional EditContextData context = 65;
   optional int64 epoch = 68;
   optional NodeReferenceData undo_of_ptr = 69;
 }
@@ -1853,7 +1853,7 @@ message ChangeData {
   optional CodeData code = 33;
   repeated EditData edits = 34;
   repeated NodeReferenceData logs_ptr = 35;
-  optional QueryInfo logs_query = 36;
+  optional QueryInfoData logs_query = 36;
 }
 
 message EditContextData {
@@ -2017,7 +2017,7 @@ message RunOptionsData {
   repeated RunErrorType retry_on = 44;
   optional bool suppress_fail = 45;
   optional bool suppress_abort = 46;
-  repeated Breakpoint breakpoints = 50;
+  repeated BreakpointData breakpoints = 50;
   optional CacheMode cache_mode = 70;
   optional google.protobuf.Duration cache_retention = 71;
   optional ModelProvider model_provider = 80;
@@ -2039,12 +2039,12 @@ message RunAttemptData {
   optional int32 started_epoch = 33;
   optional google.protobuf.Timestamp terminated_at = 35;
   optional int32 terminated_epoch = 36;
-  optional RunError error = 37;
+  optional RunErrorData error = 37;
 }
 
 message RunTraceData {
   ObjectType metatype = 1;
-  repeated RunFrame frames = 30;
+  repeated RunFrameData frames = 30;
 }
 
 message RunFrameData {
@@ -2626,32 +2626,6 @@ message ViewBlockData {
 message DatabaseBlockData {
 }
 
-// A view of a user interface in a Bench.
-message TreeViewData {
-  repeated NodeType node_types = 100;
-  optional bool filter_is_page = 101;
-  optional bool is_default_expanded = 102;
-  optional TreeViewPreset preset = 110;
-}
-
-// A view of a user interface in a Bench.
-message StartViewData {
-  optional google.protobuf.Value inputs_packed = 100;
-  optional NodeReferenceData run_ptr = 101;
-}
-
-// A view of a user interface in a Bench.
-message FeedViewData {
-  optional NodeType query_node_type = 100;
-  optional ExpressionData filter = 101;
-  repeated string filter_pills = 102;
-}
-
-// A view of a user interface in a Bench.
-message UserWizardViewData {
-  optional UserWizardViewStage stage = 100;
-}
-
 message RecordData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2931,34 +2905,6 @@ message ViewData {
   bool is_input = 82;
   bool is_inline = 83;
   bool is_loading = 90;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message ValueBlockData {
-  optional TypeInfoData value_type = 100;
-  optional google.protobuf.Value value_packed = 101;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message TextBlockData {
-  optional TextData text = 100;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message CodeBlockData {
-  optional CodeData code = 100;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message FlowBlockData {
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message ViewBlockData {
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message DatabaseBlockData {
 }
 
 // A view of a user interface in a Bench.

@@ -30,6 +30,21 @@
     },
     // general configs
     {
+      "name": "bench.build",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["build"],
+      "env": {
+        "ENVIRONMENT": "dev",
+        "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "system",
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
       "name": "bench.system",
       "type": "debugpy",
       "request": "launch",
