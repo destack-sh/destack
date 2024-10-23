@@ -489,6 +489,7 @@ class View(SourceNode[ViewData]):
         42, default=None, require=False, array=False, references=NODE_TYPES.tuple, rich=True
     )
     if TYPE_CHECKING:
+        node_type: Optional[NodeType] = None
         node_ptr: Optional["SomeNodeReference"] = None
 
     # style
@@ -524,9 +525,6 @@ class View(SourceNode[ViewData]):
     )
     focus: Optional[Selection] = p_regular(
         71, default=None, require=False, struct=StructType.SELECTION
-    )
-    expansion: Optional[Selection] = p_regular(
-        72, default=None, require=False, struct=StructType.SELECTION
     )
     ...  # actions/effects/...
 
@@ -648,26 +646,26 @@ class TreeViewPreset(IdEnum):
 
 @node_subtype_(ViewType.TREE)
 class TreeView(View):
-    node_types: list[NodeType] = p_regular(35, array=True)
-    filter_is_page: Optional[bool] = p_regular(36, default=None, require=False)
-    is_default_expanded: Optional[bool] = p_regular(37, default=None, require=False)
+    node_types: list[NodeType] = p_regular(100, array=True)
+    filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
+    is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
 
-    preset: Optional[TreeViewPreset] = p_regular(99, default=None, require=False)
+    preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
 
 
 @node_subtype_(ViewType.START)
 class StartView(View):
-    inputs_packed: Any = p_value_packed(30)
-    run: "Run | None" = p_regular(40, default=None, require=False, references=NodeType.RUN)
+    inputs_packed: Any = p_value_packed(100)
+    run: "Run | None" = p_regular(101, default=None, require=False, references=NodeType.RUN)
 
 
 @node_subtype_(ViewType.FEED)
 class FeedView(View):
-    node_type: NodeType | None = p_regular(30, require=False)
+    query_node_type: NodeType | None = p_regular(100, require=False)
     filter: "Expression | None" = p_regular(
-        31, default=None, require=False, struct=StructType.EXPRESSION
+        101, default=None, require=False, struct=StructType.EXPRESSION
     )
-    filter_pills: list[str] = p_regular(99, array=True)
+    filter_pills: list[str] = p_regular(102, array=True)
 
 
 @enum_(EnumType.USER_WIZARD_STAGE)
@@ -680,4 +678,4 @@ class UserWizardViewStage(IdEnum):
 
 @node_subtype_(ViewType.USER_WIZARD)
 class UserWizardView(View):
-    stage: UserWizardViewStage | None = p_regular(30)
+    stage: UserWizardViewStage | None = p_regular(100)

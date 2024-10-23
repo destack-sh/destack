@@ -44,6 +44,8 @@ class NodeList[V: Node](abc.ABC):
     A list of node children for a parent's child property.
     """
 
+    __slots__ = ("_child_node_cls", "_child_node_type", "_node", "_property")
+
     def __init__(self, node: "Node", property: "Property"):
         self._node = node
         self._property = property
@@ -248,9 +250,6 @@ class LocalNodeList[V: Node](NodeList[V], Collection[V]):
 
 class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     """A NodeList backed by a connection to a (remote) graph."""
-
-    def __init__(self, node: "Node", property: "Property"):
-        super().__init__(node, property)
 
     def clear(self):
         raise RuntimeError(f"cannot clear {self!r}")

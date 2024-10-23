@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 #  see :AutoNaming
 
 
-@local_node_(NodeType.BLOCK, passthrough=("value", "fields"))
+@local_node_(NodeType.BLOCK)
 class Block(SourceNode[BlockData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
@@ -72,7 +72,7 @@ class Block(SourceNode[BlockData]):
     )
 
     variables_packed: Any = p_value_packed(40)
-    variables: Any = p_value_runtime(41, typ=lambda self: cast("Block", self).variable_type)
+    variables: Any = p_value_runtime(packed=40, typ=lambda self: cast("Block", self).variable_type)
 
     policies: list["Policy"] = p_regular(42, require=False, array=True, struct=StructType.POLICY)
     delegated_policies: list["Policy"] = p_regular(
@@ -91,6 +91,10 @@ class Block(SourceNode[BlockData]):
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.IDENTITY]),
     )
+    if TYPE_CHECKING:
+        roles_ptr: tuple["NodeReference", ...] = ()
+        identity_ptr: Optional["NodeReference"] = None
+
     # flags
     is_builtin: bool = p_system(
         60, default=False, description="Whether this is an intrinsic provided by the system."
@@ -103,6 +107,13 @@ class Block(SourceNode[BlockData]):
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     badges: LocalNodeList["Badge"] = p_node_children(NodeType.BADGE)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
+    steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
+    pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
+    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
+    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
+    records: RemoteNodeList["Record", RecordData] = p_node_children(
+        NodeType.RECORD, list=RemoteNodeList
+    )
 
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"
@@ -250,47 +261,39 @@ class RunnableBlock(Block, ABC):
     run_options: Optional["RunOptions"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    if TYPE_CHECKING:
-        roles_ptr: tuple["NodeReference", ...] = ()
-        identity_ptr: Optional["NodeReference"] = None
-
-    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
 
 
-@node_subtype_(BlockType.VALUE)
+@node_subtype_(BlockType.VALUE, passthrough=("value",))
 class ValueBlock(Block):
     value_type: Optional["TypeInfo"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(101)
-    value: Any = p_value_runtime(102, typ=lambda self: cast("ValueBlock", self).value_type)
+    value: Any = p_value_runtime(101, typ=lambda self: cast("ValueBlock", self).value_type)
 
 
-@node_subtype_(BlockType.TEXT)
+@node_subtype_(BlockType.TEXT, passthrough=("fields",))
 class TextBlock(RunnableBlock):
     text: Optional["Text"] = p_regular(
-        36, default=None, require=False, array=False, struct=StructType.TEXT
+        100, default=None, require=False, array=False, struct=StructType.TEXT
     )
 
 
-@node_subtype_(BlockType.CODE)
+@node_subtype_(BlockType.CODE, passthrough=("fields",))
 class CodeBlock(RunnableBlock):
     code: Optional["Code"] = p_regular(
-        36, default=None, require=False, array=False, struct=StructType.CODE
+        100, default=None, require=False, array=False, struct=StructType.CODE
     )
 
 
-@node_subtype_(BlockType.FLOW)
+@node_subtype_(BlockType.FLOW, passthrough=("fields",))
 class FlowBlock(RunnableBlock):
-    steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
-    pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
+    pass
 
 
 @node_subtype_(BlockType.VIEW)
 class ViewBlock(Block):
-    views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
+    pass
 
 
-@node_subtype_(BlockType.DATABASE)
+@node_subtype_(BlockType.DATABASE, passthrough=("fields",))
 class DatabaseBlock(Block):
-    records: RemoteNodeList["Record", RecordData] = p_node_children(
-        NodeType.RECORD, list=RemoteNodeList
-    )
+    pass
