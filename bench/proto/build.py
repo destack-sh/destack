@@ -11,7 +11,6 @@ import regex
 import structlog
 import typer
 
-from bench.language import Node
 from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION, TypeFormat
 from bench.language.field import TypeConstraint
 from bench.language.file import FILE_FORMAT_BY_EXTENSION, FILE_FORMAT_BY_MIME_TYPE
@@ -22,7 +21,6 @@ from bench.language.setup import (
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
-    FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
     OBJECT_CLASS_BY_TYPE,
@@ -75,8 +73,6 @@ def _build_proto_schema() -> str:
     node_classes.sort(key=lambda cls: cls.metatype.id)
     proto = generate_proto_schema(
         name="symbolx.bench",
-        bench_classes=[*FINAL_BENCH_CLASSES, Node],
-        aliases={Node: "BaseNode"},
         unions={"SomeNode": ("node", node_classes)},
         extras=[],
         message_postfix="Data",

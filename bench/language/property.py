@@ -286,7 +286,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 "component",
                 "ignore_conflicts",
                 "reference_wired_ptr",
-                "referenced_stored_ids",
+                "reference_stored_ids",
                 "reference_source",
                 "py_type_raw",
                 "py_type_stripped",

@@ -19,7 +19,6 @@ from typing import (
     Sequence,
     Type,
     TypeGuard,
-    TypeVar,
     Union,
     cast,
     dataclass_transform,
@@ -407,11 +406,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
     return cls, properties_by_name  # type: ignore
 
 
-_ObjectT = TypeVar("_ObjectT", bound="BuiltinObject")
-
-
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def object_(
+def object_[_ObjectT: BuiltinObject](
     struct_type: StructType | None = None,
     is_final: bool = False,
 ):
@@ -438,7 +434,7 @@ def object_(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_(struct_type: StructType):
+def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: Type[_ObjectT]) -> Type[_ObjectT]:
@@ -449,7 +445,7 @@ def struct_(struct_type: StructType):
             if issubclass(cls, Node):
                 raise ValueError(f"{cls} is a node for {struct_type}")
 
-        return cls
+        return cast(Type[_ObjectT], cls)
 
     return decorate
 
@@ -461,6 +457,7 @@ def node_component(
     is_root: bool = False,
     is_variable_root: bool = False,
     is_final: bool = False,
+    is_subtype: bool = False,
 ):
     """Mark a class as a node component (or concrete node for a NodeType)."""
     if isinstance(passthrough, str):
@@ -491,12 +488,13 @@ def node_component(
         # register as concrete node class for node_type
         if node_type:
             cls.metatype = node_type
+        if node_type and not is_subtype:
             if node_type in NODE_CLASS_BY_TYPE:
                 raise ValueError(
                     f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_TYPE[node_type]}"
                 )
             NODE_CLASS_BY_TYPE[node_type] = cls
-        NODE_CLASS_BY_NAME[cls.__name__] = cls
+            NODE_CLASS_BY_NAME[cls.__name__] = cls
 
         return cls
 
@@ -548,13 +546,49 @@ def node_(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def node_subtype_(subtype: int):
+def node_subtype_(
+    subtype: int,
+    passthrough: str | tuple[str, ...] | None = None,
+):
     """
-    Mark a class as a subtype class of the ancestor object class.
+    Mark a class as a subtype class of an ancestor node class.
     """
 
     def decorate(cls: Type["Node"]) -> Type["Node"]:
-        return cls  # nocheckin
+        for c in cls.__mro__[::-1]:
+            if getattr(c, "metatype", None):
+                base_cls = cast(type["Node"], c)
+                assert issubclass(base_cls, Node), f"expected Node, got {base_cls} for {cls}"
+                break
+        else:
+            raise RuntimeError(f"no base class found for {cls}")
+        cls = node_component(
+            node_type=base_cls.metatype,
+            passthrough=passthrough,
+            is_root=len(base_cls.__roots__) == 0,
+            is_variable_root=len(base_cls.__roots__) > 1,
+            is_final=True,
+            is_subtype=True,
+        )(cls)
+
+        # check
+        if IS_DEV:
+            for prop in cls.__declared_properties__.values():
+                if prop.reference_kind == ReferenceKind.NODE_CHILDREN:
+                    raise ValueError(f"can't have children {prop!r} in subtype {cls}")
+                if prop.id is not None and prop.id < 100:
+                    raise ValueError(f"shouldn't have id < 100 {prop!r} in subtype {cls}")
+
+        # register
+        cls.__base_class__ = base_cls
+        if subtype in base_cls.__subclass_by_subtype__:
+            raise ValueError(f"subtype {subtype} already registered for {base_cls}")
+        base_cls.__subclass_by_subtype__[subtype] = cls
+        base_cls.__subtype_by_subclass__[cls] = subtype
+        base_cls.__has_subtypes__ = True
+        cls.__subtype__ = subtype
+
+        return cls
 
     return decorate
 
@@ -842,6 +876,9 @@ def _trace_edit_operation(
     node._session._update(node, operation)
 
 
+# nocheckin: Node.__instancecheck__ for subtypes
+
+
 @object_()
 class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
@@ -1125,6 +1162,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _do_get(self, key):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
 
+        # nocheckin: check subtype in Node._do_get
+
         # check passthrough (if in a session)
         if self.__passthrough__ is not None and self._session is not None:
             for passthrough_key in self.__passthrough__:
@@ -1143,6 +1182,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this builtin object."""
         prop = self.__properties__.get(key)
+
+        # nocheckin: check subtype in Node._do_set
+
         if prop is not None:
             if prop.is_untracked:
                 object.__setattr__(self, key, new_value)
@@ -1451,7 +1493,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     metatype: ClassVar[NodeType]  # type: ignore
 
-    __is_node__: ClassVar[bool] = True
     # NOTE :Test: make id factories deterministic (incl. UUIDT? somehow)
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
@@ -1459,6 +1500,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __node_child_properties__: ClassVar[dict[str, Property]] = {}
     __subclass_by_subtype__: ClassVar[dict[int, type["Node"]]] = {}
     __subtype_by_subclass__: ClassVar[dict[type["Node"], int]] = {}
+    __has_subtypes__: ClassVar[bool] = False
+    __base_class__: ClassVar[type["Node"] | None] = None
+    __subtype__: ClassVar[int | None] = None
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET
     __is_struct__: ClassVar[bool] = False
@@ -1515,9 +1559,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
 
-    # nocheckin: :NodeInheritance extensions?
-    #  (somewhere to keep the packed properties of subtypes)
-    # subpacked: dict[int, dict[int, Any]] = p_internal(20)
+    subnode_packed: dict[int, dict[int, Any]] | None = p_internal(
+        20, primitive_type=PrimitiveType.JSON, require=False
+    )
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
 
     # 30+ for 'user' node/struct properties

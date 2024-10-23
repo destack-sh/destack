@@ -1,10 +1,13 @@
 import enum
-from itertools import chain
 from typing import TYPE_CHECKING, Any, Collection, Sequence, Union, cast
 
-from bench.language.const import PrimitiveType
-from bench.language.node import NODE_REFERENCE_TYPES, BuiltinObject
-from bench.language.setup import STRUCT_CLASS_BY_TYPE
+from bench.language.const import EnumType, PrimitiveType
+from bench.language.node import NODE_REFERENCE_TYPES, BuiltinObject, Node
+from bench.language.setup import (
+    BENCH_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+)
 from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -97,13 +100,20 @@ def map_bench_property_to_proto(
 
 
 def map_builtin_object_to_proto(
-    cls: type[BuiltinObject], cache: dict[_ThingType, ProtoThing], alias: str | None = None
+    cls: type[BuiltinObject],
+    cache: dict[_ThingType, ProtoThing],
+    alias: str | None = None,
+    properties: Sequence["Property"] | None = None,
 ) -> Message:
     message = Message(name=alias or cls.__name__, reserved_names=[], reserved_ids=[], fields=[])
-    assert cls.__doc__, f"missing docstring for {cls!r}"
-    message.comment = cls.__doc__.strip()
+    doc = (
+        cls.__doc__ or cls.__base_class__.__doc__
+        if issubclass(cls, Node) and cls.__base_class__
+        else None
+    )
+    message.comment = (doc or "").strip()
     cache[cls] = message  # to solve recursive references
-    for prop in cls.__properties__.values():
+    for prop in properties if properties is not None else cls.__properties__.values():
         if not prop.is_wired:
             continue
         fields = map_bench_property_to_proto(prop, cache)
@@ -161,34 +171,46 @@ def map_object_type_to_proto(
     return ret
 
 
+def map_object_subtype_to_proto(
+    node_t: type[Node],
+    cache: dict[_ThingType, ProtoThing],
+    subtype: int,
+) -> Message:
+    """Maps a Node subtype to a Proto type. Only includes the subtype properties not in base."""
+    assert node_t.__base_class__ is not None, f"node is not a subtype: {node_t!r}"
+    properties = [
+        prop
+        for prop in node_t.__properties__.values()
+        if prop.name not in node_t.__base_class__.__properties__
+    ]
+    return map_builtin_object_to_proto(node_t, cache, properties=properties)
+
+
 def generate_proto_schema(
     name: str,
-    bench_classes: Collection[type[Union["BuiltinObject", IdEnum]]],
-    aliases: dict[type[Union["BuiltinObject", IdEnum]], str],
     unions: dict[str, tuple[str, Collection[type[Union["BuiltinObject", IdEnum]]]]],
     extras: list[Enum | Message],
     message_postfix: str = "",
 ) -> ProtoSchema:
-    from bench.language import Node, Struct
+    from bench.language import Node
 
     proto_types_cache: dict[_ThingType, ProtoThing] = {}
-    for thing in bench_classes:
-        _ = map_object_type_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
-
-    collected_enums: list[type[enum.Enum]] = [
-        t for t in proto_types_cache if issubclass(t, enum.Enum)
-    ]
-    collected_structs: list[type[Struct]] = [
-        t for t in bench_classes if issubclass(t, (Struct, Struct))
-    ]
-    collected_nodes: list[type[Node]] = [t for t in bench_classes if issubclass(t, Node)]
-    collected_enums.sort(key=lambda t: t.__name__)
-    collected_structs.sort(key=lambda t: t.__name__)
-    collected_nodes.sort(key=lambda t: t.__name__)
-    proto_types: list[Enum | Message] = [
-        cast(Enum | Message, proto_types_cache[cast(Any, t)])
-        for t in chain(collected_enums, collected_structs, collected_nodes)
-    ]
+    proto_types: list[Enum | Message] = []
+    for enum_t in EnumType:
+        enum_cls = cast(type[IdEnum], BENCH_CLASS_BY_TYPE[enum_t])
+        proto_types.append(map_builtin_enum_to_proto(enum_cls, proto_types_cache))
+    for struct_t, struct_cls in STRUCT_CLASS_BY_TYPE.items():
+        proto_types.append(map_builtin_object_to_proto(struct_cls, proto_types_cache))
+    proto_types.append(map_builtin_object_to_proto(Node, proto_types_cache, alias="BaseNode"))
+    for node_t, node_cls in NODE_CLASS_BY_TYPE.items():
+        proto_types.append(map_builtin_object_to_proto(node_cls, proto_types_cache))
+        if node_cls.__has_subtypes__:
+            for subnode_type, subnode_cls in node_cls.__subclass_by_subtype__.items():
+                proto_types.append(
+                    map_object_subtype_to_proto(
+                        subnode_cls, proto_types_cache, subtype=subnode_type
+                    )
+                )
 
     # add custom union types
     for union_name, (wrapper_field_name, unioned_types) in unions.items():

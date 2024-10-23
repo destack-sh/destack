@@ -11,7 +11,7 @@ import type { IBinaryReader } from "@protobuf-ts/runtime";
 import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
-import { MessageType } from "@protobuf-ts/runtime";
+import { MessageType as MessageType$ } from "@protobuf-ts/runtime";
 import { Duration } from "../google/protobuf/duration";
 import { Value } from "../google/protobuf/struct";
 import { Timestamp } from "../google/protobuf/timestamp";
@@ -568,29 +568,6 @@ export interface ExpressionData {
      * @generated from protobuf field: optional float tolerance = 49;
      */
     tolerance?: number;
-}
-/**
- * The state of a Feed view.
- *
- * @generated from protobuf message symbolx.bench.FeedViewStateData
- */
-export interface FeedViewStateData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 30;
-     */
-    nodeType?: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 31;
-     */
-    filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated string filter_pills = 99;
-     */
-    filterPills: string[];
 }
 /**
  * File metadata.
@@ -1688,29 +1665,6 @@ export interface SessionContextData {
     identityPtr?: NodeReferenceData;
 }
 /**
- * The state of a Start view.
- *
- * @generated from protobuf message symbolx.bench.StartViewStateData
- */
-export interface StartViewStateData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 30;
-     */
-    inputsPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 40;
-     */
-    runPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.FeedViewStateData feed = 50;
-     */
-    feed?: FeedViewStateData;
-}
-/**
  * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
  * (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
  *
@@ -1934,33 +1888,6 @@ export interface TransformData {
     rotateX?: number;
 }
 /**
- * The state of a Tree view.
- *
- * @generated from protobuf message symbolx.bench.TreeViewStateData
- */
-export interface TreeViewStateData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 35;
-     */
-    nodeTypes: NodeType[];
-    /**
-     * @generated from protobuf field: optional bool filter_is_page = 36;
-     */
-    filterIsPage?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_default_expanded = 37;
-     */
-    isDefaultExpanded?: boolean;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TreeViewPreset preset = 99;
-     */
-    preset?: TreeViewPreset;
-}
-/**
  * The basic information describing a trigger.
  *
  * @generated from protobuf message symbolx.bench.TriggerInfoData
@@ -2121,21 +2048,6 @@ export interface TypeInfoData {
      * @generated from protobuf field: bool is_secret = 62;
      */
     isSecret: boolean;
-}
-/**
- * The state of a User view.
- *
- * @generated from protobuf message symbolx.bench.UserWizardViewStateData
- */
-export interface UserWizardViewStateData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 30;
-     */
-    stage?: UserWizardViewStage;
 }
 /**
  * A generic typed 'freeform' value.
@@ -2302,6 +2214,10 @@ export interface BadgeData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string name = 31;
      */
     name: string;
@@ -2380,6 +2296,10 @@ export interface BenchData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
@@ -2508,6 +2428,10 @@ export interface BlockData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: symbolx.bench.BlockType type = 30;
      */
     type: BlockType;
@@ -2520,49 +2444,29 @@ export interface BlockData {
      */
     orderKey: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 36;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.IconData icon = 37;
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 34;
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 38;
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 40;
      */
     variablesPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 39;
-     */
-    valueType?: TypeInfoData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value value_packed = 40;
-     */
-    valuePacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 42;
-     */
-    code?: CodeData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 43;
-     */
-    runOptions?: RunOptionsData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 46;
-     */
-    rolesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 47;
-     */
-    identityPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 48;
+     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 42;
      */
     policies: PolicyData[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 49;
+     * @generated from protobuf field: repeated symbolx.bench.PolicyData delegated_policies = 43;
      */
     delegatedPolicies: PolicyData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 44;
+     */
+    rolesPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 45;
+     */
+    identityPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: bool is_builtin = 60;
      */
@@ -2622,6 +2526,10 @@ export interface BranchData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: string name = 32;
      */
@@ -2710,6 +2618,10 @@ export interface CacheData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -2780,6 +2692,10 @@ export interface ClientData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.ClientType type = 30;
      */
@@ -2901,6 +2817,10 @@ export interface DependencyData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData scopes_ptr = 30;
      */
     scopesPtr: NodeReferenceData[];
@@ -2960,6 +2880,10 @@ export interface DriveData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -2981,8 +2905,7 @@ export interface DriveData {
     currentStatus: ResourceStatus;
 }
 /**
- * A used-defined attribute of some value
- * (Bench defines Properties for Nodes/Structs, Users define Fields for Values inside those).
+ * A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
  *
  * @generated from protobuf message symbolx.bench.FieldData
  */
@@ -3047,6 +2970,10 @@ export interface FieldData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.FieldType type = 30;
      */
@@ -3170,6 +3097,10 @@ export interface FileData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
      */
@@ -3314,6 +3245,10 @@ export interface HandleData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string slug = 30;
      */
     slug: string;
@@ -3368,6 +3303,10 @@ export interface InviteData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 30;
      */
@@ -3439,6 +3378,10 @@ export interface LogData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.LogKind kind = 30;
      */
@@ -3563,6 +3506,10 @@ export interface MachineData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: string name = 32;
      */
@@ -3691,6 +3638,10 @@ export interface MembershipData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData user_ptr = 30;
      */
     userPtr?: NodeReferenceData;
@@ -3754,6 +3705,14 @@ export interface MessageData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
+     * @generated from protobuf field: symbolx.bench.MessageType type = 30;
+     */
+    type: MessageType;
     /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData origin_ptr = 32;
      */
@@ -3823,6 +3782,10 @@ export interface BaseNodeData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
 }
 /**
  * A Notification to a Bench (author = created_by).
@@ -3878,6 +3841,10 @@ export interface NotificationData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 32;
      */
@@ -3946,6 +3913,10 @@ export interface OrganizationData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
@@ -4025,6 +3996,10 @@ export interface PackageData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
      */
@@ -4117,6 +4092,10 @@ export interface PipeData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.PipeType type = 30;
      */
@@ -4257,6 +4236,10 @@ export interface QueryData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string name = 30;
      */
     name: string;
@@ -4372,6 +4355,10 @@ export interface RecordData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: optional string order_key = 33;
      */
     orderKey?: string;
@@ -4438,6 +4425,10 @@ export interface RunData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.RunKind kind = 30;
      */
@@ -4622,6 +4613,10 @@ export interface SecretData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string title = 33;
      */
     title: string;
@@ -4701,6 +4696,10 @@ export interface ServerData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: string name = 32;
      */
@@ -4812,6 +4811,10 @@ export interface SessionData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: symbolx.bench.SessionStatus status = 40;
      */
     status: SessionStatus;
@@ -4899,6 +4902,10 @@ export interface SignalData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 32;
      */
     blockPtr?: NodeReferenceData;
@@ -4978,6 +4985,10 @@ export interface SkipData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData reference_ptr = 30;
      */
     referencePtr?: NodeReferenceData;
@@ -5052,6 +5063,10 @@ export interface SpaceData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.SpaceType type = 30;
      */
@@ -5170,6 +5185,10 @@ export interface StepData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: symbolx.bench.StepType type = 30;
      */
     type: StepType;
@@ -5281,6 +5300,10 @@ export interface StoreData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -5388,6 +5411,10 @@ export interface TriggerData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: symbolx.bench.TriggerType type = 30;
      */
     type: TriggerType;
@@ -5454,6 +5481,10 @@ export interface UserData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_handle_ptr = 31;
      */
@@ -5554,6 +5585,10 @@ export interface VaultData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
      * @generated from protobuf field: string name = 32;
      */
     name: string;
@@ -5640,6 +5675,10 @@ export interface ViewData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
     /**
      * @generated from protobuf field: symbolx.bench.ViewType type = 30;
      */
@@ -5740,10 +5779,6 @@ export interface ViewData {
      * @generated from protobuf field: optional symbolx.bench.SelectionData focus = 71;
      */
     focus?: SelectionData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SelectionData expansion = 72;
-     */
-    expansion?: SelectionData;
     /**
      * @generated from protobuf field: bool is_hidden = 80;
      */
@@ -6609,22 +6644,6 @@ export enum BenchType {
      */
     LINE = 11035,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_START_VIEW_STATE = 11200;
-     */
-    START_VIEW_STATE = 11200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FEED_VIEW_STATE = 11201;
-     */
-    FEED_VIEW_STATE = 11201,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_VIEW_STATE = 11205;
-     */
-    USER_WIZARD_VIEW_STATE = 11205,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_STATE = 11207;
-     */
-    TREE_VIEW_STATE = 11207,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20001;
      */
     ENUM_TYPE = 20001,
@@ -6768,6 +6787,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 20111;
      */
     ICON_KIND = 20111,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 20120;
+     */
+    MESSAGE_TYPE = 20120,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 20200;
      */
@@ -7731,6 +7754,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 20111;
      */
     ICON_KIND = 20111,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 20120;
+     */
+    MESSAGE_TYPE = 20120,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 20200;
      */
@@ -8861,6 +8888,27 @@ export enum LogLevel {
     CRITICAL = 6
 }
 /**
+ * @generated from protobuf enum symbolx.bench.MessageType
+ */
+export enum MessageType {
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_NATIVE = 1;
+     */
+    NATIVE = 1,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_EMAIL = 10;
+     */
+    EMAIL = 10,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_SMS = 11;
+     */
+    SMS = 11
+}
+/**
  * @generated from protobuf enum symbolx.bench.ModelProvider
  */
 export enum ModelProvider {
@@ -9534,23 +9582,7 @@ export enum ObjectType {
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_LINE = 11035;
      */
-    LINE = 11035,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_START_VIEW_STATE = 11200;
-     */
-    START_VIEW_STATE = 11200,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FEED_VIEW_STATE = 11201;
-     */
-    FEED_VIEW_STATE = 11201,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_USER_WIZARD_VIEW_STATE = 11205;
-     */
-    USER_WIZARD_VIEW_STATE = 11205,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TREE_VIEW_STATE = 11207;
-     */
-    TREE_VIEW_STATE = 11207
+    LINE = 11035
 }
 /**
  * @generated from protobuf enum symbolx.bench.OrganizationStatus
@@ -10831,23 +10863,7 @@ export enum StructType {
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_LINE = 11035;
      */
-    LINE = 11035,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_START_VIEW_STATE = 11200;
-     */
-    START_VIEW_STATE = 11200,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FEED_VIEW_STATE = 11201;
-     */
-    FEED_VIEW_STATE = 11201,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 11205;
-     */
-    USER_WIZARD_VIEW_STATE = 11205,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TREE_VIEW_STATE = 11207;
-     */
-    TREE_VIEW_STATE = 11207
+    LINE = 11035
 }
 /**
  * @generated from protobuf enum symbolx.bench.TextLineType
@@ -11445,7 +11461,7 @@ export enum ViewType {
     AGGREGATION = 1363
 }
 // @generated message type with reflection information, may provide speed optimized methods
-class AccessData$Type extends MessageType<AccessData> {
+class AccessData$Type extends MessageType$<AccessData> {
     constructor() {
         super("symbolx.bench.AccessData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -11532,7 +11548,7 @@ class AccessData$Type extends MessageType<AccessData> {
  */
 export const AccessData = new AccessData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
+class AccessMatrixData$Type extends MessageType$<AccessMatrixData> {
     constructor() {
         super("symbolx.bench.AccessMatrixData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -11610,7 +11626,7 @@ class AccessMatrixData$Type extends MessageType<AccessMatrixData> {
  */
 export const AccessMatrixData = new AccessMatrixData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class AccessZoneData$Type extends MessageType<AccessZoneData> {
+class AccessZoneData$Type extends MessageType$<AccessZoneData> {
     constructor() {
         super("symbolx.bench.AccessZoneData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -11696,7 +11712,7 @@ class AccessZoneData$Type extends MessageType<AccessZoneData> {
  */
 export const AccessZoneData = new AccessZoneData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class AggregationResultData$Type extends MessageType<AggregationResultData> {
+class AggregationResultData$Type extends MessageType$<AggregationResultData> {
     constructor() {
         super("symbolx.bench.AggregationResultData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -11772,7 +11788,7 @@ class AggregationResultData$Type extends MessageType<AggregationResultData> {
  */
 export const AggregationResultData = new AggregationResultData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BoxData$Type extends MessageType<BoxData> {
+class BoxData$Type extends MessageType$<BoxData> {
     constructor() {
         super("symbolx.bench.BoxData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -11847,7 +11863,7 @@ class BoxData$Type extends MessageType<BoxData> {
  */
 export const BoxData = new BoxData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BreakpointData$Type extends MessageType<BreakpointData> {
+class BreakpointData$Type extends MessageType$<BreakpointData> {
     constructor() {
         super("symbolx.bench.BreakpointData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -11917,7 +11933,7 @@ class BreakpointData$Type extends MessageType<BreakpointData> {
  */
 export const BreakpointData = new BreakpointData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ChangeData$Type extends MessageType<ChangeData> {
+class ChangeData$Type extends MessageType$<ChangeData> {
     constructor() {
         super("symbolx.bench.ChangeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12017,7 +12033,7 @@ class ChangeData$Type extends MessageType<ChangeData> {
  */
 export const ChangeData = new ChangeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
+class ChangeVignetteData$Type extends MessageType$<ChangeVignetteData> {
     constructor() {
         super("symbolx.bench.ChangeVignetteData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12092,7 +12108,7 @@ class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
  */
 export const ChangeVignetteData = new ChangeVignetteData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ClientOriginData$Type extends MessageType<ClientOriginData> {
+class ClientOriginData$Type extends MessageType$<ClientOriginData> {
     constructor() {
         super("symbolx.bench.ClientOriginData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12161,7 +12177,7 @@ class ClientOriginData$Type extends MessageType<ClientOriginData> {
  */
 export const ClientOriginData = new ClientOriginData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CodeData$Type extends MessageType<CodeData> {
+class CodeData$Type extends MessageType$<CodeData> {
     constructor() {
         super("symbolx.bench.CodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12216,7 +12232,7 @@ class CodeData$Type extends MessageType<CodeData> {
  */
 export const CodeData = new CodeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CodeLineData$Type extends MessageType<CodeLineData> {
+class CodeLineData$Type extends MessageType$<CodeLineData> {
     constructor() {
         super("symbolx.bench.CodeLineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12270,7 +12286,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
  */
 export const CodeLineData = new CodeLineData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ColorData$Type extends MessageType<ColorData> {
+class ColorData$Type extends MessageType$<ColorData> {
     constructor() {
         super("symbolx.bench.ColorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12338,7 +12354,7 @@ class ColorData$Type extends MessageType<ColorData> {
  */
 export const ColorData = new ColorData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ComputedValueData$Type extends MessageType<ComputedValueData> {
+class ComputedValueData$Type extends MessageType$<ComputedValueData> {
     constructor() {
         super("symbolx.bench.ComputedValueData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12399,7 +12415,7 @@ class ComputedValueData$Type extends MessageType<ComputedValueData> {
  */
 export const ComputedValueData = new ComputedValueData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class EditData$Type extends MessageType<EditData> {
+class EditData$Type extends MessageType$<EditData> {
     constructor() {
         super("symbolx.bench.EditData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12561,7 +12577,7 @@ class EditData$Type extends MessageType<EditData> {
  */
 export const EditData = new EditData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class EditContextData$Type extends MessageType<EditContextData> {
+class EditContextData$Type extends MessageType$<EditContextData> {
     constructor() {
         super("symbolx.bench.EditContextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12650,7 +12666,7 @@ class EditContextData$Type extends MessageType<EditContextData> {
  */
 export const EditContextData = new EditContextData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class EditInfoData$Type extends MessageType<EditInfoData> {
+class EditInfoData$Type extends MessageType$<EditInfoData> {
     constructor() {
         super("symbolx.bench.EditInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12756,7 +12772,7 @@ class EditInfoData$Type extends MessageType<EditInfoData> {
  */
 export const EditInfoData = new EditInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class EditOperationData$Type extends MessageType<EditOperationData> {
+class EditOperationData$Type extends MessageType$<EditOperationData> {
     constructor() {
         super("symbolx.bench.EditOperationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12833,7 +12849,7 @@ class EditOperationData$Type extends MessageType<EditOperationData> {
  */
 export const EditOperationData = new EditOperationData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ExpressionData$Type extends MessageType<ExpressionData> {
+class ExpressionData$Type extends MessageType$<ExpressionData> {
     constructor() {
         super("symbolx.bench.ExpressionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -12938,76 +12954,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
  */
 export const ExpressionData = new ExpressionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class FeedViewStateData$Type extends MessageType<FeedViewStateData> {
-    constructor() {
-        super("symbolx.bench.FeedViewStateData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 31, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 99, name: "filter_pills", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<FeedViewStateData>): FeedViewStateData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.filterPills = [];
-        if (value !== undefined)
-            reflectionMergePartial<FeedViewStateData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FeedViewStateData): FeedViewStateData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeType node_type */ 30:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 31:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated string filter_pills */ 99:
-                    message.filterPills.push(reader.string());
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FeedViewStateData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.NodeType node_type = 30; */
-        if (message.nodeType !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.ExpressionData filter = 31; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* repeated string filter_pills = 99; */
-        for (let i = 0; i < message.filterPills.length; i++)
-            writer.tag(99, WireType.LengthDelimited).string(message.filterPills[i]);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FeedViewStateData
- */
-export const FeedViewStateData = new FeedViewStateData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class FileInfoData$Type extends MessageType<FileInfoData> {
+class FileInfoData$Type extends MessageType$<FileInfoData> {
     constructor() {
         super("symbolx.bench.FileInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13177,7 +13124,7 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
  */
 export const FileInfoData = new FileInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class FileReferenceData$Type extends MessageType<FileReferenceData> {
+class FileReferenceData$Type extends MessageType$<FileReferenceData> {
     constructor() {
         super("symbolx.bench.FileReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13390,7 +13337,7 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
  */
 export const FileReferenceData = new FileReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class FontData$Type extends MessageType<FontData> {
+class FontData$Type extends MessageType$<FontData> {
     constructor() {
         super("symbolx.bench.FontData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13458,7 +13405,7 @@ class FontData$Type extends MessageType<FontData> {
  */
 export const FontData = new FontData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class GraphScopeData$Type extends MessageType<GraphScopeData> {
+class GraphScopeData$Type extends MessageType$<GraphScopeData> {
     constructor() {
         super("symbolx.bench.GraphScopeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13519,7 +13466,7 @@ class GraphScopeData$Type extends MessageType<GraphScopeData> {
  */
 export const GraphScopeData = new GraphScopeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class IconData$Type extends MessageType<IconData> {
+class IconData$Type extends MessageType$<IconData> {
     constructor() {
         super("symbolx.bench.IconData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13602,7 +13549,7 @@ class IconData$Type extends MessageType<IconData> {
  */
 export const IconData = new IconData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class LineData$Type extends MessageType<LineData> {
+class LineData$Type extends MessageType$<LineData> {
     constructor() {
         super("symbolx.bench.LineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13657,7 +13604,7 @@ class LineData$Type extends MessageType<LineData> {
  */
 export const LineData = new LineData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class LogInfoData$Type extends MessageType<LogInfoData> {
+class LogInfoData$Type extends MessageType$<LogInfoData> {
     constructor() {
         super("symbolx.bench.LogInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13740,7 +13687,7 @@ class LogInfoData$Type extends MessageType<LogInfoData> {
  */
 export const LogInfoData = new LogInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
+class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
     constructor() {
         super("symbolx.bench.NodeReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13830,7 +13777,7 @@ class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
  */
 export const NodeReferenceData = new NodeReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class OffsetData$Type extends MessageType<OffsetData> {
+class OffsetData$Type extends MessageType$<OffsetData> {
     constructor() {
         super("symbolx.bench.OffsetData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13933,7 +13880,7 @@ class OffsetData$Type extends MessageType<OffsetData> {
  */
 export const OffsetData = new OffsetData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PathData$Type extends MessageType<PathData> {
+class PathData$Type extends MessageType$<PathData> {
     constructor() {
         super("symbolx.bench.PathData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -13988,7 +13935,7 @@ class PathData$Type extends MessageType<PathData> {
  */
 export const PathData = new PathData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PathTokenData$Type extends MessageType<PathTokenData> {
+class PathTokenData$Type extends MessageType$<PathTokenData> {
     constructor() {
         super("symbolx.bench.PathTokenData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14050,7 +13997,7 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
  */
 export const PathTokenData = new PathTokenData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PolicyData$Type extends MessageType<PolicyData> {
+class PolicyData$Type extends MessageType$<PolicyData> {
     constructor() {
         super("symbolx.bench.PolicyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14128,7 +14075,7 @@ class PolicyData$Type extends MessageType<PolicyData> {
  */
 export const PolicyData = new PolicyData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
+class PolicyRuleData$Type extends MessageType$<PolicyRuleData> {
     constructor() {
         super("symbolx.bench.PolicyRuleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14310,7 +14257,7 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
  */
 export const PolicyRuleData = new PolicyRuleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PortKeyData$Type extends MessageType<PortKeyData> {
+class PortKeyData$Type extends MessageType$<PortKeyData> {
     constructor() {
         super("symbolx.bench.PortKeyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14380,7 +14327,7 @@ class PortKeyData$Type extends MessageType<PortKeyData> {
  */
 export const PortKeyData = new PortKeyData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
+class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
     constructor() {
         super("symbolx.bench.PropertyReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14456,7 +14403,7 @@ class PropertyReferenceData$Type extends MessageType<PropertyReferenceData> {
  */
 export const PropertyReferenceData = new PropertyReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class QueryInfoData$Type extends MessageType<QueryInfoData> {
+class QueryInfoData$Type extends MessageType$<QueryInfoData> {
     constructor() {
         super("symbolx.bench.QueryInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14617,7 +14564,7 @@ class QueryInfoData$Type extends MessageType<QueryInfoData> {
  */
 export const QueryInfoData = new QueryInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunAttemptData$Type extends MessageType<RunAttemptData> {
+class RunAttemptData$Type extends MessageType$<RunAttemptData> {
     constructor() {
         super("symbolx.bench.RunAttemptData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14714,7 +14661,7 @@ class RunAttemptData$Type extends MessageType<RunAttemptData> {
  */
 export const RunAttemptData = new RunAttemptData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunErrorData$Type extends MessageType<RunErrorData> {
+class RunErrorData$Type extends MessageType$<RunErrorData> {
     constructor() {
         super("symbolx.bench.RunErrorData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14805,7 +14752,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
  */
 export const RunErrorData = new RunErrorData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunEventData$Type extends MessageType<RunEventData> {
+class RunEventData$Type extends MessageType$<RunEventData> {
     constructor() {
         super("symbolx.bench.RunEventData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -14903,7 +14850,7 @@ class RunEventData$Type extends MessageType<RunEventData> {
  */
 export const RunEventData = new RunEventData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunFrameData$Type extends MessageType<RunFrameData> {
+class RunFrameData$Type extends MessageType$<RunFrameData> {
     constructor() {
         super("symbolx.bench.RunFrameData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] }
@@ -14950,7 +14897,7 @@ class RunFrameData$Type extends MessageType<RunFrameData> {
  */
 export const RunFrameData = new RunFrameData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunOptionsData$Type extends MessageType<RunOptionsData> {
+class RunOptionsData$Type extends MessageType$<RunOptionsData> {
     constructor() {
         super("symbolx.bench.RunOptionsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15119,7 +15066,7 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
  */
 export const RunOptionsData = new RunOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunSpanData$Type extends MessageType<RunSpanData> {
+class RunSpanData$Type extends MessageType$<RunSpanData> {
     constructor() {
         super("symbolx.bench.RunSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15224,7 +15171,7 @@ class RunSpanData$Type extends MessageType<RunSpanData> {
  */
 export const RunSpanData = new RunSpanData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunTraceData$Type extends MessageType<RunTraceData> {
+class RunTraceData$Type extends MessageType$<RunTraceData> {
     constructor() {
         super("symbolx.bench.RunTraceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15279,7 +15226,7 @@ class RunTraceData$Type extends MessageType<RunTraceData> {
  */
 export const RunTraceData = new RunTraceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ScheduleData$Type extends MessageType<ScheduleData> {
+class ScheduleData$Type extends MessageType$<ScheduleData> {
     constructor() {
         super("symbolx.bench.ScheduleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15372,7 +15319,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
  */
 export const ScheduleData = new ScheduleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
+class SecretReferenceData$Type extends MessageType$<SecretReferenceData> {
     constructor() {
         super("symbolx.bench.SecretReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15470,7 +15417,7 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
  */
 export const SecretReferenceData = new SecretReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SelectOptionsData$Type extends MessageType<SelectOptionsData> {
+class SelectOptionsData$Type extends MessageType$<SelectOptionsData> {
     constructor() {
         super("symbolx.bench.SelectOptionsData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15557,7 +15504,7 @@ class SelectOptionsData$Type extends MessageType<SelectOptionsData> {
  */
 export const SelectOptionsData = new SelectOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SelectionData$Type extends MessageType<SelectionData> {
+class SelectionData$Type extends MessageType$<SelectionData> {
     constructor() {
         super("symbolx.bench.SelectionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15620,7 +15567,7 @@ class SelectionData$Type extends MessageType<SelectionData> {
  */
 export const SelectionData = new SelectionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SessionContextData$Type extends MessageType<SessionContextData> {
+class SessionContextData$Type extends MessageType$<SessionContextData> {
     constructor() {
         super("symbolx.bench.SessionContextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15723,75 +15670,7 @@ class SessionContextData$Type extends MessageType<SessionContextData> {
  */
 export const SessionContextData = new SessionContextData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class StartViewStateData$Type extends MessageType<StartViewStateData> {
-    constructor() {
-        super("symbolx.bench.StartViewStateData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "inputs_packed", kind: "message", T: () => Value },
-            { no: 40, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "feed", kind: "message", T: () => FeedViewStateData }
-        ]);
-    }
-    create(value?: PartialMessage<StartViewStateData>): StartViewStateData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<StartViewStateData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartViewStateData): StartViewStateData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional google.protobuf.Value inputs_packed */ 30:
-                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 40:
-                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
-                    break;
-                case /* optional symbolx.bench.FeedViewStateData feed */ 50:
-                    message.feed = FeedViewStateData.internalBinaryRead(reader, reader.uint32(), options, message.feed);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: StartViewStateData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional google.protobuf.Value inputs_packed = 30; */
-        if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData run_ptr = 40; */
-        if (message.runPtr)
-            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.FeedViewStateData feed = 50; */
-        if (message.feed)
-            FeedViewStateData.internalBinaryWrite(message.feed, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.StartViewStateData
- */
-export const StartViewStateData = new StartViewStateData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SubjectData$Type extends MessageType<SubjectData> {
+class SubjectData$Type extends MessageType$<SubjectData> {
     constructor() {
         super("symbolx.bench.SubjectData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15927,7 +15806,7 @@ class SubjectData$Type extends MessageType<SubjectData> {
  */
 export const SubjectData = new SubjectData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TextData$Type extends MessageType<TextData> {
+class TextData$Type extends MessageType$<TextData> {
     constructor() {
         super("symbolx.bench.TextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -15982,7 +15861,7 @@ class TextData$Type extends MessageType<TextData> {
  */
 export const TextData = new TextData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TextLineData$Type extends MessageType<TextLineData> {
+class TextLineData$Type extends MessageType$<TextLineData> {
     constructor() {
         super("symbolx.bench.TextLineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -16087,7 +15966,7 @@ class TextLineData$Type extends MessageType<TextLineData> {
  */
 export const TextLineData = new TextLineData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TextSpanData$Type extends MessageType<TextSpanData> {
+class TextSpanData$Type extends MessageType$<TextSpanData> {
     constructor() {
         super("symbolx.bench.TextSpanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -16214,7 +16093,7 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
  */
 export const TextSpanData = new TextSpanData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TransformData$Type extends MessageType<TransformData> {
+class TransformData$Type extends MessageType$<TransformData> {
     constructor() {
         super("symbolx.bench.TransformData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -16310,91 +16189,7 @@ class TransformData$Type extends MessageType<TransformData> {
  */
 export const TransformData = new TransformData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TreeViewStateData$Type extends MessageType<TreeViewStateData> {
-    constructor() {
-        super("symbolx.bench.TreeViewStateData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 35, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 36, name: "filter_is_page", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 37, name: "is_default_expanded", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 99, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] }
-        ]);
-    }
-    create(value?: PartialMessage<TreeViewStateData>): TreeViewStateData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.nodeTypes = [];
-        if (value !== undefined)
-            reflectionMergePartial<TreeViewStateData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TreeViewStateData): TreeViewStateData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.NodeType node_types */ 35:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.nodeTypes.push(reader.int32());
-                    else
-                        message.nodeTypes.push(reader.int32());
-                    break;
-                case /* optional bool filter_is_page */ 36:
-                    message.filterIsPage = reader.bool();
-                    break;
-                case /* optional bool is_default_expanded */ 37:
-                    message.isDefaultExpanded = reader.bool();
-                    break;
-                case /* optional symbolx.bench.TreeViewPreset preset */ 99:
-                    message.preset = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TreeViewStateData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbolx.bench.NodeType node_types = 35; */
-        if (message.nodeTypes.length) {
-            writer.tag(35, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.nodeTypes.length; i++)
-                writer.int32(message.nodeTypes[i]);
-            writer.join();
-        }
-        /* optional bool filter_is_page = 36; */
-        if (message.filterIsPage !== undefined)
-            writer.tag(36, WireType.Varint).bool(message.filterIsPage);
-        /* optional bool is_default_expanded = 37; */
-        if (message.isDefaultExpanded !== undefined)
-            writer.tag(37, WireType.Varint).bool(message.isDefaultExpanded);
-        /* optional symbolx.bench.TreeViewPreset preset = 99; */
-        if (message.preset !== undefined)
-            writer.tag(99, WireType.Varint).int32(message.preset);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TreeViewStateData
- */
-export const TreeViewStateData = new TreeViewStateData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TriggerInfoData$Type extends MessageType<TriggerInfoData> {
+class TriggerInfoData$Type extends MessageType$<TriggerInfoData> {
     constructor() {
         super("symbolx.bench.TriggerInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -16469,7 +16264,7 @@ class TriggerInfoData$Type extends MessageType<TriggerInfoData> {
  */
 export const TriggerInfoData = new TriggerInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
+class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
     constructor() {
         super("symbolx.bench.TypeConstraintData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -16675,7 +16470,7 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
  */
 export const TypeConstraintData = new TypeConstraintData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TypeInfoData$Type extends MessageType<TypeInfoData> {
+class TypeInfoData$Type extends MessageType$<TypeInfoData> {
     constructor() {
         super("symbolx.bench.TypeInfoData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -16817,61 +16612,7 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
  */
 export const TypeInfoData = new TypeInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UserWizardViewStateData$Type extends MessageType<UserWizardViewStateData> {
-    constructor() {
-        super("symbolx.bench.UserWizardViewStateData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "stage", kind: "enum", opt: true, T: () => ["symbolx.bench.UserWizardViewStage", UserWizardViewStage, "USER_WIZARD_VIEW_STAGE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<UserWizardViewStateData>): UserWizardViewStateData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<UserWizardViewStateData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UserWizardViewStateData): UserWizardViewStateData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.UserWizardViewStage stage */ 30:
-                    message.stage = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: UserWizardViewStateData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.UserWizardViewStage stage = 30; */
-        if (message.stage !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.stage);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.UserWizardViewStateData
- */
-export const UserWizardViewStateData = new UserWizardViewStateData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ValueData$Type extends MessageType<ValueData> {
+class ValueData$Type extends MessageType$<ValueData> {
     constructor() {
         super("symbolx.bench.ValueData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -16946,7 +16687,7 @@ class ValueData$Type extends MessageType<ValueData> {
  */
 export const ValueData = new ValueData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector2Data$Type extends MessageType<Vector2Data> {
+class Vector2Data$Type extends MessageType$<Vector2Data> {
     constructor() {
         super("symbolx.bench.Vector2Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -17009,7 +16750,7 @@ class Vector2Data$Type extends MessageType<Vector2Data> {
  */
 export const Vector2Data = new Vector2Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector3Data$Type extends MessageType<Vector3Data> {
+class Vector3Data$Type extends MessageType$<Vector3Data> {
     constructor() {
         super("symbolx.bench.Vector3Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -17080,7 +16821,7 @@ class Vector3Data$Type extends MessageType<Vector3Data> {
  */
 export const Vector3Data = new Vector3Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector4Data$Type extends MessageType<Vector4Data> {
+class Vector4Data$Type extends MessageType$<Vector4Data> {
     constructor() {
         super("symbolx.bench.Vector4Data", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -17159,7 +16900,7 @@ class Vector4Data$Type extends MessageType<Vector4Data> {
  */
 export const Vector4Data = new Vector4Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BadgeData$Type extends MessageType<BadgeData> {
+class BadgeData$Type extends MessageType$<BadgeData> {
     constructor() {
         super("symbolx.bench.BadgeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -17177,6 +16918,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 33, name: "expires_at", kind: "message", T: () => Timestamp },
@@ -17248,6 +16990,9 @@ class BadgeData$Type extends MessageType<BadgeData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -17327,6 +17072,9 @@ class BadgeData$Type extends MessageType<BadgeData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -17359,7 +17107,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
  */
 export const BadgeData = new BadgeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BenchData$Type extends MessageType<BenchData> {
+class BenchData$Type extends MessageType$<BenchData> {
     constructor() {
         super("symbolx.bench.BenchData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -17373,6 +17121,7 @@ class BenchData$Type extends MessageType<BenchData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -17441,6 +17190,9 @@ class BenchData$Type extends MessageType<BenchData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
@@ -17532,6 +17284,9 @@ class BenchData$Type extends MessageType<BenchData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
             NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -17588,7 +17343,7 @@ class BenchData$Type extends MessageType<BenchData> {
  */
 export const BenchData = new BenchData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BlockData$Type extends MessageType<BlockData> {
+class BlockData$Type extends MessageType$<BlockData> {
     constructor() {
         super("symbolx.bench.BlockData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -17606,20 +17361,16 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "text", kind: "message", T: () => TextData },
-            { no: 37, name: "icon", kind: "message", T: () => IconData },
-            { no: 38, name: "variables_packed", kind: "message", T: () => Value },
-            { no: 39, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 40, name: "value_packed", kind: "message", T: () => Value },
-            { no: 42, name: "code", kind: "message", T: () => CodeData },
-            { no: 43, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 47, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 48, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 49, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 40, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 42, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
+            { no: 43, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
+            { no: 44, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 45, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "is_builtin", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_owned", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
@@ -17634,9 +17385,9 @@ class BlockData$Type extends MessageType<BlockData> {
         message.type = 0;
         message.name = "";
         message.orderKey = "";
-        message.rolesPtr = [];
         message.policies = [];
         message.delegatedPolicies = [];
+        message.rolesPtr = [];
         message.isBuiltin = false;
         message.isOwned = false;
         if (value !== undefined)
@@ -17693,6 +17444,9 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 case /* symbolx.bench.BlockType type */ 30:
                     message.type = reader.int32();
                     break;
@@ -17702,38 +17456,23 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
-                case /* optional symbolx.bench.TextData text */ 36:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.IconData icon */ 37:
+                case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional google.protobuf.Value variables_packed */ 38:
+                case /* optional google.protobuf.Value variables_packed */ 40:
                     message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.TypeInfoData value_type */ 39:
-                    message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
-                    break;
-                case /* optional google.protobuf.Value value_packed */ 40:
-                    message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional symbolx.bench.CodeData code */ 42:
-                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
-                    break;
-                case /* optional symbolx.bench.RunOptionsData run_options */ 43:
-                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 46:
-                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 47:
-                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
-                    break;
-                case /* repeated symbolx.bench.PolicyData policies */ 48:
+                case /* repeated symbolx.bench.PolicyData policies */ 42:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.PolicyData delegated_policies */ 49:
+                case /* repeated symbolx.bench.PolicyData delegated_policies */ 43:
                     message.delegatedPolicies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 44:
+                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 45:
+                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
                     break;
                 case /* bool is_builtin */ 60:
                     message.isBuiltin = reader.bool();
@@ -17798,6 +17537,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.BlockType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -17807,39 +17549,24 @@ class BlockData$Type extends MessageType<BlockData> {
         /* string order_key = 33; */
         if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbolx.bench.TextData text = 36; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.IconData icon = 37; */
+        /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
-            IconData.internalBinaryWrite(message.icon, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value variables_packed = 38; */
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value variables_packed = 40; */
         if (message.variablesPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeInfoData value_type = 39; */
-        if (message.valueType)
-            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value value_packed = 40; */
-        if (message.valuePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.CodeData code = 42; */
-        if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run_options = 43; */
-        if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 46; */
-        for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 47; */
-        if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyData policies = 48; */
+            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PolicyData policies = 42; */
         for (let i = 0; i < message.policies.length; i++)
-            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyData delegated_policies = 49; */
+            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PolicyData delegated_policies = 43; */
         for (let i = 0; i < message.delegatedPolicies.length; i++)
-            PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(49, WireType.LengthDelimited).fork(), options).join();
+            PolicyData.internalBinaryWrite(message.delegatedPolicies[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 44; */
+        for (let i = 0; i < message.rolesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData identity_ptr = 45; */
+        if (message.identityPtr)
+            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         /* bool is_builtin = 60; */
         if (message.isBuiltin !== false)
             writer.tag(60, WireType.Varint).bool(message.isBuiltin);
@@ -17857,7 +17584,7 @@ class BlockData$Type extends MessageType<BlockData> {
  */
 export const BlockData = new BlockData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BranchData$Type extends MessageType<BranchData> {
+class BranchData$Type extends MessageType$<BranchData> {
     constructor() {
         super("symbolx.bench.BranchData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -17871,6 +17598,7 @@ class BranchData$Type extends MessageType<BranchData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
@@ -17933,6 +17661,9 @@ class BranchData$Type extends MessageType<BranchData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -18006,6 +17737,9 @@ class BranchData$Type extends MessageType<BranchData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -18044,7 +17778,7 @@ class BranchData$Type extends MessageType<BranchData> {
  */
 export const BranchData = new BranchData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CacheData$Type extends MessageType<CacheData> {
+class CacheData$Type extends MessageType$<CacheData> {
     constructor() {
         super("symbolx.bench.CacheData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -18058,6 +17792,7 @@ class CacheData$Type extends MessageType<CacheData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -18116,6 +17851,9 @@ class CacheData$Type extends MessageType<CacheData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -18177,6 +17915,9 @@ class CacheData$Type extends MessageType<CacheData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -18203,7 +17944,7 @@ class CacheData$Type extends MessageType<CacheData> {
  */
 export const CacheData = new CacheData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ClientData$Type extends MessageType<ClientData> {
+class ClientData$Type extends MessageType$<ClientData> {
     constructor() {
         super("symbolx.bench.ClientData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -18217,6 +17958,7 @@ class ClientData$Type extends MessageType<ClientData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -18281,6 +18023,9 @@ class ClientData$Type extends MessageType<ClientData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.ClientType type */ 30:
                     message.type = reader.int32();
@@ -18366,6 +18111,9 @@ class ClientData$Type extends MessageType<ClientData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ClientType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -18416,7 +18164,7 @@ class ClientData$Type extends MessageType<ClientData> {
  */
 export const ClientData = new ClientData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class DependencyData$Type extends MessageType<DependencyData> {
+class DependencyData$Type extends MessageType$<DependencyData> {
     constructor() {
         super("symbolx.bench.DependencyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -18434,6 +18182,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "scopes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "dependency_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -18500,6 +18249,9 @@ class DependencyData$Type extends MessageType<DependencyData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 case /* repeated symbolx.bench.NodeReferenceData scopes_ptr */ 30:
                     message.scopesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
@@ -18563,6 +18315,9 @@ class DependencyData$Type extends MessageType<DependencyData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData scopes_ptr = 30; */
         for (let i = 0; i < message.scopesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.scopesPtr[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -18580,7 +18335,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
  */
 export const DependencyData = new DependencyData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class DriveData$Type extends MessageType<DriveData> {
+class DriveData$Type extends MessageType$<DriveData> {
     constructor() {
         super("symbolx.bench.DriveData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -18594,6 +18349,7 @@ class DriveData$Type extends MessageType<DriveData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -18652,6 +18408,9 @@ class DriveData$Type extends MessageType<DriveData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -18713,6 +18472,9 @@ class DriveData$Type extends MessageType<DriveData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -18739,7 +18501,7 @@ class DriveData$Type extends MessageType<DriveData> {
  */
 export const DriveData = new DriveData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class FieldData$Type extends MessageType<FieldData> {
+class FieldData$Type extends MessageType$<FieldData> {
     constructor() {
         super("symbolx.bench.FieldData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -18757,6 +18519,7 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -18844,6 +18607,9 @@ class FieldData$Type extends MessageType<FieldData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.FieldType type */ 30:
                     message.type = reader.int32();
@@ -18956,6 +18722,9 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.FieldType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -19021,7 +18790,7 @@ class FieldData$Type extends MessageType<FieldData> {
  */
 export const FieldData = new FieldData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class FileData$Type extends MessageType<FileData> {
+class FileData$Type extends MessageType$<FileData> {
     constructor() {
         super("symbolx.bench.FileData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -19035,6 +18804,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -19115,6 +18885,9 @@ class FileData$Type extends MessageType<FileData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.TextData text */ 34:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
@@ -19230,6 +19003,9 @@ class FileData$Type extends MessageType<FileData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -19310,7 +19086,7 @@ class FileData$Type extends MessageType<FileData> {
  */
 export const FileData = new FileData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class HandleData$Type extends MessageType<HandleData> {
+class HandleData$Type extends MessageType$<HandleData> {
     constructor() {
         super("symbolx.bench.HandleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -19324,6 +19100,7 @@ class HandleData$Type extends MessageType<HandleData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -19376,6 +19153,9 @@ class HandleData$Type extends MessageType<HandleData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 case /* string slug */ 30:
                     message.slug = reader.string();
                     break;
@@ -19424,6 +19204,9 @@ class HandleData$Type extends MessageType<HandleData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string slug = 30; */
         if (message.slug !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.slug);
@@ -19438,7 +19221,7 @@ class HandleData$Type extends MessageType<HandleData> {
  */
 export const HandleData = new HandleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class InviteData$Type extends MessageType<InviteData> {
+class InviteData$Type extends MessageType$<InviteData> {
     constructor() {
         super("symbolx.bench.InviteData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -19452,6 +19235,7 @@ class InviteData$Type extends MessageType<InviteData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "user_email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -19507,6 +19291,9 @@ class InviteData$Type extends MessageType<InviteData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData user_ptr */ 30:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
@@ -19565,6 +19352,9 @@ class InviteData$Type extends MessageType<InviteData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData user_ptr = 30; */
         if (message.userPtr)
             NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -19588,7 +19378,7 @@ class InviteData$Type extends MessageType<InviteData> {
  */
 export const InviteData = new InviteData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class LogData$Type extends MessageType<LogData> {
+class LogData$Type extends MessageType$<LogData> {
     constructor() {
         super("symbolx.bench.LogData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -19603,6 +19393,7 @@ class LogData$Type extends MessageType<LogData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.LogKind", LogKind, "LOG_KIND_"] },
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
             { no: 32, name: "change_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19676,6 +19467,9 @@ class LogData$Type extends MessageType<LogData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.LogKind kind */ 30:
                     message.kind = reader.int32();
@@ -19779,6 +19573,9 @@ class LogData$Type extends MessageType<LogData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.LogKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -19844,7 +19641,7 @@ class LogData$Type extends MessageType<LogData> {
  */
 export const LogData = new LogData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class MachineData$Type extends MessageType<MachineData> {
+class MachineData$Type extends MessageType$<MachineData> {
     constructor() {
         super("symbolx.bench.MachineData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -19858,6 +19655,7 @@ class MachineData$Type extends MessageType<MachineData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -19933,6 +19731,9 @@ class MachineData$Type extends MessageType<MachineData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -20036,6 +19837,9 @@ class MachineData$Type extends MessageType<MachineData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -20104,7 +19908,7 @@ class MachineData$Type extends MessageType<MachineData> {
  */
 export const MachineData = new MachineData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class MembershipData$Type extends MessageType<MembershipData> {
+class MembershipData$Type extends MessageType$<MembershipData> {
     constructor() {
         super("symbolx.bench.MembershipData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -20118,6 +19922,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
@@ -20171,6 +19976,9 @@ class MembershipData$Type extends MessageType<MembershipData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 case /* symbolx.bench.NodeReferenceData user_ptr */ 30:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
@@ -20222,6 +20030,9 @@ class MembershipData$Type extends MessageType<MembershipData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData user_ptr = 30; */
         if (message.userPtr)
             NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -20239,7 +20050,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
  */
 export const MembershipData = new MembershipData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class MessageData$Type extends MessageType<MessageData> {
+class MessageData$Type extends MessageType$<MessageData> {
     constructor() {
         super("symbolx.bench.MessageData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -20254,6 +20065,8 @@ class MessageData$Type extends MessageType<MessageData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.MessageType", MessageType, "MESSAGE_TYPE_"] },
             { no: 32, name: "origin_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "path", kind: "message", T: () => PathData },
             { no: 34, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20269,6 +20082,7 @@ class MessageData$Type extends MessageType<MessageData> {
         message.id = "";
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
+        message.type = 0;
         message.isPinned = false;
         if (value !== undefined)
             reflectionMergePartial<MessageData>(this, message, value);
@@ -20314,6 +20128,12 @@ class MessageData$Type extends MessageType<MessageData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* symbolx.bench.MessageType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* symbolx.bench.NodeReferenceData origin_ptr */ 32:
                     message.originPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.originPtr);
@@ -20384,6 +20204,12 @@ class MessageData$Type extends MessageType<MessageData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MessageType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* symbolx.bench.NodeReferenceData origin_ptr = 32; */
         if (message.originPtr)
             NodeReferenceData.internalBinaryWrite(message.originPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -20416,7 +20242,7 @@ class MessageData$Type extends MessageType<MessageData> {
  */
 export const MessageData = new MessageData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class BaseNodeData$Type extends MessageType<BaseNodeData> {
+class BaseNodeData$Type extends MessageType$<BaseNodeData> {
     constructor() {
         super("symbolx.bench.BaseNodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -20426,7 +20252,8 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp }
+            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<BaseNodeData>): BaseNodeData {
@@ -20466,6 +20293,9 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -20502,6 +20332,9 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20513,7 +20346,7 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
  */
 export const BaseNodeData = new BaseNodeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class NotificationData$Type extends MessageType<NotificationData> {
+class NotificationData$Type extends MessageType$<NotificationData> {
     constructor() {
         super("symbolx.bench.NotificationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -20528,6 +20361,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "level", kind: "enum", T: () => ["symbolx.bench.NotificationLevel", NotificationLevel, "NOTIFICATION_LEVEL_"] },
             { no: 34, name: "expires_at", kind: "message", T: () => Timestamp },
@@ -20588,6 +20422,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.NodeReferenceData block_ptr */ 32:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
@@ -20658,6 +20495,9 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData block_ptr = 32; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -20690,7 +20530,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
  */
 export const NotificationData = new NotificationData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class OrganizationData$Type extends MessageType<OrganizationData> {
+class OrganizationData$Type extends MessageType$<OrganizationData> {
     constructor() {
         super("symbolx.bench.OrganizationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -20701,6 +20541,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
             { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -20748,6 +20589,9 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
@@ -20806,6 +20650,9 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
             NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -20838,7 +20685,7 @@ class OrganizationData$Type extends MessageType<OrganizationData> {
  */
 export const OrganizationData = new OrganizationData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PackageData$Type extends MessageType<PackageData> {
+class PackageData$Type extends MessageType$<PackageData> {
     constructor() {
         super("symbolx.bench.PackageData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -20852,6 +20699,7 @@ class PackageData$Type extends MessageType<PackageData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
@@ -20910,6 +20758,9 @@ class PackageData$Type extends MessageType<PackageData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.TextData text */ 34:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
@@ -20974,6 +20825,9 @@ class PackageData$Type extends MessageType<PackageData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -21003,7 +20857,7 @@ class PackageData$Type extends MessageType<PackageData> {
  */
 export const PackageData = new PackageData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PipeData$Type extends MessageType<PipeData> {
+class PipeData$Type extends MessageType$<PipeData> {
     constructor() {
         super("symbolx.bench.PipeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -21021,6 +20875,7 @@ class PipeData$Type extends MessageType<PipeData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PipeType", PipeType, "PIPE_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -21105,6 +20960,9 @@ class PipeData$Type extends MessageType<PipeData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.PipeType type */ 30:
                     message.type = reader.int32();
@@ -21217,6 +21075,9 @@ class PipeData$Type extends MessageType<PipeData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.PipeType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -21282,7 +21143,7 @@ class PipeData$Type extends MessageType<PipeData> {
  */
 export const PipeData = new PipeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class QueryData$Type extends MessageType<QueryData> {
+class QueryData$Type extends MessageType$<QueryData> {
     constructor() {
         super("symbolx.bench.QueryData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -21300,6 +21161,7 @@ class QueryData$Type extends MessageType<QueryData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.QueryType", QueryType, "QUERY_TYPE_"] },
@@ -21386,6 +21248,9 @@ class QueryData$Type extends MessageType<QueryData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 30:
                     message.name = reader.string();
@@ -21497,6 +21362,9 @@ class QueryData$Type extends MessageType<QueryData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 30; */
         if (message.name !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.name);
@@ -21561,7 +21429,7 @@ class QueryData$Type extends MessageType<QueryData> {
  */
 export const QueryData = new QueryData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RecordData$Type extends MessageType<RecordData> {
+class RecordData$Type extends MessageType$<RecordData> {
     constructor() {
         super("symbolx.bench.RecordData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -21576,6 +21444,7 @@ class RecordData$Type extends MessageType<RecordData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "value_packed", kind: "message", T: () => Value }
@@ -21631,6 +21500,9 @@ class RecordData$Type extends MessageType<RecordData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional string order_key */ 33:
                     message.orderKey = reader.string();
@@ -21689,6 +21561,9 @@ class RecordData$Type extends MessageType<RecordData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* optional string order_key = 33; */
         if (message.orderKey !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
@@ -21709,7 +21584,7 @@ class RecordData$Type extends MessageType<RecordData> {
  */
 export const RecordData = new RecordData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunData$Type extends MessageType<RunData> {
+class RunData$Type extends MessageType$<RunData> {
     constructor() {
         super("symbolx.bench.RunData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -21724,6 +21599,7 @@ class RunData$Type extends MessageType<RunData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunKind", RunKind, "RUN_KIND_"] },
             { no: 32, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21815,6 +21691,9 @@ class RunData$Type extends MessageType<RunData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.RunKind kind */ 30:
                     message.kind = reader.int32();
@@ -21963,6 +21842,9 @@ class RunData$Type extends MessageType<RunData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.RunKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
@@ -22073,7 +21955,7 @@ class RunData$Type extends MessageType<RunData> {
  */
 export const RunData = new RunData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SecretData$Type extends MessageType<SecretData> {
+class SecretData$Type extends MessageType$<SecretData> {
     constructor() {
         super("symbolx.bench.SecretData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -22087,6 +21969,7 @@ class SecretData$Type extends MessageType<SecretData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 33, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -22147,6 +22030,9 @@ class SecretData$Type extends MessageType<SecretData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string title */ 33:
                     message.title = reader.string();
@@ -22214,6 +22100,9 @@ class SecretData$Type extends MessageType<SecretData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string title = 33; */
         if (message.title !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.title);
@@ -22246,7 +22135,7 @@ class SecretData$Type extends MessageType<SecretData> {
  */
 export const SecretData = new SecretData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ServerData$Type extends MessageType<ServerData> {
+class ServerData$Type extends MessageType$<ServerData> {
     constructor() {
         super("symbolx.bench.ServerData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -22260,6 +22149,7 @@ class ServerData$Type extends MessageType<ServerData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -22327,6 +22217,9 @@ class ServerData$Type extends MessageType<ServerData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -22412,6 +22305,9 @@ class ServerData$Type extends MessageType<ServerData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -22462,7 +22358,7 @@ class ServerData$Type extends MessageType<ServerData> {
  */
 export const ServerData = new ServerData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SessionData$Type extends MessageType<SessionData> {
+class SessionData$Type extends MessageType$<SessionData> {
     constructor() {
         super("symbolx.bench.SessionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -22477,6 +22373,7 @@ class SessionData$Type extends MessageType<SessionData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.SessionStatus", SessionStatus, "SESSION_STATUS_"] },
             { no: 41, name: "duration", kind: "message", T: () => Duration },
             { no: 42, name: "opened_at", kind: "message", T: () => Timestamp },
@@ -22538,6 +22435,9 @@ class SessionData$Type extends MessageType<SessionData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.SessionStatus status */ 40:
                     message.status = reader.int32();
@@ -22611,6 +22511,9 @@ class SessionData$Type extends MessageType<SessionData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.SessionStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -22646,7 +22549,7 @@ class SessionData$Type extends MessageType<SessionData> {
  */
 export const SessionData = new SessionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SignalData$Type extends MessageType<SignalData> {
+class SignalData$Type extends MessageType$<SignalData> {
     constructor() {
         super("symbolx.bench.SignalData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -22661,6 +22564,7 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "value_packed", kind: "message", T: () => Value },
             { no: 80, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22723,6 +22627,9 @@ class SignalData$Type extends MessageType<SignalData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.NodeReferenceData block_ptr */ 32:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
@@ -22802,6 +22709,9 @@ class SignalData$Type extends MessageType<SignalData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData block_ptr = 32; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -22843,7 +22753,7 @@ class SignalData$Type extends MessageType<SignalData> {
  */
 export const SignalData = new SignalData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SkipData$Type extends MessageType<SkipData> {
+class SkipData$Type extends MessageType$<SkipData> {
     constructor() {
         super("symbolx.bench.SkipData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -22854,6 +22764,7 @@ class SkipData$Type extends MessageType<SkipData> {
             { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "reference_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -22894,6 +22805,9 @@ class SkipData$Type extends MessageType<SkipData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.NodeReferenceData reference_ptr */ 30:
                     message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
@@ -22937,6 +22851,9 @@ class SkipData$Type extends MessageType<SkipData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData reference_ptr = 30; */
         if (message.referencePtr)
             NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
@@ -22954,7 +22871,7 @@ class SkipData$Type extends MessageType<SkipData> {
  */
 export const SkipData = new SkipData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SpaceData$Type extends MessageType<SpaceData> {
+class SpaceData$Type extends MessageType$<SpaceData> {
     constructor() {
         super("symbolx.bench.SpaceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -22972,6 +22889,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.SpaceType", SpaceType, "SPACE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "text", kind: "message", T: () => TextData },
@@ -23049,6 +22967,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.SpaceType type */ 30:
                     message.type = reader.int32();
@@ -23137,6 +23058,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.SpaceType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -23178,7 +23102,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
  */
 export const SpaceData = new SpaceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class StepData$Type extends MessageType<StepData> {
+class StepData$Type extends MessageType$<StepData> {
     constructor() {
         super("symbolx.bench.StepData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -23196,6 +23120,7 @@ class StepData$Type extends MessageType<StepData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.StepType", StepType, "STEP_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -23277,6 +23202,9 @@ class StepData$Type extends MessageType<StepData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.StepType type */ 30:
                     message.type = reader.int32();
@@ -23380,6 +23308,9 @@ class StepData$Type extends MessageType<StepData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.StepType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -23436,7 +23367,7 @@ class StepData$Type extends MessageType<StepData> {
  */
 export const StepData = new StepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class StoreData$Type extends MessageType<StoreData> {
+class StoreData$Type extends MessageType$<StoreData> {
     constructor() {
         super("symbolx.bench.StoreData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -23450,6 +23381,7 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -23514,6 +23446,9 @@ class StoreData$Type extends MessageType<StoreData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -23590,6 +23525,9 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -23631,7 +23569,7 @@ class StoreData$Type extends MessageType<StoreData> {
  */
 export const StoreData = new StoreData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TriggerData$Type extends MessageType<TriggerData> {
+class TriggerData$Type extends MessageType$<TriggerData> {
     constructor() {
         super("symbolx.bench.TriggerData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -23649,6 +23587,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TriggerType", TriggerType, "TRIGGER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "processed_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -23721,6 +23660,9 @@ class TriggerData$Type extends MessageType<TriggerData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.TriggerType type */ 30:
                     message.type = reader.int32();
@@ -23800,6 +23742,9 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.TriggerType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -23832,7 +23777,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
  */
 export const TriggerData = new TriggerData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UserData$Type extends MessageType<UserData> {
+class UserData$Type extends MessageType$<UserData> {
     constructor() {
         super("symbolx.bench.UserData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -23843,6 +23788,7 @@ class UserData$Type extends MessageType<UserData> {
             { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 31, name: "main_handle_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -23896,6 +23842,9 @@ class UserData$Type extends MessageType<UserData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_handle_ptr */ 31:
                     message.mainHandlePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainHandlePtr);
@@ -23969,6 +23918,9 @@ class UserData$Type extends MessageType<UserData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData main_handle_ptr = 31; */
         if (message.mainHandlePtr)
             NodeReferenceData.internalBinaryWrite(message.mainHandlePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -24016,7 +23968,7 @@ class UserData$Type extends MessageType<UserData> {
  */
 export const UserData = new UserData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class VaultData$Type extends MessageType<VaultData> {
+class VaultData$Type extends MessageType$<VaultData> {
     constructor() {
         super("symbolx.bench.VaultData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -24030,6 +23982,7 @@ class VaultData$Type extends MessageType<VaultData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
@@ -24088,6 +24041,9 @@ class VaultData$Type extends MessageType<VaultData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* string name */ 32:
                     message.name = reader.string();
@@ -24149,6 +24105,9 @@ class VaultData$Type extends MessageType<VaultData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* string name = 32; */
         if (message.name !== "")
             writer.tag(32, WireType.LengthDelimited).string(message.name);
@@ -24175,7 +24134,7 @@ class VaultData$Type extends MessageType<VaultData> {
  */
 export const VaultData = new VaultData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ViewData$Type extends MessageType<ViewData> {
+class ViewData$Type extends MessageType$<ViewData> {
     constructor() {
         super("symbolx.bench.ViewData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
@@ -24193,6 +24152,7 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ViewType", ViewType, "VIEW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -24215,7 +24175,6 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 66, name: "transform", kind: "message", T: () => TransformData },
             { no: 70, name: "selection", kind: "message", T: () => SelectionData },
             { no: 71, name: "focus", kind: "message", T: () => SelectionData },
-            { no: 72, name: "expansion", kind: "message", T: () => SelectionData },
             { no: 80, name: "is_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -24293,6 +24252,9 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 16:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 case /* symbolx.bench.ViewType type */ 30:
                     message.type = reader.int32();
                     break;
@@ -24368,9 +24330,6 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.SelectionData focus */ 71:
                     message.focus = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.focus);
                     break;
-                case /* optional symbolx.bench.SelectionData expansion */ 72:
-                    message.expansion = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.expansion);
-                    break;
                 case /* bool is_hidden */ 80:
                     message.isHidden = reader.bool();
                     break;
@@ -24443,6 +24402,9 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional google.protobuf.Timestamp deleted_at = 16; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ViewType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -24509,9 +24471,6 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.SelectionData focus = 71; */
         if (message.focus)
             SelectionData.internalBinaryWrite(message.focus, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SelectionData expansion = 72; */
-        if (message.expansion)
-            SelectionData.internalBinaryWrite(message.expansion, writer.tag(72, WireType.LengthDelimited).fork(), options).join();
         /* bool is_hidden = 80; */
         if (message.isHidden !== false)
             writer.tag(80, WireType.Varint).bool(message.isHidden);
@@ -24538,7 +24497,7 @@ class ViewData$Type extends MessageType<ViewData> {
  */
 export const ViewData = new ViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SomeNodeData$Type extends MessageType<SomeNodeData> {
+class SomeNodeData$Type extends MessageType$<SomeNodeData> {
     constructor() {
         super("symbolx.bench.SomeNodeData", [
             { no: 1, name: "bench", kind: "message", oneof: "node", T: () => BenchData },
@@ -24940,10 +24899,10 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | VaultData | CacheData | FileData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | SignalData | LogData | NotificationData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationResultData | SelectionData | QueryInfoData | SelectOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationResultData | SelectionData | QueryInfoData | SelectOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof VaultData | typeof CacheData | typeof FileData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof QueryInfoData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof QueryInfoData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -25198,10 +25157,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.VECTOR3]: Vector3Data,
   [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.LINE]: LineData,
-  [ObjectType.START_VIEW_STATE]: StartViewStateData,
-  [ObjectType.FEED_VIEW_STATE]: FeedViewStateData,
-  [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
-  [ObjectType.TREE_VIEW_STATE]: TreeViewStateData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -25298,10 +25253,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.Vector3Data"]: ObjectType.VECTOR3,
   ["symbolx.bench.Vector4Data"]: ObjectType.VECTOR4,
   ["symbolx.bench.LineData"]: ObjectType.LINE,
-  ["symbolx.bench.StartViewStateData"]: ObjectType.START_VIEW_STATE,
-  ["symbolx.bench.FeedViewStateData"]: ObjectType.FEED_VIEW_STATE,
-  ["symbolx.bench.UserWizardViewStateData"]: ObjectType.USER_WIZARD_VIEW_STATE,
-  ["symbolx.bench.TreeViewStateData"]: ObjectType.TREE_VIEW_STATE,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -25342,6 +25293,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MONTH]: Month,
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.ICON_KIND]: IconKind,
+  [EnumType.MESSAGE_TYPE]: MessageType,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionType,
   [EnumType.LITERAL_TYPE]: LiteralType,
@@ -25455,10 +25407,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.VECTOR3]: Vector3Data,
   [StructType.VECTOR4]: Vector4Data,
   [StructType.LINE]: LineData,
-  [StructType.START_VIEW_STATE]: StartViewStateData,
-  [StructType.FEED_VIEW_STATE]: FeedViewStateData,
-  [StructType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
-  [StructType.TREE_VIEW_STATE]: TreeViewStateData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -25593,10 +25541,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.VECTOR3]: Vector3Data,
   [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.LINE]: LineData,
-  [ObjectType.START_VIEW_STATE]: StartViewStateData,
-  [ObjectType.FEED_VIEW_STATE]: FeedViewStateData,
-  [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
-  [ObjectType.TREE_VIEW_STATE]: TreeViewStateData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -25637,6 +25581,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MONTH]: Month,
   [EnumType.TEXT_LINE_TYPE]: TextLineType,
   [EnumType.ICON_KIND]: IconKind,
+  [EnumType.MESSAGE_TYPE]: MessageType,
   [EnumType.EXPRESSION_KIND]: ExpressionKind,
   [EnumType.EXPRESSION_OP]: ExpressionType,
   [EnumType.LITERAL_TYPE]: LiteralType,
@@ -25703,6 +25648,7 @@ export enum BenchProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   mainHandlePtr = 31,
   slug = 32,
   name = 33,
@@ -25729,6 +25675,7 @@ export enum UserProperty {
   updatedAt = 13,
   updatedByPtr = 14,
   deletedAt = 16,
+  subnodePacked = 20,
   mainHandlePtr = 31,
   slug = 32,
   name = 33,
@@ -25752,6 +25699,7 @@ export enum OrganizationProperty {
   updatedAt = 13,
   updatedByPtr = 14,
   deletedAt = 16,
+  subnodePacked = 20,
   mainHandlePtr = 31,
   slug = 32,
   name = 33,
@@ -25773,6 +25721,7 @@ export enum HandleProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   slug = 30,
 }
 
@@ -25788,6 +25737,7 @@ export enum ClientProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 32,
   deviceType = 40,
@@ -25815,6 +25765,7 @@ export enum ServerProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 32,
   text = 34,
   region = 35,
@@ -25842,6 +25793,7 @@ export enum StoreProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 32,
   text = 34,
   region = 35,
@@ -25866,6 +25818,7 @@ export enum MachineProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 32,
   text = 34,
   region = 35,
@@ -25899,6 +25852,7 @@ export enum DriveProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 32,
   text = 34,
   region = 35,
@@ -25918,6 +25872,7 @@ export enum VaultProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 32,
   text = 34,
   region = 35,
@@ -25937,6 +25892,7 @@ export enum CacheProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 32,
   text = 34,
   region = 35,
@@ -25956,6 +25912,7 @@ export enum FileProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   text = 34,
   region = 35,
   status = 36,
@@ -25993,6 +25950,7 @@ export enum SecretProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   title = 33,
   text = 34,
   region = 35,
@@ -26014,6 +25972,7 @@ export enum MembershipProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   userPtr = 30,
   isOwner = 31,
 }
@@ -26030,6 +25989,7 @@ export enum InviteProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   userPtr = 30,
   userEmail = 31,
   isOwner = 32,
@@ -26048,6 +26008,7 @@ export enum BranchProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 32,
   slug = 33,
   text = 34,
@@ -26071,6 +26032,7 @@ export enum PackageProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   text = 34,
   icon = 35,
   policies = 36,
@@ -26095,6 +26057,7 @@ export enum DependencyProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   scopesPtr = 30,
   dependencyPtr = 40,
 }
@@ -26115,6 +26078,7 @@ export enum SpaceProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 31,
   text = 32,
@@ -26143,20 +26107,16 @@ export enum BlockProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 32,
   orderKey = 33,
-  text = 36,
-  icon = 37,
-  variablesPacked = 38,
-  valueType = 39,
-  valuePacked = 40,
-  code = 42,
-  runOptions = 43,
-  rolesPtr = 46,
-  identityPtr = 47,
-  policies = 48,
-  delegatedPolicies = 49,
+  icon = 34,
+  variablesPacked = 40,
+  policies = 42,
+  delegatedPolicies = 43,
+  rolesPtr = 44,
+  identityPtr = 45,
   isBuiltin = 60,
   isOwned = 61,
 }
@@ -26177,6 +26137,7 @@ export enum TriggerProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 31,
   processedEpoch = 40,
@@ -26202,6 +26163,7 @@ export enum FieldProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 31,
   orderKey = 32,
@@ -26238,6 +26200,7 @@ export enum QueryProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 30,
   orderKey = 31,
   type = 40,
@@ -26271,6 +26234,7 @@ export enum ViewProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 31,
   title = 32,
@@ -26291,7 +26255,6 @@ export enum ViewProperty {
   transform = 66,
   selection = 70,
   focus = 71,
-  expansion = 72,
   isHidden = 80,
   isDisabled = 81,
   isInput = 82,
@@ -26315,6 +26278,7 @@ export enum StepProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 32,
   orderKey = 33,
@@ -26348,6 +26312,7 @@ export enum PipeProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   type = 30,
   name = 32,
   orderKey = 33,
@@ -26384,6 +26349,7 @@ export enum BadgeProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   name = 31,
   delegatedPolicies = 32,
   expiresAt = 33,
@@ -26406,6 +26372,8 @@ export enum MessageProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
+  type = 30,
   originPtr = 32,
   path = 33,
   replyToPtr = 34,
@@ -26428,6 +26396,7 @@ export enum RecordProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   orderKey = 33,
   blockPtr = 34,
   valuePacked = 40,
@@ -26446,6 +26415,7 @@ export enum SessionProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   status = 40,
   duration = 41,
   openedAt = 42,
@@ -26469,6 +26439,7 @@ export enum RunProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   kind = 30,
   rootPtr = 32,
   blockPtr = 33,
@@ -26517,6 +26488,7 @@ export enum SignalProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   blockPtr = 32,
   valuePacked = 42,
   sessionPtr = 80,
@@ -26542,6 +26514,7 @@ export enum LogProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   kind = 30,
   level = 31,
   changePtr = 32,
@@ -26575,6 +26548,7 @@ export enum NotificationProperty {
   updatedByPtr = 14,
   updatedEpoch = 15,
   deletedAt = 16,
+  subnodePacked = 20,
   blockPtr = 32,
   level = 33,
   expiresAt = 34,
@@ -26593,6 +26567,7 @@ export enum SkipProperty {
   updatedAt = 13,
   updatedByPtr = 14,
   deletedAt = 16,
+  subnodePacked = 20,
   referencePtr = 30,
   orderKey = 31,
 }
@@ -27183,39 +27158,12 @@ export enum LineProperty {
   points = 30,
 }
 
-export enum StartViewStateProperty {
-  metatype = 1,
-  inputsPacked = 30,
-  runPtr = 40,
-  feed = 50,
-}
-
-export enum FeedViewStateProperty {
-  metatype = 1,
-  nodeType = 30,
-  filter = 31,
-  filterPills = 99,
-}
-
-export enum UserWizardViewStateProperty {
-  metatype = 1,
-  stage = 30,
-}
-
-export enum TreeViewStateProperty {
-  metatype = 1,
-  nodeTypes = 35,
-  filterIsPage = 36,
-  isDefaultExpanded = 37,
-  preset = 99,
-}
-
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -27313,10 +27261,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.VECTOR3]: Vector3Property,
   [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.LINE]: LineProperty,
-  [ObjectType.START_VIEW_STATE]: StartViewStateProperty,
-  [ObjectType.FEED_VIEW_STATE]: FeedViewStateProperty,
-  [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
-  [ObjectType.TREE_VIEW_STATE]: TreeViewStateProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -27413,10 +27357,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.VECTOR3]: Vector3Property,
   [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.LINE]: LineProperty,
-  [ObjectType.START_VIEW_STATE]: StartViewStateProperty,
-  [ObjectType.FEED_VIEW_STATE]: FeedViewStateProperty,
-  [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
-  [ObjectType.TREE_VIEW_STATE]: TreeViewStateProperty,
 }
 
 
@@ -27992,29 +27932,6 @@ export const LineDataInfo: Record<LineProperty, PropertyInfo> = {
   [LineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [LineProperty.points]: { id: 30, name: 'points', component: ObjectType.LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
-export const StartViewStateDataInfo: Record<StartViewStateProperty, PropertyInfo> = {
-  [StartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.START_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [StartViewStateProperty.inputsPacked]: { id: 30, name: 'inputs_packed', component: ObjectType.START_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StartViewStateProperty.runPtr]: { id: 40, name: 'run_ptr', component: ObjectType.START_VIEW_STATE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [StartViewStateProperty.feed]: { id: 50, name: 'feed', component: ObjectType.START_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FEED_VIEW_STATE },
-}
-export const FeedViewStateDataInfo: Record<FeedViewStateProperty, PropertyInfo> = {
-  [FeedViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FEED_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FeedViewStateProperty.nodeType]: { id: 30, name: 'node_type', component: ObjectType.FEED_VIEW_STATE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FeedViewStateProperty.filter]: { id: 31, name: 'filter', component: ObjectType.FEED_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FeedViewStateProperty.filterPills]: { id: 99, name: 'filter_pills', component: ObjectType.FEED_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const UserWizardViewStateDataInfo: Record<UserWizardViewStateProperty, PropertyInfo> = {
-  [UserWizardViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.USER_WIZARD_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [UserWizardViewStateProperty.stage]: { id: 30, name: 'stage', component: ObjectType.USER_WIZARD_VIEW_STATE, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-}
-export const TreeViewStateDataInfo: Record<TreeViewStateProperty, PropertyInfo> = {
-  [TreeViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TREE_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TreeViewStateProperty.nodeTypes]: { id: 35, name: 'node_types', component: ObjectType.TREE_VIEW_STATE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewStateProperty.filterIsPage]: { id: 36, name: 'filter_is_page', component: ObjectType.TREE_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewStateProperty.isDefaultExpanded]: { id: 37, name: 'is_default_expanded', component: ObjectType.TREE_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewStateProperty.preset]: { id: 99, name: 'preset', component: ObjectType.TREE_VIEW_STATE, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-}
 export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BENCH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BenchProperty.id]: { id: 2, name: 'id', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28027,6 +27944,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.BENCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.slug]: { id: 32, name: 'slug', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
   [BenchProperty.name]: { id: 33, name: 'name', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28052,6 +27970,7 @@ export const UserDataInfo: Record<UserProperty, PropertyInfo> = {
   [UserProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [UserProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.USER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [UserProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [UserProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [UserProperty.slug]: { id: 32, name: 'slug', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
   [UserProperty.name]: { id: 33, name: 'name', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28074,6 +27993,7 @@ export const OrganizationDataInfo: Record<OrganizationProperty, PropertyInfo> = 
   [OrganizationProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [OrganizationProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [OrganizationProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [OrganizationProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [OrganizationProperty.slug]: { id: 32, name: 'slug', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
   [OrganizationProperty.name]: { id: 33, name: 'name', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28094,6 +28014,7 @@ export const HandleDataInfo: Record<HandleProperty, PropertyInfo> = {
   [HandleProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.HANDLE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [HandleProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [HandleProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [HandleProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [HandleProperty.slug]: { id: 30, name: 'slug', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
 }
 export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
@@ -28108,6 +28029,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.CLIENT, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ClientProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.type]: { id: 30, name: 'type', component: ObjectType.CLIENT, enumType: EnumType.CLIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceType]: { id: 40, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -28134,12 +28056,13 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.SERVER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ServerProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.name]: { id: 32, name: 'name', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.text]: { id: 34, name: 'text', component: ObjectType.SERVER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28160,12 +28083,13 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.STORE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.name]: { id: 32, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.text]: { id: 34, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28183,12 +28107,13 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28215,6 +28140,7 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.DRIVE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [DriveProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.name]: { id: 32, name: 'name', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.text]: { id: 34, name: 'text', component: ObjectType.DRIVE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28233,6 +28159,7 @@ export const VaultDataInfo: Record<VaultProperty, PropertyInfo> = {
   [VaultProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.VAULT, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [VaultProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.VAULT, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [VaultProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.VAULT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [VaultProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.VAULT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [VaultProperty.name]: { id: 32, name: 'name', component: ObjectType.VAULT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [VaultProperty.text]: { id: 34, name: 'text', component: ObjectType.VAULT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [VaultProperty.region]: { id: 35, name: 'region', component: ObjectType.VAULT, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28251,6 +28178,7 @@ export const CacheDataInfo: Record<CacheProperty, PropertyInfo> = {
   [CacheProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.CACHE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [CacheProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [CacheProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [CacheProperty.name]: { id: 32, name: 'name', component: ObjectType.CACHE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [CacheProperty.text]: { id: 34, name: 'text', component: ObjectType.CACHE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [CacheProperty.region]: { id: 35, name: 'region', component: ObjectType.CACHE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28269,6 +28197,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.text]: { id: 34, name: 'text', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FileProperty.region]: { id: 35, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.status]: { id: 36, name: 'status', component: ObjectType.FILE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28305,6 +28234,7 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.SECRET, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.title]: { id: 33, name: 'title', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.text]: { id: 34, name: 'text', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SecretProperty.region]: { id: 35, name: 'region', component: ObjectType.SECRET, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28325,6 +28255,7 @@ export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.isOwner]: { id: 31, name: 'is_owner', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -28340,6 +28271,7 @@ export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.INVITE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.userEmail]: { id: 31, name: 'user_email', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.isOwner]: { id: 32, name: 'is_owner', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28357,6 +28289,7 @@ export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
   [BranchProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.BRANCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BranchProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.name]: { id: 32, name: 'name', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.slug]: { id: 33, name: 'slug', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.text]: { id: 34, name: 'text', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -28379,6 +28312,7 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.text]: { id: 34, name: 'text', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PackageProperty.icon]: { id: 35, name: 'icon', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PackageProperty.policies]: { id: 36, name: 'policies', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
@@ -28402,6 +28336,7 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.scopesPtr]: { id: 30, name: 'scopes_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -28421,6 +28356,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.type]: { id: 30, name: 'type', component: ObjectType.SPACE, enumType: EnumType.SPACE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -28448,20 +28384,16 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.BLOCK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.type]: { id: 30, name: 'type', component: ObjectType.BLOCK, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.name]: { id: 32, name: 'name', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.text]: { id: 36, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BlockProperty.icon]: { id: 37, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BlockProperty.variablesPacked]: { id: 38, name: 'variables_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [BlockProperty.valueType]: { id: 39, name: 'value_type', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [BlockProperty.runOptions]: { id: 43, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [BlockProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [50], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.policies]: { id: 48, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [BlockProperty.delegatedPolicies]: { id: 49, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BlockProperty.icon]: { id: 34, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [BlockProperty.variablesPacked]: { id: 40, name: 'variables_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [BlockProperty.policies]: { id: 42, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BlockProperty.delegatedPolicies]: { id: 43, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
+  [BlockProperty.rolesPtr]: { id: 44, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [50], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.identityPtr]: { id: 45, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.isBuiltin]: { id: 60, name: 'is_builtin', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isOwned]: { id: 61, name: 'is_owned', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -28481,6 +28413,7 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.TRIGGER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.type]: { id: 30, name: 'type', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.name]: { id: 31, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.processedEpoch]: { id: 40, name: 'processed_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
@@ -28505,6 +28438,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.FIELD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.type]: { id: 30, name: 'type', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.name]: { id: 31, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28540,6 +28474,7 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.QUERY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.type]: { id: 40, name: 'type', component: ObjectType.QUERY, enumType: EnumType.QUEYR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28572,6 +28507,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.type]: { id: 30, name: 'type', component: ObjectType.VIEW, enumType: EnumType.VIEW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.name]: { id: 31, name: 'name', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.title]: { id: 32, name: 'title', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
@@ -28592,7 +28528,6 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.transform]: { id: 66, name: 'transform', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TRANSFORM },
   [ViewProperty.selection]: { id: 70, name: 'selection', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.focus]: { id: 71, name: 'focus', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [ViewProperty.expansion]: { id: 72, name: 'expansion', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.isHidden]: { id: 80, name: 'is_hidden', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isInput]: { id: 82, name: 'is_input', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28615,6 +28550,7 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.STEP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28647,6 +28583,7 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.PIPE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.type]: { id: 30, name: 'type', component: ObjectType.PIPE, enumType: EnumType.PIPE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.name]: { id: 32, name: 'name', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28682,6 +28619,7 @@ export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
   [BadgeProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.BADGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BadgeProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.name]: { id: 31, name: 'name', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.delegatedPolicies]: { id: 32, name: 'delegated_policies', component: ObjectType.BADGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BadgeProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
@@ -28703,6 +28641,8 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.type]: { id: 30, name: 'type', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.originPtr]: { id: 32, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.path]: { id: 33, name: 'path', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [MessageProperty.replyToPtr]: { id: 34, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -28724,6 +28664,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.RECORD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.blockPtr]: { id: 34, name: 'block_ptr', component: ObjectType.RECORD, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -28741,6 +28682,7 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.SESSION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.status]: { id: 40, name: 'status', component: ObjectType.SESSION, enumType: EnumType.SESSION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.openedAt]: { id: 42, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28763,6 +28705,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.RUN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN, enumType: EnumType.RUN_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.rootPtr]: { id: 32, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.blockPtr]: { id: 33, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -28810,6 +28753,7 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SignalProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SignalProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SignalProperty.blockPtr]: { id: 32, name: 'block_ptr', component: ObjectType.SIGNAL, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [12], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [SignalProperty.sessionPtr]: { id: 80, name: 'session_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
@@ -28834,6 +28778,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.LOG, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.kind]: { id: 30, name: 'kind', component: ObjectType.LOG, enumType: EnumType.LOG_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.level]: { id: 31, name: 'level', component: ObjectType.LOG, enumType: EnumType.LOG_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.changePtr]: { id: 32, name: 'change_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
@@ -28866,6 +28811,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.blockPtr]: { id: 32, name: 'block_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [13], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.level]: { id: 33, name: 'level', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.expiresAt]: { id: 34, name: 'expires_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28883,6 +28829,7 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SkipProperty.subnodePacked]: { id: 20, name: 'subnode_packed', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -28946,10 +28893,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.VECTOR3]: Vector3DataInfo,
   [ObjectType.VECTOR4]: Vector4DataInfo,
   [ObjectType.LINE]: LineDataInfo,
-  [ObjectType.START_VIEW_STATE]: StartViewStateDataInfo,
-  [ObjectType.FEED_VIEW_STATE]: FeedViewStateDataInfo,
-  [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateDataInfo,
-  [ObjectType.TREE_VIEW_STATE]: TreeViewStateDataInfo,
   [ObjectType.BENCH]: BenchDataInfo,
   [ObjectType.USER]: UserDataInfo,
   [ObjectType.ORGANIZATION]: OrganizationDataInfo,
