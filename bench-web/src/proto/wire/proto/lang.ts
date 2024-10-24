@@ -716,6 +716,96 @@ export interface AccessData {
     allowedPropertiesPtr: PropertyReferenceData[];
 }
 /**
+ * @generated from protobuf message symbolx.bench.SelectOptionsData
+ */
+export interface SelectOptionsData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: bool select_all_properties = 40;
+     */
+    selectAllProperties: boolean;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 41;
+     */
+    includePropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 42;
+     */
+    excludePropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 43;
+     */
+    selectPropertiesPtr: PropertyReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData select_fields_ptr = 51;
+     */
+    selectFieldsPtr: NodeReferenceData[];
+}
+/**
+ * @generated from protobuf message symbolx.bench.QueryInfoData
+ */
+export interface QueryInfoData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.QueryType type = 40;
+     */
+    type: QueryType;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 41;
+     */
+    nodeType: NodeType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 42;
+     */
+    blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots_ptr = 43;
+     */
+    rootsPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 44;
+     */
+    filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 45;
+     */
+    sort: ExpressionData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData aggregation = 46;
+     */
+    aggregation?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 50;
+     */
+    ancestorTypes: NodeType[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 51;
+     */
+    descendantTypes: NodeType[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 60;
+     */
+    select?: SelectOptionsData;
+    /**
+     * @generated from protobuf field: bool include_deleted = 61;
+     */
+    includeDeleted: boolean;
+    /**
+     * @generated from protobuf field: optional int32 first = 62;
+     */
+    first?: number;
+    /**
+     * @generated from protobuf field: optional int32 skip = 63;
+     */
+    skip?: number;
+}
+/**
  * @generated from protobuf message symbolx.bench.CodeLineData
  */
 export interface CodeLineData {
@@ -1523,96 +1613,6 @@ export interface PathData {
      * @generated from protobuf field: repeated symbolx.bench.PathTokenData tokens = 31;
      */
     tokens: PathTokenData[];
-}
-/**
- * @generated from protobuf message symbolx.bench.SelectOptionsData
- */
-export interface SelectOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: bool select_all_properties = 40;
-     */
-    selectAllProperties: boolean;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 41;
-     */
-    includePropertiesPtr: PropertyReferenceData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 42;
-     */
-    excludePropertiesPtr: PropertyReferenceData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 43;
-     */
-    selectPropertiesPtr: PropertyReferenceData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData select_fields_ptr = 51;
-     */
-    selectFieldsPtr: NodeReferenceData[];
-}
-/**
- * @generated from protobuf message symbolx.bench.QueryInfoData
- */
-export interface QueryInfoData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.QueryType type = 40;
-     */
-    type: QueryType;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeType node_type = 41;
-     */
-    nodeType: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 42;
-     */
-    blockPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots_ptr = 43;
-     */
-    rootsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 44;
-     */
-    filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 45;
-     */
-    sort: ExpressionData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData aggregation = 46;
-     */
-    aggregation?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 50;
-     */
-    ancestorTypes: NodeType[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 51;
-     */
-    descendantTypes: NodeType[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 60;
-     */
-    select?: SelectOptionsData;
-    /**
-     * @generated from protobuf field: bool include_deleted = 61;
-     */
-    includeDeleted: boolean;
-    /**
-     * @generated from protobuf field: optional int32 first = 62;
-     */
-    first?: number;
-    /**
-     * @generated from protobuf field: optional int32 skip = 63;
-     */
-    skip?: number;
 }
 /**
  * @generated from protobuf message symbolx.bench.RunOptionsData
@@ -3654,6 +3654,135 @@ export interface BadgeData {
     passwordHash?: string;
 }
 /**
+ * @generated from protobuf message symbolx.bench.QueryData
+ */
+export interface QueryData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 7;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional int64 templated_epoch = 8;
+     */
+    templatedEpoch?: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 12;
+     */
+    createdEpoch: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 14;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 updated_epoch = 15;
+     */
+    updatedEpoch: bigint;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
+     */
+    subnodePacked?: JsonValue;
+    /**
+     * @generated from protobuf field: string name = 30;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: string order_key = 31;
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.QueryType type = 40;
+     */
+    type: QueryType;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 41;
+     */
+    nodeType: NodeType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 42;
+     */
+    blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots_ptr = 43;
+     */
+    rootsPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 44;
+     */
+    filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 45;
+     */
+    sort: ExpressionData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData aggregation = 46;
+     */
+    aggregation?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 50;
+     */
+    ancestorTypes: NodeType[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 51;
+     */
+    descendantTypes: NodeType[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 60;
+     */
+    select?: SelectOptionsData;
+    /**
+     * @generated from protobuf field: bool include_deleted = 61;
+     */
+    includeDeleted: boolean;
+    /**
+     * @generated from protobuf field: optional int32 first = 62;
+     */
+    first?: number;
+    /**
+     * @generated from protobuf field: optional int32 skip = 63;
+     */
+    skip?: number;
+}
+/**
  * @generated from protobuf message symbolx.bench.BlockData
  */
 export interface BlockData {
@@ -3823,6 +3952,10 @@ export interface ViewBlockData {
  * @generated from protobuf message symbolx.bench.DatabaseBlockData
  */
 export interface DatabaseBlockData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData query_ptr = 100;
+     */
+    queryPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbolx.bench.RecordData
@@ -4793,13 +4926,13 @@ export interface ViewData {
      */
     icon?: IconData;
     /**
+     * @generated from protobuf field: google.protobuf.Value subviews_packed = 39;
+     */
+    subviewsPacked?: JsonValue;
+    /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 40;
      */
     valueType?: TypeInfoData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value value_packed = 41;
-     */
-    valuePacked?: JsonValue;
     /**
      * @generated from protobuf oneof: node_ptr
      */
@@ -5065,135 +5198,6 @@ export interface SpaceData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 77;
      */
     runPtr?: NodeReferenceData;
-}
-/**
- * @generated from protobuf message symbolx.bench.QueryData
- */
-export interface QueryData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 7;
-     */
-    templatePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional int64 templated_epoch = 8;
-     */
-    templatedEpoch?: bigint;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int64 created_epoch = 12;
-     */
-    createdEpoch: bigint;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 14;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int64 updated_epoch = 15;
-     */
-    updatedEpoch: bigint;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 20;
-     */
-    subnodePacked?: JsonValue;
-    /**
-     * @generated from protobuf field: string name = 30;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: string order_key = 31;
-     */
-    orderKey: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.QueryType type = 40;
-     */
-    type: QueryType;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeType node_type = 41;
-     */
-    nodeType: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 42;
-     */
-    blockPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots_ptr = 43;
-     */
-    rootsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 44;
-     */
-    filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 45;
-     */
-    sort: ExpressionData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData aggregation = 46;
-     */
-    aggregation?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 50;
-     */
-    ancestorTypes: NodeType[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 51;
-     */
-    descendantTypes: NodeType[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SelectOptionsData select = 60;
-     */
-    select?: SelectOptionsData;
-    /**
-     * @generated from protobuf field: bool include_deleted = 61;
-     */
-    includeDeleted: boolean;
-    /**
-     * @generated from protobuf field: optional int32 first = 62;
-     */
-    first?: number;
-    /**
-     * @generated from protobuf field: optional int32 skip = 63;
-     */
-    skip?: number;
 }
 /**
  * @generated from protobuf message symbolx.bench.RunData
@@ -13278,6 +13282,254 @@ class AccessData$Type extends MessageType$<AccessData> {
  */
 export const AccessData = new AccessData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class SelectOptionsData$Type extends MessageType$<SelectOptionsData> {
+    constructor() {
+        super("symbolx.bench.SelectOptionsData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "select_all_properties", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 41, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 42, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 43, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 51, name: "select_fields_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<SelectOptionsData>): SelectOptionsData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.selectAllProperties = false;
+        message.includePropertiesPtr = [];
+        message.excludePropertiesPtr = [];
+        message.selectPropertiesPtr = [];
+        message.selectFieldsPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<SelectOptionsData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectOptionsData): SelectOptionsData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* bool select_all_properties */ 40:
+                    message.selectAllProperties = reader.bool();
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr */ 41:
+                    message.includePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr */ 42:
+                    message.excludePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr */ 43:
+                    message.selectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData select_fields_ptr */ 51:
+                    message.selectFieldsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SelectOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* bool select_all_properties = 40; */
+        if (message.selectAllProperties !== false)
+            writer.tag(40, WireType.Varint).bool(message.selectAllProperties);
+        /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 41; */
+        for (let i = 0; i < message.includePropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.includePropertiesPtr[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 42; */
+        for (let i = 0; i < message.excludePropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.excludePropertiesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 43; */
+        for (let i = 0; i < message.selectPropertiesPtr.length; i++)
+            PropertyReferenceData.internalBinaryWrite(message.selectPropertiesPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData select_fields_ptr = 51; */
+        for (let i = 0; i < message.selectFieldsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.selectFieldsPtr[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.SelectOptionsData
+ */
+export const SelectOptionsData = new SelectOptionsData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class QueryInfoData$Type extends MessageType$<QueryInfoData> {
+    constructor() {
+        super("symbolx.bench.QueryInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.QueryType", QueryType, "QUERY_TYPE_"] },
+            { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 44, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 45, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 46, name: "aggregation", kind: "message", T: () => ExpressionData },
+            { no: 50, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 51, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 60, name: "select", kind: "message", T: () => SelectOptionsData },
+            { no: 61, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<QueryInfoData>): QueryInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.nodeType = 0;
+        message.rootsPtr = [];
+        message.sort = [];
+        message.ancestorTypes = [];
+        message.descendantTypes = [];
+        message.includeDeleted = false;
+        if (value !== undefined)
+            reflectionMergePartial<QueryInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryInfoData): QueryInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.QueryType type */ 40:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeType node_type */ 41:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData roots_ptr */ 43:
+                    message.rootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData filter */ 44:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated symbolx.bench.ExpressionData sort */ 45:
+                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData aggregation */ 46:
+                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                    break;
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 50:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.NodeType descendant_types */ 51:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.descendantTypes.push(reader.int32());
+                    else
+                        message.descendantTypes.push(reader.int32());
+                    break;
+                case /* optional symbolx.bench.SelectOptionsData select */ 60:
+                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
+                    break;
+                case /* bool include_deleted */ 61:
+                    message.includeDeleted = reader.bool();
+                    break;
+                case /* optional int32 first */ 62:
+                    message.first = reader.int32();
+                    break;
+                case /* optional int32 skip */ 63:
+                    message.skip = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: QueryInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.QueryType type = 40; */
+        if (message.type !== 0)
+            writer.tag(40, WireType.Varint).int32(message.type);
+        /* symbolx.bench.NodeType node_type = 41; */
+        if (message.nodeType !== 0)
+            writer.tag(41, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roots_ptr = 43; */
+        for (let i = 0; i < message.rootsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rootsPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 44; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 45; */
+        for (let i = 0; i < message.sort.length; i++)
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData aggregation = 46; */
+        if (message.aggregation)
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeType ancestor_types = 50; */
+        if (message.ancestorTypes.length) {
+            writer.tag(50, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.NodeType descendant_types = 51; */
+        if (message.descendantTypes.length) {
+            writer.tag(51, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.descendantTypes.length; i++)
+                writer.int32(message.descendantTypes[i]);
+            writer.join();
+        }
+        /* optional symbolx.bench.SelectOptionsData select = 60; */
+        if (message.select)
+            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* bool include_deleted = 61; */
+        if (message.includeDeleted !== false)
+            writer.tag(61, WireType.Varint).bool(message.includeDeleted);
+        /* optional int32 first = 62; */
+        if (message.first !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.first);
+        /* optional int32 skip = 63; */
+        if (message.skip !== undefined)
+            writer.tag(63, WireType.Varint).int32(message.skip);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.QueryInfoData
+ */
+export const QueryInfoData = new QueryInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class CodeLineData$Type extends MessageType$<CodeLineData> {
     constructor() {
         super("symbolx.bench.CodeLineData", [
@@ -15512,254 +15764,6 @@ class PathData$Type extends MessageType$<PathData> {
  * @generated MessageType for protobuf message symbolx.bench.PathData
  */
 export const PathData = new PathData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SelectOptionsData$Type extends MessageType$<SelectOptionsData> {
-    constructor() {
-        super("symbolx.bench.SelectOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "select_all_properties", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 41, name: "include_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 42, name: "exclude_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 43, name: "select_properties_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
-            { no: 51, name: "select_fields_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<SelectOptionsData>): SelectOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.selectAllProperties = false;
-        message.includePropertiesPtr = [];
-        message.excludePropertiesPtr = [];
-        message.selectPropertiesPtr = [];
-        message.selectFieldsPtr = [];
-        if (value !== undefined)
-            reflectionMergePartial<SelectOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectOptionsData): SelectOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* bool select_all_properties */ 40:
-                    message.selectAllProperties = reader.bool();
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr */ 41:
-                    message.includePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr */ 42:
-                    message.excludePropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr */ 43:
-                    message.selectPropertiesPtr.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData select_fields_ptr */ 51:
-                    message.selectFieldsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SelectOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* bool select_all_properties = 40; */
-        if (message.selectAllProperties !== false)
-            writer.tag(40, WireType.Varint).bool(message.selectAllProperties);
-        /* repeated symbolx.bench.PropertyReferenceData include_properties_ptr = 41; */
-        for (let i = 0; i < message.includePropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.includePropertiesPtr[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyReferenceData exclude_properties_ptr = 42; */
-        for (let i = 0; i < message.excludePropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.excludePropertiesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyReferenceData select_properties_ptr = 43; */
-        for (let i = 0; i < message.selectPropertiesPtr.length; i++)
-            PropertyReferenceData.internalBinaryWrite(message.selectPropertiesPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData select_fields_ptr = 51; */
-        for (let i = 0; i < message.selectFieldsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.selectFieldsPtr[i], writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SelectOptionsData
- */
-export const SelectOptionsData = new SelectOptionsData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class QueryInfoData$Type extends MessageType$<QueryInfoData> {
-    constructor() {
-        super("symbolx.bench.QueryInfoData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.QueryType", QueryType, "QUERY_TYPE_"] },
-            { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 44, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 45, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 46, name: "aggregation", kind: "message", T: () => ExpressionData },
-            { no: 50, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 51, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 60, name: "select", kind: "message", T: () => SelectOptionsData },
-            { no: 61, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 63, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
-        ]);
-    }
-    create(value?: PartialMessage<QueryInfoData>): QueryInfoData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.nodeType = 0;
-        message.rootsPtr = [];
-        message.sort = [];
-        message.ancestorTypes = [];
-        message.descendantTypes = [];
-        message.includeDeleted = false;
-        if (value !== undefined)
-            reflectionMergePartial<QueryInfoData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryInfoData): QueryInfoData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.QueryType type */ 40:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.NodeType node_type */ 41:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
-                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roots_ptr */ 43:
-                    message.rootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 44:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 45:
-                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.ExpressionData aggregation */ 46:
-                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
-                    break;
-                case /* repeated symbolx.bench.NodeType ancestor_types */ 50:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ancestorTypes.push(reader.int32());
-                    else
-                        message.ancestorTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.NodeType descendant_types */ 51:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.descendantTypes.push(reader.int32());
-                    else
-                        message.descendantTypes.push(reader.int32());
-                    break;
-                case /* optional symbolx.bench.SelectOptionsData select */ 60:
-                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
-                    break;
-                case /* bool include_deleted */ 61:
-                    message.includeDeleted = reader.bool();
-                    break;
-                case /* optional int32 first */ 62:
-                    message.first = reader.int32();
-                    break;
-                case /* optional int32 skip */ 63:
-                    message.skip = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: QueryInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.QueryType type = 40; */
-        if (message.type !== 0)
-            writer.tag(40, WireType.Varint).int32(message.type);
-        /* symbolx.bench.NodeType node_type = 41; */
-        if (message.nodeType !== 0)
-            writer.tag(41, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
-        if (message.blockPtr)
-            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roots_ptr = 43; */
-        for (let i = 0; i < message.rootsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rootsPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 44; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 45; */
-        for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData aggregation = 46; */
-        if (message.aggregation)
-            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeType ancestor_types = 50; */
-        if (message.ancestorTypes.length) {
-            writer.tag(50, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.ancestorTypes.length; i++)
-                writer.int32(message.ancestorTypes[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.NodeType descendant_types = 51; */
-        if (message.descendantTypes.length) {
-            writer.tag(51, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.descendantTypes.length; i++)
-                writer.int32(message.descendantTypes[i]);
-            writer.join();
-        }
-        /* optional symbolx.bench.SelectOptionsData select = 60; */
-        if (message.select)
-            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* bool include_deleted = 61; */
-        if (message.includeDeleted !== false)
-            writer.tag(61, WireType.Varint).bool(message.includeDeleted);
-        /* optional int32 first = 62; */
-        if (message.first !== undefined)
-            writer.tag(62, WireType.Varint).int32(message.first);
-        /* optional int32 skip = 63; */
-        if (message.skip !== undefined)
-            writer.tag(63, WireType.Varint).int32(message.skip);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.QueryInfoData
- */
-export const QueryInfoData = new QueryInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunOptionsData$Type extends MessageType$<RunOptionsData> {
     constructor() {
@@ -20440,6 +20444,292 @@ class BadgeData$Type extends MessageType$<BadgeData> {
  */
 export const BadgeData = new BadgeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class QueryData$Type extends MessageType$<QueryData> {
+    constructor() {
+        super("symbolx.bench.QueryData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 8, name: "templated_epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.QueryType", QueryType, "QUERY_TYPE_"] },
+            { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 44, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 45, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 46, name: "aggregation", kind: "message", T: () => ExpressionData },
+            { no: 50, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 51, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 60, name: "select", kind: "message", T: () => SelectOptionsData },
+            { no: 61, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<QueryData>): QueryData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.ck = "";
+        message.createdEpoch = 0n;
+        message.updatedEpoch = 0n;
+        message.name = "";
+        message.orderKey = "";
+        message.type = 0;
+        message.nodeType = 0;
+        message.rootsPtr = [];
+        message.sort = [];
+        message.ancestorTypes = [];
+        message.descendantTypes = [];
+        message.includeDeleted = false;
+        if (value !== undefined)
+            reflectionMergePartial<QueryData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryData): QueryData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional int64 templated_epoch */ 8:
+                    message.templatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* int64 created_epoch */ 12:
+                    message.createdEpoch = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 13:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 14:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* int64 updated_epoch */ 15:
+                    message.updatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 16:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 20:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* string name */ 30:
+                    message.name = reader.string();
+                    break;
+                case /* string order_key */ 31:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbolx.bench.QueryType type */ 40:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeType node_type */ 41:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData roots_ptr */ 43:
+                    message.rootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData filter */ 44:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated symbolx.bench.ExpressionData sort */ 45:
+                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.ExpressionData aggregation */ 46:
+                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                    break;
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 50:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.NodeType descendant_types */ 51:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.descendantTypes.push(reader.int32());
+                    else
+                        message.descendantTypes.push(reader.int32());
+                    break;
+                case /* optional symbolx.bench.SelectOptionsData select */ 60:
+                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
+                    break;
+                case /* bool include_deleted */ 61:
+                    message.includeDeleted = reader.bool();
+                    break;
+                case /* optional int32 first */ 62:
+                    message.first = reader.int32();
+                    break;
+                case /* optional int32 skip */ 63:
+                    message.skip = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: QueryData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 templated_epoch = 8; */
+        if (message.templatedEpoch !== undefined)
+            writer.tag(8, WireType.Varint).int64(message.templatedEpoch);
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 12; */
+        if (message.createdEpoch !== 0n)
+            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
+        /* google.protobuf.Timestamp updated_at = 13; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 14; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* int64 updated_epoch = 15; */
+        if (message.updatedEpoch !== 0n)
+            writer.tag(15, WireType.Varint).int64(message.updatedEpoch);
+        /* optional google.protobuf.Timestamp deleted_at = 16; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 20; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* string name = 30; */
+        if (message.name !== "")
+            writer.tag(30, WireType.LengthDelimited).string(message.name);
+        /* string order_key = 31; */
+        if (message.orderKey !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
+        /* symbolx.bench.QueryType type = 40; */
+        if (message.type !== 0)
+            writer.tag(40, WireType.Varint).int32(message.type);
+        /* symbolx.bench.NodeType node_type = 41; */
+        if (message.nodeType !== 0)
+            writer.tag(41, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roots_ptr = 43; */
+        for (let i = 0; i < message.rootsPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.rootsPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData filter = 44; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 45; */
+        for (let i = 0; i < message.sort.length; i++)
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData aggregation = 46; */
+        if (message.aggregation)
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeType ancestor_types = 50; */
+        if (message.ancestorTypes.length) {
+            writer.tag(50, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.NodeType descendant_types = 51; */
+        if (message.descendantTypes.length) {
+            writer.tag(51, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.descendantTypes.length; i++)
+                writer.int32(message.descendantTypes[i]);
+            writer.join();
+        }
+        /* optional symbolx.bench.SelectOptionsData select = 60; */
+        if (message.select)
+            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* bool include_deleted = 61; */
+        if (message.includeDeleted !== false)
+            writer.tag(61, WireType.Varint).bool(message.includeDeleted);
+        /* optional int32 first = 62; */
+        if (message.first !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.first);
+        /* optional int32 skip = 63; */
+        if (message.skip !== undefined)
+            writer.tag(63, WireType.Varint).int32(message.skip);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.QueryData
+ */
+export const QueryData = new QueryData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class BlockData$Type extends MessageType$<BlockData> {
     constructor() {
         super("symbolx.bench.BlockData", [
@@ -20878,7 +21168,9 @@ export const ViewBlockData = new ViewBlockData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DatabaseBlockData$Type extends MessageType$<DatabaseBlockData> {
     constructor() {
-        super("symbolx.bench.DatabaseBlockData", []);
+        super("symbolx.bench.DatabaseBlockData", [
+            { no: 100, name: "query_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
     }
     create(value?: PartialMessage<DatabaseBlockData>): DatabaseBlockData {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -20887,9 +21179,28 @@ class DatabaseBlockData$Type extends MessageType$<DatabaseBlockData> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DatabaseBlockData): DatabaseBlockData {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.NodeReferenceData query_ptr */ 100:
+                    message.queryPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.queryPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: DatabaseBlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.NodeReferenceData query_ptr = 100; */
+        if (message.queryPtr)
+            NodeReferenceData.internalBinaryWrite(message.queryPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22758,8 +23069,8 @@ class ViewData$Type extends MessageType$<ViewData> {
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
+            { no: 39, name: "subviews_packed", kind: "message", T: () => Value },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 41, name: "value_packed", kind: "message", T: () => Value },
             { no: 420, name: "node_ptr_node", kind: "message", oneof: "nodePtr", T: () => NodeReferenceData },
             { no: 421, name: "node_ptr_file", kind: "message", oneof: "nodePtr", T: () => FileReferenceData },
             { no: 422, name: "node_ptr_secret", kind: "message", oneof: "nodePtr", T: () => SecretReferenceData },
@@ -22872,11 +23183,11 @@ class ViewData$Type extends MessageType$<ViewData> {
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
+                case /* google.protobuf.Value subviews_packed */ 39:
+                    message.subviewsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 case /* optional symbolx.bench.TypeInfoData value_type */ 40:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
-                    break;
-                case /* optional google.protobuf.Value value_packed */ 41:
-                    message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* symbolx.bench.NodeReferenceData node_ptr_node */ 420:
                     message.nodePtr = {
@@ -23022,12 +23333,12 @@ class ViewData$Type extends MessageType$<ViewData> {
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Value subviews_packed = 39; */
+        if (message.subviewsPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subviewsPacked), writer.tag(39, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeInfoData value_type = 40; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value value_packed = 41; */
-        if (message.valuePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData node_ptr_node = 420; */
         if (message.nodePtr.oneofKind === "nodePtrNode")
             NodeReferenceData.internalBinaryWrite(message.nodePtr.nodePtrNode, writer.tag(420, WireType.LengthDelimited).fork(), options).join();
@@ -23562,292 +23873,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
  * @generated MessageType for protobuf message symbolx.bench.SpaceData
  */
 export const SpaceData = new SpaceData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class QueryData$Type extends MessageType$<QueryData> {
-    constructor() {
-        super("symbolx.bench.QueryData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 5, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 8, name: "templated_epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.QueryType", QueryType, "QUERY_TYPE_"] },
-            { no: 41, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 42, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "roots_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 44, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 45, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 46, name: "aggregation", kind: "message", T: () => ExpressionData },
-            { no: 50, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 51, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 60, name: "select", kind: "message", T: () => SelectOptionsData },
-            { no: 61, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 63, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
-        ]);
-    }
-    create(value?: PartialMessage<QueryData>): QueryData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.ck = "";
-        message.createdEpoch = 0n;
-        message.updatedEpoch = 0n;
-        message.name = "";
-        message.orderKey = "";
-        message.type = 0;
-        message.nodeType = 0;
-        message.rootsPtr = [];
-        message.sort = [];
-        message.ancestorTypes = [];
-        message.descendantTypes = [];
-        message.includeDeleted = false;
-        if (value !== undefined)
-            reflectionMergePartial<QueryData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryData): QueryData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
-                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
-                    break;
-                case /* optional int64 templated_epoch */ 8:
-                    message.templatedEpoch = reader.int64().toBigInt();
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* int64 created_epoch */ 12:
-                    message.createdEpoch = reader.int64().toBigInt();
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 13:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 14:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* int64 updated_epoch */ 15:
-                    message.updatedEpoch = reader.int64().toBigInt();
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 16:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional google.protobuf.Value subnode_packed */ 20:
-                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* string name */ 30:
-                    message.name = reader.string();
-                    break;
-                case /* string order_key */ 31:
-                    message.orderKey = reader.string();
-                    break;
-                case /* symbolx.bench.QueryType type */ 40:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.NodeType node_type */ 41:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 42:
-                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData roots_ptr */ 43:
-                    message.rootsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 44:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 45:
-                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.ExpressionData aggregation */ 46:
-                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
-                    break;
-                case /* repeated symbolx.bench.NodeType ancestor_types */ 50:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.ancestorTypes.push(reader.int32());
-                    else
-                        message.ancestorTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.NodeType descendant_types */ 51:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.descendantTypes.push(reader.int32());
-                    else
-                        message.descendantTypes.push(reader.int32());
-                    break;
-                case /* optional symbolx.bench.SelectOptionsData select */ 60:
-                    message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
-                    break;
-                case /* bool include_deleted */ 61:
-                    message.includeDeleted = reader.bool();
-                    break;
-                case /* optional int32 first */ 62:
-                    message.first = reader.int32();
-                    break;
-                case /* optional int32 skip */ 63:
-                    message.skip = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: QueryData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
-        if (message.templatePtr)
-            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 templated_epoch = 8; */
-        if (message.templatedEpoch !== undefined)
-            writer.tag(8, WireType.Varint).int64(message.templatedEpoch);
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* int64 created_epoch = 12; */
-        if (message.createdEpoch !== 0n)
-            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
-        /* google.protobuf.Timestamp updated_at = 13; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 14; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* int64 updated_epoch = 15; */
-        if (message.updatedEpoch !== 0n)
-            writer.tag(15, WireType.Varint).int64(message.updatedEpoch);
-        /* optional google.protobuf.Timestamp deleted_at = 16; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value subnode_packed = 20; */
-        if (message.subnodePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* string name = 30; */
-        if (message.name !== "")
-            writer.tag(30, WireType.LengthDelimited).string(message.name);
-        /* string order_key = 31; */
-        if (message.orderKey !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.QueryType type = 40; */
-        if (message.type !== 0)
-            writer.tag(40, WireType.Varint).int32(message.type);
-        /* symbolx.bench.NodeType node_type = 41; */
-        if (message.nodeType !== 0)
-            writer.tag(41, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData block_ptr = 42; */
-        if (message.blockPtr)
-            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roots_ptr = 43; */
-        for (let i = 0; i < message.rootsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rootsPtr[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 44; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 45; */
-        for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData aggregation = 46; */
-        if (message.aggregation)
-            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeType ancestor_types = 50; */
-        if (message.ancestorTypes.length) {
-            writer.tag(50, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.ancestorTypes.length; i++)
-                writer.int32(message.ancestorTypes[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.NodeType descendant_types = 51; */
-        if (message.descendantTypes.length) {
-            writer.tag(51, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.descendantTypes.length; i++)
-                writer.int32(message.descendantTypes[i]);
-            writer.join();
-        }
-        /* optional symbolx.bench.SelectOptionsData select = 60; */
-        if (message.select)
-            SelectOptionsData.internalBinaryWrite(message.select, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* bool include_deleted = 61; */
-        if (message.includeDeleted !== false)
-            writer.tag(61, WireType.Varint).bool(message.includeDeleted);
-        /* optional int32 first = 62; */
-        if (message.first !== undefined)
-            writer.tag(62, WireType.Varint).int32(message.first);
-        /* optional int32 skip = 63; */
-        if (message.skip !== undefined)
-            writer.tag(63, WireType.Varint).int32(message.skip);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.QueryData
- */
-export const QueryData = new QueryData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunData$Type extends MessageType$<RunData> {
     constructor() {
@@ -26556,8 +26581,8 @@ export enum ViewProperty {
   text = 33,
   orderKey = 34,
   icon = 35,
+  subviewsPacked = 39,
   valueType = 40,
-  valuePacked = 41,
   nodePtr = 42,
   variant = 50,
   font = 51,
@@ -28377,7 +28402,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28404,7 +28429,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28428,7 +28453,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28829,8 +28854,8 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.text]: { id: 33, name: 'text', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ViewProperty.orderKey]: { id: 34, name: 'order_key', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [ViewProperty.subviewsPacked]: { id: 39, name: 'subviews_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [ViewProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
   [ViewProperty.variant]: { id: 50, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.font]: { id: 51, name: 'font', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },

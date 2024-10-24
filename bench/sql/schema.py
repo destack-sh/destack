@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.10.23.0"
+VERSION = "2024.10.24.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -967,8 +967,8 @@ VIEW_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("subviews_packed", PrimitiveType.JSON, is_nullable=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("node_ptr", PrimitiveType.JSON, is_nullable=True),
         Column("variant", PrimitiveType.INT16, is_nullable=True),
         Column("font", PrimitiveType.JSON, is_nullable=True),

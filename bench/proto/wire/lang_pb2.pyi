@@ -3126,6 +3126,54 @@ class AccessData(_message.Message):
     allowed_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., mode: _Optional[_Union[AccessMode, str]] = ..., decision: _Optional[_Union[PolicyEffect, str]] = ..., verb: _Optional[_Union[AccessType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., allowed_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ...) -> None: ...
 
+class SelectOptionsData(_message.Message):
+    __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    SELECT_ALL_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
+    SELECT_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
+    SELECT_FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    select_all_properties: bool
+    include_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
+    exclude_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
+    select_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
+    select_fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., select_all_properties: bool = ..., include_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., exclude_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
+
+class QueryInfoData(_message.Message):
+    __slots__ = ("metatype", "type", "node_type", "block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    SORT_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
+    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
+    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
+    SELECT_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_DELETED_FIELD_NUMBER: _ClassVar[int]
+    FIRST_FIELD_NUMBER: _ClassVar[int]
+    SKIP_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    type: QueryType
+    node_type: NodeType
+    block_ptr: NodeReferenceData
+    roots_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    filter: ExpressionData
+    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
+    aggregation: ExpressionData
+    ancestor_types: _containers.RepeatedScalarFieldContainer[NodeType]
+    descendant_types: _containers.RepeatedScalarFieldContainer[NodeType]
+    select: SelectOptionsData
+    include_deleted: bool
+    first: int
+    skip: int
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[QueryType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., roots_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[ExpressionData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., select: _Optional[_Union[SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., first: _Optional[int] = ..., skip: _Optional[int] = ...) -> None: ...
+
 class CodeLineData(_message.Message):
     __slots__ = ("metatype", "content")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3567,54 +3615,6 @@ class PathData(_message.Message):
     metatype: ObjectType
     tokens: _containers.RepeatedCompositeFieldContainer[PathTokenData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., tokens: _Optional[_Iterable[_Union[PathTokenData, _Mapping]]] = ...) -> None: ...
-
-class SelectOptionsData(_message.Message):
-    __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    SELECT_ALL_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
-    EXCLUDE_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
-    SELECT_PROPERTIES_PTR_FIELD_NUMBER: _ClassVar[int]
-    SELECT_FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    select_all_properties: bool
-    include_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
-    exclude_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
-    select_properties_ptr: _containers.RepeatedCompositeFieldContainer[PropertyReferenceData]
-    select_fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., select_all_properties: bool = ..., include_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., exclude_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
-
-class QueryInfoData(_message.Message):
-    __slots__ = ("metatype", "type", "node_type", "block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    SORT_FIELD_NUMBER: _ClassVar[int]
-    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
-    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
-    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
-    SELECT_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_DELETED_FIELD_NUMBER: _ClassVar[int]
-    FIRST_FIELD_NUMBER: _ClassVar[int]
-    SKIP_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: QueryType
-    node_type: NodeType
-    block_ptr: NodeReferenceData
-    roots_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    filter: ExpressionData
-    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
-    aggregation: ExpressionData
-    ancestor_types: _containers.RepeatedScalarFieldContainer[NodeType]
-    descendant_types: _containers.RepeatedScalarFieldContainer[NodeType]
-    select: SelectOptionsData
-    include_deleted: bool
-    first: int
-    skip: int
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[QueryType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., roots_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[ExpressionData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., select: _Optional[_Union[SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., first: _Optional[int] = ..., skip: _Optional[int] = ...) -> None: ...
 
 class RunOptionsData(_message.Message):
     __slots__ = ("metatype", "max_attempts", "max_concurrency", "max_runs", "max_inner_runs", "timeout", "retry_interval", "backoff", "max_retry_interval", "retry_on", "suppress_fail", "suppress_abort", "breakpoints", "cache_mode", "cache_retention", "model_provider", "model_type")
@@ -4682,6 +4682,72 @@ class BadgeData(_message.Message):
     password_hash: str
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., delegated_policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[str] = ..., key_hash: _Optional[str] = ..., password: _Optional[str] = ..., password_hash: _Optional[str] = ...) -> None: ...
 
+class QueryData(_message.Message):
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "name", "order_key", "type", "node_type", "block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CK_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    SORT_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
+    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
+    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
+    SELECT_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_DELETED_FIELD_NUMBER: _ClassVar[int]
+    FIRST_FIELD_NUMBER: _ClassVar[int]
+    SKIP_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    ck: str
+    parent_ptr: NodeReferenceData
+    package_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    template_ptr: NodeReferenceData
+    templated_epoch: int
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    created_epoch: int
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    updated_epoch: int
+    deleted_at: _timestamp_pb2.Timestamp
+    subnode_packed: _struct_pb2.Value
+    name: str
+    order_key: str
+    type: QueryType
+    node_type: NodeType
+    block_ptr: NodeReferenceData
+    roots_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    filter: ExpressionData
+    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
+    aggregation: ExpressionData
+    ancestor_types: _containers.RepeatedScalarFieldContainer[NodeType]
+    descendant_types: _containers.RepeatedScalarFieldContainer[NodeType]
+    select: SelectOptionsData
+    include_deleted: bool
+    first: int
+    skip: int
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[QueryType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., roots_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[ExpressionData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., select: _Optional[_Union[SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., first: _Optional[int] = ..., skip: _Optional[int] = ...) -> None: ...
+
 class BlockData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "icon", "variables_packed", "policies", "delegated_policies", "roles_ptr", "identity_ptr", "is_builtin", "is_owned")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4769,8 +4835,10 @@ class ViewBlockData(_message.Message):
     def __init__(self) -> None: ...
 
 class DatabaseBlockData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("query_ptr",)
+    QUERY_PTR_FIELD_NUMBER: _ClassVar[int]
+    query_ptr: NodeReferenceData
+    def __init__(self, query_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class RecordData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "package_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "order_key", "block_ptr", "value_packed")
@@ -5223,7 +5291,7 @@ class NotificationData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., level: _Optional[_Union[NotificationLevel, str]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., read_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ViewData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "title", "text", "order_key", "icon", "value_type", "value_packed", "node_ptr_node", "node_ptr_file", "node_ptr_secret", "variant", "font", "position", "size", "margin", "padding", "orientation", "alignment", "transform", "selection", "focus", "is_hidden", "is_disabled", "is_input", "is_inline", "is_loading")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "title", "text", "order_key", "icon", "subviews_packed", "value_type", "node_ptr_node", "node_ptr_file", "node_ptr_secret", "variant", "font", "position", "size", "margin", "padding", "orientation", "alignment", "transform", "selection", "focus", "is_hidden", "is_disabled", "is_input", "is_inline", "is_loading")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5246,8 +5314,8 @@ class ViewData(_message.Message):
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
+    SUBVIEWS_PACKED_FIELD_NUMBER: _ClassVar[int]
     VALUE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_NODE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FILE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_SECRET_FIELD_NUMBER: _ClassVar[int]
@@ -5289,8 +5357,8 @@ class ViewData(_message.Message):
     text: TextData
     order_key: str
     icon: IconData
+    subviews_packed: _struct_pb2.Value
     value_type: TypeInfoData
-    value_packed: _struct_pb2.Value
     node_ptr_node: NodeReferenceData
     node_ptr_file: FileReferenceData
     node_ptr_secret: SecretReferenceData
@@ -5310,7 +5378,7 @@ class ViewData(_message.Message):
     is_input: bool
     is_inline: bool
     is_loading: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ViewType, str]] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., node_ptr_node: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_ptr_file: _Optional[_Union[FileReferenceData, _Mapping]] = ..., node_ptr_secret: _Optional[_Union[SecretReferenceData, _Mapping]] = ..., variant: _Optional[_Union[Variant, str]] = ..., font: _Optional[_Union[FontData, _Mapping]] = ..., position: _Optional[_Union[OffsetData, _Mapping]] = ..., size: _Optional[_Union[BoxData, _Mapping]] = ..., margin: _Optional[_Union[OffsetData, _Mapping]] = ..., padding: _Optional[_Union[OffsetData, _Mapping]] = ..., orientation: _Optional[_Union[Orientation, str]] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., transform: _Optional[_Union[TransformData, _Mapping]] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., is_hidden: bool = ..., is_disabled: bool = ..., is_input: bool = ..., is_inline: bool = ..., is_loading: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ViewType, str]] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., subviews_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., node_ptr_node: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_ptr_file: _Optional[_Union[FileReferenceData, _Mapping]] = ..., node_ptr_secret: _Optional[_Union[SecretReferenceData, _Mapping]] = ..., variant: _Optional[_Union[Variant, str]] = ..., font: _Optional[_Union[FontData, _Mapping]] = ..., position: _Optional[_Union[OffsetData, _Mapping]] = ..., size: _Optional[_Union[BoxData, _Mapping]] = ..., margin: _Optional[_Union[OffsetData, _Mapping]] = ..., padding: _Optional[_Union[OffsetData, _Mapping]] = ..., orientation: _Optional[_Union[Orientation, str]] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., transform: _Optional[_Union[TransformData, _Mapping]] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., is_hidden: bool = ..., is_disabled: bool = ..., is_input: bool = ..., is_inline: bool = ..., is_loading: bool = ...) -> None: ...
 
 class TreeViewData(_message.Message):
     __slots__ = ("node_types", "filter_is_page", "is_default_expanded", "preset")
@@ -5403,72 +5471,6 @@ class SpaceData(_message.Message):
     base_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[SpaceType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., order_key: _Optional[str] = ..., policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., bar_position: _Optional[_Union[Anchor, str]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., inspection_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
-
-class QueryData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "name", "order_key", "type", "node_type", "block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    CK_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    SORT_FIELD_NUMBER: _ClassVar[int]
-    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
-    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
-    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
-    SELECT_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_DELETED_FIELD_NUMBER: _ClassVar[int]
-    FIRST_FIELD_NUMBER: _ClassVar[int]
-    SKIP_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
-    ck: str
-    parent_ptr: NodeReferenceData
-    package_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    template_ptr: NodeReferenceData
-    templated_epoch: int
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    created_epoch: int
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    updated_epoch: int
-    deleted_at: _timestamp_pb2.Timestamp
-    subnode_packed: _struct_pb2.Value
-    name: str
-    order_key: str
-    type: QueryType
-    node_type: NodeType
-    block_ptr: NodeReferenceData
-    roots_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    filter: ExpressionData
-    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
-    aggregation: ExpressionData
-    ancestor_types: _containers.RepeatedScalarFieldContainer[NodeType]
-    descendant_types: _containers.RepeatedScalarFieldContainer[NodeType]
-    select: SelectOptionsData
-    include_deleted: bool
-    first: int
-    skip: int
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[QueryType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., roots_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[ExpressionData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., select: _Optional[_Union[SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., first: _Optional[int] = ..., skip: _Optional[int] = ...) -> None: ...
 
 class RunData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "package_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "kind", "root_ptr", "block_ptr", "step_ptr", "code", "options", "status", "duration", "cached_duration", "active_duration", "attempts", "error", "scheduled_at", "scheduled_epoch", "started_at", "started_epoch", "killed_at", "terminated_at", "terminated_epoch", "inputs_packed", "outputs_packed", "variables_packed", "logs", "spans", "events", "session_ptr", "run_ptr", "run_root_ptr", "client_ptr", "machine_ptr", "server_ptr", "user_ptr", "identity_ptr")

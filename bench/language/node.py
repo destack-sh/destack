@@ -1579,8 +1579,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
 
-    subnode_packed: dict[str, dict[str, Any]] | None = p_subtype_packed(20)
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
+    subnode_packed: dict[str, dict[str, Any]] | None = p_subtype_packed(29)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, final
 
-from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
+from bench.language.const import NODE_TYPES, EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.expression import Selection
 from bench.language.list import LocalNodeList
 from bench.language.node import (
@@ -18,7 +18,6 @@ from bench.language.property import (
     p_node_parent,
     p_regular,
     p_value_packed,
-    p_value_runtime,
 )
 from bench.language.validation import EMOJI_CONSTRAINT, NAME_CONSTRAINT, TITLE_CONSTRAINT
 from bench.proto.wire import SpaceData, ViewData
@@ -478,13 +477,14 @@ class View(SourceNode[ViewData]):
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
     )
+    subviews_packed: dict[str, Any] | None = p_internal(
+        39, require=False, primitive_type=PrimitiveType.JSON
+    )
 
     # content
     value_type: Optional["TypeInfo"] = p_regular(
         40, default=None, require=False, struct=StructType.TYPE_INFO
     )
-    value_packed: Any = p_value_packed(41)
-    value: Any = p_value_runtime(packed=41, typ=None)  # freely typed for now
     node: Optional["Node"] = p_regular(
         42, default=None, require=False, array=False, references=NODE_TYPES.tuple, rich=True
     )
