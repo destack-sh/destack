@@ -100,11 +100,12 @@ class Runtime:
 
         # figure out which runner we need
         if kind == RunKind.CODE:
-            if code is None:
-                code = node.code if isinstance(node, CodeBlock) else Code.empty()
+            if code is None and isinstance(node, Block) and node.type == BlockType.CODE:
+                code = cast(CodeBlock, node).code
+            code = code or Code.empty()
         elif kind == RunKind.TEXT:
-            if text is None:
-                text = node.text if isinstance(node, TextBlock) else Text.empty()
+            if text is None and isinstance(node, Block) and node.type == BlockType.TEXT:
+                text = cast(TextBlock, node).text
         elif kind == RunKind.STEP:
             assert isinstance(node, Step), f"unexpected node type: {node!r}"
 

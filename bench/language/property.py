@@ -997,7 +997,7 @@ def p_value_packed(id: int, *, secret: bool = False) -> Any:
     )
 
 
-def p_subtype_packed(id: int) -> Any:
+def p_subnode_packed(id: int) -> Any:
     return Property(
         id=id,
         primitive_type=PrimitiveType.JSON,

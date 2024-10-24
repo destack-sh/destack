@@ -68,14 +68,14 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
 
     # first set in constructor
     type_info = to_type_scalar(PrimitiveType.INT32)
-    block = ValueBlock(type=BlockType.VALUE, name="Variable1", value_type=type_info, variables=7)
-    assert block.variables == 7
-    assert unpack_value(block.variables_packed, type_info, wrap_scalar=True) == 7
+    block = Block.new(ValueBlock, name="Variable1", value_type=type_info, value=7)
+    assert block.value == 7
+    assert unpack_value(block.value_packed, type_info, wrap_scalar=True) == 7
 
     # set at runtime
-    block.variables = 42
-    assert block.variables == 42
-    assert unpack_value(block.variables_packed, type_info, wrap_scalar=True) == 42
+    block.value = 42
+    assert block.value == 42
+    assert unpack_value(block.value_packed, type_info, wrap_scalar=True) == 42
 
 
 def test_roundtrip_nested_value(session: Session, package: Package):

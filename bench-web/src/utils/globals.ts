@@ -2,7 +2,7 @@ import { SpaceCanvas } from "@/ui/space";
 import { createDeferredProxy, pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
-export const VERSION = "2024.10.24.1";
+export const VERSION = "2024.10.24.2";
 
 // global environment variables :BenchWebEnv
 export const COMMIT = import.meta.env.VITE_COMMIT;

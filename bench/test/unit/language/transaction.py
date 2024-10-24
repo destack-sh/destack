@@ -1,7 +1,7 @@
 from bench.language.block import Block, FlowBlock, ValueBlock
 from bench.language.const import BlockType, EditOperationType
 from bench.language.field import Field, to_type
-from bench.language.flow import Step, TextStep
+from bench.language.flow import Step, StepType, TextStep
 from bench.language.node import Node
 from bench.language.run import RunErrorType, RunOptions
 from bench.test.unit.conftest import RuntimeHandle
@@ -17,8 +17,8 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     )
     Class1.fields.append(Field.member("Class1", Class1))
     Flow1 = Block.new(FlowBlock, name="Flow1")
-    Step1 = Step.new(TextStep, name="Text1")
-    Flow1.steps.append(Step1)
+    TextStep1 = Step.new(TextStep, name="Text1")
+    Flow1.steps.append(TextStep1)
     Value1 = Block.new(ValueBlock, name="Value1")
     hosted_runtime.page().blocks.extend(Class1, Flow1, Value1)
     await session.commit()
@@ -34,13 +34,13 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [Block.get_property("name").key]
 
     # root scalar parent_key clear
-    Step1.text = None
+    Value1.icon = None
     assert get_last_operation().type == EditOperationType.CLEAR
-    assert get_last_operation().path == [TextStep.get_property("text").key]
+    assert get_last_operation().path == [Block.get_property("icon").key]
 
     # nested scalar struct set
-    Step1.run_options = RunOptions(max_attempts=3)
-    Step1.run_options.max_attempts = 4
+    TextStep1.run_options = RunOptions(max_attempts=3)
+    TextStep1.run_options.max_attempts = 4
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
         TextStep.get_property("run_options").key,
@@ -48,14 +48,23 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     ]
 
     # nested scalar struct clear
-    Step1.run_options.max_concurrency = None
+    TextStep1.run_options.max_concurrency = None
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [
         TextStep.get_property("run_options").key,
         RunOptions.get_property("max_concurrency").key,
     ]
 
-    # nested scalar parent_key set
+    # subtype set
+    TextStep1.text = None
+    assert get_last_operation().type == EditOperationType.CLEAR
+    assert get_last_operation().path == [
+        Node.get_property("subnode_packed").key,
+        str(StepType.TEXT),
+        TextStep.get_property("text").key,
+    ]
+
+    # nested scalar subtype set
     Value1.value_type = to_type(Class1)
     Value1.value = Class1(Integer=1, String="two")
     Value1.value.Integer = 2
@@ -78,10 +87,10 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [Block.get_property("roles").key]
 
     # nested list parent_key set
-    Step1.run_options.retry_on = [RunErrorType.CODE_INVALID, RunErrorType.INVALID_VALUE]
+    TextStep1.run_options.retry_on = [RunErrorType.CODE_INVALID, RunErrorType.INVALID_VALUE]
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
-        Block.get_property("run_options").key,
+        TextStep.get_property("run_options").key,
         RunOptions.get_property("retry_on").key,
     ]
 

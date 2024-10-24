@@ -28,6 +28,7 @@ from bench.language.field import decode_type_identity
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
+    NODE_SUBTYPE_PACKED_KEY,
     BuiltinObject,
     ClientOrigin,
     EditSubject,
@@ -619,27 +620,26 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 if field is None:
                     return  # invalid path
                 next_obj = cast(CustomObject, obj)._do_get(field)
+                if next_obj is None:
+                    raise NotImplementedError("nocheckin apply_edit_operation init nested object?")
             if not (type(next_obj) is CustomObject or isinstance(next_obj, BuiltinObject)):
                 return  # invalid path
             obj = next_obj
         else:
             # done: set value
             if prop is not None:
+                # builtin object property
                 value_type = cast(BuiltinObject, obj).__properties__[key].type_info
-            else:
-                value_type = decode_type_identity(key[TK_LENGTH_B64:])
-            if op.type == EditOperationType.SET:
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
-            elif op.type == EditOperationType.CLEAR:
-                new_value = None
-            else:
-                raise NotImplementedError(f"unsupported edit operation: {op!r}")
-            if prop is not None:  # builtin object property
                 cast(BuiltinObject, obj)._do_set(
                     prop.name, new_value, track=False, validate=validate
                 )
-            else:  # custom object field
+            else:
+                # custom object field
+                value_type = decode_type_identity(key[TK_LENGTH_B64:])
+                new_value_packed = unpack_proto_json(op.new_value_packed)
+                new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
                 field = cast(CustomObject, obj)._type._get_field_by_key(key)
                 if field is None:
                     return  # invalid path
@@ -659,7 +659,7 @@ def apply_edit_operation_data(
     for i in range(len(op.path)):
         # map key
         key = op.path[i]
-        if key.isdigit():
+        if key.isdigit() and (i == 0 or op.path[0] != NODE_SUBTYPE_PACKED_KEY):
             # builtin object property
             assert type(obj) is not ProtoStruct, f"unexpected object: {obj} for {op!r}"
             obj_type = OBJECT_CLASS_BY_TYPE[obj.metatype]  # type: ignore
@@ -681,6 +681,9 @@ def apply_edit_operation_data(
                 if type(next_obj) is ProtoValue:
                     next_obj = cast(ProtoValue, next_obj).struct_value
             else:  # custom object field
+                if key not in cast(ProtoStruct, obj).fields:
+                    # set to blank dict if not present
+                    obj.MergeFrom(ProtoStruct(fields={key: ProtoValue(struct_value=ProtoStruct())}))  # type: ignore
                 next_obj = cast(ProtoStruct, obj).__getitem__(key)
             if not (type(next_obj) is ProtoStruct or getattr(next_obj, "metatype", None)):
                 return  # invalid path
@@ -688,19 +691,11 @@ def apply_edit_operation_data(
         else:
             # done: set value
             if prop is not None:
+                # builtin object property
                 assert obj_type is not None, f"missing object type for {op!r}"
                 value_type = obj_type.__properties__[key].type_info
-            else:
-                value_type = decode_type_identity(key[TK_LENGTH_B64:])
-            if op.type == EditOperationType.SET:
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 new_value = unpack_value_data(new_value_packed, value_type, wrap_scalar=False)
-            elif op.type == EditOperationType.CLEAR:
-                new_value_packed = None
-                new_value = None
-            else:
-                raise NotImplementedError(f"unsupported edit operation: {op!r}")
-            if prop is not None:  # builtin object property
                 if is_prepass:
                     if prop.is_optional_scalar and not (
                         cast(AnyObjectData, obj).HasField(prop.name)
@@ -715,7 +710,9 @@ def apply_edit_operation_data(
                         wiring.pack_proto_json(old_value_packed),
                     )
                 wiring.set_object_prop(cast(AnyObjectData, obj), prop, new_value)
-            else:  # custom object field
+            else:
+                # custom object field
+                new_value_packed = unpack_proto_json(op.new_value_packed)
                 if is_prepass:
                     if key in cast(ProtoStruct, obj):
                         old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
