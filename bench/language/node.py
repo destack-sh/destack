@@ -1118,6 +1118,49 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         else:
             return self.equals(other)
 
+    def _prop_equals(
+        self,
+        prop: Property,
+        self_value: Any,
+        other_value: Any,
+        identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
+    ) -> bool:
+        if prop.is_struct:
+            # apply identity map
+            if prop.is_node_reference:
+                if prop.is_list:
+                    self_value = [identity_map.get(v.ck, v) for v in self_value]
+                    other_value = [identity_map.get(v.ck, v) for v in other_value]
+                else:
+                    self_value = identity_map.get(self_value.ck, self_value) if self_value else None
+                    other_value = (
+                        identity_map.get(other_value.ck, other_value) if other_value else None
+                    )
+
+            # compare struct recursively
+            if prop.is_list:
+                if (
+                    not isinstance(self_value, Sequence)
+                    or not isinstance(other_value, Sequence)
+                    or len(self_value) != len(other_value)
+                ):
+                    return False  # unequal list
+                for i in range(len(self_value)):
+                    if not self_value[i].equals(other_value[i], identity_map=identity_map):
+                        return False  # unequal struct
+            else:
+                if type(self_value) != type(other_value) or (
+                    self_value is not None
+                    and not cast(Struct, self_value).equals(other_value, identity_map=identity_map)
+                ):
+                    return False  # unequal struct
+        else:
+            # compare primitives
+            if self_value != other_value and not is_close(self_value, other_value, FLOAT_EPSILON):
+                return False  # unequal primitive
+
+        return True
+
     def equals(
         self,
         other: Self | Any,
@@ -1134,50 +1177,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 or prop.name == "order_key"  # implicitly checked in lists
             ):
                 continue  # ignore identity/tracking
-
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
-            if prop.is_struct:
-                # apply identity map
-                if prop.is_node_reference:
-                    if prop.is_list:
-                        self_value = [identity_map.get(v.ck, v) for v in self_value]
-                        other_value = [identity_map.get(v.ck, v) for v in other_value]
-                    else:
-                        self_value = (
-                            identity_map.get(self_value.ck, self_value) if self_value else None
-                        )
-                        other_value = (
-                            identity_map.get(other_value.ck, other_value) if other_value else None
-                        )
-
-                # compare struct recursively
-                if prop.is_list:
-                    if (
-                        not isinstance(self_value, Sequence)
-                        or not isinstance(other_value, Sequence)
-                        or len(self_value) != len(other_value)
-                    ):
-                        return False  # unequal list
-                    for i in range(len(self_value)):
-                        if not self_value[i].equals(other_value[i], identity_map=identity_map):
-                            return False  # unequal struct
-                else:
-                    if type(self_value) != type(other_value) or (
-                        self_value is not None
-                        and not cast(Struct, self_value).equals(
-                            other_value, identity_map=identity_map
-                        )
-                    ):
-                        return False  # unequal struct
-            else:
-                # compare primitives
-                if self_value != other_value and not is_close(
-                    self_value, other_value, FLOAT_EPSILON
-                ):
-                    return False  # unequal primitive
-
-        return True  # equal
+            if not self._prop_equals(prop, self_value, other_value, identity_map):
+                return False
+        return True
 
     def _stable_hash(self) -> int:
         """Hash of content properties."""
@@ -1770,10 +1774,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
                 self_subnode_packed = self.__dict__.get("subnode_packed") or EMPTY_DICT
-                self_subnode = self_subnode_packed.get(str(subtype))
+                self_subnode = self_subnode_packed.get(str(subtype)) or EMPTY_DICT
                 other_subnode_packed = other.__dict__.get("subnode_packed") or EMPTY_DICT
-                other_subnode = other_subnode_packed.get(str(subtype))
-                return self_subnode == other_subnode
+                other_subnode = other_subnode_packed.get(str(subtype)) or EMPTY_DICT
+                for prop in subtype_cls.__subtype_extra_properties__.values():
+                    self_value = self_subnode.get(prop.name)
+                    other_value = other_subnode.get(prop.name)
+                    if not self._prop_equals(prop, self_value, other_value):
+                        return False
         return True
 
     @override
