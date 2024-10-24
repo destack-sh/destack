@@ -293,8 +293,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
     message_type_map_parts = []
     for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
         message_type_map_parts.append(f"  [ObjectType.{cls.metatype.name}]: {cls.__name__}Data,\n")
+    # (we have a MessageType of our own, so MessageType from protobuf is aliased to MessageType$)
     message_type_map_str = (
-        "export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType<any>>> = {\n"
+        "export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType$<any>>> = {\n"
         + "".join(message_type_map_parts)
         + "}\n"
     )

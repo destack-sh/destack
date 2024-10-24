@@ -5,6 +5,7 @@ from bench.language.const import EnumType, PrimitiveType
 from bench.language.node import NODE_REFERENCE_TYPES, BuiltinObject, Node
 from bench.language.setup import (
     BENCH_CLASS_BY_TYPE,
+    FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
@@ -200,11 +201,14 @@ def generate_proto_schema(
 
     proto_types_cache: dict[_ThingType, ProtoThing] = {}
     proto_types: list[Enum | Message] = []
+    # enums
     for enum_t in EnumType:
         enum_cls = cast(type[IdEnum], BENCH_CLASS_BY_TYPE[enum_t])
         proto_types.append(map_builtin_enum_to_proto(enum_cls, proto_types_cache))
+    # structs
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
         proto_types.append(map_builtin_object_to_proto(struct_cls, proto_types_cache))
+    # nodes
     proto_types.append(map_builtin_object_to_proto(Node, proto_types_cache, alias="BaseNode"))
     for node_cls in NODE_CLASS_BY_TYPE.values():
         proto_types.append(map_builtin_object_to_proto(node_cls, proto_types_cache))
@@ -215,6 +219,13 @@ def generate_proto_schema(
                         subnode_cls, proto_types_cache, subtype=subnode_type
                     )
                 )
+    # additional types
+    for cls in FINAL_BENCH_CLASSES:
+        if cls not in proto_types_cache:
+            _ = map_object_type_to_proto(cls, proto_types_cache)
+    for proto_thing in proto_types_cache.values():
+        if proto_thing not in proto_types:
+            proto_types.append(proto_thing)  # type: ignore
 
     # add custom union types
     for union_name, (wrapper_field_name, unioned_types) in unions.items():
@@ -236,7 +247,8 @@ def generate_proto_schema(
     # and other extra types
     proto_types.extend(extras)
 
-    if message_postfix:  # apply postfix to messages
+    # apply postfix to messages
+    if message_postfix:
         for proto_type in proto_types:
             if isinstance(proto_type, Message) and proto_type not in extras:
                 proto_type.name += message_postfix
