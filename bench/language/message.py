@@ -40,7 +40,7 @@ class MessageType(IdEnum):
     # WHATSAPP, TELEGRAM, ...?
 
 
-@timed_node_(NodeType.MESSAGE, passthrough="value")
+@timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value")
 class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
     A Message by a User or program (author = created_by).

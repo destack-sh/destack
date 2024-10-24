@@ -125,7 +125,6 @@ def test_render_choice_block(shared_session: Session, shared_package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
         "ShapeType",
-        text=md("All sorts of **shapes**!"),
         fields=[Field.option("Circle"), Field.option("Square"), Field.option("Triangle")],
     )
     return {"ShapeType": ShapeType}

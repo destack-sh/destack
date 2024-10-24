@@ -202,7 +202,9 @@ class CustomObject(Mapping[str, Any]):
         if track:
             from bench.language.node import _trace_edit_operation
 
-            _trace_edit_operation(self, field, new_value, old_value)
+            _trace_edit_operation(
+                self, field, new_value=new_value, old_value=old_value, subtype=None
+            )
 
     __setitem__ = _do_set
 

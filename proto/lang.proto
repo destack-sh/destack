@@ -2122,7 +2122,7 @@ message BaseNodeData {
   google.protobuf.Timestamp updated_at = 13;
   optional NodeReferenceData updated_by_ptr = 14;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
 }
 
 message SkipData {
@@ -2134,7 +2134,7 @@ message SkipData {
   google.protobuf.Timestamp updated_at = 13;
   optional NodeReferenceData updated_by_ptr = 14;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   NodeReferenceData reference_ptr = 30;
   optional string order_key = 31;
 }
@@ -2155,7 +2155,7 @@ message FieldData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   FieldType type = 30;
   string name = 31;
   string order_key = 32;
@@ -2188,7 +2188,7 @@ message BenchData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   optional NodeReferenceData main_handle_ptr = 31;
   string slug = 32;
   string name = 33;
@@ -2218,7 +2218,7 @@ message BranchData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   optional string slug = 33;
   optional TextData text = 34;
@@ -2242,7 +2242,7 @@ message PackageData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   optional TextData text = 34;
   optional IconData icon = 35;
   repeated PolicyData policies = 36;
@@ -2267,7 +2267,7 @@ message DependencyData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   repeated NodeReferenceData scopes_ptr = 30;
   NodeReferenceData dependency_ptr = 40;
 }
@@ -2284,7 +2284,7 @@ message ServerData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
@@ -2312,7 +2312,7 @@ message MachineData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
@@ -2346,7 +2346,7 @@ message StoreData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
@@ -2371,7 +2371,7 @@ message DriveData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
@@ -2391,7 +2391,7 @@ message VaultData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
@@ -2411,7 +2411,7 @@ message CacheData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   optional TextData text = 34;
   Region region = 35;
@@ -2431,7 +2431,7 @@ message ClientData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   ClientType type = 30;
   string name = 32;
   optional string device_type = 40;
@@ -2459,7 +2459,7 @@ message HandleData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string slug = 30;
 }
 
@@ -2472,7 +2472,7 @@ message UserData {
   google.protobuf.Timestamp updated_at = 13;
   optional NodeReferenceData updated_by_ptr = 14;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   optional NodeReferenceData main_handle_ptr = 31;
   optional string slug = 32;
   string name = 33;
@@ -2496,7 +2496,7 @@ message OrganizationData {
   google.protobuf.Timestamp updated_at = 13;
   optional NodeReferenceData updated_by_ptr = 14;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   optional NodeReferenceData main_handle_ptr = 31;
   optional string slug = 32;
   string name = 33;
@@ -2518,7 +2518,7 @@ message MembershipData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   NodeReferenceData user_ptr = 30;
   bool is_owner = 31;
 }
@@ -2535,7 +2535,7 @@ message InviteData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   optional NodeReferenceData user_ptr = 30;
   optional string user_email = 31;
   bool is_owner = 32;
@@ -2558,7 +2558,7 @@ message BadgeData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 31;
   repeated PolicyData delegated_policies = 32;
   optional google.protobuf.Timestamp expires_at = 33;
@@ -2584,7 +2584,7 @@ message QueryData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string name = 30;
   string order_key = 31;
   QueryType type = 40;
@@ -2618,7 +2618,7 @@ message BlockData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   BlockType type = 30;
   string name = 32;
   string order_key = 33;
@@ -2640,16 +2640,19 @@ message ValueBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message TextBlockData {
-  optional TextData text = 100;
+  optional RunOptionsData run_options = 100;
+  optional TextData text = 101;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message CodeBlockData {
-  optional CodeData code = 100;
+  optional RunOptionsData run_options = 100;
+  optional CodeData code = 101;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message FlowBlockData {
+  optional RunOptionsData run_options = 100;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -2674,7 +2677,7 @@ message RecordData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   optional string order_key = 33;
   NodeReferenceData block_ptr = 34;
   optional google.protobuf.Value value_packed = 40;
@@ -2692,7 +2695,7 @@ message FileData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
@@ -2734,7 +2737,7 @@ message PipeData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   PipeType type = 30;
   string name = 32;
   string order_key = 33;
@@ -2771,22 +2774,62 @@ message StepData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   StepType type = 30;
   string name = 32;
   string order_key = 33;
-  optional TextData text = 34;
   optional IconData icon = 35;
   optional RunOptionsData run_options = 36;
-  optional TypeInfoData value_type = 40;
-  optional google.protobuf.Value value_packed = 41;
-  optional NodeReferenceData node_ptr = 43;
-  optional CodeData code = 45;
-  repeated NodeReferenceData roles_ptr = 46;
-  optional NodeReferenceData identity_ptr = 47;
+  repeated NodeReferenceData roles_ptr = 40;
+  optional NodeReferenceData identity_ptr = 41;
   optional PipeCombinator combinator = 60;
   optional Vector2Data position = 80;
   optional BoxData size = 81;
+}
+
+// A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
+// Pipes are stored in the containing Flow or containing Step.
+// Ports are implicit via Pipes unless extra configuration is provided.
+// 
+// A Step may run multiple times if it is fired multiple times (even concurrently).
+// When a Step completes, then:
+// 1. Fire output values to all output ports
+// 2. Fire output control port
+// When a Step fails, then:
+// - If run_options.suppress_failure: fire error on run port
+// - Else: fail containing Flow
+message CodeStepData {
+  optional CodeData code = 100;
+}
+
+// A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
+// Pipes are stored in the containing Flow or containing Step.
+// Ports are implicit via Pipes unless extra configuration is provided.
+// 
+// A Step may run multiple times if it is fired multiple times (even concurrently).
+// When a Step completes, then:
+// 1. Fire output values to all output ports
+// 2. Fire output control port
+// When a Step fails, then:
+// - If run_options.suppress_failure: fire error on run port
+// - Else: fail containing Flow
+message TextStepData {
+  optional TextData text = 100;
+}
+
+// A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
+// Pipes are stored in the containing Flow or containing Step.
+// Ports are implicit via Pipes unless extra configuration is provided.
+// 
+// A Step may run multiple times if it is fired multiple times (even concurrently).
+// When a Step completes, then:
+// 1. Fire output values to all output ports
+// 2. Fire output control port
+// When a Step fails, then:
+// - If run_options.suppress_failure: fire error on run port
+// - Else: fail containing Flow
+message BlockStepData {
+  NodeReferenceData node_ptr = 100;
 }
 
 message SessionData {
@@ -2802,7 +2845,7 @@ message SessionData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   SessionStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp opened_at = 42;
@@ -2826,7 +2869,7 @@ message LogData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   LogKind kind = 30;
   LogLevel level = 31;
   optional NodeReferenceData change_ptr = 32;
@@ -2860,7 +2903,7 @@ message MessageData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   NodeReferenceData origin_ptr = 32;
   optional PathData path = 33;
@@ -2884,7 +2927,7 @@ message NotificationData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   NodeReferenceData block_ptr = 32;
   NotificationLevel level = 33;
   optional google.protobuf.Timestamp expires_at = 34;
@@ -2910,14 +2953,13 @@ message ViewData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   ViewType type = 30;
   string name = 31;
   optional string title = 32;
-  optional TextData text = 33;
   string order_key = 34;
   optional IconData icon = 35;
-  google.protobuf.Value subviews_packed = 39;
+  optional google.protobuf.Value subviews_packed = 39;
   optional TypeInfoData value_type = 40;
   oneof node_ptr {
     NodeReferenceData node_ptr_node = 420;
@@ -2984,7 +3026,7 @@ message SpaceData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   SpaceType type = 30;
   string name = 31;
   optional TextData text = 32;
@@ -3010,7 +3052,7 @@ message RunData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   RunKind kind = 30;
   optional NodeReferenceData root_ptr = 32;
   optional NodeReferenceData block_ptr = 33;
@@ -3058,7 +3100,7 @@ message SecretData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   string title = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -3081,7 +3123,7 @@ message SignalData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   NodeReferenceData block_ptr = 32;
   optional google.protobuf.Value value_packed = 42;
   optional NodeReferenceData session_ptr = 80;
@@ -3110,7 +3152,7 @@ message TriggerData {
   optional NodeReferenceData updated_by_ptr = 14;
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
+  optional google.protobuf.Value subnode_packed = 29;
   TriggerType type = 30;
   string name = 31;
   optional int32 processed_epoch = 40;

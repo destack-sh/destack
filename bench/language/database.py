@@ -23,7 +23,13 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@local_node_(NodeType.RECORD, passthrough="value", stored_value_unraveled=True, local=True)
+@local_node_(
+    NodeType.RECORD,
+    passthrough_get=("value",),
+    passthrough_set=("value",),
+    stored_value_unraveled=True,
+    local=True,
+)
 class Record(StateNode[RecordData], HasNodeBase):
     """
     A Record from a DatabaseBlock.

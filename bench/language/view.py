@@ -460,7 +460,7 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@local_node_(NodeType.VIEW, passthrough="value")
+@local_node_(NodeType.VIEW)
 class View(SourceNode[ViewData]):
     """A view of a user interface in a Bench."""
 
@@ -472,7 +472,6 @@ class View(SourceNode[ViewData]):
     type: ViewType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     title: Optional[str] = p_regular(32, default=None, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(34, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.10.24.0"
+VERSION = "2024.10.24.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -964,7 +964,6 @@ VIEW_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
         Column("title", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("subviews_packed", PrimitiveType.JSON, is_nullable=True),
@@ -1018,16 +1017,8 @@ STEP_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
-        Column("value_type", PrimitiveType.JSON, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("node_id", PrimitiveType.UUID, is_nullable=True),
-        Column("node_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("node_type", PrimitiveType.INT16, is_nullable=True),
-        Column("node_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
