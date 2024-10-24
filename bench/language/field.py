@@ -8,7 +8,6 @@ from typing import (
     Type,
     Union,
     cast,
-    final,
     override,
 )
 from uuid import UUID
@@ -602,10 +601,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     # is_stored/is_computed, is_indexed, is_unique, ...
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
-
-    @final
-    def __repr__(self):  # type: ignore we want to override the default repr
-        return f"<{self.type.bench_name}Field {self}>"
 
     def __content_str__(self) -> str:
         if self.type == FieldType.OPTION:

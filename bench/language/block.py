@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast, final
+from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast
 
 import cachetools
 
@@ -122,10 +122,6 @@ class Block(SourceNode[BlockData]):
 
     def __content_str__(self):
         return ""
-
-    @final
-    def __repr__(self):  # type: ignore we want to override the default repr
-        return f"<{self.type.bench_name}Block {self}>"
 
     @property
     def is_page(self) -> bool:
