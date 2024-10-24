@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 #  (although generally, we want to query Signals jointly more than Records?...)
 
 
-@timed_node_(NodeType.SIGNAL, passthrough="value")
+@timed_node_(NodeType.SIGNAL, passthrough_get="value", passthrough_set="value")
 class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
     """
     A Signal emitted in this Bench, usually received in Triggers.

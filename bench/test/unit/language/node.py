@@ -11,6 +11,7 @@ from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileReference, FileType
+from bench.language.flow import BlockStep, Step
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
@@ -68,16 +69,26 @@ def test_node_passthrough(session: "Session"):
 
 
 def test_node_subtype_property_access(session: "Session"):
+    # subtype -> regular property
     Text1 = Block.new(TextBlock, "Text1", text=md("Hello!"))
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello!"
     Text1.text = md("Hello, world!")
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
 
+    # subtype -> node ref property
+    BlockStep1 = Step.new(BlockStep, "BlockStep1", node=Text1)
+    assert BlockStep1.node == Text1
+    assert BlockStep1.node_ptr == Text1.to_ref()
+
+    # subtype -> value packed property
     Value1 = Block.new(ValueBlock, "Value1", value_type=to_type(int), value=42)
+    assert Value1.value_type == to_type(int)
     assert Value1.value == 42
     Value1.value = 43
     assert Value1.value == 43
-    # nocheckin: check computed subtype properties: value_packed, node refs, ...
+    assert Value1.value_type
+    assert Value1.value_packed
+    assert Value1.value_packed[Value1.value_type.identity_key] == 43
 
 
 def test_node_subtype_pack_unpack(session: "Session"):

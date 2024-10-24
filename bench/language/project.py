@@ -122,8 +122,9 @@ class Projection:
 
     def _collect_builtin_object_scalar(self, obj: BuiltinObject):
         """Collects a builtin object (recursively)."""
+        cls = obj._get_effective_cls()
         # visit referenced nodes
-        for prop in obj.__node_reference_properties__.values():
+        for prop in cls.__node_reference_properties__.values():
             if prop.id is None or prop.id < 30 or prop.reference_kind != ReferenceKind.NODE_REGULAR:
                 continue
             wired_prop = prop.reference_wired_ptr
@@ -146,7 +147,7 @@ class Projection:
                     self._visit_missing_node(wired_prop_value)
 
         # visit inner structs
-        for prop in obj.__struct_properties__.values():
+        for prop in cls.__struct_properties__.values():
             struct: Struct | list[Struct] | None = getattr(obj, prop.name)
             if struct is None:
                 continue
@@ -157,7 +158,7 @@ class Projection:
                     self._collect_builtin_object_scalar(item)
 
         # visit values
-        for prop in obj.__value_runtime_properties__.values():
+        for prop in cls.__value_runtime_properties__.values():
             value_type, wired_prop_value = _do_get_value_runtime(cast("Struct | Node", obj), prop)
             if value_type is not None:
                 self._collect_value(wired_prop_value, value_type)

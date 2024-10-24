@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@timed_node_(NodeType.NOTIFICATION, passthrough="value")
+@timed_node_(NodeType.NOTIFICATION, passthrough_get="value", passthrough_set='value')
 class Notification(RuntimeNode[NotificationData], HasNodeBase):
     """
     A Notification to a Bench (author = created_by).

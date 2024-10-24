@@ -1,4 +1,3 @@
-from abc import ABC
 from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast, final
 
 import cachetools
@@ -58,7 +57,7 @@ if TYPE_CHECKING:
 #  see :AutoNaming
 
 
-@local_node_(NodeType.BLOCK, passthrough=("fields",))
+@local_node_(NodeType.BLOCK, passthrough_get=("fields",))
 class Block(SourceNode[BlockData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
@@ -262,36 +261,38 @@ class Block(SourceNode[BlockData]):
         return Block.new(BlockType.TEXT, name, text=text, **kwargs)
 
 
-@node_subtype_(BlockType.VALUE, passthrough=("value",))
+@node_subtype_(BlockType.VALUE, passthrough_get=("value",), passthrough_set=("value",))
 class ValueBlock(Block):
     value_type: Optional["TypeInfo"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(101)
     value: Any = p_value_runtime(101, typ=lambda self: cast("ValueBlock", self).value_type)
 
 
-class RunnableBlock(Block, ABC):
+@node_subtype_(BlockType.TEXT)
+class TextBlock(Block):
     run_options: Optional["RunOptions"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-
-
-@node_subtype_(BlockType.TEXT)
-class TextBlock(RunnableBlock):
     text: Optional["Text"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.TEXT
+        101, default=None, require=False, array=False, struct=StructType.TEXT
     )
 
 
 @node_subtype_(BlockType.CODE)
-class CodeBlock(RunnableBlock):
+class CodeBlock(Block):
+    run_options: Optional["RunOptions"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
     code: Optional["Code"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.CODE
+        101, default=None, require=False, array=False, struct=StructType.CODE
     )
 
 
 @node_subtype_(BlockType.FLOW)
-class FlowBlock(RunnableBlock):
-    pass
+class FlowBlock(Block):
+    run_options: Optional["RunOptions"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
 
 
 @node_subtype_(BlockType.VIEW)

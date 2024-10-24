@@ -1,7 +1,7 @@
 import asyncio
 import dataclasses
 from dataclasses import dataclass
-from typing import Any, Collection, Literal, Mapping, NamedTuple, assert_never, override
+from typing import Any, Collection, Literal, Mapping, NamedTuple, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -12,6 +12,7 @@ from bench.language.block import Block, FlowBlock
 from bench.language.const import RunStatus
 from bench.language.field import Field, TypeInfoBase
 from bench.language.flow import (
+    CodeStep,
     Pipe,
     PipeCombinator,
     PipeFilter,
@@ -22,6 +23,7 @@ from bench.language.flow import (
     PortType,
     Step,
     StepType,
+    TextStep,
 )
 from bench.language.run import Run, RunError, RunKind
 from bench.language.value import CustomObject
@@ -196,6 +198,10 @@ class StepState:
         return f"<{self.__class__.__name__} {self}>"
 
     @property
+    def type(self) -> StepType:
+        return self.step.type
+
+    @property
     def has_runners(self) -> bool:
         return len(self.runners) > 0
 
@@ -314,8 +320,8 @@ class FlowRunner(Runner[RunnerCache, FlowBlock]):
         runner = await self.runtime.make_runner(
             kind=RunKind.STEP,
             node=step_state.step,
-            code=step_state.step.code,
-            text=step_state.step.text,
+            code=cast(CodeStep, step_state.step).code if step_state.type == StepType.CODE else None,
+            text=cast(TextStep, step_state.step).text if step_state.type == StepType.TEXT else None,
             inputs=inputs,
             options=RUN_ONCE.override(step_state.step.run_options),
             track=True,

@@ -1,15 +1,15 @@
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Mapping, assert_never
+from typing import Any, Mapping, assert_never, cast
 from uuid import UUID
 
 import structlog
 from opentelemetry import baggage, context, trace
 
-from bench.language.block import Block, CodeBlock, RunnableBlock, TextBlock
+from bench.language.block import Block, CodeBlock, TextBlock
 from bench.language.code import Code
-from bench.language.const import BenchError, RunErrorKind, RunStatus
+from bench.language.const import BenchError, BlockType, RunErrorKind, RunStatus
 from bench.language.flow import Step, StepType
 from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
@@ -168,11 +168,17 @@ class Runtime:
         node = run.step or run.block
         if node is None:
             raise RunImpossibleError(f"no node for {run!r}")  # default to package?
-        options = (
-            node.run_options.override(run.options)
-            if isinstance(node, (Step, RunnableBlock)) and node.run_options
-            else run.options
-        )
+        if isinstance(node, Step):
+            options = node.run_options
+        elif isinstance(node, Block) and node.type in (
+            BlockType.TEXT,
+            BlockType.CODE,
+            BlockType.FLOW,
+        ):
+            options = cast(TextBlock, node).run_options
+        else:
+            options = None
+        options.override(run.options) if options else run.options
         if run.inputs is None and run.input_type is not None:
             inputs = CustomObject.new({}, run.input_type)
         else:

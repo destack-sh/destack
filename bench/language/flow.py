@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast, final
+from typing import TYPE_CHECKING, Optional, Type, Union, assert_never, cast, final
 from uuid import UUID
 
 import cachetools
@@ -16,15 +16,22 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfoBase
 from bench.language.list import LocalNodeList
-from bench.language.node import BuiltinObject, SourceNode, Struct, local_node_, object_, struct_
+from bench.language.node import (
+    BuiltinObject,
+    NodeSubtypeStub,
+    SourceNode,
+    Struct,
+    local_node_,
+    node_subtype_,
+    object_,
+    struct_,
+)
 from bench.language.property import (
     Property,
     p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
-    p_value_packed,
-    p_value_runtime,
 )
 from bench.language.validation import (
     NAME_CONSTRAINT,
@@ -49,9 +56,7 @@ if TYPE_CHECKING:
         NodeReference,
         RunOptions,
         Text,
-        Trigger,
         TypeConstraint,
-        TypeInfo,
         Vector2,
     )
 
@@ -306,7 +311,7 @@ class StepType(IdEnum):
         return self >= 150 and self < 200
 
 
-@local_node_(NodeType.STEP, passthrough=("value", "fields"))
+@local_node_(NodeType.STEP, passthrough_get=("value", "fields"))
 class Step(SourceNode[StepData]):
     """
     A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
@@ -328,9 +333,6 @@ class Step(SourceNode[StepData]):
     type: StepType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    text: Optional["Text"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT
-    )
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
     )
@@ -339,27 +341,15 @@ class Step(SourceNode[StepData]):
     )
 
     # content
-    value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
-    value_packed: Any = p_value_packed(41)
-    value: Any = p_value_runtime(41, typ=lambda self: cast("Step", self).value_type)
-    node: Union["Block", "Trigger", None] = p_regular(
-        43,
-        require=False,
-        references=(NodeType.BLOCK, NodeType.TRIGGER),
-        constraint=constraint(block_types=[BlockType.CODE, BlockType.FLOW]),
-    )
-    code: Optional["Code"] = p_regular(
-        45, default=None, require=False, array=False, struct=StructType.CODE
-    )
     roles: list["Block"] = p_regular(
-        46,
+        40,
         require=False,
         array=True,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ROLE]),
     )
     identity: Optional["Block"] = p_regular(
-        47,
+        41,
         require=False,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.IDENTITY]),
@@ -533,8 +523,9 @@ class Step(SourceNode[StepData]):
             assert self.parent is not None, f"{self!r} has no parent"
             return self.parent.output_type
         elif self.type == StepType.BLOCK:
-            assert isinstance(self.node, Block), f"{self!r} has no block: {self.node!r}"
-            return self.node.to_type(as_object=as_object, field_type=field_type)
+            node = cast(BlockStep, self).node
+            assert isinstance(node, Block), f"{self!r} has no block: {node!r}"
+            return node.to_type(as_object=as_object, field_type=field_type)
         else:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -575,6 +566,36 @@ class Step(SourceNode[StepData]):
         return ports
 
     @staticmethod
-    def new(typ: StepType, name: str, **kwargs):
+    def new[StepT: Step](
+        typ: StepType | Type[StepT] | NodeSubtypeStub[StepT], name: str, **kwargs
+    ) -> StepT:
         """Creates a new Step of the given type."""
-        return Step(type=typ, name=name, **kwargs)
+        if isinstance(typ, type):
+            typ = Step.__subtype_by_subclass__[typ]  # type: ignore
+        elif isinstance(typ, NodeSubtypeStub):
+            typ = cast(StepType, typ._node_subtype)
+        return Step(type=typ, name=name, **kwargs)  # type: ignore
+
+
+@node_subtype_(StepType.CODE)
+class CodeStep(Step):
+    code: Optional["Code"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.CODE
+    )
+
+
+@node_subtype_(StepType.TEXT)
+class TextStep(Step):
+    text: Optional["Text"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+
+
+@node_subtype_(StepType.BLOCK)
+class BlockStep(Step):
+    node: "Block" = p_regular(
+        100,
+        require=True,
+        references=NodeType.BLOCK,
+        constraint=constraint(block_types=[BlockType.CODE, BlockType.FLOW]),
+    )

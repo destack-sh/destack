@@ -454,15 +454,18 @@ def struct_[_ObjectT: BuiltinObject](struct_type: StructType):
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_component(
     node_type: NodeType | None = None,
-    passthrough: str | tuple[str, ...] | None = None,
+    passthrough_set: str | tuple[str, ...] | None = None,
+    passthrough_get: str | tuple[str, ...] | None = None,
     is_root: bool = False,
     is_variable_root: bool = False,
     is_final: bool = False,
     is_subtype: bool = False,
 ):
     """Mark a class as a node component (or concrete node for a NodeType)."""
-    if isinstance(passthrough, str):
-        passthrough = (passthrough,)
+    if isinstance(passthrough_get, str):
+        passthrough_get = (passthrough_get,)
+    if isinstance(passthrough_set, str):
+        passthrough_set = (passthrough_set,)
 
     def decorate(cls: Type["Node"]) -> Type["Node"]:
         cls, properties = _process_object_cls(
@@ -472,7 +475,8 @@ def node_component(
             is_variable_root=is_variable_root,
             is_final=is_final,
         )
-        cls.__passthrough__ = passthrough
+        cls.__passthrough_get__ = passthrough_get
+        cls.__passthrough_set__ = passthrough_set
 
         # register node properties
         list_properties: dict[str, Property] = {}
@@ -510,7 +514,8 @@ def node_component(
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_(
     node_type: NodeType,
-    passthrough: str | tuple[str, ...] | None = None,
+    passthrough_get: str | tuple[str, ...] | None = None,
+    passthrough_set: str | tuple[str, ...] | None = None,
     stored: bool = True,
     stored_value_unraveled: bool = False,
     local: bool = False,
@@ -526,7 +531,8 @@ def node_(
     def decorate(cls: Type["Node"]) -> Type["Node"]:
         cls = node_component(
             node_type=node_type,
-            passthrough=passthrough,
+            passthrough_get=passthrough_get,
+            passthrough_set=passthrough_set,
             is_root=len(roots) == 0,
             is_variable_root=len(roots) > 1,
             is_final=True,
@@ -554,7 +560,8 @@ def node_(
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_subtype_(
     subtype: IdEnum,
-    passthrough: str | tuple[str, ...] | None = None,
+    passthrough_get: str | tuple[str, ...] | None = None,
+    passthrough_set: str | tuple[str, ...] | None = None,
 ):
     """
     Mark a class as a subtype class of an ancestor node class.
@@ -570,7 +577,8 @@ def node_subtype_(
             raise RuntimeError(f"no base class found for {cls}")
         cls = node_component(
             node_type=base_cls.metatype,
-            passthrough=passthrough,
+            passthrough_get=passthrough_get,
+            passthrough_set=passthrough_set,
             is_root=len(base_cls.__roots__) == 0,
             is_variable_root=len(base_cls.__roots__) > 1,
             is_final=True,
@@ -623,13 +631,15 @@ if TYPE_CHECKING:
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def timed_node_(
     node_type: NodeType,
-    passthrough: str | None = None,
+    passthrough_get: str | tuple[str, ...] | None = None,
+    passthrough_set: str | tuple[str, ...] | None = None,
     indexes: tuple[tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
     return local_node_(
         node_type=node_type,
-        passthrough=passthrough,
+        passthrough_get=passthrough_get,
+        passthrough_set=passthrough_set,
         local=True,
         indexes=(
             *indexes,
@@ -841,8 +851,10 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
 def _trace_edit_operation(
     obj: "CustomObject | Struct | Node | None",
     key: Union["Property", "Field"],
+    *,
     new_value: Any | None,
     old_value: Any | None,
+    subtype: int | None,
 ):
     """Traces an edit operation to the given object."""
     # figure out if we're in a tracked node (before we start tracing the edit)
@@ -865,9 +877,12 @@ def _trace_edit_operation(
     while obj is not None and not isinstance(obj, Node):
         parent = obj.parent
         if parent is not None:
-            parent_key = obj.parent_key.key  # type: ignore
-            assert type(parent_key) is str, f"{obj!r} has non-str key {parent_key!r} in {parent!r}"
-            path.insert(0, parent_key)
+            parent_key = obj.parent_key
+            parent_key_str = parent_key.key  # type: ignore
+            assert (
+                type(parent_key_str) is str
+            ), f"{obj!r} has non-str key {parent_key_str!r} in {parent!r}"
+            path.insert(0, parent_key_str)
         obj = parent
 
     # pack edit operation content
@@ -904,7 +919,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     metatype: ClassVar[ObjectType]
     __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
-    __passthrough__: ClassVar[tuple[str, ...] | None] = None
+    __passthrough_get__: ClassVar[tuple[str, ...] | None] = None
+    __passthrough_set__: ClassVar[tuple[str, ...] | None] = None
 
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
@@ -1187,8 +1203,8 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
 
         # check passthrough (if in a session)
-        if self.__passthrough__ is not None and self._session is not None:
-            for passthrough_key in self.__passthrough__:
+        if self.__passthrough_get__ is not None and self._session is not None:
+            for passthrough_key in self.__passthrough_get__:
                 target = getattr(self, passthrough_key, UNSET)
                 attr = getattr(target, key, UNSET)
                 if attr is not UNSET:
@@ -1239,23 +1255,25 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     _trace_edit_operation(
                         cast("Struct | Node", self),
                         prop.value_packed_ptr,  # type: ignore
-                        getattr(self, prop.value_packed_ptr.name),  # type: ignore
-                        old_value,
+                        new_value=getattr(self, prop.value_packed_ptr.name),  # type: ignore
+                        old_value=old_value,
+                        subtype=None,
                     )
                 else:
                     _trace_edit_operation(
                         cast("Struct | Node", self),
                         prop,
-                        new_value,
-                        old_value,
+                        new_value=new_value,
+                        old_value=old_value,
+                        subtype=None,
                     )
             else:
                 object.__setattr__(self, key, new_value)
 
             return
-        elif track and self.__passthrough__ is not None:
+        elif track and self.__passthrough_set__ is not None:
             # try passthrough target (if any)
-            for passthrough_key in self.__passthrough__:
+            for passthrough_key in self.__passthrough_set__:
                 target = getattr(self, passthrough_key, UNSET)
                 if target is not UNSET:
                     setattr(target, key, new_value)
@@ -1751,8 +1769,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             subtype = self.__dict__["type"]
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
-                self_subnode = self.__dict__.get("subnode_packed", EMPTY_DICT).get(str(subtype))
-                other_subnode = other.__dict__.get("subnode_packed", EMPTY_DICT).get(str(subtype))
+                self_subnode_packed = self.__dict__.get("subnode_packed") or EMPTY_DICT
+                self_subnode = self_subnode_packed.get(str(subtype))
+                other_subnode_packed = other.__dict__.get("subnode_packed") or EMPTY_DICT
+                other_subnode = other_subnode_packed.get(str(subtype))
                 return self_subnode == other_subnode
         return True
 
@@ -1764,7 +1784,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             subtype = self.__dict__["type"]
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
-                # check subtype cls properties
+                # short-circuit to subclass 'property' if it exists
+                subtype_prop = getattr(subtype_cls, key, None)
+                if type(subtype_prop) is property and subtype_prop.fget is not None:
+                    return subtype_prop.fget(self)
+
+                # regular subtype property
                 prop = subtype_cls.__properties__.get(key)
                 if prop is not None:
                     subtype_key = str(subtype)
@@ -1780,16 +1805,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                         return None
                 else:
                     # check subtype passthrough
-                    if subtype_cls.__passthrough__ is not None and self._session is not None:
-                        for passthrough_key in subtype_cls.__passthrough__:
+                    if subtype_cls.__passthrough_get__ is not None and self._session is not None:
+                        for passthrough_key in subtype_cls.__passthrough_get__:
                             target = getattr(self, passthrough_key, UNSET)
                             attr = getattr(target, key, UNSET)
                             if attr is not UNSET:
                                 return attr
 
         # check passthrough (if in a session)
-        if self.__passthrough__ is not None and self._session is not None:
-            for passthrough_key in self.__passthrough__:
+        if self.__passthrough_get__ is not None and self._session is not None:
+            for passthrough_key in self.__passthrough_get__:
                 target = getattr(self, passthrough_key, UNSET)
                 attr = getattr(target, key, UNSET)
                 if attr is not UNSET:
@@ -1810,6 +1835,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             subtype = self.__dict__["type"]
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
+                # short-circuit to subclass 'property' if it exists
+                subtype_prop = getattr(subtype_cls, key, None)
+                if type(subtype_prop) is property and subtype_prop.fset is not None:
+                    return subtype_prop.fset(self, new_value)
+
+                # set regular subtype property
                 prop = subtype_cls.__properties__.get(key)
                 if prop is not None:
                     if validate:
@@ -1828,7 +1859,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     subtype_key = str(subtype)
                     if self.subnode_packed is None:
                         old_value = None
-                        self.subnode_packed = {subtype_key: {prop.key: new_value}}
+                        # set directly
+                        self.__dict__["subnode_packed"] = {subtype_key: {prop.key: new_value}}
                     elif subtype_key not in self.subnode_packed:
                         old_value = None
                         self.subnode_packed[subtype_key] = {prop.key: new_value}
@@ -1845,13 +1877,20 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             _trace_edit_operation(
                                 self,
                                 prop.value_packed_ptr,  # type: ignore
-                                getattr(self, prop.value_packed_ptr.name),  # type: ignore
-                                old_value,
+                                new_value=getattr(self, prop.value_packed_ptr.name),  # type: ignore
+                                old_value=old_value,
+                                subtype=subtype,
                             )
                         else:
-                            _trace_edit_operation(self, prop, new_value, old_value)
+                            _trace_edit_operation(
+                                self,
+                                prop,
+                                new_value=new_value,
+                                old_value=old_value,
+                                subtype=subtype,
+                            )
 
-                    return
+                    return  # success
 
         super()._do_set(key, new_value, track=track, validate=validate)
 
