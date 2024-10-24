@@ -1501,6 +1501,23 @@ class OrganizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ORGANIZATION_STATUS_UNSPECIFIED: _ClassVar[OrganizationStatus]
     ORGANIZATION_STATUS_REGISTERED: _ClassVar[OrganizationStatus]
     ORGANIZATION_STATUS_ACTIVATED: _ClassVar[OrganizationStatus]
+
+class IdEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ID_ENUM_UNSPECIFIED: _ClassVar[IdEnum]
+
+class ReferenceKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REFERENCE_KIND_UNSPECIFIED: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_NODE_ANCESTOR: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_NODE_ANCESTOR_OR_SELF: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_NODE_PARENT: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_NODE_CHILDREN: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_NODE_REGULAR: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_NODE_TEMPLATE: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_STRUCT_PARENT: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_STRUCT_CHILD: _ClassVar[ReferenceKind]
+    REFERENCE_KIND_PROPERTY: _ClassVar[ReferenceKind]
 ENUM_TYPE_UNSPECIFIED: EnumType
 ENUM_TYPE_ENUM_TYPE: EnumType
 ENUM_TYPE_NODE_TYPE: EnumType
@@ -2723,6 +2740,17 @@ USER_STATUS_ACTIVATED: UserStatus
 ORGANIZATION_STATUS_UNSPECIFIED: OrganizationStatus
 ORGANIZATION_STATUS_REGISTERED: OrganizationStatus
 ORGANIZATION_STATUS_ACTIVATED: OrganizationStatus
+ID_ENUM_UNSPECIFIED: IdEnum
+REFERENCE_KIND_UNSPECIFIED: ReferenceKind
+REFERENCE_KIND_NODE_ANCESTOR: ReferenceKind
+REFERENCE_KIND_NODE_ANCESTOR_OR_SELF: ReferenceKind
+REFERENCE_KIND_NODE_PARENT: ReferenceKind
+REFERENCE_KIND_NODE_CHILDREN: ReferenceKind
+REFERENCE_KIND_NODE_REGULAR: ReferenceKind
+REFERENCE_KIND_NODE_TEMPLATE: ReferenceKind
+REFERENCE_KIND_STRUCT_PARENT: ReferenceKind
+REFERENCE_KIND_STRUCT_CHILD: ReferenceKind
+REFERENCE_KIND_PROPERTY: ReferenceKind
 
 class GraphScopeData(_message.Message):
     __slots__ = ("metatype", "bench_id", "package_id")

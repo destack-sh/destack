@@ -65,6 +65,7 @@ from bench.language.property import (
     p_regular,
     p_runtime,
     p_struct_parent,
+    p_subtype_packed,
     p_system,
 )
 from bench.language.setup import (
@@ -897,9 +898,6 @@ def _trace_edit_operation(
     node._session._update(node, operation)
 
 
-# nocheckin: Node.__instancecheck__ for subtypes
-
-
 @object_()
 class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
@@ -1581,9 +1579,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
 
-    subnode_packed: dict[int, dict[int, Any]] | None = p_internal(
-        20, primitive_type=PrimitiveType.JSON, require=False
-    )
+    subnode_packed: dict[str, dict[str, Any]] | None = p_subtype_packed(20)
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
 
     # 30+ for 'user' node/struct properties
@@ -1745,6 +1741,22 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __hash__ = _stable_hash  # type: ignore
 
     @override
+    def equals(
+        self, other: Self | Any, identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT
+    ) -> bool:
+        if not super().equals(other, identity_map):
+            return False
+        if self.__has_subtypes__:
+            # compare node subtype
+            subtype = self.__dict__["type"]
+            subtype_cls = self.__subclass_by_subtype__.get(subtype)
+            if subtype_cls is not None:
+                self_subnode = self.__dict__.get("subnode_packed", EMPTY_DICT).get(str(subtype))
+                other_subnode = other.__dict__.get("subnode_packed", EMPTY_DICT).get(str(subtype))
+                return self_subnode == other_subnode
+        return True
+
+    @override
     def _do_get(self, key):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
 
@@ -1755,11 +1767,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 # check subtype cls properties
                 prop = subtype_cls.__properties__.get(key)
                 if prop is not None:
+                    subtype_key = str(subtype)
                     subnode_packed = self.__dict__.get("subnode_packed", EMPTY_DICT)
                     if subnode_packed is not None:
-                        subnode_packed = subnode_packed.get(subtype)
+                        subnode_packed = subnode_packed.get(subtype_key)
                         if subnode_packed is not None:
-                            subnode_value = subnode_packed.get(prop.id)
+                            subnode_value = subnode_packed.get(prop.key)
                             return subnode_value
                     if prop.is_list and not prop.is_optional:
                         return ()
@@ -1812,18 +1825,19 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             check_value(new_value, prop._type_info, invalid=on_invalid_raise)
 
                     # set
+                    subtype_key = str(subtype)
                     if self.subnode_packed is None:
                         old_value = None
-                        self.subnode_packed = {subtype: {prop.id: new_value}}
-                    elif subtype not in self.subnode_packed:
+                        self.subnode_packed = {subtype_key: {prop.key: new_value}}
+                    elif subtype_key not in self.subnode_packed:
                         old_value = None
-                        self.subnode_packed[subtype] = {prop.id: new_value}
+                        self.subnode_packed[subtype_key] = {prop.key: new_value}
                     else:
                         if prop.is_value_runtime:
                             old_value = getattr(self, prop.value_packed_ptr.name)  # type: ignore
                         else:
                             old_value = getattr(self, key)
-                        self.subnode_packed[subtype][prop.id] = new_value
+                        self.subnode_packed[subtype_key][prop.key] = new_value
 
                     # track
                     if track:
@@ -2030,7 +2044,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     #
 
     @classmethod
-    def query(cls) -> "QueryBuilder[Self, NodeDataT]":
+    def _query(cls) -> "QueryBuilder[Self, NodeDataT]":
         from bench.language.query import QueryBuilder
 
         return QueryBuilder(type=QueryType.SEARCH, node_type=cls.metatype)
@@ -2039,37 +2053,37 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def where(
         cls, filter: Optional["Expression"] = None, **kwargs
     ) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().where(filter, **kwargs)
+        return cls._query().where(filter, **kwargs)
 
     @classmethod
     def order_by(
         cls, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
     ) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().order_by(sort, *args)
+        return cls._query().order_by(sort, *args)
 
     @classmethod
     def include(cls, *properties: Property) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().include(*properties)
+        return cls._query().include(*properties)
 
     @classmethod
     def select(cls, *keys: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().select(*keys)
+        return cls._query().select(*keys)
 
     @classmethod
     def select_all(cls) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().select_all()
+        return cls._query().select_all()
 
     @classmethod
     def exclude(cls, *properties: Property) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().exclude(*properties)
+        return cls._query().exclude(*properties)
 
     @classmethod
     def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().include_ancestors(*node_types)
+        return cls._query().include_ancestors(*node_types)
 
     @classmethod
     def include_descendants(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().include_descendants(*node_types)
+        return cls._query().include_descendants(*node_types)
 
     @overload
     @classmethod
@@ -2093,39 +2107,26 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         live: bool = False,
         **kwargs,
     ) -> Self | list[Self]:
-        return await cls.query().get(filter, live=live, **kwargs)
+        return await cls._query().get(filter, live=live, **kwargs)
 
     @classmethod
     async def search(cls, filter: Optional["Expression"] = None, **kwargs) -> list[Self]:
-        return await cls.query().search(filter, **kwargs)
+        return await cls._query().search(filter, **kwargs)
 
     @classmethod
     def first(cls, count: int) -> "QueryBuilder[Self, NodeDataT]":
-        return cls.query().first(count)
+        return cls._query().first(count)
 
     @classmethod
     async def count(cls, filter: Optional["Expression"] = None, **kwargs) -> int:
-        return await cls.query().count(filter, **kwargs)
+        return await cls._query().count(filter, **kwargs)
 
     @classmethod
     async def exists(cls, filter: Optional["Expression"] = None, **kwargs) -> bool:
-        return await cls.query().exists(filter, **kwargs)
-
-    @classmethod
-    def _get_subclass(cls, subtype: IdEnum) -> type["Node"]:
-        """Gets the implementing subclass for a subtype (may be the parent class itself.)"""
-        return cls.__subclass_by_subtype__.get(subtype, cls)
-
-    @classmethod
-    def _get_subtype[TypeT: int](cls, subclass: type["Node"], expect_t: type[TypeT]) -> TypeT:
-        """Gets the subtype for a subclass. Errors if not found or not the expected type."""
-        typ = cls.__subtype_by_subclass__.get(subclass)
-        if type(typ) is not expect_t:
-            raise ValueError(f"subclass {subclass} is not expected type {expect_t}")
-        return typ  # type: ignore
+        return await cls._query().exists(filter, **kwargs)
 
 
-class NodeSubtypeStub:
+class NodeSubtypeStub[NodeT: Node]:
     """
     The stub for the virtual subclass of a Node for a specific subtype.
     Basically, we use this so we can have instantiate & instance check with subnodes,
@@ -2134,13 +2135,13 @@ class NodeSubtypeStub:
 
     __slots__ = ("_name", "_node_cls", "_node_subtype", "_node_type")
 
-    def __init__(self, cls: type[Node], type: NodeType, subtype: IdEnum):
+    def __init__(self, cls: type[NodeT], type: NodeType, subtype: IdEnum):
         self._node_cls = cls
         self._node_type = type
         self._node_subtype = subtype
         self._name = f"{to_casing(subtype.name, Casing.CAMEL)}{cls.__name__}"
 
-    def __call__(self, **kwargs: Any) -> Any:
+    def __call__(self, **kwargs: Any) -> NodeT:
         return self._node_cls(type=self._node_subtype, **kwargs)
 
 
@@ -2240,15 +2241,6 @@ def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:
 def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]:
     return isinstance(obj, (Struct, Struct)) and obj.metatype == struct_cls.metatype
 
-
-# :NodeSubtype
-NODE_SUBTYPE_PROPERTY_BY_TYPE: dict[NodeType, str] = {
-    NodeType.BLOCK: "type",
-    NodeType.STEP: "type",
-    NodeType.FIELD: "type",
-    NodeType.VIEW: "type",
-    NodeType.FILE: "type",
-}
 
 #
 # Utility types

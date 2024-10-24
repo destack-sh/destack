@@ -275,7 +275,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     # Querying
     #
 
-    def query(self) -> "QueryBuilder[V, VD]":
+    def _query(self) -> "QueryBuilder[V, VD]":
         from bench.language import Block, QueryBuilder, SelectOptions
 
         assert isinstance(self._node, Block), f"can only query from a block: {self._node!r}"
@@ -289,30 +289,30 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         return query
 
     def where(self, filter: Optional["Expression"] = None, **kwargs) -> "QueryBuilder[V, VD]":
-        return self.query().where(filter, **kwargs)
+        return self._query().where(filter, **kwargs)
 
     def order_by(
         self, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
     ) -> "QueryBuilder[V, VD]":
-        return self.query().order_by(sort, *args)
+        return self._query().order_by(sort, *args)
 
     def include(self, *properties: "Property") -> "QueryBuilder[V, VD]":
-        return self.query().include(*properties)
+        return self._query().include(*properties)
 
     def select(self, *keys: FieldOrProperty) -> "QueryBuilder[V, VD]":
-        return self.query().select(*keys)
+        return self._query().select(*keys)
 
     def select_all(self) -> "QueryBuilder[V, VD]":
-        return self.query().select_all()
+        return self._query().select_all()
 
     def exclude(self, *properties: "Property") -> "QueryBuilder[V, VD]":
-        return self.query().exclude(*properties)
+        return self._query().exclude(*properties)
 
     def include_ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[V, VD]":
-        return self.query().include_ancestors(*node_types)
+        return self._query().include_ancestors(*node_types)
 
     def include_descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[V, VD]":
-        return self.query().include_descendants(*node_types)
+        return self._query().include_descendants(*node_types)
 
     @overload
     async def get(
@@ -333,19 +333,19 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         live: bool = False,
         **kwargs,
     ) -> V | list[V]:
-        return await self.query().get(filter, live=live, **kwargs)
+        return await self._query().get(filter, live=live, **kwargs)
 
     async def search(self, filter: Optional["Expression"] = None, **kwargs) -> list[V]:
-        return await self.query().search(filter, **kwargs)
+        return await self._query().search(filter, **kwargs)
 
     def first(self, count: int) -> "QueryBuilder[V, VD]":
-        return self.query().first(count)
+        return self._query().first(count)
 
     async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
-        return await self.query().count(filter, **kwargs)
+        return await self._query().count(filter, **kwargs)
 
     async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
-        return await self.query().exists(filter, **kwargs)
+        return await self._query().exists(filter, **kwargs)
 
 
 ValueParentT = TypeVar("ValueParentT", bound=Union["CustomObject", "Struct", "Node"])

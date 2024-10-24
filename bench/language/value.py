@@ -386,7 +386,7 @@ def _object_value_runtime(prop: Property) -> property:
                 value = value._move_to(self, wired_prop)
             elif isinstance(value, list) and value and type(value[0]) is CustomObject:
                 value = [v._move_to(self, wired_prop) for v in value]  # type: ignore
-            value_packed = pack_value(value, value_type)
+            value_packed = pack_value(value, value_type, wrap_scalar=True)
             self._do_set(wired_prop.name, value_packed, track=False)
         else:
             self._do_set(wired_prop.name, {} if wired_prop.is_required else None, track=False)
@@ -1044,7 +1044,7 @@ def pack_custom_object(
         if field_value is None:
             continue
         elif field.kind == TypeKind.OBJECT:
-            value_packed[field.storage_key] = pack_value(field_value, field)
+            value_packed[field.storage_key] = pack_value(field_value, field, wrap_scalar=False)
         elif not field.is_list:
             value_packed[field.storage_key] = pack_value_scalar(
                 cast(ScalarValue, field_value), field
@@ -1088,7 +1088,7 @@ def unpack_custom_object(
     return CustomObject.new(value=value, typ=typ, parent=parent, parent_property=parent_key)
 
 
-def pack_value(value: SomeValue | None, typ: "TypeInfoBase", wrap_scalar: bool = True) -> JsonValue:
+def pack_value(value: SomeValue | None, typ: "TypeInfoBase", *, wrap_scalar: bool) -> JsonValue:
     """
     Packs a value into a JSON representation.
     """

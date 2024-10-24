@@ -23,6 +23,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
+from bench.language.query import Query
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
 from bench.proto.wire import BlockData
 from bench.proto.wire.lang_pb2 import RecordData
@@ -236,10 +237,10 @@ class Block(SourceNode[BlockData]):
 
     @staticmethod
     def new[BlockT: Block](
-        typ: BlockType | Type[BlockT] | NodeSubtypeStub, name: str, **kwargs
+        typ: BlockType | Type[BlockT] | NodeSubtypeStub[BlockT], name: str, **kwargs
     ) -> "BlockT":
         if isinstance(typ, type):
-            typ = Block._get_subtype(typ, BlockType)
+            typ = Block.__subtype_by_subclass__[typ]  # type: ignore
         elif isinstance(typ, NodeSubtypeStub):
             typ = cast(BlockType, typ._node_subtype)
         return Block(type=typ, name=name, **kwargs)  # type: ignore
@@ -261,17 +262,17 @@ class Block(SourceNode[BlockData]):
         return Block.new(BlockType.TEXT, name, text=text, **kwargs)
 
 
-class RunnableBlock(Block, ABC):
-    run_options: Optional["RunOptions"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
-
-
 @node_subtype_(BlockType.VALUE, passthrough=("value",))
 class ValueBlock(Block):
     value_type: Optional["TypeInfo"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(101)
     value: Any = p_value_runtime(101, typ=lambda self: cast("ValueBlock", self).value_type)
+
+
+class RunnableBlock(Block, ABC):
+    run_options: Optional["RunOptions"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
 
 
 @node_subtype_(BlockType.TEXT)
@@ -300,4 +301,4 @@ class ViewBlock(Block):
 
 @node_subtype_(BlockType.DATABASE)
 class DatabaseBlock(Block):
-    pass
+    query: Optional["Query"] = p_regular(100, require=False, array=False, references=NodeType.QUERY)

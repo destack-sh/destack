@@ -6,10 +6,10 @@ from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, Package
-from bench.language.block import Block, TextBlock, ViewBlock
+from bench.language.block import Block, TextBlock, ValueBlock, ViewBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
-from bench.language.field import Field
+from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileReference, FileType
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
@@ -67,20 +67,26 @@ def test_node_passthrough(session: "Session"):
     assert WeatherCondition.Sunny is WeatherCondition.fields.get("Sunny")  # type: ignore
 
 
-def test_node_subtype(session: "Session"):
+def test_node_subtype_property_access(session: "Session"):
+    Text1 = Block.new(TextBlock, "Text1", text=md("Hello!"))
+    assert Text1.text is not None and Text1.text.to_markdown() == "Hello!"
+    Text1.text = md("Hello, world!")
+    assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
+
+    Value1 = Block.new(ValueBlock, "Value1", value_type=to_type(int), value=42)
+    assert Value1.value == 42
+    Value1.value = 43
+    assert Value1.value == 43
+    # nocheckin: check computed subtype properties: value_packed, node refs, ...
+
+
+def test_node_subtype_pack_unpack(session: "Session"):
     block = Block.new(TextBlock, "Text1", text=md("Hello!"))
-
-    # get/set subtype properties
-    assert block.text is not None and block.text.to_markdown() == "Hello!"
-
-    # instance check
-    assert isinstance(block, TextBlock)
-    assert issubclass(TextBlock, Block)
-
     # pack/unpack wiring
     block_data = block._to_data()
-    unpacked_block = unpack_object(block_data, expect=Block, supergraph=None)
-    assert isinstance(unpacked_block, TextBlock)
+    unpacked_block = cast(
+        TextBlock, unpack_object(block_data, expect=Block, supergraph=session._supergraph)
+    )
     assert unpacked_block.equals(block)
     assert unpacked_block.text is not None and unpacked_block.text.to_markdown() == "Hello!"
 

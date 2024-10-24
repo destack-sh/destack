@@ -547,6 +547,49 @@ class View(SourceNode[ViewData]):
         return View(type=typ, name=name, **kwargs)
 
 
+@enum_(EnumType.TREE_VIEW_PRESET)
+class TreeViewPreset(IdEnum):
+    EXPLORE = 1
+    OUTLINE = 2
+
+
+@node_subtype_(ViewType.TREE)
+class TreeView(View):
+    node_types: list[NodeType] = p_regular(100, array=True)
+    filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
+    is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
+
+    preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
+
+
+@node_subtype_(ViewType.START)
+class StartView(View):
+    inputs_packed: Any = p_value_packed(100)
+    run: "Run | None" = p_regular(101, default=None, require=False, references=NodeType.RUN)
+
+
+@node_subtype_(ViewType.FEED)
+class FeedView(View):
+    query_node_type: NodeType | None = p_regular(100, require=False)
+    filter: "Expression | None" = p_regular(
+        101, default=None, require=False, struct=StructType.EXPRESSION
+    )
+    filter_pills: list[str] = p_regular(102, array=True)
+
+
+@enum_(EnumType.USER_WIZARD_STAGE)
+class UserWizardViewStage(IdEnum):
+    """The stage of a User view."""
+
+    SIGN_UP = 1
+    LOG_IN = 2
+
+
+@node_subtype_(ViewType.USER_WIZARD)
+class UserWizardView(View):
+    stage: UserWizardViewStage | None = p_regular(100)
+
+
 @enum_(EnumType.SPACE_TYPE)
 class SpaceType(IdEnum):
     DESKTOP = 10
@@ -636,46 +679,3 @@ def reverse_icon(icon: Icon) -> IconIn:
 
 
 icon = to_icon
-
-
-@enum_(EnumType.TREE_VIEW_PRESET)
-class TreeViewPreset(IdEnum):
-    EXPLORE = 1
-    OUTLINE = 2
-
-
-@node_subtype_(ViewType.TREE)
-class TreeView(View):
-    node_types: list[NodeType] = p_regular(100, array=True)
-    filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
-    is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
-
-    preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
-
-
-@node_subtype_(ViewType.START)
-class StartView(View):
-    inputs_packed: Any = p_value_packed(100)
-    run: "Run | None" = p_regular(101, default=None, require=False, references=NodeType.RUN)
-
-
-@node_subtype_(ViewType.FEED)
-class FeedView(View):
-    query_node_type: NodeType | None = p_regular(100, require=False)
-    filter: "Expression | None" = p_regular(
-        101, default=None, require=False, struct=StructType.EXPRESSION
-    )
-    filter_pills: list[str] = p_regular(102, array=True)
-
-
-@enum_(EnumType.USER_WIZARD_STAGE)
-class UserWizardViewStage(IdEnum):
-    """The stage of a User view."""
-
-    SIGN_UP = 1
-    LOG_IN = 2
-
-
-@node_subtype_(ViewType.USER_WIZARD)
-class UserWizardView(View):
-    stage: UserWizardViewStage | None = p_regular(100)

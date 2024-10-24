@@ -107,6 +107,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     value_runtime_ptr: Union["Property", None] = None  # the runtime value
     value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None = None
 
+    # subtype
+    is_subnode_packed: bool = False  # for packed subtype properties
+
     # references to nodes or structs
     reference_kind: ReferenceKind | None = None
     reference_nodes: tuple[NodeType, ...] | None = None  # for node relations
@@ -991,6 +994,19 @@ def p_value_packed(id: int, *, secret: bool = False) -> Any:
         is_sensitive=secret,
         is_encrypted=secret,
         is_deferred=secret,
+    )
+
+
+def p_subtype_packed(id: int) -> Any:
+    return Property(
+        id=id,
+        primitive_type=PrimitiveType.JSON,
+        is_subnode_packed=True,
+        is_internal=True,
+        is_stored=True,
+        is_wired=True,
+        is_list=False,
+        is_required=False,
     )
 
 

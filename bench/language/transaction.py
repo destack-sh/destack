@@ -28,7 +28,6 @@ from bench.language.field import decode_type_identity
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
-    NODE_SUBTYPE_PROPERTY_BY_TYPE,
     BuiltinObject,
     ClientOrigin,
     EditSubject,
@@ -815,14 +814,13 @@ def edit_data_graph(
     from bench.proto import wire, wiring
 
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
-        node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         vignette = ChangeVignetteData(metatype=wire.ObjectType.OBJECT_TYPE_CHANGE_VIGNETTE)
         if getattr(node, "name", None):
             vignette.name = getattr(node, "name")
         if getattr(node, "title", None):
             vignette.title = getattr(node, "title")
-        if node_subtype and getattr(node, node_subtype, None) is not None:
-            vignette.subtype = getattr(node, node_subtype)
+        if getattr(node, "type", None) is not None:
+            vignette.subtype = getattr(node, "type")
         if getattr(node, "icon", None) is not None and node.HasField("icon"):
             vignette.icon.CopyFrom(getattr(node, "icon"))
         return vignette

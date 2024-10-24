@@ -3119,6 +3119,24 @@ message TriggerData {
   bool is_paused = 60;
 }
 
+enum IdEnum {
+  ID_ENUM_UNSPECIFIED = 0;
+}
+
+// A reference to a Node or Struct - usually both have an identity (except for inlined Structs).
+enum ReferenceKind {
+  REFERENCE_KIND_UNSPECIFIED = 0;
+  REFERENCE_KIND_NODE_ANCESTOR = 1;
+  REFERENCE_KIND_NODE_ANCESTOR_OR_SELF = 2;
+  REFERENCE_KIND_NODE_PARENT = 3;
+  REFERENCE_KIND_NODE_CHILDREN = 4;
+  REFERENCE_KIND_NODE_REGULAR = 5;
+  REFERENCE_KIND_NODE_TEMPLATE = 6;
+  REFERENCE_KIND_STRUCT_PARENT = 10;
+  REFERENCE_KIND_STRUCT_CHILD = 11;
+  REFERENCE_KIND_PROPERTY = 20;
+}
+
 message SomeNodeData {
   oneof node {
     BenchData bench = 1;
