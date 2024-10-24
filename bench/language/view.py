@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, final
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import NODE_TYPES, EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.expression import Selection
@@ -536,10 +536,6 @@ class View(SourceNode[ViewData]):
     is_loading: bool = p_regular(90, default=False)
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
-
-    @final
-    def __repr__(self):  # type: ignore we want to override the default repr
-        return f"<{self.type.bench_name}View {self}>"
 
     @staticmethod
     def new(typ: ViewType, name: str, **kwargs) -> "View":

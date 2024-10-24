@@ -7,7 +7,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import baggage, context, trace
 
-from bench.language.block import Block, CodeBlock, TextBlock
+from bench.language.block import Block, TextBlock
 from bench.language.code import Code
 from bench.language.const import BenchError, BlockType, RunErrorKind, RunStatus
 from bench.language.flow import Step, StepType
@@ -100,12 +100,12 @@ class Runtime:
 
         # figure out which runner we need
         if kind == RunKind.CODE:
-            if code is None and isinstance(node, Block) and node.type == BlockType.CODE:
-                code = cast(CodeBlock, node).code
+            if code is None:
+                code = getattr(node, "code", None)
             code = code or Code.empty()
         elif kind == RunKind.TEXT:
-            if text is None and isinstance(node, Block) and node.type == BlockType.TEXT:
-                text = cast(TextBlock, node).text
+            if text is None:
+                text = getattr(node, "text", None)
         elif kind == RunKind.STEP:
             assert isinstance(node, Step), f"unexpected node type: {node!r}"
 
@@ -436,8 +436,6 @@ def get_runner_cls(
     if kind == RunKind.CODE:
         from bench.runtime.code import CodeFunctionRunner, CodeScriptRunner
 
-        if code is None:
-            code = node.code if isinstance(node, CodeBlock) else Code.empty()
         if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
             return CodeFunctionRunner
         else:

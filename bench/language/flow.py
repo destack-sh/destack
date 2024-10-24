@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional, Type, Union, assert_never, cast, final
+from typing import TYPE_CHECKING, Optional, Type, Union, assert_never, cast
 from uuid import UUID
 
 import cachetools
@@ -372,10 +372,6 @@ class Step(SourceNode[StepData]):
     steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
     pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-
-    @final
-    def __repr__(self):  # type: ignore we want to override the default repr
-        return f"<{self.type.bench_name}Step {self}>"
 
     @property
     def block(self) -> "Block | None":

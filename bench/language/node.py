@@ -1731,7 +1731,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @final
     def __repr__(self):  # type: ignore
         # override the default __repr__ for nodes
-        return f"<{self.__class__.__name__} {self!s}>"
+        if self.__has_subtypes__:
+            subtype = self.__dict__["type"]
+            return f"<{subtype.bench_name}{self.__class__.__name__} {self}>"
+        else:
+            return f"<{self.__class__.__name__} {self!s}>"
 
     @property
     def ck(self):

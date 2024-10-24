@@ -7,7 +7,6 @@ from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
 from bench.language.flow import PipeFilter, PipeModulation, PortType, Step, StepType
 from bench.language.run import Run, RunErrorType, RunOptions
-from bench.language.text import md
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -517,7 +516,6 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
     Verifier = Step.new(
         StepType.CODE,
         "Verifier",
-        text=md("Check if Num is <= 1"),
         fields=(
             Field.input("Num", int, is_required=True),
             Field.output("IsGood", bool, is_required=True),
