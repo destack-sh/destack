@@ -4,7 +4,6 @@ from uuid import UUID
 
 import cachetools
 
-from bench.language.block import FlowBlock
 from bench.language.const import (
     BlockType,
     EnumType,
@@ -408,9 +407,11 @@ class Step(SourceNode[StepData]):
         parent: Union["Block", "Step", None] = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
+        from bench.language.block import Block
+
         parent = parent or self.parent
         assert parent is not None, f"{self!r} is not attached to a parent"
-        assert isinstance(parent, (Step, FlowBlock)), f"{parent!r} is not valid for {self!r}"
+        assert isinstance(parent, (Step, Block)), f"{parent!r} is not valid for {self!r}"
 
         # assign next name like Pipe1, .. in parent :AutoNaming
         if name is None:

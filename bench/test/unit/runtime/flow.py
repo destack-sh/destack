@@ -190,7 +190,7 @@ async def test_run_flow_multi_port(local_runtime: RuntimeHandle):
 
 
 async def test_run_flow_error(local_runtime: RuntimeHandle):
-    """Run a code step with an error (without error port). Entire flow should abort and fail."""
+    """Run a code step with an erro. Flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(StepType.CODE, "Code1", code=code("raise ValueError"))
@@ -206,7 +206,7 @@ async def test_run_flow_error(local_runtime: RuntimeHandle):
 
 
 async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle):
-    """Run a code step with an error connected to the error port. Flow should complete."""
+    """Run a code step with an error with failure suppressed. Flow should complete."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(

@@ -65,7 +65,7 @@ from bench.language.property import (
     p_regular,
     p_runtime,
     p_struct_parent,
-    p_subtype_packed,
+    p_subnode_packed,
     p_system,
 )
 from bench.language.setup import (
@@ -874,16 +874,27 @@ def _trace_edit_operation(
 
     # trace path for edit
     path: list[str] = [key.key]
+    k = key
     while obj is not None and not isinstance(obj, Node):
         parent = obj.parent
         if parent is not None:
-            parent_key = obj.parent_key
-            parent_key_str = parent_key.key  # type: ignore
+            k = obj.parent_key
+            parent_key_str = k.key  # type: ignore
             assert (
                 type(parent_key_str) is str
             ), f"{obj!r} has non-str key {parent_key_str!r} in {parent!r}"
             path.insert(0, parent_key_str)
         obj = parent
+
+    # figure out subtype if we're coming from a nested property
+    if subtype is None and node.__has_subtypes__:
+        assert type(k) is Property, f"expected Property, got {k!r} for {key!r} in {node!r}"
+        subtype = cast(type[Node], k.component).__subtype__
+
+    # add subtype to path
+    if subtype is not None:
+        path.insert(0, str(subtype))
+        path.insert(0, Node.get_property("subnode_packed").key)
 
     # pack edit operation content
     operation_type = EditOperationType.CLEAR if new_value is None else EditOperationType.SET
@@ -900,8 +911,6 @@ def _trace_edit_operation(
         new_value_packed = None
     else:
         new_value_packed = pack_value_data(new_value, typ, wrap_scalar=False)
-
-    # nocheckin: trace set for subtype properties
 
     operation = EditOperationData(
         metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
@@ -1518,6 +1527,10 @@ def is_implicit_node_property(prop_id: int) -> bool:
     return prop_id < 30 and prop_id != 4  # parent is fine
 
 
+NODE_SUBTYPE_PACKED_ID = 29
+NODE_SUBTYPE_PACKED_KEY = str(NODE_SUBTYPE_PACKED_ID)
+
+
 @node_component()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
@@ -1602,7 +1615,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_type: NodeType | None = None
 
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
-    subnode_packed: dict[str, dict[str, Any]] | None = p_subtype_packed(29)
+    subnode_packed: dict[str, dict[str, Any]] = p_subnode_packed(NODE_SUBTYPE_PACKED_ID)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>

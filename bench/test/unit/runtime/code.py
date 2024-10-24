@@ -217,30 +217,34 @@ async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(Function)
 
 
-async def test_run_code_function_output_scalar(local_runtime: RuntimeHandle):
-    """Run a code function with a scalar, should coerce into object."""
+async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
+    """
+    Run a code function with a scalar, should coerce into object.
+    NOTE: we use the hosted_runtime here as we edit the node subtype property CodeBlock.code
+     (and the local runtime works directly in the SQL engine, which can't do hierarchical edits)
+    """
     Function = Block.new_code(
         "Function",
         """return Input1 * 4""",
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    local_runtime.page().blocks.append(Function)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(Function)
+    await hosted_runtime.commit()
 
     # run with good return value
-    runner = await local_runtime.run(Function, inputs={"Input1": 3})
+    runner = await hosted_runtime.run(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 12
 
     # run with cast return value
     Function.code = code("return Input1 * 1.7")
-    await local_runtime.commit()
-    runner = await local_runtime.run(Function, inputs={"Input1": 3})
+    await hosted_runtime.commit()
+    runner = await hosted_runtime.run(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 5
 
     # run with bad return value
     Function.code = code("return 'stringy'")
-    await local_runtime.commit()
-    runner = await local_runtime.run(Function, inputs={"Input1": 3}, return_error=True)
+    await hosted_runtime.commit()
+    runner = await hosted_runtime.run(Function, inputs={"Input1": 3}, return_error=True)
     assert runner.status == RunStatus.FAILED
 
 

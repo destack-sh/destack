@@ -439,7 +439,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         if self.duration is not None:
             duration_str = f"{self.duration.total_seconds():.3f}s"
             return (
-                f"{self.kind.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}s"
+                f"{self.kind.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}"
             )
         else:
             return f"{self.kind.bench_name}:{path}, {self.status.bench_name}"
