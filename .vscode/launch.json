@@ -43,6 +43,21 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false
+    },   
+    {
+      "name": "bench.migrate.make",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["migrate", "make", "--no-downgrade"],
+      "env": {
+        "ENVIRONMENT": "dev",
+        "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "system",
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
     },
     {
       "name": "bench.system",

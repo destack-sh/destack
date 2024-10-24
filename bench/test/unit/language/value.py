@@ -115,7 +115,7 @@ def test_roundtrip_nested_value(session: Session, package: Package):
 
     class1_type = class1.to_type(as_object=True)
     assert class1_type is not None, f"{class1!r} has no type"
-    value_packed = pack_value(value, class1_type)
+    value_packed = pack_value(value, class1_type, wrap_scalar=True)
     unpacked_value = unpack_value(value_packed, class1_type, wrap_scalar=True)
     assert unpacked_value == value
 

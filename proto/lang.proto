@@ -1732,6 +1732,32 @@ message AccessData {
   repeated PropertyReferenceData allowed_properties_ptr = 34;
 }
 
+message SelectOptionsData {
+  ObjectType metatype = 1;
+  bool select_all_properties = 40;
+  repeated PropertyReferenceData include_properties_ptr = 41;
+  repeated PropertyReferenceData exclude_properties_ptr = 42;
+  repeated PropertyReferenceData select_properties_ptr = 43;
+  repeated NodeReferenceData select_fields_ptr = 51;
+}
+
+message QueryInfoData {
+  ObjectType metatype = 1;
+  QueryType type = 40;
+  NodeType node_type = 41;
+  optional NodeReferenceData block_ptr = 42;
+  repeated NodeReferenceData roots_ptr = 43;
+  optional ExpressionData filter = 44;
+  repeated ExpressionData sort = 45;
+  optional ExpressionData aggregation = 46;
+  repeated NodeType ancestor_types = 50;
+  repeated NodeType descendant_types = 51;
+  optional SelectOptionsData select = 60;
+  bool include_deleted = 61;
+  optional int32 first = 62;
+  optional int32 skip = 63;
+}
+
 message CodeLineData {
   ObjectType metatype = 1;
   optional string content = 32;
@@ -1976,32 +2002,6 @@ message PathTokenData {
 message PathData {
   ObjectType metatype = 1;
   repeated PathTokenData tokens = 31;
-}
-
-message SelectOptionsData {
-  ObjectType metatype = 1;
-  bool select_all_properties = 40;
-  repeated PropertyReferenceData include_properties_ptr = 41;
-  repeated PropertyReferenceData exclude_properties_ptr = 42;
-  repeated PropertyReferenceData select_properties_ptr = 43;
-  repeated NodeReferenceData select_fields_ptr = 51;
-}
-
-message QueryInfoData {
-  ObjectType metatype = 1;
-  QueryType type = 40;
-  NodeType node_type = 41;
-  optional NodeReferenceData block_ptr = 42;
-  repeated NodeReferenceData roots_ptr = 43;
-  optional ExpressionData filter = 44;
-  repeated ExpressionData sort = 45;
-  optional ExpressionData aggregation = 46;
-  repeated NodeType ancestor_types = 50;
-  repeated NodeType descendant_types = 51;
-  optional SelectOptionsData select = 60;
-  bool include_deleted = 61;
-  optional int32 first = 62;
-  optional int32 skip = 63;
 }
 
 message RunOptionsData {
@@ -2568,6 +2568,40 @@ message BadgeData {
   optional string password_hash = 43;
 }
 
+message QueryData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 20;
+  string name = 30;
+  string order_key = 31;
+  QueryType type = 40;
+  NodeType node_type = 41;
+  optional NodeReferenceData block_ptr = 42;
+  repeated NodeReferenceData roots_ptr = 43;
+  optional ExpressionData filter = 44;
+  repeated ExpressionData sort = 45;
+  optional ExpressionData aggregation = 46;
+  repeated NodeType ancestor_types = 50;
+  repeated NodeType descendant_types = 51;
+  optional SelectOptionsData select = 60;
+  bool include_deleted = 61;
+  optional int32 first = 62;
+  optional int32 skip = 63;
+}
+
 message BlockData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2624,6 +2658,7 @@ message ViewBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message DatabaseBlockData {
+  optional NodeReferenceData query_ptr = 100;
 }
 
 message RecordData {
@@ -2882,8 +2917,8 @@ message ViewData {
   optional TextData text = 33;
   string order_key = 34;
   optional IconData icon = 35;
+  google.protobuf.Value subviews_packed = 39;
   optional TypeInfoData value_type = 40;
-  optional google.protobuf.Value value_packed = 41;
   oneof node_ptr {
     NodeReferenceData node_ptr_node = 420;
     FileReferenceData node_ptr_file = 421;
@@ -2960,40 +2995,6 @@ message SpaceData {
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
   optional NodeReferenceData run_ptr = 77;
-}
-
-message QueryData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 20;
-  string name = 30;
-  string order_key = 31;
-  QueryType type = 40;
-  NodeType node_type = 41;
-  optional NodeReferenceData block_ptr = 42;
-  repeated NodeReferenceData roots_ptr = 43;
-  optional ExpressionData filter = 44;
-  repeated ExpressionData sort = 45;
-  optional ExpressionData aggregation = 46;
-  repeated NodeType ancestor_types = 50;
-  repeated NodeType descendant_types = 51;
-  optional SelectOptionsData select = 60;
-  bool include_deleted = 61;
-  optional int32 first = 62;
-  optional int32 skip = 63;
 }
 
 message RunData {
