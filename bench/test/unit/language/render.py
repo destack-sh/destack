@@ -6,7 +6,6 @@ from uuid import UUID
 
 from hypothesis import assume, given
 
-from bench.language import md
 from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import BlockType, ReferenceKind, StructType

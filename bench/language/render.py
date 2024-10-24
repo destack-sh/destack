@@ -68,9 +68,10 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
         kwargs = _get_content_values(obj, include_defaults=False)
         kwargs = self.map_kwargs(renderer, obj, kwargs)
         rendered_kwargs: dict[str, str] = {}
+        cls = obj._get_effective_cls()
         for name, value in kwargs.items():
-            if name in obj.__properties__:
-                prop = obj.__properties__[name]
+            if name in cls.__properties__:
+                prop = cls.__properties__[name]
                 if prop.is_value_runtime:
                     value_type = (
                         prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
@@ -373,8 +374,9 @@ class Renderer:
 
 def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -> dict[str, Any]:
     """Gets the 'content' values for a BuiltinObject."""
+    cls = obj._get_effective_cls()
     values: dict[str, Any] = {}
-    for prop in obj.__properties__.values():
+    for prop in cls.__properties__.values():
         if (
             prop.id is None
             or prop.id < 30
@@ -392,7 +394,7 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
             continue
         values[prop.name] = prop_value
     # values last (may depend on types, and to simplify control flow for skipping unset values)
-    for prop in obj.__value_runtime_properties__.values():
+    for prop in cls.__value_runtime_properties__.values():
         wired_prop = prop.value_packed_ptr
         assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
         wired_prop_value = getattr(obj, wired_prop.name)
