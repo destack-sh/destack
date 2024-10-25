@@ -27476,6 +27476,33 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.LINE]: LineProperty,
 }
 
+export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
+  [BlockType.VALUE]: ValueBlockProperty,
+  [BlockType.TEXT]: TextBlockProperty,
+  [BlockType.CODE]: CodeBlockProperty,
+  [BlockType.FLOW]: FlowBlockProperty,
+  [BlockType.DATABASE]: DatabaseBlockProperty,
+}
+
+export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
+  [ViewType.TREE]: TreeViewProperty,
+  [ViewType.START]: StartViewProperty,
+  [ViewType.FEED]: FeedViewProperty,
+  [ViewType.USER_WIZARD]: UserWizardViewProperty,
+}
+
+export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
+  [StepType.CODE]: CodeStepProperty,
+  [StepType.TEXT]: TextStepProperty,
+  [StepType.BLOCK]: BlockStepProperty,
+}
+
+export const PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<NodeType, Record<any, any>>> = {
+  [NodeType.BLOCK]: BLOCK_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.VIEW]: VIEW_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.STEP]: STEP_PROPERTY_ENUM_BY_SUBTYPE,
+}
+
 
 // Type info
 
@@ -28965,6 +28992,41 @@ export const LineDataInfo: Record<LineProperty, PropertyInfo> = {
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
+  [ObjectType.BENCH]: BenchDataInfo,
+  [ObjectType.USER]: UserDataInfo,
+  [ObjectType.ORGANIZATION]: OrganizationDataInfo,
+  [ObjectType.HANDLE]: HandleDataInfo,
+  [ObjectType.CLIENT]: ClientDataInfo,
+  [ObjectType.SERVER]: ServerDataInfo,
+  [ObjectType.STORE]: StoreDataInfo,
+  [ObjectType.MACHINE]: MachineDataInfo,
+  [ObjectType.DRIVE]: DriveDataInfo,
+  [ObjectType.VAULT]: VaultDataInfo,
+  [ObjectType.CACHE]: CacheDataInfo,
+  [ObjectType.FILE]: FileDataInfo,
+  [ObjectType.SECRET]: SecretDataInfo,
+  [ObjectType.MEMBERSHIP]: MembershipDataInfo,
+  [ObjectType.INVITE]: InviteDataInfo,
+  [ObjectType.BRANCH]: BranchDataInfo,
+  [ObjectType.PACKAGE]: PackageDataInfo,
+  [ObjectType.DEPENDENCY]: DependencyDataInfo,
+  [ObjectType.SPACE]: SpaceDataInfo,
+  [ObjectType.BLOCK]: BlockDataInfo,
+  [ObjectType.TRIGGER]: TriggerDataInfo,
+  [ObjectType.FIELD]: FieldDataInfo,
+  [ObjectType.QUERY]: QueryDataInfo,
+  [ObjectType.VIEW]: ViewDataInfo,
+  [ObjectType.STEP]: StepDataInfo,
+  [ObjectType.PIPE]: PipeDataInfo,
+  [ObjectType.BADGE]: BadgeDataInfo,
+  [ObjectType.MESSAGE]: MessageDataInfo,
+  [ObjectType.RECORD]: RecordDataInfo,
+  [ObjectType.SESSION]: SessionDataInfo,
+  [ObjectType.RUN]: RunDataInfo,
+  [ObjectType.SIGNAL]: SignalDataInfo,
+  [ObjectType.LOG]: LogDataInfo,
+  [ObjectType.NOTIFICATION]: NotificationDataInfo,
+  [ObjectType.SKIP]: SkipDataInfo,
   [ObjectType.SESSION_CONTEXT]: SessionContextDataInfo,
   [ObjectType.EDIT_CONTEXT]: EditContextDataInfo,
   [ObjectType.EDIT]: EditDataInfo,
@@ -29021,41 +29083,30 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.VECTOR3]: Vector3DataInfo,
   [ObjectType.VECTOR4]: Vector4DataInfo,
   [ObjectType.LINE]: LineDataInfo,
-  [ObjectType.BENCH]: BenchDataInfo,
-  [ObjectType.USER]: UserDataInfo,
-  [ObjectType.ORGANIZATION]: OrganizationDataInfo,
-  [ObjectType.HANDLE]: HandleDataInfo,
-  [ObjectType.CLIENT]: ClientDataInfo,
-  [ObjectType.SERVER]: ServerDataInfo,
-  [ObjectType.STORE]: StoreDataInfo,
-  [ObjectType.MACHINE]: MachineDataInfo,
-  [ObjectType.DRIVE]: DriveDataInfo,
-  [ObjectType.VAULT]: VaultDataInfo,
-  [ObjectType.CACHE]: CacheDataInfo,
-  [ObjectType.FILE]: FileDataInfo,
-  [ObjectType.SECRET]: SecretDataInfo,
-  [ObjectType.MEMBERSHIP]: MembershipDataInfo,
-  [ObjectType.INVITE]: InviteDataInfo,
-  [ObjectType.BRANCH]: BranchDataInfo,
-  [ObjectType.PACKAGE]: PackageDataInfo,
-  [ObjectType.DEPENDENCY]: DependencyDataInfo,
-  [ObjectType.SPACE]: SpaceDataInfo,
-  [ObjectType.BLOCK]: BlockDataInfo,
-  [ObjectType.TRIGGER]: TriggerDataInfo,
-  [ObjectType.FIELD]: FieldDataInfo,
-  [ObjectType.QUERY]: QueryDataInfo,
-  [ObjectType.VIEW]: ViewDataInfo,
-  [ObjectType.STEP]: StepDataInfo,
-  [ObjectType.PIPE]: PipeDataInfo,
-  [ObjectType.BADGE]: BadgeDataInfo,
-  [ObjectType.MESSAGE]: MessageDataInfo,
-  [ObjectType.RECORD]: RecordDataInfo,
-  [ObjectType.SESSION]: SessionDataInfo,
-  [ObjectType.RUN]: RunDataInfo,
-  [ObjectType.SIGNAL]: SignalDataInfo,
-  [ObjectType.LOG]: LogDataInfo,
-  [ObjectType.NOTIFICATION]: NotificationDataInfo,
-  [ObjectType.SKIP]: SkipDataInfo,
+}
+
+export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, PropertyInfo>>> = {
+  [BlockType.VALUE]: ValueBlockDataInfo,
+  [BlockType.TEXT]: TextBlockDataInfo,
+  [BlockType.CODE]: CodeBlockDataInfo,
+  [BlockType.FLOW]: FlowBlockDataInfo,
+  [BlockType.DATABASE]: DatabaseBlockDataInfo,
+}
+export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, PropertyInfo>>> = {
+  [ViewType.TREE]: TreeViewDataInfo,
+  [ViewType.START]: StartViewDataInfo,
+  [ViewType.FEED]: FeedViewDataInfo,
+  [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
+}
+export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, PropertyInfo>>> = {
+  [StepType.CODE]: CodeStepDataInfo,
+  [StepType.TEXT]: TextStepDataInfo,
+  [StepType.BLOCK]: BlockStepDataInfo,
+}
+export const NODE_SUBTYPE_PROPERTY_INFOS_BY_TYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {
+  [NodeType.BLOCK]: BlockSubtypePropertyInfo,
+  [NodeType.VIEW]: ViewSubtypePropertyInfo,
+  [NodeType.STEP]: StepSubtypePropertyInfo,
 }
 
 

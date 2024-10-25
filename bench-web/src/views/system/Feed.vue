@@ -31,6 +31,7 @@ import {
   describeNode,
   isNode,
   propertyReference,
+  SomeNodeReferenceData,
   toNodeRef,
   toNodeRefOneOf,
   toPlainNodeRef,
@@ -341,14 +342,12 @@ const itemRefs: Ref<Record<string, HTMLElement>> = ref({});
 // Interaction
 //
 
-const { toggleExpanded, isExpanded } = useViewExpansion({
-  graph: spaceGraph,
-  tx: canvas.tx,
-  self,
-  props,
-  emit,
-  isExclusive: true,
-});
+function isExpanded(node: AnyNodeData | SomeNodeReferenceData): boolean {
+  return true;
+}
+function toggleExpanded(node: AnyNodeData | SomeNodeReferenceData) {
+  // NOTE :Incomplete: implement
+}
 const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;

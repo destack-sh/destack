@@ -151,8 +151,6 @@ watch(
       :size="mainBox"
       :focus="window.focus"
       :name="window.name"
-      :title="window.name"
-      :text="window.text"
       :orientation="Orientation.HORIZONTAL"
     />
     <!-- Loading... -->

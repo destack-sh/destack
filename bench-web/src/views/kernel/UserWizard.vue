@@ -53,15 +53,9 @@ function clear() {
 function switchStage() {
   const selfNode = spaceGraph.getOrError(self.value);
   if (stage.value == UserWizardViewStage.LOG_IN) {
-    canvas.tx().update(selfNode, {
-      title: "Sign Up",
-      valuePacked: packStateUpdate({ stage: UserWizardViewStage.SIGN_UP }),
-    });
+    canvas.tx().update(selfNode, { title: "Sign Up", subnode: { stage: UserWizardViewStage.SIGN_UP } });
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
-    canvas.tx().update(selfNode, {
-      title: "Log In",
-      valuePacked: packStateUpdate({ stage: UserWizardViewStage.LOG_IN }),
-    });
+    canvas.tx().update(selfNode, { title: "Log In", subnode: { stage: UserWizardViewStage.LOG_IN } });
   } else {
     throw new Error(`unexpected registration stage: ${stage.value}`);
   }

@@ -29,6 +29,7 @@ import { log } from "@/utils/log";
 import type { ViewIn } from "@/ui/space";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { computed, ref } from "vue";
+import { makeIcon } from "@/ui/icon";
 
 export const isAuthenticated = computed(() => local.clientInfo.value?.accessToken != null);
 export const isUnauthenticated = computed(() => !isAuthenticated.value);
@@ -183,7 +184,7 @@ export async function createBench(
 }
 
 function userWizardView(view: { title: string }): ViewIn {
-  return { type: ViewType.USER_WIZARD, icon: "fas fa-right-from-bracket", ...view };
+  return { type: ViewType.USER_WIZARD, icon: makeIcon("fas fa-right-from-bracket"), ...view };
 }
 
 contributeActionMap<"user">({
@@ -221,7 +222,11 @@ contributeActionMap<"user">({
     title: "Activate Bench",
     text: "Activate your account by creating your Bench.",
     action: () =>
-      canvas.upsertView({ type: ViewType.BENCH_WIZARD, icon: "fas fa-rocket-launch", title: "Activate Bench" }),
+      canvas.upsertView({
+        type: ViewType.BENCH_WIZARD,
+        icon: makeIcon("fas fa-rocket-launch"),
+        title: "Activate Bench",
+      }),
   },
   "user.misc.goToHome": {
     icon: "fas fa-home",

@@ -1,7 +1,7 @@
 import { estimateCodeHeight } from "@/language/code";
 import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName } from "@/language/node";
+import { makeNodeName, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
 import { estimateTextHeight } from "@/language/text";
 import type { Transaction } from "@/language/transaction";
 import {
@@ -10,6 +10,7 @@ import {
   ColorShade,
   FieldData,
   FieldType,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   PipeData,
@@ -137,9 +138,14 @@ export class StepState {
     this.flow = flow;
     this.stepPtr = toPlainNodeRef(step);
     this.step = flow.graph.getRef(this.stepPtr, { ignoreAncestors: true });
-    this.nodePtr = computedValue(
-      () => this.step.value?.nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null,
-    );
+    this.nodePtr = computedValue(() => {
+      if (this.step.value?.type == StepType.BLOCK) {
+        const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.BLOCK, this.step.value?.subnodePacked, "nodePtr");
+        return nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
+      } else {
+        return null;
+      }
+    });
     this.node = flow.graph.getRef(this.nodePtr);
     this.nodeFields = flow.graph.getChildrenRef(this.nodePtr, NodeType.FIELD);
     this.fields = flow.graph.getChildrenRef(step, NodeType.FIELD);
@@ -899,7 +905,11 @@ export function getStepFields(
     // get related nodes (not reactive)
     const flow = getContainingFlow(graph, step);
     if (flow == null) return null;
-    const node = graph.getMaybe(step.nodePtr) as BlockData | StepData | undefined;
+    let node: BlockData | StepData | undefined | null = null;
+    if (step.type == StepType.BLOCK) {
+      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.BLOCK, step.subnodePacked, "nodePtr");
+      node = graph.getMaybe(nodePtr) as BlockData | StepData | undefined;
+    }
     related = {
       stepFields: graph.getChildren(step, NodeType.FIELD),
       flow,
@@ -1013,9 +1023,11 @@ export function estimateStepSize(step: StepData, verticalPorts: number): { width
     FLOW_GRID_STEP * verticalPorts; // ports
   // content
   if (step.type == StepType.TEXT) {
-    height += (step.text != null ? estimateTextHeight(step.text, width) : 20) + 10;
+    const text = unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, "text");
+    height += (text != null ? estimateTextHeight(text, width) : 20) + 10;
   } else if (step.type == StepType.CODE) {
-    height += (step.code != null ? estimateCodeHeight(step.code, width) : 20) + 10;
+    const code = unpackSubnodeProperty(NodeType.STEP, StepType.CODE, step.subnodePacked, "code");
+    height += (code != null ? estimateCodeHeight(code, width) : 20) + 10;
   }
   // snap height to grid
   height = Math.ceil(height / FLOW_GRID_STEP) * FLOW_GRID_STEP;

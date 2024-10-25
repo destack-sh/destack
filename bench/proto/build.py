@@ -23,7 +23,6 @@ from bench.language.setup import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
-    OBJECT_CLASS_BY_TYPE,
     PARENT_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
@@ -420,6 +419,30 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
             + "}\n"
         )
         property_enum_maps_final_parts.append(property_enum_map_str)
+    # property enum maps for subnodes
+    for node_cls in NODE_CLASSES:
+        if not node_cls.__has_subtypes__:
+            continue
+        property_enum_map_parts: list[str] = [
+            f"export const {node_cls.metatype.name}_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<{node_cls.__name__}Type, any>> = {{\n"
+        ]
+        for subnode_type, subnode_cls in node_cls.__subclass_by_subtype__.items():
+            property_enum_map_parts.append(
+                f"  [{node_cls.__name__}Type.{subnode_type.name}]: {subnode_cls.__name__}Property,\n"
+            )
+        property_enum_map_parts.append("}\n")
+        property_enum_maps_final_parts.append("".join(property_enum_map_parts))
+    # property enum map into subnode maps
+    property_enum_map_parts: list[str] = [
+        "export const PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<NodeType, Record<any, any>>> = {\n"
+    ]
+    for node_cls in NODE_CLASSES:
+        if node_cls.__has_subtypes__:
+            property_enum_map_parts.append(
+                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.metatype.name}_PROPERTY_ENUM_BY_SUBTYPE,\n"
+            )
+    property_enum_map_parts.append("}\n")
+    property_enum_maps_final_parts.append("".join(property_enum_map_parts))
     property_enum_maps_final_str = "\n".join(property_enum_maps_final_parts)
 
     object_info_type_str = """
@@ -547,18 +570,41 @@ export type PropertyInfo = {
 
     object_info_definitions_str = "\n".join(type_info_definitions_parts)
 
-    # map
-    type_info_map_parts = [
+    # property info mappings
+    object_type_info_map_parts = [
         "export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {\n"
         "  [ObjectType.UNSPECIFIED]: {},\n"
     ]
-    for object_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = OBJECT_CLASS_BY_TYPE[object_type]
-        type_info_map_parts.append(
-            f"  [ObjectType.{object_type.name}]: {bench_cls.__name__}DataInfo,\n"
+    for bench_cls in chain(NODE_CLASSES, STRUCT_CLASSES):
+        object_type_info_map_parts.append(
+            f"  [ObjectType.{bench_cls.metatype.name}]: {bench_cls.__name__}DataInfo,\n"
         )
-    type_info_map_parts.append("}\n")
-    object_info_map_str = "".join(type_info_map_parts)
+    object_type_info_map_parts.append("}\n")
+    # subnode property info mappings
+    subnode_type_info_maps: list[str] = []
+    for node_cls in NODE_CLASSES:
+        if node_cls.__has_subtypes__:
+            subnode_type_info_parts: list[str] = [
+                f"export const {node_cls.__name__}SubtypePropertyInfo: Partial<Record<{node_cls.__name__}Type, Record<any, PropertyInfo>>> = {{\n"
+            ]
+            for subnode_type, subnode_cls in node_cls.__subclass_by_subtype__.items():
+                subnode_type_info_parts.append(
+                    f"  [{node_cls.__name__}Type.{subnode_type.name}]: {subnode_cls.__name__}DataInfo,\n"
+                )
+            subnode_type_info_parts.append("}\n")
+            subnode_type_info_maps.append("".join(subnode_type_info_parts))
+    subnode_type_info_maps.append(
+        "export const NODE_SUBTYPE_PROPERTY_INFOS_BY_TYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {\n"
+    )
+    for node_cls in NODE_CLASSES:
+        if node_cls.__has_subtypes__:
+            subnode_type_info_maps.append(
+                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.__name__}SubtypePropertyInfo,\n"
+            )
+    subnode_type_info_maps.append("}\n")
+    object_info_map_str = (
+        "".join(object_type_info_map_parts) + "\n" + "".join(subnode_type_info_maps)
+    )
 
     # file mapping enums
     file_format_by_extension_str_inner = "\n".join(

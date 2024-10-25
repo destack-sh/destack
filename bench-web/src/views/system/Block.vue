@@ -2,7 +2,7 @@
 import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
 import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
-import { isGeneratedNodeName } from "@/language/node";
+import { isGeneratedNodeName, unpackSubnodeProperty } from "@/language/node";
 import { isRunnable } from "@/language/session";
 import { packValue, unpackValue } from "@/language/value";
 import {
@@ -74,32 +74,30 @@ const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 //
 
 const value = computed(() => {
-  if (block.value?.valueType == null) {
+  if (block.value?.type != BlockType.VALUE) {
     return undefined;
-  } else if (block.value?.valueType.kind == TypeKind.OBJECT) {
-    return block.value?.valuePacked;
+  }
+  const valueType = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valueType");
+  const valuePacked = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valuePacked");
+  if (valueType == null) {
+    return undefined;
+  } else if (valueType.kind == TypeKind.OBJECT) {
+    return valuePacked;
   } else {
-    return unpackValue(block.value?.valuePacked!, block.value.valueType, {
-      graph: pkgGraph,
-      wrapScalar: true,
-      recurseCustomObject: false,
-    });
+    return unpackValue(valuePacked!, valueType, { graph: pkgGraph, wrapScalar: true, recurseCustomObject: false });
   }
 });
 function updateValue(value: any) {
-  if (block.value == null) throw new Error(`no block`);
+  if (block.value?.type != BlockType.VALUE) throw new Error(`no value block`);
+  const valueType = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valueType");
   const valuePacked =
-    block.value?.valueType?.kind == TypeKind.OBJECT
+    valueType?.kind == TypeKind.OBJECT
       ? value
-      : packValue(value, block.value.valueType!, {
-          graph: pkgGraph,
-          wrapScalar: true,
-          recurseCustomObject: false,
-        });
+      : packValue(value, valueType!, { graph: pkgGraph, wrapScalar: true, recurseCustomObject: false });
   if (valuePacked != null) {
-    pkgConnection.tx.update(block.value, { valuePacked }, { debounce: "short" });
+    pkgConnection.tx.update(block.value, { subnode: { valuePacked } }, { debounce: "short" });
   } else {
-    pkgConnection.tx.update(block.value, { valuePacked: undefined }, { debounce: "short" });
+    pkgConnection.tx.update(block.value, { subnode: { valuePacked: undefined } }, { debounce: "short" });
   }
 }
 
@@ -189,19 +187,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           >
             <i class="fas fa-magnifying-glass-plus" />
           </button>
-          <!-- Add/edit text -->
-          <button
-            v-if="!hasText && block.type != BlockType.TEXT"
-            class="rounded hover:bg-gray-100 hover:text-primary-900"
-            @click="
-              () => {
-                forceShowText = true;
-                nextTick(() => textRef?.focus?.('center'));
-              }
-            "
-          >
-            <i class="fas fa-text w-5 text-center" />
-          </button>
           <!-- Quick add -->
           <button
             v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
@@ -272,20 +257,23 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :prepared-connection="pkgGetConnection"
         :node-ptr="props.nodePtr"
       />
-      <!-- TODO :UX: Text/Code empty states? -->
       <Text
-        v-if="block.type == BlockType.TEXT || block.text != null || forceShowText"
+        v-if="block.type == BlockType.TEXT"
         ref="textRef"
         is-input
         :variant="Variant.STEALTH"
-        :model-value="block.text"
-        @update:model-value="(newText) => pkgConnection.tx.update(block!, { text: newText }, { debounce: 'long' })"
+        :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.TEXT, block.subnodePacked, 'text')"
+        @update:model-value="
+          (newText) => pkgConnection.tx.update(block!, { subnode: { text: newText } }, { debounce: 'long' })
+        "
       />
       <Code
         v-if="block.type == BlockType.CODE"
         is-input
-        :model-value="block.code"
-        @update:model-value="(newCode) => pkgConnection.tx.update(block!, { code: newCode }, { debounce: 'long' })"
+        :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.CODE, block.subnodePacked, 'code')"
+        @update:model-value="
+          (newCode) => pkgConnection.tx.update(block!, { subnode: { code: newCode } }, { debounce: 'long' })
+        "
       />
       <Flow
         v-if="block.type == BlockType.FLOW"
