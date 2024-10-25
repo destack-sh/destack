@@ -28,14 +28,7 @@ import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
-import {
-  VIEW_DEFAULT_HEADER_HEIGHT,
-  VIEW_DEFAULT_MAX_WIDTH,
-  VIEW_DEFAULT_MIN_WIDTH,
-  makeSelection,
-  useViewExpansion,
-  useViewState,
-} from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -52,7 +45,7 @@ const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "type" | "name" | "title" | "text" | "icon" | "nodePtr" | "focus" | "selection" | "expansion" | "valuePacked"
+    "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection"
   >
 >();
 

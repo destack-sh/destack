@@ -26,7 +26,7 @@ import { makeNode } from "@/language/node";
 import { bench, canvas, goToBench } from "@/system/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
-import type { ViewDataIn } from "@/ui/space";
+import type { ViewIn } from "@/ui/space";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { computed, ref } from "vue";
 
@@ -182,7 +182,7 @@ export async function createBench(
   return { bench };
 }
 
-function userWizardView(view: { title: string }): ViewDataIn {
+function userWizardView(view: { title: string }): ViewIn {
   return { type: ViewType.USER_WIZARD, icon: "fas fa-right-from-bracket", ...view };
 }
 

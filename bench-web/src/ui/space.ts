@@ -1,7 +1,7 @@
 import { HELPER_VIEW_TYPES, PAGE_BLOCK_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
 import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
-import { cloneNode, generateNodeName, makeNode } from "@/language/node";
+import { cloneNode, generateNodeName, makeNode, NodeIn } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { type Transaction } from "@/language/transaction";
 import { packBuiltinObject } from "@/language/value";
@@ -78,14 +78,14 @@ import {
 } from "vue";
 
 export type SomeView = NodeReferenceData | ViewData;
-export type ViewDataIn = Partial<Omit<ViewData, "metatype" | "icon">> &
-  Pick<ViewData, "type"> & { icon?: string | IconData };
+export type ViewIn = Partial<NodeIn<NodeType.VIEW>> &
+  Required<Pick<NodeIn<NodeType.VIEW>, "type">> & { icon?: string | IconData };
 
 type OpenViewOptions = {
   predicate?: (view: ViewData) => boolean;
   where?: "currentFrame" | "bestFrame";
   ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
-  props?: Partial<ViewData>;
+  props?: ViewIn;
 };
 
 const activeElement = useActiveElement();
@@ -638,7 +638,7 @@ export class SpaceCanvas {
   }
 
   /** Add a new view to the canvas at the current root.  */
-  addView(view: ViewDataIn, options?: OpenViewOptions) {
+  addView(view: ViewIn, options?: OpenViewOptions) {
     const tx = this.tx();
     const existing = this.findView({
       type: view.type,
@@ -706,7 +706,7 @@ export class SpaceCanvas {
   }
 
   /** Upserts a view in the canvas (addView with upsertAndFocus). */
-  upsertView(view: ViewDataIn) {
+  upsertView(view: ViewIn) {
     this.addView(view, { ifPresent: "upsertAndFocus" });
   }
 
@@ -975,9 +975,8 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
 }
 
 type ViewLayoutIn = {
-  type: ViewType;
   children?: ViewLayoutIn[];
-} & Partial<ViewData>;
+} & ViewIn;
 
 /** Recursively create the views for a layout */
 function makeLayout(
@@ -1045,28 +1044,14 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
           type: ViewType.TAB,
           name: "SideTop",
           children: [
-            {
-              type: ViewType.TREE,
-              title: "Explore",
-              valuePacked: packBuiltinObject({
-                metatype: ObjectType.TREE_VIEW_STATE,
-                preset: TreeViewPreset.EXPLORE,
-              }),
-            },
+            { type: ViewType.TREE, title: "Explore", subnode: { nodeTypes: [], preset: TreeViewPreset.EXPLORE } },
           ],
         },
         {
           type: ViewType.TAB,
           name: "SideBottom",
           children: [
-            {
-              type: ViewType.TREE,
-              title: "Outline",
-              valuePacked: packBuiltinObject({
-                metatype: ObjectType.TREE_VIEW_STATE,
-                preset: TreeViewPreset.OUTLINE,
-              }),
-            },
+            { type: ViewType.TREE, title: "Outline", subnode: { nodeTypes: [], preset: TreeViewPreset.OUTLINE } },
           ],
         },
       ],

@@ -346,7 +346,8 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
         assert subtype_prop is not None
         subtype_enum = ENUM_CLASS_BY_TYPE[subtype_prop.enum_type]  # type: ignore
         subnode_mapping_parts = [
-            f"export interface {node_cls.__name__}SubtypeMapping extends Record<{subtype_enum.__name__}, object> {{\n"
+            f"export type {node_cls.__name__}Subtype = {' | '.join(cls.__name__ + 'Data' for cls in node_cls.__subclass_by_subtype__.values())};\n",
+            f"export interface {node_cls.__name__}SubtypeMapping extends Record<{subtype_enum.__name__}, {node_cls.__name__}Subtype> {{\n",
         ]
         for subtype, subnode_cls in node_cls.__subclass_by_subtype__.items():
             subnode_mapping_parts.append(

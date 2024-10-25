@@ -11,8 +11,8 @@ import {
   BlockType,
   ENUM_BY_TYPE,
   FieldType,
-  FileFormat,
   NODE_PROPERTY_ENUM_BY_TYPE,
+  NodeSubtypeMapping,
   NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
@@ -20,7 +20,6 @@ import {
   StepType,
   StructType,
   Timestamp,
-  TypeKind,
   ViewType,
   type AnyNodeData,
   type AnyStructData,
@@ -28,9 +27,9 @@ import {
 } from "@/proto/wire";
 import {
   describeNode,
-  makeDefaultObject,
   isNode,
   isNodeRef,
+  makeDefaultObject,
   newNodeCk,
   newNodeId,
   nodeReference,
@@ -141,14 +140,27 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
   // ...
 }
 
+/** A Node 'in' type for mapping subnode correctly given a metatype & optional type. */
+export type NodeIn<T extends NodeType> = NodeTypeMapping[T] extends { type: infer ST }
+  ? ST extends keyof NodeSubtypeMapping[T]
+    ? {
+        metatype: T | ObjectType;
+        type: ST;
+        subnode?: NodeSubtypeMapping[T][ST];
+      } & Partial<Omit<NodeTypeMapping[T], "metatype" | "type">>
+    : {
+        metatype: T | ObjectType;
+      } & Partial<Omit<NodeTypeMapping[T], "metatype">>
+  : {
+      metatype: T | ObjectType;
+    } & Partial<Omit<NodeTypeMapping[T], "metatype">>;
+
 /**
  * Make a node from the given data and assign it an id (and ck if in package).
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
-  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "createdAt" | "updatedAt">> & {
-    metatype: T;
-  },
+  data: NodeIn<T>,
   options?: { omit: (keyof NodeTypeMapping[T])[] },
 ): NodeTypeMapping[T] {
   const now = Timestamp.now();
@@ -157,7 +169,7 @@ export function makeNode<T extends NodeType>(
 
   // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
-    if ("packagePtr" in properties) {
+    if ("packagePtr" in properties) { 
       if (!("packagePtr" in data) || data.packagePtr == null) {
         throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
       }
@@ -185,6 +197,8 @@ export function makeNode<T extends NodeType>(
     if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[data.metatype]}`);
     (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
   }
+
+  // nocheckin: pack subnode
 
   // assign default values to unset properties
   node = makeDefaultObject(node) as NodeTypeMapping[T];
