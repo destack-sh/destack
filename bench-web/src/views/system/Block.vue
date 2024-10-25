@@ -61,13 +61,11 @@ const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
 const runnable = computed(() => block.value != null && isRunnable(block.value, pkgGraph, fields.value));
-const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
   () =>
     RUNNABLE_BLOCK_TYPES.includes(block.value?.type!) &&
     fields.value.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT),
 );
-const forceShowText: Ref<boolean> = ref(false);
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 

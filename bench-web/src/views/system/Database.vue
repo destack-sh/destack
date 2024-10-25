@@ -71,7 +71,7 @@ const FULL_PADDING = 12;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "variant" | "isInput" | "selection">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "variant" | "isInput" | "selection">
   >
 >();
 const emit = defineEmits(viewEmits());

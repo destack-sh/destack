@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.24.2"
+VERSION = "2024.10.25.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -73,7 +73,6 @@ class EnumType(IdEnum):
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004  # NodeType | StructType
     BENCH_TYPE = 20005  # NodeType | StructType | EnumType
-    CHANGE_KIND = 20011
 
     # access
     ACCESS_MODE = 20030
@@ -403,13 +402,11 @@ class StructType(IdEnum):
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
-    TRIGGER_INFO = 10208
 
     # expressions
     EXPRESSION = 10300
     AGGREGATION_RESULT = 10301
     SELECTION = 10302
-    QUERY_INFO = 10303
     SELECT_OPTIONS = 10304
     VALUE = 10305
     COMPUTED_VALUE = 10306

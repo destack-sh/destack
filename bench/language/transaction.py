@@ -18,11 +18,9 @@ from bench.language.const import (
     ChangeCategory,
     EditOperationType,
     EditType,
-    EnumType,
     NodeType,
     PrimitiveType,
     StructType,
-    enum_,
 )
 from bench.language.field import decode_type_identity
 from bench.language.graph import NodeDataGraph, NodeGraph
@@ -58,7 +56,7 @@ from bench.proto.wire import (
     GraphScopeData,
 )
 from bench.proto.wire.lang_pb2 import EditOperationData
-from bench.utils.func import IdEnum, partition
+from bench.utils.func import partition
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -68,7 +66,6 @@ if TYPE_CHECKING:
         Icon,
         Log,
         NodeSuperGraph,
-        QueryInfo,
         Run,
         Session,
     )
@@ -200,15 +197,6 @@ class Edit(EditInfo):
     )
 
 
-@enum_(EnumType.CHANGE_KIND)
-class ChangeKind(IdEnum):
-    """The kind of Change."""
-
-    CODE = 1
-    LOGS = 3
-    LOGS_QUERY = 4
-
-
 @struct_(StructType.CHANGE)
 class Change(Struct):
     """
@@ -218,7 +206,6 @@ class Change(Struct):
     """
 
     key: UUID = p_system(30, default_factory=UUIDT)
-    kind: ChangeKind = p_internal(31, require=True, description="The kind of change.")
     scope: Optional["Node"] = p_internal(
         32, require=False, references=NODE_TYPES.tuple, description="Where to apply the change."
     )
@@ -231,12 +218,6 @@ class Change(Struct):
     )
     edits: list[Edit] = p_internal(
         34, array=True, struct=StructType.EDIT, description="The materialized edits in the change."
-    )
-    logs: list["Log"] = p_internal(
-        35, require=False, array=True, references=NodeType.LOG, description="Logs for the change."
-    )
-    logs_query: Optional["QueryInfo"] = p_internal(
-        36, require=False, array=False, struct=StructType.QUERY_INFO, description="Query for logs."
     )
 
 

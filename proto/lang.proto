@@ -16,7 +16,6 @@ enum EnumType {
   ENUM_TYPE_STRUCT_TYPE = 20003;
   ENUM_TYPE_OBJECT_TYPE = 20004;
   ENUM_TYPE_BENCH_TYPE = 20005;
-  ENUM_TYPE_CHANGE_KIND = 20011;
   ENUM_TYPE_ACCESS_MODE = 20030;
   ENUM_TYPE_ACCESS_KIND = 20031;
   ENUM_TYPE_QUEYR_TYPE = 20032;
@@ -170,11 +169,9 @@ enum StructType {
   STRUCT_TYPE_FILE_REFERENCE = 10204;
   STRUCT_TYPE_ICON = 10205;
   STRUCT_TYPE_SECRET_REFERENCE = 10206;
-  STRUCT_TYPE_TRIGGER_INFO = 10208;
   STRUCT_TYPE_EXPRESSION = 10300;
   STRUCT_TYPE_AGGREGATION_RESULT = 10301;
   STRUCT_TYPE_SELECTION = 10302;
-  STRUCT_TYPE_QUERY_INFO = 10303;
   STRUCT_TYPE_SELECT_OPTIONS = 10304;
   STRUCT_TYPE_VALUE = 10305;
   STRUCT_TYPE_COMPUTED_VALUE = 10306;
@@ -267,11 +264,9 @@ enum ObjectType {
   OBJECT_TYPE_FILE_REFERENCE = 10204;
   OBJECT_TYPE_ICON = 10205;
   OBJECT_TYPE_SECRET_REFERENCE = 10206;
-  OBJECT_TYPE_TRIGGER_INFO = 10208;
   OBJECT_TYPE_EXPRESSION = 10300;
   OBJECT_TYPE_AGGREGATION_RESULT = 10301;
   OBJECT_TYPE_SELECTION = 10302;
-  OBJECT_TYPE_QUERY_INFO = 10303;
   OBJECT_TYPE_SELECT_OPTIONS = 10304;
   OBJECT_TYPE_VALUE = 10305;
   OBJECT_TYPE_COMPUTED_VALUE = 10306;
@@ -364,11 +359,9 @@ enum BenchType {
   BENCH_TYPE_FILE_REFERENCE = 10204;
   BENCH_TYPE_ICON = 10205;
   BENCH_TYPE_SECRET_REFERENCE = 10206;
-  BENCH_TYPE_TRIGGER_INFO = 10208;
   BENCH_TYPE_EXPRESSION = 10300;
   BENCH_TYPE_AGGREGATION_RESULT = 10301;
   BENCH_TYPE_SELECTION = 10302;
-  BENCH_TYPE_QUERY_INFO = 10303;
   BENCH_TYPE_SELECT_OPTIONS = 10304;
   BENCH_TYPE_VALUE = 10305;
   BENCH_TYPE_COMPUTED_VALUE = 10306;
@@ -398,7 +391,6 @@ enum BenchType {
   BENCH_TYPE_STRUCT_TYPE = 20003;
   BENCH_TYPE_OBJECT_TYPE = 20004;
   BENCH_TYPE_BENCH_TYPE = 20005;
-  BENCH_TYPE_CHANGE_KIND = 20011;
   BENCH_TYPE_ACCESS_MODE = 20030;
   BENCH_TYPE_ACCESS_KIND = 20031;
   BENCH_TYPE_QUEYR_TYPE = 20032;
@@ -480,14 +472,6 @@ enum BenchType {
   BENCH_TYPE_TREE_VIEW_PRESET = 21201;
   BENCH_TYPE_USER_STATUS = 29000;
   BENCH_TYPE_ORGANIZATION_STATUS = 29001;
-}
-
-// The kind of Change.
-enum ChangeKind {
-  CHANGE_KIND_UNSPECIFIED = 0;
-  CHANGE_KIND_CODE = 1;
-  CHANGE_KIND_LOGS = 3;
-  CHANGE_KIND_LOGS_QUERY = 4;
 }
 
 enum AccessMode {
@@ -1741,23 +1725,6 @@ message SelectOptionsData {
   repeated NodeReferenceData select_fields_ptr = 51;
 }
 
-message QueryInfoData {
-  ObjectType metatype = 1;
-  QueryType type = 40;
-  NodeType node_type = 41;
-  optional NodeReferenceData block_ptr = 42;
-  repeated NodeReferenceData roots_ptr = 43;
-  optional ExpressionData filter = 44;
-  repeated ExpressionData sort = 45;
-  optional ExpressionData aggregation = 46;
-  repeated NodeType ancestor_types = 50;
-  repeated NodeType descendant_types = 51;
-  optional SelectOptionsData select = 60;
-  bool include_deleted = 61;
-  optional int32 first = 62;
-  optional int32 skip = 63;
-}
-
 message CodeLineData {
   ObjectType metatype = 1;
   optional string content = 32;
@@ -1874,12 +1841,9 @@ message EditData {
 message ChangeData {
   ObjectType metatype = 1;
   string key = 30;
-  ChangeKind kind = 31;
   optional NodeReferenceData scope_ptr = 32;
   optional CodeData code = 33;
   repeated EditData edits = 34;
-  repeated NodeReferenceData logs_ptr = 35;
-  optional QueryInfoData logs_query = 36;
 }
 
 message EditContextData {
@@ -2103,14 +2067,6 @@ message ScheduleData {
   TimeInterval interval = 41;
   optional google.protobuf.Duration offset = 42;
   optional string cron = 50;
-}
-
-message TriggerInfoData {
-  ObjectType metatype = 1;
-  optional int32 processed_epoch = 40;
-  optional ScheduleData schedule = 50;
-  optional NodeReferenceData signal_ptr = 51;
-  optional ExpressionData condition = 52;
 }
 
 message BaseNodeData {
@@ -2585,9 +2541,9 @@ message QueryData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 30;
-  string order_key = 31;
-  QueryType type = 40;
+  QueryType type = 30;
+  string name = 31;
+  string order_key = 32;
   NodeType node_type = 41;
   optional NodeReferenceData block_ptr = 42;
   repeated NodeReferenceData roots_ptr = 43;

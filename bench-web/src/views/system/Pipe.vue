@@ -26,7 +26,7 @@ import { computed, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "transform" | "variant">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());

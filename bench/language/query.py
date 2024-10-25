@@ -9,6 +9,7 @@ from typing import (
     Iterable,
     Optional,
     Sequence,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -34,13 +35,11 @@ from bench.language.const import (
 from bench.language.expression import C, Expression, coerce_conditional
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
-    BuiltinObject,
     Node,
     SomeNodeReference,
     SourceNode,
     Struct,
     local_node_,
-    object_,
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
@@ -71,7 +70,7 @@ SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 
 
 @_on_completing_setup
-def _populate_default_query():
+def _init_default_query():
     FILTER_NOT_DELETED.clauses = [C(ConditionalType.NOT_EXISTS, property=Node.deleted_at)]
     for node_t in NODE_CLASSES:
         SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
@@ -93,7 +92,7 @@ NodeTypeOrClass = Union[NodeType, type[Node]]
 @struct_(StructType.SELECT_OPTIONS)
 class SelectOptions(Struct):
     """
-    Fine-grained options to a read request specifying which properties/fields to load.
+    Specify which Properties/Fields to load.
     """
 
     # properties (include/exclude relative to default OR select specific properties)
@@ -222,6 +221,8 @@ class MultipleNodesFoundError(QueryError):
 
 
 class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
+    """Build a Query."""
+
     __slots__ = (
         "_after",
         "_aggregation",
@@ -695,12 +696,15 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return cast(tuple["Property"], properties)
 
 
-@object_()
-class QueryInfoBase(BuiltinObject):
-    """An object we can build query from."""
+@local_node_(NodeType.QUERY)
+class Query(SourceNode[QueryData]):
+    """A Query."""
 
-    # root
-    type: QueryType = p_regular(40)
+    parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
+    type: QueryType = p_regular(30)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    order_key: str = p_regular(32, default=INTEGER_ZERO)
+
     node_type: NodeType = p_regular(41)
     block: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
@@ -725,31 +729,11 @@ class QueryInfoBase(BuiltinObject):
     first: int | None = p_regular(62, default=None)
     skip: int | None = p_regular(63, default=None)
 
-
-@struct_(StructType.QUERY_INFO)
-class QueryInfo(Struct, QueryInfoBase):
-    """A stored query."""
-
-    pass
-
-
-@local_node_(NodeType.QUERY)
-class Query(SourceNode[QueryData], QueryInfoBase):
-    """A stored query with identity."""
-
-    # NOTE :Architecture: should Query be just a Struct or remain a Node?
-
-    parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
-    name: str = p_regular(30, constraint=NAME_CONSTRAINT)
-    order_key: str = p_regular(31, default=INTEGER_ZERO)
-
-    # ...QueryInfoBase[40-59]
-
     def __content_str__(self):
         return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
 
     @property
-    def node_cls(self) -> type[Node]:
+    def node_cls(self) -> Type[Node]:
         return NODE_CLASS_BY_TYPE[self.node_type]
 
     def build(self) -> "QueryBuilder":

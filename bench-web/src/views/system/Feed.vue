@@ -55,7 +55,7 @@ import {
 } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { getRunColorHex } from "@/ui/style";
-import { useViewExpansion, useViewState, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import { humanizeNumber } from "@/utils/string";
@@ -73,7 +73,7 @@ const HANDLE_WIDTH = 6;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
-    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "valuePacked" | "expansion">
+    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType">
   >
 >();
 const emit = defineEmits(viewEmits());

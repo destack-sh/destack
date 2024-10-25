@@ -47,7 +47,7 @@ const MAX_WIDTH = 1200;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "title" | "nodePtr" | "valuePacked" | "focus" | "expansion" | "variant"
+    "name" | "title" | "nodePtr" | "focus" | "variant"
   >
 >();
 const emit = defineEmits(viewEmits());

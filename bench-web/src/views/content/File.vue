@@ -45,17 +45,7 @@ const props = defineProps<
   } & Partial<
     Pick<
       ViewData,
-      | "type"
-      | "name"
-      | "title"
-      | "text"
-      | "icon"
-      | "valueType"
-      | "nodePtr"
-      | "variant"
-      | "isInput"
-      | "isInline"
-      | "isDisabled"
+      "type" | "name" | "title" | "icon" | "valueType" | "nodePtr" | "variant" | "isInput" | "isInline" | "isDisabled"
     >
   >
 >();
@@ -94,7 +84,7 @@ const facetName = computed(() => {
 //
 
 const HOVER_MENU: HoverMenuOptions = {
-  reference: 'trigger',
+  reference: "trigger",
   isEnabled: () =>
     optimisticValue.value != null &&
     [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.value.type),

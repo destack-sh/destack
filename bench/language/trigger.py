@@ -13,11 +13,9 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.node import (
-    BuiltinObject,
     SourceNode,
     Struct,
     local_node_,
-    object_,
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
@@ -74,11 +72,14 @@ class Schedule(Struct):
                 invalid(self, "offset too large ('{self.offset}')", (Schedule.offset,))
 
 
-@object_()
-class TriggerBase(BuiltinObject):
-    """A trigger to something."""
+@local_node_(NodeType.TRIGGER)
+class Trigger(SourceNode[TriggerData]):
+    """A Trigger to run something."""
 
-    # state
+    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
+    type: TriggerType = p_regular(30, require=True)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+
     processed_epoch: Optional[int] = p_regular(40, default=None)
 
     # trigger
@@ -96,24 +97,6 @@ class TriggerBase(BuiltinObject):
     condition: Optional["Expression"] = p_regular(
         52, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
-
-
-@struct_(StructType.TRIGGER_INFO)
-class TriggerInfo(Struct, TriggerBase):
-    """The basic information describing a trigger."""
-
-    pass
-
-
-@local_node_(NodeType.TRIGGER)
-class Trigger(SourceNode[TriggerData], TriggerBase):
-    """A trigger to run the node it is attached to (like a Block)."""
-
-    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
-    type: TriggerType = p_regular(30, require=True)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-
-    # ...TriggerBase[40-59]
 
     # flags
     is_paused: bool = p_regular(60, default=False)

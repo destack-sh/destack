@@ -20,9 +20,8 @@ import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";
 import { ref, toRef, type Ref } from "vue";
-import { useViewState } from "@/ui/view";
 
-const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title" | "valuePacked">>();
+const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title">>();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
