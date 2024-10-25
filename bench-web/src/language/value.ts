@@ -24,6 +24,7 @@ import {
   type AnyNodeData,
   type AnyStructData,
   type AnyTypeMapping,
+  PropertyInfo,
 } from "@/proto/wire";
 import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { isNodeRef, isStruct, toNodeRefOneOf, unwrapProtoOneOf, type SomeNodeReferenceData } from "@/proto/wiring";
@@ -129,11 +130,25 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
   }
 }
 
+/** Pack a builtin object property */
+export function packBuiltinObjectProperty(propValue: any, prop: PropertyInfo) {
+  const propType = getPropertyType(prop);
+  if (propValue == null || (prop.isList && propValue.length == 0)) {
+    return undefined;
+  } else if (prop.isList) {
+    return propValue.map((v: any) => packValueScalar(v, propType));
+  } else {
+    if (prop.referenceIsRich) {
+      // :RichReferences
+      propValue = unwrapProtoOneOf(propValue);
+      if (propValue == null) return undefined; // one-of fields are always nullable
+    }
+    return packValueScalar(propValue, propType);
+  }
+}
+
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
-export function packBuiltinObject(
-  value: AnyStructData | AnyNodeData,
-  options?: { only?: string[] },
-): Record<string, any> {
+export function packBuiltinObject(value: AnyStructData | AnyNodeData): Record<string, any> {
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[value.metatype];
   const properties = PROPERTY_INFOS_BY_TYPE[value.metatype];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${value.metatype}`);
@@ -141,28 +156,47 @@ export function packBuiltinObject(
   const valuePacked: Record<string, any> = {};
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
-    const propType = getPropertyType(prop);
-    let propValue = (value as any)[propName];
-    let propValuePacked;
-    if (propValue == null || (prop.isList && propValue.length == 0)) {
-      continue;
-    } else if (prop.isList) {
-      propValuePacked = propValue.map((v: any) => packValueScalar(v, propType));
-    } else {
-      if (prop.referenceIsRich) {
-        // :RichReferences
-        propValue = unwrapProtoOneOf(propValue);
-        if (propValue == null) continue; // one-of fields are always nullable
-      }
-      propValuePacked = packValueScalar(propValue, propType);
+    const propValue = (value as any)[propName];
+    const propValuePacked = packBuiltinObjectProperty(propValue, prop);
+    if (propValuePacked != null) {
+      valuePacked[prop.id.toString()] = propValuePacked;
     }
-    valuePacked[prop.id.toString()] = propValuePacked;
   }
 
   return valuePacked;
 }
 
-/** Decodes proto value representation of a struct. See encode. */
+/** Unpacks a builtin object property */
+export function unpackBuiltinObjectProperty(propValuePacked: any, prop: PropertyInfo) {
+  const propType = getPropertyType(prop);
+  let propValue;
+  if (prop.isList) {
+    if (propValuePacked == null) {
+      propValue = [];
+    } else {
+      propValue = propValuePacked.map((v: any) => unpackValueScalar(v, propType));
+    }
+  } else {
+    if (propValuePacked == null) {
+      if (prop.referenceIsRich) {
+        propValue = { oneofKind: undefined };
+      } else if (!prop.isRequired) {
+        return undefined;
+      } else {
+        propValue = null;
+      }
+    } else {
+      propValue = unpackValueScalar(propValuePacked, propType);
+      if (prop.referenceIsRich) {
+        // :RichReferences
+        propValue = toNodeRefOneOf(propValue as SomeNodeReferenceData);
+      }
+    }
+  }
+  return propValue;
+}
+
+/** Unpacks proto value representation of a struct. See encode. */
 export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, objectType?: T): AnyTypeMapping[T] {
   if (objectType == null) {
     if (valuePacked["1"] == null) throw new Error(`missing object type in ${JSON.stringify(valuePacked)}`);
@@ -175,33 +209,11 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   const value = {} as AnyTypeMapping[T];
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
-    const propType = getPropertyType(prop);
     const propValuePacked = valuePacked[prop.id.toString()];
-    let propValue;
-    if (prop.isList) {
-      if (propValuePacked == null) {
-        propValue = [];
-      } else {
-        propValue = propValuePacked.map((v: any) => unpackValueScalar(v, propType));
-      }
-    } else {
-      if (propValuePacked == null) {
-        if (prop.referenceIsRich) {
-          propValue = { oneofKind: undefined };
-        } else if (!prop.isRequired) {
-          continue;
-        } else {
-          propValue = null;
-        }
-      } else {
-        propValue = unpackValueScalar(propValuePacked, propType);
-        if (prop.referenceIsRich) {
-          // :RichReferences
-          propValue = toNodeRefOneOf(propValue as SomeNodeReferenceData);
-        }
-      }
+    const propValue = unpackBuiltinObjectProperty(propValuePacked, prop);
+    if (propValue != null) {
+      (value as any)[propName] = propValue;
     }
-    (value as any)[propName] = propValue;
   }
   value.metatype = objectType;
   return value;

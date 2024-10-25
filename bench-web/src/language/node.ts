@@ -7,6 +7,7 @@ import { FLOW_GRID_STEP } from "@/language/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { updateOrder } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";
+import { JsonValue } from "@/language/value";
 import {
   BlockType,
   ENUM_BY_TYPE,
@@ -169,7 +170,7 @@ export function makeNode<T extends NodeType>(
 
   // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
-    if ("packagePtr" in properties) { 
+    if ("packagePtr" in properties) {
       if (!("packagePtr" in data) || data.packagePtr == null) {
         throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
       }
@@ -204,6 +205,52 @@ export function makeNode<T extends NodeType>(
   node = makeDefaultObject(node) as NodeTypeMapping[T];
 
   return node;
+}
+
+type _NodeSubtype<T extends NodeType> = NodeTypeMapping[T] extends { type: infer U }
+  ? U extends keyof NodeSubtypeMapping[T]
+    ? U
+    : never
+  : never;
+type _NodeSubnodeProperty<
+  T extends NodeType,
+  ST extends keyof NodeSubtypeMapping[T],
+  P extends keyof NodeSubtypeMapping[T][ST],
+> = NodeSubtypeMapping[T][ST][P];
+type _NodeSubnodeProperties<T extends NodeType, ST extends _NodeSubtype<T>> = ST extends keyof NodeSubtypeMapping[T]
+  ? keyof NodeSubtypeMapping[T][ST]
+  : never;
+
+/** Packs the subnode properties of a Node */
+export function packSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
+  nodeType: T,
+  type: ST,
+  subnode: ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never,
+): JsonValue {
+  
+}
+
+/** Unpacks the subnode properties of a Node */
+export function unpackSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
+  nodeType: T,
+  type: ST,
+  subnodePacked: JsonValue | undefined,
+): ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never {
+  throw new Error("nocheckin: unpackSubnode");
+}
+
+/** Unpacks a specific subnode property */
+export function unpackSubnodeProperty<
+  T extends NodeType,
+  ST extends _NodeSubtype<T>,
+  P extends _NodeSubnodeProperties<T, ST>,
+>(
+  nodeType: T,
+  type: ST,
+  subnodePacked: JsonValue | undefined,
+  property: P,
+): ST extends keyof NodeSubtypeMapping[T] ? _NodeSubnodeProperty<T, ST, P> : never {
+  throw new Error("nocheckin: unpackSubnodeProperty");
 }
 
 /**

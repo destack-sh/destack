@@ -18,7 +18,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, SomeNodeReferenceData, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
@@ -101,14 +101,12 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
 // Visible subtree
 //
 
-const { toggleExpanded, isExpanded } = useViewExpansion({
-  graph: spaceGraph,
-  tx: canvas.tx,
-  self,
-  props,
-  emit,
-  isDefaultExpanded,
-});
+function isExpanded(node: AnyNodeData | SomeNodeReferenceData) {
+  return true;
+}
+function toggleExpanded(node: AnyNodeData | SomeNodeReferenceData) {
+  // NOTE :Incomplete: Tree expansion
+}
 
 function isIncludedSelf(node: AnyNodeData) {
   if (filterIsPage.value) {
@@ -136,7 +134,7 @@ const { items: expandedItems } = walkDescendantsRef({
   isExpanded,
   isIncludedSelf,
   isIncludedChildren,
-  watchSource: () => [props.focus, props.expansion],
+  watchSource: () => [props.focus],
 });
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
