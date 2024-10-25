@@ -3,19 +3,25 @@ import {
   BlockData,
   BlockSubtypeMapping,
   BlockType,
+  CodeBlockData,
+  DatabaseBlockData,
   FieldType,
+  FlowBlockData,
   NodeReferenceData,
   NodeType,
   ObjectType,
   PackageData,
+  StepType,
+  TextBlockData,
   TypeInfoData,
   TypeKind,
+  ValueBlockData,
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId, ActionContext, ActionMapImplementation } from "@/ui/action";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, moveNode } from "@/language/node";
+import { makeNodeName, moveNode, NodeIn } from "@/language/node";
 import { pkgGraph } from "@/system/space";
 import type { Transaction } from "@/language/transaction";
 import type { Ref } from "vue";
@@ -192,11 +198,11 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
 }
 
 /** Create a Block relative to another. */
-export function createBlock<T extends BlockType>(
+export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
-    block: { type: T } & Partial<BlockData> & { subnode?: BlockSubtypeMapping[T] };
+    block: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>
     anchor: "before" | "after" | "inside";
     target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
   },
@@ -218,10 +224,14 @@ export function createBlock<T extends BlockType>(
     siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
     orderKey = getOrderKey({ position: options.anchor, reference: target, nodes: siblings });
   }
+  if (options.block.subnode == null) options.block.subnode = {};
 
   // add value type if not given
-  if (options.block.type == BlockType.VALUE && options.block.subnode?.valueType == null) {
-    options.block.valueType = makeTypeInfo({ kind: TypeKind.STRUCT, benchType: BenchType.TEXT });
+  if (options.block.type == BlockType.VALUE && (options.block.subnode as ValueBlockData).valueType == null) {
+    (options.block.subnode as ValueBlockData).valueType = makeTypeInfo({
+      kind: TypeKind.STRUCT,
+      benchType: BenchType.TEXT,
+    });
   }
 
   // create
@@ -230,7 +240,6 @@ export function createBlock<T extends BlockType>(
     parentPtr,
     packagePtr,
     ...options.block,
-    type: options.block.type,
     orderKey,
     name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: options.block.type, parentPtr }),
   });

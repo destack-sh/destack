@@ -279,7 +279,6 @@ function unpackCustomObject(
 /**
  * Pack the value data into JSON wire format.
  * Graph is required if we're dealing with an alias or any object type.
- * If previous is passed, old values with different types will be retained.
  * */
 export function packValue(
   value: any,
@@ -288,7 +287,6 @@ export function packValue(
     wrapScalar: true,
     recurseCustomObject: true,
   },
-  previous?: JsonValue,
 ): JsonValue {
   if (type.kind == TypeKind.OBJECT) {
     // nested custom object

@@ -1194,11 +1194,7 @@ contributeActionMap<"space">({
     icon: "fas fa-compass",
     action: () => {
       canvas.addView(
-        {
-          type: ViewType.TREE,
-          title: "Explore",
-          valuePacked: packBuiltinObject({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.EXPLORE }),
-        },
+        { type: ViewType.TREE, title: "Explore", subnode: { nodeTypes: [], preset: TreeViewPreset.EXPLORE } },
         { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Explore") },
       );
     },
@@ -1209,11 +1205,7 @@ contributeActionMap<"space">({
     icon: "fas fa-list-tree",
     action: () => {
       canvas.addView(
-        {
-          type: ViewType.TREE,
-          title: "Outline",
-          valuePacked: packBuiltinObject({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.OUTLINE }),
-        },
+        { type: ViewType.TREE, title: "Outline", subnode: { nodeTypes: [], preset: TreeViewPreset.OUTLINE } },
         { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Outline") },
       );
     },

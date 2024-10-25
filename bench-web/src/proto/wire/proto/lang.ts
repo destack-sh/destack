@@ -25518,7 +25518,8 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.SKIP]: SkipData,
 }
 
-export interface BlockSubtypeMapping extends Record<BlockType, object> {
+export type BlockSubtype = ValueBlockData | TextBlockData | CodeBlockData | FlowBlockData | DatabaseBlockData;
+export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.VALUE]: ValueBlockData,
   [BlockType.TEXT]: TextBlockData,
   [BlockType.CODE]: CodeBlockData,
@@ -25526,14 +25527,16 @@ export interface BlockSubtypeMapping extends Record<BlockType, object> {
   [BlockType.DATABASE]: DatabaseBlockData,
 }
 
-export interface ViewSubtypeMapping extends Record<ViewType, object> {
+export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | UserWizardViewData;
+export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.TREE]: TreeViewData,
   [ViewType.START]: StartViewData,
   [ViewType.FEED]: FeedViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
 }
 
-export interface StepSubtypeMapping extends Record<StepType, object> {
+export type StepSubtype = CodeStepData | TextStepData | BlockStepData;
+export interface StepSubtypeMapping extends Record<StepType, StepSubtype> {
   [StepType.CODE]: CodeStepData,
   [StepType.TEXT]: TextStepData,
   [StepType.BLOCK]: BlockStepData,

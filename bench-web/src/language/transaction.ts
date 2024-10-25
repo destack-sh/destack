@@ -1,7 +1,7 @@
 import { TK_LENGHT_IN_CK, TK_LENGTH_B64 } from "@/language/const";
 import { decodeTypeIdentity, getPropertyType, TypeIdentity } from "@/language/field";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
-import { makeNode } from "@/language/node";
+import { makeNode, NodeIn } from "@/language/node";
 import { packValue, unpackValue } from "@/language/value";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
@@ -15,6 +15,7 @@ import {
   JsonValue,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
+  NodeSubtypeMapping,
   NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
@@ -107,9 +108,8 @@ export type Transaction = TransactionMeta & {
   /** Stops debouncing the given edit (force start a new edit on that node) */
   clearDebounce(nodeId: string): void;
   /** Create a new node */
-  create<T extends NodeType>(
-    node: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[T], "metatype">>,
-  ): NodeTypeMapping[T];
+  create<T extends NodeType>(node: NodeIn<T>): NodeTypeMapping[T];
+
   /** Create or update all properties in the node */
   upsert(node: AnyNodeData): void;
   /** Update regular properties in this node. v*/
@@ -306,9 +306,7 @@ export class TransactionBuilder implements Transaction {
     this._notifyEdit(edit, null);
   }
 
-  create<T extends NodeType>(
-    nodeIn: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
-  ): NodeTypeMapping[T] {
+  create<T extends NodeType>(nodeIn: Partial<NodeIn<T>>): NodeTypeMapping[T] {
     // fill in scope
     const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as ObjectType];
     if (properties == null) {
@@ -325,7 +323,6 @@ export class TransactionBuilder implements Transaction {
     }
 
     // create node
-    // NOTE :Cleanup: why doesn't makeNode typecheck properly here?
     const node: NodeTypeMapping[T] =
       nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
 

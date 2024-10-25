@@ -21,6 +21,7 @@ import {
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
+  BlockType,
   Struct,
   Timestamp,
   UserData,
@@ -152,6 +153,7 @@ describe("merge nodes", () => {
   const base1 = makeNode({
     metatype: NodeType.BLOCK,
     packagePtr: toNodeRef(pkg),
+    type: BlockType.VALUE,
     name: "Block1",
     subnodePacked: { fruity: 3, fluffy: false },
   });

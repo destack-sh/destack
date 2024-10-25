@@ -6,7 +6,6 @@ import {
   BoxData,
   ChangeCategory,
   ExpressionType,
-  FeedViewStateData,
   FieldType,
   NodeType,
   ObjectType,

@@ -156,8 +156,10 @@ const { activeDropZone } = useMultiDropZone({
         const block = createBlock(pkgConnection.tx, pkgGraph, {
           block: {
             type: BlockType.VALUE,
-            valueType: variableType,
-            valuePacked: packValue(toNodeRef(upload.file.value!), variableType),
+            subnode: {
+              valueType: variableType,
+              valuePacked: packValue(toNodeRef(upload.file.value!), variableType),
+            },
           },
           anchor: anchor == "start" ? "before" : "after",
           target: target,
