@@ -258,7 +258,6 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.PATH,
   StructType.TYPE_INFO,
   StructType.SCHEDULE,
-  StructType.TRIGGER_INFO,
   // files
   StructType.ICON,
   // code

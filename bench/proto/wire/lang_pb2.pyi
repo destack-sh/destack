@@ -6502,10 +6502,6 @@ class FlowBlockData(_message.Message):
     run_options: RunOptionsData
     def __init__(self, run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ...) -> None: ...
 
-class ViewBlockData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
 class DatabaseBlockData(_message.Message):
     __slots__ = ("query_ptr",)
     QUERY_PTR_FIELD_NUMBER: _ClassVar[int]

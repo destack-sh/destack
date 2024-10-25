@@ -40,6 +40,7 @@ FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
 BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
 BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
+SUBNODE_CLASSES: list[type["Node"]] = []
 STRUCT_CLASSES: list[type["Struct"]] = []
 
 # direct parent/child
@@ -90,11 +91,14 @@ def _complete_bench_setup():
     for cls in BENCH_CLASSES:
         BENCH_CLASS_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
-        OBJECT_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
-        OBJECT_TYPE_BY_CLASS[NODE_CLASS_BY_TYPE[node_t]] = node_t
-        BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
-        BENCH_TYPE_BY_CLASS[NODE_CLASS_BY_TYPE[node_t]] = node_t
-        NODE_CLASSES.append(NODE_CLASS_BY_TYPE[node_t])
+        node_cls = NODE_CLASS_BY_TYPE[node_t]
+        OBJECT_CLASS_BY_TYPE[node_t] = node_cls
+        OBJECT_TYPE_BY_CLASS[node_cls] = node_t
+        BENCH_CLASS_BY_TYPE[node_t] = node_cls
+        BENCH_TYPE_BY_CLASS[node_cls] = node_t
+        NODE_CLASSES.append(node_cls)
+        for subnode_cls in node_cls.__subclass_by_subtype__.values():
+            SUBNODE_CLASSES.append(subnode_cls)
     for struct_t in STRUCT_TYPES:
         OBJECT_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         OBJECT_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t

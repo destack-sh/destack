@@ -1556,7 +1556,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __has_subtypes__: ClassVar[bool] = False
     __base_class__: ClassVar[type["Node"] | None] = None
     __subtype_base_property__: ClassVar["Property | None"] = None
-    __subtype__: ClassVar[int | None] = None
+    __subtype__: ClassVar[IdEnum | None] = None
     __subtype_extra_properties__: ClassVar[dict[str, Property]] = frozendict()
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET
