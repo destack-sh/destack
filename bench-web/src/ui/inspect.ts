@@ -9,17 +9,15 @@ import {
   FILTERED_ENUMS,
   getPropertyTitle,
   NODE_SUBTYPE_BY_TYPE,
-  PAGE_BLOCK_TYPES,
   RUNNABLE_BLOCK_TYPES,
-  toCamelName,
+  toCamelName
 } from "@/language/const";
 import {
   getPropertyType,
-  makeTypeConstraint,
   makeTypeInfo,
   typeIsNumeric,
   updateFieldType,
-  type TypeIdentity,
+  type TypeIdentity
 } from "@/language/field";
 import { type ReadNodeGraph } from "@/language/graph";
 import { onNodeMorphed } from "@/language/node";
@@ -34,7 +32,6 @@ import {
   FieldProperty,
   FieldType,
   IconData,
-  ModelProvider,
   NodeType,
   ObjectType,
   PipeProperty,
@@ -42,11 +39,8 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   RunOptionsProperty,
-  RunProperty,
-  StepData,
   StepProperty,
   StepType,
-  StructType,
   TypeConstraintProperty,
   TypeInfoProperty,
   TypeKind,
@@ -55,7 +49,7 @@ import {
   type AnyNodeData,
   type BlockData,
   type FieldData,
-  type PropertyInfo,
+  type PropertyInfo
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
@@ -242,7 +236,7 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       Common: [StepProperty.type],
       Run: [],
     };
-    if ([StepType.BLOCK, StepType.TRIGGER].includes(node.type)) {
+    if (node.type == StepType.BLOCK) {
       properties.Common.push(StepProperty.nodePtr);
     }
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {

@@ -58,7 +58,7 @@ const SEPARATOR_WIDTH = 6;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "text" | "icon" | "nodePtr" | "focus" | "variant" | "selection" | "expansion"
+    "name" | "icon" | "nodePtr" | "focus" | "variant" | "selection"
   >
 >();
 const emit = defineEmits(viewEmits());

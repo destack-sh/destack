@@ -28,7 +28,7 @@ const ITEMS_PER_ROW = 10;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: IconData } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled" | "valueType">
+    Pick<ViewData, "name" | "title" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled" | "valueType">
   >
 >();
 const emit = defineEmits(viewEmits());

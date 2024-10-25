@@ -107,7 +107,6 @@ from .query import (
     NodeNotFoundError,
     Query,
     QueryBuilder,
-    QueryInfo,
     SelectOptions,
 )
 from .render import render, render_expr, render_stmt
@@ -135,7 +134,7 @@ from .transaction import (
     EditOperation,
     Transaction,
 )
-from .trigger import Trigger, TriggerBase, TriggerInfo
+from .trigger import Trigger
 from .user import Handle, Organization, User
 from .validation import TypeConstraintIn, ValidationError
 from .value import CustomObject, Value
@@ -284,7 +283,6 @@ __all__ = [
     "PropertyReference",
     "Query",
     "QueryBuilder",
-    "QueryInfo",
     "Record",
     "Region",
     "RemoteNodeList",
@@ -330,8 +328,6 @@ __all__ = [
     "TextSpan",
     "Transaction",
     "Trigger",
-    "TriggerBase",
-    "TriggerInfo",
     "TriggerType",
     "TypeConstraint",
     "TypeConstraintIn",

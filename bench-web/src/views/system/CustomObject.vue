@@ -40,7 +40,7 @@ const props = defineProps<
     size?: Partial<Pick<BoxData, "width" | "height">>;
     preparedConnection?: PreparedGetConnection;
   } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
+    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
   >
 >();
 const emit = defineEmits(viewEmits());

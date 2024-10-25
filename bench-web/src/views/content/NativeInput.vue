@@ -13,7 +13,7 @@ const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
     Pick<
       ViewData,
-      "type" | "name" | "title" | "text" | "icon" | "variant" | "valueType" | "alignment" | "isInput" | "isDisabled"
+      "type" | "name" | "title" | "icon" | "variant" | "valueType" | "alignment" | "isInput" | "isDisabled"
     >
   >
 >();

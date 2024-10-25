@@ -25,7 +25,7 @@ import { FULL_WIDTH_VIEW_TYPES } from "@/ui/view";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "isInline">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInline">
   >
 >();
 const emit = defineEmits(viewEmits());

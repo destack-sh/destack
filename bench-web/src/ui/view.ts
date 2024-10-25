@@ -382,52 +382,6 @@ export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData 
   };
 }
 
-export function useViewExpansion(options: {
-  graph: ReadNodeGraph;
-  tx: () => Transaction;
-  self?: Ref<AnyNodeReferenceData | null | undefined>;
-  props: Pick<ViewData, "expansion">;
-  emit: (event: string, ...args: any[]) => void;
-  isDefaultExpanded?: MaybeRef<boolean | undefined>;
-  isExclusive?: boolean;
-}) {
-  const isDefaultExpandedRef = toRef(options.isDefaultExpanded) as Ref<boolean>;
-  const expandedNodesById = computedValue(() => {
-    const expanded: Record<string, NodeReferenceData> = {};
-    for (const node of options.props.expansion?.nodesPtr ?? []) {
-      expanded[node.id!] = node;
-    }
-    return expanded;
-  });
-
-  function isExpanded(node: { id?: string; ck?: string }): boolean {
-    return isDefaultExpandedRef.value || expandedNodesById.value[node.id!] != null;
-  }
-
-  function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
-    if (isDefaultExpandedRef.value) return; // nothing to do
-
-    let newExpansion: SelectionData | null;
-    if (isExpanded(node)) {
-      newExpansion = collapseSelection(options.props.expansion!, [node]);
-    } else {
-      if (options.isExclusive) {
-        newExpansion = makeSelection([node]);
-      } else {
-        newExpansion = expandSelection(options.props.expansion, [node]);
-      }
-    }
-    if (options.self?.value != null) {
-      const self = options.graph.getOrError(options.self.value!);
-      options.tx().update(self, { expansion: newExpansion }, { debounce: "tick" });
-    } else {
-      options.emit("update:self", { expansion: newExpansion });
-    }
-  }
-
-  return { toggleExpanded, isExpanded };
-}
-
 export function addTransform(transform: TransformData | null | undefined, add: Partial<TransformData>) {
   if (transform == null) {
     return makeStruct({ ...add, metatype: StructType.TRANSFORM });
@@ -446,64 +400,4 @@ export function addVector2(vec: Vector2Data | null | undefined, add: Partial<Vec
     x: (vec?.x ?? 0) + (add.x ?? 0),
     y: (vec?.y ?? 0) + (add.y ?? 0),
   };
-}
-
-/**
- * Use the typed state in the View.value of a builtin view type.
- **/
-export function useViewState<T extends ObjectType>(use: {
-  selfPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | undefined | null>;
-  graph: ReadNodeGraph;
-  stateType: T;
-  props: Pick<ViewData, "valuePacked">;
-  emit: (event: string, ...args: any[]) => void;
-}) {
-  const state = computedValue(() => {
-    if (use.props.valuePacked == null) {
-      return { metatype: use.stateType } as AnyTypeMapping[T];
-    } else {
-      const unpacked = unpackBuiltinObject(use.props.valuePacked, use.stateType);
-      return unpacked;
-    }
-  });
-
-  function updateState(tx: Transaction, value: Partial<AnyTypeMapping[T]>, options?: { debounce?: DebounceLevel }) {
-    const valuePacked = packStateUpdate(value);
-    if (use.selfPtr.value != null) {
-      const self = use.graph.getOrError(use.selfPtr.value);
-      tx.update(self, { valuePacked }, options);
-    } else {
-      use.emit("update:self", { valuePacked });
-    }
-  }
-
-  function packStateUpdate(value: Partial<AnyTypeMapping[T]>) {
-    const newState = { ...state.value, ...value } as AnyTypeMapping[T];
-    const valuePacked = packBuiltinObject(newState);
-    return valuePacked;
-  }
-
-  function useStateProp<P extends keyof AnyTypeMapping[T]>(
-    txFactory: () => Transaction,
-    prop: P,
-    defaultValue: AnyTypeMapping[T][P],
-    options?: { debounce?: DebounceLevel },
-  ): Ref<Required<AnyTypeMapping[T]>[P]>;
-  function useStateProp<P extends keyof AnyTypeMapping[T]>(
-    txFactory: () => Transaction,
-    prop: P,
-  ): Ref<AnyTypeMapping[T][P] | undefined>;
-  function useStateProp<P extends keyof AnyTypeMapping[T]>(
-    txFactory: () => Transaction,
-    prop: P,
-    defaultValue?: AnyTypeMapping[T][P],
-    options?: { debounce?: DebounceLevel },
-  ): Ref<AnyTypeMapping[T][P]> {
-    return computed({
-      get: () => (state.value?.[prop] ?? defaultValue) as any,
-      set: (value: AnyTypeMapping[T][P]) => updateState(txFactory(), { [prop]: value } as any, options),
-    });
-  }
-
-  return { state, updateState, packStateUpdate, useStateProp };
 }
