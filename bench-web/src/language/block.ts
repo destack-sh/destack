@@ -1,6 +1,7 @@
 import {
   BenchType,
   BlockData,
+  BlockSubtypeMapping,
   BlockType,
   FieldType,
   NodeReferenceData,
@@ -191,11 +192,11 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
 }
 
 /** Create a Block relative to another. */
-export function createBlock(
+export function createBlock<T extends BlockType>(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
-    block: { type: BlockType } & Partial<BlockData>;
+    block: { type: T } & Partial<BlockData> & { subnode?: BlockSubtypeMapping[T] };
     anchor: "before" | "after" | "inside";
     target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
   },
@@ -219,7 +220,7 @@ export function createBlock(
   }
 
   // add value type if not given
-  if (options.block.type == BlockType.VALUE && options.block.valueType == null) {
+  if (options.block.type == BlockType.VALUE && options.block.subnode?.valueType == null) {
     options.block.valueType = makeTypeInfo({ kind: TypeKind.STRUCT, benchType: BenchType.TEXT });
   }
 

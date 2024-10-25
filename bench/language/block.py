@@ -291,11 +291,6 @@ class FlowBlock(Block):
     )
 
 
-@node_subtype_(BlockType.VIEW)
-class ViewBlock(Block):
-    pass
-
-
 @node_subtype_(BlockType.DATABASE)
 class DatabaseBlock(Block):
     query: Optional["Query"] = p_regular(100, require=False, array=False, references=NodeType.QUERY)

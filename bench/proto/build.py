@@ -14,7 +14,7 @@ import typer
 from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION, TypeFormat
 from bench.language.field import TypeConstraint
 from bench.language.file import FILE_FORMAT_BY_EXTENSION, FILE_FORMAT_BY_MIME_TYPE
-from bench.language.node import NODE_REFERENCE_TYPES
+from bench.language.node import NODE_REFERENCE_TYPES, Node
 from bench.language.property import Property
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
@@ -27,6 +27,7 @@ from bench.language.setup import (
     PARENT_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
+    SUBNODE_CLASSES,
 )
 from bench.language.validation import TYPE_CONSTRAINT_BY_FORMAT, TypeConstraintIn
 from bench.proto.engine import generate_proto_schema
@@ -318,6 +319,7 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
     enum_by_type_str = "".join(enum_by_type_parts)
 
     # type mappings
+    # struct mappings
     struct_mapping_parts = [
         "export interface StructTypeMapping extends Record<StructType, AnyStructData> {\n"
     ]
@@ -326,6 +328,7 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
         struct_mapping_parts.append(f"  [StructType.{struct_t.name}]: {struct_cls.__name__}Data,\n")
     struct_mapping_parts.append("}\n")
     struct_mapping_str = "".join(struct_mapping_parts)
+    # node mappings
     node_mapping_parts = [
         "export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {\n"
     ]
@@ -334,6 +337,36 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
         node_mapping_parts.append(f"  [NodeType.{node_t.name}]: {node_cls.__name__}Data,\n")
     node_mapping_parts.append("}\n")
     node_mapping_str = "".join(node_mapping_parts)
+    # node subtype mappings (per base node)
+    subnode_mappings_parts: list[str] = []
+    for node_cls in NODE_CLASSES:
+        if not node_cls.__has_subtypes__:
+            continue
+        subtype_prop = node_cls.__subtype_base_property__
+        assert subtype_prop is not None
+        subtype_enum = ENUM_CLASS_BY_TYPE[subtype_prop.enum_type]  # type: ignore
+        subnode_mapping_parts = [
+            f"export interface {node_cls.__name__}SubtypeMapping extends Record<{subtype_enum.__name__}, object> {{\n"
+        ]
+        for subtype, subnode_cls in node_cls.__subclass_by_subtype__.items():
+            subnode_mapping_parts.append(
+                f"  [{subtype_enum.__name__}.{subtype.name}]: {subnode_cls.__name__}Data,\n"
+            )
+        subnode_mapping_parts.append("}\n")
+        subnode_mappings_parts.append("".join(subnode_mapping_parts))
+    subnode_base_mapping_parts = [
+        "export interface NodeSubtypeMapping extends Record<NodeType, object> {\n"
+    ]
+    for node_cls in NODE_CLASSES:
+        if node_cls.__has_subtypes__:
+            subnode_base_mapping_parts.append(
+                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.__name__}SubtypeMapping,\n"
+            )
+    subnode_base_mapping_parts.append("}\n")
+    subnode_mappings_parts.append("".join(subnode_base_mapping_parts))
+    subnode_mappings_str = "\n".join(subnode_mappings_parts)
+
+    # combined node/struct mappings
     any_mapping_parts = [
         "export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNodeData> {\n"
     ]
@@ -353,10 +386,13 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
     # property enum for each class
     property_enums_parts: list[str] = []
-    for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
+    for cls in chain(NODE_CLASSES, SUBNODE_CLASSES, STRUCT_CLASSES):
         props_strs: list[str] = []
-        props = list(cls.__wired_properties__.values())
-        for prop in sorted(props, key=lambda p: p.id):
+        if issubclass(cls, Node) and cls.__subtype__:
+            properties = [p for p in cls.__subtype_extra_properties__.values() if p.is_wired]
+        else:
+            properties = list(cls.__wired_properties__.values())
+        for prop in sorted(properties, key=lambda p: p.id):
             ts_name = to_casing(prop.name, Casing.CAMEL)
             ts_name = ts_name[0].lower() + ts_name[1:]
             props_strs.append(f"  {ts_name} = {prop.id},")
@@ -364,7 +400,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
             f"export enum {cls.__name__}Property {{\n" + "\n".join(props_strs) + "\n}\n"
         )
     property_enums_str = "\n".join(property_enums_parts)
-    property_enum_maps_parts: list[str] = []
+
+    # property enum maps for final classes
+    property_enum_maps_final_parts: list[str] = []
     for camel_prefix, upper_prefix, classes in (
         ("Node", "NODE_", NODE_CLASSES),
         ("Struct", "STRUCT_", STRUCT_CLASSES),
@@ -380,8 +418,8 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
             + "".join(property_enum_map_parts)
             + "}\n"
         )
-        property_enum_maps_parts.append(property_enum_map_str)
-    property_enum_maps_str = "\n".join(property_enum_maps_parts)
+        property_enum_maps_final_parts.append(property_enum_map_str)
+    property_enum_maps_final_str = "\n".join(property_enum_maps_final_parts)
 
     object_info_type_str = """
 export type TypeConstraintIn = Partial<Omit<TypeConstraintData, "metatype">>;
@@ -427,10 +465,12 @@ export type PropertyInfo = {
 }
     """
     type_info_definitions_parts = []
-    for object_type in chain(STRUCT_TYPES, NODE_TYPES):
-        bench_cls = OBJECT_CLASS_BY_TYPE[object_type]
+    for bench_cls in chain(NODE_CLASSES, SUBNODE_CLASSES, STRUCT_CLASSES):
         prop_infos_strs: list[str] = []
-        properties = list(bench_cls.__properties__.values())
+        if issubclass(bench_cls, Node) and bench_cls.__subtype__:
+            properties = list(bench_cls.__subtype_extra_properties__.values())
+        else:
+            properties = list(bench_cls.__properties__.values())
         for prop in sorted(properties, key=lambda p: p.id or 0):
             if not prop.is_wired:
                 continue
@@ -585,6 +625,7 @@ export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' fo
 // Type mappings
 {struct_mapping_str}
 {node_mapping_str}
+{subnode_mappings_str}
 {object_mapping_str}
 {enum_mapping_str}
 
@@ -596,7 +637,7 @@ export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' for cls in NODE_CLASSES)}
 export type AnyStructPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' for cls in STRUCT_CLASSES)}
 export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' for cls in chain(NODE_CLASSES, STRUCT_CLASSES))}
-{property_enum_maps_str}
+{property_enum_maps_final_str}
 
 // Type info
 {object_info_type_str}

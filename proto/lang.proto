@@ -2612,10 +2612,6 @@ message FlowBlockData {
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
-message ViewBlockData {
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
 message DatabaseBlockData {
   optional NodeReferenceData query_ptr = 100;
 }
