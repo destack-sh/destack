@@ -594,7 +594,7 @@ export type PropertyInfo = {
             subnode_type_info_parts.append("}\n")
             subnode_type_info_maps.append("".join(subnode_type_info_parts))
     subnode_type_info_maps.append(
-        "export const NODE_SUBTYPE_PROPERTY_INFOS_BY_TYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {\n"
+        "export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {\n"
     )
     for node_cls in NODE_CLASSES:
         if node_cls.__has_subtypes__:
