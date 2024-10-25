@@ -7,17 +7,21 @@ import { FLOW_GRID_STEP } from "@/language/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { updateOrder } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";
-import { JsonValue } from "@/language/value";
+import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/value";
 import {
   BlockType,
   ENUM_BY_TYPE,
   FieldType,
   NODE_PROPERTY_ENUM_BY_TYPE,
+  NODE_SUBTYPE_PROPERTY_INFOS_BY_TYPE,
   NodeSubtypeMapping,
   NodeType,
   ObjectType,
+  PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
+  PropertyInfo,
   StepType,
   StructType,
   Timestamp,
@@ -227,7 +231,22 @@ export function packSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
   type: ST,
   subnode: ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never,
 ): JsonValue {
-  
+  const propertyEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
+  const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
+  if (propertyEnum == null || properties == null)
+    throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
+
+  const subnodePacked: Record<string, any> = {};
+  for (const prop of Object.values(properties)) {
+    const propName = propertyEnum[prop.id];
+    const propValue = (subnode as any)[propName];
+    const propValuePacked = packBuiltinObjectProperty(propValue, prop);
+    if (propValuePacked != null) {
+      subnodePacked[prop.id.toString()] = propValuePacked;
+    }
+  }
+
+  return { [type.toString()]: subnodePacked };
 }
 
 /** Unpacks the subnode properties of a Node */
@@ -236,7 +255,28 @@ export function unpackSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
   type: ST,
   subnodePacked: JsonValue | undefined,
 ): ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never {
-  throw new Error("nocheckin: unpackSubnode");
+  const propertyEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
+  const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
+  if (propertyEnum == null || properties == null)
+    throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
+
+  subnodePacked = (subnodePacked as any)?.[type.toString()] as Record<string, any>;
+  if (subnodePacked == null || typeof subnodePacked != "object") {
+    // nothing here, empty subnode
+    return {} as any;
+  }
+
+  const subnode: Record<string, any> = {};
+  for (const prop of Object.values(properties)) {
+    const propName = propertyEnum[prop.id];
+    const propValuePacked = (subnodePacked as any)[prop.id.toString()];
+    const propValue = propValuePacked != null ? unpackBuiltinObjectProperty(propValuePacked, prop) : undefined;
+    if (propValue != null) {
+      subnode[propName] = propValue;
+    }
+  }
+
+  return subnode as any;
 }
 
 /** Unpacks a specific subnode property */
@@ -248,9 +288,20 @@ export function unpackSubnodeProperty<
   nodeType: T,
   type: ST,
   subnodePacked: JsonValue | undefined,
-  property: P,
+  propertyName: P,
 ): ST extends keyof NodeSubtypeMapping[T] ? _NodeSubnodeProperty<T, ST, P> : never {
-  throw new Error("nocheckin: unpackSubnodeProperty");
+  const propertyEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
+  const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
+  if (propertyEnum == null || properties == null)
+    throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
+  const propertyId: number = propertyEnum[propertyName];
+  const property: PropertyInfo = properties[propertyId];
+  const propValuePacked = (subnodePacked as any)?.[type.toString()]?.[propertyId.toString()];
+  if (propValuePacked == null) {
+    return undefined as any;
+  } else {
+    return unpackBuiltinObjectProperty(propValuePacked, property) as any;
+  }
 }
 
 /**
