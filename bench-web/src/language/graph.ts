@@ -1,6 +1,7 @@
 import { toCamelName } from "@/language/const";
 import { defaultSortNode } from "@/language/order";
 import {
+  BlockProperty,
   CHILD_NODE_TYPES,
   GraphScopeData,
   NodeType,
@@ -1114,7 +1115,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
 
       // NOTE :Architecture :Robustness!: node subscriptions are not always reliably updated if ignoreAncestors :NodeRefStability
       //  (After much debugging I fixed some related bugs, but I'm still not sure why this still happens sometimes. Overall,
-      //   we almost certainly want a more powerful graph ref/subscription system sometime anyway, and until then, we'll just 
+      //   we almost certainly want a more powerful graph ref/subscription system sometime anyway, and until then, we'll just
       //   keep oversubscribing here to be safe :|)
       this.layers.value.forEach((layer) => {
         subs.push(layer.subscribe(key, callback));
@@ -1156,6 +1157,9 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
 
 export type PartialNode<T extends NodeType> = NodeTypeMapping[T] & { setPaths?: string[][] };
 
+const NODE_SUBTYPE_PACKED_ID = BlockProperty.subnodePacked;
+const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it's the same property id for all nodes
+
 /**
  * Creates a new node with the explicitly set paths from the overlay superimposed on the base.
  */
@@ -1170,7 +1174,8 @@ export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: Par
         // map key
         key = path[i];
         const propId = Number(key);
-        if (!Number.isNaN(propId)) {
+        const isProperty = !Number.isNaN(propId) && (i == 0 || path[0] != NODE_SUBTYPE_PACKED_KEY);
+        if (isProperty) {
           // builtin object property
           const objProperties = PROPERTY_ENUM_BY_TYPE[mergedObj.metatype as ObjectType];
           const propName = objProperties?.[propId];
@@ -1181,11 +1186,20 @@ export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: Par
         }
         if (i < path.length - 1) {
           // descend into value
-          mergedObj = mergedObj[key];
-          partialObj = partialObj[key];
-          if (mergedObj == null || partialObj == null) {
-            break; // invalid path
+          let nextMergedObj = mergedObj[key];
+          let nextPartialObj = partialObj[key];
+          if (nextMergedObj == null) {
+            // create object
+            nextMergedObj = {};
+            mergedObj[key] = nextMergedObj;
           }
+          if (nextPartialObj == null) {
+            // create object
+            nextPartialObj = {};
+            partialObj[key] = nextPartialObj;
+          }
+          mergedObj = nextMergedObj;
+          partialObj = nextPartialObj;
         } else {
           // set value
           mergedObj[key] = partialObj[key];

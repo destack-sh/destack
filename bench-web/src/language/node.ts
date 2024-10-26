@@ -165,18 +165,18 @@ export type NodeIn<T extends NodeType> = NodeTypeMapping[T] extends { type: infe
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
-  data: NodeIn<T>,
+  nodeIn: NodeIn<T>,
   options?: { omit: (keyof NodeTypeMapping[T])[] },
 ): NodeTypeMapping[T] {
   const now = Timestamp.now();
-  let node = { ...data, createdAt: now, updatedAt: now } as unknown as NodeTypeMapping[T];
-  const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
+  let node = { ...nodeIn, createdAt: now, updatedAt: now } as unknown as NodeTypeMapping[T];
+  const properties = NODE_PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as ObjectType]!;
 
   // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
     if ("packagePtr" in properties) {
-      if (!("packagePtr" in data) || data.packagePtr == null) {
-        throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
+      if (!("packagePtr" in nodeIn) || nodeIn.packagePtr == null) {
+        throw new Error(`missing packagePtr to make sub-package node ${NodeType[nodeIn.metatype]}`);
       }
       if ("ck" in properties && (node as any).ck == null) {
         (node as any).ck = newNodeCk();
@@ -195,15 +195,18 @@ export function makeNode<T extends NodeType>(
   }
   if (
     "benchPtr" in properties &&
-    data.metatype != NodeType.BENCH &&
+    nodeIn.metatype != NodeType.BENCH &&
     !Object.prototype.hasOwnProperty.call(node, "benchPtr")
   ) {
     const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
-    if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[data.metatype]}`);
+    if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[nodeIn.metatype]}`);
     (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
   }
 
-  // nocheckin: pack subnode
+  // pack subnode
+  if ("type" in properties && "subnode" in nodeIn) {
+    node.subnodePacked = packSubnode(nodeIn.metatype as T, nodeIn.type as _NodeSubtype<T>, nodeIn.subnode as any);
+  }
 
   // assign default values to unset properties
   node = makeDefaultObject(node) as NodeTypeMapping[T];
@@ -231,14 +234,14 @@ export function packSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
   type: ST,
   subnode: ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never,
 ): JsonValue {
-  const propertyEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
+  const propertiesEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
   const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
-  if (propertyEnum == null || properties == null)
+  if (propertiesEnum == null || properties == null)
     throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
 
   const subnodePacked: Record<string, any> = {};
   for (const prop of Object.values(properties)) {
-    const propName = propertyEnum[prop.id];
+    const propName = propertiesEnum[prop.id];
     const propValue = (subnode as any)[propName];
     const propValuePacked = packBuiltinObjectProperty(propValue, prop);
     if (propValuePacked != null) {

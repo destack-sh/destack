@@ -15,8 +15,11 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
+  PropertyInfo,
   TextData,
   Timestamp,
   type AnyNodeData,
@@ -412,20 +415,37 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-/** Turns a top-level node partial update into its corresponding edit operations */
+/** Turns a top-level node partial update into its corresponding edit operations (with subnode edits) */
 export function makeEdit<T extends NodeType>(node: NodeTypeMapping[T], update: NodeIn<T>): EditOperationData[] {
+  // root + subnode properties
+  if ("subnode" in update) {
+    const subnodeOperations = makeEditFromSubnode(node, update);
+    // strip metatype from update, and 'type' if it hasn't changed
+    // (they're just used for getting the right properties & type checking)
+    delete (update as any).metatype;
+    if ((node as any).type == update.type) delete (update as any).type;
+    const rootOperations = makeEditFromRoot(node, update as any);
+    return [...rootOperations, ...subnodeOperations];
+  } else {
+    // just root properties
+    return makeEditFromRoot(node, update as any);
+  }
+}
+
+/** Turns a top-level node partial update into its corresponding edit operations */
+export function makeEditFromRoot<T extends AnyNodeData>(node: T, update: Partial<T>): EditOperationData[] {
   const operations: EditOperationData[] = [];
-  const propertiesInfos = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
-  const properties = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
+  const propertiesEnum = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
+  const properties = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
 
   // regular properties
   for (const key in update) {
-    const propId = properties[key as unknown as number];
+    const propId = propertiesEnum[key as unknown as number];
     if (propId == null) {
       if (key == "subnode") continue; // subnode is handled separately below
       throw new Error(`missing property ${key} in ${node.metatype}`);
     }
-    const prop = propertiesInfos[propId];
+    const prop = properties[propId];
     const propType = getPropertyType(prop);
     const newValue = (update as any)[key];
     let operation: EditOperationData;
@@ -449,10 +469,57 @@ export function makeEdit<T extends NodeType>(node: NodeTypeMapping[T], update: N
     }
     operations.push(operation);
   }
+  return operations;
+}
 
-  // subnode
-  if ("subnode" in update) {
-    throw new Error("nocheckin: makeEdit subnode");
+const NODE_SUBTYPE_PACKED_ID = BlockProperty.subnodePacked;
+const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it's the same property id for all nodes
+
+/** Turns a top level subnode edit into corresponding edit operations (only for that subnode) */
+export function makeEditFromSubnode<T extends NodeType>(
+  node: NodeTypeMapping[T],
+  update: NodeIn<T>,
+): EditOperationData[] {
+  if (!("subnode" in update)) {
+    return [];
+  }
+  const operations: EditOperationData[] = [];
+  const propertiesEnum = PROPERTY_ENUM_BY_SUBTYPE[update.metatype as NodeType]?.[update.type];
+  const properties: Record<number, PropertyInfo> | undefined =
+    PROPERTY_INFOS_BY_SUBTYPE[update.metatype as NodeType]?.[update.type];
+  if (propertiesEnum == null || properties == null)
+    throw new Error(`missing properties for ${NodeType[update.metatype]}.${update.type.toString()}`);
+  const subtypeKey = update.type.toString();
+
+  // ignore type/metatype in subnode update
+  for (const key in update.subnode) {
+    const propId = propertiesEnum[key as unknown as number];
+    if (propId == null) {
+      throw new Error(`missing property ${key} in ${node.metatype}`);
+    }
+    const prop = properties[propId];
+    const propType = getPropertyType(prop);
+    const newValue = (update.subnode as any)[key];
+    let operation: EditOperationData;
+    const oldValuePacked = packValue((node as any)[key], propType, { wrapScalar: false });
+    if (newValue == null) {
+      operation = {
+        metatype: ObjectType.EDIT_OPERATION,
+        type: EditOperationType.CLEAR,
+        path: [NODE_SUBTYPE_PACKED_KEY, subtypeKey, propId.toString()],
+        oldValuePacked,
+      };
+    } else {
+      const newValuePacked = packValue(newValue, propType, { wrapScalar: false });
+      operation = {
+        metatype: ObjectType.EDIT_OPERATION,
+        type: EditOperationType.SET,
+        path: [NODE_SUBTYPE_PACKED_KEY, subtypeKey, propId.toString()],
+        newValuePacked,
+        oldValuePacked,
+      };
+    }
+    operations.push(operation);
   }
 
   return operations;
@@ -465,7 +532,8 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
     // map key
     let key = operation.path[i];
     const propId = Number(key);
-    if (!Number.isNaN(propId)) {
+    const isProperty = !Number.isNaN(propId) && (i == 0 || operation.path[0] != NODE_SUBTYPE_PACKED_KEY);
+    if (isProperty) {
       // builtin object property
       const objProperties = PROPERTY_ENUM_BY_TYPE[obj.metatype as ObjectType];
       const propName = objProperties?.[propId];
@@ -477,14 +545,17 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
 
     if (i < operation.path.length - 1) {
       // next: descend into value
-      obj = obj[key];
-      if (obj == null) {
-        break; // invalid path
+      let nextObj = obj[key];
+      if (nextObj == null) {
+        // create object
+        nextObj = {};
+        Object.assign(obj, { [key]: nextObj });
       }
+      obj = nextObj;
     } else {
       // done: set value
       let newValue: any;
-      if (!Number.isNaN(propId)) {
+      if (isProperty) {
         // builtin object property
         const objProperties = PROPERTY_INFOS_BY_TYPE[obj.metatype as ObjectType];
         const prop = objProperties[propId];
