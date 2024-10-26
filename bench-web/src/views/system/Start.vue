@@ -1,11 +1,13 @@
 <script lang="ts" setup>
 import { makeExpression } from "@/language/expression";
 import { makeTypeInfo } from "@/language/field";
+import { unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
 import { isRunnable, isRunTerminal, type RunnableNode } from "@/language/session";
 import {
   BoxData,
   ChangeCategory,
   ExpressionType,
+  FeedViewData,
   FieldType,
   NodeType,
   ObjectType,
@@ -16,6 +18,7 @@ import {
   TypeKind,
   Variant,
   ViewData,
+  ViewType,
 } from "@/proto/wire";
 import {
   isNode,
@@ -29,8 +32,8 @@ import { useExistingConnection, useNode } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/ui/layout";
-import { toggleHelperViewPin, useViewState, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import { computedValue, mapRef } from "@/utils/ref";
+import { toggleHelperViewPin, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -46,7 +49,7 @@ const MAX_WIDTH = 1200;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "title" | "nodePtr" | "focus" | "variant"
+    "name" | "title" | "nodePtr" | "focus" | "variant" | "subnodePacked"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -56,20 +59,13 @@ const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const focusPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
-const {
-  state,
-  updateState,
-  useStateProp: useViewStateProp,
-} = useViewState({
-  selfPtr: self,
-  graph: spaceGraph,
-  stateType: ObjectType.START_VIEW_STATE,
-  props,
-  emit,
-});
-const runPtr = useViewStateProp(canvas.tx, "runPtr", undefined) as Ref<
-  TypedNodeReferenceData<NodeType.RUN> | undefined
->;
+
+const runPtr = useSubnodeProperty(
+  NodeType.VIEW,
+  ViewType.START,
+  toRef(props, "subnodePacked"),
+  "runPtr",
+) as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
 const { node: someRun, connection: runConnection } = useNode({
   name: "start.run",
   live: true,
@@ -81,7 +77,7 @@ const run = computed(() => {
   if (runPtr.value == null || runPtr.value.baseCk != runnablePtr.value?.ck) return null;
   else return someRun.value;
 });
-const feedState = computed((): FeedViewStateData => {
+const feedState = computed((): FeedViewData => {
   const runNodeProperty = runnablePtr.value?.nodeType == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
   const clauses = [
     makeExpression({
@@ -99,12 +95,11 @@ const feedState = computed((): FeedViewStateData => {
       }),
     );
   }
-  const feedState: FeedViewStateData = {
+  const feedState: FeedViewData = {
     // pre-filter to only runs of this node
-    metatype: ObjectType.FEED_VIEW_STATE,
-    nodeType: NodeType.RUN,
+    queryNodeType: NodeType.RUN,
     filter: makeExpression({ type: ExpressionType.AND, clauses }),
-    filterPills: state.value.feed?.filterPills ?? [],
+    filterPills: [],
   };
   return feedState;
 });
@@ -121,15 +116,13 @@ watch(currentRunnableNode, (newNode) => {
 });
 const runnablePtr = computed(() => (lastRunnableNode.value != null ? toPlainNodeRef(lastRunnableNode.value) : null));
 const baseTypePtr = computed(() => {
-  if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.BLOCK)
-    return lastRunnableNode.value.nodePtr;
-  else return runnablePtr.value ?? undefined;
+  if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.BLOCK) {
+    return unpackSubnodeProperty(NodeType.STEP, StepType.BLOCK, lastRunnableNode.value.subnodePacked, "nodePtr");
+  } else {
+    return runnablePtr.value ?? undefined;
+  }
 });
-const inputsPacked: Ref<Record<string, any>> = mapRef(
-  useViewStateProp(canvas.tx, "inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
-  (packed) => (packed != null ? packed : {}) as Record<string, any>,
-  (unpacked) => unpacked,
-);
+const inputsPacked: Ref<Record<string, any>> = ref({}); // nocheckin
 const inputType = computed(() =>
   runnablePtr.value != null
     ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldType: FieldType.INPUT })

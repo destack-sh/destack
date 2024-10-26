@@ -1,5 +1,4 @@
-import { TK_LENGHT_IN_CK, TK_LENGTH_B64 } from "@/language/const";
-import { decodeTypeIdentity, getPropertyType, TypeIdentity } from "@/language/field";
+import { getPropertyType } from "@/language/field";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeNode, NodeIn } from "@/language/node";
 import { packValue, unpackValue } from "@/language/value";
@@ -12,10 +11,8 @@ import {
   EditOperationType,
   EditType,
   GraphScopeData,
-  JsonValue,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
-  NodeSubtypeMapping,
   NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
@@ -28,7 +25,6 @@ import {
 } from "@/proto/wire";
 import {
   arrayEquals,
-  deepContentEquals,
   describeEdit,
   describeNode,
   EMPTY_SCOPE,
@@ -40,7 +36,6 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
-import { makeIcon } from "@/ui/icon";
 import { toaster } from "@/ui/toast";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -109,9 +104,6 @@ export type Transaction = TransactionMeta & {
   clearDebounce(nodeId: string): void;
   /** Create a new node */
   create<T extends NodeType>(node: NodeIn<T>): NodeTypeMapping[T];
-
-  /** Create or update all properties in the node */
-  upsert(node: AnyNodeData): void;
   /** Update regular properties in this node. v*/
   update<T extends AnyNodeData>(
     node: T,
@@ -306,7 +298,9 @@ export class TransactionBuilder implements Transaction {
     this._notifyEdit(edit, null);
   }
 
-  create<T extends NodeType>(nodeIn: Partial<NodeIn<T>>): NodeTypeMapping[T] {
+  create<T extends NodeType>(
+    nodeIn: { metatype: T | ObjectType } & Partial<Omit<NodeTypeMapping[NodeType], "metatype">>,
+  ): NodeTypeMapping[T] {
     // fill in scope
     const properties = PROPERTY_ENUM_BY_TYPE[nodeIn.metatype as unknown as ObjectType];
     if (properties == null) {
@@ -323,15 +317,12 @@ export class TransactionBuilder implements Transaction {
     }
 
     // create node
+    // NOTE :Cleanup: why doesn't makeNode typecheck properly here?
     const node: NodeTypeMapping[T] =
       nodeIn.id == null ? makeNode(nodeIn as any) : (nodeIn as unknown as NodeTypeMapping[T]);
 
     this._addSimpleEdit(EditType.CREATE, node, null);
     return node as NodeTypeMapping[T];
-  }
-
-  upsert(node: AnyNodeData) {
-    this._addSimpleEdit(EditType.UPSERT, { ...node }, null);
   }
 
   _doUpdate<T extends AnyNodeData>(
@@ -345,7 +336,7 @@ export class TransactionBuilder implements Transaction {
     // convert update to operations
     let operations: EditOperationData[];
     if (!Array.isArray(update)) {
-      operations = makeEditOperationsFromPartial(node, update);
+      operations = makeEdit(node, update as NodeIn<any>);
     } else {
       operations = update;
     }
@@ -421,20 +412,24 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-/** Turns a top-level node partial update into its corresponding edit operations (set/clear) */
-export function makeEditOperationsFromPartial<T extends AnyNodeData>(node: T, update: Partial<T>): EditOperationData[] {
+/** Turns a top-level node partial update into its corresponding edit operations */
+export function makeEdit<T extends NodeType>(node: NodeTypeMapping[T], update: NodeIn<T>): EditOperationData[] {
   const operations: EditOperationData[] = [];
   const propertiesInfos = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
   const properties = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
 
+  // regular properties
   for (const key in update) {
     const propId = properties[key as unknown as number];
-    if (propId == null) throw new Error(`missing property ${key} in ${node.metatype}`);
+    if (propId == null) {
+      if (key == "subnode") continue; // subnode is handled separately below
+      throw new Error(`missing property ${key} in ${node.metatype}`);
+    }
     const prop = propertiesInfos[propId];
     const propType = getPropertyType(prop);
-    const newValue = update[key as keyof T];
+    const newValue = (update as any)[key];
     let operation: EditOperationData;
-    const oldValuePacked = packValue(node[key as keyof T], propType, { wrapScalar: false });
+    const oldValuePacked = packValue((node as any)[key], propType, { wrapScalar: false });
     if (newValue == null) {
       operation = {
         metatype: ObjectType.EDIT_OPERATION,
@@ -453,6 +448,11 @@ export function makeEditOperationsFromPartial<T extends AnyNodeData>(node: T, up
       };
     }
     operations.push(operation);
+  }
+
+  // subnode
+  if ("subnode" in update) {
+    throw new Error("nocheckin: makeEdit subnode");
   }
 
   return operations;

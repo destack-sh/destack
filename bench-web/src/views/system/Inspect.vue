@@ -77,6 +77,7 @@ defineExpose<ViewExposed>({ self });
     <!-- Inspection content -->
     <Scroll
       :size="{ width: props.size.width, height: props.size.height - HEADER_HEIGHT }"
+      :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
     >

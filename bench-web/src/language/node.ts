@@ -13,7 +13,6 @@ import {
   ENUM_BY_TYPE,
   FieldType,
   NODE_PROPERTY_ENUM_BY_TYPE,
-  NODE_SUBTYPE_PROPERTY_INFOS_BY_TYPE,
   NodeSubtypeMapping,
   NodeType,
   ObjectType,
@@ -45,6 +44,7 @@ import {
 import { addVector2 } from "@/ui/view";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
+import { computed, Ref } from "vue";
 
 /** Extracts the last (potentially multi-digit) characters as an integer */
 export function extractNameId(name: string): number | null {
@@ -302,6 +302,45 @@ export function unpackSubnodeProperty<
   } else {
     return unpackBuiltinObjectProperty(propValuePacked, property) as any;
   }
+}
+
+/** Unpacks a subnode reactively */
+export function useSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
+  nodeType: T,
+  type: ST,
+  subnodePacked: Ref<NodeTypeMapping[T] | JsonValue | undefined>,
+): Ref<ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never> {
+  const subnode = computed(() => {
+    if (subnodePacked.value == null) return null;
+    if (isNode(subnodePacked.value, nodeType)) {
+      return unpackSubnode(nodeType, type, subnodePacked.value.subnodePacked);
+    } else {
+      return unpackSubnode(nodeType, type, subnodePacked.value as JsonValue);
+    }
+  });
+  return subnode as Ref<any>;
+}
+
+/** Unpacks a specific subnode property reactively */
+export function useSubnodeProperty<
+  T extends NodeType,
+  ST extends _NodeSubtype<T>,
+  P extends _NodeSubnodeProperties<T, ST>,
+>(
+  nodeType: T,
+  type: ST,
+  subnodePacked: Ref<NodeTypeMapping[T] | JsonValue | undefined>,
+  propertyName: P,
+): Ref<ST extends keyof NodeSubtypeMapping[T] ? _NodeSubnodeProperty<T, ST, P> : never> {
+  const property = computed(() => {
+    if (subnodePacked.value == null) return null;
+    if (isNode(subnodePacked.value, nodeType)) {
+      return unpackSubnodeProperty(nodeType, type, subnodePacked.value.subnodePacked, propertyName);
+    } else {
+      return unpackSubnodeProperty(nodeType, type, subnodePacked.value as JsonValue, propertyName);
+    }
+  });
+  return property as Ref<any>;
 }
 
 /**

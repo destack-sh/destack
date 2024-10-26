@@ -2,6 +2,7 @@
 import { ACTIVE_RUN_STATUSES, EDIT_TYPE_PAST_VERB, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/const";
 import { makeEditFromLog } from "@/language/edit";
 import { makeExpression, resolveSubject, type EditSubject } from "@/language/expression";
+import { useSubnodeProperty } from "@/language/node";
 import { isRunTerminal } from "@/language/session";
 import {
   AccessType,
@@ -25,6 +26,7 @@ import {
   Timestamp,
   Variant,
   ViewData,
+  ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
 import {
@@ -74,7 +76,7 @@ const HANDLE_WIDTH = 6;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
-    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType">
+    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "subnodePacked">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -82,15 +84,8 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 const { graph: spaceGraph } = useExistingConnection(self);
 
-const { state, useStateProp } = useViewState({
-  selfPtr: self,
-  graph: spaceGraph,
-  stateType: ObjectType.FEED_VIEW_STATE,
-  props,
-  emit,
-});
-const nodeType = useStateProp(canvas.tx, "nodeType", NodeType.LOG);
-const activeFilterKeys = useStateProp(canvas.tx, "filterPills", []);
+const nodeType = useSubnodeProperty(NodeType.VIEW, ViewType.FEED, toRef(props, "subnodePacked"), "queryNodeType");
+const activeFilterKeys = useSubnodeProperty(NodeType.VIEW, ViewType.FEED, toRef(props, "subnodePacked"), "filterPills");
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 // NOTE :UX: MiniActions should probably be integrated with our regular Actions
@@ -229,10 +224,6 @@ function togglePill(pill: FilterPill) {
 
 const effectiveFilter: Ref<ExpressionData> = computed(() => {
   const clauses: ExpressionData[] = [];
-  // add given filter from state
-  if (state.value.filter != null) {
-    clauses.push(state.value.filter);
-  }
   // and any pills
   for (const pill of pills.value) {
     if (!pill.isEnabled) continue;

@@ -10,7 +10,7 @@ import { toRef } from "vue";
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "title" | "text" | "icon" | "nodePtr" | "deletedAt"
+    "name" | "title" | "icon" | "nodePtr" | "deletedAt"
   >
 >();
 const emit = defineEmits(viewEmits());
