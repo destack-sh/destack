@@ -4,6 +4,7 @@ import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/lang
 import { createField, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
 import { isGeneratedNodeName, unpackSubnodeProperty } from "@/language/node";
 import { isRunnable } from "@/language/session";
+import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
   BenchType,
@@ -73,18 +74,27 @@ const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 // Interaction
 //
 
-const value = computed(() => {
+const valueType = computed(() => {
   if (block.value?.type != BlockType.VALUE) {
     return undefined;
   }
-  const valueType = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valueType");
+  return unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valueType");
+});
+const value = computed(() => {
+  if (block.value?.type != BlockType.VALUE || valueType.value == null) {
+    return undefined;
+  }
   const valuePacked = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valuePacked");
   if (valueType == null) {
     return undefined;
-  } else if (valueType.kind == TypeKind.OBJECT) {
+  } else if (valueType.value.kind == TypeKind.OBJECT) {
     return valuePacked;
   } else {
-    return unpackValue(valuePacked!, valueType, { graph: pkgGraph, wrapScalar: true, recurseCustomObject: false });
+    return unpackValue(valuePacked!, valueType.value, {
+      graph: pkgGraph,
+      wrapScalar: true,
+      recurseCustomObject: false,
+    });
   }
 });
 function updateValue(value: any) {
@@ -95,9 +105,17 @@ function updateValue(value: any) {
       ? value
       : packValue(value, valueType!, { graph: pkgGraph, wrapScalar: true, recurseCustomObject: false });
   if (valuePacked != null) {
-    pkgConnection.tx.update(block.value, { subnode: { valuePacked } }, { debounce: "short" });
+    pkgConnection.tx.update(
+      block.value,
+      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked } }),
+      { debounce: "short" },
+    );
   } else {
-    pkgConnection.tx.update(block.value, { subnode: { valuePacked: undefined } }, { debounce: "short" });
+    pkgConnection.tx.update(
+      block.value,
+      makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked: undefined } }),
+      { debounce: "short" },
+    );
   }
 }
 
@@ -243,7 +261,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <Value
         v-if="block.type == BlockType.VALUE"
         class="max-h-[320px]"
-        :value-type="block.valueType"
+        :value-type="valueType"
         :model-value="value"
         :size="{ height: 320 }"
         @update:model-value="(newValue) => updateValue(newValue)"
@@ -264,7 +282,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :variant="Variant.STEALTH"
         :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.TEXT, block.subnodePacked, 'text')"
         @update:model-value="
-          (newText) => pkgConnection.tx.update(block!, { subnode: { text: newText } }, { debounce: 'long' })
+          (newText) =>
+            pkgConnection.tx.update(
+              block!,
+              makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.TEXT, subnode: { text: newText } }),
+              { debounce: 'long' },
+            )
         "
       />
       <Code
@@ -272,7 +295,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         is-input
         :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.CODE, block.subnodePacked, 'code')"
         @update:model-value="
-          (newCode) => pkgConnection.tx.update(block!, { subnode: { code: newCode } }, { debounce: 'long' })
+          (newCode) =>
+            pkgConnection.tx.update(
+              block!,
+              makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.CODE, subnode: { code: newCode } }),
+              { debounce: 'long' },
+            )
         "
       />
       <Flow

@@ -1266,13 +1266,11 @@ def pack_proto_json(value: JsonValue) -> ProtoValue:
     elif t is ProtoStruct:
         return ProtoValue(struct_value=value)  # type: ignore
     else:
-        raise ValueError(f"unsupported JSON value {value} ({type(value)})")
+        raise ValueError(f"unsupported JSON value {value} ({type(value)!r})")
 
 
 def unpack_proto_json(value: ProtoValue) -> JsonValue:
-    if value.HasField("null_value"):
-        return None
-    elif value.HasField("bool_value"):
+    if value.HasField("bool_value"):
         return value.bool_value
     elif value.HasField("number_value"):
         return value.number_value
@@ -1283,7 +1281,7 @@ def unpack_proto_json(value: ProtoValue) -> JsonValue:
     elif value.HasField("struct_value"):
         return MessageToDict(value.struct_value)
     else:
-        raise ValueError(f"unsupported proto value: {value!r}")
+        return None
 
 
 # import later to avoid circular imports (Object is used in node.py)

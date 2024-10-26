@@ -10,7 +10,8 @@ import {
   useFlowContext,
   type Port,
 } from "@/language/flow";
-import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
+import { cloneNode, moveNode, onNodeMorphed, unpackSubnodeProperty } from "@/language/node";
+import { makeEdit } from "@/language/transaction";
 import {
   BenchType,
   ColorShade,
@@ -471,16 +472,30 @@ defineExpose<ViewExposed>({ self, id, actions });
           class="px-3"
           is-input
           :variant="Variant.STEALTH"
-          :model-value="step.text"
-          @update:model-value="(newText) => flowCtx.tx.update(step!, { text: newText }, { debounce: 'long' })"
+          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, 'text')"
+          @update:model-value="
+            (newText) =>
+              flowCtx.tx.update(
+                step!,
+                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.TEXT, subnode: { text: newText } }),
+                { debounce: 'long' },
+              )
+          "
         />
         <Code
           v-else-if="step.type == StepType.CODE"
           class=""
           is-input
           :variant="Variant.STEALTH"
-          :model-value="step.code"
-          @update:model-value="(newCode) => flowCtx.tx.update(step!, { code: newCode }, { debounce: 'long' })"
+          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.CODE, step.subnodePacked, 'code')"
+          @update:model-value="
+            (newCode) =>
+              flowCtx.tx.update(
+                step!,
+                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.CODE, subnode: { code: newCode } }),
+                { debounce: 'long' },
+              )
+          "
         />
       </div>
     </div>

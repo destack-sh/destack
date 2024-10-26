@@ -3,7 +3,7 @@ import { createBlock, useHierarchicalNodeMoveActions } from "@/language/block";
 import { PAGE_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { cloneNode, moveNode } from "@/language/node";
+import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
 import {
   BlockData,
   BlockType,
@@ -16,9 +16,16 @@ import {
   TreeViewPreset,
   Variant,
   ViewData,
+  ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, SomeNodeReferenceData, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  isNode,
+  SomeNodeReferenceData,
+  toNodeRef,
+  unwrapProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
@@ -45,7 +52,7 @@ const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection"
+    "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked"
   >
 >();
 
@@ -56,36 +63,45 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const { graph: spaceGraph } = useExistingConnection(self);
-const { state, useStateProp } = useViewState({
-  selfPtr: self,
-  graph: spaceGraph,
-  stateType: ObjectType.TREE_VIEW_STATE,
-  props,
-  emit,
-});
-const preset = useStateProp(canvas.tx, "preset");
+const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
 const filterIsPage = computed(() => {
-  if (preset.value == TreeViewPreset.EXPLORE) return true;
-  else if (preset.value == TreeViewPreset.OUTLINE) return false;
-  else return state.value.filterIsPage;
+  if (preset.value == TreeViewPreset.EXPLORE) {
+    return true;
+  } else if (preset.value == TreeViewPreset.OUTLINE) {
+    return false;
+  } else {
+    return unpackSubnodeProperty(NodeType.VIEW, ViewType.TREE, props.subnodePacked, "filterIsPage");
+  }
 });
-const isDefaultExpanded = computed(() => preset.value == TreeViewPreset.OUTLINE || state.value.isDefaultExpanded);
+const isDefaultExpanded = computed(() => preset.value == TreeViewPreset.OUTLINE);
 const inspectedNodeTypes = computed(() => {
-  if (preset.value == TreeViewPreset.EXPLORE) return [NodeType.BLOCK];
-  else if (preset.value == TreeViewPreset.OUTLINE)
+  if (preset.value == TreeViewPreset.EXPLORE) {
+    return [NodeType.BLOCK];
+  } else if (preset.value == TreeViewPreset.OUTLINE) {
     return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.PIPE];
-  else return state.value.nodeTypes;
+  } else {
+    return unpackSubnodeProperty(NodeType.VIEW, ViewType.TREE, props.subnodePacked, "nodeTypes");
+  }
 });
 const rootPtr = computedValue(() => {
-  if (props.nodePtr?.oneofKind != null) return unwrapProtoOneOf(props.nodePtr);
-  else if (preset.value == TreeViewPreset.EXPLORE) return packagePtr.value;
-  else if (preset.value == TreeViewPreset.OUTLINE) return inspectionBasePtr.value;
-  else return null;
+  if (props.nodePtr?.oneofKind != null) {
+    return unwrapProtoOneOf(props.nodePtr);
+  } else if (preset.value == TreeViewPreset.EXPLORE) {
+    return packagePtr.value;
+  } else if (preset.value == TreeViewPreset.OUTLINE) {
+    return inspectionBasePtr.value;
+  } else {
+    return null;
+  }
 });
 const focusPtr = computedValue(() => {
-  if (preset.value == TreeViewPreset.EXPLORE) return inspectionBasePtr.value;
-  else if (preset.value == TreeViewPreset.OUTLINE) return inspectionPtr.value;
-  else return null;
+  if (preset.value == TreeViewPreset.EXPLORE) {
+    return inspectionBasePtr.value;
+  } else if (preset.value == TreeViewPreset.OUTLINE) {
+    return inspectionPtr.value;
+  } else {
+    return null;
+  }
 });
 
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(rootPtr, {
@@ -387,16 +403,16 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
     <!-- Content -->
     <Scroll
+      v-if="expandedItems.length > 0"
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
-      class=""
       @click.stop="queryRef?.focus()"
     >
       <!-- Nodes -->
       <!-- NOTE :UX: it would be neat to have hover/focused/selected nodes highlighted (everywhere) -->
-      <ul v-if="expandedItems.length > 0" ref="containerRef" class="group/list mb-1 flex flex-col text-gray-900">
+      <ul ref="containerRef" class="group/list mb-1 flex flex-col text-gray-900">
         <!-- Node -->
         <li
           v-for="({ node, depth, hasChildren }, i) in expandedItems"
@@ -523,15 +539,21 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- ... -->
         </li>
       </ul>
-      <div v-else class="flex h-full w-full flex-col justify-center text-center">
-        <!-- Missing state -->
-        <span>
-          <i class="fas fa-empty-set text-gray-500" />
-          <span class="ml-1.5 text-gray-600">
-            {{ rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect" }}
-          </span>
-        </span>
-      </div>
     </Scroll>
+    <div
+      v-else
+      class="flex w-full flex-col justify-center text-center"
+      :style="{
+        height: `calc(100% - ${HEADER_HEIGHT}px)`,
+      }"
+    >
+      <!-- Missing state -->
+      <span>
+        <i class="fas fa-empty-set text-gray-500" />
+        <span class="ml-1.5 text-gray-600">
+          {{ rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect" }}
+        </span>
+      </span>
+    </div>
   </div>
 </template>

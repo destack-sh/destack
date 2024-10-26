@@ -7,6 +7,7 @@ import {
   UserWizardViewStage,
   Variant,
   ViewData,
+  ViewType,
   type NodeReferenceData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
@@ -19,22 +20,17 @@ import { makeIcon } from "@/ui/icon";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";
-import { ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
+import { useSubnode } from "@/language/node";
 
-const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title">>();
+const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title" | "subnodePacked">>();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
-const { state, updateState, useStateProp, packStateUpdate } = useViewState({
-  selfPtr: self,
-  graph: spaceGraph,
-  stateType: ObjectType.USER_WIZARD_VIEW_STATE,
-  props,
-  emit,
-});
-const stage = useStateProp(canvas.tx, "stage", UserWizardViewStage.LOG_IN);
+const subnode = useSubnode(NodeType.VIEW, ViewType.USER_WIZARD, toRef(props, "subnodePacked"));
+const stage = computed(() => subnode.value?.stage ?? UserWizardViewStage.LOG_IN);
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");

@@ -10,21 +10,16 @@ import {
   getPropertyTitle,
   NODE_SUBTYPE_BY_TYPE,
   RUNNABLE_BLOCK_TYPES,
-  toCamelName
+  toCamelName,
 } from "@/language/const";
-import {
-  getPropertyType,
-  makeTypeInfo,
-  typeIsNumeric,
-  updateFieldType,
-  type TypeIdentity
-} from "@/language/field";
+import { getPropertyType, makeTypeInfo, typeIsNumeric, updateFieldType, type TypeIdentity } from "@/language/field";
 import { type ReadNodeGraph } from "@/language/graph";
-import { onNodeMorphed } from "@/language/node";
-import type { Transaction } from "@/language/transaction";
+import { onNodeMorphed, unpackSubnodeProperty } from "@/language/node";
+import { makeEdit, type Transaction } from "@/language/transaction";
 import {
   BenchType,
   BlockProperty,
+  BlockStepProperty,
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
@@ -44,12 +39,13 @@ import {
   TypeConstraintProperty,
   TypeInfoProperty,
   TypeKind,
+  ValueBlockProperty,
   ViewProperty,
   ViewType,
   type AnyNodeData,
   type BlockData,
   type FieldData,
-  type PropertyInfo
+  type PropertyInfo,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
@@ -208,24 +204,25 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       if (node.type == BlockType.TEXT) {
         runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
       }
-      const runOptions = PROPERTY_INFOS_BY_TYPE[ObjectType.BLOCK]![BlockProperty.runOptions];
-      runOptionProperties
-        .map((p) => getNestedInspectedProperty(runOptions, "Run", RUN_OPTIONS_PROPERTIES[p]))
-        .forEach((p) => properties.Run.push(p));
     }
     if (node.type == BlockType.VALUE) {
       // value type
       properties.Common.push({
-        from: BlockProperty.valueType,
-        to: BlockProperty.valueType + 1,
+        from: ValueBlockProperty.valueType,
+        to: ValueBlockProperty.valueType + 1,
         replace: () => ({
           title: "Value Type",
           viewType: ViewType.PICKER,
           props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-          read: (node: AnyNodeData) => (node as BlockData).valueType,
+          read: (node: AnyNodeData) =>
+            unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, node.subnodePacked, "valueType"),
           write: (tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, value: TypeIdentity | null) => {
             const valueType = value == null ? undefined : makeTypeInfo(value);
-            tx.update(node as BlockData, { valueType }, { debounce: "tick" });
+            tx.update(
+              node as BlockData,
+              makeEdit(node as BlockData, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valueType } }),
+              { debounce: "tick" },
+            );
           },
         }),
       });
@@ -237,7 +234,7 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       Run: [],
     };
     if (node.type == StepType.BLOCK) {
-      properties.Common.push(StepProperty.nodePtr);
+      properties.Common.push(BlockStepProperty.nodePtr);
     }
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
       properties.Run.push(StepProperty.identityPtr);

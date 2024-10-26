@@ -122,7 +122,7 @@ export function makeViewId(props: { self?: NodeReferenceData; name?: string | nu
         return deriveViewId(exposed.id.value, props.name ?? instanceInternalId.toString());
       parent = parent.parent;
     }
-    // this is a component outside of parent view, just use a random id
+    // this is a component outside of a parent view, just use a random id
     return v4();
   });
 }
