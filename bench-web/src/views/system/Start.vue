@@ -47,13 +47,14 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 1200;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "title" | "nodePtr" | "focus" | "variant" | "subnodePacked"
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const focusPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
@@ -140,7 +141,7 @@ function createRun() {
   runPtr.value = toNodeRef(run);
 }
 
-canvas.registerView(self);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
@@ -193,6 +194,7 @@ defineExpose<ViewExposed>({ self });
     </div>
     <!-- Body -->
     <Scroll
+      id="scroll"
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
@@ -206,6 +208,7 @@ defineExpose<ViewExposed>({ self });
         <div class="flex-1">
           <h4 class="font-semibold">Inputs</h4>
           <CustomObject
+            id="inputs"
             class="w-full py-2"
             :value-type="inputType"
             is-inline
@@ -219,6 +222,7 @@ defineExpose<ViewExposed>({ self });
         <div v-if="run?.outputsPacked != null" class="flex-1">
           <h4 class="font-semibold">Outputs</h4>
           <CustomObject
+            id="outputs"
             class="w-full py-2"
             :value-type="outputType"
             is-inline

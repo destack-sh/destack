@@ -20,7 +20,6 @@ import { computed, ref, shallowRef, toRef, unref, watch, type MaybeRef, type Ref
 // NOTE :Architecture: we can probably generalise drag & selection targets into a single system?
 //  (also canvas.registerView, View.nodePtr and data-node-id annotations seem very relevant)
 // NOTE: for now the drag/drop system is only expected to work within a single bench-web instance
-//  (i.e. not across instances, but it should work across with other applications)
 
 const DRAGGED_KINDS = ["node", "selection", "file"] as const;
 export type DraggedKind = (typeof DRAGGED_KINDS)[number];

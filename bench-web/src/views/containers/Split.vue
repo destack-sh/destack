@@ -16,11 +16,13 @@ import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/pop
 const props = defineProps<
   {
     self: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
     size: Required<Pick<BoxData, "width" | "height">>;
   } & Pick<ViewData, "type" | "name" | "title" | "icon" | "orientation" | "focus">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const splits = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
@@ -126,7 +128,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   },
 };
 
-canvas.registerView(self);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>

@@ -27,7 +27,7 @@ import {
   Timestamp,
   Variant,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -54,7 +54,7 @@ import {
   VIEW_DEFAULT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -70,13 +70,13 @@ const ROW_PADDING_X = 8; // per side, so ROW_PADDING*2 per side
 const FULL_PADDING = 12;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "variant" | "isInput" | "selection">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const spaceTx = () => spaceConnection.tx.with({ category: ChangeCategory.SPACE });
 const selfView = spaceGraph.getRef(self);
@@ -791,6 +791,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Body (scroll horizontally, and vertically if not compact) -->
     <Scroll
+      id="body"
       ref="bodyRef"
       :size="bodySize"
       :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
@@ -909,6 +910,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             />
             <NativeInput
               v-if="column.kind == 'field'"
+              :id="column.id + '.name'"
               class="truncate font-medium"
               :model-value="column.title"
               :value-type="NAME_TYPE"
@@ -1039,6 +1041,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <component
               :is="column.viewComponent"
               v-if="column.viewComponent != null"
+              :id="getCellId(record, column)"
               :ref="
                 (ref: any) =>
                   ref != null

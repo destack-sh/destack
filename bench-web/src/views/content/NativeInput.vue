@@ -6,11 +6,11 @@ import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { getNativeConstraintProps, TEXT_DIRECTION_BY_ALIGNMENT } from "@/ui/view";
-import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
     Pick<
       ViewData,
       "type" | "name" | "title" | "icon" | "variant" | "valueType" | "alignment" | "isInput" | "isDisabled"
@@ -19,6 +19,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 const valueType = computed(() => props.valueType ?? STRING_TYPE);
 const modelValue = defineModel<string | number | bigint | Array<string | number | bigint>>();
 const hasValue = computed(() => {
@@ -99,7 +100,6 @@ function remove(idx: number) {
   );
 }
 
-const id = makeViewId(props);
 canvas.registerView(self, id);
 defineExpose<ViewExposed & { select: () => void }>({
   self,

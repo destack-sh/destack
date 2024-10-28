@@ -3,17 +3,17 @@ import { ColorShade, NodeType, Variant, ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>, id: string } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "variant" | "isDisabled" | "isLoading">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => ({

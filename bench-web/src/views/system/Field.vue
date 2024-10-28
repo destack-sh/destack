@@ -10,20 +10,20 @@ import { type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Pick<
     ViewData,
     "variant" | "nodePtr" | "orientation"
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const fieldRef = ref<HTMLElement | null>(null);
 const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
@@ -111,6 +111,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       "
     />
     <NativeInput
+      id="name"
       ref="nameRef"
       class="flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
       :alignment="orientation == Orientation.HORIZONTAL_REVERSED ? Alignment.END : Alignment.START"

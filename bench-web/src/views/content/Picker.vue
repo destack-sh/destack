@@ -21,14 +21,7 @@ import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type 
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import {
-  makeViewId,
-  ViewContentWrapper,
-  viewEmits,
-  type FocusAnchor,
-  type ViewExposed,
-  type ViewProps,
-} from "@/views/common";
+import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
@@ -40,6 +33,7 @@ const MAX_HEIGHT = 360;
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
     modelValue?: any;
     size?: Partial<Pick<BoxData, "width" | "height">>;
     placeholder?: string;
@@ -50,7 +44,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const query: Ref<string> = ref("");
@@ -377,6 +371,7 @@ defineExpose<ViewExposed>({
       </div>
       <!-- Body -->
       <Scroll
+        id="body"
         size-is-dynamic
         :size="{ width, height: MAX_HEIGHT }"
         :orientation="Orientation.VERTICAL"

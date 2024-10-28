@@ -21,7 +21,7 @@ const props = defineProps<{ run?: RunData; error: RunErrorData }>();
     </div>
     <!-- Text -->
     <div v-if="error.text" class="mt-1">
-      <Text :model-value="error.text" :variant="Variant.STEALTH" />
+      <Text id="text" :model-value="error.text" :variant="Variant.STEALTH" />
     </div>
     <div v-else class="mt-1">
       <span class="text-gray-400">No Error Message</span>

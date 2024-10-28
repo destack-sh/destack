@@ -50,7 +50,7 @@ const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked"
   >
@@ -61,6 +61,7 @@ const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 
 const { graph: spaceGraph } = useExistingConnection(self);
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
@@ -330,7 +331,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   }),
 };
 
-canvas.registerView(self);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
@@ -404,6 +405,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <!-- Content -->
     <Scroll
       v-if="expandedItems.length > 0"
+      id="scroll"
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
@@ -489,6 +491,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Name (editable) if editing -->
           <NativeInput
             v-if="node.id == editingNodePtr?.id"
+            :id="node.id + '.name'"
             ref="editingNameRef"
             v-outside.mousedown.stop="cancelRename"
             class="flex-shrink-0 transition-colors duration-150"

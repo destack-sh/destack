@@ -4,26 +4,19 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/ui/style";
-import {
-  ViewContentWrapper,
-  makeViewId,
-  viewEmits,
-  type FocusAnchor,
-  type ViewExposed,
-  type ViewProps,
-} from "@/views/common";
+import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import { ref, toRef, type Ref } from "vue";
 
 const COLORS_PER_ROW = 9;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: ColorData } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: ColorData } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "variant" | "valueType" | "isInput" | "isInline" | "isDisabled">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const itemRefs: Ref<Partial<Record<ColorType, HTMLButtonElement>>> = ref({});

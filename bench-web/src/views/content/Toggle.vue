@@ -1,18 +1,18 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, Variant, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { ref, toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: boolean } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: boolean } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "variant" | "orientation" | "isInput" | "isDisabled">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 const inputRef = ref<HTMLInputElement | null>(null);
 
 function toggle() {

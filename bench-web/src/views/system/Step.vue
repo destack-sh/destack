@@ -37,7 +37,7 @@ import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import { formatDuration, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -47,13 +47,13 @@ import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const stepPtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.STEP>);
 const flowCtx = useFlowContext();
@@ -240,6 +240,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         class="w-5 flex-shrink-0 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
       />
       <NativeInput
+        id="name"
         ref="nameRef"
         class="ml-1.5 truncate font-medium text-gray-700 transition-colors duration-150"
         is-input
@@ -432,6 +433,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               <div v-else-if="port.type == PortType.FIELD" class="px-1">
                 <!-- Field port -->
                 <Field
+                  :id="port.field!.id"
                   v-contextmenu="
                     (context: PopoverContext): PopoverInfo => ({
                       kind: 'menu',
@@ -469,6 +471,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       >
         <Text
           v-if="step.type == StepType.TEXT"
+          id="text"
           class="px-3"
           is-input
           :variant="Variant.STEALTH"
@@ -484,6 +487,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         />
         <Code
           v-else-if="step.type == StepType.CODE"
+          id="code"
           class="px-3"
           is-input
           :variant="Variant.STEALTH"

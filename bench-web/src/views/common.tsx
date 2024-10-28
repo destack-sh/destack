@@ -18,7 +18,7 @@ import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
 
 export type ViewProps = { self?: NodeReferenceData; modelValue?: any; placeholder?: string } & Partial<
-  Omit<ViewData, "metatype" | "id" | "ck">
+  Omit<ViewData, "metatype" | "ck">
 >;
 export type ViewComponent = {
   new (): ComponentInstance<any>;
@@ -100,32 +100,6 @@ export const ViewContentWrapper: FunctionalComponent<{
 };
 ViewContentWrapper.props = ["type", "title", "variant", "orientation", "valueType"];
 
-/** Creates an id for an 'anonymous' view */
-function deriveViewId(selfId: string, name: string): string {
-  return `${selfId}.${name}`;
-}
-
-/** Creates a dynamic view id ref for View components that sometimes don't have a 'self' node identity */
-export function makeViewId(props: { self?: NodeReferenceData; name?: string | null }): Ref<string> {
-  const instance = getCurrentInstance()!;
-  if (instance == null) throw new Error("no Vue instance");
-  return computed(() => {
-    if (props.self?.id != null) return props.self.id;
-
-    const instanceInternalId = instance.uid;
-    let parent = instance.parent;
-    while (parent != null) {
-      const exposed = (parent as unknown as ViewComponent).exposed;
-      if (exposed?.self?.value?.id != null)
-        return deriveViewId(exposed.self.value.id, props.name ?? instanceInternalId.toString());
-      else if (exposed?.id?.value != null)
-        return deriveViewId(exposed.id.value, props.name ?? instanceInternalId.toString());
-      parent = parent.parent;
-    }
-    // this is a component outside of a parent view, just use a random id
-    return v4();
-  });
-}
 
 // inverse :ViewRegistry for lookups without needing to import the registry
 export function getViewTypeByComponentName(name: string): ViewType | null {

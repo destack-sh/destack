@@ -25,10 +25,11 @@ import { useSubnode } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title" | "subnodePacked">
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title" | "subnodePacked">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 
 const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
@@ -99,7 +100,7 @@ async function submit() {
   }
 }
 
-const instance = canvas.registerView(self);
+const instance = canvas.registerView(self, id);
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {
@@ -126,6 +127,7 @@ defineExpose<ViewExposed>({ self, focus });
     <div v-if="!user" class="mt-5 flex w-full flex-col gap-y-3">
       <NativeInput
         v-if="stage == UserWizardViewStage.SIGN_UP"
+        id="name"
         v-model="name"
         :icon="makeIcon({ faName: 'fas fa-user' })"
         name="Name"
@@ -134,6 +136,7 @@ defineExpose<ViewExposed>({ self, focus });
         is-input
       />
       <NativeInput
+        id="slug"
         v-model="slug"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="slug"
@@ -143,6 +146,7 @@ defineExpose<ViewExposed>({ self, focus });
       />
       <NativeInput
         v-if="stage == UserWizardViewStage.SIGN_UP"
+        id="email"
         v-model="email"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Email"
@@ -152,6 +156,7 @@ defineExpose<ViewExposed>({ self, focus });
       />
       <!-- TODO :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/) -->
       <NativeInput
+        id="password"
         v-model="password"
         :icon="makeIcon({ faName: 'fas fa-key' })"
         name="Password"
@@ -165,6 +170,7 @@ defineExpose<ViewExposed>({ self, focus });
     <div class="mt-7">
       <Button
         v-if="!user"
+        id="submit"
         name="Submit"
         :icon="makeIcon({ faName: 'fas fa-arrow-right-from-bracket' })"
         :title="stage === UserWizardViewStage.LOG_IN ? 'Log in' : 'Sign up'"
@@ -175,6 +181,7 @@ defineExpose<ViewExposed>({ self, focus });
       />
       <Button
         v-if="!user"
+        id="switch"
         name="Switch"
         :icon="makeIcon({ faName: 'fas fa-shuffle' })"
         :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up' : 'Log in'"

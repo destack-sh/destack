@@ -144,6 +144,7 @@ watch(
     <!-- Space root (:OneRootWindow) -->
     <Split
       v-if="window"
+      id="window"
       class="absolute"
       :style="mainBoxStyle"
       :type="ViewType.WINDOW"
@@ -166,6 +167,7 @@ watch(
           <span class="text-gray-600">Space Is Empty</span>
         </span>
         <Button
+          id="create"
           name="Create"
           :icon="makeIcon('fas fa-redo-alt')"
           title="Restore Default"
@@ -188,6 +190,7 @@ watch(
         </span>
         <Button
           v-if="user"
+          id="user"
           class="mt-2"
           name="MakeSpace"
           :icon="makeIcon('fas fa-plus')"
@@ -196,6 +199,7 @@ watch(
         />
         <Button
           v-else
+          id="login"
           class="mt-2"
           name="LogIn"
           :icon="makeIcon('fas fa-arrow-right-to-bracket')"
@@ -221,6 +225,7 @@ watch(
         </span>
         <Button
           v-if="user.status == UserStatus.ACTIVATED"
+          id="home"
           name="GoHome"
           :icon="makeIcon('fas fa-home')"
           title="Go Home"
@@ -228,6 +233,7 @@ watch(
         />
         <Button
           v-else
+          id="activate"
           name="Activate"
           :icon="makeIcon('fas fa-plus')"
           title="Create Bench"
@@ -238,6 +244,7 @@ watch(
         <!-- Not logged in, not on a space (general landing page should go here) -->
         <h2 class="mb-1.5 text-2xl font-bold">Bench</h2>
         <Button
+          id="login"
           name="LogIn"
           :icon="makeIcon('fas fa-arrow-right-to-bracket')"
           title="Log In"
