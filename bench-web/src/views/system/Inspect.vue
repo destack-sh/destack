@@ -115,6 +115,7 @@ defineExpose<ViewExposed>({ self });
             <component
               :is="getViewComponent(viewType)"
               v-if="viewType != null && hasViewComponent(viewType)"
+              :id="i + '.value'"
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
               v-bind="{ ...viewProps, isInput: true }"

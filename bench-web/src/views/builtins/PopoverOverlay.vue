@@ -183,6 +183,7 @@ function close(popover: PopoverInstance | undefined) {
       >
         <component
           :is="toComponent(popover.info)"
+          id="popover"
           :ref="(el: any) => registerInnerRef(popover.id, el)"
           v-bind="{ isInline: true, ...(popover.info.props ?? {}) }"
           :model-value="popoverValues[popover.id]"
@@ -190,12 +191,6 @@ function close(popover: PopoverInstance | undefined) {
             (newValue: any) => {
               popoverValues[popover.id] = newValue;
               popover.info.onUpdate?.(newValue);
-            }
-          "
-          @update:self="
-            (newProps: any) => {
-              if (!('props' in popover.info)) throw new Error(`${popover.info.kind} popover has no props`);
-              updatePopover(popover, { props: { ...popover.info.props, ...newProps } });
             }
           "
           @apply="(value: any, keepOpen?: boolean) => (onApply(popover, value), keepOpen || close(popover))"

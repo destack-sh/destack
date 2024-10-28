@@ -1,20 +1,20 @@
 import { toCamelName } from "@/language/const";
 import { defaultSortNode } from "@/language/order";
 import {
-  BlockProperty,
   CHILD_NODE_TYPES,
   GraphScopeData,
   NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   type AnyNodeData,
-  type NodeTypeMapping,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import {
-  EMPTY_SCOPE,
   describeNode,
   describeScope,
+  EMPTY_SCOPE,
   isNodeRef,
+  propertyInfo,
   toNodeRef,
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
@@ -1157,9 +1157,6 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
 
 export type PartialNode<T extends NodeType> = NodeTypeMapping[T] & { setPaths?: string[][] };
 
-const NODE_SUBTYPE_PACKED_ID = BlockProperty.subnodePacked;
-const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it's the same property id for all nodes
-
 /**
  * Creates a new node with the explicitly set paths from the overlay superimposed on the base.
  */
@@ -1167,6 +1164,7 @@ export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: Par
   if (partial.setPaths != null && partial.setPaths.length > 0) {
     const merged: NodeTypeMapping[T] = structuredClone(base);
     for (const path of partial.setPaths) {
+      const rootProperty = propertyInfo(base.metatype, Number(path[0]));
       let partialObj: any = partial;
       let mergedObj: any = merged;
       let key = path[0];
@@ -1174,7 +1172,7 @@ export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: Par
         // map key
         key = path[i];
         const propId = Number(key);
-        const isProperty = !Number.isNaN(propId) && (i == 0 || path[0] != NODE_SUBTYPE_PACKED_KEY);
+        const isProperty = !Number.isNaN(propId) && (i == 0 || !rootProperty.isValuePacked);
         if (isProperty) {
           // builtin object property
           const objProperties = PROPERTY_ENUM_BY_TYPE[mergedObj.metatype as ObjectType];

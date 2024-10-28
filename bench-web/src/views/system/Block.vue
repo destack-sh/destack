@@ -51,6 +51,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const blockRef = ref<HTMLElement | null>(null);
 const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
@@ -135,7 +136,6 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   return false;
 }
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
@@ -267,6 +267,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :value-type="valueType"
         :model-value="value"
         :size="{ height: 320 }"
+        v-bind="state.getChildState('value')"
         @update:model-value="(newValue) => updateValue(newValue)"
       />
       <Type
@@ -277,6 +278,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         id="type"
         :node="block"
         :prepared-connection="pkgGetConnection"
+        v-bind="state.getChildState('type')"
         :node-ptr="props.nodePtr"
       />
       <Text
@@ -286,6 +288,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         is-input
         :variant="Variant.STEALTH"
         :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.TEXT, block.subnodePacked, 'text')"
+        v-bind="state.getChildState('text')"
         @update:model-value="
           (newText) =>
             pkgConnection.tx.update(
@@ -300,6 +303,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         id="code"
         is-input
         :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.CODE, block.subnodePacked, 'code')"
+        v-bind="state.getChildState('code')"
         @update:model-value="
           (newCode) =>
             pkgConnection.tx.update(
@@ -313,6 +317,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         v-if="block.type == BlockType.FLOW"
         id="flow"
         class="h-[400px]"
+        v-bind="state.getChildState('flow')"
         :node-ptr="props.nodePtr"
         :variant="Variant.COMPACT"
         :prepared-connection="pkgGetConnection"
@@ -320,6 +325,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <Database
         v-if="block.type == BlockType.DATABASE"
         id="database"
+        v-bind="state.getChildState('database')"
         :node-ptr="props.nodePtr"
         :variant="Variant.COMPACT"
         is-input

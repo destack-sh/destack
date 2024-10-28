@@ -65,6 +65,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
+const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph } = useExistingConnection(self);
 const selfView = spaceGraph.getRef(self);
@@ -285,7 +286,6 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
 }
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
@@ -313,7 +313,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
     <!-- Page content -->
     <Scroll
-      id="scroll"
+      id="body"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
@@ -407,8 +407,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 :variant="Variant.STEALTH"
                 :node-ptr="toNodeRefOneOf(block)"
                 :prepared-connection="preparedPkgConnection"
-                :draggable="true"
-                @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block)"
+                v-bind="state.getChildState(block.id)"
               />
             </div>
 
@@ -417,7 +416,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
               :style="{ width: widths.gutter, marginTop: SEPARATOR_WIDTH + 'px' }"
             >
-              <!--  NOTE :Incomplete: Messages  -->
+              <!-- ...? -->
             </div>
           </div>
 

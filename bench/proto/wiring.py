@@ -90,10 +90,9 @@ def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> A
             id=value_id,
             ck=str(value.ck) if value.ck is not None else value_id,
         )
-    elif prop.is_value_packed:  # custom object
+    elif prop.is_value_packed and prop.value_type_info_getter is not None:  # custom object
         # NOTE :Performance: avoid roundtripping value unpacking/packing if possible
         #  (here we force unpack and then repack the value even if it wasn't unpacked before)
-        assert prop.value_type_info_getter is not None, f"no value_type_info_getter for {prop!r}"
         typ = prop.value_type_info_getter(obj)
         assert typ is not None, f"no type for {prop!r}"
         if typ.kind == TypeKind.OBJECT:

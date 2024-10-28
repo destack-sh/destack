@@ -3,10 +3,11 @@ import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { cloneNode, generateNodeName, makeNode, NodeIn } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
-import { type Transaction } from "@/language/transaction";
-import { packBuiltinObject } from "@/language/value";
+import { makeEdit, TransactionOptions, type Transaction } from "@/language/transaction";
+import { unpackBuiltinObject } from "@/language/value";
 import {
   BlockType,
+  ChangeCategory,
   DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
@@ -18,6 +19,7 @@ import {
   StructType,
   TreeViewPreset,
   ViewData,
+  ViewProperty,
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
@@ -27,6 +29,7 @@ import {
   isNode,
   isNodeRef,
   makeStruct,
+  propertyInfo,
   toNodeRef,
   toNodeRefOneOf,
   toPlainNodeRef,
@@ -41,7 +44,6 @@ import { toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import {
   collectViewComponentsUp,
-  describeVueComponentPath,
   findViewComponentUp,
   getViewComponentId,
   getViewComponentPtrMaybe,
@@ -56,7 +58,6 @@ import {
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
-import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -89,6 +90,8 @@ type OpenViewOptions = {
 };
 
 const activeElement = useActiveElement();
+const SUBVIEWS_PROPERTY_ID = propertyInfo(ObjectType.VIEW, ViewProperty.subviewsPacked).id;
+const SUBVIEWS_PROPERTY_KEY = SUBVIEWS_PROPERTY_ID.toString();
 
 /**
  * Canvas for Views and their components in a Space.
@@ -505,7 +508,7 @@ export class SpaceCanvas {
   }
 
   /** Registers the current Vue component instance in the canvas with some View identity */
-  registerView(self: Ref<NodeReferenceData | undefined>, id: Ref<string>): ViewComponent {
+  registerView(self: Ref<NodeReferenceData | undefined>, id: Ref<string>) {
     const instance = getCurrentInstance() as ViewComponent | null;
     if (instance == null) throw new Error("no current Vue instance");
 
@@ -525,52 +528,39 @@ export class SpaceCanvas {
     onMounted(markEl);
     onUpdated(markEl);
 
+    function getComponentId(): string {
+      // the :ViewComponentId is composed of the view id itself and any ancestor ids up to the next View
+      // (so we can associate sub-View components that aren't full Views themselves with something consistent)
+      if (self.value != null) {
+        return self.value.id!;
+      } else {
+        const componentIdParts = [id.value];
+        let ancestor = instance;
+        while (ancestor?.props?.self == null) {
+          ancestor = (ancestor as any).parent;
+          if (ancestor?.props.id != null) {
+            componentIdParts.unshift(ancestor.props.id);
+          }
+        }
+        return componentIdParts.join(".");
+      }
+    }
+
     // register
-    // NOTE @Cleanup: 'self'/'id' should never change, so no need to watch in Canvas.registerView?
-    let oldComponentId: string | null = null;
+    // NOTE :Architecture: 'self'/'id' shouldn't change, right, so no need to watch in Canvas.registerView?
+    let componentId: string = getComponentId();
     watch(
       [self, id],
       () => {
         const viewRefsById = this.viewRefsById.value;
-        if (oldComponentId != null && viewRefsById[oldComponentId] === instance) {
-          delete viewRefsById[oldComponentId];
-        }
-
-        // the :ViewComponentId is composed of the view id itself and any ancestor ids up to the next View
-        // (so we can associate sub-View components that aren't full Views themselves with something consistent)
-        let componentId: string;
-        if (self.value != null) {
-          componentId = self.value.id!;
-        } else {
-          const componentIdParts = [id.value];
-          let ancestor = instance;
-          while (ancestor?.props?.self == null) {
-            ancestor = (ancestor as any).parent;
-            componentIdParts.unshift(ancestor.props.id!);
-          }
-          componentId = componentIdParts.join(".");
-        }
-
-        // NOTE: check for duplicate components (only works reliably on next tick,
-        //  because we may be registering a new component before the old component is unmounted)
-        const existingComponent = viewRefsById[componentId];
-        if (existingComponent != null && (IS_DEV || isDeveloperMode.value)) {
-          nextTick(() => {
-            if (
-              (existingComponent as any).vnode?.el != null &&
-              document.body.contains((existingComponent as any).vnode.el) // is this really the fastest way to check if it's still mounted?
-            ) {
-              const thisPath = describeVueComponentPath(instance);
-              const existingPath = describeVueComponentPath(existingComponent);
-              throw new Error(`duplicate components for id ${componentId}: ${thisPath} vs ${existingPath}`);
-            }
-          });
+        if (componentId != null && viewRefsById[componentId] === instance) {
+          delete viewRefsById[componentId];
         }
 
         // update registered component
+        componentId = getComponentId();
         viewRefsById[componentId] = instance;
         triggerRef(this.viewRefsById);
-        oldComponentId = componentId;
       },
       { immediate: true },
     );
@@ -578,12 +568,62 @@ export class SpaceCanvas {
     onBeforeUnmount(() => {
       // should always be true, but maybe errored
       const viewRefsById = this.viewRefsById.value;
-      if (oldComponentId != null && viewRefsById[oldComponentId] === instance) {
-        delete viewRefsById[oldComponentId];
+      if (componentId != null && viewRefsById[componentId] === instance) {
+        delete viewRefsById[componentId];
         triggerRef(this.viewRefsById);
       }
     });
-    return instance;
+
+    // state (on demand)
+    const graph = this.graph;
+    const tx = this.tx;
+    let baseViewRef: Ref<ViewData | null> | null = null;
+
+    function getBaseView(): ViewData {
+      if (baseViewRef == null) {
+        let selfPtr = self.value;
+        let parent = instance;
+        while (selfPtr == null && parent != null) {
+          selfPtr = parent.props.self;
+          parent = (parent as any).parent;
+        }
+        if (selfPtr == null) throw new Error("no base view");
+        baseViewRef = graph.getRef(selfPtr) as Ref<ViewData | null>;
+      }
+      const baseView = baseViewRef.value;
+      if (baseView == null) throw new Error("no base view");
+      return baseView;
+    }
+
+    function getState(viewId?: string): Partial<Record<string, any> | undefined> {
+      const subviewsPacked = getBaseView().subviewsPacked;
+      if (typeof subviewsPacked != "object") return undefined;
+      const subviewPacked = (subviewsPacked as any)?.[viewId ?? componentId];
+      if (subviewPacked == null) return undefined;
+      return unpackBuiltinObject(subviewPacked, ObjectType.VIEW);
+    }
+
+    function getChildState(viewId: string): Partial<Record<string, any> | undefined> {
+      return getState(componentId + "." + viewId);
+    }
+
+    function update(update: Partial<NodeIn<any>>, options?: TransactionOptions) {
+      const baseView = getBaseView();
+      console.log("canvas.update", { baseView, update, options });
+      if (self.value != null) {
+        // base view upate
+        tx().with({ category: ChangeCategory.SPACE }).update(baseView, update as NodeIn<any>, options);
+      } else {
+        // subview update
+        const edits = makeEdit(baseView, update as NodeIn<any>);
+        for (const edit of edits) {
+          edit.path = [SUBVIEWS_PROPERTY_KEY, componentId, ...edit.path];
+        }
+        tx().with({ category: ChangeCategory.SPACE }).update(baseView, edits, options);
+      }
+    }
+
+    return { getState, getChildState, update };
   }
 
   /** Gets the containing root view (or self, if any) for a view */

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.language.const import NODE_TYPES, EnumType, NodeType, PrimitiveType, StructType, enum_
+from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.expression import Selection
 from bench.language.list import LocalNodeList
 from bench.language.node import (
@@ -476,9 +476,7 @@ class View(SourceNode[ViewData]):
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
     )
-    subviews_packed: dict[str, Any] | None = p_internal(
-        39, require=False, primitive_type=PrimitiveType.JSON
-    )
+    subviews_packed: dict[str, Any] | None = p_value_packed(39)
 
     # content
     value_type: Optional["TypeInfo"] = p_regular(

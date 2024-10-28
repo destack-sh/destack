@@ -1,9 +1,9 @@
 import { estimateCodeHeight } from "@/language/code";
 import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
+import { makeNodeName, NodeIn, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
 import { estimateTextHeight } from "@/language/text";
-import type { Transaction } from "@/language/transaction";
+import type { Transaction, TransactionOptions } from "@/language/transaction";
 import {
   BlockData,
   BlockType,
@@ -229,7 +229,8 @@ export class FlowContext {
   private spaceTxFactory: () => Transaction;
   private txFactory: () => Transaction;
 
-  view: Ref<ViewData | null>;
+  view: Ref<Partial<ViewData> | null>;
+  update: (update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) => void;
   stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
   containerRef: Ref<HTMLElement | null>;
   dragging: Ref<{ thing: FlowThing; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
@@ -251,6 +252,7 @@ export class FlowContext {
     spaceTx: () => Transaction;
     graph: ReadNodeGraph;
     tx: () => Transaction;
+    update: (update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) => void;
     view: Ref<ViewData | null>;
     containerRef: Ref<HTMLElement | null>;
     stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
@@ -260,6 +262,7 @@ export class FlowContext {
     this.spaceTxFactory = context.spaceTx;
     this.graph = context.graph;
     this.txFactory = context.tx;
+    this.update = context.update;
 
     // view
     this.view = context.view;
@@ -440,9 +443,7 @@ export class FlowContext {
 
   /** Pan the canvas (in world coordinates). */
   pan(move: { x: number; y: number }) {
-    if (this.view.value == null) return; // not a real view
-    this.spaceTx.update(
-      this.view.value,
+    this.update(
       { transform: addTransform(this.transform.value, { translateX: move.x, translateY: move.y }) },
       { debounce: "long" },
     );
@@ -502,7 +503,6 @@ export class FlowContext {
 
   /** Zoom the convas around the given origin (panning as needed) */
   zoom(direction: "in" | "out" | number, originViewVec: { x: number; y: number } | "center", steps: number) {
-    if (this.view.value == null) return; // not a real view
     const containerBounding = this.containerRef.value?.getBoundingClientRect();
     if (containerBounding == null) throw new Error("no container bounding");
     if (originViewVec == "center") {
@@ -545,8 +545,7 @@ export class FlowContext {
     panVec.x += (newCenterWorldVec.x - newOriginWorldVec.x) * (newZoom - currentZoom);
     panVec.y += (newCenterWorldVec.y - newOriginWorldVec.y) * (newZoom - currentZoom);
 
-    this.spaceTx.update(
-      this.view.value,
+    this.update(
       {
         transform: {
           ...this.transform.value,
@@ -562,7 +561,6 @@ export class FlowContext {
 
   /** Resets the viewport to the 'center' of the canvas */
   resetViewport() {
-    if (this.view.value == null) return; // not a real view
     this.zoom(1, "center", 0);
     this.panToCenter({ kind: "canvas" });
   }
@@ -617,17 +615,12 @@ export class FlowContext {
   /** Updates the position of a dragged thing in response to a "drag" event. */
   onDragging(e: MouseEvent) {
     if (this.dragging.value == null) return;
-    if (this.view.value == null) return; // not a real view
     const thing = this.dragging.value.thing;
     if (thing.kind == "canvas") {
       // pan canvas
       const translateX = e.movementX / (this.transform.value?.scaleX ?? 1);
       const translateY = e.movementY / (this.transform.value?.scaleY ?? 1);
-      this.spaceTx.update(
-        this.view.value,
-        { transform: addTransform(this.transform.value, { translateX, translateY }) },
-        { debounce: "long" },
-      );
+      this.update({ transform: addTransform(this.transform.value, { translateX, translateY }) }, { debounce: "long" });
     } else if (thing.kind == "step") {
       // move step (snap to grid)
       const screenVec = this.viewportToViewVec({

@@ -20,8 +20,8 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import {
-  isNode,
   SomeNodeReferenceData,
+  isNode,
   toNodeRef,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
@@ -62,6 +62,7 @@ const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph } = useExistingConnection(self);
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
@@ -209,8 +210,7 @@ function focus(anchor?: "next" | "previous" | number | FocusAnchor | NodeReferen
 
 function doFocus(node: AnyNodeData | NodeReferenceData) {
   if (focusedNode.value?.id != node.id) {
-    const selfNode = spaceGraph.getOrError(self.value) as ViewData;
-    canvas.tx().update(selfNode, { focus: makeSelection([node]) }, { debounce: "tick" });
+    state.update({ focus: makeSelection([node]) }, { debounce: "tick" });
   }
   queryRef.value?.focus();
   expandedNodesRefs.value[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
@@ -331,7 +331,6 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   }),
 };
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>

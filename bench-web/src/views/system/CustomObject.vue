@@ -248,6 +248,7 @@ defineExpose<ViewExposed>({ self, id, focus });
               fieldView.viewType != null &&
               hasViewComponent(fieldView.viewType)
             "
+            :id="fieldView.field.id + '.value'"
             :ref="
               (ref: any) =>
                 ref != null ? (componentRefs[fieldView.field.id] = ref) : delete componentRefs[fieldView.field.id]

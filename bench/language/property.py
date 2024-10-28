@@ -1002,6 +1002,7 @@ def p_subnode_packed(id: int) -> Any:
         id=id,
         primitive_type=PrimitiveType.JSON,
         is_subnode_packed=True,
+        is_value_packed=True,
         is_internal=True,
         is_stored=True,
         is_wired=True,
