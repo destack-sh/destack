@@ -41,7 +41,7 @@ import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
-import { computed, provide, ref, toRef, type Ref } from "vue";
+import { computed, provide, ref, toRef, watchEffect, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
@@ -69,6 +69,7 @@ const flowCtx = new FlowContext({
   tx: () => pkgConnection.tx,
   update: state.update,
   view: selfView,
+  transform: toRef(props, "transform"),
   containerRef,
   stepRefs: stepRefs,
   flowPtr: nodePtr,
@@ -317,7 +318,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     >
       <!-- Node path -->
       <NodePath
-        v-if="variant != Variant.STEALTH && flowCtx.flow.value != null"
+        v-if="variant != Variant.STEALTH && variant != Variant.COMPACT && flowCtx.flow.value != null"
         class="pointer-events-auto flex-shrink-0 border border-gray-200 bg-white px-2"
         :container="nodePtr"
         :focus="props.focus?.nodesPtr[0]"
@@ -326,7 +327,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Menu (Create) -->
       <div
         v-if="variant != Variant.STEALTH"
-        class="pointer-events-auto absolute left-1/2 z-20 flex w-fit -translate-x-1/2 flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
+        :class="variant != Variant.COMPACT ? 'absolute left-1/2 -translate-x-1/2' : ''"
       >
         <!-- Create -->
         <button
