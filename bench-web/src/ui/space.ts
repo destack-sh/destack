@@ -509,10 +509,15 @@ export class SpaceCanvas {
 
   /** Registers the current Vue component instance in the canvas with some View identity */
   registerView(self: Ref<NodeReferenceData | undefined>, id: Ref<string>) {
+    const graph = this.graph;
+    const tx = this.tx;
     const instance = getCurrentInstance() as ViewComponent | null;
     if (instance == null) throw new Error("no current Vue instance");
 
+    // 
     // mark element with component
+    // 
+
     function markEl() {
       // NOTE: we enforce that el must be a single element for all Views with a lint rule
       //  (unfortunately this doesn't prevent comments from forcing the root into a #text node during development, so we error below)
@@ -527,6 +532,10 @@ export class SpaceCanvas {
     }
     onMounted(markEl);
     onUpdated(markEl);
+
+    //
+    // register component
+    // 
 
     function getComponentId(): string {
       // the :ViewComponentId is composed of the view id itself and any ancestor ids up to the next View
@@ -546,7 +555,6 @@ export class SpaceCanvas {
       }
     }
 
-    // register
     // NOTE :Architecture: 'self'/'id' shouldn't change, right, so no need to watch in Canvas.registerView?
     let componentId: string = getComponentId();
     watch(
@@ -574,28 +582,30 @@ export class SpaceCanvas {
       }
     });
 
-    // state (on demand)
-    const graph = this.graph;
-    const tx = this.tx;
-    let baseViewRef: Ref<ViewData | null> | null = null;
+    //
+    // base view
+    //
 
-    function getBaseView(): ViewData | null {
-      if (baseViewRef == null) {
-        let selfPtr = self.value;
-        let parent = instance;
-        while (selfPtr == null && parent != null) {
-          selfPtr = parent.props.self;
-          parent = (parent as any).parent;
-        }
-        if (selfPtr == null) return null;
-        baseViewRef = graph.getRef(selfPtr) as Ref<ViewData | null>;
-      }
-      return baseViewRef.value;
+    // mark component with view (if we have one)
+    if (self.value != null) {
+      const viewRef = graph.getRef(self);
+      (instance as any).__selfViewRef = viewRef;
+    } 
+
+
+    let base = instance;
+    while (base != null && (base as any)?.__selfViewRef == null) {
+      base = (base as any).parent;
     }
+    const baseViewRef: Ref<ViewData | null> | null = (base as any)?.__selfViewRef ?? null;
+
+
+    // 
+    // state (on demand)
+    // 
 
     function getState(viewId?: string): Partial<Record<string, any> | undefined> {
-      const baseView = getBaseView();
-      const subviewPacked = (baseView?.subviewsPacked as any)?.[viewId ?? componentId];
+      const subviewPacked = (baseViewRef?.value?.subviewsPacked as any)?.[viewId ?? componentId];
       if (subviewPacked == null) return undefined;
       return unpackBuiltinObject(subviewPacked, ObjectType.VIEW);
     }
@@ -605,7 +615,7 @@ export class SpaceCanvas {
     }
 
     function update(update: Partial<NodeIn<any>>, options?: TransactionOptions) {
-      const baseView = getBaseView();
+      const baseView = baseViewRef?.value;
       if (baseView == null) return; // no base view, cannot update (should error?)
       if (self.value != null) {
         // base view upate

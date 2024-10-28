@@ -2,7 +2,7 @@
 import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
 import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
-import { isGeneratedNodeName, unpackSubnodeProperty } from "@/language/node";
+import { unpackSubnodeProperty } from "@/language/node";
 import { isRunnable } from "@/language/session";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
@@ -12,7 +12,6 @@ import {
   FieldType,
   NodeReferenceData,
   NodeType,
-  TypeInfoData,
   TypeKind,
   Variant,
   ViewData,
@@ -23,8 +22,8 @@ import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
+import { startDraggingIfAllowed } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import { onMouseReleasedOnce } from "@/ui/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
@@ -150,16 +149,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   >
     <!-- Header -->
     <!-- NOTE :UX: revamp block to indicate all its states/properties better, hide header if not needed, ... -->
-    <div class="flex flex-row">
+    <div
+      class="flex flex-row"
+      :draggable="true"
+      @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block!)"
+    >
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
-      <div
-        class="flex flex-shrink-0 flex-row"
-        @mousedown="
-          () =>
-            blockRef!.draggable ||
-            ((blockRef!.draggable = true), onMouseReleasedOnce(() => (blockRef!.draggable = false)))
-        "
-      >
+      <div class="flex flex-shrink-0 flex-row">
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
