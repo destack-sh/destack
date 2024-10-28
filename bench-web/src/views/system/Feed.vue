@@ -249,19 +249,19 @@ const {
   connection: feedConnection,
   isStale,
   isConnected,
-  isConnecting,
   page,
 } = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType.value).toLowerCase()}`, live: true },
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
-    nodeType: nodeType.value,
+    isEnabled: nodeType.value != null,
+    nodeType: nodeType.value!,
     first: 40,
     count: true,
     sort: [
       makeExpression({
         type: ExpressionType.DESCENDING,
-        propertyPtr: propertyReference(nodeType.value, LogProperty.createdAt),
+        propertyPtr: propertyReference(nodeType.value!, LogProperty.createdAt),
       }),
     ],
     filter: effectiveFilter.value,

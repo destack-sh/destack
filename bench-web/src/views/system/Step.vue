@@ -484,7 +484,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         />
         <Code
           v-else-if="step.type == StepType.CODE"
-          class=""
+          class="px-3"
           is-input
           :variant="Variant.STEALTH"
           :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.CODE, step.subnodePacked, 'code')"

@@ -439,7 +439,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
-          : '',
+          : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
       data-suppress-actions="common.move.left,common.move.right"

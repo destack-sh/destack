@@ -1007,6 +1007,7 @@ def p_subnode_packed(id: int) -> Any:
         is_wired=True,
         is_list=False,
         is_required=False,
+        is_system=False,
     )
 
 

@@ -314,7 +314,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     >
       <!-- Node path -->
       <NodePath
-        v-if="variant != Variant.COMPACT && flowCtx.flow.value != null"
+        v-if="variant != Variant.STEALTH && flowCtx.flow.value != null"
         class="pointer-events-auto flex-shrink-0 border border-gray-200 bg-white px-2"
         :container="nodePtr"
         :focus="props.focus?.nodesPtr[0]"
@@ -322,7 +322,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       />
       <!-- Menu (Create) -->
       <div
-        v-if="self != null && variant != Variant.COMPACT"
+        v-if="variant != Variant.STEALTH"
         class="pointer-events-auto absolute left-1/2 z-20 flex w-fit -translate-x-1/2 flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
       >
         <!-- Create -->
@@ -353,7 +353,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
       <!-- Menu (Actions) -->
       <div
-        v-if="self != null"
         class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
       >
         <button
