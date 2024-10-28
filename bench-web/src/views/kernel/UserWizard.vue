@@ -22,8 +22,11 @@ import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 import { useSubnode } from "@/language/node";
+import { makeEdit } from "@/language/transaction";
 
-const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title" | "subnodePacked">>();
+const props = defineProps<
+  { self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title" | "subnodePacked">
+>();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
@@ -49,9 +52,25 @@ function clear() {
 function switchStage() {
   const selfNode = spaceGraph.getOrError(self.value);
   if (stage.value == UserWizardViewStage.LOG_IN) {
-    canvas.tx().update(selfNode, { title: "Sign Up", subnode: { stage: UserWizardViewStage.SIGN_UP } });
+    canvas.tx().update(
+      selfNode,
+      makeEdit(selfNode, {
+        metatype: NodeType.VIEW,
+        type: ViewType.USER_WIZARD,
+        title: "Sign Up",
+        subnode: { stage: UserWizardViewStage.SIGN_UP },
+      }),
+    );
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
-    canvas.tx().update(selfNode, { title: "Log In", subnode: { stage: UserWizardViewStage.LOG_IN } });
+    canvas.tx().update(
+      selfNode,
+      makeEdit(selfNode, {
+        metatype: NodeType.VIEW,
+        type: ViewType.USER_WIZARD,
+        title: "Log In",
+        subnode: { stage: UserWizardViewStage.LOG_IN },
+      }),
+    );
   } else {
     throw new Error(`unexpected registration stage: ${stage.value}`);
   }

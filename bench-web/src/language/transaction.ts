@@ -537,7 +537,7 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
       // builtin object property
       const objProperties = PROPERTY_ENUM_BY_TYPE[obj.metatype as ObjectType];
       const propName = objProperties?.[propId];
-      if (propName == null) {
+      if (propName == null) {  
         break; // invalid path
       }
       key = propName;
