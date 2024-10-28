@@ -33,6 +33,7 @@ import {
   EMPTY_SCOPE,
   makeScope,
   nodeReference,
+  propertyInfo,
   toPlainNodeRef,
   unwrapSomeNode,
   wrapSomeNode,
@@ -92,6 +93,10 @@ export type ChangeIn = {
   text?: TextData;
 };
 
+export type TransactionOptions = {
+  debounce?: DebounceLevel;
+};
+
 /** A transaction on the Bench state graph. */
 export type Transaction = TransactionMeta & {
   readonly scope: GraphScopeData;
@@ -108,16 +113,12 @@ export type Transaction = TransactionMeta & {
   /** Create a new node */
   create<T extends NodeType>(node: NodeIn<T>): NodeTypeMapping[T];
   /** Update regular properties in this node. v*/
-  update<T extends AnyNodeData>(
-    node: T,
-    update: Partial<T> | EditOperationData[],
-    options?: { debounce?: DebounceLevel },
-  ): void;
+  update<T extends AnyNodeData>(node: T, update: Partial<T> | EditOperationData[], options?: TransactionOptions): void;
   /** Move node between parents (and update it) */
   move<T extends AnyNodeData>(
     node: T,
     update: Partial<T> & { parentPtr: NodeReferenceData },
-    options?: { debounce?: DebounceLevel },
+    options?: TransactionOptions,
   ): void;
   /** Soft delete node (incl. descendants), marked for later deletion after retention period */
   delete(node: AnyNodeData): void;
@@ -332,7 +333,7 @@ export class TransactionBuilder implements Transaction {
     editType: EditType.UPDATE | EditType.MOVE,
     node: T,
     update: Partial<T> | EditOperationData[],
-    options?: { debounce?: DebounceLevel },
+    options?: TransactionOptions,
   ) {
     this.checkInScope(node);
 
@@ -386,18 +387,14 @@ export class TransactionBuilder implements Transaction {
     }
   }
 
-  update<T extends AnyNodeData>(
-    node: T,
-    update: Partial<T> | EditOperationData[],
-    options?: { debounce?: DebounceLevel },
-  ) {
+  update<T extends AnyNodeData>(node: T, update: Partial<T> | EditOperationData[], options?: TransactionOptions) {
     this._doUpdate(EditType.UPDATE, node, update, options);
   }
 
   move<T extends AnyNodeData>(
     node: T,
     update: (Partial<T> & { parentPtr: NodeReferenceData }) | EditOperationData[],
-    options?: { debounce?: DebounceLevel },
+    options?: TransactionOptions,
   ) {
     this._doUpdate(EditType.MOVE, node, update, options);
   }
@@ -528,16 +525,17 @@ export function makeEditFromSubnode<T extends NodeType>(
 /** Apply an edit operation to the given node */
 export function applyEditOperation(operation: EditOperationData, node: AnyNodeData) {
   let obj: any = node;
+  const rootProperty = propertyInfo(node.metatype, Number(operation.path[0]));
   for (let i = 0; i < operation.path.length; i++) {
     // map key
     let key = operation.path[i];
     const propId = Number(key);
-    const isProperty = !Number.isNaN(propId) && (i == 0 || operation.path[0] != NODE_SUBTYPE_PACKED_KEY);
+    const isProperty = !Number.isNaN(propId) && (i == 0 || !rootProperty.isValuePacked);
     if (isProperty) {
       // builtin object property
       const objProperties = PROPERTY_ENUM_BY_TYPE[obj.metatype as ObjectType];
       const propName = objProperties?.[propId];
-      if (propName == null) {  
+      if (propName == null) {
         break; // invalid path
       }
       key = propName;

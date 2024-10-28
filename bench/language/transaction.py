@@ -26,7 +26,6 @@ from bench.language.field import decode_type_identity
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
-    NODE_SUBTYPE_PACKED_KEY,
     BuiltinObject,
     ClientOrigin,
     EditSubject,
@@ -573,11 +572,14 @@ class Transaction:
 
 def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
     """Applies an edit operation to a node."""
+    root_prop = node.__properties_by_id__.get(int(op.path[0]))
+    assert root_prop is not None, f"missing root property in {node!r} for {op!r}"
     obj: BuiltinObject | CustomObject = node
     for i in range(len(op.path)):
         # map key
         key = op.path[i]
-        if key.isdigit():
+        is_property = key.isdigit() and (i == 0 or not root_prop.is_value_packed)
+        if is_property:
             # builtin object property
             assert isinstance(
                 obj, BuiltinObject
@@ -636,11 +638,15 @@ def apply_edit_operation_data(
     """
     from bench.proto import wiring
 
+    node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node.metatype)]
+    root_prop = node_cls.__properties_by_id__.get(int(op.path[0]))
+    assert root_prop is not None, f"missing root property in {node!r} for {op!r}"
     obj: AnyObjectData | ProtoStruct = node
     for i in range(len(op.path)):
         # map key
         key = op.path[i]
-        if key.isdigit() and (i == 0 or op.path[0] != NODE_SUBTYPE_PACKED_KEY):
+        is_property = key.isdigit() and (i == 0 or not root_prop.is_value_packed)
+        if is_property:
             # builtin object property
             assert type(obj) is not ProtoStruct, f"unexpected object: {obj} for {op!r}"
             obj_type = OBJECT_CLASS_BY_TYPE[obj.metatype]  # type: ignore

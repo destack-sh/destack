@@ -73,6 +73,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
+const state = canvas.registerView(self, id);
 
 const headerHeight = computed(() => (props.variant == Variant.COMPACT ? HEADER_HEIGHT_COMPACT : HEADER_HEIGHT_NORMAL));
 const asideSize = computed(() => (props.variant == Variant.COMPACT ? ASIDE_WIDTH_COMPACT : ASIDE_WIDTH_NORMAL));
@@ -186,12 +187,6 @@ function createNewThread(parent: AnyNodeData, title: string = generateRandomName
     packagePtr,
     title,
   });
-  if (self.value != null) {
-    const selfView = spaceGraph.getOrError(self.value);
-    canvas.tx().update(selfView, { nodePtr: toNodeRefOneOf(thread) });
-  } else {
-    emit("update:self", { nodePtr: toPlainNodeRef(thread) });
-  }
   return thread;
 }
 
@@ -318,7 +313,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
 };
 
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
 </script>
 <template>
@@ -372,8 +366,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
                 } as any,
                 onApply: (value) => {
                   if (value != null) {
-                    const selfView = spaceGraph.getOrError(self!);
-                    canvas.tx().update(selfView, { nodePtr: toNodeRefOneOf(value) });
+                    state.update({ nodePtr: toNodeRefOneOf(value) });
                     $nextTick(followEnd);
                   }
                 },

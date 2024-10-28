@@ -1,28 +1,27 @@
 <script lang="ts" setup>
 import { makeTypeInfo } from "@/language/field";
+import { useSubnode } from "@/language/node";
+import { makeEdit } from "@/language/transaction";
 import {
   NodeType,
-  ObjectType,
   Region,
   UserWizardViewStage,
   Variant,
   ViewData,
   ViewType,
-  type NodeReferenceData,
+  type NodeReferenceData
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
-import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { makeIcon } from "@/ui/icon";
+import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";
 import { computed, ref, toRef, type Ref } from "vue";
-import { useSubnode } from "@/language/node";
-import { makeEdit } from "@/language/transaction";
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title" | "subnodePacked">
@@ -30,6 +29,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
@@ -53,8 +53,7 @@ function clear() {
 function switchStage() {
   const selfNode = spaceGraph.getOrError(self.value);
   if (stage.value == UserWizardViewStage.LOG_IN) {
-    canvas.tx().update(
-      selfNode,
+    state.update(
       makeEdit(selfNode, {
         metatype: NodeType.VIEW,
         type: ViewType.USER_WIZARD,
@@ -63,8 +62,7 @@ function switchStage() {
       }),
     );
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
-    canvas.tx().update(
-      selfNode,
+    state.update(
       makeEdit(selfNode, {
         metatype: NodeType.VIEW,
         type: ViewType.USER_WIZARD,

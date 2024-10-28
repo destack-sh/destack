@@ -79,7 +79,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const spaceTx = () => spaceConnection.tx.with({ category: ChangeCategory.SPACE });
-const selfView = spaceGraph.getRef(self);
+const state = canvas.registerView(self, id);
 
 // NOTE :UX: Database view should be factored out into Table/Feed/etc. query views (?)
 
@@ -446,13 +446,12 @@ function isSelectedCell(record: RecordData, column: ColumnView) {
 }
 
 function addSelectionRow(record: RecordData) {
-  if (selfView.value == null) throw new Error("no self view");
-  spaceTx().update(selfView.value, { selection: expandSelection(props.selection, [record]) }, { debounce: "tick" });
+  state.update({ selection: expandSelection(props.selection, [record]) }, { debounce: "tick" });
 }
 
 function removeSelectionRow(record: RecordData) {
-  if (selfView.value == null || props.selection == null) throw new Error("no self view");
-  spaceTx().update(selfView.value, { selection: collapseSelection(props.selection, [record]) }, { debounce: "tick" });
+  if (props.selection == null) return;
+  state.update({ selection: collapseSelection(props.selection, [record]) }, { debounce: "tick" });
 }
 
 function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: boolean) {
@@ -467,11 +466,7 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
       const from = Math.min(lastSelectedY, currentY);
       const to = Math.max(lastSelectedY, currentY);
       const selection = records.value.slice(from, to + 1);
-      spaceTx().update(
-        selfView.value!,
-        { selection: expandSelection(props.selection, selection) },
-        { debounce: "tick" },
-      );
+      state.update({ selection: expandSelection(props.selection, selection) }, { debounce: "tick" });
     } else {
       addSelectionRow(record);
     }
@@ -482,14 +477,16 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
 }
 
 function selectAll() {
-  const selection = { metatype: ObjectType.SELECTION, nodesPtr: records.value.map(toPlainNodeRef), fieldsPtr: [] };
-  spaceTx().update(selfView.value!, { selection }, { debounce: "tick" });
+  state.update(
+    { selection: { metatype: ObjectType.SELECTION, nodesPtr: records.value.map(toPlainNodeRef), fieldsPtr: [] } },
+    { debounce: "tick" },
+  );
 }
 
 function selectNone() {
   lastSelectedRow.value = null;
   if (props.selection != undefined) {
-    spaceTx().update(selfView.value!, { selection: undefined }, { debounce: "tick" });
+    state.update({ selection: undefined }, { debounce: "tick" });
   }
 }
 
@@ -521,7 +518,7 @@ function updateSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number
       .filter((column) => column.kind == "field")
       .map((column) => toPlainNodeRef(column.field)),
   };
-  spaceTx().update(selfView.value!, { selection }, { debounce: "long" });
+  state.update({ selection }, { debounce: "long" });
 }
 
 function endSelectRegion() {
@@ -674,7 +671,6 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
   },
 };
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>

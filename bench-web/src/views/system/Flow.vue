@@ -51,6 +51,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self, { isRequired: false });
 const selfView = spaceGraph.getRef(self);
@@ -66,6 +67,7 @@ const flowCtx = new FlowContext({
   spaceTx: () => spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
   graph: pkgGraph,
   tx: () => pkgConnection.tx,
+  update: state.update,
   view: selfView,
   containerRef,
   stepRefs: stepRefs,
@@ -177,7 +179,6 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
