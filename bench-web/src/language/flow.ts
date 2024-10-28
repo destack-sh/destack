@@ -1,7 +1,7 @@
 import { estimateCodeHeight } from "@/language/code";
 import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, NodeIn, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
+import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
 import { estimateTextHeight } from "@/language/text";
 import type { Transaction, TransactionOptions } from "@/language/transaction";
 import {
@@ -10,7 +10,6 @@ import {
   ColorShade,
   FieldData,
   FieldType,
-  NodeReferenceData,
   NodeType,
   ObjectType,
   PipeData,
@@ -24,7 +23,7 @@ import {
   Vector2Data,
   ViewData,
   type AnyNodeData,
-  type StepData,
+  type StepData
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
@@ -254,6 +253,7 @@ export class FlowContext {
     tx: () => Transaction;
     update: (update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) => void;
     view: Ref<ViewData | null>;
+    transform: Ref<TransformData | null | undefined>;
     containerRef: Ref<HTMLElement | null>;
     stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
     flowPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
@@ -273,7 +273,7 @@ export class FlowContext {
     this.flowPtr = context.flowPtr;
     this.flow = this.graph.getRef(context.flowPtr);
     this.fields = this.graph.getChildrenRef(this.flow, NodeType.FIELD);
-    this.transform = computed(() => this.view.value?.transform ?? makeStruct({ metatype: StructType.TRANSFORM }));
+    this.transform = computed(() => context.transform.value ?? makeStruct({ metatype: StructType.TRANSFORM }));
     this.scale = computed(() => this.transform.value.scaleX ?? this.transform.value.scaleY ?? 1);
     this.steps = this.graph.getChildrenRef(this.flow, NodeType.STEP);
     this.pipes = this.graph.getChildrenRef(this.flow, NodeType.PIPE);

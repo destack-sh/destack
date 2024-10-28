@@ -536,7 +536,7 @@ export class SpaceCanvas {
       } else {
         const componentIdParts = [id.value];
         let ancestor = instance;
-        while (ancestor?.props?.self == null) {
+        while (ancestor != null && ancestor?.props?.self == null) {
           ancestor = (ancestor as any).parent;
           if (ancestor?.props.id != null) {
             componentIdParts.unshift(ancestor.props.id);
@@ -579,7 +579,7 @@ export class SpaceCanvas {
     const tx = this.tx;
     let baseViewRef: Ref<ViewData | null> | null = null;
 
-    function getBaseView(): ViewData {
+    function getBaseView(): ViewData | null {
       if (baseViewRef == null) {
         let selfPtr = self.value;
         let parent = instance;
@@ -587,18 +587,15 @@ export class SpaceCanvas {
           selfPtr = parent.props.self;
           parent = (parent as any).parent;
         }
-        if (selfPtr == null) throw new Error("no base view");
+        if (selfPtr == null) return null;
         baseViewRef = graph.getRef(selfPtr) as Ref<ViewData | null>;
       }
-      const baseView = baseViewRef.value;
-      if (baseView == null) throw new Error("no base view");
-      return baseView;
+      return baseViewRef.value;
     }
 
     function getState(viewId?: string): Partial<Record<string, any> | undefined> {
-      const subviewsPacked = getBaseView().subviewsPacked;
-      if (typeof subviewsPacked != "object") return undefined;
-      const subviewPacked = (subviewsPacked as any)?.[viewId ?? componentId];
+      const baseView = getBaseView();
+      const subviewPacked = (baseView?.subviewsPacked as any)?.[viewId ?? componentId];
       if (subviewPacked == null) return undefined;
       return unpackBuiltinObject(subviewPacked, ObjectType.VIEW);
     }
@@ -609,10 +606,12 @@ export class SpaceCanvas {
 
     function update(update: Partial<NodeIn<any>>, options?: TransactionOptions) {
       const baseView = getBaseView();
-      console.log("canvas.update", { baseView, update, options });
+      if (baseView == null) return; // no base view, cannot update (should error?)
       if (self.value != null) {
         // base view upate
-        tx().with({ category: ChangeCategory.SPACE }).update(baseView, update as NodeIn<any>, options);
+        tx()
+          .with({ category: ChangeCategory.SPACE })
+          .update(baseView, update as NodeIn<any>, options);
       } else {
         // subview update
         const edits = makeEdit(baseView, update as NodeIn<any>);
