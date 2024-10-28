@@ -4,13 +4,14 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { getViewForValueType } from "@/ui/view";
-import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
 
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
     modelValue?: any;
     preparedConnection?: PreparedGetConnection;
     size?: Partial<Pick<BoxData, "width" | "height">>;
@@ -20,7 +21,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const valueView = computed(() => {
   if (props.valueType == null) return null;

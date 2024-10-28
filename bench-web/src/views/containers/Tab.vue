@@ -17,13 +17,14 @@ import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "focus" | "variant"
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 
 const HEADER_HEIGHT = 32; // NOTE :UX: should tab header height == default header height? (weirdly big but consistent)
 
@@ -191,13 +192,14 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.layout.splitDown": splitAction("bottom"),
 };
 
-canvas.registerView(self);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">
     <!-- Tabs header -->
     <Scroll
+      id="tabHeader"
       ref="headerRef"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({

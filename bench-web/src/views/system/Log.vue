@@ -1,36 +1,30 @@
 <script lang="ts" setup>
+import { getPropertyTitle } from "@/language/const";
+import { type TypeIdentity } from "@/language/field";
 import {
   LogData,
   NodeType,
-  ObjectType,
-  PROPERTY_ENUM_BY_TYPE,
-  PROPERTY_INFOS_BY_TYPE,
   ViewData,
   ViewType,
-  type PropertyInfo,
+  type PropertyInfo
 } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { getViewForValueType } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { getViewComponent, hasViewComponent } from "@/views/registry";
+import { viewEmits, type ViewExposed } from "@/views/common";
+import { hasViewComponent } from "@/views/registry";
 import { computed, toRef, type Ref } from "vue";
-import { unpackBuiltinObject } from "@/language/value";
-import { getPropertyType, type TypeIdentity } from "@/language/field";
-import { getPropertyTitle } from "@/language/const";
-import { FULL_WIDTH_VIEW_TYPES } from "@/ui/view";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>;id: string;  preparedConnection?: PreparedNodeConnection } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInline">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const { connection, graph } =

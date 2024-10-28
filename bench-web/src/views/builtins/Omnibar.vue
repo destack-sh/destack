@@ -257,6 +257,7 @@ defineExpose({ isActive, open });
 
           <!-- Body -->
           <Scroll
+            id="scroll"
             :orientation="Orientation.VERTICAL"
             track-is-always-visible
             :track-width="ScrollbarWidth.sm"

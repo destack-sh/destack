@@ -41,7 +41,7 @@ import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
-import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
+import { viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
@@ -63,13 +63,15 @@ const ASIDE_WIDTH_COMPACT = 36;
 const HANDLE_WIDTH = 6;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
-    Pick<ViewData, "title" | "nodePtr" | "focus" | "variant">
-  >
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    size?: Required<Pick<BoxData, "width" | "height">>;
+  } & Partial<Pick<ViewData, "title" | "nodePtr" | "focus" | "variant">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const headerHeight = computed(() => (props.variant == Variant.COMPACT ? HEADER_HEIGHT_COMPACT : HEADER_HEIGHT_NORMAL));
@@ -340,6 +342,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             :class="[thread == null ? 'text-gray-400' : 'text-gray-700']"
           />
           <NativeInput
+            id="title"
             class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
             is-input
             :value-type="TITLE_TYPE"
@@ -410,6 +413,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
     <!-- Body -->
     <Scroll
       v-if="thread != null && renderedMessages.length > 0"
+      id="body"
       ref="scrollRef"
       :size="{
         width: props.size?.width ?? DEFAULT_WIDTH,
@@ -506,13 +510,14 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
               <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(replyToMessage.createdAt!) }}</span>
               <Text
                 v-if="replyToMessage.text"
+                id="reply"
                 class="max-h-6 max-w-full select-none truncate hover:cursor-pointer"
                 :model-value="trimText(replyToMessage.text, 1)"
                 :variant="Variant.STEALTH"
               />
             </div>
             <!-- Content -->
-            <Text :model-value="message.text" :variant="Variant.STEALTH" />
+            <Text :id="message.id + '.text'" :model-value="message.text" :variant="Variant.STEALTH" />
             <!-- Controls (floating) -->
             <div
               class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
@@ -619,6 +624,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
         </button>
         <!-- Content -->
         <Scroll
+          id="input"
           :size="{ width: size?.width ?? DEFAULT_WIDTH, height: maxInputHeight }"
           size-is-dynamic
           :orientation="Orientation.VERTICAL"
@@ -628,6 +634,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
           :class="variant != Variant.COMPACT ? '' : 'mx-[1px]'"
         >
           <Text
+            id="input.text"
             ref="textRef"
             v-model="text"
             class="w-full self-end hover:cursor-text"

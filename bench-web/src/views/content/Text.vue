@@ -47,7 +47,7 @@ import { copy, cyrb53a } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
-import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
 import { dropCursor } from "prosemirror-dropcursor";
@@ -67,6 +67,7 @@ const MENTION_TRIGGER_CHAR = "@";
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
     modelValue?: TextData;
     placeholder?: string;
     suppressEnter?: boolean;
@@ -74,7 +75,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const textRef = ref<HTMLDivElement | null>(null);
 let view: EditorView | null = null;

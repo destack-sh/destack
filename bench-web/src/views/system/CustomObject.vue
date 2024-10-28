@@ -17,14 +17,7 @@ import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
 import { getFieldViews } from "@/ui/view";
 import type { PopoverInfoIn } from "@/ui/popover";
-import {
-  ViewContentWrapper,
-  makeViewId,
-  viewEmits,
-  type ViewComponent,
-  type ViewExposed,
-  type ViewProps,
-} from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewComponent, type ViewExposed, type ViewProps } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
 import { getTitleField } from "@/language/field";
@@ -36,6 +29,7 @@ const DEFAULT_WIDTH = 280;
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
     modelValue?: any;
     size?: Partial<Pick<BoxData, "width" | "height">>;
     preparedConnection?: PreparedGetConnection;
@@ -45,7 +39,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const componentRefs: Ref<Record<string, ViewComponent | null>> = ref({});

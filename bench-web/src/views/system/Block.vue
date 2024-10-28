@@ -29,7 +29,7 @@ import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } fr
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -43,13 +43,14 @@ import { computed, nextTick, ref, toRef, type Ref } from "vue";
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
     preparedConnection?: PreparedGetConnection;
     borderless?: boolean;
   } & Pick<ViewData, "variant" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const blockRef = ref<HTMLElement | null>(null);
 const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
@@ -174,6 +175,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="w-5 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         />
         <NativeInput
+          id="name"
           ref="nameRef"
           class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
           is-input
@@ -260,6 +262,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div class="flex flex-col gap-y-1.5 py-1">
       <Value
         v-if="block.type == BlockType.VALUE"
+        id="value"
         class="max-h-[320px]"
         :value-type="valueType"
         :model-value="value"
@@ -271,12 +274,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL].includes(block.type) ||
           (RUNNABLE_BLOCK_TYPES.includes(block.type) && hasFunctionFields)
         "
+        id="type"
         :node="block"
         :prepared-connection="pkgGetConnection"
         :node-ptr="props.nodePtr"
       />
       <Text
         v-if="block.type == BlockType.TEXT"
+        id="text"
         ref="textRef"
         is-input
         :variant="Variant.STEALTH"
@@ -292,6 +297,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       />
       <Code
         v-if="block.type == BlockType.CODE"
+        id="code"
         is-input
         :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.CODE, block.subnodePacked, 'code')"
         @update:model-value="
@@ -305,16 +311,16 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       />
       <Flow
         v-if="block.type == BlockType.FLOW"
+        id="flow"
         class="h-[400px]"
         :node-ptr="props.nodePtr"
-        :self="props.self"
         :variant="Variant.COMPACT"
         :prepared-connection="pkgGetConnection"
       />
       <Database
         v-if="block.type == BlockType.DATABASE"
+        id="database"
         :node-ptr="props.nodePtr"
-        :self="props.self"
         :variant="Variant.COMPACT"
         is-input
       />

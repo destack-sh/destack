@@ -16,18 +16,18 @@ import {
   type MultiAnchor,
 } from "@/ui/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
     Pick<ViewData, "name" | "variant" | "nodePtr">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const leftRef = ref<HTMLElement | null>(null);
 const rightRef = ref<HTMLElement | null>(null);
@@ -236,6 +236,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           />
           <!-- Field -->
           <Field
+            :id="field.id"
             :ref="(ref: any) => (ref != null ? (sideFieldRefs[field.id] = ref) : delete sideFieldRefs[field.id])"
             v-contextmenu="
               (context: PopoverContext): PopoverInfo => ({

@@ -100,7 +100,7 @@ export class SpaceCanvas {
   space: Ref<SpaceData | null>;
   graph: ReadNodeGraph;
   tx: () => Transaction; // for when we're not given a transaction to work with (e.g. browser events)
-  viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
+  viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // :ViewComponentId
 
   // absolutely focused views/components (focused from the top down)
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
@@ -166,11 +166,6 @@ export class SpaceCanvas {
       this.highlightedPtr.value != null &&
       (this.highlightedPtr.value.id == node.id || this.highlightedPtr.value.ck == (node as any).ck)
     );
-  }
-
-  /** Whether there are any active views here */
-  get isEmpty() {
-    return this.viewRefsById.value == null || Object.keys(this.viewRefsById.value).length === 0;
   }
 
   /** Gets the absolutely focused view components in bottom up order */
@@ -510,7 +505,7 @@ export class SpaceCanvas {
   }
 
   /** Registers the current Vue component instance in the canvas with some View identity */
-  registerView(self: Ref<NodeReferenceData | undefined>, id?: Ref<string>): ViewComponent {
+  registerView(self: Ref<NodeReferenceData | undefined>, id: Ref<string>): ViewComponent {
     const instance = getCurrentInstance() as ViewComponent | null;
     if (instance == null) throw new Error("no current Vue instance");
 
@@ -534,17 +529,32 @@ export class SpaceCanvas {
     // NOTE @Cleanup: 'self'/'id' should never change, so no need to watch in Canvas.registerView?
     let oldComponentId: string | null = null;
     watch(
-      () => self.value?.id ?? id?.value ?? null,
+      [self, id],
       () => {
-        if (oldComponentId != null && this.viewRefsById.value[oldComponentId] === instance) {
-          delete this.viewRefsById.value[oldComponentId];
+        const viewRefsById = this.viewRefsById.value;
+        if (oldComponentId != null && viewRefsById[oldComponentId] === instance) {
+          delete viewRefsById[oldComponentId];
         }
 
-        const componentId = self.value?.id ?? id?.value!;
-        const existingComponent = this.viewRefsById.value[componentId];
+        // the :ViewComponentId is composed of the view id itself and any ancestor ids up to the next View
+        // (so we can associate sub-View components that aren't full Views themselves with something consistent)
+        let componentId: string;
+        if (self.value != null) {
+          componentId = self.value.id!;
+        } else {
+          const componentIdParts = [id.value];
+          let ancestor = instance;
+          while (ancestor?.props?.self == null) {
+            ancestor = (ancestor as any).parent;
+            componentIdParts.unshift(ancestor.props.id!);
+          }
+          componentId = componentIdParts.join(".");
+        }
+
+        // NOTE: check for duplicate components (only works reliably on next tick,
+        //  because we may be registering a new component before the old component is unmounted)
+        const existingComponent = viewRefsById[componentId];
         if (existingComponent != null && (IS_DEV || isDeveloperMode.value)) {
-          // NOTE: checking for duplicate components only works reliably on next tick
-          //  (because we may be registering a new component before the old component is unmounted)
           nextTick(() => {
             if (
               (existingComponent as any).vnode?.el != null &&
@@ -556,7 +566,9 @@ export class SpaceCanvas {
             }
           });
         }
-        this.viewRefsById.value[componentId] = instance;
+
+        // update registered component
+        viewRefsById[componentId] = instance;
         triggerRef(this.viewRefsById);
         oldComponentId = componentId;
       },
@@ -565,8 +577,9 @@ export class SpaceCanvas {
     // unregister
     onBeforeUnmount(() => {
       // should always be true, but maybe errored
-      if (oldComponentId != null && this.viewRefsById.value[oldComponentId] === instance) {
-        delete this.viewRefsById.value[oldComponentId];
+      const viewRefsById = this.viewRefsById.value;
+      if (oldComponentId != null && viewRefsById[oldComponentId] === instance) {
+        delete viewRefsById[oldComponentId];
         triggerRef(this.viewRefsById);
       }
     });

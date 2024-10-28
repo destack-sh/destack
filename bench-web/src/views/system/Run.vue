@@ -10,7 +10,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import CustomObject from "@/views/system/CustomObject.vue";
 import { computed, toRef, type Ref } from "vue";
 
@@ -19,13 +19,13 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 1200;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedNodeConnection } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "size" | "nodePtr" | "isInline" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const { graph: runGraph, connection: runConnection } =
@@ -83,6 +83,7 @@ defineExpose<ViewExposed>({ self, id });
       <div class="flex-1">
         <h4 class="font-semibold">Inputs</h4>
         <CustomObject
+          id="inputs"
           class="w-full py-2"
           :value-type="inputType"
           is-inline
@@ -94,6 +95,7 @@ defineExpose<ViewExposed>({ self, id });
       <div v-if="outputsPacked != null" class="flex-1">
         <h4 class="font-semibold">Outputs</h4>
         <CustomObject
+          id="outputs"
           class="w-full py-2"
           :value-type="outputType"
           is-inline

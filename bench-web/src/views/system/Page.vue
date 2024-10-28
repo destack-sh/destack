@@ -56,13 +56,14 @@ const HANDLE_WIDTH = 6;
 const SEPARATOR_WIDTH = 6;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "icon" | "nodePtr" | "focus" | "variant" | "selection"
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const { graph: spaceGraph } = useExistingConnection(self);
@@ -284,7 +285,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
 }
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 
-canvas.registerView(self);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
@@ -312,6 +313,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
     <!-- Page content -->
     <Scroll
+      id="scroll"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
@@ -391,6 +393,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
               <!-- Block -->
               <Block
+                :id="block.id"
                 :ref="(ref: any) => (ref ? (blockRefs[block.id!] = ref) : delete blockRefs[block.id!])"
                 v-contextmenu="
                   (context: PopoverContext): PopoverInfo => ({

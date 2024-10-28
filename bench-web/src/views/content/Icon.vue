@@ -1,39 +1,39 @@
 <script lang="ts" setup>
 import {
-  ViewData,
-  NodeType,
+  ColorData,
+  ColorShade,
+  ColorType,
   IconData,
   NodeReferenceData,
+  NodeType,
   Orientation,
+  ViewData,
   ViewType,
-  ColorData,
-  ColorType,
-  ColorShade,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
-import { computed, ref, toRef, watch, type Ref } from "vue";
-import Scroll from "@/views/containers/Scroll.vue";
-import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadata } from "@/ui/icon";
+import { getIconMetadata, IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/ui/search";
-import type { TooltipInfo } from "@/ui/tooltip";
 import type { PopoverInfoIn } from "@/ui/popover";
-import { getColorHex, makeColor } from "@/ui/style";
+import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/ui/search";
+import { getColorHex } from "@/ui/style";
+import type { TooltipInfo } from "@/ui/tooltip";
+import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import Scroll from "@/views/containers/Scroll.vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const DEFAULT_WIDTH = 380;
 const MAX_HEIGHT = 280;
 const ITEMS_PER_ROW = 10;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: IconData } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: IconData } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled" | "valueType">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
@@ -173,6 +173,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       </div>
       <!-- Body -->
       <Scroll
+        id="body"
         size-is-dynamic
         :size="{ width: DEFAULT_WIDTH, height: MAX_HEIGHT }"
         :orientation="Orientation.VERTICAL"

@@ -1,13 +1,5 @@
 <script lang="ts" setup>
-import {
-  BenchType,
-  EnumType,
-  NodeReferenceData,
-  Region,
-  UserStatus,
-  Variant,
-  ViewData
-} from "@/proto/wire/";
+import { BenchType, EnumType, NodeReferenceData, Region, UserStatus, Variant, ViewData } from "@/proto/wire/";
 import { toPlainNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/ui/icon";
@@ -23,12 +15,13 @@ import Picker from "@/views/content/Picker.vue";
 import Button from "@/views/controls/Button.vue";
 import { computed, ref, toRef, watch, watchEffect, type Ref } from "vue";
 
-const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
+const props = defineProps<{ self: NodeReferenceData; id: string } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
 
 const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 const slug: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.FRANKFURT);
 watchEffect(() => {
@@ -73,7 +66,7 @@ async function submit() {
   }
 }
 
-const instance = canvas.registerView(self);
+const instance = canvas.registerView(self, id);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {
@@ -100,6 +93,7 @@ defineExpose({ self, focus });
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
       <NativeInput
+        id="slug"
         v-model="slug"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Slug"
@@ -110,6 +104,7 @@ defineExpose({ self, focus });
       />
       <!-- Region Area -->
       <Picker
+        id="region"
         v-model="region"
         :icon="makeIcon({ faName: 'fas fa-globe' })"
         name="Region"
@@ -128,6 +123,7 @@ defineExpose({ self, focus });
     <!-- Actions -->
     <div v-if="!isActivated" class="mt-7">
       <Button
+        id="submit"
         name="Submit"
         :icon="makeIcon({ faName: 'fas fa-plus' })"
         title="Create Bench"

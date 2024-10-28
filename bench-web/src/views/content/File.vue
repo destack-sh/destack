@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { toCamelName } from "@/language/const";
 import {
   FileStatus,
   getFileAcceptFromConstraint,
@@ -7,7 +8,6 @@ import {
   useFileDownload,
   type FileUpload,
 } from "@/language/file";
-import { toCamelName } from "@/language/const";
 import {
   BoxData,
   FileFormat,
@@ -20,7 +20,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, canvas, pkg, pkgConnection } from "@/system/space";
+import { bench, canvas, pkgConnection } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
 import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
@@ -29,7 +29,7 @@ import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
-import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed, type ViewProps } from "@/views/common";
+import { ViewContentWrapper, viewEmits, type ViewExposed, type ViewProps } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const FILE_POPOVER_WIDTH_MIN = 400;
@@ -40,6 +40,7 @@ const INLINE_FILE_TYPES = [FileType.IMAGE];
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+      id: string;
     modelValue?: FileReferenceData;
     size?: Partial<Pick<BoxData, "width" | "height">>;
   } & Partial<
@@ -51,7 +52,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const fileType = computed(() => {
   if (props.valueType?.constraint?.fileTypes?.length == 1) return props.valueType.constraint.fileTypes[0];

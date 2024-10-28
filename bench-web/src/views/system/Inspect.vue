@@ -20,13 +20,14 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "title" | "icon" | "nodePtr"
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const inspectedPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
 
@@ -40,7 +41,7 @@ const inspectionLayout = computed(() => {
   return layout;
 });
 
-canvas.registerView(self);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
@@ -76,6 +77,7 @@ defineExpose<ViewExposed>({ self });
     </div>
     <!-- Inspection content -->
     <Scroll
+      id="scroll"
       :size="{ width: props.size.width, height: props.size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.sm"

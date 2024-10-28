@@ -3,13 +3,14 @@ import { BoxData, NodeType, Orientation, ViewData } from "@/proto/wire/";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/ui/layout";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, ref, toRef, watch, watchEffect, type Ref } from "vue";
 
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
     trackWidth: ScrollbarWidth;
     trackIsOverlay?: boolean;
     trackIsAlwaysVisible?: boolean;
@@ -20,6 +21,7 @@ const props = defineProps<
 >();
 const emit = defineEmits({ ...viewEmits(), scroll: null });
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 
 const containerRef = ref<HTMLElement | null>(null);
 const innerRef = ref<HTMLElement | null>(null);
@@ -91,8 +93,7 @@ watch([isSomeScrolling], () => {
   }
 });
 
-const id = makeViewId(props);
-canvas.registerView(self, id);
+canvas.registerView(self, id)
 defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; scrollToEnd: () => void }>({
   self,
   id,

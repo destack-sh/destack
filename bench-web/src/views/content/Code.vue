@@ -1,32 +1,32 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, CodeData, Variant, ViewType } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas } from "@/system/space";
-import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
-import { EditorView, keymap, lineNumbers } from "@codemirror/view";
-import { EditorSelection, EditorState, StateEffect } from "@codemirror/state";
-import { useDropZone } from "@/ui/drag";
-import type { ActionMapImplementation } from "@/ui/action";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
-import { deepValueEquals } from "@/utils/ref";
-import { whenever } from "@vueuse/core";
-import { python } from "@codemirror/lang-python";
-import * as commands from "@codemirror/commands";
-import { defaultHighlightStyle, syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/code";
-import { autocompletion } from "@codemirror/autocomplete";
-import { Casing, toCasing } from "@/utils/string";
+import { CodeData, NodeType, Variant, ViewData, ViewType } from "@/proto/wire";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { canvas } from "@/system/space";
+import type { ActionMapImplementation } from "@/ui/action";
+import { useDropZone } from "@/ui/drag";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { copy, cyrb53a } from "@/utils/functools";
+import { deepValueEquals } from "@/utils/ref";
+import { Casing, toCasing } from "@/utils/string";
+import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { autocompletion } from "@codemirror/autocomplete";
+import * as commands from "@codemirror/commands";
+import { python } from "@codemirror/lang-python";
+import { defaultHighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { EditorSelection, EditorState, StateEffect } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
+import { whenever } from "@vueuse/core";
+import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: CodeData } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: CodeData } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "variant" | "orientation" | "nodePtr" | "isInput">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const codeRef = ref<HTMLElement | null>(null);
 let view: EditorView | null = null;

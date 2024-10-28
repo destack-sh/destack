@@ -63,7 +63,7 @@ import { getElement } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import { humanizeNumber } from "@/utils/string";
 import { formatDuration, formatRelativeDate, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
-import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
@@ -75,13 +75,15 @@ const MAX_WIDTH = 800;
 const HANDLE_WIDTH = 6;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
-    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "subnodePacked">
-  >
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    size?: Required<Pick<BoxData, "width" | "height">>;
+  } & Partial<Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "subnodePacked">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 const { graph: spaceGraph } = useExistingConnection(self);
 
 const nodeType = useSubnodeProperty(NodeType.VIEW, ViewType.FEED, toRef(props, "subnodePacked"), "queryNodeType");
@@ -568,6 +570,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             <div v-if="isExpanded(item.it)" class="max-w-full px-1 py-1">
               <Log
                 v-if="item.kind == 'log-edit'"
+                :id="item.id"
                 is-inline
                 :variant="Variant.COMPACT"
                 :node-ptr="toNodeRefOneOf(item.it)"
@@ -575,6 +578,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
               />
               <Run
                 v-else-if="item.kind == 'run'"
+                :id="item.id"
                 is-inline
                 :variant="Variant.COMPACT"
                 :node-ptr="toNodeRefOneOf(item.it)"

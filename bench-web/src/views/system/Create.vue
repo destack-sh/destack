@@ -7,17 +7,18 @@ import { computed, toRef } from "vue";
 import { describeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "name" | "title" | "nodePtr">
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "name" | "title" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const id = toRef(props, "id");
 
 const basePtr = computed(() => inspectionPtr.value ?? inspectionBasePtr.value);
 const { graph: spaceGraph } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(basePtr);
 const baseNode = pkgGraph.getRef(basePtr);
 
-canvas.registerView(self);
+canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>

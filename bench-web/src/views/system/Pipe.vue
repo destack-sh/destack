@@ -13,25 +13,25 @@ import {
   PipeType,
   PortType,
   Variant,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_PIPE_FILTER, ICON_BY_PIPE_MODULATION, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.PIPE>);
 const flowCtx = useFlowContext();
@@ -131,6 +131,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     >
       <!-- Name -->
       <NativeInput
+        id="name"
         ref="nameRef"
         class="flex-shrink-0 font-medium transition-colors duration-150"
         :class="[

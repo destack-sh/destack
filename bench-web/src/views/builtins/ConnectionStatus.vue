@@ -28,9 +28,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
         <i
           class="fa-globe fas transition-colors duration-75"
           :class="
-            !hasPendingConnections
-              ? ' text-gray-700 hover:text-primary-900'
-              : ' text-warning-600 hover:text-warning-500'
+            !hasPendingConnections ? 'text-gray-700 hover:text-primary-900' : 'text-warning-600 hover:text-warning-500'
           "
         />
       </button>
@@ -50,6 +48,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
         </div>
         <!-- Body -->
         <Scroll
+          id="scroll"
           :size="{ width: 480, height: 600 }"
           size-is-dynamic
           :orientation="Orientation.VERTICAL"
@@ -84,9 +83,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                     <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
                       r={{ connection.referenceCount }}
                     </span>
-                    <span class="mr-2">
-                      e={{ connection.epoch }}
-                    </span>
+                    <span class="mr-2"> e={{ connection.epoch }} </span>
                   </template>
                   <!-- Connected (status) -->
                   <span class="rounded px-1">

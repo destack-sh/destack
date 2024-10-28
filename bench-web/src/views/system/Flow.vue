@@ -38,19 +38,19 @@ import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
-import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
 import { computed, provide, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "transform" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const id = makeViewId(props);
+const id = toRef(props, "id");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self, { isRequired: false });
 const selfView = spaceGraph.getRef(self);
@@ -256,6 +256,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <!-- Pipes -->
         <Pipe
           v-for="pipe in pipes"
+          :id="pipe.id"
           :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
           :key="pipe.id"
           v-contextmenu="
@@ -287,6 +288,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <!-- Steps -->
         <Step
           v-for="step in steps"
+          :id="step.id"
           :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
           :key="step.id"
           v-contextmenu="
