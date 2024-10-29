@@ -7,7 +7,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import baggage, context, trace
 
-from bench.language.block import Block, TextBlock
+from bench.language.block import ActionBlock, Block
 from bench.language.code import Code
 from bench.language.const import BenchError, BlockType, RunErrorKind, RunStatus
 from bench.language.flow import Step, StepType
@@ -172,11 +172,10 @@ class Runtime:
         if isinstance(node, Step):
             options = node.run_options
         elif isinstance(node, Block) and node.type in (
-            BlockType.TEXT,
-            BlockType.CODE,
+            BlockType.ACTION,
             BlockType.FLOW,
         ):
-            options = cast(TextBlock, node).run_options
+            options = cast(ActionBlock, node).run_options
         else:
             options = None
         options.override(run.options) if options else run.options
@@ -428,8 +427,6 @@ def get_runner_cls(
     *,
     kind: RunKind,
     node: RunnableNode,
-    code: Code | None,
-    text: Text | None,
     options: RunOptions | None,
 ) -> type[Runner] | None:
     """Gets the runner for the given Run configuration."""
@@ -461,11 +458,9 @@ def get_runner_cls(
             return TextRunner
     elif kind == RunKind.STEP:
         from bench.runtime.flow import (
-            BlockStepRunner,
-            CodeStepRunner,
+            ActionStepRunner,
             CompleteStepRunner,
             StartStepRunner,
-            TextStepRunner,
         )
 
         if not isinstance(node, Step):
@@ -474,12 +469,8 @@ def get_runner_cls(
             return StartStepRunner
         elif node.type == StepType.COMPLETE:
             return CompleteStepRunner
-        elif node.type == StepType.BLOCK:
-            return BlockStepRunner
-        elif node.type == StepType.CODE:
-            return CodeStepRunner
-        elif node.type == StepType.TEXT:
-            return TextStepRunner
+        elif node.type == StepType.ACTION:
+            return ActionStepRunner
         else:
             return None
     elif kind == RunKind.FLOW:

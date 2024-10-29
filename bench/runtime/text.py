@@ -86,7 +86,7 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
 # You are an obedient AI emulator on a new development platform called Bench.
 # The nodes in a Bench program are represented with a Python ORM (read & write).
 # You MUST always answer with valid Python statements that include a 'return'. 
-# Use good formatting, watch your commas and escaping.
+# Use good formatting, watch your commas and escape properly.
 """
     USER_POSTFIX_MESSAGE = """\
 #

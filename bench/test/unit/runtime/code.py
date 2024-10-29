@@ -11,7 +11,7 @@ from bench.test.unit.conftest import RuntimeHandle
 
 async def test_run_code_script_empty(local_runtime: RuntimeHandle):
     """Empty Code without any fields should fail."""
-    Code1 = Block.new(BlockType.CODE, "Code1")
+    Code1 = Block.new(BlockType.ACTION, "Code1")
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
@@ -21,7 +21,7 @@ async def test_run_code_script_empty(local_runtime: RuntimeHandle):
 async def test_run_code_function_empty(local_runtime: RuntimeHandle):
     """Empty Code without any fields should fail."""
     Code1 = Block.new(
-        BlockType.CODE, "Code1", fields=(Field.input("Input1", int), Field.output("Output1", int))
+        BlockType.ACTION, "Code1", fields=(Field.input("Input1", int), Field.output("Output1", int))
     )
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
@@ -31,7 +31,7 @@ async def test_run_code_function_empty(local_runtime: RuntimeHandle):
 
 async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     """Code block with a syntax error should re-raise that error."""
-    InvalidCode = Block.new_code("InvalidCode", "!!invalid!!")
+    InvalidCode = Block.new(BlockType.ACTION, "InvalidCode", code=code("!!invalid!!"))
     local_runtime.page().blocks.append(InvalidCode)
     await local_runtime.commit()
 
@@ -43,9 +43,10 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
 
 async def test_run_code_capture_logs(local_runtime: RuntimeHandle):
     """All logging functions should be captured."""
-    Logs101 = Block.new_code(
+    Logs101 = Block.new(
+        BlockType.ACTION,
         "Logs101",
-        """\
+        code=code("""\
 import builtins
 print('print1', 'print2') # our own print (injected)
 builtins.print('print3') # python print
@@ -58,7 +59,7 @@ info('info1')
 warn('warn1')
 error('error1')
 critical('critical1')        
-""",
+"""),
     )
     local_runtime.page().blocks.append(Logs101)
     await local_runtime.commit()
@@ -87,14 +88,15 @@ critical('critical1')
 
 async def test_run_code_capture_logs_on_error(local_runtime: RuntimeHandle):
     """Logs should also be captured if the code raises an error."""
-    Logs102 = Block.new_code(
+    Logs102 = Block.new(
+        BlockType.ACTION,
         "Logs102",
-        """\
+        code=code("""\
 print('print1')
 print('print2')
 raise ValueError('error1')
 print('print3')
-""",
+"""),
     )
     local_runtime.page().blocks.append(Logs102)
     await local_runtime.commit()
@@ -108,12 +110,13 @@ print('print3')
 
 async def test_run_code_capture_log_size_overflow(local_runtime: RuntimeHandle):
     """Logs should only be captured up to a certain size."""
-    Logs103 = Block.new_code(
+    Logs103 = Block.new(
+        BlockType.ACTION,
         "Logs103",
-        f"""\
+        code=code(f"""\
 for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
     print('print', i)
-""",
+"""),
     )
     local_runtime.page().blocks.append(Logs103)
     await local_runtime.commit()
@@ -125,7 +128,11 @@ for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
 
 async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
     """Logs should only be captured up to a certain size."""
-    Logs103 = Block.new_code("Logs103", f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})""")
+    Logs103 = Block.new(
+        BlockType.ACTION,
+        "Logs103",
+        code=code(f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})"""),
+    )
     local_runtime.page().blocks.append(Logs103)
     await local_runtime.commit()
 
@@ -136,8 +143,11 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
 
 async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
     """Code block with invalid inputs should fail immediately (no attempts)."""
-    Code1 = Block.new_code(
-        "InvalidCode", "pass", fields=(Field.input("Input1", int, is_required=True),)
+    Code1 = Block.new(
+        BlockType.ACTION,
+        "InvalidCode",
+        code=code("pass"),
+        fields=(Field.input("Input1", int, is_required=True),),
     )
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
@@ -152,8 +162,11 @@ async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
 
 async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
     """Code block with invalid outputs should fail."""
-    Code1 = Block.new_code(
-        "InvalidCode", "return 'invalid'", fields=(Field.output("Output1", int),)
+    Code1 = Block.new(
+        BlockType.ACTION,
+        "InvalidCode",
+        code=code("return 'invalid'"),
+        fields=(Field.output("Output1", int),),
     )
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
@@ -166,9 +179,10 @@ async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
 
 async def test_run_code_function_coerce_inputs(local_runtime: RuntimeHandle):
     """All the input fields values should be coerced to the correct type."""
-    Function = Block.new_code(
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        "return Input1, Input2",
+        code=code("return Input1, Input2"),
         fields=(
             Field.input("Input1", int),
             Field.input("Input2", int),
@@ -185,14 +199,15 @@ async def test_run_code_function_coerce_inputs(local_runtime: RuntimeHandle):
 
 async def test_run_code_function_inputs_in_context(local_runtime: RuntimeHandle):
     """All the input fields values should be in context (even if not used and unset)."""
-    Function = Block.new_code(
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        """\
+        code=code("""\
 assert Input1 == 3
 assert Input2 is None
 assert Long_Input == "hi"
 assert Very_WEIRD__THER_Input == 7
-""",
+"""),
         fields=(
             Field.input("Input1", int),
             Field.input("Input2", bool),
@@ -210,7 +225,12 @@ assert Very_WEIRD__THER_Input == 7
 
 async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
     """A noop code function should work and return None."""
-    Function = Block.new_code("Function", """pass""", fields=(Field.input("Input1", int),))
+    Function = Block.new(
+        BlockType.ACTION,
+        "Function",
+        code=code("""pass"""),
+        fields=(Field.input("Input1", int),),
+    )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
 
@@ -223,9 +243,10 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
     NOTE: we use the hosted_runtime here as we edit the node subtype property CodeBlock.code
      (and the local runtime works directly in the SQL engine, which can't do hierarchical edits)
     """
-    Function = Block.new_code(
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        """return Input1 * 4""",
+        code=code("""return Input1 * 4"""),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
     hosted_runtime.page().blocks.append(Function)
@@ -236,13 +257,25 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
     assert runner.outputs and runner.outputs.Result1 == 12
 
     # run with cast return value
-    Function.code = code("return Input1 * 1.7")
+    Function = Block.new(
+        BlockType.ACTION,
+        "Function",
+        code=code("return Input1 * 1.7"),
+        fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
+    )
+    hosted_runtime.page().blocks.append(Function)
     await hosted_runtime.commit()
     runner = await hosted_runtime.run(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 5
 
     # run with bad return value
-    Function.code = code("return 'stringy'")
+    Function = Block.new(
+        BlockType.ACTION,
+        "Function",
+        code=code("return 'stringy'"),
+        fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
+    )
+    hosted_runtime.page().blocks.append(Function)
     await hosted_runtime.commit()
     runner = await hosted_runtime.run(Function, inputs={"Input1": 3}, return_error=True)
     assert runner.status == RunStatus.FAILED
@@ -250,9 +283,10 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
 
 async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
     """Run a code function with a tuple, should coerce into object."""
-    Function = Block.new_code(
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        """return Input1 > 10, Input1 * 4, None""",
+        code=code("""return Input1 > 10, Input1 * 4, None"""),
         fields=(
             Field.input("Input1", int),
             Field.output("Result1", bool, is_required=True),
@@ -274,9 +308,10 @@ async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
 
 async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
     """Run a code function with a dict, should coerce into object."""
-    Function = Block.new_code(
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        """return dict(Result1=Input1 > 10, Result2=Input1 * 4)""",
+        code=code("""return dict(Result1=Input1 > 10, Result2=Input1 * 4)"""),
         fields=(
             Field.input("Input1", int),
             Field.output("Result1", bool),
@@ -297,12 +332,13 @@ async def test_run_code_function_output_choice(local_runtime: RuntimeHandle):
         "Color",
         fields=[Field.option("Red"), Field.option("Green"), Field.option("Blue")],
     )
-    Function = Block.new_code(
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        """\
+        code=code("""\
 Color = get_node("^Color")
 return {"Color": Color.Red}
-""",
+"""),
         fields=[Field.output("Color", Color)],
     )
     local_runtime.page().blocks.extend(Color, Function)
@@ -313,15 +349,16 @@ return {"Color": Color.Red}
 
 
 async def test_run_code_function_output_generic_node(local_runtime: RuntimeHandle):
-    """ "Run a code function that outputs a generic node field."""
-    Function = Block.new_code(
+    """Run a code function that outputs a generic node field."""
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        fields=[Field.output("Output", Node, is_list=True)],
         code=code("""\
 return [self]
 """),
+        fields=[Field.output("Output", Node, is_list=True)],
     )
-    local_runtime.page().blocks.extend(Function)
+    local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
 
     runner = await local_runtime.run(Function)
@@ -329,7 +366,7 @@ return [self]
 
 
 async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
-    """ "Run a code function with a nested object."""
+    """Run a code function with a nested object."""
     subpage = local_runtime.page().blocks.append(Block.new(BlockType.PAGE, "Subpage"))
     ShapeKind = Block.new(
         BlockType.CHOICE,
@@ -349,14 +386,15 @@ async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
     subpage.blocks.extend(ShapeKind, Shape)
     await local_runtime.commit()
 
-    Function = Block.new_code(
+    Function = Block.new(
+        BlockType.ACTION,
         "Function",
-        """\
+        code=code("""\
 assert ShapeKind is not None
 assert ShapeKind.fields.Circle is not None
 assert ShapeKind.Rectangle is not None
 return Shape(kind=ShapeKind.Square)
-""",
+"""),
         fields=[Field.output("Result", Shape)],
     )
     subpage.blocks.append(Function)
@@ -369,8 +407,11 @@ return Shape(kind=ShapeKind.Square)
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
     """Raise a retryable error. Should be detected and retried."""
-    CodeBlock = Block.new_code(
-        "Code1", """raise RetryableError('error1')""", run_options=RunOptions(max_attempts=3)
+    CodeBlock = Block.new(
+        BlockType.ACTION,
+        "Code1",
+        code=code("""raise RetryableError('error1')"""),
+        run_options=RunOptions(max_attempts=3),
     )
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()
@@ -383,8 +424,11 @@ async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
 
 async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
     """Raise an unretryable error. Should be detected and not retried."""
-    CodeBlock = Block.new_code(
-        "Code1", """raise NonRetryableError('error1')""", run_options=RunOptions(max_attempts=3)
+    CodeBlock = Block.new(
+        BlockType.ACTION,
+        "Code1",
+        code=code("""raise NonRetryableError('error1')"""),
+        run_options=RunOptions(max_attempts=3),
     )
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()
@@ -397,9 +441,10 @@ async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
 
 async def test_run_code_abort(local_runtime: RuntimeHandle):
     """Run a long async code script and abort it."""
-    CodeBlock = Block.new_code(
+    CodeBlock = Block.new(
+        BlockType.ACTION,
         "Code1",
-        """await asyncio.sleep(5)""",
+        code=code("""await asyncio.sleep(5)"""),
     )
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()

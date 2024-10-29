@@ -6,12 +6,12 @@ from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, Package
-from bench.language.block import Block, TextBlock, ValueBlock
+from bench.language.block import ActionBlock, Block, ValueBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileReference, FileType
-from bench.language.flow import BlockStep, Step
+from bench.language.flow import ActionStep, Step
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
@@ -70,13 +70,13 @@ def test_node_passthrough(session: "Session"):
 
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
-    Text1 = Block.new(TextBlock, "Text1", text=md("Hello!"))
+    Text1 = Block.new(ActionBlock, "Text1", text=md("Hello!"))
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello!"
     Text1.text = md("Hello, world!")
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
 
     # subtype -> node ref property
-    BlockStep1 = Step.new(BlockStep, "BlockStep1", node=Text1)
+    BlockStep1 = Step.new(ActionStep, "BlockStep1", node=Text1)
     assert BlockStep1.node == Text1
     assert BlockStep1.node_ptr == Text1.to_ref()
 
@@ -92,11 +92,11 @@ def test_node_subtype_property_access(session: "Session"):
 
 
 def test_node_subtype_pack_unpack(session: "Session"):
-    block = Block.new(TextBlock, "Text1", text=md("Hello!"))
+    block = Block.new(ActionBlock, "Text1", text=md("Hello!"))
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
-        TextBlock, unpack_object(block_data, expect=Block, supergraph=session._supergraph)
+        ActionBlock, unpack_object(block_data, expect=Block, supergraph=session._supergraph)
     )
     assert unpacked_block.equals(block)
     assert unpacked_block.text is not None and unpacked_block.text.to_markdown() == "Hello!"
@@ -176,7 +176,7 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b.main_drive = bench_b.drives.create(name="Drive")
     branch_b = bench_b.branches.create(name="main b")
     package_b = branch_b.packages.create()
-    block_b = package_b.blocks.create(type=BlockType.CODE, roles=[block_a_1])
+    block_b = package_b.blocks.create(type=BlockType.ACTION, roles=[block_a_1])
     assert block_b.bench_id == bench_b.id
     assert block_b.roles
     assert block_b.roles[0].bench_id == bench_a.id
@@ -248,7 +248,7 @@ async def test_clone_subtree(local_runtime: RuntimeHandle):
 
 def test_roundtrip_rich_reference(shared_session: Session, shared_package: Package):
     # plain reference
-    block = Block.new_text("Text1", "Hello, world!")
+    block = Block.new(BlockType.ACTION, "Text1", text=md("Hello, world!"))
     view = View.new(ViewType.PAGE, "Page1", node=block)
     view_data = view._to_data()
     unpacked_view = unpack_object(
@@ -277,9 +277,9 @@ def test_roundtrip_rich_reference(shared_session: Session, shared_package: Packa
 async def test_create_circular_node_ancestry(hosted_runtime: RuntimeHandle):
     """Create a circular node ancestry. Should fail."""
     # page->block1->block2
-    block1 = Block.new(BlockType.CODE, "Code1")
+    block1 = Block.new(BlockType.ACTION, "Code1")
     hosted_runtime.page().blocks.append(block1)
-    block2 = Block.new(BlockType.CODE, "Code2")
+    block2 = Block.new(BlockType.ACTION, "Code2")
     block1.blocks.append(block2)
     await hosted_runtime.session.commit()
 

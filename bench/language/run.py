@@ -64,12 +64,10 @@ RunnableNode = Union["Block", "Step"]
 # pyright: reportIncompatibleVariableOverride=false
 @enum_(EnumType.RUN_KIND)
 class RunKind(IdEnum):
-    """The kind of some runnable."""
-
     CODE = 1
-    TEXT = 2
-    STEP = 3
-    FLOW = 4
+    ACTION = 2
+    STEP = 10
+    FLOW = 11
 
 
 @enum_(EnumType.MODEL_PROVIDER)

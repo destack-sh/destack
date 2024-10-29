@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.10.28.0"
+VERSION = "2024.10.29.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1018,14 +1018,12 @@ STEP_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("run_options", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("combinator", PrimitiveType.INT16, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("size", PrimitiveType.JSON, is_nullable=True),
     ),
