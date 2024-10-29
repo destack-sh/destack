@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast
 import cachetools
 
 from bench.language.const import (
+    ActionMode,
     BenchError,
     BlockType,
     FieldType,
@@ -139,10 +140,8 @@ class Block(SourceNode[BlockData]):
     def run_kind(self) -> "RunKind | None":
         from bench.language.run import RunKind
 
-        if self.type == BlockType.CODE:
-            return RunKind.CODE
-        elif self.type == BlockType.TEXT:
-            return RunKind.TEXT
+        if self.type == BlockType.ACTION:
+            return RunKind.ACTION
         elif self.type == BlockType.FLOW:
             return RunKind.FLOW
         elif self.type.is_runnable:
@@ -240,22 +239,6 @@ class Block(SourceNode[BlockData]):
             typ = cast(BlockType, typ._node_subtype)
         return Block(type=typ, name=name, **kwargs)  # type: ignore
 
-    @staticmethod
-    def new_code(name: str, code: "str | Code", **kwargs) -> "CodeBlock":
-        if isinstance(code, str):
-            from bench.language.code import Code
-
-            code = Code.from_string(code)
-        return Block.new(BlockType.CODE, name, code=code, **kwargs)
-
-    @staticmethod
-    def new_text(name: str, text: "str | Text", **kwargs) -> "TextBlock":
-        if isinstance(text, str):
-            from bench.language.text import Text
-
-            text = Text.plain(text)
-        return Block.new(BlockType.TEXT, name, text=text, **kwargs)
-
 
 @node_subtype_(BlockType.VALUE, passthrough_get=("value",), passthrough_set=("value",))
 class ValueBlock(Block):
@@ -264,23 +247,17 @@ class ValueBlock(Block):
     value: Any = p_value_runtime(101, typ=lambda self: cast("ValueBlock", self).value_type)
 
 
-@node_subtype_(BlockType.TEXT)
-class TextBlock(Block):
-    run_options: Optional["RunOptions"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
+@node_subtype_(BlockType.ACTION)
+class ActionBlock(Block):
+    mode: ActionMode = p_regular(100, default=ActionMode.DYNAMIC)
     text: Optional["Text"] = p_regular(
         101, default=None, require=False, array=False, struct=StructType.TEXT
     )
-
-
-@node_subtype_(BlockType.CODE)
-class CodeBlock(Block):
-    run_options: Optional["RunOptions"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
     code: Optional["Code"] = p_regular(
-        101, default=None, require=False, array=False, struct=StructType.CODE
+        102, default=None, require=False, array=False, struct=StructType.CODE
+    )
+    run_options: Optional["RunOptions"] = p_regular(
+        110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
 
@@ -293,4 +270,9 @@ class FlowBlock(Block):
 
 @node_subtype_(BlockType.DATABASE)
 class DatabaseBlock(Block):
+    query: Optional["Query"] = p_regular(100, require=False, array=False, references=NodeType.QUERY)
+
+
+@node_subtype_(BlockType.QUERY)
+class QueryBlock(Block):
     query: Optional["Query"] = p_regular(100, require=False, array=False, references=NodeType.QUERY)

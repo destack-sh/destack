@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.28.0"
+VERSION = "2024.10.29.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -103,6 +103,7 @@ class EnumType(IdEnum):
     TYPE_KIND = 20083
     TYPE_FORMAT = 20384
     BLOCK_TYPE = 20390
+    ACTION_MODE = 20391
 
     # basic
     SCHEDULE_TYPE = 20100
@@ -635,12 +636,12 @@ class BlockType(IdEnum):
     CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
     SIGNAL = 12  # define a signal type with fields
     NOTIFICATION = 13  # define a new notification type
-    # PROTOCOL/TRAIT, TAG, ISSUE, METRIC, BLOCK, ...?
+    # RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
-    TEXT = 20  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
-    CODE = 21  # define a code function/script with fields (optionally incl. input/output)
-    FLOW = 22  # define a flow with steps and fields (optionally incl. input/output)
+    COMMENT = 20  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
+    ACTION = 21  # define a code function/script with fields (optionally incl. input/output)
+    FLOW = 22  # define a flow of actions (steps connected with pipes)
 
     # data
     VALUE = 30  # define a single-value variable
@@ -681,6 +682,12 @@ class BlockTypes:
     CLASSES = bittuple(
         BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE
     )
+
+
+@enum_(EnumType.ACTION_MODE)
+class ActionMode(IdEnum):
+    DYNAMIC = 1
+    STATIC = 2
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8

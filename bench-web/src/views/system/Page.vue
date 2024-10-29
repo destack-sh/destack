@@ -436,9 +436,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <template
             v-for="blockType in [
               BlockType.PAGE,
-              BlockType.CLASS,
               BlockType.CHOICE,
-              BlockType.TEXT,
               BlockType.CODE,
               BlockType.FLOW,
               BlockType.DATABASE,

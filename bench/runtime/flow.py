@@ -8,11 +8,10 @@ import structlog
 from opentelemetry import trace
 from sortedcontainers import SortedDict
 
-from bench.language.block import Block, FlowBlock
+from bench.language.block import FlowBlock
 from bench.language.const import RunStatus
 from bench.language.field import Field, TypeInfoBase
 from bench.language.flow import (
-    CodeStep,
     Pipe,
     PipeCombinator,
     PipeFilter,
@@ -23,11 +22,10 @@ from bench.language.flow import (
     PortType,
     Step,
     StepType,
-    TextStep,
 )
 from bench.language.run import Run, RunError, RunKind
 from bench.language.value import CustomObject
-from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
+from bench.runtime.core import RUN_ONCE, ManualRetryableError
 from bench.runtime.runner import Runner, RunnerCache
 from bench.utils.func import dict_product, dict_zip_latest
 
@@ -502,7 +500,7 @@ class FlowRunner(Runner[RunnerCache, FlowBlock]):
         # combine control values into step runs
         steps_to_start: list[tuple[Step, dict[PortId, Any]]] = []
         for step, values_by_port in control_values.items():
-            combinator = step.combinator or PipeCombinator.ZIP
+            combinator = PipeCombinator.ZIP
             if combinator == PipeCombinator.ZIP:  # cycle zip
                 combinations = dict_zip_latest(values_by_port)
             elif combinator == PipeCombinator.PRODUCT:
@@ -597,24 +595,11 @@ class CompleteStepRunner(StepRunner):
 #
 
 
-class BlockStepRunner(StepRunner):
-    @override
-    async def run_once(self) -> None:
-        block = self.node.node
-        if not isinstance(block, Block) or block.run_kind is None:
-            raise RunImpossibleError(f"no runnable block for {self.node!r}: {block!r}")
-        block_runner = await self.runtime.make_runner(
-            kind=block.run_kind, node=block, options=RUN_ONCE, inputs=self.inputs, track=True
-        )
-        await self.runtime.run_runner(block_runner)
-        self.outputs = block_runner.outputs
-
-
-class CodeStepRunner(StepRunner):
+class ActionStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         code_runner = await self.runtime.make_runner(
-            kind=RunKind.CODE,
+            kind=RunKind.ACTION,
             node=self.node,
             options=RUN_ONCE,
             inputs=self.inputs,
@@ -622,19 +607,3 @@ class CodeStepRunner(StepRunner):
         )
         await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
-
-
-class TextStepRunner(StepRunner):
-    @override
-    async def run_once(self) -> None:
-        text_runner = await self.runtime.make_runner(
-            kind=RunKind.TEXT,
-            node=self.node,
-            options=RUN_ONCE.override(
-                model_provider=self.options.model_provider, model_type=self.options.model_type
-            ),
-            inputs=self.inputs,
-            track=False,
-        )
-        await self.runtime.run_runner(text_runner)
-        self.outputs = text_runner.outputs

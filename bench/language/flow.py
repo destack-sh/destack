@@ -5,6 +5,7 @@ from uuid import UUID
 import cachetools
 
 from bench.language.const import (
+    ActionMode,
     BlockType,
     EnumType,
     FieldType,
@@ -279,19 +280,21 @@ class StepType(IdEnum):
     # ABORT?
 
     # run
-    BLOCK = 51  # run a runnable block
-    TEXT = 54  # run text
-    CODE = 55  # run code
-    SEND = 56  # send a message/signal/notification/...
+    ACTION = 60
+    SEND = 61  # emit a message/signal/notification/...
     # YIELD # to other program/human
-    # SEND, APPLY, CREATE, PASS?
+    # SEND, APPLY, CR EATE, PASS?
 
     # state
-    VALUE = 100  # read (and write?) value
+    # VALUE = 100  # read (and write?) value
 
     # containers
     GROUP = 500  # sub-flow
+    LOOP = 501  # repeat
     # LOOP, REPEAT, ...?
+
+    # misc
+    COMMENT = 900  # no-op, just for documentation
 
     @property
     def is_boundary(self) -> bool:
@@ -302,28 +305,14 @@ class StepType(IdEnum):
         return self >= 50 and self < 100
 
     @property
-    def is_control(self) -> bool:
-        return self >= 100 and self < 150
-
-    @property
     def is_container(self) -> bool:
-        return self >= 150 and self < 200
+        return self >= 500 and self < 600
 
 
 @local_node_(NodeType.STEP, passthrough_get=("value", "fields"))
 class Step(SourceNode[StepData]):
     """
     A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
-    Pipes are stored in the containing Flow or containing Step.
-    Ports are implicit via Pipes unless extra configuration is provided.
-
-    A Step may run multiple times if it is fired multiple times (even concurrently).
-    When a Step completes, then:
-     1. Fire output values to all output ports
-     2. Fire output control port
-    When a Step fails, then:
-     - If run_options.suppress_failure: fire error on run port
-     - Else: fail containing Flow
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
@@ -334,9 +323,6 @@ class Step(SourceNode[StepData]):
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
-    )
-    run_options: Optional["RunOptions"] = p_regular(
-        36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
     # content
@@ -354,12 +340,8 @@ class Step(SourceNode[StepData]):
         constraint=constraint(block_types=[BlockType.IDENTITY]),
     )
     if TYPE_CHECKING:
-        node_ptr: Optional["NodeReference"] = None
         roles_ptr: tuple["NodeReference", ...] = ()
         identity_ptr: Optional["NodeReference"] = None
-
-    # control
-    combinator: PipeCombinator | None = p_regular(60, default=None)
 
     # view
     position: Optional["Vector2"] = p_regular(
@@ -519,8 +501,8 @@ class Step(SourceNode[StepData]):
         elif self.type == StepType.COMPLETE:
             assert self.parent is not None, f"{self!r} has no parent"
             return self.parent.output_type
-        elif self.type == StepType.BLOCK:
-            node = cast(BlockStep, self).node
+        elif self.type == StepType.ACTION and cast(ActionStep, self).node_ptr:
+            node = cast(ActionStep, self).node
             assert isinstance(node, Block), f"{self!r} has no block: {node!r}"
             return node.to_type(as_object=as_object, field_type=field_type)
         else:
@@ -574,25 +556,31 @@ class Step(SourceNode[StepData]):
         return Step(type=typ, name=name, **kwargs)  # type: ignore
 
 
-@node_subtype_(StepType.CODE)
-class CodeStep(Step):
+@node_subtype_(StepType.ACTION)
+class ActionStep(Step):
+    mode: ActionMode = p_regular(100, default=ActionMode.DYNAMIC)
     code: Optional["Code"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.CODE
+        101, default=None, require=False, array=False, struct=StructType.CODE
+    )
+    text: Optional["Text"] = p_regular(
+        102, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    node: Optional["Block"] = p_regular(
+        103,
+        require=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+    )
+    run_options: Optional["RunOptions"] = p_regular(
+        110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
+    if TYPE_CHECKING:
+        node_ptr: Optional["NodeReference"] = None
 
-@node_subtype_(StepType.TEXT)
-class TextStep(Step):
+
+@node_subtype_(StepType.COMMENT)
+class CommentStep(Step):
     text: Optional["Text"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-
-
-@node_subtype_(StepType.BLOCK)
-class BlockStep(Step):
-    node: "Block" = p_regular(
-        100,
-        require=True,
-        references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.CODE, BlockType.FLOW]),
     )

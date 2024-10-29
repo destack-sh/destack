@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 RUN_ONCE = RunOptions(max_attempts=1)
 BASE_RUN_OPTIONS_BY_KIND = {
     RunKind.CODE: RUN_ONCE,
-    RunKind.TEXT: RunOptions(max_attempts=3),
+    RunKind.ACTION: RunOptions(max_attempts=3),
     RunKind.STEP: RUN_ONCE,
     RunKind.FLOW: RUN_ONCE,
 }

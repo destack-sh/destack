@@ -40,6 +40,7 @@ enum EnumType {
   ENUM_TYPE_TYPE_KIND = 20083;
   ENUM_TYPE_TYPE_FORMAT = 20384;
   ENUM_TYPE_BLOCK_TYPE = 20390;
+  ENUM_TYPE_ACTION_MODE = 20391;
   ENUM_TYPE_SCHEDULE_TYPE = 20100;
   ENUM_TYPE_TIME_INTERVAL = 20101;
   ENUM_TYPE_DAY = 20102;
@@ -415,6 +416,7 @@ enum BenchType {
   BENCH_TYPE_TYPE_KIND = 20083;
   BENCH_TYPE_TYPE_FORMAT = 20384;
   BENCH_TYPE_BLOCK_TYPE = 20390;
+  BENCH_TYPE_ACTION_MODE = 20391;
   BENCH_TYPE_SCHEDULE_TYPE = 20100;
   BENCH_TYPE_TIME_INTERVAL = 20101;
   BENCH_TYPE_DAY = 20102;
@@ -821,8 +823,8 @@ enum BlockType {
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_SIGNAL = 12;
   BLOCK_TYPE_NOTIFICATION = 13;
-  BLOCK_TYPE_TEXT = 20;
-  BLOCK_TYPE_CODE = 21;
+  BLOCK_TYPE_COMMENT = 20;
+  BLOCK_TYPE_ACTION = 21;
   BLOCK_TYPE_FLOW = 22;
   BLOCK_TYPE_VALUE = 30;
   BLOCK_TYPE_DATABASE = 31;
@@ -830,6 +832,12 @@ enum BlockType {
   BLOCK_TYPE_VIEW = 40;
   BLOCK_TYPE_ROLE = 50;
   BLOCK_TYPE_IDENTITY = 51;
+}
+
+enum ActionMode {
+  ACTION_MODE_UNSPECIFIED = 0;
+  ACTION_MODE_DYNAMIC = 1;
+  ACTION_MODE_STATIC = 2;
 }
 
 enum ScheduleType {
@@ -1065,13 +1073,12 @@ enum RunStatus {
   RUN_STATUS_COMPLETED = 9;
 }
 
-// The kind of some runnable.
 enum RunKind {
   RUN_KIND_UNSPECIFIED = 0;
   RUN_KIND_CODE = 1;
-  RUN_KIND_TEXT = 2;
-  RUN_KIND_STEP = 3;
-  RUN_KIND_FLOW = 4;
+  RUN_KIND_ACTION = 2;
+  RUN_KIND_STEP = 10;
+  RUN_KIND_FLOW = 11;
 }
 
 enum RunErrorKind {
@@ -1179,12 +1186,11 @@ enum StepType {
   STEP_TYPE_COMPLETE = 2;
   STEP_TYPE_FAIL = 3;
   STEP_TYPE_TRIGGER = 4;
-  STEP_TYPE_BLOCK = 51;
-  STEP_TYPE_TEXT = 54;
-  STEP_TYPE_CODE = 55;
-  STEP_TYPE_SEND = 56;
-  STEP_TYPE_VALUE = 100;
+  STEP_TYPE_ACTION = 60;
+  STEP_TYPE_SEND = 61;
   STEP_TYPE_GROUP = 500;
+  STEP_TYPE_LOOP = 501;
+  STEP_TYPE_COMMENT = 900;
 }
 
 enum PortType {
@@ -2595,15 +2601,11 @@ message ValueBlockData {
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
-message TextBlockData {
-  optional RunOptionsData run_options = 100;
+message ActionBlockData {
+  ActionMode mode = 100;
   optional TextData text = 101;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
-message CodeBlockData {
-  optional RunOptionsData run_options = 100;
-  optional CodeData code = 101;
+  optional CodeData code = 102;
+  optional RunOptionsData run_options = 110;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -2613,6 +2615,11 @@ message FlowBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message DatabaseBlockData {
+  optional NodeReferenceData query_ptr = 100;
+}
+
+// A building block with logic, types, UI, state, auth, AI, ...
+message QueryBlockData {
   optional NodeReferenceData query_ptr = 100;
 }
 
@@ -2731,57 +2738,24 @@ message StepData {
   string name = 32;
   string order_key = 33;
   optional IconData icon = 35;
-  optional RunOptionsData run_options = 36;
   repeated NodeReferenceData roles_ptr = 40;
   optional NodeReferenceData identity_ptr = 41;
-  optional PipeCombinator combinator = 60;
   optional Vector2Data position = 80;
   optional BoxData size = 81;
 }
 
 // A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
-// Pipes are stored in the containing Flow or containing Step.
-// Ports are implicit via Pipes unless extra configuration is provided.
-// 
-// A Step may run multiple times if it is fired multiple times (even concurrently).
-// When a Step completes, then:
-// 1. Fire output values to all output ports
-// 2. Fire output control port
-// When a Step fails, then:
-// - If run_options.suppress_failure: fire error on run port
-// - Else: fail containing Flow
-message CodeStepData {
-  optional CodeData code = 100;
+message ActionStepData {
+  ActionMode mode = 100;
+  optional CodeData code = 101;
+  optional TextData text = 102;
+  optional NodeReferenceData node_ptr = 103;
+  optional RunOptionsData run_options = 110;
 }
 
 // A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
-// Pipes are stored in the containing Flow or containing Step.
-// Ports are implicit via Pipes unless extra configuration is provided.
-// 
-// A Step may run multiple times if it is fired multiple times (even concurrently).
-// When a Step completes, then:
-// 1. Fire output values to all output ports
-// 2. Fire output control port
-// When a Step fails, then:
-// - If run_options.suppress_failure: fire error on run port
-// - Else: fail containing Flow
-message TextStepData {
+message CommentStepData {
   optional TextData text = 100;
-}
-
-// A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
-// Pipes are stored in the containing Flow or containing Step.
-// Ports are implicit via Pipes unless extra configuration is provided.
-// 
-// A Step may run multiple times if it is fired multiple times (even concurrently).
-// When a Step completes, then:
-// 1. Fire output values to all output ports
-// 2. Fire output control port
-// When a Step fails, then:
-// - If run_options.suppress_failure: fire error on run port
-// - Else: fail containing Flow
-message BlockStepData {
-  NodeReferenceData node_ptr = 100;
 }
 
 message SessionData {

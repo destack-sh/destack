@@ -5,13 +5,17 @@ from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileType
 from bench.language.project import ProjectOptions, project
 from bench.language.session import Session
-from bench.language.text import Text, TextLine, TextSpan
+from bench.language.text import Text, TextLine, TextSpan, md
 
 
 def test_project_pages(shared_session: Session, shared_package: Package):
     GeneralInstruction = Block.new(BlockType.PAGE, "GeneralInstruction")
-    SomeInstruction = Block.new_text("SomeInstruction", "Alright, so consider the elephant")
-    SomeOtherInstruction = Block.new_text("SomeOtherInstruction", "It's big and pink")
+    SomeInstruction = Block.new(
+        BlockType.ACTION, "SomeInstruction", text=md("Alright, so consider the elephant")
+    )
+    SomeOtherInstruction = Block.new(
+        BlockType.ACTION, "SomeOtherInstruction", text=md("It's big and pink")
+    )
     GeneralInstruction.blocks.extend(SomeInstruction, SomeOtherInstruction)
 
     Writing = Block.new(BlockType.PAGE, "Writing")
@@ -30,9 +34,9 @@ def test_project_pages(shared_session: Session, shared_package: Package):
         ],
     )
     Writing.blocks.extend(Mood, Style)
-    JudgeWriting = Block.new_text(
+    JudgeWriting = Block.new(
+        BlockType.ACTION,
         "JudgeWriting",
-        "",
         fields=[Field.input("Text", str), Field.output("Style", Style), Field.output("Mood", Mood)],
     )
 
@@ -68,7 +72,7 @@ def test_project_custom_objects(shared_session: Session, shared_package: Package
     CustomObject2 = Class2(Count=2, Class1=CustomObject1)
 
     # nested node ref in custom object in builtin object
-    Text1 = Block.new_text("Text1", "Hello, world!")
+    Text1 = Block.new(BlockType.ACTION, "Text1", text=md("Hello, world!"))
     Variable1 = Block.new(
         BlockType.VALUE,
         "Variable1",
@@ -118,9 +122,10 @@ def test_project_missing_nodes(shared_session: Session, shared_package: Package)
         value_type=to_type(Class1),
         value=Class1(File=File3),
     )
-    Text3 = Block.new_text(
+    Text3 = Block.new(
+        BlockType.COMMENT,
         "Text3",
-        Text(lines=[TextLine(spans=[TextSpan(node=File2)])]),
+        text=Text(lines=[TextLine(spans=[TextSpan(node=File2)])]),
     )
     File1._unload_rec()
     File2._unload_rec()

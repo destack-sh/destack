@@ -15,6 +15,7 @@ from bench.language.flow import Pipe, PipeType, Step, StepType
 from bench.language.node import BuiltinObject, Node, NodeReference
 from bench.language.render import Renderer, RenderOptions, render, render_expr
 from bench.language.session import Session
+from bench.language.text import md
 from bench.language.validation import constraint
 from bench.language.view import View, ViewType
 from bench.runtime.compiler import BUILTIN_GLOBALS
@@ -204,7 +205,7 @@ def test_render_flow(shared_session: Session, shared_package: Package):
 
 def test_render_page(shared_session: Session, shared_package: Package):
     Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
-    Text1 = Page.blocks.append(Block.new_text("Text1", "Hello, world!"))
+    Text1 = Page.blocks.append(Block.new(BlockType.COMMENT, "Text1", text=md("Hello, world!")))
     rendered_page = render(Page, options=RenderOptions(scope=Page, as_page=True))
     assert Text1.name in rendered_page
 
@@ -217,7 +218,7 @@ def test_render_simple_choice_option_ref(shared_session: Session, shared_package
         "Choice",
         fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
     )
-    Function = Block.new_code("Function", "")
+    Function = Block.new(BlockType.ACTION, "Function")
     Page.blocks.extend(Choice, Function)
     rendered_option = render_expr(
         Choice.fields.Option2, options=RenderOptions(scope=Function), as_ref=True
