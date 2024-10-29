@@ -77,7 +77,7 @@ from .field import (
     to_type_scalar,
 )
 from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
-from .flow import Pipe, PipeType, PortKey, PortKeyBase, Step, StepType
+from .flow import Pipe, PipeType, Step, StepType
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
@@ -275,8 +275,6 @@ __all__ = [
     "Policy",
     "PolicyEffect",
     "PolicyRule",
-    "PortKey",
-    "PortKeyBase",
     "PrimitiveType",
     "Projection",
     "Property",

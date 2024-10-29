@@ -21,11 +21,7 @@ from bench.runtime.capture import (
 )
 from bench.runtime.compiler import CompiledCode, compile_code
 from bench.runtime.core import SyntaxError
-from bench.runtime.runner import (
-    RunnableNode,
-    Runner,
-    RunnerCache,
-)
+from bench.runtime.runner import Runner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -34,17 +30,9 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True, repr=False)
-class CodeRunnerCache[T: RunnableNode](RunnerCache[T]):
-    compiled: "CompiledCode | None" = None
-    exports: Mapping[str, Any] | None = None  # for scripts
-    last_expr_value: Any | None = None  # for snippets
-
-
-@dataclass(slots=True, repr=False)
-class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
+class CodeRunnerBase(Runner):
     """Common base for compiling and running code."""
 
-    cache_cls = CodeRunnerCache
     log_sink: LogSink = dataclasses.field(init=False)
 
     def __post_init__(self):
@@ -136,14 +124,6 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
         return outputs
 
 
-class CodeSnippetRunner(CodeRunnerBase):
-    """Run a code snippet and update the value of the state's last expression."""
-
-    @override
-    async def run_once(self) -> None:
-        raise NotImplementedError
-
-
 class CodeScriptRunner(CodeRunnerBase):
     """Run a code script and update the state's exported definitions."""
 
@@ -168,8 +148,6 @@ class CodeScriptRunner(CodeRunnerBase):
             logger.trace(
                 "code.run", runner=self, code=cast(Code, self.code).to_string(), span="current"
             )
-        exports = {defn: glbls[defn] for defn in compiled.definitions}
-        self.cache.exports = exports
 
 
 class CodeFunctionRunner(CodeRunnerBase):

@@ -297,7 +297,7 @@ EXPRESSION_KIND_BY_OP: dict[ExpressionType, ExpressionKind] = {
     op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
 }
 
-CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalType] = {
+CONDITIONAL_OP_BY_DJANGO_SIGN: dict[str, ConditionalType] = {
     "eq": ConditionalType.EQUALS,
     "ne": ConditionalType.NOT_EQUALS,
     "gt": ConditionalType.GREATER_THAN,
@@ -306,6 +306,9 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalType] = {
     "lte": ConditionalType.LESS_THAN_OR_EQUALS,
     "in": ConditionalType.IN,
     "nin": ConditionalType.NOT_IN,
+}
+DJANGO_SIGN_BY_CONDITIONAL_OP: dict[ConditionalType, str] = {
+    v: k for k, v in CONDITIONAL_OP_BY_DJANGO_SIGN.items()
 }
 
 
@@ -342,10 +345,10 @@ def coerce_conditional(
         # parse out django str if present
         if "__" in arg:
             key, op_str = arg.split("__", 1)
-            op = CONDITIONAL_OP_BY_DJANGO_STR.get(op_str)
+            op = CONDITIONAL_OP_BY_DJANGO_SIGN.get(op_str)
             if op is None:
                 raise TypeError(
-                    f"unsupported conditional operator {op_str!r} (allowed: {list(CONDITIONAL_OP_BY_DJANGO_STR)})"
+                    f"unsupported conditional operator {op_str!r} (allowed: {list(CONDITIONAL_OP_BY_DJANGO_SIGN)})"
                 )
         else:
             key, op = arg, ConditionalType.EQUALS

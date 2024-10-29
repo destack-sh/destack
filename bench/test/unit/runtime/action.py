@@ -25,7 +25,7 @@ def _for_every_provider():
 async def test_run_text_no_outputs(local_runtime: RuntimeHandle):
     """Empty Text without any output fields should fail."""
     runtime = local_runtime
-    Text1 = Block.new_text("Text1", "")
+    Text1 = Block.new(BlockType.ACTION, "Text1")
     runtime.page().blocks.append(Text1)
     await runtime.commit()
 
@@ -39,9 +39,9 @@ async def test_run_text_no_outputs(local_runtime: RuntimeHandle):
 @_for_every_provider()
 async def test_run_text_output_scalar(local_runtime: RuntimeHandle, model_provider: ModelProvider):
     runtime = local_runtime
-    AnalyzeSentiment = Block.new_text(
+    AnalyzeSentiment = Block.new(
+        BlockType.ACTION,
         "AnalyzeSentiment",
-        "",
         fields=[Field.input("Text", str), Field.output("IsHappy", bool)],
         run_options=RunOptions(max_attempts=1, model_provider=model_provider),
     )
@@ -77,9 +77,9 @@ async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider
             )
         ],
     )
-    AnalyzeSentiment = Block.new_text(
+    AnalyzeSentiment = Block.new(
+        BlockType.ACTION,
         "AnalyzeSentiment",
-        "",
         fields=[
             Field.input("Text", str),
             Field.output("Style", WritingStyle),
@@ -111,9 +111,10 @@ async def test_run_text_with_solid_images(
         "Hue",
         fields=[Field.option("Red"), Field.option("Green"), Field.option("Blue")],
     )
-    DetectColor = Block.new_text(
+    DetectColor = Block.new(
+        BlockType.ACTION,
         "DetectColor",
-        "Detect the primary color of the given image",
+        text=md("Detect the primary color of the given image"),
         fields=[
             Field.input("Image", File, constraint(file_types=[FileType.IMAGE])),
             Field.output("Hue", Hue),
@@ -142,7 +143,7 @@ async def test_run_text_with_giant_images(
     # task
     runtime = hosted_runtime
     TitleImage = Block.new(
-        BlockType.TEXT,
+        BlockType.ACTION,
         "TitleImage",
         fields=[
             Field.input("image", File, constraint(file_types=[FileType.IMAGE])),
@@ -191,7 +192,7 @@ async def test_run_text_with_single_document(
     # task
     runtime = hosted_runtime
     ExtractSecretPhrase = Block.new(
-        BlockType.TEXT,
+        BlockType.ACTION,
         "ExtractSecretPhrase",
         fields=[
             Field.input("Document", FileType.DOCUMENT),
@@ -235,7 +236,7 @@ async def test_run_text_with_multiple_documents(hosted_runtime: RuntimeHandle):
         BlockType.VALUE, "example_doc_2", value_type=to_type(File), value=example_doc_2
     )
     GetSecretPhrase = Block.new(
-        BlockType.TEXT,
+        BlockType.ACTION,
         "GetSecretPhrase",
         text=md(
             "Get the secret phrase from the input document. If not mentioned, get it from example_doc_2"

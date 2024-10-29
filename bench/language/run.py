@@ -2,7 +2,6 @@ from asyncio import CancelledError
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, assert_never, cast
 
-from bench.language.code import Code
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
@@ -57,8 +56,6 @@ if TYPE_CHECKING:
         Step,
         TypeInfoBase,
     )
-
-RunnableNode = Union["Block", "Step"]
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -374,11 +371,6 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     block: Optional["Block"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
-    # extra run options if different from base or it's a lambda
-    code: Optional["Code"] = p_internal(38, require=False, array=False, struct=StructType.CODE)
-    options: Optional["RunOptions"] = p_system(
-        39, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
 
     # status (overall)
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)  # desired status
@@ -508,7 +500,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     @staticmethod
     def new(
-        node: RunnableNode, *, inputs: Any | None = None, parent: "Run | None" = None, **kwargs
+        node: "Block | Step", *, inputs: Any | None = None, parent: "Run | None" = None, **kwargs
     ) -> "Run":
         """Creates a Run from a Block."""
         from bench.language import Block, Step

@@ -1809,10 +1809,15 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             subtype = self.__dict__["type"]
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
-                # short-circuit to subclass 'property' if it exists
-                subtype_prop = getattr(subtype_cls, key, None)
-                if type(subtype_prop) is property and subtype_prop.fget is not None:
-                    return subtype_prop.fget(self)
+                # short-circuit to subclass property or method if it exists
+                subtype_attr = getattr(subtype_cls, key, None)
+                if subtype_attr is not None:
+                    if type(subtype_attr) is property and subtype_attr.fget is not None:
+                        # it's a (Python) property
+                        return subtype_attr.fget(self)
+                    elif type(subtype_attr) is not Property and callable(subtype_attr):
+                        # it's a method
+                        return functools.partial(subtype_attr, self)
 
                 # regular subtype property
                 prop = subtype_cls.__properties__.get(key)

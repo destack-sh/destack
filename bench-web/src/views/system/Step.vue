@@ -19,7 +19,6 @@ import {
   NodeType,
   Orientation,
   PortSide,
-  PortType,
   RunStatus,
   StepType,
   Variant,
@@ -466,37 +465,36 @@ defineExpose<ViewExposed>({ self, id, actions });
 
       <!-- Content (:StepHeight) -->
       <div
-        v-if="[StepType.TEXT, StepType.CODE].includes(step.type)"
+        v-if="[StepType.COMMENT, StepType.ACTION].includes(step.type)"
         class="mt-1 border-t border-gray-200 pt-1 transition-colors duration-150 group-hover/step:border-gray-300"
       >
         <Text
-          v-if="step.type == StepType.TEXT"
           id="text"
           class="px-3"
           is-input
           :variant="Variant.STEALTH"
-          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, 'text')"
+          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, 'text')"
           @update:model-value="
             (newText) =>
               flowCtx.tx.update(
                 step!,
-                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.TEXT, subnode: { text: newText } }),
+                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.ACTION, subnode: { text: newText } }),
                 { debounce: 'long' },
               )
           "
         />
         <Code
-          v-else-if="step.type == StepType.CODE"
+          v-if="step.type == StepType.ACTION"
           id="code"
           class="px-3"
           is-input
           :variant="Variant.STEALTH"
-          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.CODE, step.subnodePacked, 'code')"
+          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, 'code')"
           @update:model-value="
             (newCode) =>
               flowCtx.tx.update(
                 step!,
-                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.CODE, subnode: { code: newCode } }),
+                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.ACTION, subnode: { code: newCode } }),
                 { debounce: 'long' },
               )
           "

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.29.0"
+VERSION = "2024.10.29.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -143,13 +143,8 @@ class EnumType(IdEnum):
     MODEL_PROVIDER = 20570
     MODEL_TYPE = 20571
     STEP_TYPE = 20600
-    PORT_TYPE = 20601
     PORT_SIDE = 20602
     PIPE_TYPE = 20605
-    PIPE_FILTER = 20606
-    PIPE_MAPPING = 20607
-    PIPE_MODULATION = 20608
-    PIPE_COMBINATOR = 20609
     NOTIFICATION_LEVEL = 20650
 
     # view
@@ -415,7 +410,6 @@ class StructType(IdEnum):
     # run
     CODE = 10400
     CODE_LINE = 10401
-    PORT_KEY = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
