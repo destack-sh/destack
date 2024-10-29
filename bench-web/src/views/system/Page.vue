@@ -193,13 +193,13 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[0];
     if (block == null) return false;
-    createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
+    createAndFocusBlock({ type: BlockType.COMMENT }, "before", block);
   },
   "common.create.below": (action, context) => {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[blocks.value.length - 1];
     if (block == null) return false;
-    createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
+    createAndFocusBlock({ type: BlockType.COMMENT }, "after", block);
   },
   // edit
   "common.edit.duplicate": (action, context) => {
@@ -437,7 +437,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             v-for="blockType in [
               BlockType.PAGE,
               BlockType.CHOICE,
-              BlockType.CODE,
+              BlockType.ACTION,
               BlockType.FLOW,
               BlockType.DATABASE,
               BlockType.VIEW,

@@ -193,7 +193,7 @@ def test_render_flow(shared_session: Session, shared_package: Package):
     Flow1.steps.append(Start)
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.append(Complete)
-    Pipe1 = Pipe.new(PipeType.CONTROL_AND_DATA, "Pipe1", source=Start, target=Complete)
+    Pipe1 = Pipe.new(PipeType.GOTO, "Pipe1", source=Start, target=Complete)
     Flow1.pipes.append(Pipe1)
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Pipe1": Pipe1}
 

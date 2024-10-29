@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.10.29.0"
+VERSION = "2024.10.29.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1061,20 +1061,9 @@ PIPE_TABLE = Table(
         Column("source_id", PrimitiveType.UUID),
         Column("source_ck", PrimitiveType.UUID),
         Column("source_bench_id", PrimitiveType.UUID),
-        Column("source_port", PrimitiveType.JSON),
         Column("target_id", PrimitiveType.UUID),
         Column("target_ck", PrimitiveType.UUID),
         Column("target_bench_id", PrimitiveType.UUID),
-        Column("target_port", PrimitiveType.JSON),
-        Column("filter", PrimitiveType.INT16, is_nullable=True),
-        Column("constraint", PrimitiveType.JSON, is_nullable=True),
-        Column("condition", PrimitiveType.JSON, is_nullable=True),
-        Column("mapping", PrimitiveType.INT16, is_nullable=True),
-        Column("modulation", PrimitiveType.INT16, is_nullable=True),
-        Column("delay", PrimitiveType.INTERVAL, is_nullable=True),
-        Column("size", PrimitiveType.INT32, is_nullable=True),
-        Column("repeat", PrimitiveType.INT32, is_nullable=True),
-        Column("line", PrimitiveType.JSON, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
     ),
@@ -1250,8 +1239,6 @@ RUN_TABLE = Table(
         Column("step_id", PrimitiveType.UUID, is_nullable=True),
         Column("step_ck", PrimitiveType.UUID, is_nullable=True),
         Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("code", PrimitiveType.JSON, is_nullable=True),
-        Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("cached_duration", PrimitiveType.INTERVAL, is_nullable=True),

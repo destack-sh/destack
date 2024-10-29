@@ -20,9 +20,6 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  PipeCombinator,
-  PipeFilter,
-  PipeModulation,
   PipeType,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
@@ -259,8 +256,8 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.SIGNAL]: "fas fa-signal-stream",
   // runnable
-  [BlockType.TEXT]: "fas fa-text",
-  [BlockType.CODE]: "fas fa-code",
+  [BlockType.COMMENT]: "fas fa-text",
+  [BlockType.ACTION]: "fas fa-code",
   [BlockType.FLOW]: "fas fa-diagram-project",
   // data
   [BlockType.VALUE]: "fas fa-hexagon",
@@ -280,39 +277,20 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.TRIGGER]: "fas fa-bolt",
   // run
-  [StepType.BLOCK]: "fas fa-cube",
-  [StepType.CODE]: "fas fa-code",
-  [StepType.TEXT]: "fas fa-text",
-  // state
-  [StepType.VALUE]: "fas fa-hexagon",
+  [StepType.ACTION]: "fas facode",
+  [StepType.SEND]: "fas fa-code",
+  [StepType.YIELD]: "fas fa-text",
   // control
   // ...
   // containers
-  [StepType.GROUP]: "fas fa-object-group",
+  [StepType.LOOP]: "fas fa-loop",
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
-  [PipeType.CONTROL_AND_DATA]: "fas fa-arrow-right-long",
-  [PipeType.DATA]: "fas fa-horizontal-rule",
+  [PipeType.GOTO]: "fas fa-arrow-right-long",
+  // nocheckin
 });
 
-export const ICON_BY_PIPE_FILTER: Partial<Record<PipeFilter, IconData>> = _makeIcons<PipeFilter>({
-  [PipeFilter.IS_NON_EMPTY]: "fas fa-list-ul",
-  [PipeFilter.IS_TRUTHY]: "fas fa-circle-1",
-  [PipeFilter.IS_EMPTY]: "fas fa-empty-set",
-  [PipeFilter.IS_FALSY]: "fas fa-circle-0",
-  [PipeFilter.HAS_ERROR]: "fas fa-circle-xmark",
-});
-
-export const ICON_BY_PIPE_MODULATION: Partial<Record<PipeModulation, IconData>> = _makeIcons<PipeModulation>({
-  [PipeModulation.FLATTEN]: "fas fa-angles-right",
-  [PipeModulation.ACCUMULATE]: "fas fa-angles-left",
-});
-
-export const ICON_BY_PIPE_COMBINATOR: Partial<Record<PipeCombinator, IconData>> = _makeIcons<PipeCombinator>({
-  [PipeCombinator.ZIP]: "fas fa-arrows-minimize",
-  [PipeCombinator.PRODUCT]: "fas fa-arrows-maximize",
-});
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
   //
@@ -622,9 +600,6 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.STEP_TYPE]: ICON_BY_STEP_TYPE,
   [EnumType.PIPE_TYPE]: ICON_BY_PIPE_TYPE,
-  [EnumType.PIPE_FILTER]: ICON_BY_PIPE_FILTER,
-  [EnumType.PIPE_MODULATION]: ICON_BY_PIPE_MODULATION,
-  [EnumType.PIPE_COMBINATOR]: ICON_BY_PIPE_COMBINATOR,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,

@@ -4,19 +4,14 @@ import {
   BlockProperty,
   BlockType,
   EditType,
-  ENUM_BY_TYPE,
   EnumType,
-  EnumTypeMapping,
   FieldData,
-  IconData,
   ModelProvider,
   ModelType,
   NodeReferenceData,
   NodeType,
   NotificationData,
   ObjectType,
-  PipeFilter,
-  PipeModulation,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
@@ -31,7 +26,7 @@ import {
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -321,8 +316,6 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
-  [EnumType.PIPE_FILTER]: EXPOSED_PIPE_FILTERS,
-  [EnumType.PIPE_MODULATION]: EXPOSED_PIPE_MODULATORS,
   [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
 };
 

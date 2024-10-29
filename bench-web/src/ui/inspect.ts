@@ -19,7 +19,6 @@ import { makeEdit, type Transaction } from "@/language/transaction";
 import {
   BenchType,
   BlockProperty,
-  BlockStepProperty,
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
@@ -201,9 +200,6 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
     if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
       properties.Run.push(BlockProperty.identityPtr);
       const runOptionProperties = [...RUNNABLE_PROPERTIES];
-      if (node.type == BlockType.TEXT) {
-        runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
-      }
     }
     if (node.type == BlockType.VALUE) {
       // value type
@@ -233,33 +229,17 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       Common: [StepProperty.type],
       Run: [],
     };
-    if (node.type == StepType.BLOCK) {
-      properties.Common.push(BlockStepProperty.nodePtr);
-    }
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
       properties.Run.push(StepProperty.identityPtr);
       const stepProperties = PROPERTY_INFOS_BY_TYPE[ObjectType.STEP]!;
       const runOptionProperties = [...RUNNABLE_PROPERTIES];
-      if (node.type == StepType.TEXT) {
-        runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
-      }
       runOptionProperties.push(RunOptionsProperty.suppressFail);
       runOptionProperties.push(RunOptionsProperty.suppressAbort);
-      runOptionProperties
-        .map((p) =>
-          getNestedInspectedProperty(stepProperties[StepProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),
-        )
-        .forEach((p) => properties.Run.push(p));
-    }
-    if (node.type != StepType.START) {
-      properties.Run.push(StepProperty.combinator);
     }
     return properties;
   } else if (isNode(node, NodeType.PIPE)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [PipeProperty.type, PipeProperty.color, PipeProperty.isHidden],
-      Filter: [PipeProperty.filter],
-      Mapping: [PipeProperty.modulation, PipeProperty.size],
     };
     return properties;
   } else if (isNode(node, NodeType.VIEW)) {
