@@ -1,21 +1,20 @@
 <script lang="ts" setup>
 import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
-import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
+import { RUNNABLE_BLOCK_TYPES } from "@/language/const";
+import { NAME_TYPE } from "@/language/field";
 import { unpackSubnodeProperty } from "@/language/node";
 import { isRunnable } from "@/language/session";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
-  BenchType,
   BlockType,
+  ColorShade,
   FieldType,
   NodeReferenceData,
   NodeType,
   TypeKind,
   Variant,
   ViewData,
-  ViewType,
 } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
@@ -24,12 +23,12 @@ import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { getNodeColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
@@ -39,12 +38,13 @@ import Flow from "@/views/system/Flow.vue";
 import Type from "@/views/system/Type.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
+const HEADER_HEIGHT = 32;
+
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     preparedConnection?: PreparedGetConnection;
-    borderless?: boolean;
   } & Pick<ViewData, "variant" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
@@ -142,15 +142,20 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     v-if="block"
     ref="blockRef"
     class="group/block relative select-none rounded"
-    :class="[
-      borderless || variant == Variant.STEALTH ? '' : 'border',
-      isInspected || isHighlighted ? 'border-primary-900' : ['border-gray-200 px-2 py-1.5 hover:border-gray-200'],
-    ]"
+    :class="[block.type != BlockType.TEXT ? 'border' : '']"
+    :style="{
+      borderColor: getNodeColorHex(block, ColorShade.S600),
+    }"
   >
     <!-- Header -->
     <div
       v-if="block.type != BlockType.TEXT"
-      class="flex flex-row"
+      class="flex flex-row rounded-t border-b px-2 py-1.5 hover:cursor-grab"
+      :style="{
+        backgroundColor: getNodeColorHex(block, ColorShade.S200),
+        borderColor: getNodeColorHex(block, ColorShade.S600),
+        height: `${HEADER_HEIGHT}px`,
+      }"
       :draggable="true"
       @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block!)"
     >
@@ -173,12 +178,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <NativeInput
           id="name"
           ref="nameRef"
-          class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+          class="ml-1.5 flex-shrink-0 font-medium transition-colors duration-150"
           is-input
           :value-type="NAME_TYPE"
           :variant="Variant.STEALTH"
           :model-value="block.name"
-          @update:model-value="(newValue) => pkgConnection.tx.update(block!, { name: newValue }, { debounce: 'long' })"
+          @update:model-value="
+            (newValue) => pkgConnection.tx.update(block!, { name: newValue as string }, { debounce: 'long' })
+          "
         />
       </div>
       <!-- Tags, triggers, roles, queries, etc. -->
@@ -195,47 +202,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 ],
           ]"
         >
-          <!-- Open as page -->
-          <button
-            v-if="PAGE_BLOCK_TYPES.includes(block.type)"
-            class="stext-gray-400 flex-shrink-0 rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
-            @click="canvas.goToNode(block, { ifPresent: 'upsertAndFocus' })"
-          >
-            <i class="fas fa-magnifying-glass-plus" />
-          </button>
-          <!-- Quick add -->
-          <button
-            v-if="TYPE_BLOCK_TYPES.includes(block.type) || RUNNABLE_BLOCK_TYPES.includes(block.type)"
-            class="rounded hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
-            @click="
-              (e) => {
-                if (block!.type == BlockType.CHOICE) {
-                  createField(pkgConnection.tx, pkgGraph, {
-                    anchor: 'inside',
-                    target: block!,
-                    field: { kind: TypeKind.LITERAL, type: FieldType.OPTION },
-                  });
-                } else {
-                  const button = (e.target as HTMLElement).closest('button')!;
-                  pushPopover({
-                    trigger: button,
-                    reference: button,
-                    info: {
-                      component: ViewType.PICKER,
-                      placement: 'bottom-left',
-                      offset: 'referenceWidth',
-                      props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-                      onApply: (typeInfo: TypeIdentity) => {
-                        createField(pkgConnection.tx, pkgGraph, { anchor: 'inside', target: block!, field: typeInfo });
-                      },
-                    },
-                  });
-                }
-              }
-            "
-          >
-            <i class="fas fa-plus w-5 text-center" />
-          </button>
           <!-- Menu -->
           <button
             v-menu="
@@ -246,7 +212,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
               })
             "
-            class="rounded hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
+            class="rounded"
+            :style="{
+              color: getNodeColorHex(block, ColorShade.S500),
+            }"
           >
             <i class="fas fa-ellipsis-v w-5 text-center" />
           </button>
@@ -255,78 +224,65 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- ... -->
     </div>
     <!-- Body -->
-    <div class="flex flex-col gap-y-1.5 py-1">
-      <Value
-        v-if="block.type == BlockType.VALUE"
-        id="value"
-        class="max-h-[320px]"
-        :value-type="valueType"
-        :model-value="value"
-        :size="{ height: 320 }"
-        v-bind="state.getChildState('value')"
-        @update:model-value="(newValue) => updateValue(newValue)"
-      />
-      <Type
-        v-if="
-          [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL].includes(block.type) ||
-          (RUNNABLE_BLOCK_TYPES.includes(block.type) && hasFunctionFields)
-        "
-        id="type"
-        :node="block"
-        :prepared-connection="pkgGetConnection"
-        v-bind="state.getChildState('type')"
-        :node-ptr="props.nodePtr"
-      />
-      <Text
-        v-if="block.type == BlockType.TEXT"
-        id="text"
-        ref="textRef"
-        is-input
-        :variant="Variant.STEALTH"
-        :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.TEXT, block.subnodePacked, 'text')"
-        v-bind="state.getChildState('text')"
-        @update:model-value="
-          (newText) =>
-            pkgConnection.tx.update(
-              block!,
-              makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.TEXT, subnode: { text: newText } }),
-              { debounce: 'long' },
-            )
-        "
-      />
-      <Code
-        v-if="block.type == BlockType.CODE"
-        id="code"
-        is-input
-        :model-value="unpackSubnodeProperty(NodeType.BLOCK, BlockType.CODE, block.subnodePacked, 'code')"
-        v-bind="state.getChildState('code')"
-        @update:model-value="
-          (newCode) =>
-            pkgConnection.tx.update(
-              block!,
-              makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.CODE, subnode: { code: newCode } }),
-              { debounce: 'long' },
-            )
-        "
-      />
-      <Flow
-        v-if="block.type == BlockType.FLOW"
-        id="flow"
-        class="h-[400px]"
-        v-bind="state.getChildState('flow')"
-        :node-ptr="props.nodePtr"
-        :variant="Variant.COMPACT"
-        :prepared-connection="pkgGetConnection"
-      />
-      <Database
-        v-if="block.type == BlockType.DATABASE"
-        id="database"
-        v-bind="state.getChildState('database')"
-        :node-ptr="props.nodePtr"
-        :variant="Variant.COMPACT"
-        is-input
-      />
-    </div>
+    <Type
+      v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.NOTIFICATION].includes(block.type)"
+      id="type"
+      class="px-2 py-2"
+      :node="block"
+      :prepared-connection="pkgGetConnection"
+      v-bind="state.getChildState('type')"
+      :node-ptr="props.nodePtr"
+    />
+    <Text
+      v-if="block.type == BlockType.TEXT || block.type == BlockType.ACTION"
+      id="text"
+      ref="textRef"
+      is-input
+      class=""
+      :class="block.type == BlockType.ACTION ? 'px-2 py-2' : ''"
+      :variant="Variant.STEALTH"
+      :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
+      v-bind="state.getChildState('text')"
+      @update:model-value="
+        (newText) =>
+          pkgConnection.tx.update(
+            block!,
+            makeEdit(block!, {
+              metatype: NodeType.BLOCK,
+              type: block!.type as BlockType.TEXT | BlockType.ACTION,
+              subnode: { text: newText },
+            }),
+            { debounce: 'long' },
+          )
+      "
+    />
+    <Value
+      v-if="block.type == BlockType.VALUE"
+      id="value"
+      class="max-h-[320px]"
+      :value-type="valueType"
+      :model-value="value"
+      :size="{ height: 320 }"
+      v-bind="state.getChildState('value')"
+      @update:model-value="(newValue) => updateValue(newValue)"
+    />
+    <Flow
+      v-if="block.type == BlockType.FLOW"
+      id="flow"
+      class="h-[400px]"
+      v-bind="state.getChildState('flow')"
+      :node-ptr="props.nodePtr"
+      :variant="Variant.COMPACT"
+      :prepared-connection="pkgGetConnection"
+    />
+    <Database
+      v-if="block.type == BlockType.DATABASE"
+      id="database"
+      v-bind="state.getChildState('database')"
+      :node-ptr="props.nodePtr"
+      :variant="Variant.COMPACT"
+      is-input
+    />
   </div>
   <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
 </template>

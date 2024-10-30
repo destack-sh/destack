@@ -16,7 +16,7 @@ from bench.language.text import (
         ("---", [TextLine.new(TextLineType.DIVIDER)]),
         (
             "## Hello",
-            [TextLine.new(TextLineType.HEADING_MEDIUM, "Hello")],
+            [TextLine.new(TextLineType.HEADING_2, "Hello")],
         ),
         (
             """\
@@ -34,9 +34,9 @@ from bench.language.text import (
 - [x] List Checked""",
             [
                 TextLine.new(TextLineType.DIVIDER),
-                TextLine.new(TextLineType.HEADING_LARGE, "Heading Large"),
-                TextLine.new(TextLineType.HEADING_MEDIUM, "Heading Medium"),
-                TextLine.new(TextLineType.HEADING_SMALL, "Heading Small"),
+                TextLine.new(TextLineType.HEADING_1, "Heading Large"),
+                TextLine.new(TextLineType.HEADING_2, "Heading Medium"),
+                TextLine.new(TextLineType.HEADING_3, "Heading Small"),
                 TextLine.new(TextLineType.PLAIN, []),
                 TextLine.new(TextLineType.CALLOUT, "Callout"),
                 TextLine.new(TextLineType.QUOTE, "Quote"),
@@ -75,7 +75,7 @@ from bench.language.text import (
                     ],
                 ),
                 TextLine.new(
-                    TextLineType.HEADING_MEDIUM,
+                    TextLineType.HEADING_2,
                     [
                         TextSpan.new("Underline", is_underline=True),
                         TextSpan.new(" and "),

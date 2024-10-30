@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
-import { Alignment, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { Alignment, ColorShade, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { type PopoverInfoIn } from "@/ui/popover";
+import { getNodeColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -73,20 +74,12 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 rounded px-1.5 py-[3px] transition-colors duration-75"
-    :class="[
-      orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      variant != Variant.STEALTH ? 'border border-gray-200 bg-gray-100' : 'hover:bg-gray-100',
-      isInspected
-        ? variant != Variant.STEALTH
-          ? 'border-primary-900'
-          : 'text-primary-900'
-        : isHighlighted
-          ? variant != Variant.STEALTH
-            ? 'border-primary-400'
-            : 'text-primary-700'
-          : '',
-    ]"
+    class="flex w-fit items-center gap-x-1.5 rounded border px-1.5 py-[3px] transition-colors duration-75"
+    :class="[orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse']"
+    :style="{
+      borderColor: getNodeColorHex(field, ColorShade.S600),
+      backgroundColor: getNodeColorHex(field, ColorShade.S200),
+    }"
   >
     <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->
     <IconInline
@@ -119,7 +112,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       :value-type="NAME_TYPE"
       :variant="Variant.STEALTH"
       :model-value="field.name"
-      @update:model-value="(newValue) => pkgConnection.tx.update(field!, { name: newValue }, { debounce: 'long' })"
+      @update:model-value="
+        (newValue) => pkgConnection.tx.update(field!, { name: newValue as string }, { debounce: 'long' })
+      "
     />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="pkgConnection" />

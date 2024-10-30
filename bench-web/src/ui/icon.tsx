@@ -258,7 +258,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.SIGNAL]: "fas fa-signal-stream",
   [BlockType.NOTIFICATION]: "fas fa-bell",
   // runnable
-  [BlockType.ACTION]: "fas fa-wrench-simple",
+  [BlockType.ACTION]: "fas fa-play",
   [BlockType.FLOW]: "fas fa-diagram-project",
   // data
   [BlockType.VALUE]: "fas fa-hexagon",
@@ -278,7 +278,7 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.TRIGGER]: "fas fa-bolt",
   // run
-  [StepType.ACTION]: "fas fa-wrench-simple",
+  [StepType.ACTION]: "fas fa-play",
   [StepType.SEND]: "fas fa-paper-plane-top",
   [StepType.YIELD]: "fas fa-hand",
   // control

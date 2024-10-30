@@ -155,7 +155,7 @@ class TriggerPipe(Pipe):
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    # boundary (only incoming OR outgoing)
+    # boundary (may be only incoming or outgoing)
     START = 1  # source with inputs
     COMPLETE = 2  # terminate with outputs
     FAIL = 3  # terminate with error

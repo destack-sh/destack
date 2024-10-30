@@ -15,6 +15,8 @@ import {
 import { cloneNode } from "@/language/node";
 import {
   ChangeCategory,
+  ColorShade,
+  ColorType,
   NodeReferenceData,
   NodeType,
   PipeData,
@@ -36,6 +38,7 @@ import {
 } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { COLOR_BY_STEP_TYPE, getColorHex } from "@/ui/style";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -211,12 +214,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div class="absolute h-full w-full overflow-hidden" :style="{}">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        class="h-full w-full transition-colors duration-75"
-        :class="[
-          isFocusAbsolute || variant != Variant.COMPACT
-            ? 'text-gray-200'
-            : 'text-gray-100 group-hover/flow:text-gray-200',
-        ]"
+        class="h-full w-full text-gray-200"
         :style="{
           // extra spacing for smooth infinite scrolling
           width: `${100 / scale}%`,
@@ -332,7 +330,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <!-- Create -->
         <button
-          v-for="stepType in [StepType.START, StepType.TRIGGER, StepType.TEXT, StepType.ACTION]"
+          v-for="stepType in [StepType.START, StepType.TRIGGER, StepType.ACTION, StepType.TEXT]"
           :key="stepType"
           v-tooltip="{
             title: `${toCamelName(StepType, stepType)}`,
@@ -342,8 +340,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.create',
           }"
-          class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
-          :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
+          class="rounded text-gray-700 px-0.5 hover:bg-gray-100 hover:text-primary-900"
           @click="
             flow &&
               createStep(pkgConnection.tx, pkgGraph, {
@@ -373,8 +370,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.actions',
           }"
-          class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
-          :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
+          class="rounded px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
           @click="fireAction(action)"
         >
           <IconInline v-bind="action.icon" class="w-5 text-center" />

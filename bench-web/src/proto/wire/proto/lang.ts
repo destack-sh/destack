@@ -8976,17 +8976,21 @@ export enum TextLineType {
      */
     PLAIN = 1,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_SMALL = 10;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_1 = 10;
      */
-    HEADING_SMALL = 10,
+    HEADING_1 = 10,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_MEDIUM = 11;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_2 = 11;
      */
-    HEADING_MEDIUM = 11,
+    HEADING_2 = 11,
     /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_LARGE = 12;
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_3 = 12;
      */
-    HEADING_LARGE = 12,
+    HEADING_3 = 12,
+    /**
+     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_4 = 13;
+     */
+    HEADING_4 = 13,
     /**
      * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT = 20;
      */

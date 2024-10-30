@@ -1,28 +1,17 @@
-import { ColorData, ColorShade, ColorType, LogLevel, ObjectType, RunStatus } from "@/proto/wire";
+import {
+  AnyNodeData,
+  BlockType,
+  ColorData,
+  ColorShade,
+  ColorType,
+  LogLevel,
+  NodeType,
+  ObjectType,
+  RunStatus,
+  StepType,
+} from "@/proto/wire";
+import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
-
-export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
-  [LogLevel.UNSPECIFIED]: ColorType.GRAY,
-  [LogLevel.TRACE]: ColorType.GRAY,
-  [LogLevel.DEBUG]: ColorType.GRAY,
-  [LogLevel.INFO]: ColorType.GRAY,
-  [LogLevel.WARNING]: ColorType.WARNING,
-  [LogLevel.ERROR]: ColorType.DANGER,
-  [LogLevel.CRITICAL]: ColorType.DANGER,
-};
-
-export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {
-  [RunStatus.UNSPECIFIED]: ColorType.GRAY,
-  [RunStatus.SCHEDULED]: ColorType.GRAY,
-  [RunStatus.QUEUED]: ColorType.GRAY,
-  [RunStatus.RUNNING]: ColorType.GRAY,
-  [RunStatus.PAUSED]: ColorType.GRAY,
-  [RunStatus.SUSPENDED]: ColorType.GRAY,
-  [RunStatus.COMPLETED]: ColorType.SUCCESS,
-  [RunStatus.CANCELLED]: ColorType.WARNING,
-  [RunStatus.ABORTED]: ColorType.WARNING,
-  [RunStatus.FAILED]: ColorType.DANGER,
-};
 
 export const COLOR_SHADE_INDEX: Record<ColorShade, number> = {
   [ColorShade.UNSPECIFIED]: 7,
@@ -106,10 +95,6 @@ export function getRunColorHex(status: RunStatus, shade?: ColorShade): string | 
   return getColorHex(COLOR_BY_RUN_STATUS[status], shade);
 }
 
-export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | undefined {
-  return getColorHex(COLOR_BY_LOG_LEVEL[level], shade);
-}
-
 export function getColorTitle(color: ColorType | ColorData): string | null {
   if (typeof color == "number") {
     return toCasing(ColorType[color], Casing.CAMEL);
@@ -124,4 +109,83 @@ export function getColorTitle(color: ColorType | ColorData): string | null {
 
 export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
   return { metatype: ObjectType.COLOR, type, shade };
+}
+
+//
+//
+//
+
+export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {
+  [NodeType.FIELD]: ColorType.CYAN,
+};
+
+export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
+  [BlockType.PAGE]: ColorType.GRAY,
+  [BlockType.TEXT]: ColorType.GRAY,
+  [BlockType.DATABASE]: ColorType.SKY,
+  [BlockType.VALUE]: ColorType.SKY,
+  [BlockType.ACTION]: ColorType.ORANGE,
+  [BlockType.FLOW]: ColorType.RED,
+  [BlockType.CLASS]: ColorType.CYAN,
+  [BlockType.CHOICE]: ColorType.CYAN,
+  [BlockType.SIGNAL]: ColorType.CYAN,
+  [BlockType.NOTIFICATION]: ColorType.CYAN,
+  [BlockType.VIEW]: ColorType.YELLOW,
+  [BlockType.ROLE]: ColorType.EMERALD,
+  [BlockType.IDENTITY]: ColorType.EMERALD,
+};
+
+export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
+  [StepType.START]: ColorType.AMBER,
+  [StepType.COMPLETE]: ColorType.AMBER,
+  [StepType.TRIGGER]: ColorType.AMBER,
+  [StepType.ACTION]: ColorType.ORANGE,
+  [StepType.FAIL]: ColorType.DANGER,
+  [StepType.TEXT]: ColorType.GRAY,
+  [StepType.LOOP]: ColorType.GRAY,
+};
+
+export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
+  [LogLevel.UNSPECIFIED]: ColorType.GRAY,
+  [LogLevel.TRACE]: ColorType.GRAY,
+  [LogLevel.DEBUG]: ColorType.GRAY,
+  [LogLevel.INFO]: ColorType.GRAY,
+  [LogLevel.WARNING]: ColorType.WARNING,
+  [LogLevel.ERROR]: ColorType.DANGER,
+  [LogLevel.CRITICAL]: ColorType.DANGER,
+};
+
+export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {
+  [RunStatus.UNSPECIFIED]: ColorType.GRAY,
+  [RunStatus.SCHEDULED]: ColorType.GRAY,
+  [RunStatus.QUEUED]: ColorType.GRAY,
+  [RunStatus.RUNNING]: ColorType.GRAY,
+  [RunStatus.PAUSED]: ColorType.GRAY,
+  [RunStatus.SUSPENDED]: ColorType.GRAY,
+  [RunStatus.COMPLETED]: ColorType.SUCCESS,
+  [RunStatus.CANCELLED]: ColorType.WARNING,
+  [RunStatus.ABORTED]: ColorType.WARNING,
+  [RunStatus.FAILED]: ColorType.DANGER,
+};
+
+export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | undefined {
+  return getColorHex(COLOR_BY_LOG_LEVEL[level], shade);
+}
+
+export function getNodeColorHex(node: AnyNodeData, shade?: ColorShade): string | undefined {
+  if (isNode(node, NodeType.BLOCK)) {
+    if (COLOR_BY_BLOCK_TYPE[node.type] != null) {
+      return getColorHex(COLOR_BY_BLOCK_TYPE[node.type]!, shade);
+    }
+  } else if (isNode(node, NodeType.STEP)) {
+    if (COLOR_BY_STEP_TYPE[node.type] != null) {
+      return getColorHex(COLOR_BY_STEP_TYPE[node.type]!, shade);
+    }
+  }
+
+  if (COLOR_BY_NODE_TYPE[node.metatype as unknown as NodeType] != null) {
+    return getColorHex(COLOR_BY_NODE_TYPE[node.metatype as unknown as NodeType]!, shade);
+  }
+
+  return undefined;
 }

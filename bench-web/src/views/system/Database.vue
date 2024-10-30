@@ -913,7 +913,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               :variant="Variant.STEALTH"
               is-input
               @update:model-value="
-                (newValue) => pkgConnection.tx.update(column.field, { name: newValue }, { debounce: 'long' })
+                (newValue) => pkgConnection.tx.update(column.field, { name: newValue as string }, { debounce: 'long' })
               "
             />
             <span v-else class="truncate font-medium">{{ column.title }}</span>

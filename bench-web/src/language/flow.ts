@@ -53,7 +53,7 @@ export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "pipe.edit.isHidden",
 ];
 
-export const FLOW_GRID_STEP = 28;
+export const FLOW_GRID_STEP = 32;
 export const FLOW_PORT_SIZE = 12;
 
 export const FLOW_CANVAS_DOT_SIZE = 4;
@@ -62,7 +62,7 @@ export const FLOW_SCALE_MAX = 4.0;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
-export const STEP_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+export const STEP_HEADER_HEIGHT = FLOW_GRID_STEP;
 
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
 export function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
@@ -521,8 +521,8 @@ export class FlowContext {
 
   /** Resets the viewport to the 'center' of the canvas */
   resetViewport() {
-    this.zoom(1, "center", 0);
     this.panToCenter({ kind: "canvas" });
+    this.zoom(1, "center", 0);
   }
 
   /** Zooms the canvas in/out in response to a "wheel" event. */

@@ -10,6 +10,8 @@
     "search.searchOnTypeDebouncePeriod": 201,
     "css.lint.unknownAtRules": "ignore",
     "prettier.vueIndentScriptAndStyle": false,
+    "github.copilot.chat.temporalContext.enabled": true,
+    "github.copilot.chat.search.semanticTextResults": true,
   },
   "launch": {
     "configurations": [

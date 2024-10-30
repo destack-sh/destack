@@ -1,34 +1,27 @@
+import { makeTypeInfo } from "@/language/field";
+import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
+import { makeNodeName, moveNode, NodeIn } from "@/language/node";
+import { getOrderKey, updateOrder } from "@/language/order";
+import type { Transaction } from "@/language/transaction";
 import {
   BenchType,
   BlockData,
-  BlockSubtypeMapping,
   BlockType,
-  CodeBlockData,
-  DatabaseBlockData,
   FieldType,
-  FlowBlockData,
   NodeReferenceData,
   NodeType,
   ObjectType,
   PackageData,
-  StepType,
-  TextBlockData,
   TypeInfoData,
   TypeKind,
   ValueBlockData,
-  type NodeTypeMapping,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionBuiltinId, ActionContext, ActionMapImplementation } from "@/ui/action";
-import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, moveNode, NodeIn } from "@/language/node";
 import { pkgGraph } from "@/system/space";
-import type { Transaction } from "@/language/transaction";
-import type { Ref } from "vue";
-import { getOrderKey, updateOrder } from "@/language/order";
-import { makeTypeInfo } from "@/language/field";
+import type { ActionBuiltinId, ActionContext, ActionMapImplementation } from "@/ui/action";
 import { generateOrderKey } from "@/utils/fractional";
-import { assertNever } from "@/utils/functools";
+import type { Ref } from "vue";
 
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",

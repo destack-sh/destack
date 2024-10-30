@@ -486,6 +486,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   @apply mb-0.5 mt-1.5 text-lg font-bold;
   line-height: 1.5;
 }
+.text h4 {
+  @apply mb-0.5 mt-1.5 text-base font-medium;
+  line-height: 1.5;
+}
 .text code {
   @apply rounded bg-gray-100 px-0.5;
 }

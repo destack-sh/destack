@@ -39,7 +39,7 @@ import {
 } from "@/ui/drag";
 import { getNodeIcon, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
+import { COLOR_BY_RUN_STATUS, getColorHex, getNodeColorHex, getRunColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import { formatDuration, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
@@ -133,25 +133,20 @@ defineExpose<ViewExposed>({ self, id, actions });
     v-if="step"
     ref="containerRef"
     class="group/step rounded border bg-white transition-colors duration-150"
-    :class="[
-      isInspected
-        ? 'border-primary-900'
-        : isHighlighted
-          ? 'border-primary-400'
-          : 'border-gray-200 hover:border-gray-300',
-    ]"
     :style="{
-      borderColor: lastRunStatusColor != null ? getColorHex(lastRunStatusColor, ColorShade.S600) : undefined,
+      borderColor: getNodeColorHex(step, ColorShade.S600),
     }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Header (:StepHeight) -->
     <div
+      v-if="step.type != StepType.TEXT"
       ref="headerRef"
-      class="flex w-full flex-row items-center rounded-t border-b border-gray-200 px-2 transition-colors duration-150 group-hover/step:border-gray-300"
+      class="flex w-full flex-row items-center rounded px-2 transition-colors duration-150"
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
-        backgroundColor: lastRunStatusColor != null ? getColorHex(lastRunStatusColor, ColorShade.S50) : undefined,
+        backgroundColor: getNodeColorHex(step, ColorShade.S200),
+        borderColor: getNodeColorHex(step, ColorShade.S600),
       }"
     >
       <!-- Icon/Name -->
@@ -218,36 +213,6 @@ defineExpose<ViewExposed>({ self, id, actions });
             />
           </span>
         </Transition>
-        <!-- Add field -->
-        <button
-          class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
-          @click="
-            pushPopover({
-              trigger: ($event.target as HTMLElement).closest('button')!,
-              reference: ($event.target as HTMLElement).closest('button')!,
-              info: {
-                component: ViewType.PICKER,
-                placement: 'bottom-left',
-                offset: 'referenceWidth',
-                props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-                onApply: (typeInfo: TypeIdentity) => {
-                  const stepFields = flowCtx.getStepFields(
-                    step!,
-                    OUTGOING_STEP_TYPES.includes(step!.type) ? PortSide.OUTGOING : PortSide.INCOMING,
-                  );
-                  if (stepFields == null) return;
-                  createField(flowCtx.tx, flowCtx.graph, {
-                    anchor: 'inside',
-                    target: stepFields.fieldParent,
-                    field: { ...typeInfo, type: stepFields.type },
-                  });
-                },
-              },
-            })
-          "
-        >
-          <i class="fas fa-plus w-5 text-center" />
-        </button>
         <!-- Menu -->
         <button
           v-menu="
@@ -258,7 +223,10 @@ defineExpose<ViewExposed>({ self, id, actions });
               items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
             })
           "
-          class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
+          class="rounded"
+          :style="{
+            color: getNodeColorHex(step, ColorShade.S500),
+          }"
         >
           <i class="fas fa-ellipsis-v w-5 text-center" />
         </button>
@@ -266,60 +234,29 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
 
     <!-- Body -->
-    <div
-      ref="bodyRef"
-      class="relative"
-      :style="{
-        // ensure ports are aligned with grid (offset by half a step to connect lines :FlowGrid :StepHeight)
-        paddingTop: FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP) - FLOW_GRID_STEP / 2 + 'px',
-      }"
-    >
+    <div v-if="step.type == StepType.TEXT" ref="bodyRef" class="relative py-1 px-3">
       <!-- Content (:StepHeight) -->
-      <div
-        v-if="[StepType.COMMENT, StepType.ACTION].includes(step.type)"
-        class="mt-1 border-t border-gray-200 pt-1 transition-colors duration-150 group-hover/step:border-gray-300"
-      >
-        <Text
-          id="text"
-          class="px-3"
-          is-input
-          :variant="Variant.STEALTH"
-          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.COMMENT, step.subnodePacked, 'text')"
-          @update:model-value="
-            (newText) =>
-              flowCtx.tx.update(
-                step!,
-                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.COMMENT, subnode: { text: newText } }),
-                { debounce: 'long' },
-              )
-          "
-        />
-        <Code
-          v-if="step.type == StepType.ACTION"
-          id="code"
-          class="px-3"
-          is-input
-          :variant="Variant.STEALTH"
-          :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, 'code')"
-          @update:model-value="
-            (newCode) =>
-              flowCtx.tx.update(
-                step!,
-                makeEdit(step!, { metatype: NodeType.STEP, type: StepType.ACTION, subnode: { code: newCode } }),
-                { debounce: 'long' },
-              )
-          "
-        />
-      </div>
+      <Text
+        id="text"
+        class=""
+        is-input
+        :variant="Variant.STEALTH"
+        :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, 'text')"
+        @update:model-value="
+          (newText) =>
+            flowCtx.tx.update(
+              step!,
+              makeEdit(step!, { metatype: NodeType.STEP, type: StepType.TEXT, subnode: { text: newText } }),
+              { debounce: 'long' },
+            )
+        "
+      />
     </div>
 
     <!-- NOTE :UX: show last step output/error here? -->
-
-    <!-- Padding (to ensure height is a multiple of the grid) -->
-    <div class="w-full" :style="{ height: paddingHeight + 'px' }" />
   </div>
   <div v-else ref="containerRef" class="rounded border border-gray-200 bg-white">
     <!-- should never be rendered by containing flow -->
-    <span>???</span>
+    <span class="text-danger-600">???</span>
   </div>
 </template>
