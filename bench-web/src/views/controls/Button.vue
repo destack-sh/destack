@@ -19,7 +19,7 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => ({
   // prominent filled button
   [Variant.PRIMARY]: [
-    "rounded border border-gray-900",
+    "rounded-sm border border-gray-900",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-600 bg-gray-200 hover:cursor-not-allowed"
@@ -27,7 +27,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
   // outline button
   [Variant.SECONDARY]: [
-    "rounded border border-gray-200 bg-white",
+    "rounded-sm border border-gray-300 bg-white",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-700 bg-gray-50 hover:cursor-not-allowed"
@@ -35,14 +35,14 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
   // 'link' button
   [Variant.COMPACT]: [
-    "rounded underline decoration-2 underline-offset-3",
+    "rounded-sm underline decoration-2 underline-offset-3",
     props.isDisabled
       ? "text-gray-500 decoration-gray-200 hover:cursor-not-allowed"
       : "text-gray-900 decoration-gray-300 hover:text-primary-900 hover:decoration-primary-900 focus:decoration-primary-900",
   ],
   // 'stealth' button
   [Variant.STEALTH]: [
-    "rounded",
+    "rounded-sm",
     props.isDisabled
       ? "text-gray-500 hover:cursor-not-allowed"
       : "text-gray-900 hover:text-primary-900 focus:underline decoration-2 underline-offset-3 focus:decoration-primary-900",

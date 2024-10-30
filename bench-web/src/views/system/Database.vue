@@ -699,7 +699,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
           :key="i"
-          class="group rounded border border-sky-600 bg-sky-200 px-2 py-0.5"
+          class="group rounded-sm border border-sky-600 bg-sky-200 px-2 py-0.5"
         >
           <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
           <span class="text-gray-700">{{
@@ -727,7 +727,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         </Transition>
 
         <!-- Selection -->
-        <div v-if="hasSelectionRows" class="flex flex-row items-center rounded border">
+        <div v-if="hasSelectionRows" class="flex flex-row items-center rounded-sm border">
           <button class="h-full px-2 py-0.5 font-medium text-primary-900 hover:bg-gray-100" @click="selectNone">
             {{ numSelectedRows }} selected
           </button>
@@ -756,7 +756,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Controls -->
         <!-- Add field -->
         <button
-          class="group/button rounded border border-emerald-600 bg-emerald-200 px-2 py-0.5"
+          class="group/button rounded-sm border border-emerald-600 bg-emerald-200 px-2 py-0.5"
           @click="
             (e) => {
               const button = (e.target as HTMLElement).closest('button')!;
@@ -780,7 +780,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <span>Field</span>
         </button>
         <!-- Add record -->
-        <button class="group/button rounded border border-sky-600 bg-sky-200 px-2 py-0.5" @click="() => createRecord()">
+        <button class="group/button rounded-sm border border-sky-600 bg-sky-200 px-2 py-0.5" @click="() => createRecord()">
           <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-sky-900" />
           <span class="">Record</span>
         </button>
@@ -796,11 +796,11 @@ defineExpose<ViewExposed>({ self, id, actions });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <div class="flex flex-col border-gray-200">
+      <div class="flex flex-col border-gray-300">
         <!-- Column headers (sticky) -->
         <div
           ref="headerRef"
-          class="z-20 flex flex-row items-center border-gray-200"
+          class="z-20 flex flex-row items-center border-gray-300"
           :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
             height: `${ROW_HEIGHT_MIN}px`,
@@ -810,7 +810,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="variant != Variant.COMPACT"
             class="group sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
-            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
+            :class="[hasSelectionRows ? 'border-gray-300 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
@@ -819,7 +819,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <input
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
+              class="h-4 w-4 rounded-sm border-gray-300 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
               :checked="isAllSelectedRows"
               @change="(e) => ((e.target as HTMLInputElement).checked ? selectAll() : selectNone())"
@@ -859,7 +859,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-300 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
               column.isInspected ? 'bg-sky-100' : column.isHighlighted ? 'bg-sky-50' : 'hover:bg-gray-100',
@@ -905,7 +905,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   },
                 })
               "
-              class="mr-1.5 rounded p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+              class="mr-1.5 rounded-sm p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
               v-bind="column.icon"
             />
             <NativeInput
@@ -979,7 +979,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               };
             }
           "
-          class="group/row flex flex-row border-gray-200"
+          class="group/row flex flex-row border-gray-300"
           :class="[]"
           :data-node-id="record.id"
           :data-node-ck="record.id"
@@ -990,7 +990,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="variant != Variant.COMPACT"
             class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
-            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
+            :class="[hasSelectionRows ? 'border-gray-300 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
             }"
@@ -998,7 +998,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <input
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-200 text-gray-200 transition-colors duration-150 focus:ring-0"
+              class="h-4 w-4 rounded-sm border-gray-300 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
               :checked="hasSelectionRows && isSelectedRow(record)"
               @change="(e) => setSelectionRow(record, (e.target as HTMLInputElement).checked, shiftKey ?? false)"
@@ -1014,7 +1014,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   ? (cellWrapperRefs[getCellId(record, column)] = ref)
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
-            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
+            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-300 px-2 text-gray-900"
             :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-sky-100' : '']"
             :style="{
               width: `${column.width}px`,
@@ -1022,8 +1022,8 @@ defineExpose<ViewExposed>({ self, id, actions });
               maxHeight: `${ROW_HEIGHT_MAX}px`,
               paddingTop: `${column.paddingTop}px`,
               paddingBottom: `${column.paddingBottom + (y == records.length - 1 ? (props.paddingY ?? 0) : 0)}px`,
-              paddingLeft: x == 0 ? `${paddingX ?? 0}px` : undefined,
-              paddingRight: x == columns.length - 1 ? `${paddingX ?? 0}px` : undefined,
+              paddingLeft: x == 0 ? `${paddingX ?? 8}px` : undefined,
+              paddingRight: x == columns.length - 1 ? `${paddingX ?? 8}px` : undefined,
             }"
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
             @click="
@@ -1065,7 +1065,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- No columns -->
           <div
             v-if="columns.length == 0"
-            class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+            class="w-full border-b border-gray-300 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
             :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           />
         </div>

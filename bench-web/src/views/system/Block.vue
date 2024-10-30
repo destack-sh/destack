@@ -140,7 +140,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative select-none rounded"
+    class="group/block relative select-none rounded-sm"
     :class="[block.type != BlockType.TEXT ? 'border' : '']"
     :style="{
       borderColor: getNodeColorHex(block, ColorShade.S600),
@@ -172,7 +172,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             })
           "
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+          class="w-5 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         />
         <NativeInput
           id="name"
@@ -211,7 +211,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
               })
             "
-            class="rounded"
+            class="rounded-sm"
             :style="{
               color: getNodeColorHex(block, ColorShade.S600),
             }"
@@ -261,7 +261,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 border-b border-gray-200 px-2 py-2">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 border-b border-gray-300 px-2 py-2">
           <Type
             id="type.input"
             class=""

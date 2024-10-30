@@ -356,7 +356,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Create -->
           <button
             v-if="pkg != null"
-            class="rounded py-0.5 text-gray-400 hover:text-primary-900"
+            class="rounded-sm py-0.5 text-gray-400 hover:text-primary-900"
             @click="
               () => {
                 // NOTE: we assume that pkgGraph root == pkg (may be incorrect later)
@@ -382,7 +382,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <input
           ref="queryRef"
           v-model="query"
-          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="max-w-60 cursor-default rounded-sm border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
           :data-suppress-actions="'common.navigate' /* allow select & move */"
           @keydown.enter.stop.prevent="
@@ -437,7 +437,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group relative mx-1 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
+          class="group relative mx-1 flex flex-row items-center rounded-sm border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
           :class="[
             (focusedNode?.id == node.id && isFocusAbsolute) ||
             (activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center')
@@ -464,7 +464,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Expand button (or placeholder) -->
           <button
             v-if="hasChildren"
-            class="group mr-1 w-5 rounded enabled:hover:text-primary-900"
+            class="group mr-1 w-5 rounded-sm enabled:hover:text-primary-900"
             :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
             :disabled="isDefaultExpanded"
             @click.stop="toggleExpanded(node), doFocus(node)"

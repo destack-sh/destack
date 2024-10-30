@@ -344,7 +344,7 @@ const { isInDropZone } = useDropZone({
   onDrop: (dragged, event) => {
     if (view == null) return;
     if (dragged.kind == "file") {
-      // upload files and insert as mentions at position (surrounded by spaces)
+      // upload files and insert as mentions at position (surrounded-sm by spaces)
       if (dragged.files == null) return;
       const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
       if (pos == null) return; // not in editor
@@ -357,7 +357,7 @@ const { isInDropZone } = useDropZone({
         insertMention(toNodeRef(upload.file.value!), pos);
       });
     } else if (dragged.kind == "node") {
-      // insert node mention at position (surrounded by spaces)
+      // insert node mention at position (surrounded-sm by spaces)
       const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
       if (pos == null) return; // not in editor
       insertMention(toNodeRef(dragged.node), pos);
@@ -436,10 +436,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           dontFocus: true, // keep focus on the editor
         })
       "
-      class="text relative rounded hover:cursor-text"
+      class="text relative rounded-sm hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
+          ? 'border border-gray-300 px-2 py-0.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
@@ -472,7 +472,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   @apply my-[4px];
 }
 .text hr {
-  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
+  @apply my-2 border-gray-300 p-0 focus:outline-none focus:ring-0;
 }
 .text h1 {
   @apply mb-2 mt-4 text-2xl font-bold;
@@ -491,13 +491,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   line-height: 1.5;
 }
 .text code {
-  @apply rounded bg-gray-100 px-0.5;
+  @apply rounded-sm bg-gray-100 px-0.5;
 }
 .text blockquote {
   @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
 }
 .text div.callout {
-  @apply my-2 rounded bg-primary-100 px-2 py-2.5;
+  @apply my-2 rounded-sm bg-primary-100 px-2 py-2.5;
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
 .text div.callout::before {
@@ -509,7 +509,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 
 /* Mentions */
 .text span.mention {
-  @apply rounded px-1 py-0;
+  @apply rounded-sm px-1 py-0;
 }
 .text span.mention:hover {
   @apply bg-primary-100 text-primary-900;

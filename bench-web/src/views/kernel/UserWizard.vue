@@ -111,7 +111,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 defineExpose<ViewExposed>({ self, focus });
 </script>
 <template>
-  <div class="mx-auto mt-24 h-fit min-w-80 max-w-96 rounded border border-gray-200 bg-white px-9 py-7 text-gray-900">
+  <div class="mx-auto mt-24 h-fit min-w-80 max-w-96 rounded-sm border border-gray-300 bg-white px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">{{ title }}</h2>

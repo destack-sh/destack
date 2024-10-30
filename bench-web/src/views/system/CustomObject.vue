@@ -128,14 +128,14 @@ defineExpose<ViewExposed>({ self, id, focus });
       "
       role="button"
       :disabled="isDisabled"
-      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded-sm border border-gray-300 bg-white px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
     >
       <!-- Current value -->
       <template v-if="hasValue">
         <button
           v-for="(v, i) in values"
           :key="i"
-          class="mr-2 flex flex-row items-center rounded"
+          class="mr-2 flex flex-row items-center rounded-sm"
           :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
         >
           <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
@@ -179,7 +179,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           <button
             v-for="(v, i) in values"
             :key="i"
-            class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
+            class="mr-2 flex flex-row items-center rounded-sm bg-gray-100 px-1"
             @click.stop="activeValueIdx = i"
           >
             <IconInline

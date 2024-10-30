@@ -46,7 +46,7 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
               ? ((tooltipRefs[tooltip.id] = ref), positionTooltip(tooltip, ref))
               : delete tooltipRefs[tooltip.id]
         "
-        class="absolute z-100 w-fit max-w-80 whitespace-nowrap rounded border border-gray-300 bg-white text-gray-700"
+        class="absolute z-100 w-fit max-w-80 whitespace-nowrap rounded-sm border border-gray-300 bg-white text-gray-700"
         :class="[tooltip.info.small ? 'px-1.5 py-0.5' : 'px-2.5 py-1']"
         @mouseenter="tooltip.reference.tooltipOnMouseEnter"
         @mouseleave="tooltip.reference.tooltipOnMouseLeave"

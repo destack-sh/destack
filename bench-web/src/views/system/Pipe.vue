@@ -129,7 +129,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-if="pipe.type != PipeType.GOTO"
         v-tooltip="{ title: toCamelName(PipeType, pipe.filter), small: true }"
         v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
-        class="w-5 rounded bg-white text-center text-gray-700"
+        class="w-5 rounded-sm bg-white text-center text-gray-700"
       />
     </div>
   </div>

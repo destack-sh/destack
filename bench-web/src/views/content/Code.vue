@@ -201,10 +201,10 @@ defineExpose<ViewExposed>({ self, id, actions });
       "
       data-suppress-actions="common.move.left,common.move.right"
       data-suppress-drag="true"
-      class="code rounded hover:cursor-text"
+      class="code rounded-sm hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-200 px-1 py-1.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
+          ? 'border border-gray-300 px-1 py-1.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
@@ -214,16 +214,16 @@ defineExpose<ViewExposed>({ self, id, actions });
 <style>
 /* Code */
 .code .cm-editor .cm-content {
-  @apply rounded py-0 font-mono;
+  @apply rounded-sm py-0 font-mono;
 }
 .code .cm-editor.cm-focused {
   @apply outline-0;
 }
 .code .cm-editor .cm-tooltip {
-  @apply overflow-hidden rounded border border-gray-300 bg-white p-1 font-mono text-gray-900;
+  @apply overflow-hidden rounded-sm border border-gray-300 bg-white p-1 font-mono text-gray-900;
 }
 .code .cm-editor .cm-tooltip > ul > li {
-  @apply rounded border border-transparent px-0.5 py-0.5;
+  @apply rounded-sm border border-transparent px-0.5 py-0.5;
 }
 .code .cm-editor .cm-tooltip > ul > li[aria-selected] {
   @apply text-primary-900;

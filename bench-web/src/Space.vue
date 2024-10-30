@@ -128,7 +128,7 @@ watch(
     <!-- Bar -->
     <Bar
       ref="barRef"
-      class="absolute border-gray-200 bg-gray-100"
+      class="absolute border-gray-300 bg-gray-100"
       :class="barOrientation == Orientation.VERTICAL ? 'border-x' : 'border-y'"
       :anchor="barPosition"
       :orientation="barOrientation"
