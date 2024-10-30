@@ -126,7 +126,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         validationError != null ? 'outline-danger-600' : 'outline-primary-900',
       ]"
     >
-      <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S400" class="mr-0.5 w-5" />
+      <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S600" class="mr-0.5 w-5" />
       <!-- Current value -->
       <template v-if="!valueType?.isList">
         <!-- Scalar -->

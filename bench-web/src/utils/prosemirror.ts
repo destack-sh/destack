@@ -19,6 +19,7 @@ const P_DOM: DOMOutputSpec = ["p", { class: "line" }, 0];
 const H1_DOM: DOMOutputSpec = ["h1", { class: "line" }, 0];
 const H2_DOM: DOMOutputSpec = ["h2", { class: "line" }, 0];
 const H3_DOM: DOMOutputSpec = ["h3", { class: "line" }, 0];
+const H4_DOM: DOMOutputSpec = ["h4", { class: "line" }, 0];
 const HR_DOM: DOMOutputSpec = ["hr", { clas: "line" }];
 const CALLOUT_DOM: DOMOutputSpec = ["div", { class: "line callout" }, 0];
 const QUOTE_DOM: DOMOutputSpec = ["blockquote", { class: "line" }, 0];
@@ -44,18 +45,20 @@ export const PM_SCHEMA = new PmSchema({
     lineHeading: {
       group: "line",
       content: "span*",
-      attrs: { id: { default: null }, type: { default: TextLineType.HEADING_LARGE } },
+      attrs: { id: { default: null }, type: { default: TextLineType.HEADING_1 } },
       toDOM(node) {
         const type = node.attrs.type;
-        if (type == TextLineType.HEADING_LARGE) return H1_DOM;
-        else if (type == TextLineType.HEADING_MEDIUM) return H2_DOM;
-        else if (type == TextLineType.HEADING_SMALL) return H3_DOM;
+        if (type == TextLineType.HEADING_1) return H1_DOM;
+        else if (type == TextLineType.HEADING_2) return H2_DOM;
+        else if (type == TextLineType.HEADING_3) return H3_DOM;
+        else if (type == TextLineType.HEADING_4) return H4_DOM;
         else throw new Error(`unexpected heading type ${type}`);
       },
       parseDOM: [
-        { tag: "h1", attrs: { type: TextLineType.HEADING_LARGE } },
-        { tag: "h2", attrs: { type: TextLineType.HEADING_MEDIUM } },
-        { tag: "h3", attrs: { type: TextLineType.HEADING_SMALL } },
+        { tag: "h1", attrs: { type: TextLineType.HEADING_1 } },
+        { tag: "h2", attrs: { type: TextLineType.HEADING_2 } },
+        { tag: "h3", attrs: { type: TextLineType.HEADING_3 } },
+        { tag: "h4", attrs: { type: TextLineType.HEADING_4 } },
       ],
     },
     lineCallout: {
@@ -183,9 +186,10 @@ export const PM_INPUT_RULES: InputRule[] = [
   closeSingleQuote,
   ...smartQuotes,
   // line rules
-  blockTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_LARGE),
-  blockTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_MEDIUM),
-  blockTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_SMALL),
+  blockTypeRule("#", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_1),
+  blockTypeRule("##", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_2),
+  blockTypeRule("###", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_3),
+  blockTypeRule("####", PM_SCHEMA.nodes.lineHeading, TextLineType.HEADING_4),
   lineDividerRule,
   blockTypeRule(">", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
   blockTypeRule("!", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),

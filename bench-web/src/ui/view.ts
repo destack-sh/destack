@@ -1,8 +1,7 @@
 import { isEnumType, isNodeType } from "@/language/const";
 import { getStorageKey, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
-import { type DebounceLevel, type Transaction } from "@/language/transaction";
-import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
+import { type Transaction } from "@/language/transaction";
 import {
   Alignment,
   Anchor,
@@ -24,11 +23,9 @@ import {
   Vector2Data,
   Vector3Data,
   Vector4Data,
-  ViewData,
   ViewType,
   type AnyNodeData,
-  type AnyNodeReferenceData,
-  type AnyTypeMapping,
+  type AnyNodeReferenceData
 } from "@/proto/wire";
 import {
   isNodeRef,
@@ -42,10 +39,9 @@ import {
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { getEnumOptions } from "@/ui/inspect";
 import { isFocusableElement } from "@/utils/element";
-import { computedValue } from "@/utils/ref";
 import { getViewTypeByComponentName, type ViewComponent, type ViewProps } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
-import { computed, toRef, type ComponentInstance, type MaybeRef, type Ref } from "vue";
+import { type ComponentInstance, type Ref } from "vue";
 
 export const SPACE_DEFAULT_BAR_POSITION = Anchor.TOP;
 export const VIEW_DEFAULT_HEADER_HEIGHT = 36;

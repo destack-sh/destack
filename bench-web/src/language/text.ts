@@ -47,9 +47,10 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
     if (line.type == TextLineType.PLAIN) {
       lineNode = schema.node("linePlain", attrs, spanNodes);
     } else if (
-      line.type == TextLineType.HEADING_LARGE ||
-      line.type == TextLineType.HEADING_MEDIUM ||
-      line.type == TextLineType.HEADING_SMALL
+      line.type == TextLineType.HEADING_1 ||
+      line.type == TextLineType.HEADING_2 ||
+      line.type == TextLineType.HEADING_3 ||
+      line.type == TextLineType.HEADING_4
     ) {
       lineNode = schema.node("lineHeading", attrs, spanNodes);
     } else if (line.type == TextLineType.DIVIDER) {

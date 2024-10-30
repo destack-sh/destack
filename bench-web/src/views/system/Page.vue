@@ -11,6 +11,8 @@ import {
   BlockData,
   BlockType,
   BoxData,
+  ColorShade,
+  ColorType,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -37,6 +39,7 @@ import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { COLOR_BY_BLOCK_TYPE, getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
@@ -51,7 +54,7 @@ const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 44;
-const BLOCK_GAP_Y = 8;
+const BLOCK_GAP_Y = 12;
 const HANDLE_WIDTH = 6;
 const SEPARATOR_WIDTH = 6;
 
@@ -81,23 +84,9 @@ const preparedPkgConnection = useGetConnection(
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
 const page = pkgGraph.getRef(nodePtr) as Ref<BlockData | undefined>;
 const blocks = pkgGraph.getChildrenRef(nodePtr, NodeType.BLOCK);
-const blocksWithSelf: Ref<BlockData[]> = computed(() => {
-  if (page.value == null) {
-    return [];
-  } else {
-    return [page.value, ...blocks.value];
-  }
-});
 const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
-
-// messages / notices
-const { childrenByParentId: threadsByBlockId } = getGroupedChildrenRef({
-  graph: pkgGraph,
-  parentPtrs: blocksWithSelf,
-  childTypes: [NodeType.MESSAGE],
-});
 
 // size block/gutter horizontally (try to fit both until min block width)
 const widths = computed(() => {
@@ -331,7 +320,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     >
       <div ref="contentRef" class="mb-16 flex min-h-full flex-col">
         <!-- Block full width line -->
-        <template v-for="(block, i) in blocksWithSelf" :key="block.id">
+        <template v-for="(block, i) in blocks" :key="block.id">
           <div
             class="group/block-line relative flex min-w-fit flex-row"
             :style="{
@@ -402,9 +391,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { ...context, triggerNode: block } }),
                   })
                 "
-                class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
-                borderless
-                :variant="Variant.STEALTH"
+                class="w-full data-[dragging=true]:opacity-50"
                 :node-ptr="toNodeRefOneOf(block)"
                 :prepared-connection="preparedPkgConnection"
                 v-bind="state.getChildState(block.id)"
@@ -420,11 +407,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
             >
               <!-- ...? -->
             </div>
-          </div>
-
-          <!-- Top block spacer (top block == page) -->
-          <div v-if="i == 0" class="mx-auto my-3 w-full px-2" :style="{ width: widths.block + 'px' }">
-            <div class="h-[1px] w-full bg-gray-200" />
           </div>
         </template>
 
@@ -443,6 +425,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               BlockType.FLOW,
               BlockType.DATABASE,
               BlockType.VIEW,
+              BlockType.TEXT,
             ]"
             :key="blockType"
           >
@@ -455,8 +438,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 referenceMargin: 8,
                 group: 'page.footer',
               }"
-              class="rounded px-2 py-1 text-base transition-colors duration-100 hover:bg-gray-100 hover:text-primary-900"
-              :class="isFocusedAbsolute ? 'text-gray-600' : 'text-gray-400 group-hover/footer:text-gray-500'"
+              class="rounded px-2 py-1 text-base transition-colors duration-100 hover:bg-gray-100 text-gray-700 hover:text-primary-900"
               @click="
                 () => {
                   createAndFocusBlock({ type: blockType }, 'inside', page!);

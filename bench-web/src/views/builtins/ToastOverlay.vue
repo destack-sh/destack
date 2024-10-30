@@ -82,7 +82,7 @@ const absoluteStyle = computed(() => {
       :key="toast.id"
       :style="{
         width: TOAST_WIDTH + 'px',
-        borderLeftColor: getToastColorHex(toast, ColorShade.S400),
+        borderLeftColor: getToastColorHex(toast, ColorShade.S600),
         backgroundColor:
           toast.level == ToastLevel.DEBUG
             ? getColorHex(ColorType.GRAY, ColorShade.S100)

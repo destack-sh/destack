@@ -46,9 +46,10 @@ class TextOptions(BuiltinObject):
 class TextLineType(IdEnum):
     PLAIN = 1
     # heading
-    HEADING_SMALL = 10
-    HEADING_MEDIUM = 11
-    HEADING_LARGE = 12
+    HEADING_1 = 10
+    HEADING_2 = 11
+    HEADING_3 = 12
+    HEADING_4 = 13
     # callout
     CALLOUT = 20
     QUOTE = 21
@@ -243,9 +244,10 @@ def to_text(text: Text | str) -> Text:
 
 _MD_PREFIX_BY_LINE_TYPE: dict[TextLineType, str] = {
     # in order of precedence
-    TextLineType.HEADING_SMALL: "### ",
-    TextLineType.HEADING_MEDIUM: "## ",
-    TextLineType.HEADING_LARGE: "# ",
+    TextLineType.HEADING_1: "# ",
+    TextLineType.HEADING_2: "## ",
+    TextLineType.HEADING_3: "### ",
+    TextLineType.HEADING_4: "#### ",
     TextLineType.CALLOUT: "! ",
     TextLineType.QUOTE: "> ",
     TextLineType.LIST_NUMBERED: "1. ",
