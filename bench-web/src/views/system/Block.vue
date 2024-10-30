@@ -62,7 +62,6 @@ const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
-const runnable = computed(() => block.value != null && isRunnable(block.value, pkgGraph, fields.value));
 const hasFunctionFields = computed(
   () =>
     RUNNABLE_BLOCK_TYPES.includes(block.value?.type!) &&
@@ -150,10 +149,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- Header -->
     <div
       v-if="block.type != BlockType.TEXT"
-      class="flex flex-row rounded-t border-b px-2 py-1.5 hover:cursor-grab"
+      class="flex flex-row rounded-t px-2 py-1.5 hover:cursor-grab"
+      :class="block.type == BlockType.PAGE ? 'rounded-b' : ''"
       :style="{
         backgroundColor: getNodeColorHex(block, ColorShade.S200),
-        borderColor: getNodeColorHex(block, ColorShade.S600),
         height: `${HEADER_HEIGHT}px`,
       }"
       :draggable="true"
@@ -214,7 +213,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             "
             class="rounded"
             :style="{
-              color: getNodeColorHex(block, ColorShade.S500),
+              color: getNodeColorHex(block, ColorShade.S600),
             }"
           >
             <i class="fas fa-ellipsis-v w-5 text-center" />
@@ -224,22 +223,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- ... -->
     </div>
     <!-- Body -->
-    <Type
-      v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.NOTIFICATION].includes(block.type)"
-      id="type"
-      class="px-2 py-2"
-      :node="block"
-      :prepared-connection="pkgGetConnection"
-      v-bind="state.getChildState('type')"
-      :node-ptr="props.nodePtr"
-    />
     <Text
-      v-if="block.type == BlockType.TEXT || block.type == BlockType.ACTION"
+      v-if="block.type == BlockType.TEXT"
       id="text"
       ref="textRef"
       is-input
-      class=""
-      :class="block.type == BlockType.ACTION ? 'px-2 py-2' : ''"
+      class="px-0.5"
       :variant="Variant.STEALTH"
       :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
       v-bind="state.getChildState('text')"
@@ -247,42 +236,103 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         (newText) =>
           pkgConnection.tx.update(
             block!,
-            makeEdit(block!, {
-              metatype: NodeType.BLOCK,
-              type: block!.type as BlockType.TEXT | BlockType.ACTION,
-              subnode: { text: newText },
-            }),
+            makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.TEXT, subnode: { text: newText } }),
             { debounce: 'long' },
           )
       "
     />
-    <Value
-      v-if="block.type == BlockType.VALUE"
-      id="value"
-      class="max-h-[320px]"
-      :value-type="valueType"
-      :model-value="value"
-      :size="{ height: 320 }"
-      v-bind="state.getChildState('value')"
-      @update:model-value="(newValue) => updateValue(newValue)"
-    />
-    <Flow
-      v-if="block.type == BlockType.FLOW"
-      id="flow"
-      class="h-[400px]"
-      v-bind="state.getChildState('flow')"
-      :node-ptr="props.nodePtr"
-      :variant="Variant.COMPACT"
-      :prepared-connection="pkgGetConnection"
-    />
-    <Database
-      v-if="block.type == BlockType.DATABASE"
-      id="database"
-      v-bind="state.getChildState('database')"
-      :node-ptr="props.nodePtr"
-      :variant="Variant.COMPACT"
-      is-input
-    />
+    <div
+      v-else-if="block.type != BlockType.PAGE"
+      class="border-t"
+      :style="{
+        borderColor: getNodeColorHex(block, ColorShade.S600),
+      }"
+    >
+      <!-- Types -->
+      <Type
+        v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.NOTIFICATION].includes(block.type)"
+        id="type"
+        class="px-2 py-2"
+        :node="block"
+        :prepared-connection="pkgGetConnection"
+        :node-ptr="props.nodePtr"
+        :field-type="block.type == BlockType.CHOICE ? FieldType.OPTION : FieldType.MEMBER"
+      />
+      <!-- Runnable -->
+      <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
+        <!-- Signature -->
+        <div class="flex flex-row flex-wrap items-center gap-x-2 border-b border-gray-200 px-2 py-2">
+          <Type
+            id="type.input"
+            class=""
+            :node="block"
+            :prepared-connection="pkgGetConnection"
+            :node-ptr="props.nodePtr"
+            :field-type="FieldType.INPUT"
+          />
+          <i v-if="hasFunctionFields" class="fas fa-arrow-right-long text-base text-emerald-700" />
+          <Type
+            id="type.output"
+            class=""
+            :node="block"
+            :prepared-connection="pkgGetConnection"
+            :node-ptr="props.nodePtr"
+            :field-type="FieldType.OUTPUT"
+          />
+        </div>
+        <!-- Action -->
+        <Text
+          v-if="block.type == BlockType.ACTION"
+          id="text"
+          ref="textRef"
+          is-input
+          class=""
+          :class="block.type == BlockType.ACTION ? 'px-2 py-2' : ''"
+          :variant="Variant.STEALTH"
+          :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
+          v-bind="state.getChildState('text')"
+          @update:model-value="
+            (newText) =>
+              pkgConnection.tx.update(
+                block!,
+                makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.ACTION, subnode: { text: newText } }),
+                { debounce: 'long' },
+              )
+          "
+        />
+        <!-- Flow -->
+        <Flow
+          v-else-if="block.type == BlockType.FLOW"
+          id="flow"
+          class="h-[400px]"
+          v-bind="state.getChildState('flow')"
+          :node-ptr="props.nodePtr"
+          :variant="Variant.COMPACT"
+          :prepared-connection="pkgGetConnection"
+        />
+      </template>
+      <!-- State -->
+      <Value
+        v-if="block.type == BlockType.VALUE"
+        id="value"
+        class="max-h-[320px]"
+        :value-type="valueType"
+        :model-value="value"
+        :size="{ height: 320 }"
+        v-bind="state.getChildState('value')"
+        @update:model-value="(newValue) => updateValue(newValue)"
+      />
+      <Database
+        v-else-if="block.type == BlockType.DATABASE"
+        id="database"
+        v-bind="state.getChildState('database')"
+        :node-ptr="props.nodePtr"
+        :variant="Variant.COMPACT"
+        is-input
+        :padding-x="12"
+        :padding-y="8"
+      />
+    </div>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
 </template>

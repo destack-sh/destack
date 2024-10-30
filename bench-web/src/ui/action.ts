@@ -16,7 +16,7 @@ import { isDeveloperMode } from "@/system/client";
 import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
-import { clearSpace, createDesktopAdvancedSpace, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
+import { clearSpace,  createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp, SPACE_DEFAULT_BAR_POSITION } from "@/ui/view";
 import { type FilterPrefix } from "@/utils/functools";
@@ -1075,18 +1075,6 @@ contributeActionMap<"view">({
       const tx = canvas.tx();
       clearSpace(tx, canvas.graph, space.value);
       createDesktopDefaultSpace(tx, space.value);
-    },
-  },
-  "view.space.resetAdvanced": {
-    isEnabled: hasLocalBench,
-    title: "Restore Advanced Space",
-    text: "Reset the space to the advanced layout",
-    icon: "fas fa-galaxy",
-    action: () => {
-      if (pkg.value == null || space.value == null) return;
-      const tx = canvas.tx();
-      clearSpace(tx, canvas.graph, space.value);
-      createDesktopAdvancedSpace(tx, space.value);
     },
   },
   "view.space.rotateBarPosition": {

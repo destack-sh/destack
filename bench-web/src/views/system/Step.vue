@@ -225,7 +225,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
           class="rounded"
           :style="{
-            color: getNodeColorHex(step, ColorShade.S500),
+            color: getNodeColorHex(step, ColorShade.S600),
           }"
         >
           <i class="fas fa-ellipsis-v w-5 text-center" />

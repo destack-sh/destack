@@ -200,7 +200,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     "
     class="group/flow relative w-full select-none"
     :class="[
-      variant == Variant.COMPACT ? 'rounded border border-gray-200' : 'h-full',
+      variant == Variant.COMPACT || variant == Variant.STEALTH ? '' : 'h-full',
       flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
     ]"
     @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
@@ -325,7 +325,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Menu (Create) -->
       <div
         v-if="variant != Variant.STEALTH"
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
         :class="variant != Variant.COMPACT ? 'absolute left-1/2 -translate-x-1/2' : ''"
       >
         <!-- Create -->
@@ -340,7 +340,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.create',
           }"
-          class="rounded text-gray-700 px-0.5 hover:bg-gray-100 hover:text-primary-900"
+          class="rounded px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
           @click="
             flow &&
               createStep(pkgConnection.tx, pkgGraph, {
@@ -355,7 +355,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
       <!-- Menu (Actions) -->
       <div
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
       >
         <button
           v-for="action of (
