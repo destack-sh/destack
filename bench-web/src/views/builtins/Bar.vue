@@ -1,14 +1,12 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { Anchor, ClientType, NodeType, Orientation, RunStatus } from "@/proto/wire";
+import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
 import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
-import { runtime } from "@/system/runtime";
-import { bench, canvas, hasLocalBench } from "@/system/space";
+import { bench, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/ui/action";
-import { DEFAULT_USER_ICON, getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
+import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/ui/popover";
-import { getRunColorHex } from "@/ui/style";
 import { tooltipFromAction } from "@/ui/tooltip";
 import type { FloatingPlacement } from "@/utils/floating";
 import { COMMIT, ENV, VERSION } from "@/utils/globals";
@@ -147,7 +145,7 @@ const dockActions: Ref<Action[]> = computed(
 <template>
   <div
     ref="barRef"
-    class="flex w-full gap-1.5 text-sm text-gray-900"
+    class="flex w-full gap-1.5 border-amber-500 bg-amber-400 text-sm text-gray-900"
     :class="orientation == Orientation.HORIZONTAL ? 'flex-row items-center px-0.5' : 'flex-col items-center py-0.5'"
     data-outside-view="true"
   >
@@ -155,8 +153,8 @@ const dockActions: Ref<Action[]> = computed(
     <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
       <template #trigger="{ toggle, isOpen }">
         <button
-          class="flex h-[30px] w-full select-none flex-row items-center rounded-sm px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
-          :class="[isOpen ? 'bg-gray-100' : '']"
+          class="flex h-[30px] w-full select-none flex-row items-center rounded-sm px-2.5 py-1 text-gray-700 hover:bg-primary-300"
+          :class="[isOpen ? 'bg-primary-300' : '']"
           @click="toggle"
         >
           <img src="@/assets/icon_outline.svg" class="h-5 w-5 rounded-md" />
@@ -208,7 +206,7 @@ const dockActions: Ref<Action[]> = computed(
         v-for="action in dockActions"
         :key="action.id"
         v-tooltip="tooltipFromAction(action, { placement: 'top', showDelay: 800, group: 'bar.dock' })"
-        class="rounded-sm px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+        class="rounded-sm px-2.5 py-1 text-gray-700 hover:bg-primary-300"
         @click="fireActionById(action.id)"
       >
         <IconInline class="text-base" v-bind="action.icon" />
@@ -228,8 +226,8 @@ const dockActions: Ref<Action[]> = computed(
         <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
           <template #trigger="{ toggle, isOpen }">
             <button
-              class="px-2 py-1 text-base text-gray-700 hover:bg-gray-100 hover:text-primary-900"
-              :class="[isOpen ? 'bg-gray-100' : '']"
+              class="px-2 py-1 text-base text-gray-700 hover:bg-primary-300"
+              :class="[isOpen ? 'bg-primary-300' : '']"
               @click="toggle"
             >
               <IconInline class="" v-bind="user.icon ?? makeIcon('fa fa-user-circle')" />

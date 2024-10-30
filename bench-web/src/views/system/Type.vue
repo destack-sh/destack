@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
-import { RUNNABLE_BLOCK_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS } from "@/language/field";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
-import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
+import { BlockType, FieldType, NodeType, Orientation, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -33,8 +33,6 @@ const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({}
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
 const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
-const isFunction = computed(() => block.value != null && RUNNABLE_BLOCK_TYPES.includes(block.value.type));
-const shouldHaveFields = computed(() => block.value != null && !isFunction.value);
 const allFields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 const fields = computed(() => allFields.value.filter((f) => f.type == props.fieldType));
 
@@ -136,7 +134,6 @@ defineExpose<ViewExposed>({ self, id, actions });
     :class="[
       orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
       activeDropZone != null ? 'outline outline-2 outline-primary-900' : '',
-      fields.length == 0 && shouldHaveFields ? 'min-h-7 justify-center' : '',
     ]"
   >
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
@@ -150,8 +147,17 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Drop indicator -->
       <div
         v-if="activeDropZone?.targetId == field.id"
-        class="absolute z-10 h-1 w-full rounded-sm bg-primary-900"
-        :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
+        class="absolute z-10 rounded-sm bg-primary-900"
+        :class="[
+          orientation == Orientation.HORIZONTAL ? 'h-full w-1' : 'h-1 w-full',
+          activeDropZone?.anchor == 'start'
+            ? orientation == Orientation.HORIZONTAL
+              ? '-left-[6px]'
+              : '-top-[3px]'
+            : orientation == Orientation.HORIZONTAL
+              ? '-right-[6px]'
+              : '-bottom-[3px]',
+        ]"
       />
       <!-- Field -->
       <Field
@@ -173,7 +179,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     </li>
     <!-- Add button -->
     <button
-      class="px-1 text-gray-400 hover:text-gray-700"
+      class="h-[28px] px-1 text-gray-400 hover:text-gray-700"
       @click="
         () =>
           createField(pkgConnection.tx, pkgGraph, {
@@ -183,7 +189,6 @@ defineExpose<ViewExposed>({ self, id, actions });
           })
       "
     >
-      <!-- nocheckin -->
       <i class="fas fa-plus mr-1.5" />
       <span> {{ toCamelName(FieldType, props.fieldType) }} </span>
     </button>

@@ -234,10 +234,15 @@ export function packSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
   type: ST,
   subnode: ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never,
 ): JsonValue {
+  if (subnode == null || typeof subnode != "object" || Object.keys(subnode).length == 0) {
+    return {}; // empty subnode
+  }
+
   const propertiesEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
   const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
-  if (propertiesEnum == null || properties == null)
+  if (propertiesEnum == null || properties == null) {
     throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
+  }
 
   const subnodePacked: Record<string, any> = {};
   for (const prop of Object.values(properties)) {

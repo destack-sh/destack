@@ -134,7 +134,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded-sm border bg-white transition-colors duration-150"
     :style="{
-      borderColor: getNodeColorHex(step, ColorShade.S600),
+      borderColor: getNodeColorHex(step, ColorShade.S500),
     }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
@@ -142,10 +142,10 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-if="step.type != StepType.TEXT"
       ref="headerRef"
-      class="flex w-full flex-row items-center rounded-sm px-2 transition-colors duration-150"
+      class="flex w-full flex-row items-center px-2 transition-colors duration-150"
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
-        backgroundColor: getNodeColorHex(step, ColorShade.S200),
+        backgroundColor: getNodeColorHex(step, ColorShade.S400),
         borderColor: getNodeColorHex(step, ColorShade.S600),
       }"
     >
@@ -225,7 +225,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
           class="rounded-sm"
           :style="{
-            color: getNodeColorHex(step, ColorShade.S600),
+            color: getNodeColorHex(step, ColorShade.S800),
           }"
         >
           <i class="fas fa-ellipsis-v w-5 text-center" />

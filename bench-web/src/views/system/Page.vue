@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { BLOCK_CONTEXT_ACTIONS, createBlock, useFlatNodeMoveActions } from "@/language/block";
 import { toCamelName } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
+import { makeTypeInfo, NAME_TYPE } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/node";
@@ -47,6 +47,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
@@ -319,7 +320,29 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
     >
       <div ref="contentRef" class="mb-16 flex min-h-full flex-col">
-        <!-- Block full width line -->
+        <!-- Page header (title) -->
+        <div
+          class="mx-auto px-0.5"
+          :style="{
+            width: widths.block + 'px',
+          }"
+        >
+          <NativeInput
+            id="name"
+            ref="nameRef"
+            class="flex-shrink-0 mb-2 mt-4 text-3xl font-bold transition-colors duration-150"
+            placeholder="Page name..."
+            is-input
+            :value-type="NAME_TYPE"
+            :variant="Variant.STEALTH"
+            :model-value="page.name"
+            @update:model-value="
+              (newValue) => pkgConnection.tx.update(page!, { name: newValue as string }, { debounce: 'long' })
+            "
+          />
+        </div>
+
+        <!-- Blocks -->
         <template v-for="(block, i) in blocks" :key="block.id">
           <div
             class="group/block-line relative flex min-w-fit flex-row"
@@ -342,37 +365,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 width: widths.block + 'px',
               }"
             >
-              <!-- Separator: create above/below (in between and around blocks) -->
-              <div
-                v-for="anchor in i == 0 ? [] : i < blocks.length - 1 ? ['start', 'end'] : ['start', 'end']"
-                :key="anchor"
-                v-menu="
-                  (): PopoverInfoIn => ({
-                    component: ViewType.PICKER,
-                    placement: 'bottom',
-                    props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
-                    onApply: (blockType: BlockType) =>
-                      createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', block),
-                  })
-                "
-                role="button"
-                class="absolute w-full flex-shrink-0 text-center text-gray-200 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
-                :style="{
-                  ...getAnchorPositionStyle(anchor as 'start' | 'end', i, SEPARATOR_WIDTH),
-                  height: `${SEPARATOR_WIDTH}px`,
-                }"
-                data-keep-inspection-in-base-view="true"
-              >
-                <!-- Line with a gap for the button -->
-                <div class="relative">
-                  <svg class="translate-y-1" width="100%" height="1px" viewBox="0 0 100 1" preserveAspectRatio="none">
-                    <path d="M0,0.5 L48.5,0.5" fill="none" stroke="currentColor" stroke-width="1" />
-                    <path d="M100,0.5 L51.5,0.5" fill="none" stroke="currentColor" stroke-width="1" />
-                  </svg>
-                  <i class="fas fa-plus -translate-y-[6px] px-1" />
-                </div>
-              </div>
-
               <!-- Drag above/below -->
               <div
                 v-if="activeDropZone?.targetId == block.id"

@@ -10,7 +10,7 @@ import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common"
 import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; placeholder?: string } & Partial<
     Pick<
       ViewData,
       "type" | "name" | "title" | "icon" | "variant" | "valueType" | "alignment" | "isInput" | "isDisabled"
@@ -113,6 +113,7 @@ defineExpose<ViewExposed & { select: () => void }>({
 <template>
   <ViewContentWrapper v-bind="props">
     <!-- Input -->
+    <!-- nocheckin: NativeInput placeholder -->
     <div
       v-if="isInput"
       class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm transition-colors duration-75 hover:border-gray-300"

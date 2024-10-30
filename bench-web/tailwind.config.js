@@ -70,7 +70,7 @@ export default {
         3: "3px",
       },
       colors: {
-        primary: colors.orange,
+        primary: colors.amber,
         secondary: colors.sky,
         accent: colors.orange,
         gray: colors.stone,

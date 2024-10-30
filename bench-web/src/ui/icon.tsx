@@ -251,7 +251,7 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-memo",
-  [BlockType.TEXT]: "fas fa-text",
+  [BlockType.TEXT]: "fas fa-align-left",
   // class
   [BlockType.CLASS]: "fas fa-shapes",
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
@@ -286,7 +286,7 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   // containers
   [StepType.LOOP]: "fas fa-repeat",
   // misc
-  [StepType.TEXT]: "fas fa-text",
+  [StepType.TEXT]: "fas fa-align-left",
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
