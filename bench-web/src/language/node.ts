@@ -151,7 +151,7 @@ export type NodeIn<T extends NodeType> = NodeTypeMapping[T] extends { type: infe
     ? {
         metatype: T | ObjectType;
         type: ST;
-        subnode?: NodeSubtypeMapping[T][ST];
+        subnode?: Partial<NodeSubtypeMapping[T][ST]>;
       } & Partial<Omit<NodeTypeMapping[T], "metatype" | "type">>
     : {
         metatype: T | ObjectType;

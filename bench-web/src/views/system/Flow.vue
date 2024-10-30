@@ -85,7 +85,7 @@ const pendingPath = computed(() => {
   if (flowCtx.draggable?.kind != "step-port") return null;
   return flowCtx.computePath(
     "manhattan",
-    flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port)!,
+    flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port.side)!,
     flowCtx.draggable.port.side,
     flowCtx.draggable.cursorWorldPos!,
     flowCtx.draggable.port.side == PortSide.OUTGOING ? PortSide.INCOMING : PortSide.OUTGOING,
@@ -113,7 +113,7 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
     if (flow.value == null) return false;
     createStep(pkgConnection.tx, pkgGraph, {
       parent: flow.value,
-      step: { type: StepType.CODE },
+      step: { type: StepType.ACTION },
       near: flowCtx.centerVec,
     });
   },
@@ -332,7 +332,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <!-- Create -->
         <button
-          v-for="stepType in [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK]"
+          v-for="stepType in [StepType.START, StepType.TRIGGER, StepType.TEXT, StepType.ACTION]"
           :key="stepType"
           v-tooltip="{
             title: `${toCamelName(StepType, stepType)}`,

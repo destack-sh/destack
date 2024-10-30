@@ -247,6 +247,13 @@ class ValueBlock(Block):
     value: Any = p_value_runtime(101, typ=lambda self: cast("ValueBlock", self).value_type)
 
 
+@node_subtype_(BlockType.TEXT)
+class TextBlock(Block):
+    text: Optional["Text"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+
+
 @node_subtype_(BlockType.ACTION)
 class ActionBlock(Block):
     mode: ActionMode = p_regular(100, default=ActionMode.DYNAMIC)

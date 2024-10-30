@@ -86,7 +86,7 @@ export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 500 && nt < 6
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
 export const PAGE_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
-export const RUNNABLE_BLOCK_TYPES = [BlockType.TEXT, BlockType.CODE, BlockType.FLOW];
+export const RUNNABLE_BLOCK_TYPES = [BlockType.ACTION, BlockType.FLOW];
 export const CLASSY_BLOCK_TYPES = [
   BlockType.CLASS,
   BlockType.SIGNAL,
@@ -98,7 +98,7 @@ export const CLASSY_BLOCK_TYPES = [
 // step
 export const STEP_TYPES = Object.values(StepType).filter((v) => typeof v == "number" && v > 0) as StepType[];
 export const BOUNDARY_STEP_TYPES = STEP_TYPES.filter((st) => st < 50);
-export const INCOMING_STEP_TYPES = [StepType.START, StepType.VALUE, StepType.TRIGGER];
+export const INCOMING_STEP_TYPES = [StepType.START, StepType.TRIGGER];
 export const OUTGOING_STEP_TYPES = [StepType.COMPLETE, StepType.FAIL];
 export const RUN_STEP_TYPES = STEP_TYPES.filter((st) => st >= 50 && st < 100);
 export const CONTROL_STEP_TYPES = STEP_TYPES.filter((st) => st >= 100 && st < 150);
@@ -241,13 +241,12 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.CLASS,
   BlockType.CHOICE,
   BlockType.TEXT,
-  BlockType.CODE,
+  BlockType.ACTION,
   BlockType.FLOW,
   BlockType.VIEW,
   BlockType.VALUE,
   BlockType.DATABASE,
 ];
-export const EXPOSED_STEP_TYPES = [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK];
 export const EXPOSED_STRUCT_TYPES = [
   // core
   StructType.PATH,
@@ -297,8 +296,6 @@ export const EXPOSED_ANCHORS = [
   Anchor.RIGHT,
   Anchor.BOTTOM,
 ];
-export const EXPOSED_PIPE_FILTERS = [PipeFilter.IS_TRUTHY, PipeFilter.IS_FALSY, PipeFilter.HAS_ERROR];
-export const EXPOSED_PIPE_MODULATORS = [PipeModulation.FLATTEN, PipeModulation.ACCUMULATE];
 export const EXPOSED_MODEL_TYPES = [
   // :ModelType
   ModelType.OPENAI_GPT4_0,
@@ -310,7 +307,6 @@ export const EXPOSED_MODEL_TYPES = [
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
-  [EnumType.STEP_TYPE]: EXPOSED_STEP_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],

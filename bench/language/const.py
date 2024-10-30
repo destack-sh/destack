@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.29.1"
+VERSION = "2024.10.30.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -623,6 +623,7 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(IdEnum):
     PAGE = 1  # group of blocks
+    TEXT = 2  # define a 'paragraph' of text
     # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     # types
@@ -630,10 +631,9 @@ class BlockType(IdEnum):
     CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
     SIGNAL = 12  # define a signal type with fields
     NOTIFICATION = 13  # define a new notification type
-    # RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
+    # MESSAGE, RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
-    COMMENT = 20  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
     ACTION = 21  # define a code function/script with fields (optionally incl. input/output)
     FLOW = 22  # define a flow of actions (steps connected with pipes)
 

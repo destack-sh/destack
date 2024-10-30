@@ -14,16 +14,14 @@ import {
   ObjectType,
   PipeData,
   PipeType,
-  PortKeyData,
   PortSide,
-  PortType,
   StepType,
   StructType,
   TransformData,
   Vector2Data,
   ViewData,
   type AnyNodeData,
-  type StepData
+  type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
@@ -52,7 +50,6 @@ export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.morph",
   "common.edit.duplicate",
   "common.edit.delete",
-  "pipe.edit.isControl",
   "pipe.edit.isHidden",
 ];
 
@@ -78,27 +75,14 @@ export function snapScalar(x: number): number {
   return Math.round(x / FLOW_GRID_STEP) * FLOW_GRID_STEP;
 }
 
-export type PortId = Pick<PortKeyData, "type" | "side"> & Partial<Pick<PortKeyData, "fieldPtr">>;
-export type Port = PortId & {
-  parent: StepData | PipeData;
-  idx: number;
-  field?: FieldData;
-  fieldParent?: BlockData | StepData; // if different from step
+export type Port = {
+  parent: StepData;
+  side: PortSide;
 };
 
-export function portIdEquals(a: PortId, b: PortId): boolean {
-  return a.type == b.type && a.side == b.side && a.fieldPtr?.id == b.fieldPtr?.id;
+export function portEquals(a: Port, b: Port): boolean {
+  return a.parent?.id == b.parent?.id && a.side == b.side;
 }
-
-export function getPortKey(port: PortId): PortKeyData {
-  return {
-    metatype: ObjectType.PORT_KEY,
-    type: port.type,
-    side: port.side,
-    fieldPtr: port.fieldPtr,
-  };
-}
-
 export type PipePath = {
   points: Vector2[];
   midpoint: Vector2;
@@ -112,11 +96,6 @@ export type FlowThing =
   | { kind: "step"; step: StepData }
   | { kind: "pipe"; pipe: PipeData }
   | { kind: "step-port"; step: StepData; port: Port; cursorWorldPos?: { x: number; y: number } };
-// | { // NOTE :Incomplete :UX: reconnect pipes (support pipe-port)
-//     kind: "pipe-port";
-//     pipe: PipeData;
-//     port: Port;
-//   };
 
 /** Step state in a Flow. */
 export class StepState {
@@ -128,8 +107,6 @@ export class StepState {
   nodePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
   node: Ref<BlockData | StepData | null>;
   nodeFields: Ref<FieldData[]>;
-  // derived
-  ports: Ref<{ incoming: Port[]; outgoing: Port[] }>;
   // layout
   boundingBox: Ref<BoundingBox | null> = shallowRef(null);
 
@@ -138,8 +115,13 @@ export class StepState {
     this.stepPtr = toPlainNodeRef(step);
     this.step = flow.graph.getRef(this.stepPtr, { ignoreAncestors: true });
     this.nodePtr = computedValue(() => {
-      if (this.step.value?.type == StepType.BLOCK) {
-        const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.BLOCK, this.step.value?.subnodePacked, "nodePtr");
+      if (this.step.value?.type == StepType.ACTION) {
+        const nodePtr = unpackSubnodeProperty(
+          NodeType.STEP,
+          StepType.ACTION,
+          this.step.value?.subnodePacked,
+          "nodePtr",
+        );
         return nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
       } else {
         return null;
@@ -148,10 +130,6 @@ export class StepState {
     this.node = flow.graph.getRef(this.nodePtr);
     this.nodeFields = flow.graph.getChildrenRef(this.nodePtr, NodeType.FIELD);
     this.fields = flow.graph.getChildrenRef(step, NodeType.FIELD);
-    // derived
-    this.ports = computed(() =>
-      this.step.value != null ? this.flow.getPorts(this.step.value) : { incoming: [], outgoing: [] },
-    );
     // layout
     this.boundingBox = computedValue(() =>
       this.step.value != null ? this.flow.getStepBoundingBox(this.step.value) : null,
@@ -167,9 +145,7 @@ export class PipeState {
   pipe: Ref<PipeData | null>;
   source: Ref<StepData | null>;
   target: Ref<StepData | null>;
-  // derived
-  sourcePort: Ref<Port | null>;
-  targetPort: Ref<Port | null>;
+
   // layout
   path: Ref<PipePath | null>;
   boundingBox: Ref<BoundingBox | null>;
@@ -185,32 +161,18 @@ export class PipeState {
       computed(() => this.pipe.value?.targetPtr as TypedNodeReferenceData<NodeType.STEP> | null),
     );
 
-    // derived
-    this.sourcePort = computed(() => {
-      if (this.pipe.value?.sourcePort == null || this.source.value == null) return null;
-      const sourceStepState = this.flow.stepsStates.value[this.source.value.id!];
-      const port = sourceStepState?.ports.value.outgoing.find((p) => portIdEquals(p, this.pipe.value!.sourcePort!));
-      return port ?? null;
-    });
-    this.targetPort = computed(() => {
-      if (this.pipe.value?.targetPort == null || this.target.value == null) return null;
-      const targetStepState = this.flow.stepsStates.value[this.target.value.id!];
-      const port = targetStepState?.ports.value.incoming.find((p) => portIdEquals(p, this.pipe.value!.targetPort!));
-      return port ?? null;
-    });
-
     // layout
     this.path = computed(() => {
-      if (this.sourcePort.value == null || this.targetPort.value == null) return null;
-      const sourcePortPosition = this.flow.getPortPosition(this.source.value!, this.sourcePort.value);
-      const targetPortPosition = this.flow.getPortPosition(this.target.value!, this.targetPort.value);
+      if (this.source.value == null || this.target.value == null) return null;
+      const sourcePortPosition = this.flow.getPortPosition(this.source.value!, PortSide.OUTGOING);
+      const targetPortPosition = this.flow.getPortPosition(this.target.value!, PortSide.INCOMING);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
       const path = this.flow.computePath(
         this.pipe.value?.isHidden ? "manhattan" : "manhattan",
         sourcePortPosition,
-        this.sourcePort.value.side,
+        PortSide.OUTGOING,
         targetPortPosition,
-        this.targetPort.value.side,
+        PortSide.INCOMING,
       );
       return path;
     });
@@ -339,8 +301,7 @@ export class FlowContext {
   getStepBoundingBox(step: StepData): BoundingBox | null {
     const stepState = this.stepsStates.value[step.id!];
     if (stepState == null) return null;
-    const verticalPorts = Math.max(stepState.ports.value.incoming.length, stepState.ports.value.outgoing.length);
-    const size = estimateStepSize(step, verticalPorts);
+    const size = estimateStepSize(step);
     const x1 = step.position?.x ?? 0;
     const y1 = step.position?.y ?? 0;
     const x2 = x1 + size.width;
@@ -387,8 +348,7 @@ export class FlowContext {
     for (const step of steps) {
       const state = this.stepsStates.value[step.id!];
       if (state == null) continue;
-      const numPorts = Math.max(state.ports.value.incoming.length, state.ports.value.outgoing.length);
-      const size = estimateStepSize(step, numPorts);
+      const size = estimateStepSize(step);
       x1 = Math.min(x1, step.position?.x ?? 0);
       y1 = Math.min(y1, step.position?.y ?? 0);
       x2 = Math.max(x2, (step.position?.x ?? 0) + size.width);
@@ -404,7 +364,7 @@ export class FlowContext {
     } else if (thing.kind == "step") {
       return this.stepsStates.value[thing.step.id!]?.boundingBox.value;
     } else if (thing.kind == "step-port") {
-      const position = this.getPortPosition(thing.step, thing.port);
+      const position = this.getPortPosition(thing.step, thing.port.side);
       if (position == null) return null;
       return this.getPortBoundingBox(position);
     } else if (thing.kind == "pipe") {
@@ -660,16 +620,12 @@ export class FlowContext {
       if (this.draggable?.kind == "step-port" && at.kind == "step-port") {
         const sourcePort = this.draggable.port;
         const targetPort = at.port;
-        if (portIdEquals(sourcePort, targetPort)) return; // no-op
+        if (portEquals(sourcePort, targetPort)) return; // no-op
         log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
         // if both ports are field ports, make it a data pipe by default
-        let type = PipeType.CONTROL_AND_DATA;
-        if (sourcePort.type == PortType.FIELD && targetPort.type == PortType.FIELD) {
-          type = PipeType.DATA;
-        }
         const pipe = createPipe(this.tx, this.graph, {
           parent: this.flow.value,
-          pipe: { type },
+          pipe: { type: PipeType.GOTO },
           source: sourcePort,
           target: targetPort,
         });
@@ -687,17 +643,16 @@ export class FlowContext {
   }
 
   /** Get the snapped position of a port (in world coordinates). */
-  getPortPosition(step: StepData, port: Port): Vector2 | null {
+  getPortPosition(step: StepData, side: PortSide): Vector2 | null {
     // step position
     const basePosition = step.position != null ? { ...step.position } : { x: 0, y: 0 };
-    // move to side
-    if (port.side == PortSide.OUTGOING) {
-      basePosition.x += getStepWidth(step);
+    const stepSize = estimateStepSize(step);
+    // center horizontally
+    basePosition.x += stepSize.width / 2;
+    // move to bottom
+    if (side == PortSide.OUTGOING) {
+      basePosition.y += stepSize.height;
     }
-    // move down below header :FlowGrid
-    basePosition.y += STEP_HEADER_HEIGHT + FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP);
-    // move down to port
-    basePosition.y += port.idx * FLOW_GRID_STEP;
     return basePosition;
   }
 
@@ -810,10 +765,7 @@ export class FlowContext {
   /** Gets the pipes connected to the given port. */
   getPipesAtPort(port: Port): PipeData[] {
     return this.pipes.value.filter((pipe) => {
-      return (
-        (port.parent?.ck == pipe.sourcePtr?.ck && portIdEquals(port, pipe.sourcePort!)) ||
-        (port.parent?.ck == pipe.targetPtr?.ck && portIdEquals(port, pipe.targetPort!))
-      );
+      return port.parent?.ck == pipe.sourcePtr?.ck || port.parent?.ck == pipe.targetPtr?.ck;
     });
   }
 
@@ -831,19 +783,6 @@ export class FlowContext {
     const state = this.stepsStates.value[step.id!];
     if (state == null || this.flow.value == null) return null;
     return getStepFields(this.spaceGraph, step, side, {
-      stepFields: state.fields.value,
-      flow: this.flow.value,
-      flowFields: this.fields.value,
-      node: state.node.value,
-      nodeFields: state.nodeFields.value,
-    });
-  }
-
-  /** Gets the (reactive) ports for a given step. */
-  getPorts(step: StepData): { incoming: Port[]; outgoing: Port[] } {
-    const state = this.stepsStates.value[step.id!];
-    if (state == null || this.flow.value == null) return { incoming: [], outgoing: [] };
-    return getPorts(this.spaceGraph, step, {
       stepFields: state.fields.value,
       flow: this.flow.value,
       flowFields: this.fields.value,
@@ -899,8 +838,8 @@ export function getStepFields(
     const flow = getContainingFlow(graph, step);
     if (flow == null) return null;
     let node: BlockData | StepData | undefined | null = null;
-    if (step.type == StepType.BLOCK) {
-      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.BLOCK, step.subnodePacked, "nodePtr");
+    if (step.type == StepType.ACTION) {
+      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "nodePtr");
       node = graph.getMaybe(nodePtr) as BlockData | StepData | undefined;
     }
     related = {
@@ -928,7 +867,7 @@ export function getStepFields(
       fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.type == FieldType.OUTPUT) : [],
       fieldParent: related.flow,
     };
-  } else if (step.type == StepType.BLOCK) {
+  } else if (step.type == StepType.ACTION) {
     // from block
     if (related.node == null) return null;
     const zone = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
@@ -938,57 +877,6 @@ export function getStepFields(
     const zone = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
     return { type: zone, fields: related.stepFields.filter((f) => f.type == zone), fieldParent: step };
   }
-}
-
-/** Gets the (reactive) ports for a given step. Pass in related to avoid re-fetching if already known. */
-export function getPorts(
-  graph: ReadNodeGraph,
-  step: StepData,
-  related?: {
-    stepFields: FieldData[];
-    flow: BlockData;
-    flowFields: FieldData[];
-    node: BlockData | StepData | undefined | null;
-    nodeFields: FieldData[];
-  },
-): { incoming: Port[]; outgoing: Port[] } {
-  const incoming: Port[] = [];
-  const outgoing: Port[] = [];
-
-  // NOTE :UX: we hide :ObjectPorts by default for now (not sure how/when to enable, always enabled is cluttery)
-  if (!INCOMING_STEP_TYPES.includes(step.type)) {
-    // incoming ports
-    incoming.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.INCOMING });
-  }
-  if (!OUTGOING_STEP_TYPES.includes(step.type)) {
-    // outgoing ports
-    outgoing.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.OUTGOING });
-  }
-
-  const incomingFields = getStepFields(graph, step, PortSide.INCOMING, related);
-  const outgoingFields = getStepFields(graph, step, PortSide.OUTGOING, related);
-  for (const field of incomingFields?.fields ?? []) {
-    incoming.push({
-      parent: step,
-      idx: incoming.length,
-      type: PortType.FIELD,
-      side: PortSide.INCOMING,
-      field,
-      fieldPtr: toPlainNodeRef(field),
-    });
-  }
-  for (const field of outgoingFields?.fields ?? []) {
-    outgoing.push({
-      parent: step,
-      idx: outgoing.length,
-      type: PortType.FIELD,
-      side: PortSide.OUTGOING,
-      field,
-      fieldPtr: toPlainNodeRef(field),
-    });
-  }
-
-  return { incoming: incoming, outgoing: outgoing };
 }
 
 /** Computes the pipe path SVG path string. */
@@ -1007,20 +895,19 @@ export function getStepWidth(step: StepData): number {
 }
 
 /** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */
-export function estimateStepSize(step: StepData, verticalPorts: number): { width: number; height: number } {
+export function estimateStepSize(step: StepData): { width: number; height: number } {
   const width = getStepWidth(step);
   // base height
   let height =
     STEP_HEADER_HEIGHT + // header
-    (FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP) - FLOW_GRID_STEP / 2) + // header padding to align with grid
-    FLOW_GRID_STEP * verticalPorts; // ports
+    (FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP) - FLOW_GRID_STEP / 2); // header padding to align with grid
   // content
   if (step.type == StepType.TEXT) {
     const text = unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, "text");
     height += (text != null ? estimateTextHeight(text, width) : 20) + 10;
-  } else if (step.type == StepType.CODE) {
-    const code = unpackSubnodeProperty(NodeType.STEP, StepType.CODE, step.subnodePacked, "code");
-    height += (code != null ? estimateCodeHeight(code, width) : 20) + 10;
+  } else if (step.type == StepType.ACTION) {
+    const text = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "text");
+    height += (text != null ? estimateTextHeight(text, width) : 20) + 10;
   }
   // snap height to grid
   height = Math.ceil(height / FLOW_GRID_STEP) * FLOW_GRID_STEP;
@@ -1101,9 +988,7 @@ export function createPipe(
     parentPtr,
     packagePtr,
     sourcePtr: toPlainNodeRef(source.parent),
-    sourcePort: getPortKey(source),
     targetPtr: toPlainNodeRef(target.parent),
-    targetPort: getPortKey(target),
   });
   return pipe;
 }

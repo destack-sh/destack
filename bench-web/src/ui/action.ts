@@ -137,7 +137,6 @@ export const ACTION_BUILTIN_IDS = [
   // step
   // ...
   // pipe
-  "pipe.edit.isControl",
   "pipe.edit.isHidden",
   // message
   "message.chat.message",
@@ -861,12 +860,6 @@ declareActionMap<"database">({
 
 // pipe
 declareActionMap<"pipe">({
-  "pipe.edit.isControl": {
-    type: "toggle",
-    icon: "fas fa-arrows-alt-h",
-    title: "Control",
-    text: "Mark this pipe as a control/data pipe",
-  },
   "pipe.edit.isHidden": {
     type: "toggle",
     icon: "fas fa-eye-slash",

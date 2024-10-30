@@ -193,13 +193,13 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[0];
     if (block == null) return false;
-    createAndFocusBlock({ type: BlockType.COMMENT }, "before", block);
+    createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
   },
   "common.create.below": (action, context) => {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[blocks.value.length - 1];
     if (block == null) return false;
-    createAndFocusBlock({ type: BlockType.COMMENT }, "after", block);
+    createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
   },
   // edit
   "common.edit.duplicate": (action, context) => {
@@ -408,6 +408,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 :node-ptr="toNodeRefOneOf(block)"
                 :prepared-connection="preparedPkgConnection"
                 v-bind="state.getChildState(block.id)"
+                :draggable="block.type != BlockType.DATABASE && block.type != BlockType.FLOW"
+                @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block!)"
               />
             </div>
 
