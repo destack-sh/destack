@@ -727,19 +727,19 @@ defineExpose<ViewExposed>({ self, id, actions });
 
         <!-- Selection -->
         <div v-if="hasSelectionRows" class="flex flex-row items-center rounded-sm border">
-          <button class="h-full px-2 py-0.5 font-medium text-primary-900 hover:bg-gray-100" @click="selectNone">
+          <button class="h-full px-2 py-0.5 font-medium text-primary-700 hover:bg-gray-100" @click="selectNone">
             {{ numSelectedRows }} selected
           </button>
           <button
             v-tooltip="{ title: 'Duplicate', small: true }"
-            class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+            class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
             @click="duplicateSelection"
           >
             <i class="fas fa-clone" />
           </button>
           <button
             v-tooltip="{ title: 'Delete', small: true }"
-            class="w-8 py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+            class="w-8 py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
             @click="deleteSelection"
           >
             <i class="fas fa-trash-can" />
@@ -889,7 +889,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Drop indicator -->
             <div
               v-if="column.kind == 'field' && activeHeaderDropZone?.targetId == column.field.id"
-              class="absolute z-10 h-full w-1 rounded-sm bg-primary-900"
+              class="absolute z-10 h-full w-1 rounded-sm bg-primary-700"
               :class="[activeHeaderDropZone?.anchor == 'start' ? (x == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
             />
             <!-- Icon/Name -->
@@ -958,7 +958,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- No rows -->
         <button
           v-else-if="records.length == 0"
-          class="w-full text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+          class="w-full text-center text-gray-400 hover:bg-gray-100 hover:text-primary-700"
           :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           @click="createRecord"
         >
@@ -1067,7 +1067,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- No columns -->
           <div
             v-if="columns.length == 0"
-            class="w-full border-b border-gray-300 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+            class="w-full border-b border-gray-300 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-700"
             :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           />
         </div>

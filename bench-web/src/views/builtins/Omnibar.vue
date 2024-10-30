@@ -285,7 +285,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.itemId] = ref) : delete resultsRefs[item.itemId])"
                   role="button"
                   :data-selected="item.itemId === activeResultLocalId"
-                  class="my-0.5 flex w-full flex-row items-center rounded-sm border border-transparent px-2 py-1 hover:bg-gray-100 data-[selected=true]:border-primary-900 data-[selected=true]:text-primary-900"
+                  class="my-0.5 flex w-full flex-row items-center rounded-sm border border-transparent px-2 py-1 hover:bg-gray-100 data-[selected=true]:border-primary-700 data-[selected=true]:text-primary-700"
                   @click.stop.prevent="() => fire(item.itemId)"
                 >
                   <!-- Content -->

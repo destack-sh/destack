@@ -197,10 +197,6 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       Common: [BlockProperty.type],
       Run: [],
     };
-    if (RUNNABLE_BLOCK_TYPES.includes(node.type)) {
-      properties.Run.push(BlockProperty.identityPtr);
-      const runOptionProperties = [...RUNNABLE_PROPERTIES];
-    }
     if (node.type == BlockType.VALUE) {
       // value type
       properties.Common.push({
@@ -230,7 +226,6 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       Run: [],
     };
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
-      properties.Run.push(StepProperty.identityPtr);
       const stepProperties = PROPERTY_INFOS_BY_TYPE[ObjectType.STEP]!;
       const runOptionProperties = [...RUNNABLE_PROPERTIES];
       runOptionProperties.push(RunOptionsProperty.suppressFail);

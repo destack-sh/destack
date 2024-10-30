@@ -114,7 +114,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         })
       "
       :disabled="isDisabled || !isInput"
-      class="group flex w-full flex-row items-center rounded-sm border border-gray-300 px-2 py-1 enabled:hover:border-gray-300 data-[popover=true]:border-gray-300 data-[popover=true]:text-primary-900"
+      class="group flex w-full flex-row items-center rounded-sm border border-gray-300 px-2 py-1 enabled:hover:border-gray-300 data-[popover=true]:border-gray-300 data-[popover=true]:text-primary-700"
     >
       <template v-if="modelValue != null">
         <IconInline v-bind="modelValue" />
@@ -149,7 +149,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <i
           v-if="modelValue != null && !valueType?.isRequired"
           role="button"
-          class="fas fa-xmark mr-2 text-gray-400 hover:text-primary-900"
+          class="fas fa-xmark mr-2 text-gray-400 hover:text-primary-700"
           @click.stop="apply(undefined)"
         />
         <!-- Color -->

@@ -356,7 +356,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Create -->
           <button
             v-if="pkg != null"
-            class="rounded-sm py-0.5 text-gray-400 hover:text-primary-900"
+            class="rounded-sm py-0.5 text-gray-400 hover:text-primary-700"
             @click="
               () => {
                 // NOTE: we assume that pkgGraph root == pkg (may be incorrect later)
@@ -437,11 +437,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group relative mx-1 flex flex-row items-center rounded-sm border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
+          class="group relative mx-1 flex flex-row items-center rounded-sm border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-700 data-[dragging=true]:opacity-50"
           :class="[
             (focusedNode?.id == node.id && isFocusAbsolute) ||
             (activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center')
-              ? 'border-primary-900'
+              ? 'border-primary-700'
               : 'border-transparent',
             isFocused(node) ? 'bg-gray-100' : '',
           ]"
@@ -454,7 +454,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Drop indicator -->
           <div
             v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-            class="absolute z-10 h-1 rounded-sm bg-primary-900"
+            class="absolute z-10 h-1 rounded-sm bg-primary-700"
             :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[2px]']"
             :style="{
               left: 8 + depth * DEPTH_OFFSET + 'px',
@@ -464,7 +464,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Expand button (or placeholder) -->
           <button
             v-if="hasChildren"
-            class="group mr-1 w-5 rounded-sm enabled:hover:text-primary-900"
+            class="group mr-1 w-5 rounded-sm enabled:hover:text-primary-700"
             :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
             :disabled="isDefaultExpanded"
             @click.stop="toggleExpanded(node), doFocus(node)"
@@ -480,10 +480,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
             class="mr-1.5 w-5 flex-shrink-0"
             :class="[
               isFocused(node) || canvas.isInspected(node)
-                ? 'text-primary-900'
+                ? 'text-primary-700'
                 : canvas.isHighlighted(node)
-                  ? 'text-primary-700 group-hover:text-primary-900'
-                  : 'text-gray-700 group-hover:text-primary-900',
+                  ? 'text-primary-700 group-hover:text-primary-700'
+                  : 'text-gray-700 group-hover:text-primary-700',
               hasChildren ? '' : 'ml-6',
             ]"
           />
@@ -507,10 +507,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Name otherwise -->
           <span
             v-else
-            class="select-none truncate group-hover:text-primary-900"
+            class="select-none truncate group-hover:text-primary-700"
             :class="[
               isFocused(node) || canvas.isInspected(node)
-                ? 'text-primary-900'
+                ? 'text-primary-700'
                 : canvas.isHighlighted(node)
                   ? 'text-primary-700'
                   : '',
@@ -524,7 +524,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <button
               v-if="isNode(node, NodeType.BLOCK)"
               role="button"
-              class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+              class="text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
               @click.stop="
                 () => {
                   const block = createBlock(pkgConnection.tx, pkgGraph, {

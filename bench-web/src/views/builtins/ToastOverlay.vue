@@ -120,7 +120,7 @@ const absoluteStyle = computed(() => {
         >
           <IconInline v-if="action.icon" v-bind="action.icon" class="mr-1" />
           <span
-            class="group-hover/action:text-primary-900"
+            class="group-hover/action:text-primary-700"
             :style="{
               color: getToastColorHex(toast, ColorShade.S700),
             }"
@@ -130,7 +130,7 @@ const absoluteStyle = computed(() => {
       </div>
       <!-- Dismiss -->
       <button
-        class="absolute right-3 top-2.5 text-gray-400 opacity-40 transition-colors duration-75 hover:text-primary-900 group-hover/toast:opacity-100"
+        class="absolute right-3 top-2.5 text-gray-400 opacity-40 transition-colors duration-75 hover:text-primary-700 group-hover/toast:opacity-100"
         @click="toaster.dismiss(toast)"
       >
         <i class="fas fa-xmark" />

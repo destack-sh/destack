@@ -149,7 +149,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       <!-- Add -->
       <button
         v-if="!isDisabled && isInput && valueType?.isList"
-        class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+        class="mr-2 text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
         @click.stop="add"
       >
         <i class="fas fa-plus" />
@@ -159,7 +159,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <!-- Clear -->
         <button
           v-if="hasValue && !valueType?.isRequired"
-          class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
           @click.stop="clear"
         >
           <i class="fas fa-xmark" />
@@ -185,15 +185,15 @@ defineExpose<ViewExposed>({ self, id, focus });
             <IconInline
               v-bind="facetIcon"
               class="mr-1.5 w-5 text-center"
-              :class="activeValueIdx == i ? 'text-primary-900' : 'text-gray-700'"
+              :class="activeValueIdx == i ? 'text-primary-700' : 'text-gray-700'"
             />
-            <span class="max-w-28 truncate" :class="activeValueIdx == i ? 'text-primary-900' : 'text-gray-900'">
+            <span class="max-w-28 truncate" :class="activeValueIdx == i ? 'text-primary-700' : 'text-gray-900'">
               {{ v.title ?? facetName ?? "???" }}
             </span>
             <!-- Remove -->
             <button
               v-if="!isDisabled && isInput && valueType?.isList"
-              class="ml-1.5 text-gray-400 hover:text-primary-900"
+              class="ml-1.5 text-gray-400 hover:text-primary-700"
               @click.stop="remove(i)"
             >
               <i class="fas fa-xmark" />
@@ -207,7 +207,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <!-- Add -->
         <button
           v-if="!isDisabled && isInput && valueType?.isList"
-          class="mr-2 text-gray-400 hover:text-primary-900"
+          class="mr-2 text-gray-400 hover:text-primary-700"
           @click.stop="add"
         >
           <i class="fas fa-plus" />
@@ -215,7 +215,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <!-- Controls -->
         <div v-if="!isDisabled && isInput" class="ml-auto flex-shrink-0 pl-2 pr-2">
           <!-- Clear -->
-          <button class="mr-2 text-gray-400 hover:text-primary-900" @click.stop="clear">
+          <button class="mr-2 text-gray-400 hover:text-primary-700" @click.stop="clear">
             <i class="fas fa-xmark" />
           </button>
         </div>

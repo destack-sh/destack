@@ -260,7 +260,7 @@ defineExpose<ViewExposed>({
         <button
           v-for="(v, i) in valueVignettes"
           :key="i"
-          class="mr-2 flex flex-row items-center rounded-sm"
+          class="mr-2 flex flex-row items-center rounded-sm border border-gray-300 px-1"
           :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
         >
           <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
@@ -278,7 +278,7 @@ defineExpose<ViewExposed>({
       <!-- Add -->
       <button
         v-if="!isDisabled && isInput && valueType?.isList"
-        class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+        class="mr-2 text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
       >
         <i class="fas fa-plus" />
       </button>
@@ -291,12 +291,12 @@ defineExpose<ViewExposed>({
         <!-- Clear -->
         <button
           v-if="hasValue && !valueType?.isRequired"
-          class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="mr-2 text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
           @click.stop="clear"
         >
           <i class="fas fa-xmark" />
         </button>
-        <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-900" />
+        <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-700" />
       </div>
     </div>
 
@@ -312,13 +312,13 @@ defineExpose<ViewExposed>({
         v-tooltip="{ icon: item.icon, title: item.title, small: true, group: 'picker' }"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
-        class="group flex-1 flex-shrink-0 truncate rounded-sm px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-50 hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
+        class="group flex-1 flex-shrink-0 truncate rounded-sm px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-50 hover:text-primary-700 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
         @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
       >
         <IconInline
           v-if="variant == Variant.STEALTH && item.icon"
           v-bind="item.icon"
-          class="w-5 group-hover:text-primary-900"
+          class="w-5 group-hover:text-primary-700"
         />
         <template v-else>{{ item.title }}</template>
       </button>
@@ -337,14 +337,14 @@ defineExpose<ViewExposed>({
           <button
             v-for="(v, i) in valueVignettes"
             :key="i"
-            class="mr-2 flex flex-row items-center rounded-sm bg-gray-100 px-1"
+            class="mr-2 flex flex-row items-center rounded-sm border border-gray-300 bg-gray-100 px-1.5"
           >
             <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
             <span class="truncate">{{ v.title ?? "???" }}</span>
             <!-- Deselect -->
             <button
               v-if="!isDisabled && isInput"
-              class="ml-1.5 text-gray-400 hover:text-primary-900"
+              class="ml-1.5 text-gray-400 hover:text-primary-700"
               @click.stop="deselect(i)"
             >
               <i class="fas fa-xmark" />
@@ -385,7 +385,7 @@ defineExpose<ViewExposed>({
             <li
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               role="menuitem"
-              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded-sm border border-transparent px-1.5 hover:bg-gray-100 data-[active=true]:border-primary-900"
+              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded-sm border border-transparent px-1.5 hover:bg-gray-100 data-[active=true]:border-primary-700"
               :data-selected="isSelected(item)"
               :data-active="isActive(item)"
               @click.prevent="select(item)"
@@ -395,13 +395,13 @@ defineExpose<ViewExposed>({
                 v-if="item.icon"
                 v-bind="item.icon"
                 class="mr-1.5 w-5 flex-shrink-0"
-                :class="isActive(item) ? 'text-primary-900' : 'text-gray-700'"
+                :class="isActive(item) ? 'text-primary-700' : 'text-gray-700'"
               />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span class="flex-1 select-none">
                 <span
                   class="truncate"
-                  :class="isActive(item) ? 'text-primary-900' : ''"
+                  :class="isActive(item) ? 'text-primary-700' : ''"
                   v-html="item.titleMarked ?? item.title"
                 />
                 <!-- Checked -->

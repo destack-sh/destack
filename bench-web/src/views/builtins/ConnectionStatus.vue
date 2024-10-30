@@ -28,7 +28,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
         <i
           class="fa-globe fas transition-colors duration-75"
           :class="
-            !hasPendingConnections ? 'text-gray-700 hover:text-primary-900' : 'text-warning-600 hover:text-warning-500'
+            !hasPendingConnections ? 'text-gray-700 hover:text-primary-700' : 'text-warning-600 hover:text-warning-500'
           "
         />
       </button>
@@ -61,7 +61,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                 <!-- Expand/collapse -->
                 <button
                   v-if="isDeveloperMode"
-                  class="mr-2 text-gray-400 hover:text-primary-900"
+                  class="mr-2 text-gray-400 hover:text-primary-700"
                   @click="expandedConnectionId = expandedConnectionId == connection.id ? null : connection.id"
                 >
                   <i

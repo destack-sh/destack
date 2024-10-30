@@ -97,7 +97,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="w-5 rounded-sm p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
       :class="
         isInspected && variant == Variant.STEALTH
-          ? 'text-primary-900'
+          ? 'text-primary-700'
           : isHighlighted && variant == Variant.STEALTH
             ? 'text-primary-700'
             : 'text-gray-700'

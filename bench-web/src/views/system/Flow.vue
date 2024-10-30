@@ -340,7 +340,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.create',
           }"
-          class="rounded-sm px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+          class="rounded-sm px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
           @click="
             flow &&
               createStep(pkgConnection.tx, pkgGraph, {
@@ -370,7 +370,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.actions',
           }"
-          class="rounded-sm px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+          class="rounded-sm px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
           @click="fireAction(action)"
         >
           <IconInline v-bind="action.icon" class="w-5 text-center" />

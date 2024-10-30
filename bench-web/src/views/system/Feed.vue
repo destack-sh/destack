@@ -383,7 +383,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         :key="pill.name"
         :disabled="!pill.isEnabled"
         :data-active="isPillActive(pill)"
-        class="data-[active=true] rounded-2xl border border-gray-300 px-2 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900 data-[active=false]:hover:text-primary-900"
+        class="data-[active=true] rounded-2xl border border-gray-300 px-2 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-700 data-[active=true]:text-primary-700 data-[active=false]:hover:text-primary-700"
         @click="togglePill(pill)"
       >
         <span>{{ pill.name }}</span>
@@ -437,10 +437,10 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             :style="{ width: HANDLE_WIDTH + 'px' }"
             :class="
               item.id == inspectionPtr?.id
-                ? 'bg-primary-900'
+                ? 'bg-primary-700'
                 : item.id == focusedNodePtr?.id
                   ? isFocusedAbsolute
-                    ? 'bg-primary-900'
+                    ? 'bg-primary-700'
                     : 'bg-gray-300'
                   : 'bg-transparent group-hover/item:bg-gray-200'
             "
@@ -471,7 +471,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 </span>
                 <!-- Object -->
                 <button
-                  class="group/node flex-shrink-0 px-1 hover:bg-primary-100 hover:text-primary-900"
+                  class="group/node flex-shrink-0 px-1 hover:bg-primary-100 hover:text-primary-700"
                   @click.stop="item.node && canvas.goToNode(item.node)"
                 >
                   <IconInline
@@ -481,7 +481,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                       (item.it.vignette != null ? getNodeIcon(item.it.vignette, { nodeType: item.nodeType }) : null) ??
                       ICON_BY_NODE_TYPE[item.nodeType]
                     "
-                    class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+                    class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-700"
                   />
                   <span>
                     {{ (item.node as any)?.name ?? item.it.vignette?.name ?? toCamelName(NodeType, item.nodeType) }}
@@ -513,7 +513,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <button>
                   <IconInline
                     v-bind="item.node != null ? getNodeIcon(item.node) : makeIcon('fas fa-lambda')"
-                    class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+                    class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-700"
                     @click="canvas.goToNode(item.node)"
                   />
                   <span>{{ (item.node as any)?.name ?? "Lambda" }}</span>

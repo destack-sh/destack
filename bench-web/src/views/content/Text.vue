@@ -439,9 +439,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       class="text relative rounded-sm hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-300 px-2 py-0.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
+          ? 'border border-gray-300 px-2 py-0.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-300'
           : 'stealth',
-        isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
+        isInDropZone ? 'outline-dotted outline-2 outline-primary-700' : '',
       ]"
       data-suppress-actions="common.move.left,common.move.right"
       data-suppress-drag="true"
@@ -512,19 +512,19 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   @apply rounded-sm px-1 py-0;
 }
 .text span.mention:hover {
-  @apply bg-primary-100 text-primary-900;
+  @apply bg-primary-100 text-primary-700;
 }
 .text span.mention .icon {
   @apply mr-1.5 text-gray-700;
 }
 .text span.mention:hover .icon {
-  @apply text-primary-900;
+  @apply text-primary-700;
 }
 .text span.mention .name {
   @apply underline decoration-gray-300 underline-offset-3;
 }
 .text span.textMirror-selectednode.mention .name {
-  @apply bg-primary-100 text-primary-900 decoration-primary-900;
+  @apply bg-primary-100 text-primary-700 decoration-primary-700;
 }
 .altmode .text span.mention:hover,
 .text span.mention[data-node-type="file"]:hover .name {
@@ -532,7 +532,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 }
 .altmode .text span.mention:hover .name,
 .text span.mention[data-node-type="file"]:hover .name {
-  @apply decoration-primary-900;
+  @apply decoration-primary-700;
 }
 </style>
 <style>
@@ -543,6 +543,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   outline: none;
 }
 .ProseMirror-selectednode {
-  @apply p-2 outline-primary-900;
+  @apply p-2 outline-primary-700;
 }
 </style>

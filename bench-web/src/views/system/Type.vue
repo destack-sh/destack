@@ -133,13 +133,13 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="relative flex gap-x-2 gap-y-1 rounded-sm"
     :class="[
       orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
-      activeDropZone != null ? 'outline outline-2 outline-primary-900' : '',
+      activeDropZone != null ? 'outline outline-2 outline-primary-700' : '',
     ]"
   >
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
         (since it's not a move, but a sort of 'copy', and that's how we signal it elsewhere) -->
     <!-- Drop indicator -->
-    <div v-if="activeDropZone" class="absolute right-1 top-1 text-primary-900">
+    <div v-if="activeDropZone" class="absolute right-1 top-1 text-primary-700">
       {{ toCamelName(FieldType, props.fieldType) }}
     </div>
     <!-- Field wrapper -->
@@ -147,7 +147,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Drop indicator -->
       <div
         v-if="activeDropZone?.targetId == field.id"
-        class="absolute z-10 rounded-sm bg-primary-900"
+        class="absolute z-10 rounded-sm bg-primary-700"
         :class="[
           orientation == Orientation.HORIZONTAL ? 'h-full w-1' : 'h-1 w-full',
           activeDropZone?.anchor == 'start'
