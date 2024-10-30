@@ -66,11 +66,10 @@ const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
 const ROW_ACTIONS_WIDTH = 32;
-const ROW_PADDING_X = 8; // per side, so ROW_PADDING*2 per side
 const FULL_PADDING = 12;
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; paddingX?: number; paddingY?: number } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "variant" | "isInput" | "selection">
   >
 >();
@@ -688,6 +687,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="flex w-full flex-row items-center gap-x-1"
       :style="{
         height: `${ACTION_HEADER_HEIGHT}px`,
+        paddingTop: `${props.paddingY ?? 0}px`,
+        paddingLeft: `${props.paddingX ?? 0}px`,
+        paddingRight: `${props.paddingX ?? 0}px`,
       }"
     >
       <!-- Expressions (filters/sorts) -->
@@ -697,13 +699,13 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
           :key="i"
-          class="rounded border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
+          class="group rounded border border-sky-600 bg-sky-200 px-2 py-0.5"
         >
           <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
           <span class="text-gray-700">{{
             findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
           }}</span>
-          <button class="ml-1.5 text-gray-400 hover:text-primary-900" @click="() => sorts.splice(i, 1)">
+          <button class="ml-1.5 text-gray-400 opacity-0 group-hover:opacity-100" @click="() => sorts.splice(i, 1)">
             <i class="fas fa-xmark" />
           </button>
         </div>
@@ -754,7 +756,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Controls -->
         <!-- Add field -->
         <button
-          class="group/button rounded px-1 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
+          class="group/button rounded border border-emerald-600 bg-emerald-200 px-2 py-0.5"
           @click="
             (e) => {
               const button = (e.target as HTMLElement).closest('button')!;
@@ -774,13 +776,13 @@ defineExpose<ViewExposed>({ self, id, actions });
             }
           "
         >
-          <i class="fa fa-plus mr-1.5 text-center text-gray-700 group-hover/button:text-primary-900" />
+          <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-emerald-900" />
           <span>Field</span>
         </button>
         <!-- Add record -->
-        <button class="group/button rounded px-1 hover:bg-gray-100" @click="() => createRecord()">
-          <i class="fa fa-plus mr-1.5 text-center text-gray-700 group-hover/button:text-primary-900" />
-          <span class="group-hover/button:text-primary-900">Record</span>
+        <button class="group/button rounded border border-sky-600 bg-sky-200 px-2 py-0.5" @click="() => createRecord()">
+          <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-sky-900" />
+          <span class="">Record</span>
         </button>
       </div>
     </div>
@@ -860,9 +862,11 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
-              column.isInspected ? 'bg-primary-100' : column.isHighlighted ? 'bg-primary-50' : 'hover:bg-gray-100',
+              column.isInspected ? 'bg-sky-100' : column.isHighlighted ? 'bg-sky-50' : 'hover:bg-gray-100',
             ]"
             :style="{
+              paddingLeft: x == 0 ? `${paddingX ?? 0}px` : undefined,
+              paddingRight: x == columns.length - 1 ? `${paddingX ?? 0}px` : undefined,
               width: `${column.width}px`,
             }"
             :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
@@ -1011,13 +1015,15 @@ defineExpose<ViewExposed>({ self, id, actions });
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
-            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-primary-100' : '']"
+            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-sky-100' : '']"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT_MIN}px`,
               maxHeight: `${ROW_HEIGHT_MAX}px`,
               paddingTop: `${column.paddingTop}px`,
-              paddingBottom: `${column.paddingBottom}px`,
+              paddingBottom: `${column.paddingBottom + (y == records.length - 1 ? (props.paddingY ?? 0) : 0)}px`,
+              paddingLeft: x == 0 ? `${paddingX ?? 0}px` : undefined,
+              paddingRight: x == columns.length - 1 ? `${paddingX ?? 0}px` : undefined,
             }"
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
             @click="

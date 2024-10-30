@@ -1136,8 +1136,3 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
   ]);
   return { primary: layout.viewsByName["Primary"] };
 }
-
-/** Creates the advanced three-side double vertical split canvas */
-export function createDesktopAdvancedSpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
-  return createDesktopDefaultSpace(tx, space); // no special space yet
-}

@@ -262,10 +262,6 @@ defineExpose<ViewExposed>({ self, actions });
         >
           <i class="fas fa-xmark hover:text-primary-900" />
         </button>
-        <!-- Focus indicator (for stretched single tab) -->
-        <button v-else-if="i == focusedTabIdx && isFocusAbsolute" class="ml-auto px-0.5">
-          <i class="fas fa-circle-small text-primary-900" />
-        </button>
         <!-- Drop indicator -->
         <div
           v-if="activeHeaderDropZone?.targetId == tab.id"

@@ -220,30 +220,6 @@ const dockActions: Ref<Action[]> = computed(
       class="flex flex-shrink-0 items-center gap-1.5"
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
-      <!-- Active Run -->
-      <!-- NOTE :UX: add proper active run / run control menu (should probably be a real view.. Feed?) -->
-      <div
-        v-if="runtime?.focusedRun"
-        class="group flex items-center gap-1 rounded px-1.5 py-0.5 hover:cursor-pointer"
-        :class="[orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col']"
-        @click="canvas.goToNode(runtime.focusedRun)"
-      >
-        <!-- Status -->
-        <IconInline
-          class="w-5"
-          :class="[runtime.focusedRun.status == RunStatus.RUNNING ? 'animate-spin' : '']"
-          :style="{ color: getRunColorHex(runtime.focusedRun.status) }"
-          v-bind="ICON_BY_RUN_STATUS[runtime.focusedRun.status]"
-        />
-        <!-- Node -->
-        <button>
-          <IconInline
-            v-bind="runtime.focusedRunBase ? getNodeIcon(runtime.focusedRunBase) : makeIcon('fas fa-lambda')"
-            class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
-          />
-          <span class="underline-offset-3 group-hover:underline">{{ runtime.focusedRunBase?.name ?? "Lambda" }}</span>
-        </button>
-      </div>
       <!-- Connection -->
       <ConnectionStatus />
       <!-- User Menu -->
