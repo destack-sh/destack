@@ -154,8 +154,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         backgroundColor: getNodeColorHex(block, ColorShade.S400),
         height: `${HEADER_HEIGHT}px`,
       }"
-      :draggable="true"
-      @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block!)"
     >
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <div class="flex flex-shrink-0 flex-row">

@@ -58,7 +58,7 @@ defineExpose<ViewExposed>({ self });
         <button
           v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"
           :disabled="nodePtr == null && inspectedNode == null"
-          class="ml-1.5 hover:text-primary-900"
+          class="ml-1.5 hover:text-primary-700"
           :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
           @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: inspectedNode })"
         >

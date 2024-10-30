@@ -372,7 +372,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
                 },
               })
             "
-            class="ml-1.5 text-gray-400 hover:text-primary-900"
+            class="ml-1.5 text-gray-400 hover:text-primary-700"
           >
             <i class="fas fa-chevron-down" />
           </button>
@@ -382,7 +382,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
           <!-- Expand into own View -->
           <button
             v-if="variant == Variant.COMPACT"
-            class="text-gray-400 enabled:hover:text-primary-900"
+            class="text-gray-400 enabled:hover:text-primary-700"
             @click="
               () => {
                 canvas.addView(
@@ -396,7 +396,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             <i class="fas fa-magnifying-glass-plus w-5 text-center" />
           </button>
           <!-- Search -->
-          <button v-if="variant != Variant.COMPACT" class="text-gray-400 enabled:hover:text-primary-900">
+          <button v-if="variant != Variant.COMPACT" class="text-gray-400 enabled:hover:text-primary-700">
             <i class="fas fa-magnifying-glass w-5 text-center" />
           </button>
         </div>
@@ -457,10 +457,10 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             :style="{ width: HANDLE_WIDTH + 'px' }"
             :class="
               message.id == inspectionPtr?.id
-                ? 'bg-primary-900'
+                ? 'bg-primary-700'
                 : message.id == focusedNodePtr?.id
                   ? isFocusedAbsolute
-                    ? 'bg-primary-900'
+                    ? 'bg-primary-700'
                     : 'bg-gray-300'
                   : 'bg-transparent group-hover/message:bg-gray-200'
             "
@@ -518,7 +518,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
               <!-- Reply -->
               <button
                 v-tooltip="{ title: 'Reply', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
-                class="rounded-sm text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+                class="rounded-sm text-gray-400 hover:bg-gray-100 hover:text-primary-700"
                 @click.stop="replyTo(message)"
               >
                 <i class="fas fa-reply w-5 text-center" />
@@ -542,7 +542,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
                     }),
                   })
                 "
-                class="rounded-sm text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+                class="rounded-sm text-gray-400 hover:bg-gray-100 hover:text-primary-700"
               >
                 <i class="fas fa-ellipsis-v w-5 text-center" />
               </button>
@@ -571,7 +571,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
           >Replying to
           <span class="font-medium text-gray-900">{{ getAuthor(replyingTo).name }}</span>
         </span>
-        <button class="ml-auto text-gray-400 hover:text-primary-900" @click="replyingTo = null">
+        <button class="ml-auto text-gray-400 hover:text-primary-700" @click="replyingTo = null">
           <i class="fas fa-xmark w-5 text-center" />
         </button>
       </div>
@@ -593,7 +593,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
         <!-- Jump to bottom & follow -->
         <button
           v-if="variant != Variant.COMPACT"
-          class="arrow duation-75 absolute right-[12px] rounded-2xl border border-gray-300 bg-white px-2.5 py-0.5 text-base text-gray-600 transition-colors hover:bg-gray-100 hover:text-primary-900"
+          class="arrow duation-75 absolute right-[12px] rounded-2xl border border-gray-300 bg-white px-2.5 py-0.5 text-base text-gray-600 transition-colors hover:bg-gray-100 hover:text-primary-700"
           :class="[replyingTo ? '-top-[72px]' : '-top-[36px]', stickToEnd ? 'opacity-0' : 'opacity-100']"
           @click="followEnd()"
         >
@@ -606,7 +606,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
           disabled
           :class="[
             isFocusedAbsolute || variant == Variant.COMPACT
-              ? 'enabled:text-gray-600 enabled:hover:text-primary-900 disabled:text-gray-400'
+              ? 'enabled:text-gray-600 enabled:hover:text-primary-700 disabled:text-gray-400'
               : 'text-gray-400',
             variant != Variant.COMPACT ? 'text-lg' : 'text-base',
           ]"
@@ -649,7 +649,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
           class="h-fit self-end px-2 py-0.5"
           :class="[
             isFocusedAbsolute || variant == Variant.COMPACT
-              ? 'enabled:text-gray-600 enabled:hover:text-primary-900 disabled:text-gray-400'
+              ? 'enabled:text-gray-600 enabled:hover:text-primary-700 disabled:text-gray-400'
               : 'text-gray-400',
             variant != Variant.COMPACT ? 'text-lg' : 'text-base',
           ]"

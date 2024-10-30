@@ -295,7 +295,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- Search -->
-        <button class="h-fit text-gray-400 hover:text-primary-900" @click="fireActionById('common.search.findInView')">
+        <button class="h-fit text-gray-400 hover:text-primary-700" @click="fireActionById('common.search.findInView')">
           <i class="fas fa-magnifying-glass w-5 text-center" />
         </button>
       </div>
@@ -368,7 +368,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               <!-- Drag above/below -->
               <div
                 v-if="activeDropZone?.targetId == block.id"
-                class="absolute z-10 h-1 w-full rounded-sm bg-primary-900"
+                class="absolute z-10 h-1 w-full rounded-sm bg-primary-500"
                 :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
               />
 
@@ -430,7 +430,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 referenceMargin: 8,
                 group: 'page.footer',
               }"
-              class="rounded px-2 py-1 text-base text-gray-700 transition-colors duration-100 hover:bg-gray-100 hover:text-primary-900"
+              class="rounded px-2 py-1 text-base text-gray-700 transition-colors duration-100 hover:bg-gray-100 hover:text-primary-700"
               @click="
                 () => {
                   createAndFocusBlock({ type: blockType }, 'inside', page!);

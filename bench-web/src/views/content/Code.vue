@@ -204,9 +204,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="code rounded-sm hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-300 px-1 py-1.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
+          ? 'border border-gray-300 px-1 py-1.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-300'
           : 'stealth',
-        isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
+        isInDropZone ? 'outline-dotted outline-2 outline-primary-700' : '',
       ]"
     />
   </ViewContentWrapper>
@@ -226,7 +226,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply rounded-sm border border-transparent px-0.5 py-0.5;
 }
 .code .cm-editor .cm-tooltip > ul > li[aria-selected] {
-  @apply text-primary-900;
+  @apply text-primary-700;
 }
 .code .cm-editor .cm-completionMatchedText {
   @apply font-semibold underline underline-offset-3;
@@ -235,7 +235,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply mr-0.5 bg-transparent pr-1.5 text-gray-400;
 }
 .code:focus-within .cm-editor .cm-gutters {
-  @apply border-primary-900 text-gray-700;
+  @apply border-primary-700 text-gray-700;
 }
 .stealth .ͼ1 .cm-line {
   padding: 0;

@@ -23,7 +23,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-600 bg-gray-200 hover:cursor-not-allowed"
-      : "text-gray-900 bg-primary-300 hover:border-primary-900 hover:text-primary-900 hover:outline outline-1 outline-primary-900",
+      : "text-gray-900 bg-primary-300 hover:border-primary-700 hover:text-primary-700 hover:outline outline-1 outline-primary-700",
   ],
   // outline button
   [Variant.SECONDARY]: [
@@ -31,21 +31,21 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-700 bg-gray-50 hover:cursor-not-allowed"
-      : "text-gray-900 hover:border-gray-300 hover:bg-gray-100 focus:border-primary-900",
+      : "text-gray-900 hover:border-gray-300 hover:bg-gray-100 focus:border-primary-700",
   ],
   // 'link' button
   [Variant.COMPACT]: [
     "rounded-sm underline decoration-2 underline-offset-3",
     props.isDisabled
       ? "text-gray-500 decoration-gray-200 hover:cursor-not-allowed"
-      : "text-gray-900 decoration-gray-300 hover:text-primary-900 hover:decoration-primary-900 focus:decoration-primary-900",
+      : "text-gray-900 decoration-gray-300 hover:text-primary-700 hover:decoration-primary-700 focus:decoration-primary-700",
   ],
   // 'stealth' button
   [Variant.STEALTH]: [
     "rounded-sm",
     props.isDisabled
       ? "text-gray-500 hover:cursor-not-allowed"
-      : "text-gray-900 hover:text-primary-900 focus:underline decoration-2 underline-offset-3 focus:decoration-primary-900",
+      : "text-gray-900 hover:text-primary-700 focus:underline decoration-2 underline-offset-3 focus:decoration-primary-700",
   ],
 }));
 

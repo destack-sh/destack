@@ -222,8 +222,8 @@ defineExpose({ focus, clear, query });
         :class="[
           item.isDisabled
             ? 'text-gray-500'
-            : 'hover:cursor-pointer hover:bg-gray-100 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900',
-          activeNestedItemIdx == i ? 'border-primary-900 text-primary-900' : '',
+            : 'hover:cursor-pointer hover:bg-gray-100 data-[active=true]:border-primary-700 data-[active=true]:text-primary-700',
+          activeNestedItemIdx == i ? 'border-primary-700 text-primary-700' : '',
         ]"
         @click.prevent="(e) => !item.isDisabled && (e.stopPropagation(), fire(i))"
         @mouseenter="() => onMouseEnter(i)"
@@ -239,7 +239,7 @@ defineExpose({ focus, clear, query });
           v-bind="toIconMaybe(item.icon)!"
           :class="[
             'mr-1.5 w-5 flex-shrink-0 text-center',
-            item.isDisabled ? 'text-gray-400' : activeItemIdx == i ? 'text-primary-900' : 'text-gray-700',
+            item.isDisabled ? 'text-gray-400' : activeItemIdx == i ? 'text-primary-700' : 'text-gray-700',
           ]"
         />
         <span v-else class="mr-1.5 w-[18px] flex-shrink-0">&nbsp;</span>

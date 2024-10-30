@@ -124,7 +124,7 @@ defineExpose<ViewExposed & { select: () => void }>({
             ? 'bg-white text-gray-900'
             : 'text-gray-900',
         variant != Variant.STEALTH ? 'select-text border border-gray-300 px-2 py-1 outline-1 focus-within:outline' : '',
-        validationError != null ? 'outline-danger-600' : 'outline-primary-900',
+        validationError != null ? 'outline-danger-600' : 'outline-primary-700',
       ]"
     >
       <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S600" class="mr-0.5 w-5" />
@@ -150,7 +150,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         <!-- Clear -->
         <button
           v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"
-          class="ml-auto pl-1 text-gray-400 opacity-0 outline-none hover:text-primary-900 focus:ring-0 group-hover:opacity-100"
+          class="ml-auto pl-1 text-gray-400 opacity-0 outline-none hover:text-primary-700 focus:ring-0 group-hover:opacity-100"
           @click.stop="clear"
         >
           <i class="fas fa-xmark" />
@@ -158,12 +158,12 @@ defineExpose<ViewExposed & { select: () => void }>({
       </template>
       <template v-else>
         <!-- List -->
-        <div v-for="(v, i) in values" :key="i" class="rounded-sm bg-gray-100 px-1 hover:text-primary-900">
+        <div v-for="(v, i) in values" :key="i" class="rounded-sm bg-gray-100 px-1 hover:text-primary-700">
           <span class="truncate">{{ v }}</span>
           <!-- Remove -->
           <button
             v-if="!isDisabled"
-            class="ml-1.5 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+            class="ml-1.5 text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
             @click.stop="remove(i)"
           >
             <i class="fas fa-xmark" />
@@ -176,7 +176,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           :value="currentValue"
           spellcheck="false"
           :type="inputType"
-          class="rounded-sm border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-900 focus:ring-0"
+          class="rounded-sm border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-700 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :size="variant == Variant.STEALTH ? ((currentValue as string)?.length ?? 0) + 1 : undefined"
           :disabled="isDisabled"
@@ -186,7 +186,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         <!-- Add to list-->
         <button
           v-else-if="!isDisabled"
-          class="mr-2 self-center text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="mr-2 self-center text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
           @click.stop="addNewValue(), $nextTick(() => inputRef?.focus())"
         >
           <i class="fas fa-plus" />
@@ -196,7 +196,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Read-only -->
     <div
       v-else
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm text-gray-700 outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm text-gray-700 outline-1 outline-primary-700 focus-within:outline hover:border-gray-300"
       :class="[variant != Variant.STEALTH ? 'select-text border border-gray-300 px-2 py-1' : '']"
     >
       <template v-if="!valueType?.isList">

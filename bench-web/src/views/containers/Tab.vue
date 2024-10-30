@@ -237,8 +237,7 @@ defineExpose<ViewExposed>({ self, actions });
         class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-gray-300 px-2.5 hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
-          i == focusedTabIdx ? 'bg-white text-primary-900' : 'border-b hover:text-primary-900',
-          i == focusedTabIdx && isFocusAbsolute && !hasOneTab ? 'shadow-inset-md shadow-primary-900' : '',
+          i == focusedTabIdx ? 'bg-white text-primary-700' : 'border-b hover:text-primary-700',
           i != focusedTabIdx ? 'text-gray-600' : '',
           hasOneTab ? 'w-full max-w-full' : 'max-w-52 border-r',
         ]"
@@ -250,7 +249,7 @@ defineExpose<ViewExposed>({ self, actions });
         <IconInline
           v-bind="tab.icon ?? ICON_BY_VIEW_TYPE[tab.type] ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
           class="mr-1.5 w-5"
-          :class="i == focusedTabIdx ? '' : 'group-hover:text-primary-900'"
+          :class="i == focusedTabIdx ? '' : 'group-hover:text-primary-700'"
         />
         <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
         <!-- Close tab -->
@@ -260,12 +259,12 @@ defineExpose<ViewExposed>({ self, actions });
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"
         >
-          <i class="fas fa-xmark hover:text-primary-900" />
+          <i class="fas fa-xmark hover:text-primary-700" />
         </button>
         <!-- Drop indicator -->
         <div
           v-if="activeHeaderDropZone?.targetId == tab.id"
-          class="absolute z-10 h-full w-1 bg-primary-900"
+          class="absolute z-10 h-full w-1 bg-primary-500"
           :class="[activeHeaderDropZone.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
         />
       </button>
@@ -274,7 +273,7 @@ defineExpose<ViewExposed>({ self, actions });
       <!-- Drop indicator if no tab -->
       <div
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"
-        class="absolute left-0 z-10 h-full w-1 bg-primary-900"
+        class="absolute left-0 z-10 h-full w-1 bg-primary-700"
       />
     </Scroll>
     <!-- Tab body -->

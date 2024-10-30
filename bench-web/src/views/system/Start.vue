@@ -159,7 +159,7 @@ defineExpose<ViewExposed>({ self });
         <button
           v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"
           :disabled="nodePtr == null && lastRunnableNode == null"
-          class="ml-1.5 hover:text-primary-900"
+          class="ml-1.5 hover:text-primary-700"
           :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
           @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: lastRunnableNode })"
         >
@@ -170,7 +170,7 @@ defineExpose<ViewExposed>({ self });
           <!-- Start -->
           <button
             :disabled="lastRunnableNode == null"
-            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
+            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-700 disabled:text-gray-400"
             @click="() => createRun()"
           >
             <i class="fas fa-play w-5 text-center" />
@@ -179,7 +179,7 @@ defineExpose<ViewExposed>({ self });
           <!-- Stop -->
           <button
             :disabled="lastRunnableNode == null || run == null || isRunTerminal(run)"
-            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
+            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-700 disabled:text-gray-400"
             @click="
               () =>
                 run &&

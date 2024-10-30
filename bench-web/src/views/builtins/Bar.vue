@@ -256,7 +256,7 @@ const dockActions: Ref<Action[]> = computed(
       <template v-else>
         <!-- Not logged in -->
         <button
-          class="px-2 py-1 text-base text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+          class="px-2 py-1 text-base text-gray-700 hover:bg-gray-100 hover:text-primary-700"
           @click="fireActionById('user.auth.login')"
         >
           <i class="fas fa-arrow-right-to-bracket" />
