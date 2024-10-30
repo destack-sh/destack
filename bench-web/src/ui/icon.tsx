@@ -251,13 +251,14 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-memo",
+  [BlockType.TEXT]: "fas fa-text",
   // class
   [BlockType.CLASS]: "fas fa-shapes",
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.SIGNAL]: "fas fa-signal-stream",
+  [BlockType.NOTIFICATION]: "fas fa-bell",
   // runnable
-  [BlockType.COMMENT]: "fas fa-text",
-  [BlockType.ACTION]: "fas fa-code",
+  [BlockType.ACTION]: "fas fa-wrench-simple",
   [BlockType.FLOW]: "fas fa-diagram-project",
   // data
   [BlockType.VALUE]: "fas fa-hexagon",
@@ -277,18 +278,20 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.TRIGGER]: "fas fa-bolt",
   // run
-  [StepType.ACTION]: "fas facode",
-  [StepType.SEND]: "fas fa-code",
-  [StepType.YIELD]: "fas fa-text",
+  [StepType.ACTION]: "fas fa-wrench-simple",
+  [StepType.SEND]: "fas fa-paper-plane-top",
+  [StepType.YIELD]: "fas fa-hand",
   // control
   // ...
   // containers
-  [StepType.LOOP]: "fas fa-loop",
+  [StepType.LOOP]: "fas fa-repeat",
+  // misc
+  [StepType.TEXT]: "fas fa-text",
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
   [PipeType.GOTO]: "fas fa-arrow-right-long",
-  // nocheckin
+  [PipeType.SELECT]: "fas "
 });
 
 

@@ -806,11 +806,11 @@ enum TypeFormat {
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
   BLOCK_TYPE_PAGE = 1;
+  BLOCK_TYPE_TEXT = 2;
   BLOCK_TYPE_CLASS = 10;
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_SIGNAL = 12;
   BLOCK_TYPE_NOTIFICATION = 13;
-  BLOCK_TYPE_COMMENT = 20;
   BLOCK_TYPE_ACTION = 21;
   BLOCK_TYPE_FLOW = 22;
   BLOCK_TYPE_VALUE = 30;
@@ -1177,7 +1177,7 @@ enum StepType {
   STEP_TYPE_SEND = 61;
   STEP_TYPE_YIELD = 62;
   STEP_TYPE_LOOP = 501;
-  STEP_TYPE_COMMENT = 900;
+  STEP_TYPE_TEXT = 900;
 }
 
 enum PortSide {
@@ -1189,11 +1189,8 @@ enum PortSide {
 enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
   PIPE_TYPE_GOTO = 1;
-  PIPE_TYPE_FILTER = 2;
-  PIPE_TYPE_SELECT = 3;
-  PIPE_TYPE_TRIGGER = 4;
-  PIPE_TYPE_FLATTEN = 20;
-  PIPE_TYPE_ACCUMULATE = 21;
+  PIPE_TYPE_SELECT = 2;
+  PIPE_TYPE_TRIGGER = 3;
   PIPE_TYPE_STREAM = 50;
 }
 
@@ -2554,6 +2551,11 @@ message ValueBlockData {
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
+message TextBlockData {
+  optional TextData text = 100;
+}
+
+// A building block with logic, types, UI, state, auth, AI, ...
 message ActionBlockData {
   ActionMode mode = 100;
   optional TextData text = 101;
@@ -2655,22 +2657,17 @@ message PipeData {
   string order_key = 33;
   NodeReferenceData source_ptr = 40;
   NodeReferenceData target_ptr = 41;
-  optional ColorData color = 81;
-  bool is_hidden = 82;
+  optional ExpressionData filter = 50;
+  optional TypeConstraintData constraint = 51;
+  optional CodeData condition = 52;
+  optional ColorData color = 91;
+  bool is_hidden = 92;
 }
 
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).
 // Pipes are stored in the containing Flow or containing Step.
 message SelectPipeData {
   optional TextData text = 100;
-}
-
-// A connection between two Steps in a Flow (source = outgoing, target = incoming).
-// Pipes are stored in the containing Flow or containing Step.
-message FilterPipeData {
-  optional ExpressionData filter = 100;
-  optional TypeConstraintData constraint = 101;
-  optional CodeData condition = 102;
 }
 
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).
@@ -2716,7 +2713,7 @@ message ActionStepData {
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
-message CommentStepData {
+message TextStepData {
   optional TextData text = 100;
 }
 

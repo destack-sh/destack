@@ -148,8 +148,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     ]"
   >
     <!-- Header -->
-    <!-- NOTE :UX: revamp block to indicate all its states/properties better, hide header if not needed, ... -->
     <div
+      v-if="block.type != BlockType.TEXT"
       class="flex flex-row"
       :draggable="true"
       @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block!)"

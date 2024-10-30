@@ -69,22 +69,15 @@ FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldType, ...]] = {
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
     GOTO = 1
-    FILTER = 2
-    SELECT = 3
-    TRIGGER = 4
-    FLATTEN = 20
-    ACCUMULATE = 21
-    # SCAN, BUFFER, DEBOUNCE, THROTTLE?
+    SELECT = 2
+    TRIGGER = 3
     STREAM = 50
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
     PipeType.GOTO: "->",
-    PipeType.FILTER: "-?>",
     PipeType.SELECT: "-o>",
     PipeType.TRIGGER: "-&>",
-    PipeType.FLATTEN: "|>",
-    PipeType.ACCUMULATE: "|<",
     PipeType.STREAM: "-=-",
 }
 PIPE_TYPES_BY_SIGN: dict[str, PipeType] = {v: k for k, v in SIGN_BY_PIPE_TYPE.items()}
@@ -110,14 +103,28 @@ class Pipe(SourceNode[PipeData]):
         source_ptr: Optional[NodeReference] = None
         target_ptr: Optional[NodeReference] = None
 
+    # filter
+    filter: Optional["Expression"] = p_regular(
+        50, default=None, require=False, array=False, struct=StructType.EXPRESSION
+    )
+    constraint: Optional["TypeConstraint"] = p_regular(
+        51, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
+    )
+    condition: Optional["Code"] = p_regular(
+        52, default=None, require=False, array=False, struct=StructType.CODE
+    )
+
     # mapping
+    ...
+
+    # modulation
     ...
 
     # view
     color: Optional["Color"] = p_regular(
-        81, default=None, require=False, array=False, struct=StructType.COLOR
+        91, default=None, require=False, array=False, struct=StructType.COLOR
     )
-    is_hidden: bool = p_regular(82, default=False)
+    is_hidden: bool = p_regular(92, default=False)
 
     def __content_str__(self) -> str:
         sign = SIGN_BY_PIPE_TYPE.get(self.type, "???")
@@ -134,19 +141,6 @@ class Pipe(SourceNode[PipeData]):
 class SelectPipe(Pipe):
     text: Optional["Text"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-
-
-@node_subtype_(PipeType.FILTER)
-class FilterPipe(Pipe):
-    filter: Optional["Expression"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.EXPRESSION
-    )
-    constraint: Optional["TypeConstraint"] = p_regular(
-        101, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
-    )
-    condition: Optional["Code"] = p_regular(
-        102, default=None, require=False, array=False, struct=StructType.CODE
     )
 
 
@@ -183,7 +177,7 @@ class StepType(IdEnum):
     # LOOP, REPEAT, ...?
 
     # misc
-    COMMENT = 900  # no-op, just for documentation
+    TEXT = 900  # no-op, just for documentation
 
     @property
     def is_boundary(self) -> bool:
@@ -362,8 +356,8 @@ class ActionStep(Step):
         node_ptr: Optional["NodeReference"] = None
 
 
-@node_subtype_(StepType.COMMENT)
-class CommentStep(Step):
+@node_subtype_(StepType.TEXT)
+class TextStep(Step):
     text: Optional["Text"] = p_regular(
         100, default=None, require=False, array=False, struct=StructType.TEXT
     )

@@ -3,22 +3,11 @@ import { toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName } from "@/language/node";
-import {
-  Alignment,
-  ColorShade,
-  ColorType,
-  NodeType,
-  PipeFilter,
-  PipeModulation,
-  PipeType,
-  PortType,
-  Variant,
-  ViewData,
-} from "@/proto/wire";
+import { Alignment, ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
-import { ICON_BY_PIPE_FILTER, ICON_BY_PIPE_MODULATION, IconInline } from "@/ui/icon";
+import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -36,7 +25,7 @@ const id = toRef(props, "id");
 const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.PIPE>);
 const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
-const { pipe, source, target, path, sourcePort, targetPort } = state;
+const { pipe, source, target, path } = state;
 const pathSvg = computed(() => (path.value != null ? pathToSvg(path.value.points) : undefined));
 const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S600));
 const pathBackgroundColorHex = computed(() => {
@@ -44,14 +33,7 @@ const pathBackgroundColorHex = computed(() => {
 });
 
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
-const isHighlighted = computed(
-  () =>
-    canvas.isHighlighted(pipePtr.value) ||
-    (pipe.value?.sourcePort?.type == PortType.FIELD &&
-      (canvas.isHighlighted(pipe.value.sourcePort.fieldPtr) || canvas.isInspected(pipe.value.sourcePort.fieldPtr))) ||
-    (pipe.value?.targetPort?.type == PortType.FIELD &&
-      (canvas.isHighlighted(pipe.value.targetPort.fieldPtr) || canvas.isInspected(pipe.value.targetPort.fieldPtr))),
-);
+const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
 const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName(pipe.value.metatype, pipe.value.name));
 
@@ -61,13 +43,6 @@ const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName
 
 // actions
 const actions: Partial<ActionMapImplementation<"common" | "pipe">> = {
-  "pipe.edit.isControl": {
-    action: () => {
-      if (pipe.value == null) return false;
-      const newType = pipe.value.type == PipeType.CONTROL_AND_DATA ? PipeType.DATA : PipeType.CONTROL_AND_DATA;
-      flowCtx.tx.update(pipe.value, { type: newType }, { debounce: "tick" });
-    },
-  },
   "pipe.edit.isHidden": {
     action: () => {
       if (pipe.value == null) return false;
@@ -101,7 +76,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="round"
         stroke="currentColor"
         fill="none"
-        :stroke-dasharray="pipe.type === PipeType.DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
+        :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"
       />
     </svg>
@@ -118,7 +93,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :stroke-dasharray="pipe.type === PipeType.DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
+        :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"
       />
     </svg>
@@ -147,19 +122,13 @@ defineExpose<ViewExposed>({ self, id, actions });
         :alignment="Alignment.MIDDLE"
         :variant="Variant.STEALTH"
         :model-value="pipe.name"
-        @update:model-value="(newValue) => flowCtx.tx.update(pipe!, { name: newValue }, { debounce: 'long' })"
+        @update:model-value="(newValue) => flowCtx.tx.update(pipe!, { name: newValue as string }, { debounce: 'long' })"
       />
       <!-- Filter/Mapping/... -->
       <IconInline
-        v-if="pipe.filter != null"
-        v-tooltip="{ title: toCamelName(PipeFilter, pipe.filter), small: true }"
-        v-bind="ICON_BY_PIPE_FILTER[pipe.filter]"
-        class="w-5 rounded bg-white text-center text-gray-700"
-      />
-      <IconInline
-        v-if="pipe.modulation != null"
-        v-tooltip="{ title: toCamelName(PipeModulation, pipe.modulation), small: true }"
-        v-bind="ICON_BY_PIPE_MODULATION[pipe.modulation]"
+        v-if="pipe.type != PipeType.GOTO"
+        v-tooltip="{ title: toCamelName(PipeType, pipe.filter), small: true }"
+        v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
         class="w-5 rounded bg-white text-center text-gray-700"
       />
     </div>

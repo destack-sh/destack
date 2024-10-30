@@ -205,7 +205,7 @@ def test_render_flow(shared_session: Session, shared_package: Package):
 
 def test_render_page(shared_session: Session, shared_package: Package):
     Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
-    Text1 = Page.blocks.append(Block.new(BlockType.COMMENT, "Text1", text=md("Hello, world!")))
+    Text1 = Page.blocks.append(Block.new(BlockType.TEXT, "Text1", text=md("Hello, world!")))
     rendered_page = render(Page, options=RenderOptions(scope=Page, as_page=True))
     assert Text1.name in rendered_page
 

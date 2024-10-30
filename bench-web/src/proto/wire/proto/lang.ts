@@ -3794,6 +3794,17 @@ export interface ValueBlockData {
 /**
  * A building block with logic, types, UI, state, auth, AI, ...
  *
+ * @generated from protobuf message symbolx.bench.TextBlockData
+ */
+export interface TextBlockData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 100;
+     */
+    text?: TextData;
+}
+/**
+ * A building block with logic, types, UI, state, auth, AI, ...
+ *
  * @generated from protobuf message symbolx.bench.ActionBlockData
  */
 export interface ActionBlockData {
@@ -4150,11 +4161,23 @@ export interface PipeData {
      */
     targetPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ColorData color = 81;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 50;
+     */
+    filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 51;
+     */
+    constraint?: TypeConstraintData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData condition = 52;
+     */
+    condition?: CodeData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorData color = 91;
      */
     color?: ColorData;
     /**
-     * @generated from protobuf field: bool is_hidden = 82;
+     * @generated from protobuf field: bool is_hidden = 92;
      */
     isHidden: boolean;
 }
@@ -4169,26 +4192,6 @@ export interface SelectPipeData {
      * @generated from protobuf field: optional symbolx.bench.TextData text = 100;
      */
     text?: TextData;
-}
-/**
- * A connection between two Steps in a Flow (source = outgoing, target = incoming).
- * Pipes are stored in the containing Flow or containing Step.
- *
- * @generated from protobuf message symbolx.bench.FilterPipeData
- */
-export interface FilterPipeData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 100;
-     */
-    filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TypeConstraintData constraint = 101;
-     */
-    constraint?: TypeConstraintData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData condition = 102;
-     */
-    condition?: CodeData;
 }
 /**
  * A connection between two Steps in a Flow (source = outgoing, target = incoming).
@@ -4333,9 +4336,9 @@ export interface ActionStepData {
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
  *
- * @generated from protobuf message symbolx.bench.CommentStepData
+ * @generated from protobuf message symbolx.bench.TextStepData
  */
-export interface CommentStepData {
+export interface TextStepData {
     /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 100;
      */
@@ -8743,6 +8746,10 @@ export enum BlockType {
      */
     PAGE = 1,
     /**
+     * @generated from protobuf enum value: BLOCK_TYPE_TEXT = 2;
+     */
+    TEXT = 2,
+    /**
      * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 10;
      */
     CLASS = 10,
@@ -8758,10 +8765,6 @@ export enum BlockType {
      * @generated from protobuf enum value: BLOCK_TYPE_NOTIFICATION = 13;
      */
     NOTIFICATION = 13,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_COMMENT = 20;
-     */
-    COMMENT = 20,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_ACTION = 21;
      */
@@ -9980,9 +9983,9 @@ export enum StepType {
      */
     LOOP = 501,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_COMMENT = 900;
+     * @generated from protobuf enum value: STEP_TYPE_TEXT = 900;
      */
-    COMMENT = 900
+    TEXT = 900
 }
 /**
  * @generated from protobuf enum symbolx.bench.PortSide
@@ -10014,25 +10017,13 @@ export enum PipeType {
      */
     GOTO = 1,
     /**
-     * @generated from protobuf enum value: PIPE_TYPE_FILTER = 2;
+     * @generated from protobuf enum value: PIPE_TYPE_SELECT = 2;
      */
-    FILTER = 2,
+    SELECT = 2,
     /**
-     * @generated from protobuf enum value: PIPE_TYPE_SELECT = 3;
+     * @generated from protobuf enum value: PIPE_TYPE_TRIGGER = 3;
      */
-    SELECT = 3,
-    /**
-     * @generated from protobuf enum value: PIPE_TYPE_TRIGGER = 4;
-     */
-    TRIGGER = 4,
-    /**
-     * @generated from protobuf enum value: PIPE_TYPE_FLATTEN = 20;
-     */
-    FLATTEN = 20,
-    /**
-     * @generated from protobuf enum value: PIPE_TYPE_ACCUMULATE = 21;
-     */
-    ACCUMULATE = 21,
+    TRIGGER = 3,
     /**
      * @generated from protobuf enum value: PIPE_TYPE_STREAM = 50;
      */
@@ -20433,6 +20424,52 @@ class ValueBlockData$Type extends MessageType$<ValueBlockData> {
  */
 export const ValueBlockData = new ValueBlockData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class TextBlockData$Type extends MessageType$<TextBlockData> {
+    constructor() {
+        super("symbolx.bench.TextBlockData", [
+            { no: 100, name: "text", kind: "message", T: () => TextData }
+        ]);
+    }
+    create(value?: PartialMessage<TextBlockData>): TextBlockData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<TextBlockData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextBlockData): TextBlockData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.TextData text */ 100:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TextBlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.TextData text = 100; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TextBlockData
+ */
+export const TextBlockData = new TextBlockData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class ActionBlockData$Type extends MessageType$<ActionBlockData> {
     constructor() {
         super("symbolx.bench.ActionBlockData", [
@@ -21114,8 +21151,11 @@ class PipeData$Type extends MessageType$<PipeData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 81, name: "color", kind: "message", T: () => ColorData },
-            { no: 82, name: "is_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 50, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 51, name: "constraint", kind: "message", T: () => TypeConstraintData },
+            { no: 52, name: "condition", kind: "message", T: () => CodeData },
+            { no: 91, name: "color", kind: "message", T: () => ColorData },
+            { no: 92, name: "is_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PipeData>): PipeData {
@@ -21201,10 +21241,19 @@ class PipeData$Type extends MessageType$<PipeData> {
                 case /* symbolx.bench.NodeReferenceData target_ptr */ 41:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
                     break;
-                case /* optional symbolx.bench.ColorData color */ 81:
+                case /* optional symbolx.bench.ExpressionData filter */ 50:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* optional symbolx.bench.TypeConstraintData constraint */ 51:
+                    message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
+                    break;
+                case /* optional symbolx.bench.CodeData condition */ 52:
+                    message.condition = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
+                    break;
+                case /* optional symbolx.bench.ColorData color */ 91:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* bool is_hidden */ 82:
+                case /* bool is_hidden */ 92:
                     message.isHidden = reader.bool();
                     break;
                 default:
@@ -21282,12 +21331,21 @@ class PipeData$Type extends MessageType$<PipeData> {
         /* symbolx.bench.NodeReferenceData target_ptr = 41; */
         if (message.targetPtr)
             NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ColorData color = 81; */
+        /* optional symbolx.bench.ExpressionData filter = 50; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TypeConstraintData constraint = 51; */
+        if (message.constraint)
+            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.CodeData condition = 52; */
+        if (message.condition)
+            CodeData.internalBinaryWrite(message.condition, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ColorData color = 91; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_hidden = 82; */
+            ColorData.internalBinaryWrite(message.color, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_hidden = 92; */
         if (message.isHidden !== false)
-            writer.tag(82, WireType.Varint).bool(message.isHidden);
+            writer.tag(92, WireType.Varint).bool(message.isHidden);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21344,66 +21402,6 @@ class SelectPipeData$Type extends MessageType$<SelectPipeData> {
  * @generated MessageType for protobuf message symbolx.bench.SelectPipeData
  */
 export const SelectPipeData = new SelectPipeData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class FilterPipeData$Type extends MessageType$<FilterPipeData> {
-    constructor() {
-        super("symbolx.bench.FilterPipeData", [
-            { no: 100, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 101, name: "constraint", kind: "message", T: () => TypeConstraintData },
-            { no: 102, name: "condition", kind: "message", T: () => CodeData }
-        ]);
-    }
-    create(value?: PartialMessage<FilterPipeData>): FilterPipeData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<FilterPipeData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FilterPipeData): FilterPipeData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.ExpressionData filter */ 100:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* optional symbolx.bench.TypeConstraintData constraint */ 101:
-                    message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
-                    break;
-                case /* optional symbolx.bench.CodeData condition */ 102:
-                    message.condition = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FilterPipeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.ExpressionData filter = 100; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeConstraintData constraint = 101; */
-        if (message.constraint)
-            TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.CodeData condition = 102; */
-        if (message.condition)
-            CodeData.internalBinaryWrite(message.condition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FilterPipeData
- */
-export const FilterPipeData = new FilterPipeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TriggerPipeData$Type extends MessageType$<TriggerPipeData> {
     constructor() {
@@ -21742,19 +21740,19 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
  */
 export const ActionStepData = new ActionStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CommentStepData$Type extends MessageType$<CommentStepData> {
+class TextStepData$Type extends MessageType$<TextStepData> {
     constructor() {
-        super("symbolx.bench.CommentStepData", [
+        super("symbolx.bench.TextStepData", [
             { no: 100, name: "text", kind: "message", T: () => TextData }
         ]);
     }
-    create(value?: PartialMessage<CommentStepData>): CommentStepData {
+    create(value?: PartialMessage<TextStepData>): TextStepData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<CommentStepData>(this, message, value);
+            reflectionMergePartial<TextStepData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommentStepData): CommentStepData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextStepData): TextStepData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -21773,7 +21771,7 @@ class CommentStepData$Type extends MessageType$<CommentStepData> {
         }
         return message;
     }
-    internalBinaryWrite(message: CommentStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: TextStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional symbolx.bench.TextData text = 100; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
@@ -21784,9 +21782,9 @@ class CommentStepData$Type extends MessageType$<CommentStepData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.CommentStepData
+ * @generated MessageType for protobuf message symbolx.bench.TextStepData
  */
-export const CommentStepData = new CommentStepData$Type();
+export const TextStepData = new TextStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class LoopStepData$Type extends MessageType$<LoopStepData> {
     constructor() {
@@ -25372,9 +25370,10 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.SKIP]: SkipData,
 }
 
-export type BlockSubtype = ValueBlockData | ActionBlockData | FlowBlockData | DatabaseBlockData | QueryBlockData;
+export type BlockSubtype = ValueBlockData | TextBlockData | ActionBlockData | FlowBlockData | DatabaseBlockData | QueryBlockData;
 export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.VALUE]: ValueBlockData,
+  [BlockType.TEXT]: TextBlockData,
   [BlockType.ACTION]: ActionBlockData,
   [BlockType.FLOW]: FlowBlockData,
   [BlockType.DATABASE]: DatabaseBlockData,
@@ -25389,17 +25388,16 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.USER_WIZARD]: UserWizardViewData,
 }
 
-export type StepSubtype = ActionStepData | CommentStepData | LoopStepData;
+export type StepSubtype = ActionStepData | TextStepData | LoopStepData;
 export interface StepSubtypeMapping extends Record<StepType, StepSubtype> {
   [StepType.ACTION]: ActionStepData,
-  [StepType.COMMENT]: CommentStepData,
+  [StepType.TEXT]: TextStepData,
   [StepType.LOOP]: LoopStepData,
 }
 
-export type PipeSubtype = SelectPipeData | FilterPipeData | TriggerPipeData;
+export type PipeSubtype = SelectPipeData | TriggerPipeData;
 export interface PipeSubtypeMapping extends Record<PipeType, PipeSubtype> {
   [PipeType.SELECT]: SelectPipeData,
-  [PipeType.FILTER]: FilterPipeData,
   [PipeType.TRIGGER]: TriggerPipeData,
 }
 
@@ -26265,8 +26263,11 @@ export enum PipeProperty {
   orderKey = 33,
   sourcePtr = 40,
   targetPtr = 41,
-  color = 81,
-  isHidden = 82,
+  filter = 50,
+  constraint = 51,
+  condition = 52,
+  color = 91,
+  isHidden = 92,
 }
 
 export enum BadgeProperty {
@@ -26511,6 +26512,10 @@ export enum ValueBlockProperty {
   valuePacked = 101,
 }
 
+export enum TextBlockProperty {
+  text = 100,
+}
+
 export enum ActionBlockProperty {
   mode = 100,
   text = 101,
@@ -26560,7 +26565,7 @@ export enum ActionStepProperty {
   runOptions = 110,
 }
 
-export enum CommentStepProperty {
+export enum TextStepProperty {
   text = 100,
 }
 
@@ -26570,12 +26575,6 @@ export enum LoopStepProperty {
 
 export enum SelectPipeProperty {
   text = 100,
-}
-
-export enum FilterPipeProperty {
-  filter = 100,
-  constraint = 101,
-  condition = 102,
 }
 
 export enum TriggerPipeProperty {
@@ -27330,6 +27329,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
 
 export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
   [BlockType.VALUE]: ValueBlockProperty,
+  [BlockType.TEXT]: TextBlockProperty,
   [BlockType.ACTION]: ActionBlockProperty,
   [BlockType.FLOW]: FlowBlockProperty,
   [BlockType.DATABASE]: DatabaseBlockProperty,
@@ -27345,13 +27345,12 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
 
 export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
   [StepType.ACTION]: ActionStepProperty,
-  [StepType.COMMENT]: CommentStepProperty,
+  [StepType.TEXT]: TextStepProperty,
   [StepType.LOOP]: LoopStepProperty,
 }
 
 export const PIPE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<PipeType, any>> = {
   [PipeType.SELECT]: SelectPipeProperty,
-  [PipeType.FILTER]: FilterPipeProperty,
   [PipeType.TRIGGER]: TriggerPipeProperty,
 }
 
@@ -27537,7 +27536,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.29.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27564,7 +27563,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.29.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27588,7 +27587,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.29.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.10.30.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28056,8 +28055,11 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.sourcePtr]: { id: 40, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.targetPtr]: { id: 41, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.color]: { id: 81, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
-  [PipeProperty.isHidden]: { id: 82, name: 'is_hidden', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.filter]: { id: 50, name: 'filter', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [PipeProperty.constraint]: { id: 51, name: 'constraint', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
+  [PipeProperty.condition]: { id: 52, name: 'condition', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [PipeProperty.color]: { id: 91, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [PipeProperty.isHidden]: { id: 92, name: 'is_hidden', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
   [BadgeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BADGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28291,6 +28293,9 @@ export const ValueBlockDataInfo: Record<ValueBlockProperty, PropertyInfo> = {
   [ValueBlockProperty.valueType]: { id: 100, name: 'value_type', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [ValueBlockProperty.valuePacked]: { id: 101, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
+export const TextBlockDataInfo: Record<TextBlockProperty, PropertyInfo> = {
+  [TextBlockProperty.text]: { id: 100, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+}
 export const ActionBlockDataInfo: Record<ActionBlockProperty, PropertyInfo> = {
   [ActionBlockProperty.mode]: { id: 100, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.ACTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ActionBlockProperty.text]: { id: 101, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -28331,19 +28336,14 @@ export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
   [ActionStepProperty.nodePtr]: { id: 103, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ActionStepProperty.runOptions]: { id: 110, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
 }
-export const CommentStepDataInfo: Record<CommentStepProperty, PropertyInfo> = {
-  [CommentStepProperty.text]: { id: 100, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+export const TextStepDataInfo: Record<TextStepProperty, PropertyInfo> = {
+  [TextStepProperty.text]: { id: 100, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
 export const LoopStepDataInfo: Record<LoopStepProperty, PropertyInfo> = {
   [LoopStepProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SelectPipeDataInfo: Record<SelectPipeProperty, PropertyInfo> = {
   [SelectPipeProperty.text]: { id: 100, name: 'text', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-}
-export const FilterPipeDataInfo: Record<FilterPipeProperty, PropertyInfo> = {
-  [FilterPipeProperty.filter]: { id: 100, name: 'filter', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FilterPipeProperty.constraint]: { id: 101, name: 'constraint', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
-  [FilterPipeProperty.condition]: { id: 102, name: 'condition', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
 }
 export const TriggerPipeDataInfo: Record<TriggerPipeProperty, PropertyInfo> = {
   [TriggerPipeProperty.triggerPtr]: { id: 100, name: 'trigger_ptr', component: ObjectType.PIPE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
@@ -28940,6 +28940,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
 
 export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, PropertyInfo>>> = {
   [BlockType.VALUE]: ValueBlockDataInfo,
+  [BlockType.TEXT]: TextBlockDataInfo,
   [BlockType.ACTION]: ActionBlockDataInfo,
   [BlockType.FLOW]: FlowBlockDataInfo,
   [BlockType.DATABASE]: DatabaseBlockDataInfo,
@@ -28953,12 +28954,11 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
 }
 export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, PropertyInfo>>> = {
   [StepType.ACTION]: ActionStepDataInfo,
-  [StepType.COMMENT]: CommentStepDataInfo,
+  [StepType.TEXT]: TextStepDataInfo,
   [StepType.LOOP]: LoopStepDataInfo,
 }
 export const PipeSubtypePropertyInfo: Partial<Record<PipeType, Record<any, PropertyInfo>>> = {
   [PipeType.SELECT]: SelectPipeDataInfo,
-  [PipeType.FILTER]: FilterPipeDataInfo,
   [PipeType.TRIGGER]: TriggerPipeDataInfo,
 }
 export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {

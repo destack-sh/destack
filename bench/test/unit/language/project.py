@@ -123,7 +123,7 @@ def test_project_missing_nodes(shared_session: Session, shared_package: Package)
         value=Class1(File=File3),
     )
     Text3 = Block.new(
-        BlockType.COMMENT,
+        BlockType.TEXT,
         "Text3",
         text=Text(lines=[TextLine(spans=[TextSpan(node=File2)])]),
     )

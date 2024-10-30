@@ -801,11 +801,11 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BLOCK_TYPE_UNSPECIFIED: _ClassVar[BlockType]
     BLOCK_TYPE_PAGE: _ClassVar[BlockType]
+    BLOCK_TYPE_TEXT: _ClassVar[BlockType]
     BLOCK_TYPE_CLASS: _ClassVar[BlockType]
     BLOCK_TYPE_CHOICE: _ClassVar[BlockType]
     BLOCK_TYPE_SIGNAL: _ClassVar[BlockType]
     BLOCK_TYPE_NOTIFICATION: _ClassVar[BlockType]
-    BLOCK_TYPE_COMMENT: _ClassVar[BlockType]
     BLOCK_TYPE_ACTION: _ClassVar[BlockType]
     BLOCK_TYPE_FLOW: _ClassVar[BlockType]
     BLOCK_TYPE_VALUE: _ClassVar[BlockType]
@@ -1168,7 +1168,7 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_SEND: _ClassVar[StepType]
     STEP_TYPE_YIELD: _ClassVar[StepType]
     STEP_TYPE_LOOP: _ClassVar[StepType]
-    STEP_TYPE_COMMENT: _ClassVar[StepType]
+    STEP_TYPE_TEXT: _ClassVar[StepType]
 
 class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1180,11 +1180,8 @@ class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PIPE_TYPE_UNSPECIFIED: _ClassVar[PipeType]
     PIPE_TYPE_GOTO: _ClassVar[PipeType]
-    PIPE_TYPE_FILTER: _ClassVar[PipeType]
     PIPE_TYPE_SELECT: _ClassVar[PipeType]
     PIPE_TYPE_TRIGGER: _ClassVar[PipeType]
-    PIPE_TYPE_FLATTEN: _ClassVar[PipeType]
-    PIPE_TYPE_ACCUMULATE: _ClassVar[PipeType]
     PIPE_TYPE_STREAM: _ClassVar[PipeType]
 
 class NotificationLevel(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2166,11 +2163,11 @@ TYPE_FORMAT_PHONE_NUMBER: TypeFormat
 TYPE_FORMAT_SLUG: TypeFormat
 BLOCK_TYPE_UNSPECIFIED: BlockType
 BLOCK_TYPE_PAGE: BlockType
+BLOCK_TYPE_TEXT: BlockType
 BLOCK_TYPE_CLASS: BlockType
 BLOCK_TYPE_CHOICE: BlockType
 BLOCK_TYPE_SIGNAL: BlockType
 BLOCK_TYPE_NOTIFICATION: BlockType
-BLOCK_TYPE_COMMENT: BlockType
 BLOCK_TYPE_ACTION: BlockType
 BLOCK_TYPE_FLOW: BlockType
 BLOCK_TYPE_VALUE: BlockType
@@ -2431,17 +2428,14 @@ STEP_TYPE_ACTION: StepType
 STEP_TYPE_SEND: StepType
 STEP_TYPE_YIELD: StepType
 STEP_TYPE_LOOP: StepType
-STEP_TYPE_COMMENT: StepType
+STEP_TYPE_TEXT: StepType
 PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
 PIPE_TYPE_UNSPECIFIED: PipeType
 PIPE_TYPE_GOTO: PipeType
-PIPE_TYPE_FILTER: PipeType
 PIPE_TYPE_SELECT: PipeType
 PIPE_TYPE_TRIGGER: PipeType
-PIPE_TYPE_FLATTEN: PipeType
-PIPE_TYPE_ACCUMULATE: PipeType
 PIPE_TYPE_STREAM: PipeType
 NOTIFICATION_LEVEL_UNSPECIFIED: NotificationLevel
 NOTIFICATION_LEVEL_PASSIVE: NotificationLevel
@@ -4669,6 +4663,12 @@ class ValueBlockData(_message.Message):
     value_packed: _struct_pb2.Value
     def __init__(self, value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
+class TextBlockData(_message.Message):
+    __slots__ = ("text",)
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    text: TextData
+    def __init__(self, text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
+
 class ActionBlockData(_message.Message):
     __slots__ = ("mode", "text", "code", "run_options")
     MODE_FIELD_NUMBER: _ClassVar[int]
@@ -4810,7 +4810,7 @@ class FileData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ..., kind: _Optional[_Union[FileKind, str]] = ..., title: _Optional[str] = ..., external_url: _Optional[str] = ..., inline_content: _Optional[bytes] = ..., type: _Optional[_Union[FileType, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., bitrate: _Optional[int] = ..., channels: _Optional[int] = ..., sample_rate: _Optional[int] = ..., retention: _Optional[_Union[FileRetentionMode, str]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class PipeData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "source_ptr", "target_ptr", "color", "is_hidden")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "source_ptr", "target_ptr", "filter", "constraint", "condition", "color", "is_hidden")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -4832,6 +4832,9 @@ class PipeData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     TARGET_PTR_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
+    CONDITION_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_HIDDEN_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
@@ -4855,25 +4858,18 @@ class PipeData(_message.Message):
     order_key: str
     source_ptr: NodeReferenceData
     target_ptr: NodeReferenceData
+    filter: ExpressionData
+    constraint: TypeConstraintData
+    condition: CodeData
     color: ColorData
     is_hidden: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[PipeType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., is_hidden: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[PipeType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., condition: _Optional[_Union[CodeData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., is_hidden: bool = ...) -> None: ...
 
 class SelectPipeData(_message.Message):
     __slots__ = ("text",)
     TEXT_FIELD_NUMBER: _ClassVar[int]
     text: TextData
     def __init__(self, text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
-
-class FilterPipeData(_message.Message):
-    __slots__ = ("filter", "constraint", "condition")
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
-    CONDITION_FIELD_NUMBER: _ClassVar[int]
-    filter: ExpressionData
-    constraint: TypeConstraintData
-    condition: CodeData
-    def __init__(self, filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., condition: _Optional[_Union[CodeData, _Mapping]] = ...) -> None: ...
 
 class TriggerPipeData(_message.Message):
     __slots__ = ("trigger_ptr",)
@@ -4947,7 +4943,7 @@ class ActionStepData(_message.Message):
     run_options: RunOptionsData
     def __init__(self, mode: _Optional[_Union[ActionMode, str]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ...) -> None: ...
 
-class CommentStepData(_message.Message):
+class TextStepData(_message.Message):
     __slots__ = ("text",)
     TEXT_FIELD_NUMBER: _ClassVar[int]
     text: TextData
