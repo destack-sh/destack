@@ -500,7 +500,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
             :model-value="(node as any).name"
             @keydown.enter.stop.prevent="cancelRename"
             @keydown.escape.stop.prevent="cancelRename"
-            @update:model-value="(newValue) => pkgConnection.tx.update(node, { name: newValue }, { debounce: 'long' })"
+            @update:model-value="
+              (newValue) => pkgConnection.tx.update(node, { name: newValue as string }, { debounce: 'long' })
+            "
           />
           <!-- Name otherwise -->
           <span

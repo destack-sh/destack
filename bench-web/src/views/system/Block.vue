@@ -3,7 +3,6 @@ import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
 import { RUNNABLE_BLOCK_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { unpackSubnodeProperty } from "@/language/node";
-import { isRunnable } from "@/language/session";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
@@ -143,16 +142,16 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     class="group/block relative select-none rounded-sm"
     :class="[block.type != BlockType.TEXT ? 'border' : '']"
     :style="{
-      borderColor: getNodeColorHex(block, ColorShade.S600),
+      borderColor: getNodeColorHex(block, ColorShade.S500),
     }"
   >
     <!-- Header -->
     <div
       v-if="block.type != BlockType.TEXT"
-      class="flex flex-row rounded-t px-2 py-1.5 hover:cursor-grab"
-      :class="block.type == BlockType.PAGE ? 'rounded-b' : ''"
+      class="flex flex-row px-2 py-1.5 hover:cursor-grab"
+      :class="block.type == BlockType.PAGE ? 'rounded-b-sm' : ''"
       :style="{
-        backgroundColor: getNodeColorHex(block, ColorShade.S200),
+        backgroundColor: getNodeColorHex(block, ColorShade.S400),
         height: `${HEADER_HEIGHT}px`,
       }"
       :draggable="true"
@@ -213,7 +212,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             "
             class="rounded-sm"
             :style="{
-              color: getNodeColorHex(block, ColorShade.S600),
+              color: getNodeColorHex(block, ColorShade.S800),
             }"
           >
             <i class="fas fa-ellipsis-v w-5 text-center" />
@@ -245,7 +244,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       v-else-if="block.type != BlockType.PAGE"
       class="border-t"
       :style="{
-        borderColor: getNodeColorHex(block, ColorShade.S600),
+        borderColor: getNodeColorHex(block, ColorShade.S500),
       }"
     >
       <!-- Types -->
@@ -289,6 +288,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class=""
           :class="block.type == BlockType.ACTION ? 'px-2 py-2' : ''"
           :variant="Variant.STEALTH"
+          placeholder="Action description..."
           :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
           v-bind="state.getChildState('text')"
           @update:model-value="
@@ -329,7 +329,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :node-ptr="props.nodePtr"
         :variant="Variant.COMPACT"
         is-input
-        :padding-x="12"
+        :padding-x="6"
         :padding-y="8"
       />
     </div>

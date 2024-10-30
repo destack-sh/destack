@@ -118,17 +118,10 @@ watch(
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
-    <!-- Top inset if we don't have a bar -->
-    <!-- (to add some spacing so that the space contents don't look 'squished' to the top) -->
-    <div
-      v-if="barPosition != Anchor.TOP"
-      class="absolute top-0 w-full bg-gray-100"
-      :style="{ height: TOP_INSET_WITHOUT_BAR + 'px' }"
-    />
     <!-- Bar -->
     <Bar
       ref="barRef"
-      class="absolute border-gray-300 bg-gray-100"
+      class="absolute"
       :class="barOrientation == Orientation.VERTICAL ? 'border-x' : 'border-y'"
       :anchor="barPosition"
       :orientation="barOrientation"

@@ -687,7 +687,6 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="flex w-full flex-row items-center gap-x-1"
       :style="{
         height: `${ACTION_HEADER_HEIGHT}px`,
-        paddingTop: `${props.paddingY ?? 0}px`,
         paddingLeft: `${props.paddingX ?? 0}px`,
         paddingRight: `${props.paddingX ?? 0}px`,
       }"
@@ -699,10 +698,10 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
           :key="i"
-          class="group rounded-sm border border-sky-600 bg-sky-200 px-2 py-0.5"
+          class="group rounded-sm border border-sky-500 bg-sky-400 px-2 py-0.5"
         >
           <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
-          <span class="text-gray-700">{{
+          <span class="text-gray-900">{{
             findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
           }}</span>
           <button class="ml-1.5 text-gray-400 opacity-0 group-hover:opacity-100" @click="() => sorts.splice(i, 1)">
@@ -756,7 +755,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Controls -->
         <!-- Add field -->
         <button
-          class="group/button rounded-sm border border-emerald-600 bg-emerald-200 px-2 py-0.5"
+          class="group/button rounded-sm border border-emerald-500 bg-emerald-400 px-2 py-0.5 hover:bg-emerald-300"
           @click="
             (e) => {
               const button = (e.target as HTMLElement).closest('button')!;
@@ -780,7 +779,10 @@ defineExpose<ViewExposed>({ self, id, actions });
           <span>Field</span>
         </button>
         <!-- Add record -->
-        <button class="group/button rounded-sm border border-sky-600 bg-sky-200 px-2 py-0.5" @click="() => createRecord()">
+        <button
+          class="group/button rounded-sm border border-sky-500 bg-sky-400 px-2 py-0.5 hover:bg-sky-300"
+          @click="() => createRecord()"
+        >
           <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-sky-900" />
           <span class="">Record</span>
         </button>

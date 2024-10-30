@@ -132,8 +132,8 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.SIGNAL]: ColorType.EMERALD,
   [BlockType.NOTIFICATION]: ColorType.EMERALD,
   // runnables
-  [BlockType.ACTION]: ColorType.ORANGE,
-  [BlockType.FLOW]: ColorType.ORANGE,
+  [BlockType.ACTION]: ColorType.AMBER,
+  [BlockType.FLOW]: ColorType.AMBER,
   // view
   [BlockType.VIEW]: ColorType.YELLOW,
   // auth
@@ -142,10 +142,10 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
 };
 
 export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
-  [StepType.START]: ColorType.AMBER,
-  [StepType.COMPLETE]: ColorType.AMBER,
-  [StepType.TRIGGER]: ColorType.AMBER,
-  [StepType.ACTION]: ColorType.ORANGE,
+  [StepType.START]: ColorType.YELLOW,
+  [StepType.COMPLETE]: ColorType.YELLOW,
+  [StepType.TRIGGER]: ColorType.YELLOW,
+  [StepType.ACTION]: ColorType.AMBER,
   [StepType.FAIL]: ColorType.DANGER,
   [StepType.TEXT]: ColorType.GRAY,
   [StepType.LOOP]: ColorType.GRAY,
