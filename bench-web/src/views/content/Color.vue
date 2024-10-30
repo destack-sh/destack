@@ -69,7 +69,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         })
       "
       :disabled="isDisabled || !isInput"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row items-center rounded-sm border border-gray-300 px-2 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
     >
       <!-- Current Value -->
       <template v-if="modelValue != null">
@@ -95,14 +95,14 @@ defineExpose<ViewExposed>({ self, id, focus });
     </button>
 
     <!-- Inline Multi-Toggle -->
-    <div v-else class="grid grid-cols-9 gap-x-0.5 gap-y-0.5 rounded border-gray-200 bg-white px-1 py-1">
+    <div v-else class="grid grid-cols-9 gap-x-0.5 gap-y-0.5 rounded-sm border-gray-300 bg-white px-1 py-1">
       <button
         v-for="(color, i) in REAL_COLORS"
         :ref="(ref?: any) => (ref != null ? (itemRefs[color] = ref) : delete itemRefs[color])"
         :key="i"
         v-tooltip="{ title: getColorTitle(color), showDelay: 200, hideDelay: 100, small: true }"
         :disabled="isDisabled || !isInput"
-        class="rounded border border-transparent px-1 py-0.5 outline-none hover:border-gray-300 hover:bg-gray-100 focus:ring-0 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-100"
+        class="rounded-sm border border-transparent px-1 py-0.5 outline-none hover:border-gray-300 hover:bg-gray-100 focus:ring-0 data-[active=true]:border-gray-300 data-[active=true]:bg-gray-100"
         :data-selected="color == modelValue?.type"
         :data-active="color == activeResultId"
         @click.stop.prevent="fire(color)"

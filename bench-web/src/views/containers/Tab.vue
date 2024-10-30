@@ -234,7 +234,7 @@ defineExpose<ViewExposed>({ self, actions });
             };
           }
         "
-        class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-gray-200 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-gray-300 px-2.5 hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
           i == focusedTabIdx ? 'bg-white text-primary-900' : 'border-b hover:text-primary-900',
@@ -270,7 +270,7 @@ defineExpose<ViewExposed>({ self, actions });
         />
       </button>
       <!-- Remaining space -->
-      <div class="flex-1 border-b border-gray-200" />
+      <div class="flex-1 border-b border-gray-300" />
       <!-- Drop indicator if no tab -->
       <div
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"

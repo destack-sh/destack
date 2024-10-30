@@ -155,7 +155,7 @@ const dockActions: Ref<Action[]> = computed(
     <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
       <template #trigger="{ toggle, isOpen }">
         <button
-          class="flex h-[30px] w-full select-none flex-row items-center rounded px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+          class="flex h-[30px] w-full select-none flex-row items-center rounded-sm px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
           :class="[isOpen ? 'bg-gray-100' : '']"
           @click="toggle"
         >
@@ -169,7 +169,7 @@ const dockActions: Ref<Action[]> = computed(
           <!-- Bench Info -->
           <template v-if="bench" #header>
             <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-              <div class="mr-2 w-10 rounded border border-gray-300 bg-gray-100 py-0.5 text-center text-lg">
+              <div class="mr-2 w-10 rounded-sm border border-gray-300 bg-gray-100 py-0.5 text-center text-lg">
                 <IconInline v-if="bench.icon" class="text-gray-700" v-bind="bench.icon" />
                 <img v-else src="@/assets/icon_outline.svg" class="mx-auto h-7 w-7 rounded-md" />
               </div>
@@ -208,7 +208,7 @@ const dockActions: Ref<Action[]> = computed(
         v-for="action in dockActions"
         :key="action.id"
         v-tooltip="tooltipFromAction(action, { placement: 'top', showDelay: 800, group: 'bar.dock' })"
-        class="rounded px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+        class="rounded-sm px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
         @click="fireActionById(action.id)"
       >
         <IconInline class="text-base" v-bind="action.icon" />
@@ -240,7 +240,7 @@ const dockActions: Ref<Action[]> = computed(
               <!-- User Info -->
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-                  <div class="mr-2 rounded border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xl">
+                  <div class="mr-2 rounded-sm border border-gray-300 bg-gray-100 px-2.5 py-0.5 text-xl">
                     <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">

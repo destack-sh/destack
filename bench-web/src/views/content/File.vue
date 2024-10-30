@@ -191,13 +191,13 @@ defineExpose<ViewExposed>({
       v-if="!isInline"
       ref="containerRef"
       v-hovermenu="HOVER_MENU"
-      class="group flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row items-center truncate rounded-sm transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-900 outline outline-1 outline-primary-900'
-          : 'border-gray-200 hover:border-gray-300',
+          : 'border-gray-300 hover:border-gray-300',
         variant == Variant.STEALTH && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
       ]"
       @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
@@ -251,13 +251,13 @@ defineExpose<ViewExposed>({
     <div
       v-else-if="optimisticValue == null"
       ref="containerRef"
-      class="group flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
+      class="group flex h-full w-full cursor-pointer flex-col justify-center rounded-sm text-center transition-all duration-75"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-900 text-primary-900 outline outline-2 outline-primary-900'
-          : 'border-gray-200 text-gray-400 hover:border-gray-300',
+          : 'border-gray-300 text-gray-400 hover:border-gray-300',
       ]"
       @click.stop="fileInputRef!.click()"
     >
@@ -274,7 +274,7 @@ defineExpose<ViewExposed>({
     <div
       v-else
       ref="containerRef"
-      class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
+      class="group relative flex h-full w-full flex-col justify-center rounded-sm border-gray-300"
       :class="[
         variant != Variant.STEALTH ? 'border py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
@@ -288,7 +288,7 @@ defineExpose<ViewExposed>({
           :key="download.getUrl.value"
           :src="download.getUrl.value"
           :alt="optimisticValue?.title ?? '???'"
-          class="h-full w-full rounded object-contain object-center"
+          class="h-full w-full rounded-sm object-contain object-center"
           :style="{
             maxWidth: size?.width != null ? `${size.width}px` : undefined,
             maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
@@ -370,7 +370,7 @@ defineExpose<ViewExposed>({
         </div>
         <!-- Meta/Controls -->
         <div
-          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
+          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded-sm border border-gray-300 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
           <span v-if="optimisticValue?.format" class="">
@@ -383,7 +383,7 @@ defineExpose<ViewExposed>({
           <!-- Focus -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
+            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="openFile()"
           >
             <i class="fas fa-magnifying-glass-plus" />
@@ -391,7 +391,7 @@ defineExpose<ViewExposed>({
           <!-- Replace -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
+            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="fileInputRef?.click()"
           >
             <i class="fas fa-shuffle" />
@@ -399,7 +399,7 @@ defineExpose<ViewExposed>({
           <!-- Remove -->
           <button
             v-if="isInput && !isDisabled && !valueType?.isRequired"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
+            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="emit('update:modelValue', null)"
           >
             <i class="fas fa-xmark" />

@@ -33,7 +33,7 @@ const path = computed(() => {
     <template v-for="(node, i) in path" :key="i">
       <!-- Node -->
       <button
-        class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
+        class="flex cursor-pointer flex-row items-center rounded-sm px-0.5 hover:bg-gray-100 hover:text-primary-900"
         role="button"
         :data-node-id="node.id"
         :data-node-ck="(node as any).ck"

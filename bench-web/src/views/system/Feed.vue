@@ -383,7 +383,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         :key="pill.name"
         :disabled="!pill.isEnabled"
         :data-active="isPillActive(pill)"
-        class="data-[active=true] rounded-2xl border border-gray-200 px-2 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900 data-[active=false]:hover:text-primary-900"
+        class="data-[active=true] rounded-2xl border border-gray-300 px-2 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900 data-[active=false]:hover:text-primary-900"
         @click="togglePill(pill)"
       >
         <span>{{ pill.name }}</span>
@@ -433,7 +433,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           <!-- Handle -->
           <div
             v-if="!isInline"
-            class="flex-shrink-0 rounded transition-colors duration-75"
+            class="flex-shrink-0 rounded-sm transition-colors duration-75"
             :style="{ width: HANDLE_WIDTH + 'px' }"
             :class="
               item.id == inspectionPtr?.id

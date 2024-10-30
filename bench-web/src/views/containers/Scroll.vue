@@ -146,7 +146,7 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
     >
       <div
         v-if="area.isOverflown.value"
-        class="absolute z-40 rounded transition-colors duration-300"
+        class="absolute z-40 rounded-sm transition-colors duration-300"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
           showScrolling ? 'bg-gray-400 opacity-100' : '',

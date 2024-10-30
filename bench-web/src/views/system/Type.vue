@@ -132,7 +132,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 <template>
   <ul
     ref="containerRef"
-    class="relative flex gap-x-2 gap-y-1 rounded"
+    class="relative flex gap-x-2 gap-y-1 rounded-sm"
     :class="[
       orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
       activeDropZone != null ? 'outline outline-2 outline-primary-900' : '',

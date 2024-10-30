@@ -87,7 +87,7 @@ export default {
       transitionDuration: {
         0: "0ms",
         2000: "2000ms",
-      }
+      },
     },
   },
   variants: {

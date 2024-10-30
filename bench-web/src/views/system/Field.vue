@@ -74,7 +74,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 rounded border px-1.5 py-[3px] transition-colors duration-75"
+    class="flex w-fit items-center gap-x-1.5 rounded-sm border px-1.5 py-[3px] transition-colors duration-75"
     :class="[orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse']"
     :style="{
       borderColor: getNodeColorHex(field, ColorShade.S600),
@@ -94,7 +94,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         })
       "
       v-bind="getNodeIcon(field)"
-      class="w-5 rounded p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      class="w-5 rounded-sm p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
       :class="
         isInspected && variant == Variant.STEALTH
           ? 'text-primary-900'
