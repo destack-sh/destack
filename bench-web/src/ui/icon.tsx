@@ -42,7 +42,6 @@ import type { FunctionalComponent } from "vue";
 //  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
-import { NODE_SUBTYPE_BY_TYPE } from "@/language/const";
 import type { TypeIdentity } from "@/language/field";
 import { isNode, type SomeNodeReferenceData } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
@@ -290,10 +289,12 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
-  [PipeType.GOTO]: "fas fa-arrow-right-long",
-  [PipeType.SELECT]: "fas "
+  [PipeType.GO]: "fas fa-arrow-right-long",
+  [PipeType.SELECT]: "fas fa-question",
+  [PipeType.OPTION]: "fas fa-circle-chevron-down",
+  [PipeType.TRIGGER]: "fas fa-bolt",
+  [PipeType.STREAM]: "fas fa-signal-stream",
 });
-
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
   //
@@ -645,9 +646,9 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
 }
 
 /** Gets the icon for a node 'subtype' (enum property) with the given name/value.  */
-function getNodeSubtypeIcon(nodeType: NodeType, subtypeKey: string, subtype: any): IconData | undefined {
+function getNodeSubtypeIcon(nodeType: NodeType, subtype: any): IconData | undefined {
   const allProperties = PROPERTY_ENUM_BY_TYPE[nodeType]!;
-  const prop = PROPERTY_INFOS_BY_TYPE[nodeType][allProperties[subtypeKey as any]];
+  const prop = PROPERTY_INFOS_BY_TYPE[nodeType][allProperties['type' as any]];
   if (prop?.enumType != null) {
     const enumIcons = ICONS_BY_ENUM_TYPE[prop.enumType];
     if (enumIcons?.[subtype] != null) {
@@ -674,11 +675,9 @@ export function getNodeIcon(
   // get icon for subtype
   const nodeType =
     options?.nodeType ?? (isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).nodeType);
-  const nodeSubtypeKey = NODE_SUBTYPE_BY_TYPE[nodeType];
-  const nodeSubtype =
-    nodeSubtypeKey != null ? ((node as ChangeVignetteData).subtype ?? (node as any)[nodeSubtypeKey]) : undefined;
+  const nodeSubtype = (node as ChangeVignetteData).subtype ?? (node as any).type;
   if (nodeSubtype != null) {
-    const nodeSubtypeIcon = getNodeSubtypeIcon(nodeType, nodeSubtypeKey!, nodeSubtype);
+    const nodeSubtypeIcon = getNodeSubtypeIcon(nodeType, nodeSubtype);
     if (nodeSubtypeIcon != null) {
       return nodeSubtypeIcon;
     }

@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING, Optional, Type, Union, cast
 
 import cachetools
 
+from bench.language.action import ActionBase
 from bench.language.const import (
-    ActionMode,
     BlockType,
     EnumType,
     FieldType,
@@ -44,7 +44,6 @@ if TYPE_CHECKING:
         Field,
         Icon,
         NodeReference,
-        RunOptions,
         Text,
         Trigger,
         TypeConstraint,
@@ -68,15 +67,17 @@ FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldType, ...]] = {
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    GOTO = 1
+    GO = 1
     SELECT = 2
-    TRIGGER = 3
+    OPTION = 3
+    TRIGGER = 4
     STREAM = 50
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
-    PipeType.GOTO: "->",
-    PipeType.SELECT: "-o>",
+    PipeType.GO: "->",
+    PipeType.SELECT: "-?>",
+    PipeType.OPTION: "-o>",
     PipeType.TRIGGER: "-&>",
     PipeType.STREAM: "-=-",
 }
@@ -96,22 +97,25 @@ class Pipe(SourceNode[PipeData]):
     type: PipeType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-
-    source: "Step" = p_regular(40, require=True, references=NodeType.STEP)
-    target: "Step" = p_regular(41, require=True, references=NodeType.STEP)
+    source: "Step" = p_regular(35, require=True, references=NodeType.STEP)
+    target: "Step" = p_regular(36, require=True, references=NodeType.STEP)
     if TYPE_CHECKING:
         source_ptr: Optional[NodeReference] = None
         target_ptr: Optional[NodeReference] = None
 
+    associated_fields: list["Field"] = p_regular(
+        40, require=False, array=True, references=NodeType.FIELD
+    )
+
     # filter
     filter: Optional["Expression"] = p_regular(
-        50, default=None, require=False, array=False, struct=StructType.EXPRESSION
+        60, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
     constraint: Optional["TypeConstraint"] = p_regular(
-        51, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
+        61, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
     )
     condition: Optional["Code"] = p_regular(
-        52, default=None, require=False, array=False, struct=StructType.CODE
+        62, default=None, require=False, array=False, struct=StructType.CODE
     )
 
     # mapping
@@ -334,26 +338,9 @@ class Step(SourceNode[StepData]):
 
 
 @node_subtype_(StepType.ACTION)
-class ActionStep(Step):
-    mode: ActionMode = p_regular(100, default=ActionMode.DYNAMIC)
-    code: Optional["Code"] = p_regular(
-        101, default=None, require=False, array=False, struct=StructType.CODE
-    )
-    text: Optional["Text"] = p_regular(
-        102, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-    node: Optional["Block"] = p_regular(
-        103,
-        require=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
-    )
-    run_options: Optional["RunOptions"] = p_regular(
-        110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
-
-    if TYPE_CHECKING:
-        node_ptr: Optional["NodeReference"] = None
+class ActionStep(Step, ActionBase):
+    # ...ActionBase[100-129]
+    ...
 
 
 @node_subtype_(StepType.TEXT)

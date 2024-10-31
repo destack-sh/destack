@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.10.30.2"
+VERSION = "2024.10.31.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1064,6 +1064,13 @@ PIPE_TABLE = Table(
         Column("target_id", PrimitiveType.UUID),
         Column("target_ck", PrimitiveType.UUID),
         Column("target_bench_id", PrimitiveType.UUID),
+        Column("associated_fields_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("associated_fields_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("associated_fields_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("associated_fields_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column(
+            "associated_fields_base_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True
+        ),
         Column("filter", PrimitiveType.JSON, is_nullable=True),
         Column("constraint", PrimitiveType.JSON, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
@@ -1242,6 +1249,9 @@ RUN_TABLE = Table(
         Column("step_id", PrimitiveType.UUID, is_nullable=True),
         Column("step_ck", PrimitiveType.UUID, is_nullable=True),
         Column("step_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("cached_duration", PrimitiveType.INTERVAL, is_nullable=True),

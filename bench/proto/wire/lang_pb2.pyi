@@ -195,6 +195,8 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_RUN_FRAME: _ClassVar[StructType]
     STRUCT_TYPE_RUN_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_RUN_EVENT: _ClassVar[StructType]
+    STRUCT_TYPE_CONTEXT: _ClassVar[StructType]
+    STRUCT_TYPE_CONTINUATION: _ClassVar[StructType]
     STRUCT_TYPE_BREAKPOINT: _ClassVar[StructType]
     STRUCT_TYPE_LOG_INFO: _ClassVar[StructType]
     STRUCT_TYPE_COLOR: _ClassVar[StructType]
@@ -289,6 +291,8 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_RUN_FRAME: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_SPAN: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_EVENT: _ClassVar[ObjectType]
+    OBJECT_TYPE_CONTEXT: _ClassVar[ObjectType]
+    OBJECT_TYPE_CONTINUATION: _ClassVar[ObjectType]
     OBJECT_TYPE_BREAKPOINT: _ClassVar[ObjectType]
     OBJECT_TYPE_LOG_INFO: _ClassVar[ObjectType]
     OBJECT_TYPE_COLOR: _ClassVar[ObjectType]
@@ -383,6 +387,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_RUN_FRAME: _ClassVar[BenchType]
     BENCH_TYPE_RUN_SPAN: _ClassVar[BenchType]
     BENCH_TYPE_RUN_EVENT: _ClassVar[BenchType]
+    BENCH_TYPE_CONTEXT: _ClassVar[BenchType]
+    BENCH_TYPE_CONTINUATION: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT: _ClassVar[BenchType]
     BENCH_TYPE_LOG_INFO: _ClassVar[BenchType]
     BENCH_TYPE_COLOR: _ClassVar[BenchType]
@@ -822,8 +828,10 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ActionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ACTION_MODE_UNSPECIFIED: _ClassVar[ActionMode]
+    ACTION_MODE_STRICT: _ClassVar[ActionMode]
+    ACTION_MODE_ADAPTIVE: _ClassVar[ActionMode]
+    ACTION_MODE_LENIENT: _ClassVar[ActionMode]
     ACTION_MODE_DYNAMIC: _ClassVar[ActionMode]
-    ACTION_MODE_STATIC: _ClassVar[ActionMode]
 
 class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1184,8 +1192,9 @@ class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PIPE_TYPE_UNSPECIFIED: _ClassVar[PipeType]
-    PIPE_TYPE_GOTO: _ClassVar[PipeType]
+    PIPE_TYPE_GO: _ClassVar[PipeType]
     PIPE_TYPE_SELECT: _ClassVar[PipeType]
+    PIPE_TYPE_OPTION: _ClassVar[PipeType]
     PIPE_TYPE_TRIGGER: _ClassVar[PipeType]
     PIPE_TYPE_STREAM: _ClassVar[PipeType]
 
@@ -1637,6 +1646,8 @@ STRUCT_TYPE_RUN_TRACE: StructType
 STRUCT_TYPE_RUN_FRAME: StructType
 STRUCT_TYPE_RUN_SPAN: StructType
 STRUCT_TYPE_RUN_EVENT: StructType
+STRUCT_TYPE_CONTEXT: StructType
+STRUCT_TYPE_CONTINUATION: StructType
 STRUCT_TYPE_BREAKPOINT: StructType
 STRUCT_TYPE_LOG_INFO: StructType
 STRUCT_TYPE_COLOR: StructType
@@ -1728,6 +1739,8 @@ OBJECT_TYPE_RUN_TRACE: ObjectType
 OBJECT_TYPE_RUN_FRAME: ObjectType
 OBJECT_TYPE_RUN_SPAN: ObjectType
 OBJECT_TYPE_RUN_EVENT: ObjectType
+OBJECT_TYPE_CONTEXT: ObjectType
+OBJECT_TYPE_CONTINUATION: ObjectType
 OBJECT_TYPE_BREAKPOINT: ObjectType
 OBJECT_TYPE_LOG_INFO: ObjectType
 OBJECT_TYPE_COLOR: ObjectType
@@ -1819,6 +1832,8 @@ BENCH_TYPE_RUN_TRACE: BenchType
 BENCH_TYPE_RUN_FRAME: BenchType
 BENCH_TYPE_RUN_SPAN: BenchType
 BENCH_TYPE_RUN_EVENT: BenchType
+BENCH_TYPE_CONTEXT: BenchType
+BENCH_TYPE_CONTINUATION: BenchType
 BENCH_TYPE_BREAKPOINT: BenchType
 BENCH_TYPE_LOG_INFO: BenchType
 BENCH_TYPE_COLOR: BenchType
@@ -2183,8 +2198,10 @@ BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_ROLE: BlockType
 BLOCK_TYPE_IDENTITY: BlockType
 ACTION_MODE_UNSPECIFIED: ActionMode
+ACTION_MODE_STRICT: ActionMode
+ACTION_MODE_ADAPTIVE: ActionMode
+ACTION_MODE_LENIENT: ActionMode
 ACTION_MODE_DYNAMIC: ActionMode
-ACTION_MODE_STATIC: ActionMode
 SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
 SCHEDULE_TYPE_INTERVAL: ScheduleType
 SCHEDULE_TYPE_CRON: ScheduleType
@@ -2440,8 +2457,9 @@ PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
 PIPE_TYPE_UNSPECIFIED: PipeType
-PIPE_TYPE_GOTO: PipeType
+PIPE_TYPE_GO: PipeType
 PIPE_TYPE_SELECT: PipeType
+PIPE_TYPE_OPTION: PipeType
 PIPE_TYPE_TRIGGER: PipeType
 PIPE_TYPE_STREAM: PipeType
 NOTIFICATION_LEVEL_UNSPECIFIED: NotificationLevel
@@ -3326,6 +3344,30 @@ class AccessData(_message.Message):
         verb: _Optional[_Union[AccessType, str]] = ...,
         node_type: _Optional[_Union[NodeType, str]] = ...,
         allowed_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ...,
+    ) -> None: ...
+
+class ContextData(_message.Message):
+    __slots__ = ("metatype", "runs_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    RUNS_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    runs_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    def __init__(
+        self,
+        metatype: _Optional[_Union[ObjectType, str]] = ...,
+        runs_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
+    ) -> None: ...
+
+class ContinuationData(_message.Message):
+    __slots__ = ("metatype", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    node_ptr: NodeReferenceData
+    def __init__(
+        self,
+        metatype: _Optional[_Union[ObjectType, str]] = ...,
+        node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
     ) -> None: ...
 
 class SelectOptionsData(_message.Message):
@@ -6403,20 +6445,23 @@ class TextBlockData(_message.Message):
     def __init__(self, text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
 
 class ActionBlockData(_message.Message):
-    __slots__ = ("mode", "text", "code", "run_options")
+    __slots__ = ("mode", "text", "code", "node_ptr", "run_options")
     MODE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     mode: ActionMode
     text: TextData
     code: CodeData
+    node_ptr: NodeReferenceData
     run_options: RunOptionsData
     def __init__(
         self,
         mode: _Optional[_Union[ActionMode, str]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
+        node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
     ) -> None: ...
 
@@ -6679,6 +6724,7 @@ class PipeData(_message.Message):
         "order_key",
         "source_ptr",
         "target_ptr",
+        "associated_fields_ptr",
         "filter",
         "constraint",
         "condition",
@@ -6706,6 +6752,7 @@ class PipeData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     TARGET_PTR_FIELD_NUMBER: _ClassVar[int]
+    ASSOCIATED_FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
     CONDITION_FIELD_NUMBER: _ClassVar[int]
@@ -6732,6 +6779,7 @@ class PipeData(_message.Message):
     order_key: str
     source_ptr: NodeReferenceData
     target_ptr: NodeReferenceData
+    associated_fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     filter: ExpressionData
     constraint: TypeConstraintData
     condition: CodeData
@@ -6760,6 +6808,7 @@ class PipeData(_message.Message):
         order_key: _Optional[str] = ...,
         source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        associated_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         filter: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ...,
         condition: _Optional[_Union[CodeData, _Mapping]] = ...,
@@ -6885,22 +6934,22 @@ class StepData(_message.Message):
     ) -> None: ...
 
 class ActionStepData(_message.Message):
-    __slots__ = ("mode", "code", "text", "node_ptr", "run_options")
+    __slots__ = ("mode", "text", "code", "node_ptr", "run_options")
     MODE_FIELD_NUMBER: _ClassVar[int]
-    CODE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
+    CODE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     mode: ActionMode
-    code: CodeData
     text: TextData
+    code: CodeData
     node_ptr: NodeReferenceData
     run_options: RunOptionsData
     def __init__(
         self,
         mode: _Optional[_Union[ActionMode, str]] = ...,
-        code: _Optional[_Union[CodeData, _Mapping]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
+        code: _Optional[_Union[CodeData, _Mapping]] = ...,
         node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
     ) -> None: ...
@@ -7675,6 +7724,7 @@ class RunData(_message.Message):
         "root_ptr",
         "block_ptr",
         "step_ptr",
+        "pipe_ptr",
         "status",
         "duration",
         "cached_duration",
@@ -7720,6 +7770,7 @@ class RunData(_message.Message):
     ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STEP_PTR_FIELD_NUMBER: _ClassVar[int]
+    PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     CACHED_DURATION_FIELD_NUMBER: _ClassVar[int]
@@ -7764,6 +7815,7 @@ class RunData(_message.Message):
     root_ptr: NodeReferenceData
     block_ptr: NodeReferenceData
     step_ptr: NodeReferenceData
+    pipe_ptr: NodeReferenceData
     status: RunStatus
     duration: _duration_pb2.Duration
     cached_duration: _duration_pb2.Duration
@@ -7810,6 +7862,7 @@ class RunData(_message.Message):
         root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         status: _Optional[_Union[RunStatus, str]] = ...,
         duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         cached_duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,

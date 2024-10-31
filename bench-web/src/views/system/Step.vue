@@ -28,6 +28,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { IS_CHROMIUM } from "@/system/client";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
@@ -145,7 +146,10 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-for="side in sides"
       class="absolute left-1/2 -translate-x-1/2"
-      :class="[side == PortSide.INCOMING ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2']"
+      :class="[
+        side == PortSide.INCOMING ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2',
+        IS_CHROMIUM ? '' : '-mt-1 mb-1', // NOTE :Cleanup: why do we need this Step port offset for non-chromium?
+      ]"
     >
       <button
         class="relative cursor-crosshair rounded-sm border bg-white outline-none transition-colors duration-150 hover:bg-gray-100"
@@ -279,6 +283,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <Text
         id="text"
         class=""
+        placeholder="Text..."
         is-input
         :variant="Variant.STEALTH"
         :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, 'text')"

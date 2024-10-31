@@ -342,7 +342,9 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             :value-type="TITLE_TYPE"
             :variant="Variant.STEALTH"
             :model-value="thread?.title"
-            @update:model-value="(newValue) => pkgConnection.tx.update(node!, { name: newValue }, { debounce: 'long' })"
+            @update:model-value="
+              (newValue) => pkgConnection.tx.update(node!, { name: newValue as string }, { debounce: 'long' })
+            "
           />
           <!-- Select thread -->
           <button

@@ -138,6 +138,8 @@ export const clientMeta = readonly(
   }),
 );
 
+export const IS_CHROMIUM = clientMeta.value.browserName == "Chrome";
+
 function setUser(info: { user: Required<LocalStorage>["userInfo"]; client: Required<LocalStorage>["clientInfo"] }) {
   log.trace("local.setUser", { user: info.user });
   _userInfo.value = info.user;

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.10.30.2"
+VERSION = "2024.10.31.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -417,7 +417,9 @@ class StructType(IdEnum):
     RUN_FRAME = 10504
     RUN_SPAN = 10505
     RUN_EVENT = 10506
-    BREAKPOINT = 10520
+    CONTEXT = 10510
+    CONTINUATION = 10511
+    BREAKPOINT = 10540
     LOG_INFO = 10550
 
     # space/views
@@ -676,12 +678,6 @@ class BlockTypes:
     CLASSES = bittuple(
         BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE
     )
-
-
-@enum_(EnumType.ACTION_MODE)
-class ActionMode(IdEnum):
-    DYNAMIC = 1
-    STATIC = 2
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8
