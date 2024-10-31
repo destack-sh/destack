@@ -147,11 +147,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   >
     <!-- Header -->
     <div
-      v-if="block.type != BlockType.TEXT"
+      v-if="block.type != BlockType.TEXT && block.type"
       class="flex flex-row px-2 py-1.5 hover:cursor-grab"
       :class="block.type == BlockType.PAGE ? 'rounded-b-sm' : ''"
       :style="{
-        backgroundColor: getNodeColorHex(block, ColorShade.S400),
+        backgroundColor: block.type != BlockType.PAGE ? getNodeColorHex(block, ColorShade.S400) : '',
         height: `${HEADER_HEIGHT}px`,
       }"
     >
@@ -208,10 +208,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
               })
             "
-            class="rounded-sm"
-            :style="{
-              color: getNodeColorHex(block, ColorShade.S800),
-            }"
+            class="rounded-sm text-gray-800 hover:text-primary-700"
           >
             <i class="fas fa-ellipsis-v w-5 text-center" />
           </button>

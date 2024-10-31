@@ -237,7 +237,7 @@ defineExpose<ViewExposed>({ self, actions });
         class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-gray-300 px-2.5 hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
-          i == focusedTabIdx ? 'bg-white text-primary-700' : 'border-b hover:text-primary-700',
+          i == focusedTabIdx ? 'bg-white text-gray-900' : 'border-b ',
           i != focusedTabIdx ? 'text-gray-600' : '',
           hasOneTab ? 'w-full max-w-full' : 'max-w-52 border-r',
         ]"
@@ -249,7 +249,6 @@ defineExpose<ViewExposed>({ self, actions });
         <IconInline
           v-bind="tab.icon ?? ICON_BY_VIEW_TYPE[tab.type] ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
           class="mr-1.5 w-5"
-          :class="i == focusedTabIdx ? '' : 'group-hover:text-primary-700'"
         />
         <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
         <!-- Close tab -->

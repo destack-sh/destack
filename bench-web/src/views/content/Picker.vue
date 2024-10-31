@@ -260,8 +260,8 @@ defineExpose<ViewExposed>({
         <button
           v-for="(v, i) in valueVignettes"
           :key="i"
-          class="mr-2 flex flex-row items-center rounded-sm border border-gray-300 px-1"
-          :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
+          class="mr-2 flex flex-row items-center rounded-sm"
+          :class="valueType?.isList ? 'bg-gray-100 border border-gray-300 px-1' : ''"
         >
           <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
           <span class="truncate">{{ v.title ?? "???" }}</span>
@@ -331,7 +331,7 @@ defineExpose<ViewExposed>({
     <!-- Inline Combobox -->
     <div v-else-if="isInline" :style="{ width: width + 'px' }">
       <!-- Header -->
-      <div class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b border-gray-300 px-2.5 py-1">
+      <div class="flex w-full flex-row flex-wrap items-center gap-y-1.5 border-b border-gray-300 px-2.5 py-1">
         <!-- Current value -->
         <template v-if="valueType?.isList">
           <button

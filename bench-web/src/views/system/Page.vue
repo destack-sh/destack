@@ -57,7 +57,6 @@ const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 44;
 const BLOCK_GAP_Y = 12;
 const HANDLE_WIDTH = 6;
-const SEPARATOR_WIDTH = 6;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -330,7 +329,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <NativeInput
             id="name"
             ref="nameRef"
-            class="flex-shrink-0 mb-2 mt-4 text-3xl font-bold transition-colors duration-150"
+            class="mb-2 mt-4 flex-shrink-0 text-3xl font-bold transition-colors duration-150"
             placeholder="Page name..."
             is-input
             :value-type="NAME_TYPE"
@@ -353,9 +352,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Left gutter -->
             <div
               class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-2 text-right"
-              :style="{ width: widths.gutter + 'px', marginTop: SEPARATOR_WIDTH + 'px' }"
+              :style="{ width: widths.gutter + 'px' }"
             >
-              <!-- Activity / Run / ... -->
+              <!-- ... -->
             </div>
 
             <!-- Block wrapper -->
@@ -395,9 +394,25 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Right gutter -->
             <div
               class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
-              :style="{ width: widths.gutter, marginTop: SEPARATOR_WIDTH + 'px' }"
+              :style="{ width: widths.gutter }"
             >
-              <!-- ...? -->
+              <!-- Create above / below -->
+              <button
+                v-menu="
+                  (): PopoverInfoIn => ({
+                    component: ViewType.PICKER,
+                    placement: 'bottom',
+                    props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
+                    onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'before', block),
+                  })
+                "
+                class="ml-2 -translate-y-1/2 opacity-0 text-gray-400 hover:text-primary-700 transition-colors duration-150 hover:opacity-100 group-hover/block-line:opacity-100 data-[popover=true]:opacity-100"
+                :style="{
+                  marginTop: -BLOCK_GAP_Y / 2 +'px',
+                }"
+              >
+                <i class="fas fa-plus" />
+              </button>
             </div>
           </div>
         </template>

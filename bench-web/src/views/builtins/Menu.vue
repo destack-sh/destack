@@ -218,33 +218,26 @@ defineExpose({ focus, clear, query });
         :ref="(ref?: any) => (ref != null ? (itemRefs[i] = ref) : delete itemRefs[i])"
         role="menuitem"
         :data-active="activeItemIdx === i"
-        class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded-sm border border-transparent px-2"
-        :class="[
-          item.isDisabled
-            ? 'text-gray-500'
-            : 'hover:cursor-pointer hover:bg-gray-100 data-[active=true]:border-primary-700 data-[active=true]:text-primary-700',
-          activeNestedItemIdx == i ? 'border-primary-700 text-primary-700' : '',
-        ]"
+        class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded-sm px-2"
+        :class="[item.isDisabled ? 'text-gray-500' : 'hover:cursor-pointer hover:bg-gray-100 hover:text-primary-700']"
         @click.prevent="(e) => !item.isDisabled && (e.stopPropagation(), fire(i))"
         @mouseenter="() => onMouseEnter(i)"
         @mouseleave="() => onMouseLeave(i)"
       >
         <!-- Icon (or placeholder) -->
-        <i
-          v-if="item.isLoading"
-          class="fas fa-spinner-third mr-1.5 w-[18px] flex-shrink-0 animate-spin text-center no-underline"
-        />
+        <i v-if="item.isLoading" class="fas fa-spinner-third mr-1.5 w-[18px] flex-shrink-0 animate-spin text-center" />
         <IconInline
           v-else-if="item.icon"
           v-bind="toIconMaybe(item.icon)!"
-          :class="[
-            'mr-1.5 w-5 flex-shrink-0 text-center',
-            item.isDisabled ? 'text-gray-400' : activeItemIdx == i ? 'text-primary-700' : 'text-gray-700',
-          ]"
+          :class="['mr-1.5 w-5 flex-shrink-0 text-center', item.isDisabled ? 'text-gray-400' : 'text-gray-700']"
         />
         <span v-else class="mr-1.5 w-[18px] flex-shrink-0">&nbsp;</span>
         <!-- Title -->
-        <span class="select-none truncate" v-html="itemTitleMarked[i] ?? item.title" />
+        <span
+          class="select-none truncate underline-offset-3"
+          :class="[activeNestedItemIdx == i || activeItemIdx == i ? 'underline' : '']"
+          v-html="itemTitleMarked[i] ?? item.title"
+        />
         <!-- Checked, shortcut or nested menu -->
         <i
           v-if="item.type == 'toggle' || item.type == 'option'"
