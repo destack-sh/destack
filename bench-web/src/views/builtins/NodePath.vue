@@ -47,7 +47,7 @@ const path = computed(() => {
         <span
           :class="
             node.id == container?.id || node.id == focus?.id || canvas.isInspected(node)
-              ? 'underline-gray-700 underline-gray-700 underline underline-offset-3'
+              ? 'decoration-gray-700 decoration-gray-700 underline underline-offset-3'
               : ''
           "
           >{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
-import { RUNNABLE_BLOCK_TYPES } from "@/language/const";
+import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
@@ -125,6 +125,14 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
       nextTick(() => focusInElement(nameRef.value!));
     },
   },
+  "common.navigate.open": (action, ctx) => {
+    if (block.value == null) return false;
+    canvas.goToNode(block.value, { where: "bestFrame" });
+  },
+  "common.navigate.openInPage": (action, ctx) => {
+    if (block.value == null) return false;
+    canvas.goToNode(block.value, { where: "bestFrame", preferPage: true });
+  },
 };
 
 // focus
@@ -140,9 +148,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     v-if="block"
     ref="blockRef"
     class="group/block relative select-none rounded-sm"
-    :class="[block.type != BlockType.TEXT ? 'border' : '']"
+    :class="[
+      block.type != BlockType.TEXT && block.type != BlockType.PAGE ? 'border-b-2 border-l-2 border-r-2 border-t-2' : '',
+    ]"
     :style="{
-      borderColor: getNodeColorHex(block, ColorShade.S500),
+      borderColor: getNodeColorHex(block, ColorShade.S400),
     }"
   >
     <!-- Header -->
@@ -151,11 +161,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       class="flex flex-row px-2 py-1.5 hover:cursor-grab"
       :class="block.type == BlockType.PAGE ? 'rounded-b-sm' : ''"
       :style="{
-        backgroundColor: block.type != BlockType.PAGE ? getNodeColorHex(block, ColorShade.S400) : '',
+        backgroundColor: block.type != BlockType.PAGE ? getNodeColorHex(block, ColorShade.S300) : '',
         height: `${HEADER_HEIGHT}px`,
       }"
     >
-      <!-- Icon/Name (also drag handle if container is not already draggable) -->
+      <!-- Icon/Name -->
       <div class="flex flex-shrink-0 flex-row">
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
@@ -187,17 +197,15 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Tags, triggers, roles, queries, etc. -->
       <div class="ml-auto pl-2 pr-0.5">
         <!-- Quick actions -->
-        <span
-          class="flex flex-row gap-x-0.5 transition-colors duration-75"
-          :class="[
-            isInspected
-              ? 'text-gray-400'
-              : [
-                  variant != Variant.STEALTH ? '' : 'opacity-0 group-hover/block:opacity-100',
-                  'text-gray-300 group-hover/block:text-gray-400',
-                ],
-          ]"
-        >
+        <div class="flex flex-row gap-x-1.5">
+          <!-- Open -->
+          <button
+            v-if="PAGE_BLOCK_TYPES.includes(block.type)"
+            class="text-gray-800 hover:text-primary-800"
+            @click="canvas.goToNode(block!, { where: 'bestFrame' })"
+          >
+            <i class="fas fa-magnifying-glass-plus" />
+          </button>
           <!-- Menu -->
           <button
             v-menu="
@@ -208,11 +216,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
               })
             "
-            class="rounded-sm text-gray-800 hover:text-primary-700"
+            class="text-gray-800 hover:text-primary-700"
           >
             <i class="fas fa-ellipsis-v w-5 text-center" />
           </button>
-        </span>
+        </div>
       </div>
       <!-- ... -->
     </div>
@@ -239,7 +247,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       v-else-if="block.type != BlockType.PAGE"
       class="border-t"
       :style="{
-        borderColor: getNodeColorHex(block, ColorShade.S500),
+        borderColor: getNodeColorHex(block, ColorShade.S400),
       }"
     >
       <!-- Types -->
