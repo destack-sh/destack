@@ -8,8 +8,6 @@ import {
   ENUM_TYPES,
   FILTERED_ENUMS,
   getPropertyTitle,
-  NODE_SUBTYPE_BY_TYPE,
-  RUNNABLE_BLOCK_TYPES,
   toCamelName,
 } from "@/language/const";
 import { getPropertyType, makeTypeInfo, typeIsNumeric, updateFieldType, type TypeIdentity } from "@/language/field";
@@ -235,6 +233,7 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
   } else if (isNode(node, NodeType.PIPE)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [PipeProperty.type, PipeProperty.color],
+      Filter: [PipeProperty.condition],
     };
     return properties;
   } else if (isNode(node, NodeType.VIEW)) {
@@ -355,10 +354,9 @@ export function getInspectionLayout(node: AnyNodeData, options?: { exclude?: str
     }
   }
 
-  const discriminator = NODE_SUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
   function onWrite(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, property: PropertyInfo) {
     // trigger morph
-    if (discriminator == property.name) {
+    if (property.name == "type") {
       onNodeMorphed(tx, graph, node);
     }
   }

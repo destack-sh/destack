@@ -62,7 +62,7 @@ const name = computed(() => (props.node as any).name);
       :variant="Variant.STEALTH"
       :model-value="(node as any).name ?? (node as any).title ?? nodeTypeName"
       @update:model-value="
-        (newValue) => isNode(node) && connection.tx.update(node, { name: newValue }, { debounce: 'long' })
+        (newValue) => isNode(node) && connection.tx.update(node, { name: newValue as string }, { debounce: 'long' })
       "
     />
   </div>

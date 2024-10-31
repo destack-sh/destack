@@ -120,10 +120,10 @@ defineExpose<ViewExposed>({ self, id, actions });
       />
       <!-- Filter/Mapping/... -->
       <IconInline
-        v-if="pipe.type != PipeType.GOTO"
-        v-tooltip="{ title: toCamelName(PipeType, pipe.filter), small: true }"
+        v-if="pipe.type != PipeType.GO"
         v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
-        class="w-5 rounded-sm bg-white text-center text-gray-700"
+        class="flex rounded-2xl border bg-white p-1 text-center"
+        :style="{ color: pathColorHex, borderColor: pathColorHex }"
       />
     </div>
   </div>

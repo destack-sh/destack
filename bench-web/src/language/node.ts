@@ -2,7 +2,7 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import { NODE_SUBTYPE_BY_TYPE, TIMED_NODE_TYPES, toCamelName } from "@/language/const";
+import { TIMED_NODE_TYPES, toCamelName } from "@/language/const";
 import { FLOW_GRID_STEP } from "@/language/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { updateOrder } from "@/language/order";
@@ -57,48 +57,26 @@ export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType
   else return node.metatype as unknown as NodeType;
 }
 
-/** Gets the discriminating subtype for a node, if any :NodeSubtype */
-export function getNodeSubtype(node: Partial<AnyNodeData>): FieldType | BlockType | ViewType | StepType | any {
-  const key = NODE_SUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
-  if (key != null) return (node as any)[key];
-  else return null;
-}
-
-/** Gets the proper name for the discriminating subtype for a node, if any */
-export function getNodeSubtypeName(metatype: NodeType, value?: number): string | null {
-  const discriminator = NODE_SUBTYPE_BY_TYPE[metatype];
-  if (discriminator != null) {
-    if (value == null) throw new Error(`value is required for discriminator ${discriminator}`);
-    const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
-    const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
-    const enumType = ENUM_BY_TYPE[propertyInfos[properties![discriminator as any]]?.enumType!];
-    let typeName = enumType[value];
-    if (typeof typeName != "string")
-      throw new Error(`unknown type ${value} for ${NodeType[metatype]}.${discriminator}`);
-    typeName = toCasing(typeName, Casing.CAMEL);
-    return typeName;
-  } else {
-    return null;
-  }
-}
-
 /** Generates a node name for our :AutoNaming. */
-export function generateNodeName(metatype: NodeType, siblings: AnyNodeData[], value?: number): string {
-  const discriminator = NODE_SUBTYPE_BY_TYPE[metatype];
-  if (discriminator != null && value != null) {
-    if (value == null) throw new Error(`value is required for discriminator ${discriminator}`);
-    const subtypeName = getNodeSubtypeName(metatype, value);
+export function generateNodeName(node: Partial<AnyNodeData>, siblings: AnyNodeData[]): string {
+  if ((node as any).type != null) {
+    // node subtype
+    const properties = PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as ObjectType];
+    const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype as unknown as ObjectType];
+    const enumType = ENUM_BY_TYPE[propertyInfos[properties!["type" as any]]?.enumType!];
+    const subtypeName = toCasing(enumType[(node as any).type] as string, Casing.CAMEL);
+    const typeName = toCamelName(NodeType, node.metatype);
     const maxId = Math.max(
-      ...siblings.filter((n) => (n as any)[discriminator!] == value).map((n) => extractNameId((n as any).name) ?? 0),
+      ...siblings.filter((n) => (n as any).type == (node as any).type).map((n) => extractNameId((n as any).name) ?? 0),
       0,
     );
-    return `${subtypeName}${maxId + 1}`;
+    return `${subtypeName}${typeName}${maxId + 1}`;
+  } else {
+    // node type
+    const typeName = toCamelName(NodeType, node.metatype);
+    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
+    return `${typeName}${maxId + 1}`;
   }
-
-  // default to no subtype
-  const metatypeName = toCamelName(NodeType, metatype);
-  const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
-  return `${metatypeName}${maxId + 1}`;
 }
 
 /** Checks whether the node name was likely generated */
@@ -106,23 +84,15 @@ export function isGeneratedNodeName(metatype: NodeType | ObjectType, name: strin
   // match name as <type><id> (groups)
   const match = name.match(/([a-zA-Z]+)(\d+)/);
   if (match == null) return false;
-  const typeName = toCasing(match[1], Casing.ALL_CAPS);
-  const key = NODE_SUBTYPE_BY_TYPE[metatype as unknown as NodeType];
-  if (key != null) {
-    const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
-    const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
-    const enumType = ENUM_BY_TYPE[propertyInfos[properties![key as any]]?.enumType!];
-    return enumType[typeName as any] != null || NodeType[typeName as any] != null;
-  } else {
-    return NodeType[typeName as any] != null;
-  }
+  const typeName = toCasing(match[1], Casing.ALL_CAPS).split("_").slice(-1)[0];
+  return NodeType[typeName as any] != null;
 }
 
 /** Generates the name for a node in the given graph */
 export function makeNodeName(graph: ReadNodeGraph, node: { metatype: ObjectType } & Partial<AnyNodeData>): string {
   if (node.parentPtr == null) throw new Error("parentPtr is required");
   const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
-  return generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeSubtype(node));
+  return generateNodeName(node, siblings);
 }
 
 /**
@@ -137,7 +107,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
     const siblings = graph
       .getChildren(node.parentPtr!, node.metatype as unknown as NodeType)
       .filter((n) => n.id != node.id);
-    const name = generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeSubtype(node));
+    const name = generateNodeName(node, siblings);
     if (name != node.name) tx.update(node, { name }, { debounce: "tick" });
   }
 
@@ -430,7 +400,7 @@ export function cloneNode<T extends AnyNodeData>(
     if (isGeneratedNodeName(node.metatype as unknown as NodeType, (clone as any).name)) {
       // bump generated node name
       const siblings = graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType);
-      clone.name = generateNodeName(node.metatype as unknown as NodeType, siblings, (clone as any).type);
+      clone.name = generateNodeName(node, siblings);
     } else {
       // bump digit at end (or add 2) if already exists
       const seq = (clone as any).name.match(/\d+$/);

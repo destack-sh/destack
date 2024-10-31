@@ -6,6 +6,7 @@ from .access import (
     PolicyRule,
     Subject,
 )
+from .action import ActionBase, ActionMode
 from .bench import (
     AnonymousResourceNode,
     Bench,
@@ -120,6 +121,7 @@ from .run import (
     RunKind,
     RunOptions,
     RunSpan,
+    RunStatus,
 )
 from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
@@ -172,6 +174,8 @@ __all__ = [
     "Access",
     "AccessError",
     "AccessType",
+    "ActionBase",
+    "ActionMode",
     "AggregateConnection",
     "AggregateOptions",
     "AggregateResult",
@@ -295,6 +299,7 @@ __all__ = [
     "RunKind",
     "RunOptions",
     "RunSpan",
+    "RunStatus",
     "S",
     "ScheduleType",
     "SearchConnection",

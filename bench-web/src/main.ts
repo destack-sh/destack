@@ -1,18 +1,18 @@
 /* eslint-disable no-console */
 import "./assets/index.css";
 
-import { toaster } from "@/ui/toast";
 import { startTransactionRotation as startTransactionBuffers } from "@/language/transaction";
-import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { sendRemoteKeepAlives } from "@/system/connection";
 import { keytrap } from "@/ui/keymap";
 import { CONTEXT_MENU_DIRECTIVE, HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
+import { toaster } from "@/ui/toast";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
+import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { log } from "@/utils/log";
 import { registerViewComponents } from "@/views/registry";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
-import { log } from "@/utils/log";
-import { sendRemoteKeepAlives } from "@/system/connection";
 
 async function init() {
   const app = createApp(Space);

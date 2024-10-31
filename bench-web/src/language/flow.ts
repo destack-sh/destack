@@ -291,7 +291,7 @@ export class FlowContext {
   }
 
   isDraggingPortAt(step: StepData): boolean {
-    return this.dragging.value?.thing.kind == 'step-port' && this.dragging.value?.thing.step.id == step.id;
+    return this.dragging.value?.thing.kind == "step-port" && this.dragging.value?.thing.step.id == step.id;
   }
 
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
@@ -627,7 +627,7 @@ export class FlowContext {
         // if both ports are field ports, make it a data pipe by default
         const pipe = createPipe(this.tx, this.graph, {
           parent: this.flow.value,
-          pipe: { type: PipeType.GOTO },
+          pipe: { type: PipeType.GO },
           source: sourcePort,
           target: targetPort,
         });
@@ -819,6 +819,7 @@ export function getContainingFlow(graph: ReadNodeGraph, node: AnyNodeData): Bloc
 
 /** Gets the sides that a Step has ports on */
 export function getStepSides(step: StepData): PortSide[] {
+  if (step.type == StepType.TEXT) return []; // no ports
   const sides: PortSide[] = [];
   if (!INCOMING_STEP_TYPES.includes(step.type)) sides.push(PortSide.INCOMING);
   if (!OUTGOING_STEP_TYPES.includes(step.type)) sides.push(PortSide.OUTGOING);

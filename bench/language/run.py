@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         LogLevel,
         NodeReference,
         Package,
+        Pipe,
         Step,
         TypeInfoBase,
     )
@@ -371,6 +372,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     block: Optional["Block"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
+    pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
 
     # status (overall)
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)  # desired status

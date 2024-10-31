@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast
 
 import cachetools
 
+from bench.language.action import ActionBase
 from bench.language.const import (
-    ActionMode,
     BenchError,
     BlockType,
     FieldType,
@@ -32,7 +32,6 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import (
         Badge,
-        Code,
         Field,
         Icon,
         NodeReference,
@@ -255,17 +254,9 @@ class TextBlock(Block):
 
 
 @node_subtype_(BlockType.ACTION)
-class ActionBlock(Block):
-    mode: ActionMode = p_regular(100, default=ActionMode.DYNAMIC)
-    text: Optional["Text"] = p_regular(
-        101, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-    code: Optional["Code"] = p_regular(
-        102, default=None, require=False, array=False, struct=StructType.CODE
-    )
-    run_options: Optional["RunOptions"] = p_regular(
-        110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
+class ActionBlock(Block, ActionBase):
+    # ...ActionBase[100-129]
+    ...
 
 
 @node_subtype_(BlockType.FLOW)

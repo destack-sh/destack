@@ -139,7 +139,7 @@ const dockActions: Ref<Action[]> = computed(
       ] as ActionBuiltinId[]
     )
       .map((id) => DECLARED_ACTIONS_BY_ID.value[id])
-      .filter((a) => a != null) as Action[],
+      .filter((a) => a != null),
 );
 </script>
 <template>

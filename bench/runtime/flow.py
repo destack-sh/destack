@@ -179,7 +179,7 @@ class FlowRunner(Runner):
     def _abort(self):
         """Abort any (non-boundary) running steps."""
         for runner in self._active_steps.values():
-            if runner.node.type.is_boundary or runner.options.suppress_abort:
+            if runner.options.suppress_abort:
                 continue
             logger.trace("step.abort", step=runner.node, runner=runner)
             if runner.task is not None:

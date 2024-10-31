@@ -199,15 +199,6 @@ export function toCamelName<T extends object>(cls: T, key: any) {
   return toCasing(name, Casing.CAMEL, true);
 }
 
-// :NodeSubtype
-export const NODE_SUBTYPE_BY_TYPE: Partial<Record<NodeType, string>> = {
-  [NodeType.FIELD]: "zone",
-  [NodeType.BLOCK]: "type",
-  [NodeType.VIEW]: "type",
-  [NodeType.STEP]: "type",
-  [NodeType.FILE]: "coarseType",
-};
-
 //
 // Enums
 //
