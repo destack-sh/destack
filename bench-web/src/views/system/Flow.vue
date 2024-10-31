@@ -86,13 +86,15 @@ const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath = computed(() => {
   if (flowCtx.draggable?.kind != "step-port") return null;
-  return flowCtx.computePath(
+  const source = flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.side)!;
+  const path = flowCtx.computePath(
     "manhattan",
-    flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port.side)!,
-    flowCtx.draggable.port.side,
+    source,
+    flowCtx.draggable.side,
     flowCtx.draggable.cursorWorldPos!,
-    flowCtx.draggable.port.side == PortSide.OUTGOING ? PortSide.INCOMING : PortSide.OUTGOING,
+    flowCtx.draggable.side == PortSide.OUTGOING ? PortSide.INCOMING : PortSide.OUTGOING,
   );
+  return path;
 });
 
 //
@@ -330,7 +332,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <!-- Create -->
         <button
-          v-for="stepType in [StepType.START, StepType.TRIGGER, StepType.ACTION, StepType.COMPLETE, StepType.TEXT]"
+          v-for="stepType in [
+            StepType.START,
+            StepType.TRIGGER,
+            StepType.ACTION,
+            StepType.COMPLETE,
+            StepType.LOOP,
+            StepType.TEXT,
+          ]"
           :key="stepType"
           v-tooltip="{
             title: `${toCamelName(StepType, stepType)}`,

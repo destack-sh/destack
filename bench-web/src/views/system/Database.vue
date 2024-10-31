@@ -698,7 +698,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
           :key="i"
-          class="group rounded-sm border border-sky-400 bg-sky-300 px-2 py-0.5"
+          class="group rounded-sm px-2 py-0.5 hover:bg-sky-100"
         >
           <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
           <span class="text-gray-900">{{
@@ -755,7 +755,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Controls -->
         <!-- Add field -->
         <button
-          class="group/button rounded-sm border border-emerald-400 bg-emerald-300 px-2 py-0.5 hover:bg-emerald-200"
+          class="group/button rounded-sm px-2 py-0.5 hover:bg-green-100"
           @click="
             (e) => {
               const button = (e.target as HTMLElement).closest('button')!;
@@ -775,14 +775,11 @@ defineExpose<ViewExposed>({ self, id, actions });
             }
           "
         >
-          <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-emerald-900" />
+          <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-green-900" />
           <span>Field</span>
         </button>
         <!-- Add record -->
-        <button
-          class="group/button rounded-sm border border-sky-400 bg-sky-300 px-2 py-0.5 hover:bg-sky-300"
-          @click="() => createRecord()"
-        >
+        <button class="group/button rounded-sm px-2 py-0.5 hover:bg-sky-100" @click="() => createRecord()">
           <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-sky-900" />
           <span class="">Record</span>
         </button>

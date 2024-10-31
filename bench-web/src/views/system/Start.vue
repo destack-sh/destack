@@ -117,8 +117,8 @@ watch(currentRunnableNode, (newNode) => {
 });
 const runnablePtr = computed(() => (lastRunnableNode.value != null ? toPlainNodeRef(lastRunnableNode.value) : null));
 const baseTypePtr = computed(() => {
-  if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.BLOCK) {
-    return unpackSubnodeProperty(NodeType.STEP, StepType.BLOCK, lastRunnableNode.value.subnodePacked, "nodePtr");
+  if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.ACTION) {
+    return unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, lastRunnableNode.value.subnodePacked, "nodePtr");
   } else {
     return runnablePtr.value ?? undefined;
   }

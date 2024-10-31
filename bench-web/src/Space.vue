@@ -286,7 +286,7 @@ watch(
 
 /* marks are bold+underline by default */
 mark {
-  background-color: transparent;
+  background-color: #fcd34d;
   color: inherit;
   font-weight: bold;
 }

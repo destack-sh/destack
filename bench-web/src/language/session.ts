@@ -29,7 +29,7 @@ export function isRunnable(node: AnyNodeData, graph: ReadNodeGraph, fields?: Fie
   if (isNode(node, NodeType.STEP)) {
     return true;
   } else if (isNode(node, NodeType.BLOCK)) {
-    if (node.type == BlockType.CODE || node.type == BlockType.FLOW) {
+    if (node.type == BlockType.ACTION || node.type == BlockType.FLOW) {
       return true;
     } else if (node.type == BlockType.TEXT) {
       fields = fields ?? graph.getChildren(node, NodeType.FIELD);
@@ -57,19 +57,13 @@ export function isRunTerminal(run: RunData): boolean {
 /** Determine the type of run for some runnable object */
 export function getRunKind(runnable: RunnableObject): RunKind {
   if (isNode(runnable, NodeType.BLOCK)) {
-    if (runnable.type == BlockType.TEXT) {
-      return RunKind.TEXT;
-    } else if (runnable.type == BlockType.CODE) {
-      return RunKind.CODE;
+    if (runnable.type == BlockType.ACTION) {
+      return RunKind.ACTION;
     } else if (runnable.type == BlockType.FLOW) {
       return RunKind.FLOW;
     }
   } else if (isNode(runnable, NodeType.STEP)) {
     return RunKind.STEP;
-  } else if (isStruct(runnable, StructType.TEXT)) {
-    return RunKind.TEXT;
-  } else if (isStruct(runnable, StructType.CODE)) {
-    return RunKind.CODE;
   }
 
   throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);

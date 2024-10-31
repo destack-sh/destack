@@ -116,7 +116,7 @@ export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
 //
 
 export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {
-  [NodeType.FIELD]: ColorType.EMERALD,
+  [NodeType.FIELD]: ColorType.GREEN,
   [NodeType.RECORD]: ColorType.SKY,
 };
 
@@ -127,13 +127,13 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.DATABASE]: ColorType.SKY,
   [BlockType.VALUE]: ColorType.SKY,
   // types
-  [BlockType.CLASS]: ColorType.EMERALD,
-  [BlockType.CHOICE]: ColorType.EMERALD,
-  [BlockType.SIGNAL]: ColorType.EMERALD,
-  [BlockType.NOTIFICATION]: ColorType.EMERALD,
+  [BlockType.CLASS]: ColorType.GREEN,
+  [BlockType.CHOICE]: ColorType.GREEN,
+  [BlockType.SIGNAL]: ColorType.GREEN,
+  [BlockType.NOTIFICATION]: ColorType.GREEN,
   // runnables
-  [BlockType.ACTION]: ColorType.AMBER,
-  [BlockType.FLOW]: ColorType.AMBER,
+  [BlockType.ACTION]: ColorType.ORANGE,
+  [BlockType.FLOW]: ColorType.ORANGE,
   // view
   [BlockType.VIEW]: ColorType.YELLOW,
   // auth
@@ -145,10 +145,10 @@ export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
   [StepType.START]: ColorType.YELLOW,
   [StepType.COMPLETE]: ColorType.YELLOW,
   [StepType.TRIGGER]: ColorType.YELLOW,
-  [StepType.ACTION]: ColorType.AMBER,
+  [StepType.ACTION]: ColorType.ORANGE,
   [StepType.FAIL]: ColorType.DANGER,
   [StepType.TEXT]: ColorType.GRAY,
-  [StepType.LOOP]: ColorType.GRAY,
+  [StepType.LOOP]: ColorType.YELLOW,
 };
 
 export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {

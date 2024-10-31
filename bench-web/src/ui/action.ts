@@ -16,7 +16,7 @@ import { isDeveloperMode } from "@/system/client";
 import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
-import { clearSpace,  createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
+import { clearSpace, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp, SPACE_DEFAULT_BAR_POSITION } from "@/ui/view";
 import { type FilterPrefix } from "@/utils/functools";
@@ -137,7 +137,7 @@ export const ACTION_BUILTIN_IDS = [
   // step
   // ...
   // pipe
-  "pipe.edit.isHidden",
+  // ...
   // message
   "message.chat.message",
   "message.chat.reply",
@@ -859,14 +859,7 @@ declareActionMap<"database">({
 });
 
 // pipe
-declareActionMap<"pipe">({
-  "pipe.edit.isHidden": {
-    type: "toggle",
-    icon: "fas fa-eye-slash",
-    title: "Hide",
-    text: "Hide this pipe",
-  },
-});
+declareActionMap<"pipe">({});
 
 // message
 declareActionMap<"message">({

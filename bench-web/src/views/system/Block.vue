@@ -148,20 +148,17 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     v-if="block"
     ref="blockRef"
     class="group/block relative select-none rounded-sm"
-    :class="[
-      block.type != BlockType.TEXT && block.type != BlockType.PAGE ? 'border-b-2 border-l-2 border-r-2 border-t-2' : '',
-    ]"
+    :class="[block.type != BlockType.TEXT && block.type != BlockType.PAGE ? '' : '']"
     :style="{
-      borderColor: getNodeColorHex(block, ColorShade.S400),
+      borderColor: getNodeColorHex(block, ColorShade.S500),
     }"
   >
     <!-- Header -->
     <div
       v-if="block.type != BlockType.TEXT && block.type"
-      class="flex flex-row px-2 py-1.5 hover:cursor-grab"
-      :class="block.type == BlockType.PAGE ? 'rounded-b-sm' : ''"
+      class="flex flex-row px-2 py-1.5 hover:cursor-grab rounded-t"
       :style="{
-        backgroundColor: block.type != BlockType.PAGE ? getNodeColorHex(block, ColorShade.S300) : '',
+        backgroundColor: block.type != BlockType.PAGE ? getNodeColorHex(block, ColorShade.S200) : '',
         height: `${HEADER_HEIGHT}px`,
       }"
     >
@@ -245,9 +242,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     />
     <div
       v-else-if="block.type != BlockType.PAGE"
-      class="border-t"
+      class="border-2 rounded-b"
       :style="{
-        borderColor: getNodeColorHex(block, ColorShade.S400),
+        borderColor: getNodeColorHex(block, ColorShade.S200),
       }"
     >
       <!-- Types -->
@@ -263,7 +260,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 border-b border-gray-300 px-2 py-2">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 px-2 pt-2 pb-1">
           <Type
             id="type.input"
             class=""
@@ -291,7 +288,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class=""
           :class="block.type == BlockType.ACTION ? 'px-2 py-2' : ''"
           :variant="Variant.STEALTH"
-          placeholder="Action description..."
+          placeholder="Text..."
           :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
           v-bind="state.getChildState('text')"
           @update:model-value="
