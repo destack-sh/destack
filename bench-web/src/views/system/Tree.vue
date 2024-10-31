@@ -507,7 +507,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Name otherwise -->
           <span
             v-else
-            class="select-none truncate underline-offset-3 underline-gray-700"
+            class="select-none truncate underline-offset-3 decoration-gray-700"
             :class="[isFocused(node) || canvas.isInspected(node) || canvas.isHighlighted(node) ? 'underline' : '']"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />

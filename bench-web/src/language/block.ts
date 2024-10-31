@@ -27,6 +27,8 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
   "common.edit.duplicate",
   "common.edit.delete",
+  "common.navigate.open",
+  "common.navigate.openInPage",
   "session.run.start",
   "message.chat.message",
 ];

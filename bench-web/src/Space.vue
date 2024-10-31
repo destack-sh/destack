@@ -289,8 +289,6 @@ mark {
   background-color: transparent;
   color: inherit;
   font-weight: bold;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .mark-bold mark {

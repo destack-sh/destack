@@ -145,8 +145,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="flex w-full flex-row items-center px-2 transition-colors duration-150"
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
-        backgroundColor: getNodeColorHex(step, ColorShade.S400),
-        borderColor: getNodeColorHex(step, ColorShade.S500),
+        backgroundColor: getNodeColorHex(step, ColorShade.S300),
+        borderColor: getNodeColorHex(step, ColorShade.S400),
       }"
     >
       <!-- Icon/Name -->

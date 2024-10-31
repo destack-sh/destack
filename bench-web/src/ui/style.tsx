@@ -116,7 +116,7 @@ export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
 //
 
 export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {
-  [NodeType.FIELD]: ColorType.TEAL,
+  [NodeType.FIELD]: ColorType.EMERALD,
   [NodeType.RECORD]: ColorType.SKY,
 };
 
@@ -127,10 +127,10 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.DATABASE]: ColorType.SKY,
   [BlockType.VALUE]: ColorType.SKY,
   // types
-  [BlockType.CLASS]: ColorType.TEAL,
-  [BlockType.CHOICE]: ColorType.TEAL,
-  [BlockType.SIGNAL]: ColorType.TEAL,
-  [BlockType.NOTIFICATION]: ColorType.TEAL,
+  [BlockType.CLASS]: ColorType.EMERALD,
+  [BlockType.CHOICE]: ColorType.EMERALD,
+  [BlockType.SIGNAL]: ColorType.EMERALD,
+  [BlockType.NOTIFICATION]: ColorType.EMERALD,
   // runnables
   [BlockType.ACTION]: ColorType.AMBER,
   [BlockType.FLOW]: ColorType.AMBER,
