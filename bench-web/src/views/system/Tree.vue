@@ -9,6 +9,7 @@ import {
   BlockType,
   BoxData,
   CHILD_NODE_TYPES,
+  ColorShade,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -35,6 +36,7 @@ import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
+import { getNodeColor, getNodeColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
@@ -437,15 +439,19 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group relative mx-1 flex flex-row items-center rounded-sm border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-700 data-[dragging=true]:opacity-50"
+          class="group relative flex flex-row items-center border-y py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-700 data-[dragging=true]:opacity-50"
           :class="[
             (focusedNode?.id == node.id && isFocusAbsolute) ||
             (activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center')
               ? 'border-primary-700'
               : 'border-transparent',
             isFocused(node) ? 'bg-gray-100' : '',
+            (node as any).name != null ? '' : 'italic',
           ]"
-          :style="{ paddingLeft: 4 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
+          :style="{
+            paddingLeft: 8 + depth * DEPTH_OFFSET + 'px',
+            paddingRight: 8 + 'px',
+          }"
           role="treeitem"
           :draggable="true"
           @click.stop="fire(node)"
@@ -477,15 +483,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Icon / title -->
           <IconInline
             v-bind="getNodeIcon(node)"
+            :color="getNodeColor(node)"
             class="mr-1.5 w-5 flex-shrink-0"
-            :class="[
-              isFocused(node) || canvas.isInspected(node)
-                ? 'text-primary-700'
-                : canvas.isHighlighted(node)
-                  ? 'text-primary-700 group-hover:text-primary-700'
-                  : 'text-gray-700 group-hover:text-primary-700',
-              hasChildren ? '' : 'ml-6',
-            ]"
+            :class="[hasChildren ? '' : 'ml-6']"
           />
           <!-- Name (editable) if editing -->
           <NativeInput
@@ -493,7 +493,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             :id="node.id + '.name'"
             ref="editingNameRef"
             v-outside.mousedown.stop="cancelRename"
-            class="flex-shrink-0 transition-colors duration-150"
+            class="flex-shrink-0"
             is-input
             :value-type="NAME_TYPE"
             :variant="Variant.STEALTH"
@@ -507,15 +507,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Name otherwise -->
           <span
             v-else
-            class="select-none truncate group-hover:text-primary-700"
-            :class="[
-              isFocused(node) || canvas.isInspected(node)
-                ? 'text-primary-700'
-                : canvas.isHighlighted(node)
-                  ? 'text-primary-700'
-                  : '',
-              (node as any).name != null ? '' : 'italic',
-            ]"
+            class="select-none truncate underline-offset-3 underline-gray-700"
+            :class="[isFocused(node) || canvas.isInspected(node) || canvas.isHighlighted(node) ? 'underline' : '']"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />
           <!-- Meta -->

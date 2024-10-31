@@ -121,8 +121,13 @@ watch(
     <!-- Bar -->
     <Bar
       ref="barRef"
-      class="absolute"
-      :class="barOrientation == Orientation.VERTICAL ? 'border-x' : 'border-y'"
+      class="absolute border-gray-300"
+      :class="[
+        barPosition == Anchor.TOP ? 'border-b' : '',
+        barPosition == Anchor.BOTTOM ? 'border-t' : '',
+        barPosition == Anchor.LEFT ? 'border-r' : '',
+        barPosition == Anchor.RIGHT ? 'border-l' : '',
+      ]"
       :anchor="barPosition"
       :orientation="barOrientation"
       :space-graph="spaceGraph"

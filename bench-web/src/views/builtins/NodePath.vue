@@ -7,6 +7,7 @@ import { toCamelName } from "@/language/const";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
 import { computed, toRef } from "vue";
+import { getNodeColor } from "@/ui/style";
 
 const props = defineProps<{
   container?: NodeReferenceData;
@@ -33,24 +34,24 @@ const path = computed(() => {
     <template v-for="(node, i) in path" :key="i">
       <!-- Node -->
       <button
-        class="flex cursor-pointer flex-row items-center rounded-sm px-0.5 hover:bg-gray-100 hover:text-primary-700"
+        class="flex cursor-pointer flex-row items-center rounded-sm px-0.5 hover:bg-gray-100"
         role="button"
         :data-node-id="node.id"
         :data-node-ck="(node as any).ck"
         :data-node-type="node.metatype"
-        :class="
-          node.id == container?.id || node.id == focus?.id || canvas.isInspected(node)
-            ? 'text-primary-700'
-            : canvas.isHighlighted(node)
-              ? 'text-primary-700'
-              : 'text-gray-600'
-        "
         :draggable="true"
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
-        <IconInline v-bind="getNodeIcon(node)" class="mr-1.5 w-5" />
-        <span class="">{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span>
+        <IconInline v-bind="getNodeIcon(node)" :color="getNodeColor(node)" class="mr-1.5 w-5" />
+        <span
+          :class="
+            node.id == container?.id || node.id == focus?.id || canvas.isInspected(node)
+              ? 'underline-gray-700 underline-gray-700 underline underline-offset-3'
+              : ''
+          "
+          >{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span
+        >
       </button>
       <!-- Separator -->
       <i v-if="i < path.length - 1" class="fas fa-chevron-right text-gray-400" />

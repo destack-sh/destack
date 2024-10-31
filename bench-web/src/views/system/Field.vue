@@ -77,7 +77,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="flex w-fit items-center gap-x-1.5 rounded-sm border px-1.5 py-[3px] transition-colors duration-75"
     :class="[orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse']"
     :style="{
-      borderColor: getNodeColorHex(field, ColorShade.S600),
+      borderColor: getNodeColorHex(field, ColorShade.S500),
       backgroundColor: getNodeColorHex(field, ColorShade.S400),
     }"
   >

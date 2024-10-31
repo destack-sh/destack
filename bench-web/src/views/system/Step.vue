@@ -134,7 +134,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded-sm border bg-white transition-colors duration-150"
     :style="{
-      borderColor: getNodeColorHex(step, ColorShade.S500),
+      borderColor: getNodeColorHex(step, ColorShade.S400),
     }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
@@ -146,7 +146,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
         backgroundColor: getNodeColorHex(step, ColorShade.S400),
-        borderColor: getNodeColorHex(step, ColorShade.S600),
+        borderColor: getNodeColorHex(step, ColorShade.S500),
       }"
     >
       <!-- Icon/Name -->
@@ -223,10 +223,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
             })
           "
-          class="rounded-sm"
-          :style="{
-            color: getNodeColorHex(step, ColorShade.S800),
-          }"
+          class="rounded-sm text-gray-800 hover:text-primary-700"
         >
           <i class="fas fa-ellipsis-v w-5 text-center" />
         </button>
@@ -234,7 +231,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
 
     <!-- Body -->
-    <div v-if="step.type == StepType.TEXT" ref="bodyRef" class="relative py-1 px-3">
+    <div v-if="step.type == StepType.TEXT" ref="bodyRef" class="relative px-3 py-1">
       <!-- Content (:StepHeight) -->
       <Text
         id="text"

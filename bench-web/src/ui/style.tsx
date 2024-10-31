@@ -116,7 +116,7 @@ export function makeColor(type: ColorType, shade?: ColorShade): ColorData {
 //
 
 export const COLOR_BY_NODE_TYPE: Partial<Record<NodeType, ColorType>> = {
-  [NodeType.FIELD]: ColorType.EMERALD,
+  [NodeType.FIELD]: ColorType.TEAL,
   [NodeType.RECORD]: ColorType.SKY,
 };
 
@@ -127,10 +127,10 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.DATABASE]: ColorType.SKY,
   [BlockType.VALUE]: ColorType.SKY,
   // types
-  [BlockType.CLASS]: ColorType.EMERALD,
-  [BlockType.CHOICE]: ColorType.EMERALD,
-  [BlockType.SIGNAL]: ColorType.EMERALD,
-  [BlockType.NOTIFICATION]: ColorType.EMERALD,
+  [BlockType.CLASS]: ColorType.TEAL,
+  [BlockType.CHOICE]: ColorType.TEAL,
+  [BlockType.SIGNAL]: ColorType.TEAL,
+  [BlockType.NOTIFICATION]: ColorType.TEAL,
   // runnables
   [BlockType.ACTION]: ColorType.AMBER,
   [BlockType.FLOW]: ColorType.AMBER,
@@ -178,20 +178,25 @@ export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | un
   return getColorHex(COLOR_BY_LOG_LEVEL[level], shade);
 }
 
-export function getNodeColorHex(node: AnyNodeData, shade?: ColorShade): string | undefined {
+export function getNodeColor(node: AnyNodeData): ColorType | undefined {
   if (isNode(node, NodeType.BLOCK)) {
     if (COLOR_BY_BLOCK_TYPE[node.type] != null) {
-      return getColorHex(COLOR_BY_BLOCK_TYPE[node.type]!, shade);
+      return COLOR_BY_BLOCK_TYPE[node.type]!;
     }
   } else if (isNode(node, NodeType.STEP)) {
     if (COLOR_BY_STEP_TYPE[node.type] != null) {
-      return getColorHex(COLOR_BY_STEP_TYPE[node.type]!, shade);
+      return COLOR_BY_STEP_TYPE[node.type]!;
     }
   }
 
   if (COLOR_BY_NODE_TYPE[node.metatype as unknown as NodeType] != null) {
-    return getColorHex(COLOR_BY_NODE_TYPE[node.metatype as unknown as NodeType]!, shade);
+    return COLOR_BY_NODE_TYPE[node.metatype as unknown as NodeType]!;
   }
 
   return undefined;
+}
+
+export function getNodeColorHex(node: AnyNodeData, shade?: ColorShade): string | undefined {
+  const color = getNodeColor(node);
+  return color != null ? getColorHex(color, shade) : undefined;
 }

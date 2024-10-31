@@ -330,7 +330,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <!-- Create -->
         <button
-          v-for="stepType in [StepType.START, StepType.TRIGGER, StepType.ACTION, StepType.TEXT]"
+          v-for="stepType in [StepType.START, StepType.TRIGGER, StepType.ACTION, StepType.COMPLETE, StepType.TEXT]"
           :key="stepType"
           v-tooltip="{
             title: `${toCamelName(StepType, stepType)}`,

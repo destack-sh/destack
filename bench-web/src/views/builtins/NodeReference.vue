@@ -3,15 +3,16 @@ import { toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { getNodeType } from "@/language/node";
 import { ObjectType, PROPERTY_ENUM_BY_TYPE, Variant, ViewType, type AnyNodeData } from "@/proto/wire";
-import { describeNode, isNode, type SomeNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode } from "@/proto/wiring";
 import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
+import { getNodeColor } from "@/ui/style";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
-  node: AnyNodeData | SomeNodeReferenceData;
+  node: AnyNodeData;
   connection: Connection<"get" | "search", any>;
   isInput?: boolean;
 }>();
@@ -47,6 +48,7 @@ const name = computed(() => (props.node as any).name);
         })
       "
       v-bind="getNodeIcon(node)"
+      :color="getNodeColor(node)"
       class="w-5 rounded-sm p-1 text-gray-700 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
       :class="isInput ? 'cursor-pointer' : ''"
     />

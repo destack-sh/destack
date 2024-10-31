@@ -145,7 +145,7 @@ const dockActions: Ref<Action[]> = computed(
 <template>
   <div
     ref="barRef"
-    class="flex w-full gap-1.5 border-amber-500 bg-amber-400 text-sm text-gray-900"
+    class="flex w-full gap-1.5 bg-gray-100 text-sm text-gray-900"
     :class="orientation == Orientation.HORIZONTAL ? 'flex-row items-center px-0.5' : 'flex-col items-center py-0.5'"
     data-outside-view="true"
   >
@@ -153,8 +153,7 @@ const dockActions: Ref<Action[]> = computed(
     <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
       <template #trigger="{ toggle, isOpen }">
         <button
-          class="flex h-[30px] w-full select-none flex-row items-center rounded-sm px-2.5 py-1 text-gray-700 hover:bg-primary-300"
-          :class="[isOpen ? 'bg-primary-300' : '']"
+          class="flex h-[30px] w-full select-none flex-row items-center rounded-sm px-2.5 py-1 text-gray-800 hover:text-primary-700"
           @click="toggle"
         >
           <img src="@/assets/icon_outline.svg" class="h-5 w-5 rounded-md" />
@@ -206,7 +205,7 @@ const dockActions: Ref<Action[]> = computed(
         v-for="action in dockActions"
         :key="action.id"
         v-tooltip="tooltipFromAction(action, { placement: 'top', showDelay: 800, group: 'bar.dock' })"
-        class="rounded-sm px-2.5 py-1 text-gray-700 hover:bg-primary-300"
+        class="rounded-sm px-2.5 py-1 text-gray-800 hover:text-primary-700"
         @click="fireActionById(action.id)"
       >
         <IconInline class="text-base" v-bind="action.icon" />
@@ -225,11 +224,7 @@ const dockActions: Ref<Action[]> = computed(
         <!-- User (logged in) -->
         <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
           <template #trigger="{ toggle, isOpen }">
-            <button
-              class="px-2 py-1 text-base text-gray-700 hover:bg-primary-300"
-              :class="[isOpen ? 'bg-primary-300' : '']"
-              @click="toggle"
-            >
+            <button class="px-2 py-1 text-base text-gray-800 hover:text-gray-900" @click="toggle">
               <IconInline class="" v-bind="user.icon ?? makeIcon('fa fa-user-circle')" />
             </button>
           </template>
@@ -256,7 +251,7 @@ const dockActions: Ref<Action[]> = computed(
       <template v-else>
         <!-- Not logged in -->
         <button
-          class="px-2 py-1 text-base text-gray-700 hover:bg-gray-100 hover:text-primary-700"
+          class="px-2 py-1 text-base text-gray-800 hover:text-primary-700"
           @click="fireActionById('user.auth.login')"
         >
           <i class="fas fa-arrow-right-to-bracket" />
