@@ -27,7 +27,7 @@ const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;
 const pathSvg = computed(() => (path.value != null ? pathToSvg(path.value.points) : undefined));
-const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S600));
+const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S400));
 const pathBackgroundColorHex = computed(() => {
   return getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S500);
 });
@@ -42,14 +42,7 @@ const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"common" | "pipe">> = {
-  "pipe.edit.isHidden": {
-    action: () => {
-      if (pipe.value == null) return false;
-      flowCtx.tx.update(pipe.value, { isHidden: !pipe.value.isHidden }, { debounce: "tick" });
-    },
-  },
-};
+const actions: Partial<ActionMapImplementation<"common" | "pipe">> = {};
 
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
@@ -87,6 +80,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :class="pipe.isHidden ? (isInspected || isHighlighted ? 'opacity-80' : 'opacity-0') : 'opacity-100'"
       :style="{ color: pathColorHex }"
     >
+      <!-- Main path -->
       <path
         :stroke-width="PIPE_WIDTH"
         stroke-linecap="round"

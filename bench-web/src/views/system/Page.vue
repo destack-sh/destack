@@ -421,7 +421,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Quick create -->
         <div
           v-if="page != null"
-          class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded border border-gray-300 bg-white px-2 py-1"
+          class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded-sm border border-gray-300 bg-white px-2 py-1"
           data-keep-inspection-in-base-view="true"
         >
           <template
@@ -445,7 +445,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 referenceMargin: 8,
                 group: 'page.footer',
               }"
-              class="rounded px-2 py-1 text-base text-gray-700 transition-colors duration-100 hover:bg-gray-100 hover:text-primary-700"
+              class="rounded-sm px-2 py-1 text-base text-gray-700 transition-colors duration-100 hover:bg-gray-100 hover:text-primary-700"
               @click="
                 () => {
                   createAndFocusBlock({ type: blockType }, 'inside', page!);

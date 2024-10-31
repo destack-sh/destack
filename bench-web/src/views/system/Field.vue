@@ -74,11 +74,10 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 rounded-sm border px-1.5 py-[3px] transition-colors duration-75"
+    class="flex w-fit items-center gap-x-1.5 rounded-sm px-1.5 py-[3px] transition-colors duration-75"
     :class="[orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse']"
     :style="{
-      borderColor: getNodeColorHex(field, ColorShade.S400),
-      backgroundColor: getNodeColorHex(field, ColorShade.S300),
+      backgroundColor: getNodeColorHex(field, ColorShade.S200),
     }"
   >
     <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->

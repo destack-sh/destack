@@ -1,4 +1,3 @@
-import { estimateCodeHeight } from "@/language/code";
 import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
@@ -28,7 +27,7 @@ import type { ActionBuiltinId } from "@/ui/action";
 import { isDraggingAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
-import { addTransform, addVector2, VIEW_DEFAULT_HEADER_HEIGHT, type Vector2 } from "@/ui/view";
+import { addTransform, addVector2, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { canvas } from "@/utils/globals";
@@ -50,7 +49,6 @@ export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.morph",
   "common.edit.duplicate",
   "common.edit.delete",
-  "pipe.edit.isHidden",
 ];
 
 export const FLOW_GRID_STEP = 32;
@@ -95,7 +93,7 @@ export type FlowThing =
   | { kind: "canvas" }
   | { kind: "step"; step: StepData }
   | { kind: "pipe"; pipe: PipeData }
-  | { kind: "step-port"; step: StepData; port: Port; cursorWorldPos?: { x: number; y: number } };
+  | { kind: "step-port"; step: StepData; side: PortSide; cursorWorldPos?: { x: number; y: number } };
 
 /** Step state in a Flow. */
 export class StepState {
@@ -292,6 +290,10 @@ export class FlowContext {
     return this.dragging.value?.thing.kind == "step-port";
   }
 
+  isDraggingPortAt(step: StepData): boolean {
+    return this.dragging.value?.thing.kind == 'step-port' && this.dragging.value?.thing.step.id == step.id;
+  }
+
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
     const stepRef = this.stepRefs.value[step.id!];
     return stepRef != null ? stepRef : null;
@@ -364,7 +366,7 @@ export class FlowContext {
     } else if (thing.kind == "step") {
       return this.stepsStates.value[thing.step.id!]?.boundingBox.value;
     } else if (thing.kind == "step-port") {
-      const position = this.getPortPosition(thing.step, thing.port.side);
+      const position = this.getPortPosition(thing.step, thing.side);
       if (position == null) return null;
       return this.getPortBoundingBox(position);
     } else if (thing.kind == "pipe") {
@@ -618,8 +620,8 @@ export class FlowContext {
     // (re-)connect ports
     try {
       if (this.draggable?.kind == "step-port" && at.kind == "step-port") {
-        const sourcePort = this.draggable.port;
-        const targetPort = at.port;
+        const sourcePort = { parent: this.draggable.step, side: this.draggable.side };
+        const targetPort = { parent: at.step, side: at.side };
         if (portEquals(sourcePort, targetPort)) return; // no-op
         log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
         // if both ports are field ports, make it a data pipe by default
@@ -721,8 +723,8 @@ export class FlowContext {
       source = snapVec(source);
       target = snapVec(target);
       const innerPoints = pathfind(
-        { x: source.x + FLOW_GRID_STEP, y: source.y },
-        { x: target.x - FLOW_GRID_STEP, y: target.y },
+        { x: source.x, y: source.y + FLOW_GRID_STEP },
+        { x: target.x, y: target.y - FLOW_GRID_STEP },
         { step: FLOW_GRID_STEP, maxIterations: 1000, hit: hitStep },
       );
       if (innerPoints == null) return null; // no path found
@@ -763,10 +765,9 @@ export class FlowContext {
   }
 
   /** Gets the pipes connected to the given port. */
-  getPipesAtPort(port: Port): PipeData[] {
-    return this.pipes.value.filter((pipe) => {
-      return port.parent?.ck == pipe.sourcePtr?.ck || port.parent?.ck == pipe.targetPtr?.ck;
-    });
+  getPipesAtPort(step: StepData, side: PortSide): PipeData[] {
+    if (side == PortSide.INCOMING) return this.pipes.value.filter((pipe) => pipe.targetPtr?.ck == step.ck);
+    else return this.pipes.value.filter((pipe) => pipe.sourcePtr?.ck == step.ck);
   }
 
   /** Gets the hex color of the given pipe. */
@@ -814,6 +815,14 @@ export function useFlowContext(): FlowContext {
 export function getContainingFlow(graph: ReadNodeGraph, node: AnyNodeData): BlockData | null {
   const ancestors = graph.getAncestors(node, { includeSelf: true });
   return ancestors.find((n) => isNode(n, NodeType.BLOCK) && n.type == BlockType.FLOW) as BlockData | null;
+}
+
+/** Gets the sides that a Step has ports on */
+export function getStepSides(step: StepData): PortSide[] {
+  const sides: PortSide[] = [];
+  if (!INCOMING_STEP_TYPES.includes(step.type)) sides.push(PortSide.INCOMING);
+  if (!OUTGOING_STEP_TYPES.includes(step.type)) sides.push(PortSide.OUTGOING);
+  return sides;
 }
 
 /** Gets the computed (reactive) fields for a given step (may be from the flow or related nodes). */
@@ -898,15 +907,10 @@ export function getStepWidth(step: StepData): number {
 export function estimateStepSize(step: StepData): { width: number; height: number } {
   const width = getStepWidth(step);
   // base height
-  let height =
-    STEP_HEADER_HEIGHT + // header
-    (FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP) - FLOW_GRID_STEP / 2); // header padding to align with grid
+  let height = STEP_HEADER_HEIGHT;
   // content
   if (step.type == StepType.TEXT) {
     const text = unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, "text");
-    height += (text != null ? estimateTextHeight(text, width) : 20) + 10;
-  } else if (step.type == StepType.ACTION) {
-    const text = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "text");
     height += (text != null ? estimateTextHeight(text, width) : 20) + 10;
   }
   // snap height to grid

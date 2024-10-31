@@ -59,6 +59,9 @@ class HostSqlContext(BenchSqlContext):
             raise RuntimeError(f"not a database block in {self.bench!r}: {block!r}")
 
 
+# NOTE :Architecture: automatically cleanup no longer used custom database tables/coumns
+
+
 class DatabasePlugin(HostPlugin[Block | Field]):
     """Create and maintain custom Postgres tables for DatabaseBlocks."""
 

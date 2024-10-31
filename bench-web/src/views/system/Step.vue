@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
-import { OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
+import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
 import {
   FLOW_GRID_STEP,
   FLOW_PORT_SIZE,
+  getStepSides,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
   useFlowContext,
@@ -15,6 +16,7 @@ import { makeEdit } from "@/language/transaction";
 import {
   BenchType,
   ColorShade,
+  ColorType,
   FieldData,
   NodeType,
   Orientation,
@@ -67,6 +69,7 @@ const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
 const { step, fields, nodePtr, node, nodeFields } = stepState;
 const isInspected = computed(() => canvas.isInspected(stepPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
+const sides = computed(() => (step.value != null ? getStepSides(step.value) : []));
 
 const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
@@ -134,10 +137,51 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded-sm border bg-white transition-colors duration-150"
     :style="{
-      borderColor: getNodeColorHex(step, ColorShade.S400),
+      borderColor: getNodeColorHex(step, ColorShade.S300),
     }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
+    <!-- Ports -->
+    <div
+      v-for="side in sides"
+      class="absolute left-1/2 -translate-x-1/2"
+      :class="[side == PortSide.INCOMING ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2']"
+    >
+      <button
+        class="relative cursor-crosshair rounded-sm border bg-white outline-none transition-colors duration-150 hover:bg-gray-100"
+        :class="
+          flowCtx.getPipesAtPort(step, side).length > 0 || flowCtx.isDraggingPort
+            ? ''
+            : 'opacity-0 group-hover/step:opacity-100'
+        "
+        :style="{
+          width: FLOW_PORT_SIZE + 'px',
+          height: FLOW_PORT_SIZE + 'px',
+          borderColor: getNodeColorHex(step, ColorShade.S300),
+        }"
+        @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, side })"
+        @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step-port', step: step!, side })"
+      >
+        <div
+          v-if="flowCtx.getPipesAtPort(step, side).length > 0"
+          class="flex-row-wrap absolute flex flex-col"
+          :style="{
+            width: FLOW_PORT_SIZE - 4 + 'px',
+            height: FLOW_PORT_SIZE - 4 + 'px',
+            top: 1 + 'px',
+            left: 1 + 'px',
+          }"
+        >
+          <div
+            v-for="pipe in flowCtx.getPipesAtPort(step, side)"
+            :key="pipe.id"
+            class="flex-1 rounded-sm bg-gray-600"
+            :style="{ backgroundColor: getColorHex(pipe.color ?? ColorType.GRAY, ColorShade.S400) }"
+          />
+        </div>
+      </button>
+    </div>
+
     <!-- Header (:StepHeight) -->
     <div
       v-if="step.type != StepType.TEXT"
@@ -145,8 +189,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="flex w-full flex-row items-center px-2 transition-colors duration-150"
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
-        backgroundColor: getNodeColorHex(step, ColorShade.S300),
-        borderColor: getNodeColorHex(step, ColorShade.S400),
+        backgroundColor: getNodeColorHex(step, ColorShade.S200),
       }"
     >
       <!-- Icon/Name -->

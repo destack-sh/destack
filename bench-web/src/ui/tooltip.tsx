@@ -49,7 +49,7 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props) => {
           <span class="flex flex-row gap-x-0.5">
             {keys.map((key) => (
               // Key
-              <kbd class="min-w-5 rounded border border-gray-300 bg-white px-1 py-0.5 text-center font-sans text-xs hover:border-orange-900 hover:bg-gray-100 hover:text-orange-900">
+              <kbd class="min-w-5 rounded-sm border border-gray-300 bg-white px-1 py-0.5 text-center font-sans text-xs hover:border-orange-900 hover:bg-gray-100 hover:text-orange-900">
                 {KEY_ICONS_FA[key] != null ? (
                   <i class={KEY_ICONS_FA[key]} />
                 ) : KEY_ICONS_TEXT[key] != null ? (
