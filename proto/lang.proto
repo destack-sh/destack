@@ -1092,11 +1092,9 @@ enum RunErrorType {
   RUN_ERROR_TYPE_CODE_INVALID = 20;
   RUN_ERROR_TYPE_TEXT_INVALID = 21;
   RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
-  RUN_ERROR_TYPE_MANUAL_NONRETRYABLE = 498;
-  RUN_ERROR_TYPE_UNKNOWN_NONRETRYABLE = 499;
+  RUN_ERROR_TYPE_NON_RETRYABLE = 499;
   RUN_ERROR_TYPE_MODEL_FAILED = 500;
-  RUN_ERROR_TYPE_MANUAL_RETRYABLE = 998;
-  RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
+  RUN_ERROR_TYPE_RETRYABLE = 999;
 }
 
 enum RunSpanType {
@@ -1843,6 +1841,86 @@ message SessionContextData {
   optional NodeReferenceData identity_ptr = 87;
 }
 
+message RunOptionsData {
+  ObjectType metatype = 1;
+  optional int32 max_attempts = 30;
+  optional int32 max_concurrency = 31;
+  optional int32 max_runs = 32;
+  optional int32 max_inner_runs = 33;
+  optional google.protobuf.Duration timeout = 35;
+  optional google.protobuf.Duration retry_interval = 40;
+  optional float backoff = 41;
+  optional google.protobuf.Duration max_retry_interval = 42;
+  repeated RunErrorType retry_on = 44;
+  optional bool suppress_fail = 45;
+  optional bool suppress_abort = 46;
+  repeated BreakpointData breakpoints = 50;
+  optional CacheMode cache_mode = 70;
+  optional google.protobuf.Duration cache_retention = 71;
+  optional ModelProvider model_provider = 80;
+  optional ModelType model_type = 81;
+}
+
+message BreakpointData {
+  ObjectType metatype = 1;
+  BreakpointKind kind = 30;
+  BreakpointAction action = 31;
+  optional ExpressionData condition = 40;
+}
+
+message RunAttemptData {
+  ObjectType metatype = 1;
+  RunStatus status = 30;
+  optional google.protobuf.Duration duration = 31;
+  optional google.protobuf.Timestamp started_at = 32;
+  optional int32 started_epoch = 33;
+  optional google.protobuf.Timestamp terminated_at = 35;
+  optional int32 terminated_epoch = 36;
+  optional RunErrorData error = 37;
+}
+
+message RunTraceData {
+  ObjectType metatype = 1;
+  repeated RunFrameData frames = 30;
+}
+
+message RunFrameData {
+  ObjectType metatype = 1;
+}
+
+message RunSpanData {
+  ObjectType metatype = 1;
+  RunSpanType type = 30;
+  string name = 32;
+  optional string title = 33;
+  optional TextData text = 34;
+  optional string text_plain = 35;
+  optional google.protobuf.Timestamp started_at = 40;
+  optional google.protobuf.Timestamp terminated_at = 41;
+  optional google.protobuf.Duration duration = 42;
+}
+
+message RunEventData {
+  ObjectType metatype = 1;
+  RunEventType type = 30;
+  string name = 32;
+  optional string title = 33;
+  optional TextData text = 34;
+  optional string text_plain = 35;
+  optional google.protobuf.Timestamp created_at = 40;
+  optional LogLevel level = 41;
+}
+
+message RunErrorData {
+  ObjectType metatype = 1;
+  RunErrorKind kind = 30;
+  RunErrorType type = 31;
+  optional string title = 32;
+  optional TextData text = 33;
+  optional NodeReferenceData node_ptr = 34;
+  optional RunTraceData trace = 35;
+}
+
 message LogInfoData {
   ObjectType metatype = 1;
   google.protobuf.Timestamp created_at = 11;
@@ -1941,86 +2019,6 @@ message PathTokenData {
 message PathData {
   ObjectType metatype = 1;
   repeated PathTokenData tokens = 31;
-}
-
-message RunOptionsData {
-  ObjectType metatype = 1;
-  optional int32 max_attempts = 30;
-  optional int32 max_concurrency = 31;
-  optional int32 max_runs = 32;
-  optional int32 max_inner_runs = 33;
-  optional google.protobuf.Duration timeout = 35;
-  optional google.protobuf.Duration retry_interval = 40;
-  optional float backoff = 41;
-  optional google.protobuf.Duration max_retry_interval = 42;
-  repeated RunErrorType retry_on = 44;
-  optional bool suppress_fail = 45;
-  optional bool suppress_abort = 46;
-  repeated BreakpointData breakpoints = 50;
-  optional CacheMode cache_mode = 70;
-  optional google.protobuf.Duration cache_retention = 71;
-  optional ModelProvider model_provider = 80;
-  optional ModelType model_type = 81;
-}
-
-message BreakpointData {
-  ObjectType metatype = 1;
-  BreakpointKind kind = 30;
-  BreakpointAction action = 31;
-  optional ExpressionData condition = 40;
-}
-
-message RunAttemptData {
-  ObjectType metatype = 1;
-  RunStatus status = 30;
-  optional google.protobuf.Duration duration = 31;
-  optional google.protobuf.Timestamp started_at = 32;
-  optional int32 started_epoch = 33;
-  optional google.protobuf.Timestamp terminated_at = 35;
-  optional int32 terminated_epoch = 36;
-  optional RunErrorData error = 37;
-}
-
-message RunTraceData {
-  ObjectType metatype = 1;
-  repeated RunFrameData frames = 30;
-}
-
-message RunFrameData {
-  ObjectType metatype = 1;
-}
-
-message RunSpanData {
-  ObjectType metatype = 1;
-  RunSpanType type = 30;
-  string name = 32;
-  optional string title = 33;
-  optional TextData text = 34;
-  optional string text_plain = 35;
-  optional google.protobuf.Timestamp started_at = 40;
-  optional google.protobuf.Timestamp terminated_at = 41;
-  optional google.protobuf.Duration duration = 42;
-}
-
-message RunEventData {
-  ObjectType metatype = 1;
-  RunEventType type = 30;
-  string name = 32;
-  optional string title = 33;
-  optional TextData text = 34;
-  optional string text_plain = 35;
-  optional google.protobuf.Timestamp created_at = 40;
-  optional LogLevel level = 41;
-}
-
-message RunErrorData {
-  ObjectType metatype = 1;
-  RunErrorKind kind = 30;
-  RunErrorType type = 31;
-  optional string title = 32;
-  optional TextData text = 33;
-  optional NodeReferenceData node_ptr = 34;
-  optional RunTraceData trace = 35;
 }
 
 message SecretReferenceData {
@@ -2655,6 +2653,79 @@ message FileData {
   optional google.protobuf.Timestamp expires_at = 71;
 }
 
+message SessionData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  SessionStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp opened_at = 42;
+  optional google.protobuf.Timestamp closed_at = 43;
+  optional NodeReferenceData client_ptr = 61;
+  optional NodeReferenceData server_ptr = 62;
+  optional NodeReferenceData machine_ptr = 63;
+  optional NodeReferenceData user_ptr = 64;
+}
+
+message RunData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  RunKind kind = 30;
+  optional NodeReferenceData root_ptr = 32;
+  optional NodeReferenceData block_ptr = 33;
+  optional NodeReferenceData step_ptr = 34;
+  optional NodeReferenceData pipe_ptr = 35;
+  RunOptionsData options = 39;
+  RunStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Duration cached_duration = 42;
+  optional google.protobuf.Duration active_duration = 43;
+  repeated RunAttemptData attempts = 44;
+  optional RunErrorData error = 45;
+  optional google.protobuf.Timestamp scheduled_at = 46;
+  optional int32 scheduled_epoch = 47;
+  optional google.protobuf.Timestamp started_at = 48;
+  optional int32 started_epoch = 49;
+  optional google.protobuf.Timestamp killed_at = 50;
+  optional google.protobuf.Timestamp terminated_at = 55;
+  optional int32 terminated_epoch = 56;
+  optional google.protobuf.Value inputs_packed = 60;
+  optional google.protobuf.Value outputs_packed = 61;
+  optional google.protobuf.Value variables_packed = 62;
+  repeated LogInfoData logs = 65;
+  repeated RunSpanData spans = 66;
+  repeated RunEventData events = 67;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+}
+
 message PipeData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2740,30 +2811,6 @@ message TextStepData {
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message LoopStepData {
   optional NodeReferenceData for_field_ptr = 100;
-}
-
-message SessionData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  SessionStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp opened_at = 42;
-  optional google.protobuf.Timestamp closed_at = 43;
-  optional NodeReferenceData client_ptr = 61;
-  optional NodeReferenceData server_ptr = 62;
-  optional NodeReferenceData machine_ptr = 63;
-  optional NodeReferenceData user_ptr = 64;
 }
 
 message LogData {
@@ -2947,55 +2994,6 @@ message SpaceData {
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
   optional NodeReferenceData run_ptr = 77;
-}
-
-message RunData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  RunKind kind = 30;
-  optional NodeReferenceData root_ptr = 32;
-  optional NodeReferenceData block_ptr = 33;
-  optional NodeReferenceData step_ptr = 34;
-  optional NodeReferenceData pipe_ptr = 35;
-  optional RunOptionsData options = 39;
-  RunStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Duration cached_duration = 42;
-  optional google.protobuf.Duration active_duration = 43;
-  repeated RunAttemptData attempts = 44;
-  optional RunErrorData error = 45;
-  optional google.protobuf.Timestamp scheduled_at = 46;
-  optional int32 scheduled_epoch = 47;
-  optional google.protobuf.Timestamp started_at = 48;
-  optional int32 started_epoch = 49;
-  optional google.protobuf.Timestamp killed_at = 50;
-  optional google.protobuf.Timestamp terminated_at = 55;
-  optional int32 terminated_epoch = 56;
-  optional google.protobuf.Value inputs_packed = 60;
-  optional google.protobuf.Value outputs_packed = 61;
-  optional google.protobuf.Value variables_packed = 62;
-  repeated LogInfoData logs = 65;
-  repeated RunSpanData spans = 66;
-  repeated RunEventData events = 67;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData server_ptr = 85;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
 }
 
 message SecretData {

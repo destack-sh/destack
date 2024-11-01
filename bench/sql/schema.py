@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.01.0"
+VERSION = "2024.11.01.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1245,7 +1245,7 @@ RUN_TABLE = Table(
         Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("options", PrimitiveType.JSON, is_nullable=True),
+        Column("options", PrimitiveType.JSON),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("cached_duration", PrimitiveType.INTERVAL, is_nullable=True),
