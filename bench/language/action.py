@@ -1,8 +1,8 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from bench.language.const import BlockType, EnumType, NodeType, StructType, enum_
 from bench.language.node import BuiltinObject, NodeReference, Struct, object_, struct_
-from bench.language.property import p_regular
+from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import constraint
 from bench.utils.func import IdEnum
 
@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.ACTION_MODE)
 class ActionMode(IdEnum):
-    STRICT = 1  # MUST run as specified exactly
-    ADAPTIVE = 2  # SHOULD run as specified, may adapt it on error
-    LENIENT = 3  # MAY run as specified, may do something else
+    STRICT = 1  # always run as specified
+    ADAPTIVE = 2  # run as specified by default but adapt if out of date or error
+    FLEXIBLE = 3  # dynamically adapt to inputs
 
 
 @object_()
@@ -23,16 +23,27 @@ class ActionBase(BuiltinObject):
 
     mode: ActionMode = p_regular(100, default=ActionMode.ADAPTIVE)
     text: Optional["Text"] = p_regular(
-        101, default=None, require=False, array=False, struct=StructType.TEXT
+        101,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.TEXT,
+        description="Text description of this action.",
     )
     code: Optional["Code"] = p_regular(
-        102, default=None, require=False, array=False, struct=StructType.CODE
+        102,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.CODE,
+        description="Current implementation code for this action.",
     )
     node: Optional["Block"] = p_regular(
         103,
         require=False,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+        description="Current implementation for this action (may be wrapped in code).",
     )
     run_options: Optional["RunOptions"] = p_regular(
         110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
@@ -46,18 +57,37 @@ class Context(Struct):
     runs: list["Run"] = p_regular(30, require=True, array=True, references=NodeType.RUN)
 
 
-@struct_(StructType.CONTINUATION)
-class Continuation(Struct):
-    """A context-specific continuation for a Run (like in a Flow)."""
+@struct_(StructType.CALL)
+class Call(Struct):
+    """A context-specific call to a Run inside the current Run."""
 
-    node: Optional[Union["Block", "Step", "Pipe"]] = p_regular(
+    node: Union["Block", "Step"] = p_regular(
         30,
-        require=False,
+        require=True,
+        references=NodeType.BLOCK,
+        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+    )
+    inputs_packed: Any = p_value_packed(31)
+    inputs: Any = p_value_runtime(31, typ=lambda self: cast(Call, self).node.input_type)
+    # inputs, ...?
+
+    @staticmethod
+    def new(node: "Block | Step", **kwargs) -> "Call":
+        return Call(node=node, **kwargs)
+
+
+@struct_(StructType.CONTINUE)
+class Continue(Struct):
+    """A context-specific continuation for a Run to proceed elsewhere (like in a Flow)."""
+
+    node: Union["Block", "Step", "Pipe"] = p_regular(
+        30,
+        require=True,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
     )
     # inputs, ...?
 
     @staticmethod
-    def new(node: "Block | Step | Pipe", **kwargs) -> "Continuation":
-        return Continuation(node=node, **kwargs)
+    def new(node: "Block | Step | Pipe", **kwargs) -> "Continue":
+        return Continue(node=node, **kwargs)

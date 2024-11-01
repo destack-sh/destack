@@ -7,7 +7,7 @@ from bench.language.const import BlockType
 from bench.language.flow import ActionStep, StepType
 from bench.language.run import RunKind
 from bench.runtime.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE
+from bench.runtime.core import ATTEMPT_ONCE, RunImpossibleError
 from bench.runtime.runner import Runner
 
 
@@ -20,21 +20,26 @@ class ActionRunner(Runner):
         action = cast(ActionStep | ActionBlock, self.node)
         inner_node = action.node
         if action.mode == ActionMode.STRICT:
-            # pass through directly to inner logic
+            # run implementation directly
             if inner_node is not None:
                 raise NotImplementedError(f"nocheckin: run {self!r}")
-            else:
+            elif action.code is not None:
                 code_runner = CodeFunctionRunner(
                     runtime=self.runtime,
                     node=action,
-                    code=action.code or Code.empty(),
+                    code=action.code,
                     inputs=self.inputs,
                     track=False,
                     options=ATTEMPT_ONCE,
                 )
                 await self.runtime.run_runner(code_runner)
                 self.outputs = code_runner.outputs
-        elif action.mode == ActionMode.ADAPTIVE or action.mode == ActionMode.LENIENT:
-            raise NotImplementedError(f"nocheckin: run {self!r}")
+            else:
+                raise RunImpossibleError(f"missing implementation for strict {action!r}")
+        elif action.mode == ActionMode.ADAPTIVE or action.mode == ActionMode.FLEXIBLE:
+            # run dynamic implementation
+            ...
         else:
             assert_never(action.mode)
+
+

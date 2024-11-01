@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import TYPE_CHECKING, Optional, Type, Union, cast
 
 import cachetools
@@ -118,10 +119,12 @@ class Pipe(SourceNode[PipeData]):
     )
 
     # mapping
-    ...
+    mapping: Optional["Code"] = p_regular(
+        70, default=None, require=False, array=False, struct=StructType.CODE
+    )
 
     # modulation
-    ...
+    delay: Optional["timedelta"] = p_regular(80, default=None)
 
     # view
     color: Optional["Color"] = p_regular(
