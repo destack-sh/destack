@@ -832,7 +832,6 @@ enum ActionMode {
   ACTION_MODE_STRICT = 1;
   ACTION_MODE_ADAPTIVE = 2;
   ACTION_MODE_LENIENT = 3;
-  ACTION_MODE_DYNAMIC = 4;
 }
 
 enum ScheduleType {
@@ -2970,6 +2969,7 @@ message RunData {
   optional NodeReferenceData block_ptr = 33;
   optional NodeReferenceData step_ptr = 34;
   optional NodeReferenceData pipe_ptr = 35;
+  optional RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Duration cached_duration = 42;

@@ -831,7 +831,6 @@ class ActionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_MODE_STRICT: _ClassVar[ActionMode]
     ACTION_MODE_ADAPTIVE: _ClassVar[ActionMode]
     ACTION_MODE_LENIENT: _ClassVar[ActionMode]
-    ACTION_MODE_DYNAMIC: _ClassVar[ActionMode]
 
 class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2201,7 +2200,6 @@ ACTION_MODE_UNSPECIFIED: ActionMode
 ACTION_MODE_STRICT: ActionMode
 ACTION_MODE_ADAPTIVE: ActionMode
 ACTION_MODE_LENIENT: ActionMode
-ACTION_MODE_DYNAMIC: ActionMode
 SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
 SCHEDULE_TYPE_INTERVAL: ScheduleType
 SCHEDULE_TYPE_CRON: ScheduleType
@@ -7725,6 +7723,7 @@ class RunData(_message.Message):
         "block_ptr",
         "step_ptr",
         "pipe_ptr",
+        "options",
         "status",
         "duration",
         "cached_duration",
@@ -7771,6 +7770,7 @@ class RunData(_message.Message):
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STEP_PTR_FIELD_NUMBER: _ClassVar[int]
     PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     CACHED_DURATION_FIELD_NUMBER: _ClassVar[int]
@@ -7816,6 +7816,7 @@ class RunData(_message.Message):
     block_ptr: NodeReferenceData
     step_ptr: NodeReferenceData
     pipe_ptr: NodeReferenceData
+    options: RunOptionsData
     status: RunStatus
     duration: _duration_pb2.Duration
     cached_duration: _duration_pb2.Duration
@@ -7863,6 +7864,7 @@ class RunData(_message.Message):
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
         status: _Optional[_Union[RunStatus, str]] = ...,
         duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         cached_duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,

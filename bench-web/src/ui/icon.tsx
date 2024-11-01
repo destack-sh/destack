@@ -1,4 +1,5 @@
 import {
+  ActionMode,
   Alignment,
   Anchor,
   BenchType,
@@ -295,6 +296,13 @@ export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons
   [PipeType.TRIGGER]: "fas fa-bolt",
   [PipeType.STREAM]: "fas fa-signal-stream",
 });
+
+export const ICON_BY_ACTION_MODE: Record<ActionMode, IconData> = _makeIcons<ActionMode>({
+  [ActionMode.UNSPECIFIED]: "fas fa-question",
+  [ActionMode.STRICT]: "",
+  [ActionMode.ADAPTIVE]: "",
+  [ActionMode.LENIENT]: "",
+})
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
   //

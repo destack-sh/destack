@@ -1,17 +1,18 @@
-import dataclasses
 import functools
 from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import Any, Mapping, cast, override
+from typing import Any, ClassVar, cast, override
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import render
+from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.file import upload
+from bench.language.flow import Step
 from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
+from bench.language.run import Run, RunKind, RunOptions
 from bench.language.value import CustomObject, coerce_custom_object
 from bench.runtime.capture import (
     MAX_LOG_LINE_LENGTH,
@@ -22,6 +23,7 @@ from bench.runtime.capture import (
 from bench.runtime.compiler import CompiledCode, compile_code
 from bench.runtime.core import SyntaxError
 from bench.runtime.runner import Runner
+from bench.runtime.runtime import Runtime
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -29,13 +31,30 @@ tracer = trace.get_tracer(__name__)
 # NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
 
 
-@dataclass(slots=True, repr=False)
 class CodeRunnerBase(Runner):
     """Common base for compiling and running code."""
 
-    log_sink: LogSink = dataclasses.field(init=False)
+    __slots__ = ("code", "compiled", "log_sink")
 
-    def __post_init__(self):
+    kind: ClassVar[RunKind] = RunKind.CODE
+
+    def __init__(
+        self,
+        *,
+        runtime: Runtime,
+        node: Block | Step,
+        code: Code,
+        track: bool,
+        parent: Runner | None = None,
+        inputs: CustomObject | None = None,
+        run: Run | None = None,
+        options: RunOptions | None = None,
+    ) -> None:
+        super().__init__(
+            runtime=runtime, node=node, track=track, parent=parent, inputs=inputs, run=run
+        )
+        self.code = code
+        self.compiled: CompiledCode | None = None
         self.log_sink = LogSink(
             self.runtime.oracle, max_logs=MAX_LOGS_PER_CAPTURE, max_log_length=MAX_LOG_LINE_LENGTH
         )
@@ -43,18 +62,17 @@ class CodeRunnerBase(Runner):
     @tracer.start_as_current_span("code.compile")
     async def _compile_code(self, kind: CodeType) -> CompiledCode:
         """Prepares valid compiled code (raises SyntaxError if invalid)."""
-        assert self.cache.code, f"no code for {self!r}"
-        compiled = self.cache.compiled
+        compiled = self.compiled
         if compiled is None:
-            self.cache.compiled = compiled = compile_code(
-                self.cache.code.to_string(),
+            self.compiled = compiled = compile_code(
+                self.code.to_string(),
                 kind,
                 self.runtime.combined_glbls,
             )
         if compiled.syntax_error:
             syntax_e = compiled.syntax_error
             # wrap in our own SyntaxError
-            wrapped = SyntaxError(self.cache.code.to_string())
+            wrapped = SyntaxError(self.code.to_string())
             if syntax_e.lineno is not None and syntax_e.offset is not None:
                 wrapped.lineno, wrapped.offset = compiled.transformation.reverse(
                     syntax_e.lineno, syntax_e.offset
@@ -79,7 +97,7 @@ class CodeRunnerBase(Runner):
     @tracer.start_as_current_span("code.prepare_context")
     def _prepare_glbls(self) -> dict[str, Any]:
         """Prepares the context for running the code."""
-        assert self.cache.compiled, f"no compiled code for {self!r}"
+        assert self.compiled, f"no compiled code for {self!r}"
 
         # assemble globals
         assert self.node is not None, f"no node scope for {self!r}"
@@ -109,7 +127,7 @@ class CodeRunnerBase(Runner):
         # references
         # NOTE :Incomplete: handle references to exported definitions (not just node references)
         resolved_references = {}
-        for reference_name in self.cache.compiled.references:
+        for reference_name in self.compiled.references:
             reference = get_node_or_error(self.node, f"^{reference_name}")
             resolved_references[reference_name] = reference
         glbls.update(resolved_references)  # may shadow existing glbls

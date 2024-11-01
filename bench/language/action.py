@@ -12,10 +12,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.ACTION_MODE)
 class ActionMode(IdEnum):
-    STRICT = 1  # MUST run the code/node exactly
-    ADAPTIVE = 2  # SHOULD run the code/node, may adapt it
-    LENIENT = 3  # MAY run the code/node, may adapt it
-    DYNAMIC = 4  # CAN run the code/node, may do something else
+    STRICT = 1  # MUST run as specified exactly
+    ADAPTIVE = 2  # SHOULD run as specified, may adapt it on error
+    LENIENT = 3  # MAY run as specified, may do something else
 
 
 @object_()
