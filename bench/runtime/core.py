@@ -13,7 +13,7 @@ from bench.language.const import BenchError
 from bench.language.file import upload
 from bench.language.node import Node
 from bench.language.path import get_node
-from bench.language.run import RunError, RunErrorType, RunKind, RunOptions
+from bench.language.run import RunErrorType, RunKind, RunOptions
 from bench.language.setup import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
 from bench.runtime.capture import LogSink
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
@@ -21,12 +21,13 @@ from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 if TYPE_CHECKING:
     pass
 
-RUN_ONCE = RunOptions(max_attempts=1)
+ATTEMPT_ONCE = RunOptions(max_attempts=1)
+ATTEMPT_THRICE = RunOptions(max_attempts=3)
 BASE_RUN_OPTIONS_BY_KIND = {
-    RunKind.CODE: RUN_ONCE,
-    RunKind.ACTION: RunOptions(max_attempts=3),
-    RunKind.STEP: RUN_ONCE,
-    RunKind.FLOW: RUN_ONCE,
+    RunKind.CODE: ATTEMPT_ONCE,
+    RunKind.ACTION: ATTEMPT_THRICE,
+    RunKind.STEP: ATTEMPT_ONCE,
+    RunKind.FLOW: ATTEMPT_ONCE,
 }
 
 
@@ -42,27 +43,13 @@ class RuntimeError(BenchError, RuntimeError):
 class RetryableError(RuntimeError):
     """An error we can retry "immediately" at runtime (in the same runtime)."""
 
-    run_error_type = RunErrorType.UNKNOWN_RETRYABLE
+    run_error_type = RunErrorType.RETRYABLE
 
 
 class NonRetryableError(RuntimeError):
-    run_error_type = RunErrorType.UNKNOWN_NONRETRYABLE
+    """An error we cannot retry "immediately" at runtime (in the same runtime)."""
 
-
-class ManualRetryableError(RetryableError):
-    def __init__(self, error: RunError):
-        super().__init__(error.title)
-        self.error = error
-
-    run_error_type = RunErrorType.MANUAL_RETRYABLE
-
-
-class ManualNonRetryableError(NonRetryableError):
-    def __init__(self, error: RunError):
-        super().__init__(error.title)
-        self.error = error
-
-    run_error_type = RunErrorType.MANUAL_NONRETRYABLE
+    run_error_type = RunErrorType.NON_RETRYABLE
 
 
 class RunImpossibleError(NonRetryableError):
@@ -73,7 +60,7 @@ class InvalidValueError(RunImpossibleError):
     run_error_type = RunErrorType.INVALID_VALUE
 
 
-class SyntaxError(RunImpossibleError, SyntaxError):
+class CodeInvalidError(RunImpossibleError, SyntaxError):
     run_error_type = RunErrorType.CODE_INVALID
 
 

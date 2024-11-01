@@ -10,11 +10,16 @@ from opentelemetry import baggage, context, trace
 from bench.language.block import Block
 from bench.language.const import BenchError, RunErrorKind, RunStatus
 from bench.language.flow import Step
-from bench.language.run import Run, RunAttempt, RunError
+from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.language.value import CustomObject, check_value
-from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
+from bench.runtime.core import (
+    ATTEMPT_ONCE,
+    ATTEMPT_THRICE,
+    DYNAMIC_CODE_GLOBALS,
+    STATIC_CODE_GLOBALS,
+)
 from bench.runtime.runner import Runner
 from bench.utils.oracle import Oracle
 
@@ -244,19 +249,27 @@ class Runtime:
                     await self._do_run_once_retrying(runner)
             finally:
                 self._active_runners_by_id.pop(runner.id, None)
+                if not runner.is_tracked and runner.parent is not None:
+                    # add inner spans/logs/events to parent
+                    runner.parent.logs.extend(runner.logs)
+                    runner.parent.events.extend(runner.events)
+                    runner.parent.spans.extend(runner.spans)
 
     @tracer.start_as_current_span("runtime.run")
     async def run(
         self,
         run: Run | Block | Step,
         *,
+        options: RunOptions | None = None,
         inputs: Any | None = None,
         return_error: bool = False,
         optimistic: bool = False,
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime. Returns on halt or termination."""
         if not isinstance(run, Run):
-            run = Run.new(run, inputs=inputs, parent=self.active_run)
+            if options is None:
+                options = ATTEMPT_THRICE if run.run_kind == RunKind.ACTION else ATTEMPT_ONCE
+            run = Run.new(run, options=options, inputs=inputs, parent=self.active_run)
         runner = None
         async with self.session.active():
             try:

@@ -6722,7 +6722,6 @@ class PipeData(_message.Message):
         "order_key",
         "source_ptr",
         "target_ptr",
-        "associated_fields_ptr",
         "filter",
         "constraint",
         "condition",
@@ -6750,7 +6749,6 @@ class PipeData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     TARGET_PTR_FIELD_NUMBER: _ClassVar[int]
-    ASSOCIATED_FIELDS_PTR_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
     CONDITION_FIELD_NUMBER: _ClassVar[int]
@@ -6777,7 +6775,6 @@ class PipeData(_message.Message):
     order_key: str
     source_ptr: NodeReferenceData
     target_ptr: NodeReferenceData
-    associated_fields_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     filter: ExpressionData
     constraint: TypeConstraintData
     condition: CodeData
@@ -6806,7 +6803,6 @@ class PipeData(_message.Message):
         order_key: _Optional[str] = ...,
         source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
-        associated_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         filter: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ...,
         condition: _Optional[_Union[CodeData, _Mapping]] = ...,

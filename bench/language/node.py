@@ -1127,13 +1127,14 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         else:
             return self.equals(other)
 
-    def _prop_equals(
+    def _prop_value_equals(
         self,
         prop: Property,
         self_value: Any,
         other_value: Any,
         identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
     ) -> bool:
+        """Checks whether two values for a given property are equal (recursively)."""
         if prop.is_struct:
             # apply identity map
             if prop.is_node_reference:
@@ -1188,7 +1189,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
-            if not self._prop_equals(prop, self_value, other_value, identity_map):
+            if not self._prop_value_equals(prop, self_value, other_value, identity_map):
                 return False
         return True
 
@@ -1683,7 +1684,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             if existing is not UNSET:
                 node_list.extend(*existing)
 
-        # check for extraneous kwargs
+        # parse extraneous kwargs
         self._init_extra_kwargs(kwargs)
 
         # init session context
@@ -1710,8 +1711,21 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             cls = self._get_effective_cls()
             for prop in cls.__subtype_extra_properties__.values():
                 prop_value = kwargs.get(prop.name, UNSET)
-                if prop_value is not UNSET:
-                    self._do_set(prop.name, prop_value, track=False, validate=False)
+                if prop_value is UNSET:
+                    if prop.default_factory is not None:
+                        prop_value = prop.default_factory()
+                    elif prop.default is not UNSET:
+                        if prop.default is None:
+                            continue  # skip optional None
+                        prop_value = prop.default
+                    elif not prop.is_required:
+                        if prop_value.is_list:
+                            prop_value = []
+                        else:
+                            continue  # skip optional None
+                    else:
+                        raise ValueError(f"missing required value for {prop!r}")
+                self._do_set(prop.name, prop_value, track=False, validate=False)
 
     @final
     def __str__(self):  # type: ignore
@@ -1797,7 +1811,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 for prop in subtype_cls.__subtype_extra_properties__.values():
                     self_value = self_subnode.get(prop.name)
                     other_value = other_subnode.get(prop.name)
-                    if not self._prop_equals(prop, self_value, other_value):
+                    if not self._prop_value_equals(prop, self_value, other_value):
                         return False
         return True
 

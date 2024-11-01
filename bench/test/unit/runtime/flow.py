@@ -13,7 +13,7 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     """Run a Steps directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
-    Code = Step.new(StepType.ACTION, "Code", mode=ActionMode.STATIC, code=code("pass"))
+    Code = Step.new(StepType.ACTION, "Code", mode=ActionMode.STRICT, code=code("pass"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Code, Complete)
     local_runtime.page().blocks.append(Flow1)
@@ -39,7 +39,7 @@ async def test_run_flow_spurious(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Flow1.steps.append(Step.new(StepType.START, "Start"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Code1 = Step.new(StepType.ACTION, "Code1", mode=ActionMode.STATIC, code=code("pass"))
+    Code1 = Step.new(StepType.ACTION, "Code1", mode=ActionMode.STRICT, code=code("pass"))
     # don't actually connect the steps
     Flow1.steps.extend(Start, Complete, Code1)
     local_runtime.page().blocks.append(Flow1)
@@ -335,7 +335,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     Code1 = Step.new(
         StepType.ACTION,
         "Code1",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.STRICT,
         code=code("await asyncio.sleep(5)"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")

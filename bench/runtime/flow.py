@@ -10,9 +10,10 @@ from sortedcontainers import SortedDict
 from bench.language.block import Block
 from bench.language.field import TypeInfoBase
 from bench.language.flow import Pipe, Step, StepType
-from bench.language.run import Run, RunError, RunKind
+from bench.language.run import Run, RunError, RunKind, RunOptions
 from bench.language.value import CustomObject
 from bench.runtime.action import ActionRunner
+from bench.runtime.core import ATTEMPT_ONCE
 from bench.runtime.runner import Runner
 from bench.runtime.runtime import Runtime
 
@@ -218,12 +219,19 @@ class StepRunner(Runner):
         runtime: Runtime,
         node: Block | Step,
         track: bool,
+        options: RunOptions,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         run: Run | None = None,
     ) -> None:
         super().__init__(
-            runtime=runtime, node=node, track=track, parent=parent, inputs=inputs, run=run
+            runtime=runtime,
+            node=node,
+            track=track,
+            options=options,
+            parent=parent,
+            inputs=inputs,
+            run=run,
         )
         self.outer_task: asyncio.Task | None = None
         self.flow: FlowRunner | None = None
@@ -261,6 +269,7 @@ class ActionStepRunner(StepRunner):
             node=self.node,
             inputs=self.inputs,
             track=False,
+            options=ATTEMPT_ONCE,
         )
         await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs

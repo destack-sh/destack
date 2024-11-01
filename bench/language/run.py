@@ -289,12 +289,10 @@ class RunErrorType(IdEnum):
     CODE_INVALID = 20
     TEXT_INVALID = 21
     MODEL_INCAPABLE = 100
-    MANUAL_NONRETRYABLE = 498
-    UNKNOWN_NONRETRYABLE = 499
+    NON_RETRYABLE = 499
     # retryable
     MODEL_FAILED = 500
-    MANUAL_RETRYABLE = 998
-    UNKNOWN_RETRYABLE = 999
+    RETRYABLE = 999
 
     @property
     def is_retryable(self) -> bool:
@@ -349,9 +347,9 @@ class RunError(Struct, BenchError):
             elif isinstance(e, (TypeError, ValueError, ValidationError)):
                 typ = RunErrorType.INVALID_VALUE
             else:
-                typ = RunErrorType.UNKNOWN_NONRETRYABLE
+                typ = RunErrorType.NON_RETRYABLE
         else:
-            typ = RunErrorType.UNKNOWN_NONRETRYABLE
+            typ = RunErrorType.NON_RETRYABLE
         return RunError(kind=kind, type=typ, title=title, text=text)
 
 
@@ -373,9 +371,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     block: Optional["Block"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
     pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
-    options: Optional["RunOptions"] = p_internal(
-        39, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
+    options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
     # status (overall)
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)  # desired status
@@ -505,11 +501,19 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     @staticmethod
     def new(
-        node: "Block | Step", *, inputs: Any | None = None, parent: "Run | None" = None, **kwargs
+        node: "Block | Step",
+        *,
+        options: RunOptions | None = None,
+        inputs: Any | None = None,
+        parent: "Run | None" = None,
+        **kwargs,
     ) -> "Run":
         """Creates a Run from a Block."""
         from bench.language import Block, Step
         from bench.language.value import coerce_custom_object
+
+        if options is None:
+            options = RunOptions()
 
         if isinstance(node, Block):
             step = None
@@ -523,7 +527,14 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         else:
             assert_never(node)
 
-        run = Run(parent=parent or node.package, kind=kind, block=block, step=step)
+        run = Run(
+            parent=parent or node.package,
+            kind=kind,
+            block=block,
+            step=step,
+            options=options,
+            **kwargs,
+        )
         if inputs is None:
             inputs = {}
         if run.input_type is not None:
