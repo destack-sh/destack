@@ -56,7 +56,7 @@ const name = computed(() => (props.node as any).name);
     <NativeInput
       id="name"
       ref="nameRef"
-      class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+      class="ml-2 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
       :is-input="hasName && isInput"
       :value-type="NAME_TYPE"
       :variant="Variant.STEALTH"

@@ -103,6 +103,7 @@ const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"step"> = {
   // common
   "common.edit.rename": {
+    isEnabled: () => step.value?.type != StepType.TEXT,
     action: () => {
       nextTick(() => focusInElement(nameRef.value!));
     },
@@ -262,6 +263,23 @@ defineExpose<ViewExposed>({ self, id, actions });
             )
         "
       />
+      <!-- Floating meta -->
+      <div class="absolute right-0 top-0 px-1.5 py-1.5">
+        <!-- Menu -->
+        <button
+          v-menu="
+            (): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-left',
+              offset: 'referenceWidth',
+              items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
+            })
+          "
+          class="rounded-sm text-gray-400 hover:text-gray-700"
+        >
+          <i class="fas fa-ellipsis-v w-5 text-center" />
+        </button>
+      </div>
     </div>
 
     <!-- NOTE :UX: show last step output/error here? -->

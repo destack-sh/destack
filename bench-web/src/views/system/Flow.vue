@@ -8,6 +8,7 @@ import {
   FlowContext,
   getStepWidth,
   pathToSvg,
+  pathToSvgSpline,
   PIPE_CONTEXT_ACTIONS,
   PIPE_WIDTH,
   STEP_CONTEXT_ACTIONS,
@@ -15,8 +16,6 @@ import {
 import { cloneNode } from "@/language/node";
 import {
   ChangeCategory,
-  ColorShade,
-  ColorType,
   NodeReferenceData,
   NodeType,
   PipeData,
@@ -24,7 +23,7 @@ import {
   StepData,
   StepType,
   Variant,
-  ViewData,
+  ViewData
 } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -38,13 +37,12 @@ import {
 } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
-import { COLOR_BY_STEP_TYPE, getColorHex } from "@/ui/style";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
-import { computed, provide, ref, toRef, watchEffect, type Ref } from "vue";
+import { computed, provide, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
@@ -283,7 +281,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               stroke-linejoin="bevel"
               stroke="currentColor"
               fill="none"
-              :d="pathToSvg(pendingPath.points)"
+              :d="pathToSvgSpline(pendingPath.points)"
             />
           </svg>
         </div>

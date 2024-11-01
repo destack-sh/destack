@@ -889,6 +889,28 @@ export function getStepFields(
   }
 }
 
+/** Interpolate the given path */
+export function interpolatePath(points: Vector2[], factor: number = 2): Vector2[] {
+  const interpolated: Vector2[] = [];
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    interpolated.push(p1);
+
+    for (let j = 1; j < factor; j++) {
+      const t = j / factor;
+      interpolated.push({
+        x: p1.x + (p2.x - p1.x) * t,
+        y: p1.y + (p2.y - p1.y) * t,
+      });
+    }
+  }
+
+  interpolated.push(points[points.length - 1]);
+  return interpolated;
+}
+
 /** Computes the pipe path SVG path string. */
 export function pathToSvg(path: Vector2[]): string {
   const pathParts: string[] = [];
@@ -897,6 +919,36 @@ export function pathToSvg(path: Vector2[]): string {
     pathParts.push(`L${p.x},${p.y}`);
   }
   return `M${path[0].x},${path[0].y} ${pathParts.join(" ")}`;
+}
+
+/**
+ * Converts an array of Vector2 points into a smooth SVG path string using Catmull-Rom splines.
+ * NOTE :UI: improve path splining
+ */
+export function pathToSvgSpline(points: Vector2[], tension: number = 0.05): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M${points[0].x},${points[0].y}`;
+
+  const pathParts: string[] = [`M${points[0].x},${points[0].y}`];
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] || points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] || p2;
+
+    // Calculate control points with tension adjustment
+    const cp1x = p1.x + (p2.x - p0.x) * tension;
+    const cp1y = p1.y + (p2.y - p0.y) * tension;
+
+    const cp2x = p2.x - (p3.x - p1.x) * tension;
+    const cp2y = p2.y - (p3.y - p1.y) * tension;
+
+    // Append the cubic Bézier curve command
+    pathParts.push(`C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`);
+  }
+
+  return pathParts.join(" ");
 }
 
 /** Gets the view width for a Step. */
