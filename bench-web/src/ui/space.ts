@@ -514,9 +514,9 @@ export class SpaceCanvas {
     const instance = getCurrentInstance() as ViewComponent | null;
     if (instance == null) throw new Error("no current Vue instance");
 
-    // 
+    //
     // mark element with component
-    // 
+    //
 
     function markEl() {
       // NOTE: we enforce that el must be a single element for all Views with a lint rule
@@ -535,7 +535,7 @@ export class SpaceCanvas {
 
     //
     // register component
-    // 
+    //
 
     function getComponentId(): string {
       // the :ViewComponentId is composed of the view id itself and any ancestor ids up to the next View
@@ -590,8 +590,7 @@ export class SpaceCanvas {
     if (self.value != null) {
       const viewRef = graph.getRef(self);
       (instance as any).__selfViewRef = viewRef;
-    } 
-
+    }
 
     let base = instance;
     while (base != null && (base as any)?.__selfViewRef == null) {
@@ -599,10 +598,9 @@ export class SpaceCanvas {
     }
     const baseViewRef: Ref<ViewData | null> | null = (base as any)?.__selfViewRef ?? null;
 
-
-    // 
+    //
     // state (on demand)
-    // 
+    //
 
     function getState(viewId?: string): Partial<Record<string, any> | undefined> {
       const subviewPacked = (baseViewRef?.value?.subviewsPacked as any)?.[viewId ?? componentId];
@@ -748,9 +746,8 @@ export class SpaceCanvas {
       });
       if ((view.name ?? "").length == 0)
         newView.name = generateNodeName(
-          NodeType.VIEW,
+          newView,
           this.graph.getDescendants(this.spacePtr.value!, { metatypes: [NodeType.VIEW] }),
-          newView.type,
         );
       tx.create(newView);
       this.focus({ node: newView });
@@ -1052,7 +1049,8 @@ function makeLayout(
   const viewsByType: Partial<Record<ViewType, ViewData[]>> = {};
 
   function doMakeLayoutRec(parent: SpaceData | ViewData, viewIn: ViewLayoutIn, ancestors: ViewData[]) {
-    const name = viewIn.name ?? generateNodeName(NodeType.VIEW, viewsByType[viewIn.type] ?? [], viewIn.type);
+    const name =
+      viewIn.name ?? generateNodeName({ ...viewIn, metatype: ObjectType.VIEW }, viewsByType[viewIn.type] ?? []);
     const view = tx.create({
       metatype: NodeType.VIEW,
       title: viewIn.name ?? toCamelName(ViewType, viewIn.type),

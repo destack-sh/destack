@@ -1,18 +1,20 @@
 import asyncio
 import dataclasses
 from dataclasses import dataclass
-from typing import Any, Literal, override
+from typing import Any, ClassVar, Literal, override
 
 import structlog
 from opentelemetry import trace
 from sortedcontainers import SortedDict
 
+from bench.language.block import Block
 from bench.language.field import TypeInfoBase
 from bench.language.flow import Pipe, Step, StepType
 from bench.language.run import Run, RunError, RunKind
 from bench.language.value import CustomObject
-from bench.runtime.core import RUN_ONCE
+from bench.runtime.action import ActionRunner
 from bench.runtime.runner import Runner
+from bench.runtime.runtime import Runtime
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -142,9 +144,10 @@ class FlowTick:
         return f"<{self.__class__.__name__} {self}>"
 
 
-@dataclass(slots=True, repr=False)
 class FlowRunner(Runner):
     """Runs an entire Flow."""
+
+    kind: ClassVar[RunKind] = RunKind.FLOW
 
     _step_states: dict[Step, "StepState"] = dataclasses.field(default_factory=dict)
     _pipe_states: dict[Pipe, "PipeState"] = dataclasses.field(default_factory=dict)
@@ -206,10 +209,24 @@ class FlowRunner(Runner):
         logger.debug("flow.fail", flow=self.node, runner=self)
 
 
-@dataclass(slots=True, repr=False)
 class StepRunner(Runner):
-    outer_task: asyncio.Task | None = None
-    flow: FlowRunner | None = None
+    kind: ClassVar[RunKind] = RunKind.FLOW
+
+    def __init__(
+        self,
+        *,
+        runtime: Runtime,
+        node: Block | Step,
+        track: bool,
+        parent: Runner | None = None,
+        inputs: CustomObject | None = None,
+        run: Run | None = None,
+    ) -> None:
+        super().__init__(
+            runtime=runtime, node=node, track=track, parent=parent, inputs=inputs, run=run
+        )
+        self.outer_task: asyncio.Task | None = None
+        self.flow: FlowRunner | None = None
 
 
 #
@@ -239,10 +256,9 @@ class CompleteStepRunner(StepRunner):
 class ActionStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
-        code_runner = await self.runtime.make_runner(
-            kind=RunKind.ACTION,
+        code_runner = ActionRunner(
+            runtime=self.runtime,
             node=self.node,
-            options=RUN_ONCE,
             inputs=self.inputs,
             track=False,
         )

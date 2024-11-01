@@ -149,7 +149,7 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
           }),
         },
         { from: 33, to: 43 },
-        { from: 60 },
+        { from: 60, to: 62 },
       ],
       Constraint: [],
     };

@@ -1,18 +1,18 @@
 import abc
 import asyncio
-import dataclasses
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterable
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, assert_never
 
 import structlog
 from opentelemetry import trace
 
+from bench.language.code import Code
 from bench.language.const import RunStatus
-from bench.language.field import TypeInfoBase
+from bench.language.flow import StepType
 from bench.language.log import LogInfo
 from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.value import CustomObject
+from bench.runtime.core import BASE_RUN_OPTIONS_BY_KIND, RunImpossibleError
+from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Block, Step
@@ -23,30 +23,138 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@dataclass(slots=True, repr=False)
 class Runner:
     """A runner for a single Run (tracked Run or untracked RunSpan)."""
 
-    id: UUID  # Run.id if tracked, new otherwise
-    kind: RunKind
-    runtime: "Runtime"
-    options: RunOptions
-    parent: "Runner | None"  # if nested
-    status: RunStatus
-    node: "Block | Step"
-    inputs: CustomObject | None = None
-    input_type: TypeInfoBase | None = None
-    outputs: CustomObject | None = None
-    output_type: TypeInfoBase | None = None
-    variable_type: TypeInfoBase | None = None
-    variables: CustomObject | None = None
-    error: RunError | None = None
-    attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
-    logs: list[LogInfo] = dataclasses.field(default_factory=list)
-    task: asyncio.Task | None = None  # the active callable being run
-    runs: list["Runner"] = dataclasses.field(default_factory=list)  # nested Runners
-    run: Run | None = None  # if tracked
-    is_cancelled: bool = False  # whether this run was cancelled before it ran
+    __slots__ = (
+        "attempts",
+        "error",
+        "id",
+        "input_type",
+        "inputs",
+        "is_cancelled",
+        "kind",
+        "logs",
+        "node",
+        "options",
+        "output_type",
+        "outputs",
+        "parent",
+        "run",
+        "runs",
+        "runtime",
+        "status",
+        "task",
+    )
+
+    kind: ClassVar[RunKind]
+
+    def __init__(
+        self,
+        *,
+        runtime: "Runtime",
+        node: "Block | Step",
+        track: bool,
+        parent: "Runner | None" = None,
+        inputs: CustomObject | None = None,
+        run: Run | None = None,
+        options: RunOptions | None = None,
+    ) -> None:
+        self.id = run.id if run is not None else UUIDT()
+        self.runtime = runtime
+        self.node = node
+        self.status = RunStatus.QUEUED
+        self.options = (
+            BASE_RUN_OPTIONS_BY_KIND[self.kind].override(options)
+            if options is not None
+            else BASE_RUN_OPTIONS_BY_KIND[self.kind]
+        )
+
+        self.inputs: CustomObject | None = inputs
+        self.input_type = node.input_type
+        self.outputs: CustomObject | None = None
+        self.output_type = node.output_type
+        self.error: RunError | None = None
+
+        self.parent = parent or runtime.active_runner
+        self.attempts: list[RunAttempt] = list(run.attempts) if run is not None else []
+        self.logs: list[LogInfo] = []
+        self.runs: list[Runner] = []
+        self.run = run
+        self.task: asyncio.Task | None = None
+        self.is_cancelled = False
+
+        # nest active Runners/Runs
+        if self.parent is not None:
+            self.parent.runs.append(self)
+        if track and run is None:
+            if self.parent is not None:
+                assert self.parent.run is not None, f"{self.parent!r} has no Run"
+                parent_run = self.parent.run
+            else:
+                parent_run = None
+            with tracer.start_as_current_span("runtime.create_run"):
+                run = Run(
+                    parent=parent_run or self.runtime.session.package,
+                    kind=self.kind,
+                    block=node if isinstance(node, Block) else node.block,
+                    step=node if isinstance(node, Step) else None,
+                    options=options,
+                    status=self.status,
+                    inputs=self.inputs,
+                    session=self.runtime.session,
+                    _skip_validate_self=True,
+                )
+                self.runtime.session._create(run)
+            self.run = run
+
+    @staticmethod
+    async def from_run(runtime: "Runtime", run: Run, track: bool) -> "Runner":
+        """Make a Runner from a Run."""
+        node = run.step or run.block
+        if node is None:
+            raise RunImpossibleError(f"no node for {run!r}")
+        if run.inputs is None and run.input_type is not None:
+            inputs = CustomObject.new({}, run.input_type)
+        else:
+            inputs = run.inputs
+
+        base_kwargs: dict[str, Any] = {
+            "runtime": runtime,
+            "inputs": inputs,
+            "run": run,
+            "track": track,
+            "node": node,
+        }
+
+        if run.kind == RunKind.CODE:
+            from bench.runtime.code import CodeFunctionRunner
+
+            code = getattr(node, "code", None) or Code.empty()
+            return CodeFunctionRunner(**base_kwargs, code=code)
+        elif run.kind == RunKind.ACTION:
+            from bench.runtime.action import ActionRunner
+
+            return ActionRunner(**base_kwargs)
+        elif run.kind == RunKind.STEP:
+            from bench.runtime.flow import ActionStepRunner, CompleteStepRunner, StartStepRunner
+
+            if not isinstance(node, Step):
+                raise ValueError(f"unexpected node for {run!r}: {node!r}")
+            if node.type == StepType.START:
+                return StartStepRunner(**base_kwargs)
+            elif node.type == StepType.COMPLETE:
+                return CompleteStepRunner(**base_kwargs)
+            elif node.type == StepType.ACTION:
+                return ActionStepRunner(**base_kwargs)
+            else:
+                raise ValueError(f"unexpected node for {run!r}: {node!r}")
+        elif run.kind == RunKind.FLOW:
+            from bench.runtime.flow import FlowRunner
+
+            return FlowRunner(**base_kwargs)
+        else:
+            assert_never(run.kind)
 
     def __str__(self):
         str_parts: list[str] = [

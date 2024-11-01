@@ -1,29 +1,22 @@
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Mapping, assert_never, cast
+from typing import Any, Mapping
 from uuid import UUID
 
 import structlog
 from opentelemetry import baggage, context, trace
 
-from bench.language.block import ActionBlock, Block
-from bench.language.code import Code
-from bench.language.const import BenchError, BlockType, RunErrorKind, RunStatus
-from bench.language.flow import ActionStep, Step, StepType
-from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
+from bench.language.block import Block
+from bench.language.const import BenchError, RunErrorKind, RunStatus
+from bench.language.flow import Step
+from bench.language.run import Run, RunAttempt, RunError
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.language.value import CustomObject, check_value
-from bench.runtime.core import (
-    BASE_RUN_OPTIONS_BY_KIND,
-    DYNAMIC_CODE_GLOBALS,
-    STATIC_CODE_GLOBALS,
-    RunImpossibleError,
-)
+from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.runtime.runner import Runner
 from bench.utils.oracle import Oracle
-from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -78,99 +71,6 @@ class Runtime:
     def active_run(self) -> Run | None:
         runner = self._active_runner.get(None)
         return runner.run if runner else None
-
-    @tracer.start_as_current_span("runtime.make")
-    async def make_runner(
-        self,
-        # state
-        *,
-        kind: RunKind,
-        node: Block | Step,
-        track: bool,
-        # runner
-        code: Code | None = None,
-        inputs: CustomObject | None = None,
-        variables: CustomObject | None = None,
-        options: RunOptions | None = None,
-        run: Run | None = None,
-    ) -> Runner:
-        """Make the Runner to run some runnable in a Run."""
-
-        # make runner with state
-        runner_cls = get_runner_cls(kind=kind, node=node, options=options)
-        if runner_cls is None:
-            raise RunImpossibleError(f"no runner for {kind.bench_name}:{node!r}")
-        # NOTE :Incomplete: re-use existing state sometimes (e.g., code script exports)
-        runner = runner_cls(
-            id=run.id if run else UUIDT(),
-            kind=kind,
-            runtime=self,
-            options=BASE_RUN_OPTIONS_BY_KIND[kind].override(options),
-            parent=self.active_runner,
-            node=node,
-            status=run.status if run else RunStatus.SCHEDULED,
-            input_type=node.input_type,
-            output_type=node.output_type,
-            variable_type=node.variable_type,
-            variables=variables,
-            inputs=inputs,
-            attempts=list(run.attempts) if run else [],
-            run=run,
-        )
-
-        # nest active Runners/Runs
-        active_runner = self.active_runner
-        if active_runner is not None:
-            active_runner.runs.append(runner)
-        if track and run is None:
-            if active_runner is not None:
-                assert active_runner.run is not None, f"{active_runner!r} has no Run"
-                parent_run = active_runner.run
-            else:
-                parent_run = None
-            with tracer.start_as_current_span("runtime.create_run"):
-                run = Run(
-                    parent=parent_run or self.session.package,
-                    kind=kind,
-                    block=node if isinstance(node, Block) else node.block,
-                    step=node if isinstance(node, Step) else None,
-                    status=runner.status,
-                    inputs=runner.inputs,
-                    attempts=runner.attempts,
-                    session=self.session,
-                    _skip_validate_self=True,
-                )
-                self.session._create(run)
-            runner.run = run
-
-        return runner
-
-    async def make_runner_from_run(self, run: Run):
-        """Make a Runner from a Run."""
-        node = run.step or run.block
-        if node is None:
-            raise RunImpossibleError(f"no node for {run!r}")  # default to package?
-        if isinstance(node, Step) and node.type == StepType.ACTION:
-            options = cast(ActionStep, node).run_options
-        elif isinstance(node, Block) and node.type in (
-            BlockType.ACTION,
-            BlockType.FLOW,
-        ):
-            options = cast(ActionBlock, node).run_options
-        else:
-            options = None
-        if run.inputs is None and run.input_type is not None:
-            inputs = CustomObject.new({}, run.input_type)
-        else:
-            inputs = run.inputs
-        return await self.make_runner(
-            kind=run.kind,
-            node=node,
-            run=run,
-            inputs=inputs,
-            options=options,
-            track=True,
-        )
 
     @tracer.start_as_current_span("runtime.run_runner.once_retrying")
     async def _do_run_once_retrying(self, runner: Runner):
@@ -360,7 +260,7 @@ class Runtime:
         runner = None
         async with self.session.active():
             try:
-                runner = await self.make_runner_from_run(run=run)
+                runner = await Runner.from_run(runtime=self, run=run, track=True)
                 await self.run_runner(runner)
                 logger.info("runtime.run", run=run, runner=runner, span="current")
             except (BenchError, ValueError, TypeError) as e:
@@ -400,41 +300,3 @@ class Runtime:
             if runner.task is not None:
                 runner.task.cancel()
             logger.debug("runtime.run.abort", runner=runner)
-
-
-def get_runner_cls(*, kind: RunKind, node: "Block | Step") -> type[Runner] | None:
-    """Gets the runner for the given Run configuration."""
-    if kind == RunKind.CODE:
-        from bench.runtime.code import CodeFunctionRunner, CodeScriptRunner
-
-        if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
-            return CodeFunctionRunner
-        else:
-            return CodeScriptRunner
-    elif kind == RunKind.ACTION:
-        from bench.runtime.action import ActionRunner
-
-        return ActionRunner
-    elif kind == RunKind.STEP:
-        from bench.runtime.flow import (
-            ActionStepRunner,
-            CompleteStepRunner,
-            StartStepRunner,
-        )
-
-        if not isinstance(node, Step):
-            raise ValueError(f"unexpected node type for run kind {kind}: {node!r}")
-        if node.type == StepType.START:
-            return StartStepRunner
-        elif node.type == StepType.COMPLETE:
-            return CompleteStepRunner
-        elif node.type == StepType.ACTION:
-            return ActionStepRunner
-        else:
-            return None
-    elif kind == RunKind.FLOW:
-        from bench.runtime.flow import FlowRunner
-
-        return FlowRunner
-    else:
-        assert_never(kind)
