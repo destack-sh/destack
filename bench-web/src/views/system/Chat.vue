@@ -472,7 +472,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
           <!-- Author Icon -->
           <div
             v-if="!isContinued"
-            class="mt-0.5 flex h-fit flex-shrink-0 flex-col justify-center rounded-sm border border-gray-300 bg-gray-100 text-center text-gray-700"
+            class="mt-0.5 flex h-fit flex-shrink-0 flex-col justify-center rounded-sm border border-gray-200 bg-gray-100 text-center text-gray-700"
             :style="{ width: asideSize + 'px', height: asideSize + 'px' }"
           >
             <IconInline v-bind="author.icon" />
@@ -515,7 +515,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             <Text :id="message.id + '.text'" :model-value="message.text" :variant="Variant.STEALTH" />
             <!-- Controls (floating) -->
             <div
-              class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded-sm border border-gray-300 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
+              class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded-sm border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
             >
               <!-- Reply -->
               <button
@@ -595,7 +595,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
         <!-- Jump to bottom & follow -->
         <button
           v-if="variant != Variant.COMPACT"
-          class="arrow duation-75 absolute right-[12px] rounded-2xl border border-gray-300 bg-white px-2.5 py-0.5 text-base text-gray-600 transition-colors hover:bg-gray-100 hover:text-primary-700"
+          class="arrow duation-75 absolute right-[12px] rounded-2xl border border-gray-200 bg-white px-2.5 py-0.5 text-base text-gray-600 transition-colors hover:bg-gray-100 hover:text-primary-700"
           :class="[replyingTo ? '-top-[72px]' : '-top-[36px]', stickToEnd ? 'opacity-0' : 'opacity-100']"
           @click="followEnd()"
         >

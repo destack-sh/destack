@@ -795,11 +795,11 @@ defineExpose<ViewExposed>({ self, id, actions });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <div class="flex flex-col border-gray-300">
+      <div class="flex flex-col border-gray-200">
         <!-- Column headers (sticky) -->
         <div
           ref="headerRef"
-          class="z-20 flex flex-row items-center border-gray-300"
+          class="z-20 flex flex-row items-center border-gray-200"
           :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
             height: `${ROW_HEIGHT_MIN}px`,
@@ -809,7 +809,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="variant != Variant.COMPACT"
             class="group sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
-            :class="[hasSelectionRows ? 'border-gray-300 bg-white' : 'border-transparent bg-transparent']"
+            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
@@ -818,7 +818,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <input
               type="checkbox"
-              class="h-4 w-4 rounded-sm border-gray-300 transition-colors duration-150 focus:ring-0"
+              class="h-4 w-4 rounded-sm border-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
               :checked="isAllSelectedRows"
               @change="(e) => ((e.target as HTMLInputElement).checked ? selectAll() : selectNone())"
@@ -858,7 +858,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-300 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
               column.isInspected ? 'bg-sky-100' : column.isHighlighted ? 'bg-sky-50' : 'hover:bg-gray-100',
@@ -978,7 +978,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               };
             }
           "
-          class="group/row flex flex-row border-gray-300"
+          class="group/row flex flex-row border-gray-200"
           :class="[]"
           :data-node-id="record.id"
           :data-node-ck="record.id"
@@ -989,7 +989,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             v-if="variant != Variant.COMPACT"
             class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
-            :class="[hasSelectionRows ? 'border-gray-300 bg-white' : 'border-transparent bg-transparent']"
+            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
             }"
@@ -997,7 +997,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <input
               type="checkbox"
-              class="h-4 w-4 rounded-sm border-gray-300 transition-colors duration-150 focus:ring-0"
+              class="h-4 w-4 rounded-sm border-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
               :checked="hasSelectionRows && isSelectedRow(record)"
               @change="(e) => setSelectionRow(record, (e.target as HTMLInputElement).checked, shiftKey ?? false)"
@@ -1013,7 +1013,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   ? (cellWrapperRefs[getCellId(record, column)] = ref)
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
-            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-300 px-2 text-gray-900"
+            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
             :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-sky-100' : '']"
             :style="{
               width: `${column.width}px`,
@@ -1064,7 +1064,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- No columns -->
           <div
             v-if="columns.length == 0"
-            class="w-full border-b border-gray-300 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-700"
+            class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-700"
             :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           />
         </div>

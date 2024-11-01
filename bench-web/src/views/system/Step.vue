@@ -136,10 +136,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="step"
     ref="containerRef"
-    class="group/step rounded-sm border bg-white transition-colors duration-150"
-    :style="{
-      borderColor: getNodeColorHex(step, ColorShade.S300),
-    }"
+    class="group/step rounded border border-gray-200 bg-white transition-colors duration-150"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Ports -->
@@ -152,7 +149,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       ]"
     >
       <button
-        class="relative cursor-crosshair rounded-sm border bg-white outline-none transition-colors duration-150 hover:bg-gray-100"
+        class="relative cursor-crosshair rounded-sm border border-gray-200 bg-white outline-none transition-colors duration-150 hover:bg-gray-100"
         :class="
           flowCtx.getPipesAtPort(step, side).length > 0 || flowCtx.isDraggingPort
             ? ''
@@ -161,7 +158,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         :style="{
           width: FLOW_PORT_SIZE + 'px',
           height: FLOW_PORT_SIZE + 'px',
-          borderColor: getNodeColorHex(step, ColorShade.S300),
         }"
         @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, side })"
         @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step-port', step: step!, side })"
@@ -190,31 +186,38 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-if="step.type != StepType.TEXT"
       ref="headerRef"
-      class="flex w-full flex-row items-center px-2 transition-colors duration-150"
+      class="flex w-full flex-row items-center transition-colors duration-150"
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
-        backgroundColor: getNodeColorHex(step, ColorShade.S200),
       }"
     >
-      <!-- Icon/Name -->
-      <IconInline
-        v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
-        v-menu="
-          (): PopoverInfoIn => ({
-            component: Icon,
-            placement: 'bottom-right',
-            offset: '-referenceWidth',
-            props: { modelValue: step!.icon, isInput: true },
-            onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
-          })
-        "
-        v-bind="getNodeIcon(step)"
-        class="w-5 flex-shrink-0 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-      />
+      <!-- Icon -->
+      <div
+        class="ml-1 flex flex-row items-center rounded px-1 py-1"
+        :style="{
+          backgroundColor: getNodeColorHex(step, ColorShade.S300),
+        }"
+      >
+        <IconInline
+          v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
+          v-menu="
+            (): PopoverInfoIn => ({
+              component: Icon,
+              placement: 'bottom-right',
+              offset: '-referenceWidth',
+              props: { modelValue: step!.icon, isInput: true },
+              onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
+            })
+          "
+          v-bind="getNodeIcon(step)"
+          class="w-5 flex-shrink-0 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer"
+        />
+      </div>
+      <!-- Name -->
       <NativeInput
         id="name"
         ref="nameRef"
-        class="ml-1.5 truncate font-medium text-gray-700 transition-colors duration-150"
+        class="ml-2 truncate font-medium text-gray-700 transition-colors duration-150"
         is-input
         :value-type="NAME_TYPE"
         :variant="Variant.STEALTH"
@@ -222,44 +225,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         @update:model-value="(newValue) => flowCtx.tx.update(step!, { name: newValue as string }, { debounce: 'long' })"
       />
       <!-- Controls/Meta -->
-      <div class="ml-auto flex flex-row pl-2 pr-0.5">
-        <!-- Status -->
-        <!-- NOTE :UX: indicate Step/Flow Run statuses better (show all Runs on hover, total runtime, ...) -->
-        <Transition
-          enter-active-class="transition-opacity duration-75"
-          enter-from-class="opacity-0"
-          enter-to-class="opacity-100"
-          mode="out-in"
-          leave-active-class="transition-opacity duration-75"
-          leave-from-class="opacity-100"
-          leave-to-class="opacity-0"
-          appear
-        >
-          <span
-            v-if="lastRun"
-            class="flex-shrink-0 truncate px-1"
-            :style="{ color: getRunColorHex(lastRun.status, ColorShade.S700) }"
-          >
-            <span v-if="lastRuns.length > 1"> {{ lastRuns.length }}x </span>
-            <!-- Duration -->
-            <span v-if="lastRun.startedAt" class="mr-1">
-              {{
-                formatDuration(
-                  lastRun.duration ??
-                    getDurationFromNow(lastRun.startedAt, { updateInterval: TimeUpdateInterval.MILLISECOND }),
-                  { minUnit: "s" },
-                )
-              }}
-            </span>
-            <!-- Icon -->
-            <IconInline
-              class="w-5 text-center"
-              :class="[lastRun.status == RunStatus.RUNNING ? 'animate-spin' : '']"
-              :style="{ color: getRunColorHex(lastRun.status) }"
-              v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
-            />
-          </span>
-        </Transition>
+      <div class="ml-auto flex flex-row pl-2 pr-1.5">
         <!-- Menu -->
         <button
           v-menu="
@@ -270,7 +236,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
             })
           "
-          class="rounded-sm text-gray-800 hover:text-primary-700"
+          class="rounded-sm text-gray-400 hover:text-gray-700"
         >
           <i class="fas fa-ellipsis-v w-5 text-center" />
         </button>
@@ -300,7 +266,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- NOTE :UX: show last step output/error here? -->
   </div>
-  <div v-else ref="containerRef" class="rounded-sm border border-gray-300 bg-white">
+  <div v-else ref="containerRef" class="rounded-sm border border-gray-200 bg-white">
     <!-- should never be rendered by containing flow -->
     <span class="text-danger-600">???</span>
   </div>

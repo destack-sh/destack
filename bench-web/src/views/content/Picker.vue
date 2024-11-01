@@ -252,7 +252,7 @@ defineExpose<ViewExposed>({
       "
       role="button"
       :disabled="props.isDisabled || !props.isInput"
-      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded-sm border-gray-300 hover:border-gray-300 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded-sm border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
       :class="[variant != Variant.STEALTH ? 'border px-2.5 py-1' : '']"
     >
       <!-- Current value -->
@@ -331,7 +331,7 @@ defineExpose<ViewExposed>({
     <!-- Inline Combobox -->
     <div v-else-if="isInline" :style="{ width: width + 'px' }">
       <!-- Header -->
-      <div class="flex w-full flex-row flex-wrap items-center gap-y-1.5 border-b border-gray-300 px-2.5 py-1">
+      <div class="flex w-full flex-row flex-wrap items-center gap-y-1.5 border-b border-gray-200 px-2.5 py-1">
         <!-- Current value -->
         <template v-if="valueType?.isList">
           <button

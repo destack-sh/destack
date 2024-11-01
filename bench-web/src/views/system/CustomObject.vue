@@ -128,7 +128,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       "
       role="button"
       :disabled="isDisabled"
-      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded-sm border border-gray-300 bg-white px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded-sm border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-200 disabled:bg-gray-100 data-[popover=true]:border-gray-200"
     >
       <!-- Current value -->
       <template v-if="hasValue">

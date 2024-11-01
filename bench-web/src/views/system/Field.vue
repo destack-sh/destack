@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
-import { Alignment, ColorShade, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { Alignment, ColorShade, FieldType, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -74,38 +74,36 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 rounded-sm px-1.5 py-[3px] transition-colors duration-75"
+    class="flex w-fit items-center gap-x-1.5 rounded border border-gray-200 transition-colors duration-75"
     :class="[orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse']"
-    :style="{
-      backgroundColor: getNodeColorHex(field, ColorShade.S200),
-    }"
   >
-    <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->
-    <IconInline
-      v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
-      v-menu="
-        (): PopoverInfoIn => ({
-          component: Icon,
-          placement: 'bottom-right',
-          offset: '-referenceWidth',
-          props: { modelValue: field!.icon },
-          onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
-        })
-      "
-      v-bind="getNodeIcon(field)"
-      class="w-5 rounded-sm p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-      :class="
-        isInspected && variant == Variant.STEALTH
-          ? 'text-primary-700'
-          : isHighlighted && variant == Variant.STEALTH
-            ? 'text-primary-700'
-            : 'text-gray-700'
-      "
-    />
+    <!-- Icon -->
+    <div
+      class="ml-1 h-full rounded px-0.5"
+      :style="{
+        backgroundColor: field.type != FieldType.OPTION ? getNodeColorHex(field, ColorShade.S300) : undefined,
+      }"
+    >
+      <IconInline
+        v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
+        v-menu="
+          (): PopoverInfoIn => ({
+            component: Icon,
+            placement: 'bottom-right',
+            offset: '-referenceWidth',
+            props: { modelValue: field!.icon },
+            onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
+          })
+        "
+        v-bind="getNodeIcon(field)"
+        class="w-5 rounded-sm p-0.5 hover:cursor-pointer"
+      />
+    </div>
+    <!-- Name -->
     <NativeInput
       id="name"
       ref="nameRef"
-      class="flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
+      class="flex-shrink-0 py-[3px] font-medium text-gray-700 transition-colors duration-150"
       :alignment="orientation == Orientation.HORIZONTAL_REVERSED ? Alignment.END : Alignment.START"
       is-input
       :value-type="NAME_TYPE"

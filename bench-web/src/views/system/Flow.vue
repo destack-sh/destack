@@ -319,7 +319,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Node path -->
       <NodePath
         v-if="variant != Variant.STEALTH && variant != Variant.COMPACT && flowCtx.flow.value != null"
-        class="pointer-events-auto flex-shrink-0 border border-gray-300 bg-white px-2"
+        class="pointer-events-auto flex-shrink-0 border border-gray-200 bg-white px-2"
         :container="nodePtr"
         :focus="props.focus?.nodesPtr[0]"
         :graph="pkgGraph"
@@ -327,7 +327,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Menu (Create) -->
       <div
         v-if="variant != Variant.STEALTH"
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-300 bg-white px-2 py-1.5"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1.5"
         :class="variant != Variant.COMPACT ? 'absolute left-1/2 -translate-x-1/2' : ''"
       >
         <!-- Create -->
@@ -349,7 +349,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.create',
           }"
-          class="rounded-sm px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
+          class="rounded-sm px-0.5"
+          :class="
+            variant != Variant.COMPACT
+              ? 'text-gray-700 hover:bg-gray-100 hover:text-primary-700'
+              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+          "
           @click="
             flow &&
               createStep(pkgConnection.tx, pkgGraph, {
@@ -364,7 +369,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
       <!-- Menu (Actions) -->
       <div
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-300 bg-white px-2 py-1.5"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1.5"
       >
         <button
           v-for="action of (
@@ -379,7 +384,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.actions',
           }"
-          class="rounded-sm px-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
+          class="rounded-sm px-0.5"
+          :class="
+            variant != Variant.COMPACT
+              ? 'text-gray-700 hover:bg-gray-100 hover:text-primary-700'
+              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+          "
           @click="fireAction(action)"
         >
           <IconInline v-bind="action.icon" class="w-5 text-center" />

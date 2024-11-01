@@ -166,7 +166,7 @@ const dockActions: Ref<Action[]> = computed(
           <!-- Bench Info -->
           <template v-if="bench" #header>
             <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-              <div class="mr-2 w-10 rounded-sm border border-gray-300 bg-gray-100 py-0.5 text-center text-lg">
+              <div class="mr-2 w-10 rounded-sm border border-gray-200 bg-gray-100 py-0.5 text-center text-lg">
                 <IconInline v-if="bench.icon" class="text-gray-700" v-bind="bench.icon" />
                 <img v-else src="@/assets/icon_outline.svg" class="mx-auto h-7 w-7 rounded-md" />
               </div>
@@ -233,7 +233,7 @@ const dockActions: Ref<Action[]> = computed(
               <!-- User Info -->
               <template #header>
                 <div class="flex flex-row px-2.5 pb-2 pt-1.5">
-                  <div class="mr-2 rounded-sm border border-gray-300 bg-gray-100 px-2.5 py-0.5 text-xl">
+                  <div class="mr-2 rounded-sm border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xl">
                     <IconInline class="text-gray-700" v-bind="user.icon ?? DEFAULT_USER_ICON" />
                   </div>
                   <div class="flex flex-col leading-tight">

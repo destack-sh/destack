@@ -9,7 +9,7 @@ import { Casing, toCasing } from "@/utils/string";
   <!-- Drag image overlay -->
   <!-- Wrapper to ensure dragImageRef is always set -->
   <div :ref="(ref) => _setDragImage(ref as any)" class="absolute -top-[100px] left-20 py-1 pl-2">
-    <div v-if="activeDragged" class="max-w-48 rounded-sm border border-gray-300 bg-white px-2 py-1 text-gray-900">
+    <div v-if="activeDragged" class="max-w-48 rounded-sm border border-gray-200 bg-white px-2 py-1 text-gray-900">
       <!-- And wrapper to offset within the image to ensure the text isn't obscured by the cursor -->
       <div v-if="activeDragged.kind == 'node'" class="flex flex-row items-center">
         <IconInline v-bind="getNodeIcon(activeDragged.nodes[0])" class="mr-1 w-5 text-gray-700" />
