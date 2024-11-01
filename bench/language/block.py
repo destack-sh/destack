@@ -143,8 +143,6 @@ class Block(SourceNode[BlockData]):
             return RunKind.ACTION
         elif self.type == BlockType.FLOW:
             return RunKind.FLOW
-        elif self.type.is_runnable:
-            raise RuntimeError(f"unexpected type {self!r}")
         else:
             return None
 

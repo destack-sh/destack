@@ -9,9 +9,9 @@ from bench.language.code import Code
 from bench.language.const import RunStatus
 from bench.language.flow import StepType
 from bench.language.log import LogInfo
-from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
+from bench.language.run import Run, RunAttempt, RunError, RunEvent, RunKind, RunOptions, RunSpan
 from bench.language.value import CustomObject
-from bench.runtime.core import BASE_RUN_OPTIONS_BY_KIND, RunImpossibleError
+from bench.runtime.core import RunImpossibleError
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -29,6 +29,7 @@ class Runner:
     __slots__ = (
         "attempts",
         "error",
+        "events",
         "id",
         "input_type",
         "inputs",
@@ -43,6 +44,7 @@ class Runner:
         "run",
         "runs",
         "runtime",
+        "spans",
         "status",
         "task",
     )
@@ -55,20 +57,16 @@ class Runner:
         runtime: "Runtime",
         node: "Block | Step",
         track: bool,
+        options: RunOptions,
         parent: "Runner | None" = None,
         inputs: CustomObject | None = None,
         run: Run | None = None,
-        options: RunOptions | None = None,
     ) -> None:
         self.id = run.id if run is not None else UUIDT()
         self.runtime = runtime
         self.node = node
         self.status = RunStatus.QUEUED
-        self.options = (
-            BASE_RUN_OPTIONS_BY_KIND[self.kind].override(options)
-            if options is not None
-            else BASE_RUN_OPTIONS_BY_KIND[self.kind]
-        )
+        self.options = options
 
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
@@ -79,6 +77,8 @@ class Runner:
         self.parent = parent or runtime.active_runner
         self.attempts: list[RunAttempt] = list(run.attempts) if run is not None else []
         self.logs: list[LogInfo] = []
+        self.spans: list[RunSpan] = []
+        self.events: list[RunEvent] = []
         self.runs: list[Runner] = []
         self.run = run
         self.task: asyncio.Task | None = None
@@ -111,6 +111,8 @@ class Runner:
     @staticmethod
     async def from_run(runtime: "Runtime", run: Run, track: bool) -> "Runner":
         """Make a Runner from a Run."""
+        if run.options is None:
+            raise RunImpossibleError(f"no options for {run!r}")
         node = run.step or run.block
         if node is None:
             raise RunImpossibleError(f"no node for {run!r}")
@@ -121,6 +123,7 @@ class Runner:
 
         base_kwargs: dict[str, Any] = {
             "runtime": runtime,
+            "options": run.options,
             "inputs": inputs,
             "run": run,
             "track": track,

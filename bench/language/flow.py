@@ -26,6 +26,7 @@ from bench.language.property import (
     p_node_parent,
     p_regular,
 )
+from bench.language.run import RunKind
 from bench.language.validation import (
     NAME_CONSTRAINT,
     constraint,
@@ -103,9 +104,7 @@ class Pipe(SourceNode[PipeData]):
         source_ptr: Optional[NodeReference] = None
         target_ptr: Optional[NodeReference] = None
 
-    associated_fields: list["Field"] = p_regular(
-        40, require=False, array=True, references=NodeType.FIELD
-    )
+    # associated_fields, ...?
 
     # filter
     filter: Optional["Expression"] = p_regular(
@@ -253,6 +252,10 @@ class Step(SourceNode[StepData]):
                 return parent
             parent = parent.parent
         return None
+
+    @property
+    def run_kind(self) -> RunKind:
+        return RunKind.STEP
 
     def connect(
         self,

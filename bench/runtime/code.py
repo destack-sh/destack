@@ -21,7 +21,7 @@ from bench.runtime.capture import (
     capture_logs,
 )
 from bench.runtime.compiler import CompiledCode, compile_code
-from bench.runtime.core import SyntaxError
+from bench.runtime.core import CodeInvalidError
 from bench.runtime.runner import Runner
 from bench.runtime.runtime import Runtime
 
@@ -45,13 +45,19 @@ class CodeRunnerBase(Runner):
         node: Block | Step,
         code: Code,
         track: bool,
+        options: RunOptions,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         run: Run | None = None,
-        options: RunOptions | None = None,
     ) -> None:
         super().__init__(
-            runtime=runtime, node=node, track=track, parent=parent, inputs=inputs, run=run
+            runtime=runtime,
+            node=node,
+            track=track,
+            options=options,
+            parent=parent,
+            inputs=inputs,
+            run=run,
         )
         self.code = code
         self.compiled: CompiledCode | None = None
@@ -72,7 +78,7 @@ class CodeRunnerBase(Runner):
         if compiled.syntax_error:
             syntax_e = compiled.syntax_error
             # wrap in our own SyntaxError
-            wrapped = SyntaxError(self.code.to_string())
+            wrapped = CodeInvalidError(self.code.to_string())
             if syntax_e.lineno is not None and syntax_e.offset is not None:
                 wrapped.lineno, wrapped.offset = compiled.transformation.reverse(
                     syntax_e.lineno, syntax_e.offset

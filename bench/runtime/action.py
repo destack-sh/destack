@@ -1,9 +1,13 @@
-from typing import ClassVar, cast, override
+from typing import ClassVar, assert_never, cast, override
 
+from bench.language.action import ActionMode
 from bench.language.block import ActionBlock
+from bench.language.code import Code
 from bench.language.const import BlockType
 from bench.language.flow import ActionStep, StepType
 from bench.language.run import RunKind
+from bench.runtime.code import CodeFunctionRunner
+from bench.runtime.core import ATTEMPT_ONCE
 from bench.runtime.runner import Runner
 
 
@@ -14,4 +18,23 @@ class ActionRunner(Runner):
     async def run_once(self) -> None:
         assert self.node.type in (BlockType.ACTION, StepType.ACTION), f"unexpected node {self!r}"
         action = cast(ActionStep | ActionBlock, self.node)
-        raise NotImplementedError("nocheckin: run action")
+        inner_node = action.node
+        if action.mode == ActionMode.STRICT:
+            # pass through directly to inner logic
+            if inner_node is not None:
+                raise NotImplementedError(f"nocheckin: run {self!r}")
+            else:
+                code_runner = CodeFunctionRunner(
+                    runtime=self.runtime,
+                    node=action,
+                    code=action.code or Code.empty(),
+                    inputs=self.inputs,
+                    track=False,
+                    options=ATTEMPT_ONCE,
+                )
+                await self.runtime.run_runner(code_runner)
+                self.outputs = code_runner.outputs
+        elif action.mode == ActionMode.ADAPTIVE or action.mode == ActionMode.LENIENT:
+            raise NotImplementedError(f"nocheckin: run {self!r}")
+        else:
+            assert_never(action.mode)

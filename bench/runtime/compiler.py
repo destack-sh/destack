@@ -20,6 +20,7 @@ from opentelemetry import trace
 from bench.language import CodeType
 from bench.language.code import Code
 from bench.language.const import new_struct_id
+from bench.runtime.core import CodeInvalidError
 from bench.utils.func import stable_hash
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
@@ -172,7 +173,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
             basename = node.name.split(".")[0]
             if basename == "*":
                 line = f"line {node.lineno}" if hasattr(node, "lineno") else "line ..."
-                raise SyntaxError(f"{line} SyntaxError: `import *` is not allowed.")
+                raise CodeInvalidError(f"{line} SyntaxError: `import *` is not allowed.")
             return basename
         else:
             return self._mangle_if_needed(node.asname)
@@ -608,16 +609,18 @@ class CompiledCode:
     code: str
     transformed_code: str
     transformation: "CodeTransformation"
-    definitions: Mapping[str, "CodeDefinition"]
-    references: Mapping[str, "CodeReference"]
-    imports: Mapping[str, "CodeImport"]
-    syntax_error: SyntaxError | None  # in case code is not valid
-    module: ast.Module | None  # the entire parsed AST
-    body_co: types.CodeType | None  # the compiled code object (excl. last_expr if kind=snippet)
-    last_expr: ast.Expression | None  # for snippets
-    last_expr_co: types.CodeType | None  # for snippets
-    function_name: str | None  # for functions
     is_coroutine: bool
+    definitions: Mapping[str, "CodeDefinition"] = field(default_factory=dict)
+    references: Mapping[str, "CodeReference"] = field(default_factory=dict)
+    imports: Mapping[str, "CodeImport"] = field(default_factory=dict)
+    syntax_error: SyntaxError | None = None  # in case code is not valid
+    module: ast.Module | None = None  # the entire parsed AST
+    body_co: types.CodeType | None = (
+        None  # the compiled code object (excl. last_expr if kind=snippet)
+    )
+    last_expr: ast.Expression | None = None  # for snippets
+    last_expr_co: types.CodeType | None = None  # for snippets
+    function_name: str | None = None  # for functions
 
     @property
     def cache_key(self):
@@ -704,9 +707,9 @@ def compile_code(
 
     # wrap code in function if it's a function
     function_name = f"_code_{code_id}"
-    if kind == CodeType.FUNCTION:
-        # compile to figure out if it's a coroutine (simple string matching wouldn't work)
-        # NOTE :Performance: we compile twice to figure out if functions are async before wrapping
+    # compile to figure out if it's a coroutine (simple string matching wouldn't work)
+    # NOTE :Performance: we compile twice to figure out if functions are async before wrapping
+    try:
         module = compile(
             # can't return at top level
             code.replace("return ", "_____ =").replace("return", "pass"),
@@ -715,7 +718,6 @@ def compile_code(
             flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
         )
         is_coroutine = _is_coroutine(module)
-        del module
         if is_coroutine:
             transformed_code = (
                 f"async def {function_name}():\n{textwrap.indent(code or 'pass', 4 * " ")}"
@@ -723,41 +725,34 @@ def compile_code(
         else:
             transformed_code = f"def {function_name}():\n{textwrap.indent(code or 'pass', 4 * " ")}"
         transformation = transformation + CodeTransformation(line_offset=1, column_offset=4)
-    else:
-        is_coroutine = None
-        transformed_code = code
+    except SyntaxError as e:
+        return CompiledCode(
+            kind=kind,
+            code=code,
+            transformed_code=code,
+            transformation=transformation,
+            syntax_error=e,
+            is_coroutine=False,
+        )
 
     # store the code in Python's linecache so debuggers can find it
     body_filename = _get_filename(code_id)
     _cache_in_linecache(body_filename, transformed_code)
 
     # compile into AST
-    try:
-        module = compile(
-            transformed_code,
-            body_filename,
-            mode="exec",
-            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
-        )
-        syntax_error = None
-    except SyntaxError as e:
-        module = None
-        syntax_error = e
+    module = compile(
+        transformed_code,
+        body_filename,
+        mode="exec",
+        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    )
     if not module or not module.body:
         return CompiledCode(
             kind=kind,
             code=code,
             transformed_code=transformed_code,
             transformation=CodeTransformation.identity(),
-            imports={},
-            definitions={},
-            references={},
-            syntax_error=syntax_error,
             module=module,
-            body_co=None,
-            last_expr=None,
-            last_expr_co=None,
-            function_name=None,
             is_coroutine=False,
         )
 
@@ -806,7 +801,6 @@ def compile_code(
         definitions=definitions,
         references=references,
         imports=imports,
-        syntax_error=syntax_error,
         module=module,
         body_co=body_co,
         last_expr=last_expr,
