@@ -36,9 +36,9 @@ const expandedConnectionId: Ref<number | null> = ref(null);
     <template #content="{ close }">
       <!-- Individual connections -->
       <!-- (will probably move this to a Connections View (maybe keep summary on hover)) -->
-      <div v-outside.click.stop="close" class="p z-50 rounded-sm border border-gray-300 bg-white text-gray-900">
+      <div v-outside.click.stop="close" class="p z-50 rounded-sm border border-gray-200 bg-white text-gray-900">
         <!-- Header -->
-        <div class="my-1 flex flex-row border-b border-gray-300 px-3 py-1">
+        <div class="my-1 flex flex-row border-b border-gray-200 px-3 py-1">
           <span class="font-semibold">Connections</span>
           <div class="ml-auto">
             <span v-if="GEOLOCATION?.area" class="text-gray-400"
@@ -121,7 +121,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
               </div>
               <div
                 v-if="connection.id == expandedConnectionId"
-                class="max-h-60 overflow-y-auto rounded-md border border-gray-300 bg-gray-50 p-1 py-0.5"
+                class="max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-1 py-0.5"
               >
                 {{ connection.params }}
               </div>

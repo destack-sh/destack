@@ -383,7 +383,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         :key="pill.name"
         :disabled="!pill.isEnabled"
         :data-active="isPillActive(pill)"
-        class="data-[active=true] rounded-2xl border border-gray-300 px-2 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-700 data-[active=true]:text-primary-700 data-[active=false]:hover:text-primary-700"
+        class="data-[active=true] rounded-2xl border border-gray-200 px-2 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-700 data-[active=true]:text-primary-700 data-[active=false]:hover:text-primary-700"
         @click="togglePill(pill)"
       >
         <span>{{ pill.name }}</span>

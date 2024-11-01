@@ -421,7 +421,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Quick create -->
         <div
           v-if="page != null"
-          class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded-sm border border-gray-300 bg-white px-2 py-1"
+          class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1"
           data-keep-inspection-in-base-view="true"
         >
           <template

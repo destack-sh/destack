@@ -191,13 +191,13 @@ defineExpose<ViewExposed>({
       v-if="!isInline"
       ref="containerRef"
       v-hovermenu="HOVER_MENU"
-      class="group flex w-full flex-row items-center truncate rounded-sm transition-all duration-75 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row items-center truncate rounded-sm transition-all duration-75 data-[popover=true]:border-gray-200"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-700 outline outline-1 outline-primary-700'
-          : 'border-gray-300 hover:border-gray-300',
+          : 'border-gray-200 hover:border-gray-200',
         variant == Variant.STEALTH && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
       ]"
       @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
@@ -257,7 +257,7 @@ defineExpose<ViewExposed>({
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
         isInDropZone
           ? 'border-primary-700 text-primary-700 outline outline-2 outline-primary-700'
-          : 'border-gray-300 text-gray-400 hover:border-gray-300',
+          : 'border-gray-200 text-gray-400 hover:border-gray-200',
       ]"
       @click.stop="fileInputRef!.click()"
     >
@@ -274,7 +274,7 @@ defineExpose<ViewExposed>({
     <div
       v-else
       ref="containerRef"
-      class="group relative flex h-full w-full flex-col justify-center rounded-sm border-gray-300"
+      class="group relative flex h-full w-full flex-col justify-center rounded-sm border-gray-200"
       :class="[
         variant != Variant.STEALTH ? 'border py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
@@ -370,7 +370,7 @@ defineExpose<ViewExposed>({
         </div>
         <!-- Meta/Controls -->
         <div
-          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded-sm border border-gray-300 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
+          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded-sm border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
           <span v-if="optimisticValue?.format" class="">

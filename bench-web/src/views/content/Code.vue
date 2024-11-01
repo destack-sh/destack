@@ -204,7 +204,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="code rounded-sm hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-300 px-1 py-1.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-300'
+          ? 'border border-gray-200 px-1 py-1.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-200'
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-700' : '',
       ]"
@@ -220,7 +220,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply outline-0;
 }
 .code .cm-editor .cm-tooltip {
-  @apply overflow-hidden rounded-sm border border-gray-300 bg-white p-1 font-mono text-gray-900;
+  @apply overflow-hidden rounded-sm border border-gray-200 bg-white p-1 font-mono text-gray-900;
 }
 .code .cm-editor .cm-tooltip > ul > li {
   @apply rounded-sm border border-transparent px-0.5 py-0.5;

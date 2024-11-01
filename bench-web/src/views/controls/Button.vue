@@ -27,11 +27,11 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
   ],
   // outline button
   [Variant.SECONDARY]: [
-    "rounded-sm border border-gray-300 bg-white",
+    "rounded-sm border border-gray-200 bg-white",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
       ? "text-gray-700 bg-gray-50 hover:cursor-not-allowed"
-      : "text-gray-900 hover:border-gray-300 hover:bg-gray-100 focus:border-primary-700",
+      : "text-gray-900 hover:border-gray-200 hover:bg-gray-100 focus:border-primary-700",
   ],
   // 'link' button
   [Variant.COMPACT]: [

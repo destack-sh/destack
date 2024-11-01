@@ -439,7 +439,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       class="text relative rounded-sm hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-300 px-2 py-0.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-300'
+          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-200'
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-700' : '',
       ]"
@@ -472,7 +472,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   @apply my-[4px];
 }
 .text hr {
-  @apply my-2 border-gray-300 p-0 focus:outline-none focus:ring-0;
+  @apply my-2 border-gray-200 p-0 focus:outline-none focus:ring-0;
 }
 .text h1 {
   @apply mb-2 mt-4 text-2xl font-bold;

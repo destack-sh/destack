@@ -258,7 +258,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.SIGNAL]: "fas fa-signal-stream",
   [BlockType.NOTIFICATION]: "fas fa-bell",
   // runnable
-  [BlockType.ACTION]: "fas fa-play",
+  [BlockType.ACTION]: "fas fa-circle-play",
   [BlockType.FLOW]: "fas fa-diagram-project",
   // data
   [BlockType.VALUE]: "fas fa-hexagon",
@@ -273,12 +273,12 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
 
 export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons<StepType>({
   // boundary
-  [StepType.START]: "fas fa-circle-play",
-  [StepType.COMPLETE]: "fas fa-circle-check",
+  [StepType.START]: "fas fa-rocket-launch",
+  [StepType.COMPLETE]: "fas fa-flag-checkered",
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.TRIGGER]: "fas fa-bolt",
   // run
-  [StepType.ACTION]: "fas fa-play",
+  [StepType.ACTION]: "fas fa-circle-play",
   [StepType.SEND]: "fas fa-paper-plane-top",
   [StepType.YIELD]: "fas fa-hand",
   // control
@@ -297,6 +297,7 @@ export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons
   [PipeType.STREAM]: "fas fa-signal-stream",
 });
 
+// nocheckin
 export const ICON_BY_ACTION_MODE: Record<ActionMode, IconData> = _makeIcons<ActionMode>({
   [ActionMode.UNSPECIFIED]: "fas fa-question",
   [ActionMode.STRICT]: "",

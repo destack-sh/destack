@@ -121,7 +121,7 @@ watch(
     <!-- Bar -->
     <Bar
       ref="barRef"
-      class="absolute border-gray-300"
+      class="absolute border-gray-200"
       :class="[
         barPosition == Anchor.TOP ? 'border-b' : '',
         barPosition == Anchor.BOTTOM ? 'border-t' : '',

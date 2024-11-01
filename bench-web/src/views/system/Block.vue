@@ -147,23 +147,25 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative select-none rounded-sm"
-    :class="[block.type != BlockType.TEXT && block.type != BlockType.PAGE ? '' : '']"
-    :style="{
-      borderColor: getNodeColorHex(block, ColorShade.S500),
-    }"
+    class="group/block relative select-none rounded"
+    :class="[block.type != BlockType.TEXT && block.type != BlockType.PAGE ? 'border border-gray-200' : '']"
+    :style="{}"
   >
     <!-- Header -->
     <div
       v-if="block.type != BlockType.TEXT && block.type"
-      class="flex flex-row px-2 py-1.5 hover:cursor-grab rounded-t"
+      class="flex flex-row items-center rounded-t hover:cursor-grab"
       :style="{
-        backgroundColor: block.type != BlockType.PAGE ? getNodeColorHex(block, ColorShade.S200) : '',
         height: `${HEADER_HEIGHT}px`,
       }"
     >
-      <!-- Icon/Name -->
-      <div class="flex flex-shrink-0 flex-row">
+      <!-- Icon -->
+      <div
+        class="flex flex-row ml-1 items-center rounded px-1 py-1"
+        :style="{
+          backgroundColor: getNodeColorHex(block, ColorShade.S300),
+        }"
+      >
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
@@ -176,29 +178,30 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             })
           "
           v-bind="getNodeIcon(block)"
-          class="w-5 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-        />
-        <NativeInput
-          id="name"
-          ref="nameRef"
-          class="ml-1.5 flex-shrink-0 font-medium transition-colors duration-150"
-          is-input
-          :value-type="NAME_TYPE"
-          :variant="Variant.STEALTH"
-          :model-value="block.name"
-          @update:model-value="
-            (newValue) => pkgConnection.tx.update(block!, { name: newValue as string }, { debounce: 'long' })
-          "
+          class="w-5 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer"
         />
       </div>
+      <!-- Name -->
+      <NativeInput
+        id="name"
+        ref="nameRef"
+        class="ml-2 flex-shrink-0 font-medium transition-colors duration-150"
+        is-input
+        :value-type="NAME_TYPE"
+        :variant="Variant.STEALTH"
+        :model-value="block.name"
+        @update:model-value="
+          (newValue) => pkgConnection.tx.update(block!, { name: newValue as string }, { debounce: 'long' })
+        "
+      />
       <!-- Tags, triggers, roles, queries, etc. -->
-      <div class="ml-auto pl-2 pr-0.5">
+      <div class="ml-auto pl-2 pr-1.5">
         <!-- Quick actions -->
         <div class="flex flex-row gap-x-1.5">
           <!-- Open -->
           <button
             v-if="PAGE_BLOCK_TYPES.includes(block.type)"
-            class="text-gray-800 hover:text-primary-800"
+            class="text-gray-400 hover:text-gray-700"
             @click="canvas.goToNode(block!, { where: 'bestFrame' })"
           >
             <i class="fas fa-magnifying-glass-plus" />
@@ -213,7 +216,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
               })
             "
-            class="text-gray-800 hover:text-primary-700"
+            class="text-gray-400 hover:text-gray-700"
           >
             <i class="fas fa-ellipsis-v w-5 text-center" />
           </button>
@@ -240,13 +243,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           )
       "
     />
-    <div
-      v-else-if="block.type != BlockType.PAGE"
-      class="border-2 rounded-b"
-      :style="{
-        borderColor: getNodeColorHex(block, ColorShade.S200),
-      }"
-    >
+    <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200">
       <!-- Types -->
       <Type
         v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.NOTIFICATION].includes(block.type)"
@@ -260,7 +257,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 px-2 pt-2 pb-1">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 border-b border-gray-200 px-2 pb-1 pt-2">
           <Type
             id="type.input"
             class=""
@@ -269,7 +266,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :node-ptr="props.nodePtr"
             :field-type="FieldType.INPUT"
           />
-          <i v-if="hasFunctionFields" class="fas fa-arrow-right-long text-base text-emerald-700" />
+          <i v-if="hasFunctionFields" class="fas fa-arrow-right-long text-base text-gray-400" />
           <Type
             id="type.output"
             class=""
