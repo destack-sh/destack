@@ -24,16 +24,8 @@ import { computed, ref, shallowRef, toRef, unref, watch, type MaybeRef, type Ref
 const DRAGGED_KINDS = ["node", "selection", "file"] as const;
 export type DraggedKind = (typeof DRAGGED_KINDS)[number];
 export type DraggedContent =
-  | {
-      kind: "node";
-      node: NodeReferenceData;
-      nodes: AnyNodeData[];
-    }
-  | {
-      kind: "selection";
-      selection: SelectionData;
-      nodes: AnyNodeData[];
-    }
+  | { kind: "node"; node: NodeReferenceData; nodes: AnyNodeData[] }
+  | { kind: "selection"; selection: SelectionData; nodes: AnyNodeData[] }
   | {
       kind: "file"; // native browser file
       files: FileList | undefined; // only on drop
@@ -217,7 +209,9 @@ function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: Dr
 function updateDragging(event: DragEvent) {
   const dragged = getDragged(event);
   if (dragged == null) {
-    if (activeDropZone.value != null) stopDragging();
+    if (activeDropZone.value != null) {
+      stopDragging();
+    }
     return;
   }
   event.preventDefault();

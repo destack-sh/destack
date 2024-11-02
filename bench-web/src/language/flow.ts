@@ -34,6 +34,7 @@ import { canvas } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
 import type Step from "@/views/system/Step.vue";
+import { useMouse } from "@vueuse/core";
 import { computed, inject, ref, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
@@ -93,7 +94,7 @@ export type FlowThing =
   | { kind: "canvas" }
   | { kind: "step"; step: StepData }
   | { kind: "pipe"; pipe: PipeData }
-  | { kind: "step-port"; step: StepData; side: PortSide; cursorWorldPos?: { x: number; y: number } };
+  | { kind: "step-port"; step: StepData; side: PortSide };
 
 /** Step state in a Flow. */
 export class StepState {
@@ -181,6 +182,8 @@ export class PipeState {
   }
 }
 
+const mouse = useMouse();
+
 /** An entire flow canvas (including steps, sub-steps, pipes, etc.) */
 export class FlowContext {
   spaceGraph: ReadNodeGraph;
@@ -193,6 +196,7 @@ export class FlowContext {
   stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
   containerRef: Ref<HTMLElement | null>;
   dragging: Ref<{ thing: FlowThing; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
+  cursorWorldPos: Ref<Vector2>;
 
   flowPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
   flow: Ref<BlockData | null>;
@@ -228,6 +232,7 @@ export class FlowContext {
     this.view = context.view;
     this.containerRef = context.containerRef;
     this.stepRefs = context.stepRefs;
+    this.cursorWorldPos = computed(() => this.viewportToWorldVec({ x: mouse.x.value, y: mouse.y.value }));
 
     // flow
     this.flowPtr = context.flowPtr;
@@ -561,10 +566,7 @@ export class FlowContext {
       };
     } else if (thing.kind == "step-port") {
       // create pending pipe
-      this.dragging.value = {
-        thing: { ...thing, cursorWorldPos: this.viewportToWorldVec({ x: e.clientX, y: e.clientY }) },
-        viewOffsetToThing: { x: 0, y: 0 },
-      };
+      this.dragging.value = { thing: thing, viewOffsetToThing: { x: 0, y: 0 } };
     } else if (thing.kind == "pipe") {
       throw new Error("cannot drag pipe");
     } else {
@@ -596,8 +598,7 @@ export class FlowContext {
         { debounce: "long" },
       );
     } else if (thing.kind == "step-port") {
-      // update cursor position
-      thing.cursorWorldPos = this.viewportToWorldVec({ x: e.clientX, y: e.clientY });
+      // nothing to do
     } else if (thing.kind == "pipe") {
       throw new Error("cannot drag pipe");
     } else {
@@ -617,22 +618,28 @@ export class FlowContext {
     if (this.flow.value == null) throw new Error("no flow to connect");
     if (this.dragging.value == null) return;
 
-    // (re-)connect ports
+    // (re-)connect pipes
     try {
-      if (this.draggable?.kind == "step-port" && at.kind == "step-port") {
+      if (this.draggable?.kind == "step-port") {
         const sourcePort = { parent: this.draggable.step, side: this.draggable.side };
-        const targetPort = { parent: at.step, side: at.side };
-        if (portEquals(sourcePort, targetPort)) return; // no-op
-        log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
-        // if both ports are field ports, make it a data pipe by default
-        const pipe = createPipe(this.tx, this.graph, {
-          parent: this.flow.value,
-          pipe: { type: PipeType.GO },
-          source: sourcePort,
-          target: targetPort,
-        });
-        if (this.view.value != null) {
-          canvas.inspect({ node: pipe, view: this.view.value });
+        let targetPort: Port | null = null;
+        if (at.kind == "step-port") {
+          targetPort = { parent: at.step, side: at.side };
+        } else if (at.kind == "step") {
+          targetPort = { parent: at.step, side: getOtherSide(sourcePort.side) };
+        }
+        if (targetPort != null && !portEquals(sourcePort, targetPort)) {
+          log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
+          // if both ports are field ports, make it a data pipe by default
+          const pipe = createPipe(this.tx, this.graph, {
+            parent: this.flow.value,
+            pipe: { type: PipeType.GO },
+            source: sourcePort,
+            target: targetPort,
+          });
+          if (this.view.value != null) {
+            canvas.inspect({ node: pipe, view: this.view.value });
+          }
         }
       }
     } catch (e) {
@@ -668,6 +675,25 @@ export class FlowContext {
       width: FLOW_PORT_SIZE,
       height: FLOW_PORT_SIZE,
     };
+  }
+
+  /** Gets the (first) Step at the given position */
+  getStepAt(position: Vector2, filter?: (step: StepData) => boolean): StepData | null {
+    let steps = this.steps.value;
+    if (filter != null) {
+      steps = steps.filter(filter);
+    }
+    const hit = steps.find((step) => {
+      const bounding = this.getStepBoundingBox(step);
+      return (
+        bounding != null &&
+        bounding.x1 <= position.x &&
+        position.x <= bounding.x2 &&
+        bounding.y1 <= position.y &&
+        position.y <= bounding.y2
+      );
+    });
+    return hit ?? null;
   }
 
   /**
@@ -816,6 +842,10 @@ export function useFlowContext(): FlowContext {
 export function getContainingFlow(graph: ReadNodeGraph, node: AnyNodeData): BlockData | null {
   const ancestors = graph.getAncestors(node, { includeSelf: true });
   return ancestors.find((n) => isNode(n, NodeType.BLOCK) && n.type == BlockType.FLOW) as BlockData | null;
+}
+
+export function getOtherSide(side: PortSide): PortSide {
+  return side == PortSide.INCOMING ? PortSide.OUTGOING : PortSide.INCOMING;
 }
 
 /** Gets the sides that a Step has ports on */

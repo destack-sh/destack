@@ -6,6 +6,7 @@ import {
   FLOW_CONTEXT_KEY,
   FLOW_GRID_STEP,
   FlowContext,
+  getOtherSide,
   getStepWidth,
   pathToSvg,
   pathToSvgSpline,
@@ -23,7 +24,7 @@ import {
   StepData,
   StepType,
   Variant,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -37,6 +38,7 @@ import {
 } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { Vector2 } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -84,13 +86,22 @@ const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath = computed(() => {
   if (flowCtx.draggable?.kind != "step-port") return null;
-  const source = flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.side)!;
+  // preview path between current dragged port and step (or point in canvas if nothing)
+  const sourcePos = flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.side)!;
+  const cursorStep = flowCtx.getStepAt(flowCtx.cursorWorldPos.value);
+  let targetPos: Vector2;
+  if (cursorStep != null) {
+    targetPos =
+      flowCtx.getPortPosition(cursorStep, getOtherSide(flowCtx.draggable.side)) ?? flowCtx.cursorWorldPos.value;
+  } else {
+    targetPos = flowCtx.cursorWorldPos.value;
+  }
   const path = flowCtx.computePath(
     "manhattan",
-    source,
+    sourcePos,
     flowCtx.draggable.side,
-    flowCtx.draggable.cursorWorldPos!,
-    flowCtx.draggable.side == PortSide.OUTGOING ? PortSide.INCOMING : PortSide.OUTGOING,
+    targetPos,
+    getOtherSide(flowCtx.draggable.side),
   );
   return path;
 });
@@ -276,7 +287,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         >
           <svg v-if="pendingPath" class="overflow-visible">
             <path
-              :stroke-width="PIPE_WIDTH"
+              :stroke-width="PIPE_WIDTH * 2"
               stroke-linecap="round"
               stroke-linejoin="bevel"
               stroke="currentColor"
