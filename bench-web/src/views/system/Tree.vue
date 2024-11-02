@@ -17,7 +17,7 @@ import {
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import {
   SomeNodeReferenceData,
@@ -467,11 +467,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             }"
           />
           <!-- Icon / title -->
-          <IconInline
-            v-bind="getNodeIcon(node)"
-            :color="getNodeColor(node)"
-            class="mr-1.5 w-5 flex-shrink-0"
-          />
+          <IconInline v-bind="getNodeIcon(node)" :color="getNodeColor(node)" class="mr-1.5 w-5 flex-shrink-0" />
           <!-- Name (editable) if editing -->
           <NativeInput
             v-if="node.id == editingNodePtr?.id"
@@ -480,6 +476,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             v-outside.mousedown.stop="cancelRename"
             class="flex-shrink-0"
             is-input
+            placeholder="Name..."
             :value-type="NAME_TYPE"
             :variant="Variant.STEALTH"
             :model-value="(node as any).name"
@@ -492,7 +489,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Name otherwise -->
           <span
             v-else
-            class="select-none truncate underline-offset-3 decoration-gray-700"
+            class="select-none truncate decoration-gray-700 underline-offset-3"
             :class="[isFocused(node) || canvas.isInspected(node) || canvas.isHighlighted(node) ? 'underline' : '']"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />

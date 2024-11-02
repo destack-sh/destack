@@ -911,6 +911,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               v-if="column.kind == 'field'"
               :id="column.id + '.name'"
               class="truncate font-medium"
+              placeholder="Name..."
               :model-value="column.title"
               :value-type="NAME_TYPE"
               :variant="Variant.STEALTH"

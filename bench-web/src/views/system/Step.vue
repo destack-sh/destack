@@ -211,6 +211,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         ref="nameRef"
         class="ml-2 truncate font-medium text-gray-700 transition-colors duration-150"
         is-input
+        placeholder="Name..."
         :value-type="NAME_TYPE"
         :variant="Variant.STEALTH"
         :model-value="step.name"

@@ -109,6 +109,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="flex-shrink-0 py-[3px] font-medium text-gray-700 transition-colors duration-150"
       :alignment="orientation == Orientation.HORIZONTAL_REVERSED ? Alignment.END : Alignment.START"
       is-input
+      placeholder="Name..."
       :value-type="NAME_TYPE"
       :variant="Variant.STEALTH"
       :model-value="field.name"

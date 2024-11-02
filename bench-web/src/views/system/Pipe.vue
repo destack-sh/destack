@@ -54,8 +54,6 @@ defineExpose<ViewExposed>({ self, id, actions });
           markerHeight="7"
           refX="9"
           refY="3.5"
-          :stroke="pathColorHex"
-          :fill="pathColorHex"
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
@@ -109,6 +107,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
         ]"
         is-input
+        placeholder="Name..."
         :value-type="NAME_TYPE"
         :alignment="Alignment.MIDDLE"
         :variant="Variant.STEALTH"

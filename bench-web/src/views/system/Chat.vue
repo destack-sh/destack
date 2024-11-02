@@ -339,6 +339,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             id="title"
             class="ml-1.5 flex-shrink-0 font-medium text-gray-700 transition-colors duration-150"
             is-input
+            placeholder="Name..."
             :value-type="TITLE_TYPE"
             :variant="Variant.STEALTH"
             :model-value="thread?.title"

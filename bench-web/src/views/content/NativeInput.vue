@@ -113,7 +113,6 @@ defineExpose<ViewExposed & { select: () => void }>({
 <template>
   <ViewContentWrapper v-bind="props">
     <!-- Input -->
-    <!-- nocheckin: NativeInput placeholder -->
     <div
       v-if="isInput"
       class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm transition-colors duration-75 hover:border-gray-200"
@@ -134,14 +133,14 @@ defineExpose<ViewExposed & { select: () => void }>({
         <input
           ref="inputRef"
           :value="currentValue"
+          :placeholder="placeholder"
           spellcheck="false"
           :type="inputType"
-          class="flex-1 border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 focus:ring-0"
+          class="flex-1 border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 placeholder:text-gray-400 focus:ring-0"
           :class="[
             TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
             validationError != null ? 'text-danger-600' : '',
           ]"
-          :size="variant == Variant.STEALTH ? ((currentValue as string)?.length ?? 0) + 1 : undefined"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="emit('apply')"
@@ -178,7 +177,6 @@ defineExpose<ViewExposed & { select: () => void }>({
           :type="inputType"
           class="rounded-sm border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-700 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
-          :size="variant == Variant.STEALTH ? ((currentValue as string)?.length ?? 0) + 1 : undefined"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
           @input="currentValue = ($event.target as HTMLInputElement).value"
@@ -201,8 +199,13 @@ defineExpose<ViewExposed & { select: () => void }>({
     >
       <template v-if="!valueType?.isList">
         <!-- Scalar -->
-        <span :class="[TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '']">
-          {{ modelValue }}
+        <span
+          :class="[
+            TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
+            modelValue != '' ? '' : 'text-gray-400',
+          ]"
+        >
+          {{ modelValue || placeholder }}
         </span>
       </template>
       <template v-else>
