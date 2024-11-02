@@ -55,7 +55,7 @@ if TYPE_CHECKING:
         Package,
         Pipe,
         Step,
-        TypeInfoBase,
+        TypeBase,
     )
 
 
@@ -440,7 +440,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         return self.status not in TERMINAL_RUN_STATUSES
 
     @property
-    def variable_type(self) -> "TypeInfoBase | None":
+    def variable_type(self) -> "TypeBase | None":
         if self.step is not None:
             return self.step.variable_type
         elif self.block is not None:
@@ -449,7 +449,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
             return None
 
     @property
-    def input_type(self) -> "TypeInfoBase | None":
+    def input_type(self) -> "TypeBase | None":
         if self.step is not None:
             return self.step.input_type
         elif self.block is not None:
@@ -458,7 +458,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
             return None
 
     @property
-    def output_type(self) -> "TypeInfoBase | None":
+    def output_type(self) -> "TypeBase | None":
         if self.step is not None:
             return self.step.output_type
         elif self.block is not None:

@@ -137,7 +137,11 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="step"
     ref="containerRef"
-    class="group/step rounded border border-gray-200 bg-white transition-colors duration-150"
+    class="group/step rounded border transition-colors duration-150"
+    :class="[
+      step.type == StepType.TEXT ? 'bg-gray-100' : 'bg-white',
+      isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200',
+    ]"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Ports -->
@@ -150,37 +154,24 @@ defineExpose<ViewExposed>({ self, id, actions });
       ]"
     >
       <button
-        class="relative cursor-crosshair rounded-sm border border-gray-200 bg-white outline-none transition-colors duration-150 hover:bg-gray-100"
-        :class="
-          flowCtx.getPipesAtPort(step, side).length > 0 || flowCtx.isDraggingPort
-            ? ''
-            : 'opacity-0 group-hover/step:opacity-100'
-        "
+        class="relative cursor-crosshair rounded-2xl border bg-white outline-none transition-colors duration-150 hover:bg-gray-100"
+        :class="[
+          flowCtx.isDraggingPort || isInspected || isHighlighted ? '' : 'opacity-0 group-hover/step:opacity-100',
+          isInspected ||
+          isHighlighted ||
+          (flowCtx.draggable?.kind == 'step-port' &&
+            flowCtx.draggable?.step?.ck == step.ck &&
+            flowCtx.draggable.side == side)
+            ? 'border-primary-700'
+            : 'border-gray-200 hover:border-primary-700',
+        ]"
         :style="{
           width: FLOW_PORT_SIZE + 'px',
           height: FLOW_PORT_SIZE + 'px',
         }"
         @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, side })"
         @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step-port', step: step!, side })"
-      >
-        <div
-          v-if="flowCtx.getPipesAtPort(step, side).length > 0"
-          class="flex-row-wrap absolute flex flex-col"
-          :style="{
-            width: FLOW_PORT_SIZE - 4 + 'px',
-            height: FLOW_PORT_SIZE - 4 + 'px',
-            top: 1 + 'px',
-            left: 1 + 'px',
-          }"
-        >
-          <div
-            v-for="pipe in flowCtx.getPipesAtPort(step, side)"
-            :key="pipe.id"
-            class="flex-1 rounded-sm bg-gray-600"
-            :style="{ backgroundColor: getColorHex(pipe.color ?? ColorType.GRAY, ColorShade.S400) }"
-          />
-        </div>
-      </button>
+      />
     </div>
 
     <!-- Header (:StepHeight) -->

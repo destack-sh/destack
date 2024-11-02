@@ -17,7 +17,9 @@ async def test_run_code_script_empty(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
-    _ = await local_runtime.run(Code1)
+    runner = await local_runtime.run(Code1, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.RUN_IMPOSSIBLE
 
 
 async def test_run_code_function_empty(local_runtime: RuntimeHandle):
@@ -31,7 +33,9 @@ async def test_run_code_function_empty(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
-    _ = await local_runtime.run(Code1)
+    runner = await local_runtime.run(Code1, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.RUN_IMPOSSIBLE
 
 
 async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):

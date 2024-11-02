@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
-from bench.language.field import TypeInfoBase
+from bench.language.field import TypeBase
 from bench.language.node import BuiltinObject, Node, SomeNodeReference, SourceNode, Struct
 from bench.language.value import CustomObject, SomeValue, _do_get_value_runtime
 
@@ -174,7 +174,7 @@ class Projection:
                 continue
             self._collect_value(wired_field_value, field)
 
-    def _collect_value(self, value: SomeValue, typ: TypeInfoBase):
+    def _collect_value(self, value: SomeValue, typ: TypeBase):
         """Collects a specific value (recursively)."""
         if value is None:
             return

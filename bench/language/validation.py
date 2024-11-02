@@ -13,12 +13,12 @@ if TYPE_CHECKING:
         Property,
         StepType,
         TypeConstraint,
-        TypeInfoBase,
+        TypeBase,
         ViewType,
     )
     from bench.language.value import SomeValue
 
-ValidationSite = Union["TypeInfoBase", tuple["Property | Any", ...]]
+ValidationSite = Union["TypeBase", tuple["Property | Any", ...]]
 
 
 class ValidationError(BenchError, ValueError):

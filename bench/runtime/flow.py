@@ -1,18 +1,18 @@
 import asyncio
 import dataclasses
 from dataclasses import dataclass
-from typing import Any, ClassVar, Literal, override
+from typing import Any, ClassVar, Literal, cast, override
 
 import structlog
 from opentelemetry import trace
 from sortedcontainers import SortedDict
 
 from bench.language.block import Block
-from bench.language.field import TypeInfoBase
-from bench.language.flow import Pipe, Step, StepType
+from bench.language.field import TypeBase
+from bench.language.flow import ActionStep, Pipe, Step, StepType
 from bench.language.run import Run, RunError, RunKind, RunOptions
 from bench.language.value import CustomObject
-from bench.runtime.action import ActionRunner
+from bench.runtime.action import ActionRunner, run_action
 from bench.runtime.core import ATTEMPT_ONCE
 from bench.runtime.runner import Runner
 from bench.runtime.runtime import Runtime
@@ -98,7 +98,7 @@ class StepState:
     """The state of a Step in a Flow."""
 
     step: Step
-    input_type: TypeInfoBase
+    input_type: TypeBase
     inputs: CustomObject  # last set values :RunContext
     runners: list["StepRunner"] = dataclasses.field(default_factory=list)
     active_runners: list["StepRunner"] = dataclasses.field(default_factory=list)
@@ -264,12 +264,5 @@ class CompleteStepRunner(StepRunner):
 class ActionStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
-        code_runner = ActionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            inputs=self.inputs,
-            track=False,
-            options=ATTEMPT_ONCE,
-        )
-        await self.runtime.run_runner(code_runner)
-        self.outputs = code_runner.outputs
+        assert self.node.type == StepType.ACTION, f"unexpected node {self.node!r}"
+        self.outputs = await run_action(self.runtime, cast(ActionStep, self.node), self.inputs)

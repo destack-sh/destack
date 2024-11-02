@@ -27,9 +27,6 @@ const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;
 const pathSvg = computed(() => (path.value != null ? pathToSvgSpline(path.value.points) : undefined));
 const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S400));
-const pathBackgroundColorHex = computed(() => {
-  return getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S500);
-});
 
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
@@ -48,20 +45,24 @@ defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
-    <!-- Background/outline path for highlighting (and larger hit area) -->
-    <svg
-      class="absolute cursor-pointer overflow-visible transition-colors duration-150"
-      :class="
-        isInspected || isHighlighted
-          ? pipe.isHidden
-            ? 'opacity-80'
-            : 'opacity-100'
-          : pipe.isHidden
-            ? 'opacity-0'
-            : 'opacity-0 hover:opacity-50'
-      "
-      :style="{ color: pathBackgroundColorHex }"
-    >
+    <!-- Path -->
+    <svg class="absolute cursor-pointer overflow-visible">
+      <defs>
+        <marker
+          id="arrowhead"
+          markerWidth="10"
+          markerHeight="7"
+          refX="9"
+          refY="3.5"
+          :stroke="pathColorHex"
+          :fill="pathColorHex"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
+        >
+          <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" :fill="pathColorHex" />
+        </marker>
+      </defs>
+      <!-- Background path -->
       <path
         :stroke-width="PIPE_WIDTH * 2"
         stroke-linecap="round"
@@ -70,15 +71,9 @@ defineExpose<ViewExposed>({ self, id, actions });
         fill="none"
         :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"
+        class="text-primary-700 transition-colors duration-150"
+        :class="isInspected || isHighlighted ? 'opacity-100' : 'opacity-0 hover:opacity-50'"
       />
-    </svg>
-
-    <!-- Primary path -->
-    <svg
-      class="pointer-events-none absolute overflow-visible transition-colors duration-150"
-      :class="pipe.isHidden ? (isInspected || isHighlighted ? 'opacity-80' : 'opacity-0') : 'opacity-100'"
-      :style="{ color: pathColorHex }"
-    >
       <!-- Main path -->
       <path
         :stroke-width="PIPE_WIDTH"
@@ -86,6 +81,9 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
+        marker-end="url(#arrowhead)"
+        class="transition-colors duration-150"
+        :style="{ color: pathColorHex }"
         :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"
       />
@@ -121,8 +119,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       <IconInline
         v-if="pipe.type != PipeType.GO"
         v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
-        class="flex rounded-2xl border bg-white p-1 text-center"
-        :style="{ color: pathColorHex, borderColor: pathColorHex }"
+        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-white"
+        :style="{ backgroundColor: pathColorHex }"
       />
     </div>
   </div>

@@ -11,7 +11,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.field import TypeInfoBase
+from bench.language.field import TypeBase
 from bench.language.list import LocalNodeList, RemoteNodeList
 from bench.language.node import NodeSubtypeStub, SourceNode, local_node_, node_subtype_
 from bench.language.property import (
@@ -165,7 +165,7 @@ class Block(SourceNode[BlockData]):
     @cachetools.cached({})  # :CachedTypeInfo
     def to_type(
         self, *, as_object: bool = False, field_type: FieldType | None = None
-    ) -> "TypeInfoBase | None":
+    ) -> "TypeBase | None":
         """Get a type represented by this Block (if any)"""
         from bench.language.field import TypeInfo
 
@@ -208,22 +208,22 @@ class Block(SourceNode[BlockData]):
         return typ
 
     @property
-    def as_type(self) -> "TypeInfoBase":
+    def as_type(self) -> "TypeBase":
         """Gets a type represented by this Block (if any)"""
         typ = self.to_type(as_object=True)
         assert typ is not None, f"{self!r} has no type"
         return typ
 
     @property
-    def variable_type(self) -> "TypeInfoBase | None":
+    def variable_type(self) -> "TypeBase | None":
         return self.to_type(as_object=True, field_type=FieldType.VARIABLE)
 
     @property
-    def input_type(self) -> "TypeInfoBase | None":
+    def input_type(self) -> "TypeBase | None":
         return self.to_type(as_object=True, field_type=FieldType.INPUT)
 
     @property
-    def output_type(self) -> "TypeInfoBase | None":
+    def output_type(self) -> "TypeBase | None":
         return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod

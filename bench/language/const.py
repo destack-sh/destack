@@ -417,7 +417,6 @@ class StructType(IdEnum):
     RUN_FRAME = 10504
     RUN_SPAN = 10505
     RUN_EVENT = 10506
-    CONTEXT = 10510
     CONTINUE = 10511
     CALL = 10512
     BREAKPOINT = 10540

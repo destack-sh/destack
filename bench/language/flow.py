@@ -13,7 +13,7 @@ from bench.language.const import (
     TypeKind,
     enum_,
 )
-from bench.language.field import TypeInfoBase
+from bench.language.field import TypeBase
 from bench.language.list import LocalNodeList
 from bench.language.node import (
     NodeSubtypeStub,
@@ -124,7 +124,7 @@ class Pipe(SourceNode[PipeData]):
     )
 
     # modulation
-    delay: Optional["timedelta"] = p_regular(80, default=None)
+    delay: Optional[timedelta] = p_regular(80, default=None)
 
     # view
     color: Optional["Color"] = p_regular(
@@ -297,7 +297,7 @@ class Step(SourceNode[StepData]):
     @cachetools.cached({})  # :CachedTypeInfo
     def to_type(
         self, as_object: bool = True, field_type: FieldType | None = None
-    ) -> "TypeInfoBase | None":
+    ) -> "TypeBase | None":
         """Gets a type represented by this Step (if any)"""
         from bench.language.block import Block
         from bench.language.field import TypeInfo
@@ -320,15 +320,15 @@ class Step(SourceNode[StepData]):
             return typ
 
     @property
-    def variable_type(self) -> "TypeInfoBase | None":
+    def variable_type(self) -> "TypeBase | None":
         return self.to_type(as_object=True, field_type=FieldType.VARIABLE)
 
     @property
-    def input_type(self) -> "TypeInfoBase | None":
+    def input_type(self) -> "TypeBase | None":
         return self.to_type(as_object=True, field_type=FieldType.INPUT)
 
     @property
-    def output_type(self) -> "TypeInfoBase | None":
+    def output_type(self) -> "TypeBase | None":
         return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod

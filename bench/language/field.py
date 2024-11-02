@@ -105,7 +105,7 @@ TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
 }
 
 
-def encode_type_identity(typ: "TypeInfoBase") -> str:
+def encode_type_identity(typ: "TypeBase") -> str:
     """
     Encodes the type identity into a key for storage & implicit typing.
     Format is <kind>[id] (with id encoded as base64).
@@ -134,7 +134,7 @@ def encode_type_identity(typ: "TypeInfoBase") -> str:
     return f"{prefix}{value}"
 
 
-def decode_type_identity(key: str) -> "TypeInfoBase":
+def decode_type_identity(key: str) -> "TypeBase":
     """Decodes the type-related info back from the identity key. See encode. :TypeInfoEncoding"""
     # prefix
     if key[0] == "!":
@@ -215,11 +215,11 @@ constraint = TypeConstraint
 
 
 @object_()
-class TypeInfoBase(BuiltinObject):
+class TypeBase(BuiltinObject):
     """
-    A type is a kind of Value that can go somewhere, often in a place described by a Field.
+    A Type is a kind of value that can go somewhere, often in a place described by a Field.
 
-    A type one of these TypeKinds:
+    A Type is of one of these kinds:
        1. Primitive (= column type, value is scalar, like int32, string, bool, datetime, ...)
           [primitive_type] | [base_type = Block aliased to primitive_type]
        2. Struct (value is 'robust json', like Expression, File, Path, Text, Code, ...)
@@ -269,7 +269,7 @@ class TypeInfoBase(BuiltinObject):
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(packed=50, typ=lambda self: cast("TypeInfoBase", self))
+    default = p_value_runtime(packed=50, typ=lambda self: cast("TypeBase", self))
     format: Optional["TypeFormat"] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
         54, require=False, array=False, default=None, struct=StructType.EXPRESSION
@@ -341,7 +341,7 @@ class TypeInfoBase(BuiltinObject):
             is_required=is_required,
             is_list=is_list,
         )
-        for prop in TypeInfoBase.__declared_properties__.values():
+        for prop in TypeBase.__declared_properties__.values():
             new_typ_value = getattr(typ, prop.name)
             old_typ_value = getattr(self, prop.name)
             if new_typ_value != old_typ_value:
@@ -440,11 +440,11 @@ class TypeInfoBase(BuiltinObject):
 
 
 @struct_(StructType.TYPE_INFO)
-class TypeInfo(Struct, TypeInfoBase):
+class TypeInfo(Struct, TypeBase):
     """A type in the type system."""
 
-    # redirect so we get TypeInfoBase.__content_str__ (not Struct.__content_str__)
-    __content_str__ = TypeInfoBase.__content_str__  # type: ignore
+    # redirect so we get TypeBase.__content_str__ (not Struct.__content_str__)
+    __content_str__ = TypeBase.__content_str__  # type: ignore
 
     @staticmethod
     def from_type(
@@ -464,7 +464,7 @@ class TypeInfo(Struct, TypeInfoBase):
 #
 
 TypeIn = Union[
-    "TypeInfoBase",
+    "TypeBase",
     "Block",
     "Step",
     "PrimitiveType",
@@ -484,7 +484,7 @@ def to_type_scalar(
     """Converts a type-like object to a TypeInfo."""
     from bench.language.file import FileFormat, FileType
 
-    if isinstance(typ, TypeInfoBase):
+    if isinstance(typ, TypeBase):
         return cast("TypeInfo", typ)
     elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.STEP):
         type_info = cast("Block|Step", typ).to_type(as_object=as_object, field_type=field_type)
@@ -541,7 +541,7 @@ def to_type(
     is_required: bool = False,
     is_list: bool = False,
 ) -> TypeInfo:
-    """Converts a TypeIn into a TypeInfoBase."""
+    """Converts a TypeIn into a TypeBase."""
     type_scalar = to_type_scalar(typ, as_object=as_object, field_type=type)
     if isinstance(constraint, TypeConstraintIn):
         constraint = constraint.into()
@@ -551,7 +551,7 @@ def to_type(
     return type_scalar
 
 
-def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
+def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
     """Reverses a TypeInfo into a TypeIn as closely as possible."""
     if typ.kind == TypeKind.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
@@ -580,7 +580,7 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
 
 # pyright: reportIncompatibleMethodOverride=false
 @local_node_(NodeType.FIELD)
-class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder):
+class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.
     """
@@ -606,7 +606,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         if self.type == FieldType.OPTION:
             return ""  # nothing to show
         else:
-            return TypeInfoBase.__content_str__(self)
+            return TypeBase.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion
@@ -634,7 +634,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         return (cast(FieldData, data)).parent_ptr
 
     @property
-    def type_info(self) -> TypeInfoBase:
+    def type_info(self) -> TypeBase:
         return self
 
     @property
@@ -651,7 +651,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         **kwargs,
     ) -> "Field":
         typ = to_type_scalar(typ)
-        for prop in TypeInfoBase.__declared_properties__.values():
+        for prop in TypeBase.__declared_properties__.values():
             if prop.name not in kwargs:
                 kwargs[prop.name] = getattr(typ, prop.name)
         if constraint is not None:

@@ -148,7 +148,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     v-if="block"
     ref="blockRef"
     class="group/block relative select-none rounded"
-    :class="[block.type != BlockType.TEXT && block.type != BlockType.PAGE ? 'border border-gray-200' : '']"
+    :class="[
+      block.type != BlockType.TEXT && block.type != BlockType.PAGE ? 'border' : '',
+      isInspected ? 'border-primary-700' : 'border-gray-200',
+    ]"
     :style="{}"
   >
     <!-- Header -->
@@ -161,7 +164,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     >
       <!-- Icon -->
       <div
-        class="flex flex-row ml-1 items-center rounded px-1 py-1"
+        class="ml-1 flex flex-row items-center rounded px-1 py-1"
         :style="{
           backgroundColor: getNodeColorHex(block, ColorShade.S300),
         }"
@@ -186,6 +189,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         id="name"
         ref="nameRef"
         class="ml-2 flex-shrink-0 font-medium transition-colors duration-150"
+        :class="[isHighlighted ? 'underline-offset-3 underline decoration-gray-700' : '']"
         is-input
         :value-type="NAME_TYPE"
         :variant="Variant.STEALTH"

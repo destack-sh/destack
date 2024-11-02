@@ -7,7 +7,7 @@ from bench.language.const import (
     NotificationLevel,
     StructType,
 )
-from bench.language.field import TypeInfoBase
+from bench.language.field import TypeBase
 from bench.language.node import (
     HasNodeBase,
     RuntimeNode,
@@ -66,7 +66,7 @@ class Notification(RuntimeNode[NotificationData], HasNodeBase):
     # ...HasSessionContext[70-79]
 
     @property
-    def value_type(self) -> "TypeInfoBase":
+    def value_type(self) -> "TypeBase":
         typ = self.block.to_type(as_object=True)
         assert typ is not None, f"{self.block!r} has no type for {self!r}"
         return typ

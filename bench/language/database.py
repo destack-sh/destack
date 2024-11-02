@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 import structlog
 
 from bench.language.const import NodeType
-from bench.language.field import TypeInfoBase
+from bench.language.field import TypeBase
 from bench.language.node import HasNodeBase, StateNode, local_node_
 from bench.language.property import (
     p_internal,
@@ -62,7 +62,7 @@ class Record(StateNode[RecordData], HasNodeBase):
             return ""
 
     @property
-    def value_type(self) -> "TypeInfoBase | None":
+    def value_type(self) -> "TypeBase | None":
         block = self.block
         return block.to_type(as_object=True) if block is not None else None
 
