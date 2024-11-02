@@ -46,7 +46,7 @@ import NativeInput from "@/views/content/NativeInput.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
-const DEPTH_OFFSET = 12;
+const DEPTH_OFFSET = 16;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
@@ -449,7 +449,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             (node as any).name != null ? '' : 'italic',
           ]"
           :style="{
-            paddingLeft: 8 + depth * DEPTH_OFFSET + 'px',
+            paddingLeft: 10 + depth * DEPTH_OFFSET + 'px',
             paddingRight: 8 + 'px',
           }"
           role="treeitem"
@@ -467,25 +467,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
               width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)',
             }"
           />
-          <!-- Expand button (or placeholder) -->
-          <button
-            v-if="hasChildren"
-            class="group mr-1 w-5 rounded-sm enabled:hover:text-primary-700"
-            :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
-            :disabled="isDefaultExpanded"
-            @click.stop="toggleExpanded(node), doFocus(node)"
-          >
-            <i
-              class="fas fa-chevron-right dxuration-75 transition-transform"
-              :class="[isExpanded(node) ? 'rotate-90' : 'rotate-0']"
-            />
-          </button>
           <!-- Icon / title -->
           <IconInline
             v-bind="getNodeIcon(node)"
             :color="getNodeColor(node)"
             class="mr-1.5 w-5 flex-shrink-0"
-            :class="[hasChildren ? '' : 'ml-6']"
           />
           <!-- Name (editable) if editing -->
           <NativeInput

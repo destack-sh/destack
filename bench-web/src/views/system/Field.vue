@@ -74,8 +74,11 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 rounded border border-gray-200 transition-colors duration-75"
-    :class="[orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse']"
+    class="flex w-fit items-center gap-x-1.5 rounded border transition-colors duration-75"
+    :class="[
+      orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
+      isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200',
+    ]"
   >
     <!-- Icon -->
     <div

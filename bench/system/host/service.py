@@ -29,7 +29,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import C
-from bench.language.file import File, FileInfoBase, FileKind
+from bench.language.file import File, FileBase, FileKind
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph, patch_graph
 from bench.language.log import Log
 from bench.language.node import GraphScope
@@ -641,7 +641,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             # presign post URL
             file_key = get_file_key(drive, file_data.sha256, file_data.title)
             file_metadata: dict[str, str] = {"2": file_data.id}
-            for prop in FileInfoBase.__declared_properties__.values():
+            for prop in FileBase.__declared_properties__.values():
                 if prop.id is None or prop.id < 50:
                     continue  # exclude content
                 prop_value = getattr(file_data, prop.name)

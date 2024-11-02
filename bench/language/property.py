@@ -44,7 +44,7 @@ if TYPE_CHECKING:
         TypeConstraint,
         TypeConstraintIn,
         TypeInfo,
-        TypeInfoBase,
+        TypeBase,
     )
     from bench.language.expression import _TypeQueryBuilder
 
@@ -105,7 +105,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     is_value_packed: bool = False  # for packed value properties (the underlying value)
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     value_runtime_ptr: Union["Property", None] = None  # the runtime value
-    value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None = None
+    value_type_info_getter: Callable[["BuiltinObject"], "TypeBase | None"] | None = None
 
     # subtype
     is_subnode_packed: bool = False  # for packed subtype properties
@@ -960,7 +960,7 @@ def p_struct_parent(id: int) -> Any:
 def p_value_runtime(
     packed: int,
     *,
-    typ: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None,
+    typ: Callable[["BuiltinObject"], "TypeBase | None"] | None,
 ) -> Any:
     """Runtime-only property for a Value."""
     return Property(

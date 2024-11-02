@@ -38,7 +38,7 @@ from bench.proto.wire import AnyNodeData, FileReferenceData, NodeReferenceData, 
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Field, TypeInfoBase
+    from bench.language import Block, Code, Field, TypeBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -154,7 +154,7 @@ class Expression(Struct):
         return EXPRESSION_KIND_BY_OP[self.type]
 
     @property_
-    def value_type(self) -> "TypeInfoBase | None":
+    def value_type(self) -> "TypeBase | None":
         prop = self.property
         field = self.field
         if prop is not None:
@@ -450,7 +450,7 @@ def coerce_sort(
     return coerced
 
 
-def _lower_expression_value(typ: "TypeInfoBase", value: Any) -> Any:
+def _lower_expression_value(typ: "TypeBase", value: Any) -> Any:
     """
     'Lowers' the given value to enable direct comparison.
     This is related to the lower_conditional pass we do in the sql engine backend,
@@ -643,11 +643,11 @@ A = functools.partial(E, _expect_t=ExpressionKind.AGGREGATION)
 
 
 class UnsupportedExpressionError(ValueError):
-    def __init__(self, type: "TypeInfoBase", thing: Any):
+    def __init__(self, type: "TypeBase", thing: Any):
         super().__init__(f"{type!r} does not support {thing!r}")
 
 
-def _check_type_supports(typ: "TypeInfoBase", op: ExpressionType):
+def _check_type_supports(typ: "TypeBase", op: ExpressionType):
     """Asserts that the field supports the given expression operator."""
     if op in SortType:
         if typ.primitive_type is not None and (
@@ -731,7 +731,7 @@ class _TypeQueryBuilder:
     """
 
     @property
-    def type_info(self) -> "TypeInfoBase":
+    def type_info(self) -> "TypeBase":
         raise NotImplementedError(f"{self!r} does not implement type")
 
     #

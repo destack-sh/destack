@@ -23,7 +23,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.field import Field, TypeConstraint, TypeInfoBase, reverse_type_scalar
+from bench.language.field import Field, TypeConstraint, TypeBase, reverse_type_scalar
 from bench.language.flow import Step
 from bench.language.node import BuiltinObject, Node, NodeReferenceBase, SomeNodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
@@ -255,7 +255,7 @@ class Renderer:
             alias = self._aliasing.add(node)
             return alias
 
-    def render_value_scalar_expr(self, value: "ScalarValue", typ: "TypeInfoBase") -> str:
+    def render_value_scalar_expr(self, value: "ScalarValue", typ: "TypeBase") -> str:
         """Renders single scalar value into an expression."""
         if typ.kind == TypeKind.PRIMITIVE:
             if typ.primitive_type == PrimitiveType.BYTES:
@@ -292,7 +292,7 @@ class Renderer:
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 
-    def render_custom_object_scalar_expr(self, value: "CustomObject", typ: "TypeInfoBase") -> str:
+    def render_custom_object_scalar_expr(self, value: "CustomObject", typ: "TypeBase") -> str:
         """Renders single Object into an expression."""
         assert typ.base_type is not None, f"{value!r} has no base type"
         repr_by_name: dict[str, str] = {}
@@ -308,7 +308,7 @@ class Renderer:
             f"{typ.base_type.code_name}({', '.join(f'{k}={v}' for k, v in repr_by_name.items())})"
         )
 
-    def render_value_expr(self, value: "SomeValue | None", typ: "TypeInfoBase") -> str:
+    def render_value_expr(self, value: "SomeValue | None", typ: "TypeBase") -> str:
         """Renders a value into an expression."""
         from bench.language.value import CustomObject
 
@@ -409,7 +409,7 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
 
 
 @tracer.start_as_current_span("render.render_value_expr")
-def render_value_expr(value: SomeValue, typ: TypeInfoBase, options: RenderOptions) -> str:
+def render_value_expr(value: SomeValue, typ: TypeBase, options: RenderOptions) -> str:
     """Render the given value to a python expression."""
     renderer = Renderer(options)
     rendered = renderer.render_value_expr(value, typ)
@@ -557,9 +557,9 @@ class PipeRenderer(BuiltinObjectRenderer[Step]):
 
 
 def _map_type_info_kwargs(
-    renderer: "Renderer", obj: TypeInfoBase, kwargs: dict[str, Any]
+    renderer: "Renderer", obj: TypeBase, kwargs: dict[str, Any]
 ) -> dict[str, Any]:
-    """Remaps a TypeInfoBase to its TypeIn for rendering."""
+    """Remaps a TypeBase to its TypeIn for rendering."""
     # remap back to type in if possible
     type_in = reverse_type_scalar(obj)
     if type_in is not None:
@@ -613,9 +613,9 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
 
 
 @_renderer(StructType.TYPE_INFO)
-class TypeInfoRenderer(BuiltinObjectRenderer[TypeInfoBase]):
+class TypeInfoRenderer(BuiltinObjectRenderer[TypeBase]):
     @override
-    def map_kwargs(self, renderer: "Renderer", obj: TypeInfoBase, kwargs: dict[str, Any]):
+    def map_kwargs(self, renderer: "Renderer", obj: TypeBase, kwargs: dict[str, Any]):
         kwargs = _map_type_info_kwargs(renderer, obj, kwargs)
         return kwargs
 
@@ -623,7 +623,7 @@ class TypeInfoRenderer(BuiltinObjectRenderer[TypeInfoBase]):
     def render_constructor(
         self,
         renderer: "Renderer",
-        obj: TypeInfoBase,
+        obj: TypeBase,
         kwargs: dict[str, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:

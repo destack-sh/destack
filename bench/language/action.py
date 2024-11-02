@@ -4,17 +4,18 @@ from bench.language.const import BlockType, EnumType, NodeType, StructType, enum
 from bench.language.node import BuiltinObject, NodeReference, Struct, object_, struct_
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import constraint
+from bench.language.value import coerce_custom_object
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Pipe, Run, RunOptions, Step, Text
+    from bench.language import Block, Code, Pipe, RunOptions, Step, Text
 
 
 @enum_(EnumType.ACTION_MODE)
 class ActionMode(IdEnum):
     STRICT = 1  # always run as specified
     ADAPTIVE = 2  # run as specified by default but adapt if out of date or error
-    FLEXIBLE = 3  # dynamically adapt to inputs
+    DYNAMIC = 3  # dynamically adapt to inputs every time
 
 
 @object_()
@@ -52,11 +53,6 @@ class ActionBase(BuiltinObject):
         node_ptr: Optional["NodeReference"] = None
 
 
-@struct_(StructType.CONTEXT)
-class Context(Struct):
-    runs: list["Run"] = p_regular(30, require=True, array=True, references=NodeType.RUN)
-
-
 @struct_(StructType.CALL)
 class Call(Struct):
     """A context-specific call to a Run inside the current Run."""
@@ -72,8 +68,10 @@ class Call(Struct):
     # inputs, ...?
 
     @staticmethod
-    def new(node: "Block | Step", **kwargs) -> "Call":
-        return Call(node=node, **kwargs)
+    def new(node: "Block | Step", inputs: Any, **kwargs) -> "Call":
+        input_type = node.input_type
+        assert input_type is not None, f"no input type for {node!r}"
+        return Call(node=node, inputs=coerce_custom_object(input_type, inputs), **kwargs)
 
 
 @struct_(StructType.CONTINUE)
@@ -87,6 +85,13 @@ class Continue(Struct):
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
     )
     # inputs, ...?
+    mapping: Optional["Code"] = p_regular(
+        50,
+        require=False,
+        array=False,
+        struct=StructType.CODE,
+        description="Mapping to get inputs for next node.",
+    )
 
     @staticmethod
     def new(node: "Block | Step | Pipe", **kwargs) -> "Continue":

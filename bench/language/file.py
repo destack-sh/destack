@@ -479,7 +479,7 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 
 @object_()
-class FileInfoBase(BuiltinObject):
+class FileBase(BuiltinObject):
     """
     Base class for file info.
     """
@@ -617,7 +617,7 @@ class FileInfoBase(BuiltinObject):
         return base64.b64encode(self.content).decode()
 
     @tracer.start_as_current_span("file.convert")
-    async def convert(self, target_format: FileFormat) -> "FileInfoBase":
+    async def convert(self, target_format: FileFormat) -> "FileBase":
         """Converts the file to the given type/format."""
         if target_format == self.format:
             return self
@@ -725,7 +725,7 @@ class FileInfoBase(BuiltinObject):
     @tracer.start_as_current_span("file.downscale")
     async def downscale(
         self, max_pixels: int, max_size: int, quality_step: int = 20
-    ) -> "FileInfoBase":
+    ) -> "FileBase":
         """Downscales the image to the given max size and max pixels."""
 
         # scale down size
@@ -774,16 +774,16 @@ class FileInfoBase(BuiltinObject):
 
 
 @struct_(StructType.FILE_INFO)
-class FileInfo(Struct[FileInfoData], FileInfoBase):
+class FileInfo(Struct[FileInfoData], FileBase):
     """
     File metadata.
     """
 
-    __content_str__ = FileInfoBase.__content_str__  # type: ignore
+    __content_str__ = FileBase.__content_str__  # type: ignore
 
 
 @node_(NodeType.FILE)
-class File(AnonymousResourceNode[FileData], FileInfoBase):
+class File(AnonymousResourceNode[FileData], FileBase):
     """
     A file stored somewhere (like in a Drive, or externally).
     """
@@ -799,7 +799,7 @@ class File(AnonymousResourceNode[FileData], FileInfoBase):
     )
     expires_at: Optional[datetime] = p_system(71)
 
-    __content_str__ = FileInfoBase.__content_str__  # type: ignore
+    __content_str__ = FileBase.__content_str__  # type: ignore
 
     def to_ref(self) -> "FileReference":
         """Gets a reference to this file."""
@@ -813,7 +813,7 @@ class File(AnonymousResourceNode[FileData], FileInfoBase):
 @struct_(StructType.FILE_REFERENCE)
 class FileReference(
     Struct[FileReferenceData],
-    FileInfoBase,
+    FileBase,
     NodeReferenceBase[File, FileData, "FileReference", FileReferenceData],
 ):
     """
@@ -825,7 +825,7 @@ class FileReference(
     # content/info
     # ...FileInfoBase[40-69]
 
-    __content_str__ = FileInfoBase.__content_str__  # type: ignore
+    __content_str__ = FileBase.__content_str__  # type: ignore
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
         if self.node_type != NodeType.FILE:
@@ -840,7 +840,7 @@ class FileReference(
     def _ref_from_node(node: File) -> "FileReference":
         node_ref = NodeReference._ref_from_node(node)
         kwargs = {}
-        for prop in FileInfoBase.__declared_properties__.values():
+        for prop in FileBase.__declared_properties__.values():
             if hasattr(node, prop.name):
                 kwargs[prop.name] = getattr(node, prop.name)
         return FileReference._clone_ref(FileReference, node_ref, **kwargs)
@@ -850,7 +850,7 @@ class FileReference(
     def _ref_data_from_node_data(node_data: FileData) -> FileReferenceData:
         node_ref = NodeReference._ref_data_from_node_data(node_data)
         kwargs = {}
-        for prop in FileInfoBase.__declared_properties__.values():
+        for prop in FileBase.__declared_properties__.values():
             if hasattr(node_data, prop.name):
                 kwargs[prop.name] = getattr(node_data, prop.name)
         return FileReference._clone_ref(FileReferenceData, node_ref, **kwargs)

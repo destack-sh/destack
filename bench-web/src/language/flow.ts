@@ -303,7 +303,7 @@ export class FlowContext {
   getStepBoundingBox(step: StepData): BoundingBox | null {
     const stepState = this.stepsStates.value[step.id!];
     if (stepState == null) return null;
-    const size = estimateStepSize(step);
+    const size = getStepSize(step);
     const x1 = step.position?.x ?? 0;
     const y1 = step.position?.y ?? 0;
     const x2 = x1 + size.width;
@@ -350,7 +350,7 @@ export class FlowContext {
     for (const step of steps) {
       const state = this.stepsStates.value[step.id!];
       if (state == null) continue;
-      const size = estimateStepSize(step);
+      const size = getStepSize(step);
       x1 = Math.min(x1, step.position?.x ?? 0);
       y1 = Math.min(y1, step.position?.y ?? 0);
       x2 = Math.max(x2, (step.position?.x ?? 0) + size.width);
@@ -648,7 +648,7 @@ export class FlowContext {
   getPortPosition(step: StepData, side: PortSide): Vector2 | null {
     // step position
     const basePosition = step.position != null ? { ...step.position } : { x: 0, y: 0 };
-    const stepSize = estimateStepSize(step);
+    const stepSize = getStepSize(step);
     // center horizontally
     basePosition.x += stepSize.width / 2;
     // move to bottom
@@ -708,6 +708,7 @@ export class FlowContext {
 
       // 'collision' detection
       const stepBoundingBoxes: BoundingBox[] = Object.values(this.stepsStates.value)
+        .filter((s) => s.step.value?.type != StepType.TEXT)
         .map((s) => s.boundingBox.value)
         .filter((s) => s != null) as BoundingBox[];
       function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
@@ -957,18 +958,8 @@ export function getStepWidth(step: StepData): number {
 }
 
 /** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */
-export function estimateStepSize(step: StepData): { width: number; height: number } {
-  const width = getStepWidth(step);
-  // base height
-  let height = STEP_HEADER_HEIGHT;
-  // content
-  if (step.type == StepType.TEXT) {
-    const text = unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, "text");
-    height += (text != null ? estimateTextHeight(text, width) : 20) + 10;
-  }
-  // snap height to grid
-  height = Math.ceil(height / FLOW_GRID_STEP) * FLOW_GRID_STEP;
-  return { width, height };
+export function getStepSize(step: StepData): { width: number; height: number } {
+  return { width: getStepWidth(step), height: STEP_HEADER_HEIGHT };
 }
 
 export function createStep(

@@ -49,7 +49,7 @@ if TYPE_CHECKING:
         TypeConstraint,
         TypeConstraintIn,
         TypeInfo,
-        TypeInfoBase,
+        TypeBase,
     )
     from bench.language.validation import ValidationHandler
 
@@ -101,7 +101,7 @@ class CustomObject(Mapping[str, Any]):
 
     def __init__(
         self,
-        type: "TypeInfoBase",
+        type: "TypeBase",
         value: dict[str, SomeValue] | None = None,
         parent: ValueParent | None = None,
         parent_key: ValueParentKey | None = None,
@@ -289,7 +289,7 @@ class CustomObject(Mapping[str, Any]):
     @staticmethod
     def new(
         value: dict[str, SomeValue] | None,
-        typ: "TypeInfoBase",
+        typ: "TypeBase",
         parent: ValueParent | None = None,
         parent_property: ValueParentKey | None = None,
     ) -> "CustomObject":
@@ -405,7 +405,7 @@ def _object_value_runtime(prop: Property) -> property:
 
 def _coerce_value_scalar(
     value: ScalarValue,
-    typ: "TypeInfoBase",
+    typ: "TypeBase",
     as_packed: bool = False,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
@@ -432,7 +432,7 @@ def _coerce_value_scalar(
 
 def coerce_custom_object_scalar(
     value: dict | CustomObject,
-    typ: "TypeInfoBase",
+    typ: "TypeBase",
     as_packed: bool = False,
     parent: ValueParent | None = None,
     parent_prop: ValueParentKey | None = None,
@@ -469,7 +469,7 @@ def coerce_custom_object_scalar(
 
 def coerce_value(
     value: Any,
-    typ: "TypeInfoBase",
+    typ: "TypeBase",
     as_packed: bool = False,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
@@ -544,7 +544,7 @@ MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
 
 def check_value_scalar_constraint(
     value: SomeValue,
-    typ: "TypeInfoBase",
+    typ: "TypeBase",
     constraint: "TypeConstraint | TypeConstraintIn",
     invalid: "ValidationHandler",
 ) -> None:
@@ -569,7 +569,7 @@ def check_value_scalar_constraint(
             invalid(value, f"does not end with {constraint.ends_with}", typ)
 
 
-def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
+def check_value_scalar(value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler") -> None:
     """Checks whether the given scalar value has the expected type."""  # :TypeChecking
     if typ.kind == TypeKind.PRIMITIVE:
         expected_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
@@ -633,7 +633,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
 
 
 def _check_is_list(
-    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
+    value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler"
 ) -> TypeGuard[list]:
     """Checks whether the given value is a list of the expected dimensions."""
     if not isinstance(value, (list, tuple)):
@@ -648,7 +648,7 @@ def _check_is_list(
 
 
 def _check_is_object(
-    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
+    value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler"
 ) -> TypeGuard[CustomObject]:
     if not isinstance(value, CustomObject):
         invalid(value, "not an object", typ)
@@ -657,7 +657,7 @@ def _check_is_object(
 
 
 def check_custom_object_scalar(
-    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
+    value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler"
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
     if _check_is_object(value, typ, invalid):
@@ -666,7 +666,7 @@ def check_custom_object_scalar(
             check_value(field_value, field, invalid)
 
 
-def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
+def check_value(value: Any, typ: "TypeBase", invalid: "ValidationHandler") -> None:
     """
     Checks whether the given value has the expected type (recursively).
     """
@@ -703,7 +703,7 @@ SAMPLE_VALUE_BY_PROPERTY: dict[str, SomeValue] = {
 }
 
 
-def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
+def sample_scalar_value(typ: "TypeBase") -> ScalarValue | None:
     """Samples a representative (not necessarily random) scalar value for the given type."""
     if typ.kind == TypeKind.PRIMITIVE:
         assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
@@ -760,7 +760,7 @@ def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
         raise RuntimeError(f"unexpected type {typ!r}")
 
 
-def sample_builtin_object_scalar(typ: "TypeInfoBase") -> "BuiltinObject":
+def sample_builtin_object_scalar(typ: "TypeBase") -> "BuiltinObject":
     """Samples a representative object value for the given type (recursively)."""
     object_cls = OBJECT_CLASS_BY_TYPE.get(cast(ObjectType, typ.bench_type))
     assert object_cls is not None, f"missing object class for {typ!r}"
@@ -796,7 +796,7 @@ def sample_builtin_object_scalar(typ: "TypeInfoBase") -> "BuiltinObject":
     return object_cls(**object_kwargs)
 
 
-def sample_custom_object_scalar(typ: "TypeInfoBase", recurse_objects: bool = True) -> CustomObject:
+def sample_custom_object_scalar(typ: "TypeBase", recurse_objects: bool = True) -> CustomObject:
     """Samples a representative object value for the given type (recursively)."""
     assert typ.kind == TypeKind.OBJECT, f"expected object type, got {typ!r}"
     value = {}
@@ -809,7 +809,7 @@ def sample_custom_object_scalar(typ: "TypeInfoBase", recurse_objects: bool = Tru
 
 
 @tracer.start_as_current_span(name="value.sample")
-def sample_value(typ: "TypeInfoBase", recurse_objects: bool = True) -> SomeValue:
+def sample_value(typ: "TypeBase", recurse_objects: bool = True) -> SomeValue:
     """Samples a representative value for the given type (recursively)."""
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
@@ -833,7 +833,7 @@ def sample_value(typ: "TypeInfoBase", recurse_objects: bool = True) -> SomeValue
 #
 
 
-def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase") -> JsonValue:
+def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> JsonValue:
     """
     Packs the given scalar runtime or data value into a JSON-able representation.
     """
@@ -893,7 +893,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
         raise TypeError(f"cannot pack value of type {typ!r}")
 
 
-def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarValue:
+def unpack_value_scalar(value_packed: JsonValue, typ: "TypeBase") -> ScalarValue:
     """
     Unpacks the given scalar value into its runtime representation.
     """
@@ -928,7 +928,7 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarV
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
-def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> ScalarValueData:
+def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> ScalarValueData:
     """
     Unpacks the given scalar value into its proto data representation. See above.
     """
@@ -1031,7 +1031,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
 
 
 def pack_custom_object(
-    value: CustomObject | dict[str, SomeValue], typ: "TypeInfoBase"
+    value: CustomObject | dict[str, SomeValue], typ: "TypeBase"
 ) -> dict[str, JsonValue]:
     """
     Packs an object value into a JSON representation.
@@ -1063,7 +1063,7 @@ def pack_custom_object(
 
 def unpack_custom_object(
     value_packed: dict[str, JsonValue],
-    typ: "TypeInfoBase",
+    typ: "TypeBase",
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
 ) -> CustomObject:
@@ -1090,7 +1090,7 @@ def unpack_custom_object(
     return CustomObject.new(value=value, typ=typ, parent=parent, parent_property=parent_key)
 
 
-def pack_value(value: SomeValue | None, typ: "TypeInfoBase", *, wrap_scalar: bool) -> JsonValue:
+def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap_scalar: bool) -> JsonValue:
     """
     Packs a value into a JSON representation.
     """
@@ -1124,7 +1124,7 @@ def pack_value(value: SomeValue | None, typ: "TypeInfoBase", *, wrap_scalar: boo
 
 
 def pack_value_data(
-    value: SomeValueData, typ: "TypeInfoBase", wrap_scalar: bool = True
+    value: SomeValueData, typ: "TypeBase", wrap_scalar: bool = True
 ) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
     assert typ.kind != TypeKind.OBJECT, f"cannot pack data for {typ!r}"
@@ -1143,7 +1143,7 @@ def pack_value_data(
 
 def unpack_value(
     value_packed: JsonValue,
-    typ: "TypeInfoBase",
+    typ: "TypeBase",
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
     *,
@@ -1187,7 +1187,7 @@ def unpack_value(
 
 
 def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeInfoBase", wrap_scalar: bool
+    value_packed: JsonValue, typ: "TypeBase", wrap_scalar: bool
 ) -> SomeValueData | JsonValue | None:
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
@@ -1311,7 +1311,7 @@ class Value(Struct):
     value: Any = p_value_runtime(35, typ=lambda self: cast("Value", self).type)
 
 
-def coerce_custom_object(typ: "TypeInfoBase", value_raw: Any) -> CustomObject:
+def coerce_custom_object(typ: "TypeBase", value_raw: Any) -> CustomObject:
     """
     Tries to coerce a custom object from a given raw value.
     We support 4 coercions:
