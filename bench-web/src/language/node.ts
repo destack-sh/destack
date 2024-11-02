@@ -70,7 +70,7 @@ export function generateNodeName(node: Partial<AnyNodeData>, siblings: AnyNodeDa
       ...siblings.filter((n) => (n as any).type == (node as any).type).map((n) => extractNameId((n as any).name) ?? 0),
       0,
     );
-    return `${subtypeName}${typeName}${maxId + 1}`;
+    return `${subtypeName}${maxId + 1}`;
   } else {
     // node type
     const typeName = toCamelName(NodeType, node.metatype);

@@ -9,7 +9,6 @@ import {
   BlockType,
   BoxData,
   CHILD_NODE_TYPES,
-  ColorShade,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -18,7 +17,7 @@ import {
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import {
   SomeNodeReferenceData,
@@ -36,7 +35,7 @@ import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
-import { getNodeColor, getNodeColorHex } from "@/ui/style";
+import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
