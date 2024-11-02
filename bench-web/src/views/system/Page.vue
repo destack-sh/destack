@@ -330,7 +330,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             id="name"
             ref="nameRef"
             class="mb-2 mt-4 flex-shrink-0 text-3xl font-bold transition-colors duration-150"
-            placeholder="Page name..."
+            placeholder="Name..."
             is-input
             :value-type="NAME_TYPE"
             :variant="Variant.STEALTH"

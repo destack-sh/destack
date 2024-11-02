@@ -192,6 +192,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :class="[isHighlighted ? 'underline-offset-3 underline decoration-gray-700' : '']"
         is-input
         :value-type="NAME_TYPE"
+        placeholder="Name..."
         :variant="Variant.STEALTH"
         :model-value="block.name"
         @update:model-value="
