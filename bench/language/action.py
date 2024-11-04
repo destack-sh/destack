@@ -98,10 +98,14 @@ class Continue(Struct):
         return Continue(node=node, **kwargs)
 
 
-@object_()
-class ActionContextItem(BuiltinObject):
-    pass
+class ContextBuilder:
+    def __init__(self, task: Optional["Text"] = None) -> None:
+        self._task: Optional[Text] = task
 
+    def copy(self) -> "ContextBuilder":
+        return ContextBuilder(task=self._task)
 
-class ActionContext:
-    items: list["ActionContextItem"]
+    def task(self, task: "Text") -> "ContextBuilder":
+        copy = self.copy()
+        copy._task = task
+        return copy

@@ -81,7 +81,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Midpoint meta -->
     <div
-      class="group/meta absolute flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded border px-2 py-0.5 transition-colors duration-150"
+      class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded border px-2 py-0.5 transition-colors duration-150"
       :class="[
         showPipeMeta
           ? ['bg-white', isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200']
@@ -100,7 +100,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-if="!isGeneratedName || isInspected || isHighlighted"
         id="name"
         ref="nameRef"
-        class="flex-shrink-0 ml-1.5 font-medium transition-colors duration-150"
+        class="ml-1.5 flex-shrink-0 font-medium transition-colors duration-150"
         :class="[
           isGeneratedName && !isInspected && !isHighlighted ? 'opacity-0' : 'opacity-100',
           isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',

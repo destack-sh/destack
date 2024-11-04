@@ -7,13 +7,13 @@ import structlog
 from opentelemetry import trace
 from sortedcontainers import SortedDict
 
+from bench.language.action import ContextBuilder
 from bench.language.block import Block
 from bench.language.field import TypeBase
 from bench.language.flow import ActionStep, Pipe, Step, StepType
 from bench.language.run import Run, RunError, RunKind, RunOptions
 from bench.language.value import CustomObject
-from bench.runtime.action import ActionRunner, run_action
-from bench.runtime.core import ATTEMPT_ONCE
+from bench.runtime.action import ActionRunner
 from bench.runtime.runner import Runner
 from bench.runtime.runtime import Runtime
 
@@ -220,6 +220,7 @@ class StepRunner(Runner):
         node: Block | Step,
         track: bool,
         options: RunOptions,
+        context: ContextBuilder,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         run: Run | None = None,
@@ -229,6 +230,7 @@ class StepRunner(Runner):
             node=node,
             track=track,
             options=options,
+            context=context,
             parent=parent,
             inputs=inputs,
             run=run,
@@ -265,4 +267,14 @@ class ActionStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         assert self.node.type == StepType.ACTION, f"unexpected node {self.node!r}"
-        self.outputs = await run_action(self.runtime, cast(ActionStep, self.node), self.inputs)
+        runner = ActionRunner(
+            runtime=self.runtime,
+            node=cast(ActionStep, self.node),
+            options=self.options,
+            context=self.context,
+            parent=self,
+            inputs=self.inputs,
+            track=False,
+        )
+        await self.runtime.run_runner(runner)
+        self.outputs = runner.outputs

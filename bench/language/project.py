@@ -35,17 +35,6 @@ class Projection:
     NOTE :Incomplete: support loading "missing" (unloaded but referenced) nodes on demand
     """
 
-    __slots__ = (
-        "_depth",
-        "_depth_by_node_id",
-        "_missing_nodes_by_id",
-        "_nodes_by_container_id",
-        "_nodes_by_depth",
-        "_nodes_by_id",
-        "_nodes_to_collect",
-        "_options",
-    )
-
     def __init__(self, options: ProjectOptions):
         self._options: ProjectOptions = options
         self._nodes_by_id: dict[UUID, Node] = {}

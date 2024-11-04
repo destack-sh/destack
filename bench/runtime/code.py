@@ -6,6 +6,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import render
+from bench.language.action import ContextBuilder
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.file import upload
@@ -46,6 +47,7 @@ class CodeRunnerBase(Runner):
         code: Code,
         track: bool,
         options: RunOptions,
+        context: ContextBuilder,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         run: Run | None = None,
@@ -55,6 +57,7 @@ class CodeRunnerBase(Runner):
             node=node,
             track=track,
             options=options,
+            context=context,
             parent=parent,
             inputs=inputs,
             run=run,

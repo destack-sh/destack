@@ -41,6 +41,15 @@ async def test_run_action_empty_adaptive(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(ActionBlock1)
 
 
+async def test_run_action_empty_dynamic(local_runtime: RuntimeHandle):
+    """Running an empty action in dynamic mode should do nothing."""
+    ActionBlock1 = Block.new(ActionBlock, "Action1", mode=ActionMode.DYNAMIC)
+    local_runtime.page().blocks.append(ActionBlock1)
+    await local_runtime.commit()
+
+    _ = await local_runtime.run(ActionBlock1)
+
+
 async def test_run_action_math(local_runtime: RuntimeHandle):
     """
     Running an adaptive action with a math implementation should work.
@@ -58,8 +67,12 @@ async def test_run_action_math(local_runtime: RuntimeHandle):
     await local_runtime.commit()
     runner = await local_runtime.run(ActionBlock1, inputs={"x": 1})
     assert runner.outputs and runner.outputs.y == 2
+    runner = await local_runtime.run(ActionBlock1, inputs={"x": 2})
+    assert runner.outputs and runner.outputs.y == 3
 
     # New: 'Add 2'
     ActionBlock1.text = md("Add 2")
     runner = await local_runtime.run(ActionBlock1, inputs={"x": 1})
     assert runner.outputs and runner.outputs.y == 3
+    runner = await local_runtime.run(ActionBlock1, inputs={"x": 2})
+    assert runner.outputs and runner.outputs.y == 4

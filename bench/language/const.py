@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.01.1"
+VERSION = "2024.11.04.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -406,6 +406,8 @@ class StructType(IdEnum):
     SELECT_OPTIONS = 10304
     VALUE = 10305
     COMPUTED_VALUE = 10306
+    OBJECT_MAPPING = 10310
+    FIELD_MAPPING = 10311
 
     # run
     CODE = 10400
@@ -1053,7 +1055,7 @@ class RunStatus(IdEnum):
     QUEUED = 2
     # active
     RUNNING = 3
-    # active+halted
+    # halted
     PAUSED = 4
     SUSPENDED = 5
     # terminal
