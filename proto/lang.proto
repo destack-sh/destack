@@ -171,6 +171,8 @@ enum StructType {
   STRUCT_TYPE_SELECT_OPTIONS = 10304;
   STRUCT_TYPE_VALUE = 10305;
   STRUCT_TYPE_COMPUTED_VALUE = 10306;
+  STRUCT_TYPE_OBJECT_MAPPING = 10310;
+  STRUCT_TYPE_FIELD_MAPPING = 10311;
   STRUCT_TYPE_CODE = 10400;
   STRUCT_TYPE_CODE_LINE = 10401;
   STRUCT_TYPE_RUN_ERROR = 10500;
@@ -180,8 +182,8 @@ enum StructType {
   STRUCT_TYPE_RUN_FRAME = 10504;
   STRUCT_TYPE_RUN_SPAN = 10505;
   STRUCT_TYPE_RUN_EVENT = 10506;
-  STRUCT_TYPE_CONTEXT = 10510;
-  STRUCT_TYPE_CONTINUATION = 10511;
+  STRUCT_TYPE_CONTINUE = 10511;
+  STRUCT_TYPE_CALL = 10512;
   STRUCT_TYPE_BREAKPOINT = 10540;
   STRUCT_TYPE_LOG_INFO = 10550;
   STRUCT_TYPE_COLOR = 11000;
@@ -267,6 +269,8 @@ enum ObjectType {
   OBJECT_TYPE_SELECT_OPTIONS = 10304;
   OBJECT_TYPE_VALUE = 10305;
   OBJECT_TYPE_COMPUTED_VALUE = 10306;
+  OBJECT_TYPE_OBJECT_MAPPING = 10310;
+  OBJECT_TYPE_FIELD_MAPPING = 10311;
   OBJECT_TYPE_CODE = 10400;
   OBJECT_TYPE_CODE_LINE = 10401;
   OBJECT_TYPE_RUN_ERROR = 10500;
@@ -276,8 +280,8 @@ enum ObjectType {
   OBJECT_TYPE_RUN_FRAME = 10504;
   OBJECT_TYPE_RUN_SPAN = 10505;
   OBJECT_TYPE_RUN_EVENT = 10506;
-  OBJECT_TYPE_CONTEXT = 10510;
-  OBJECT_TYPE_CONTINUATION = 10511;
+  OBJECT_TYPE_CONTINUE = 10511;
+  OBJECT_TYPE_CALL = 10512;
   OBJECT_TYPE_BREAKPOINT = 10540;
   OBJECT_TYPE_LOG_INFO = 10550;
   OBJECT_TYPE_COLOR = 11000;
@@ -363,6 +367,8 @@ enum BenchType {
   BENCH_TYPE_SELECT_OPTIONS = 10304;
   BENCH_TYPE_VALUE = 10305;
   BENCH_TYPE_COMPUTED_VALUE = 10306;
+  BENCH_TYPE_OBJECT_MAPPING = 10310;
+  BENCH_TYPE_FIELD_MAPPING = 10311;
   BENCH_TYPE_CODE = 10400;
   BENCH_TYPE_CODE_LINE = 10401;
   BENCH_TYPE_RUN_ERROR = 10500;
@@ -372,8 +378,8 @@ enum BenchType {
   BENCH_TYPE_RUN_FRAME = 10504;
   BENCH_TYPE_RUN_SPAN = 10505;
   BENCH_TYPE_RUN_EVENT = 10506;
-  BENCH_TYPE_CONTEXT = 10510;
-  BENCH_TYPE_CONTINUATION = 10511;
+  BENCH_TYPE_CONTINUE = 10511;
+  BENCH_TYPE_CALL = 10512;
   BENCH_TYPE_BREAKPOINT = 10540;
   BENCH_TYPE_LOG_INFO = 10550;
   BENCH_TYPE_COLOR = 11000;
@@ -831,7 +837,7 @@ enum ActionMode {
   ACTION_MODE_UNSPECIFIED = 0;
   ACTION_MODE_STRICT = 1;
   ACTION_MODE_ADAPTIVE = 2;
-  ACTION_MODE_LENIENT = 3;
+  ACTION_MODE_DYNAMIC = 3;
 }
 
 enum ScheduleType {
@@ -1686,14 +1692,16 @@ message AccessData {
   repeated PropertyReferenceData allowed_properties_ptr = 34;
 }
 
-message ContextData {
+message CallData {
   ObjectType metatype = 1;
-  repeated NodeReferenceData runs_ptr = 30;
+  NodeReferenceData node_ptr = 30;
+  optional google.protobuf.Value inputs_packed = 31;
 }
 
-message ContinuationData {
+message ContinueData {
   ObjectType metatype = 1;
-  optional NodeReferenceData node_ptr = 30;
+  NodeReferenceData node_ptr = 30;
+  optional CodeData mapping = 50;
 }
 
 message SelectOptionsData {
@@ -1919,6 +1927,17 @@ message RunErrorData {
   optional TextData text = 33;
   optional NodeReferenceData node_ptr = 34;
   optional RunTraceData trace = 35;
+}
+
+message ObjectMappingData {
+  ObjectType metatype = 1;
+  repeated FieldMappingData field_mappings = 40;
+}
+
+message FieldMappingData {
+  ObjectType metatype = 1;
+  NodeReferenceData source_ptr = 35;
+  NodeReferenceData target_ptr = 36;
 }
 
 message LogInfoData {
@@ -2748,9 +2767,12 @@ message PipeData {
   string order_key = 33;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
-  optional ExpressionData filter = 60;
-  optional TypeConstraintData constraint = 61;
-  optional CodeData condition = 62;
+  optional ExpressionData condition = 60;
+  optional CodeData condition_code = 61;
+  optional TypeConstraintData constraint = 62;
+  optional CodeData mapping = 70;
+  optional CodeData mapping_code = 71;
+  optional google.protobuf.Duration delay = 80;
   optional ColorData color = 91;
   bool is_hidden = 92;
 }

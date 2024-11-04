@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Iterable, assert_never
 import structlog
 from opentelemetry import trace
 
+from bench.language.action import ContextBuilder
 from bench.language.code import Code
 from bench.language.const import RunStatus
 from bench.language.flow import StepType
@@ -28,6 +29,7 @@ class Runner:
 
     __slots__ = (
         "attempts",
+        "context",
         "error",
         "events",
         "id",
@@ -58,6 +60,7 @@ class Runner:
         node: "Block | Step",
         track: bool,
         options: RunOptions,
+        context: ContextBuilder,
         parent: "Runner | None" = None,
         inputs: CustomObject | None = None,
         run: Run | None = None,
@@ -68,6 +71,7 @@ class Runner:
         self.status = RunStatus.QUEUED
         self.options = options
 
+        self.context = context
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
         self.outputs: CustomObject | None = None
@@ -124,6 +128,7 @@ class Runner:
         base_kwargs: dict[str, Any] = {
             "runtime": runtime,
             "options": run.options,
+            "context": ContextBuilder(),  # nocheckin: where to get/restore Run context?
             "inputs": inputs,
             "run": run,
             "track": track,

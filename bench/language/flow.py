@@ -18,8 +18,10 @@ from bench.language.list import LocalNodeList
 from bench.language.node import (
     NodeSubtypeStub,
     SourceNode,
+    Struct,
     local_node_,
     node_subtype_,
+    struct_,
 )
 from bench.language.property import (
     p_internal,
@@ -53,6 +55,19 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@struct_(StructType.OBJECT_MAPPING)
+class ObjectMapping(Struct):
+    field_mappings: list["FieldMapping"] = p_regular(
+        40, require=True, array=True, struct=StructType.FIELD_MAPPING
+    )
+
+
+@struct_(StructType.FIELD_MAPPING)
+class FieldMapping(Struct):
+    source: "Field" = p_regular(35, require=True, references=NodeType.FIELD)
+    target: "Field" = p_regular(36, require=True, references=NodeType.FIELD)
 
 
 @enum_(EnumType.PORT_SIDE)
@@ -108,19 +123,22 @@ class Pipe(SourceNode[PipeData]):
     # associated_fields, ...?
 
     # filter
-    filter: Optional["Expression"] = p_regular(
+    condition: Optional["Expression"] = p_regular(
         60, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
-    constraint: Optional["TypeConstraint"] = p_regular(
-        61, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
+    condition_code: Optional["Code"] = p_regular(
+        61, default=None, require=False, array=False, struct=StructType.CODE
     )
-    condition: Optional["Code"] = p_regular(
-        62, default=None, require=False, array=False, struct=StructType.CODE
+    constraint: Optional["TypeConstraint"] = p_regular(
+        62, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
     )
 
     # mapping
     mapping: Optional["Code"] = p_regular(
         70, default=None, require=False, array=False, struct=StructType.CODE
+    )
+    mapping_code: Optional["Code"] = p_regular(
+        71, default=None, require=False, array=False, struct=StructType.CODE
     )
 
     # modulation

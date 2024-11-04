@@ -14,7 +14,7 @@
       "env": {
         "PYTEST_ADDOPTS": "--no-cov",
       },
-      "justMyCode": false
+      "justMyCode": true
     },
     {
       // run pytest collect to debug collection issues
@@ -42,7 +42,7 @@
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": false
+      "justMyCode": true
     },
     {
       "name": "bench.runtime",
@@ -58,7 +58,7 @@
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": false,
+      "justMyCode": true,
       "python": "${workspaceFolder}/venv-runtime/bin/python"
     }, 
   ],
