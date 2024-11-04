@@ -189,7 +189,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         id="name"
         ref="nameRef"
         class="ml-2 flex-shrink-0 font-medium transition-colors duration-150"
-        :class="[isHighlighted ? 'underline-offset-3 underline decoration-gray-700' : '']"
+        :class="[isHighlighted ? 'underline decoration-gray-700 underline-offset-3' : '']"
         is-input
         :value-type="NAME_TYPE"
         placeholder="Name..."
@@ -262,7 +262,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 border-b border-gray-200 px-2 pb-1 pt-2">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-b border-gray-200 px-2 pb-1 pt-2">
           <Type
             id="type.input"
             class=""

@@ -9,9 +9,7 @@ import { updateOrder } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/value";
 import {
-  BlockType,
   ENUM_BY_TYPE,
-  FieldType,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeSubtypeMapping,
   NodeType,
@@ -21,10 +19,8 @@ import {
   PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
-  StepType,
   StructType,
   Timestamp,
-  ViewType,
   type AnyNodeData,
   type AnyStructData,
   type NodeTypeMapping,
@@ -84,8 +80,18 @@ export function isGeneratedNodeName(metatype: NodeType | ObjectType, name: strin
   // match name as <type><id> (groups)
   const match = name.match(/([a-zA-Z]+)(\d+)/);
   if (match == null) return false;
-  const typeName = toCasing(match[1], Casing.ALL_CAPS).split("_").slice(-1)[0];
-  return NodeType[typeName as any] != null;
+  const typeParts = toCasing(match[1], Casing.ALL_CAPS).split("_");
+  const typeName = typeParts.at(0);
+  if (NodeType[typeName as any] != null) return true;
+  const subtypeName = typeParts.at(-1);
+  if (subtypeName != null) {
+    const properties = PROPERTY_ENUM_BY_TYPE[metatype as ObjectType];
+    const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
+    if (properties == null || propertyInfos == null) return false;
+    const enumType = ENUM_BY_TYPE[propertyInfos[properties["type" as any]]?.enumType!];
+    if (enumType?.[subtypeName] != null) return true;
+  }
+  return false;
 }
 
 /** Generates the name for a node in the given graph */

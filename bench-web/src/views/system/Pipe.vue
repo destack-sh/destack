@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
 import { pathToSvgSpline, PIPE_WIDTH, useFlowContext } from "@/language/flow";
-import { isGeneratedNodeName } from "@/language/node";
+import { isGeneratedNodeName, makeNodeName } from "@/language/node";
 import { Alignment, ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
@@ -32,6 +32,7 @@ const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
 const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName(pipe.value.metatype, pipe.value.name));
+const showPipeMeta = computed(() => !isGeneratedName.value || pipe.value?.type != PipeType.GO);
 
 //
 // Interaction
@@ -46,10 +47,14 @@ defineExpose<ViewExposed>({ self, id, actions });
 <template>
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
     <!-- Path -->
-    <svg class="absolute cursor-pointer overflow-visible">
+    <svg
+      class="absolute cursor-pointer overflow-visible"
+      :class="[isInspected || isHighlighted ? 'text-primary-700' : '']"
+      :style="{ color: !(isInspected || isHighlighted) ? pathColorHex : undefined }"
+    >
       <defs>
         <marker
-          id="arrowhead"
+          id="arrowhead-main"
           markerWidth="10"
           markerHeight="7"
           refX="9"
@@ -57,21 +62,9 @@ defineExpose<ViewExposed>({ self, id, actions });
           orient="auto"
           markerUnits="userSpaceOnUse"
         >
-          <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" :fill="pathColorHex" />
+          <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" fill="currentColor" />
         </marker>
       </defs>
-      <!-- Background path -->
-      <path
-        :stroke-width="PIPE_WIDTH * 2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke="currentColor"
-        fill="none"
-        :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
-        :d="pathSvg"
-        class="text-primary-700 transition-colors duration-150"
-        :class="isInspected || isHighlighted ? 'opacity-100' : 'opacity-0 hover:opacity-50'"
-      />
       <!-- Main path -->
       <path
         :stroke-width="PIPE_WIDTH"
@@ -79,9 +72,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        marker-end="url(#arrowhead)"
+        marker-end="url(#arrowhead-main)"
         class="transition-colors duration-150"
-        :style="{ color: pathColorHex }"
         :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"
       />
@@ -89,38 +81,45 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Midpoint meta -->
     <div
-      v-if="!isHidden"
-      class="absolute flex -translate-x-1/2 -translate-y-[80%] select-none flex-col items-center gap-x-1 transition-colors duration-150"
+      class="group/meta absolute flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded border px-2 py-0.5 transition-colors duration-150"
+      :class="[
+        showPipeMeta
+          ? ['bg-white', isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200']
+          : 'border-transparent bg-transparent',
+      ]"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
     >
+      <!-- Type-->
+      <IconInline
+        v-if="pipe.type != PipeType.GO"
+        v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
+        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-gray-700"
+      />
       <!-- Name -->
       <NativeInput
+        v-if="!isGeneratedName || isInspected || isHighlighted"
         id="name"
         ref="nameRef"
-        class="flex-shrink-0 font-medium transition-colors duration-150"
+        class="flex-shrink-0 ml-1.5 font-medium transition-colors duration-150"
         :class="[
-          isGeneratedName && !isInspected && !isHighlighted
-            ? 'opacity-0'
-            : pipe.isHidden
-              ? 'opacity-80'
-              : 'opacity-100',
+          isGeneratedName && !isInspected && !isHighlighted ? 'opacity-0' : 'opacity-100',
           isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
         ]"
         is-input
         placeholder="Name..."
         :value-type="NAME_TYPE"
-        :alignment="Alignment.MIDDLE"
         :variant="Variant.STEALTH"
         :model-value="pipe.name"
         @update:model-value="(newValue) => flowCtx.tx.update(pipe!, { name: newValue as string }, { debounce: 'long' })"
       />
-      <!-- Filter/Mapping/... -->
-      <IconInline
-        v-if="pipe.type != PipeType.GO"
-        v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
-        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-white"
-        :style="{ backgroundColor: pathColorHex }"
-      />
+      <button
+        v-if="!isGeneratedName"
+        class="text-gray-400 hover:text-primary-700 group-hover/meta:opacity-100"
+        :class="isInspected || isHighlighted ? '' : 'opacity-0'"
+        @click="flowCtx.tx.update(pipe!, { name: makeNodeName(flowCtx.graph, pipe!) })"
+      >
+        <i class="fas fa-xmark" />
+      </button>
     </div>
   </div>
   <div v-else>

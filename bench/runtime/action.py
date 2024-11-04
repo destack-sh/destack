@@ -1,6 +1,6 @@
 from typing import ClassVar, assert_never, cast, override
 
-from bench.language.action import ActionBase, ActionMode
+from bench.language.action import ActionContext, ActionMode
 from bench.language.block import ActionBlock
 from bench.language.code import Code
 from bench.language.const import BlockType
@@ -61,22 +61,23 @@ async def run_action(
             return code_runner.outputs
         else:
             raise RunImpossibleError(f"missing implementation for strict {action!r}")
-    elif action.mode == ActionMode.ADAPTIVE or action.mode == ActionMode.DYNAMIC:
-        # run dynamic implementation
+    elif action.mode == ActionMode.ADAPTIVE:
+        # update & run implementation
+        ...
+    elif action.mode == ActionMode.DYNAMIC:
+        # come up with a new implementation every time
         ...
     else:
         assert_never(action.mode)
 
 
-async def implement_action(action: Action):
-    pass
+async def implement_action(runtime: Runtime, action: Action):
+    raise NotImplementedError("nocheckin: implement_action")
 
 
-class ActionContext:
-    pass
+async def adapt_action(runtime: Runtime, action: Action):
+    raise NotImplementedError("nocheckin: adapt_action")
 
 
-async def generate_code(
-    context: ActionContext, inputs: CustomObject, output_type: TypeBase
-) -> Code:
-    pass
+async def generate_code(runtime: Runtime, context: ActionContext, output_type: TypeBase) -> Code:
+    raise NotImplementedError("nocheckin: generate_code")

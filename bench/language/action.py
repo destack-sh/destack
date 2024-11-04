@@ -96,3 +96,12 @@ class Continue(Struct):
     @staticmethod
     def new(node: "Block | Step | Pipe", **kwargs) -> "Continue":
         return Continue(node=node, **kwargs)
+
+
+@object_()
+class ActionContextItem(BuiltinObject):
+    pass
+
+
+class ActionContext:
+    items: list["ActionContextItem"]
