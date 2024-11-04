@@ -87,7 +87,7 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath = computed(() => {
   if (flowCtx.draggable?.kind != "step-port") return null;
   // preview path between current dragged port and step (or point in canvas if nothing)
-  const sourcePos = flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.side)!;
+  let sourcePos = flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.side)!;
   const cursorStep = flowCtx.getStepAt(flowCtx.cursorWorldPos.value);
   let targetPos: Vector2;
   if (cursorStep != null) {
@@ -96,13 +96,14 @@ const pendingPath = computed(() => {
   } else {
     targetPos = flowCtx.cursorWorldPos.value;
   }
-  const path = flowCtx.computePath(
-    "manhattan",
-    sourcePos,
-    flowCtx.draggable.side,
-    targetPos,
-    getOtherSide(flowCtx.draggable.side),
-  );
+  if (flowCtx.draggable.side == PortSide.INCOMING) {
+    [sourcePos, targetPos] = [targetPos, sourcePos];
+  }
+  let path = flowCtx.computePath("manhattan", sourcePos, targetPos);
+  if (path == null) {
+    // fallback to direct path
+    path = flowCtx.computePath("direct", sourcePos, targetPos)!;
+  }
   return path;
 });
 

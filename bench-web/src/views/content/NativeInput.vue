@@ -38,6 +38,9 @@ const inputType = computed(() => {
   else if (props.type == ViewType.NUMBER) return "number";
   else return "text";
 });
+const size = computed(() => {
+  return Math.max(3, props.placeholder?.length ?? 0, (modelValue.value as string)?.length ?? 0);
+});
 
 // sync currentValue (may be invalid) with modelValue
 const currentValue: Ref<string | null | undefined> = ref(null);
@@ -141,6 +144,7 @@ defineExpose<ViewExposed & { select: () => void }>({
             TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
             validationError != null ? 'text-danger-600' : '',
           ]"
+          :size="variant == Variant.STEALTH ? size : undefined"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="emit('apply')"
@@ -177,6 +181,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           :type="inputType"
           class="rounded-sm border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-700 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
+          :size="variant == Variant.STEALTH ? size : undefined"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
           @input="currentValue = ($event.target as HTMLInputElement).value"

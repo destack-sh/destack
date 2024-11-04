@@ -1,4 +1,4 @@
-import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
+import { INCOMING_STEP_TYPES, INVISIBLE_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
 import { estimateTextHeight } from "@/language/text";
@@ -166,13 +166,10 @@ export class PipeState {
       const sourcePortPosition = this.flow.getPortPosition(this.source.value!, PortSide.OUTGOING);
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, PortSide.INCOMING);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
-      const path = this.flow.computePath(
-        this.pipe.value?.isHidden ? "manhattan" : "manhattan",
-        sourcePortPosition,
-        PortSide.OUTGOING,
-        targetPortPosition,
-        PortSide.INCOMING,
-      );
+      let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition);
+      if (path == null) { // fallback to direct path
+        path = this.flow.computePath("direct", sourcePortPosition, targetPortPosition)!;
+      }
       return path;
     });
     this.boundingBox = computedValue(() => {
@@ -181,7 +178,6 @@ export class PipeState {
     });
   }
 }
-
 const mouse = useMouse();
 
 /** An entire flow canvas (including steps, sub-steps, pipes, etc.) */
@@ -353,6 +349,7 @@ export class FlowContext {
     let x2 = steps[0].position?.x ?? 0;
     let y2 = steps[0].position?.y ?? 0;
     for (const step of steps) {
+      if (INVISIBLE_STEP_TYPES.includes(step.type!)) continue;
       const state = this.stepsStates.value[step.id!];
       if (state == null) continue;
       const size = getStepSize(step);
@@ -708,19 +705,8 @@ export class FlowContext {
    *  4. Path computation must be very fast (we're doing it on every mouse move and state change).
    * NOTE :UX: improve pipe paths (better pathfinding, coordinate pipe paths, ...)
    * */
-  computePath(
-    pathType: "direct" | "manhattan",
-    source: Vector2,
-    sourceSide: PortSide,
-    target: Vector2,
-    targetSide: PortSide,
-  ): PipePath | null {
+  computePath(pathType: "direct" | "manhattan", source: Vector2, target: Vector2): PipePath | null {
     // swap it so that source is always outgoing
-    if (sourceSide != PortSide.OUTGOING) {
-      [source, target] = [target, source];
-      [sourceSide, targetSide] = [targetSide, sourceSide];
-    }
-
     if (pathType == "direct") {
       // direct path
       const path: PipePath = {
@@ -734,7 +720,7 @@ export class FlowContext {
 
       // 'collision' detection
       const stepBoundingBoxes: BoundingBox[] = Object.values(this.stepsStates.value)
-        .filter((s) => s.step.value?.type != StepType.TEXT)
+        .filter((s) => !INVISIBLE_STEP_TYPES.includes(s.step.value?.type!))
         .map((s) => s.boundingBox.value)
         .filter((s) => s != null) as BoundingBox[];
       function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
@@ -1060,7 +1046,7 @@ export function createPipe(
   // create
   const pipe = tx.create({
     metatype: NodeType.PIPE,
-    name: makeNodeName(graph, { metatype: ObjectType.PIPE, parentPtr }),
+    name: makeNodeName(graph, { ...options.pipe, metatype: ObjectType.PIPE, parentPtr }),
     orderKey,
     ...options.pipe,
     parentPtr,
