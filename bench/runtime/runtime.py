@@ -8,7 +8,7 @@ import structlog
 from opentelemetry import baggage, context, trace
 
 from bench.language.block import Block
-from bench.language.const import BenchError, RunErrorKind, RunStatus
+from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
 from bench.language.flow import Step
 from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
@@ -83,7 +83,7 @@ class Runtime:
         # check inputs
         if runner.input_type is not None:
             with tracer.start_as_current_span("runtime.check_inputs"):
-                inputs = runner.inputs or CustomObject.new({}, runner.input_type)
+                inputs = runner.inputs or CustomObject.new(ObjectKind.INPUT, {}, runner.input_type)
                 try:
                     check_value(inputs, runner.input_type, on_invalid_raise)
                 except ValidationError as e:
@@ -126,7 +126,9 @@ class Runtime:
                         if runner.output_type is not None:
                             with tracer.start_as_current_span("runtime.check_outputs"):
                                 if runner.outputs is None:
-                                    runner.outputs = CustomObject.new({}, runner.output_type)
+                                    runner.outputs = CustomObject.new(
+                                        ObjectKind.OUTPUT, {}, runner.output_type
+                                    )
                                 check_value(runner.outputs, runner.output_type, on_invalid_raise)
                         attempt._do_set("status", RunStatus.COMPLETED, validate=False)
                         log.debug("runtime.attempt", attempt=attempt, span="current")

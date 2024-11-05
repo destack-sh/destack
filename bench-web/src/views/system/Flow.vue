@@ -99,10 +99,11 @@ const pendingPath = computed(() => {
   if (flowCtx.draggable.side == PortSide.INCOMING) {
     [sourcePos, targetPos] = [targetPos, sourcePos];
   }
-  let path = flowCtx.computePath("manhattan", sourcePos, targetPos);
+  const margin = { x: FLOW_GRID_STEP, y: 0 };
+  let path = flowCtx.computePath("manhattan", sourcePos, targetPos, margin);
   if (path == null) {
     // fallback to direct path
-    path = flowCtx.computePath("direct", sourcePos, targetPos)!;
+    path = flowCtx.computePath("direct", sourcePos, targetPos, margin)!;
   }
   return path;
 });

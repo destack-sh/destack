@@ -7,6 +7,7 @@ from bench.language.const import (
     BenchError,
     EnumType,
     NodeType,
+    ObjectKind,
     RunErrorKind,
     RunStatus,
     StructType,
@@ -406,15 +407,15 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     # content
     inputs_packed: Any = p_value_packed(60)
     inputs: "CustomObject | None" = p_value_runtime(
-        60, typ=lambda self: cast("Run", self).input_type
+        60, kind=ObjectKind.INPUT, typ=lambda self: cast("Run", self).input_type
     )
     outputs_packed: Any = p_value_packed(61)
     outputs: "CustomObject | None" = p_value_runtime(
-        61, typ=lambda self: cast("Run", self).output_type
+        61, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
     variables_packed: Any = p_value_packed(62)
     variables: "CustomObject | None" = p_value_runtime(
-        62, typ=lambda self: cast("Run", self).variable_type
+        62, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Run", self).variable_type
     )
     logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
@@ -538,7 +539,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         if inputs is None:
             inputs = {}
         if run.input_type is not None:
-            inputs = coerce_custom_object(run.input_type, inputs)
+            inputs = coerce_custom_object(ObjectKind.INPUT, run.input_type, inputs)
             run.inputs = inputs
             if kwargs:
                 inputs.update(kwargs)

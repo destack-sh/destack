@@ -297,12 +297,11 @@ export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons
   [PipeType.STREAM]: "fas fa-signal-stream",
 });
 
-// nocheckin
 export const ICON_BY_ACTION_MODE: Record<ActionMode, IconData> = _makeIcons<ActionMode>({
   [ActionMode.UNSPECIFIED]: "fas fa-question",
-  [ActionMode.STRICT]: "",
-  [ActionMode.ADAPTIVE]: "",
-  [ActionMode.LENIENT]: "",
+  [ActionMode.STRICT]: "fas fa-shield",
+  [ActionMode.ADAPTIVE]: "fas fa-recycle",
+  [ActionMode.DYNAMIC]: "fas fa-atom-simple",
 })
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({

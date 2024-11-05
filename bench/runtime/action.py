@@ -51,13 +51,17 @@ class ActionRunner(Runner):
 
 async def adapt_action(runtime: Runtime, context: ContextBuilder, action: Action):
     """Adapts the given Action and any relevant Nodes. The update is applied immediately."""
-    code = await generate_and_run_code(
+    _ = await generate_and_run_code(
         runtime=runtime, context=context, node=action, inputs=None, output_type=None
     )
 
 
 async def run_action_implementation(
-    runtime: Runtime, context: ContextBuilder, action: Action, inputs: CustomObject | None
+    runtime: Runtime,
+    context: ContextBuilder,
+    action: Action,
+    inputs: CustomObject | None,
+    output_type: TypeBase | None = None,
 ) -> CustomObject | None:
     """Runs the implementation of the given Action and returns the output."""
     inner_node = action.node
@@ -69,6 +73,7 @@ async def run_action_implementation(
             node=action,
             code=action.code,
             inputs=inputs,
+            output_type=output_type,
             options=ATTEMPT_ONCE,
             context=context,
             track=False,
@@ -104,12 +109,17 @@ async def generate_and_run_code(
     return code_runner.outputs
 
 
-class ModelContextItem:
-    pass
+#
+# Models
+#
 
 
 class ModelContext:
-    items: list["ModelContextItem"]
+    pass
+
+    @staticmethod
+    def from_context(context: ContextBuilder) -> "ModelContext":
+        raise NotImplementedError(f"nocheckin: from_context {context!r}")
 
 
 openai_client = openai.AsyncClient(
@@ -129,14 +139,19 @@ async def generate_code(
     """Generate Code that does something and outputs an object of the given type when run."""
 
     model = ModelType.OPENAI_GPT4_0
+    model_context = ModelContext.from_context(context)
     if model.provider == ModelProvider.OPENAI:
         completion = await generate_code_openai(
-            runtime=runtime, context=context, inputs=inputs, output_type=output_type
+            runtime=runtime, context=model_context, inputs=inputs, output_type=output_type
         )
-        if not completion:
-            raise ModelFailedError(f"bad completion from {model!r}: {completion}")
+    elif model.provider == ModelProvider.ANTHROPIC:
+        completion = await generate_code_anthropic(
+            runtime=runtime, context=model_context, inputs=inputs, output_type=output_type
+        )
     else:
         raise NotImplementedError(f"nocheckin: generate_code {model!r}")
+    if not completion:
+        raise ModelFailedError(f"bad completion from {model!r}: {completion}")
 
     # clean completion
     completion = completion.strip()
@@ -165,15 +180,26 @@ ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 
 async def generate_code_openai(
     runtime: Runtime,
-    context: ContextBuilder,
+    context: ModelContext,
     inputs: CustomObject | None,
     output_type: TypeBase | None,
 ) -> str:
+    """Generate code for the given output type using an OpenAI model."""
     completion = await openai_client.chat.completions.create(
-        messages=messages,
+        messages=[],  # nocheckin
         model="gpt-4o-2024-08-06",
         temperature=0.1,
         user=str(runtime.package.id),
     )
     completion_text = completion.choices[0].message.content
     return completion_text or ""
+
+
+async def generate_code_anthropic(
+    runtime: Runtime,
+    context: ModelContext,
+    inputs: CustomObject | None,
+    output_type: TypeBase | None,
+) -> str:
+    """Generate code for the given output type using an Anthropic model."""
+    raise NotImplementedError(f"nocheckin: generate_code_anthropic {runtime!r}")

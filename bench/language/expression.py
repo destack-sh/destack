@@ -17,6 +17,7 @@ from bench.language.const import (
     ExpressionKind,
     ExpressionType,
     NodeType,
+    ObjectKind,
     PrimitiveType,
     SortMode,
     SortType,
@@ -120,7 +121,9 @@ class Expression(Struct):
     # content
     clauses: list["Expression"] | None = p_regular(40, array=True, struct=StructType.EXPRESSION)
     value_packed: Any = p_value_packed(46)
-    value: Any = p_value_runtime(46, typ=lambda self: cast(Expression, self).value_type)
+    value: Any = p_value_runtime(
+        46, kind=ObjectKind.MEMBER, typ=lambda self: cast(Expression, self).value_type
+    )
     sort_mode: Optional[SortMode] = p_regular(48, default=None)
     tolerance: Optional[float] = p_regular(49, default=None)
 

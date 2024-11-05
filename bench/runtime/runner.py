@@ -7,7 +7,8 @@ from opentelemetry import trace
 
 from bench.language.action import ContextBuilder
 from bench.language.code import Code
-from bench.language.const import RunStatus
+from bench.language.const import ObjectKind, RunStatus
+from bench.language.field import TypeBase
 from bench.language.flow import StepType
 from bench.language.log import LogInfo
 from bench.language.run import Run, RunAttempt, RunError, RunEvent, RunKind, RunOptions, RunSpan
@@ -63,6 +64,7 @@ class Runner:
         context: ContextBuilder,
         parent: "Runner | None" = None,
         inputs: CustomObject | None = None,
+        output_type: TypeBase | None = None,
         run: Run | None = None,
     ) -> None:
         self.id = run.id if run is not None else UUIDT()
@@ -75,7 +77,7 @@ class Runner:
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
         self.outputs: CustomObject | None = None
-        self.output_type = node.output_type
+        self.output_type = output_type or node.output_type
         self.error: RunError | None = None
 
         self.parent = parent or runtime.active_runner
@@ -121,7 +123,7 @@ class Runner:
         if node is None:
             raise RunImpossibleError(f"no node for {run!r}")
         if run.inputs is None and run.input_type is not None:
-            inputs = CustomObject.new({}, run.input_type)
+            inputs = CustomObject.new(ObjectKind.INPUT, {}, run.input_type)
         else:
             inputs = run.inputs
 

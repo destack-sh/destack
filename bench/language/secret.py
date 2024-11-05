@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Union, cast, override
 
 from bench.language.bench import AnonymousResourceNode
-from bench.language.const import NodeType, StructType
+from bench.language.const import NodeType, ObjectKind, StructType
 from bench.language.field import TypeInfo
 from bench.language.node import (
     NodeReference,
@@ -38,7 +38,9 @@ class Secret(AnonymousResourceNode[SecretData]):
     # content
     value_type: TypeInfo = p_regular(40, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41, secret=True)
-    value = p_value_runtime(41, typ=lambda self: cast(Secret, self).value_type)
+    value = p_value_runtime(
+        41, kind=ObjectKind.MEMBER, typ=lambda self: cast(Secret, self).value_type
+    )
 
     def to_ref(self) -> "SecretReference":
         """Gets a reference to this secret."""

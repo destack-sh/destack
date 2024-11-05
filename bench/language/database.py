@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 
 import structlog
 
-from bench.language.const import NodeType
+from bench.language.const import NodeType, ObjectKind
 from bench.language.field import TypeBase
 from bench.language.node import HasNodeBase, StateNode, local_node_
 from bench.language.property import (
@@ -44,7 +44,7 @@ class Record(StateNode[RecordData], HasNodeBase):
     # value
     value_packed: Any = p_value_packed(40)
     value: "CustomObject | None" = p_value_runtime(
-        40, typ=lambda self: cast("Record", self).value_type
+        40, kind=ObjectKind.MEMBER, typ=lambda self: cast("Record", self).value_type
     )
 
     @final

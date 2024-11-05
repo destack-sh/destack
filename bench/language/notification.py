@@ -5,6 +5,7 @@ from bench.language.const import (
     BlockType,
     NodeType,
     NotificationLevel,
+    ObjectKind,
     StructType,
 )
 from bench.language.field import TypeBase
@@ -36,7 +37,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@timed_node_(NodeType.NOTIFICATION, passthrough_get="value", passthrough_set='value')
+@timed_node_(NodeType.NOTIFICATION, passthrough_get="value", passthrough_set="value")
 class Notification(RuntimeNode[NotificationData], HasNodeBase):
     """
     A Notification to a Bench (author = created_by).
@@ -59,7 +60,7 @@ class Notification(RuntimeNode[NotificationData], HasNodeBase):
     text: Optional["Text"] = p_regular(41, require=False, array=False, struct=StructType.TEXT)
     value_packed: Any | None = p_value_packed(42)
     value: "CustomObject | None" = p_value_runtime(
-        42, typ=lambda self: cast("Notification", self).value_type
+        42, kind=ObjectKind.MEMBER, typ=lambda self: cast("Notification", self).value_type
     )
 
     # context

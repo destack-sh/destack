@@ -183,22 +183,20 @@ class StepType(IdEnum):
     START = 1  # source with inputs
     COMPLETE = 2  # terminate with outputs
     FAIL = 3  # terminate with error
-    TRIGGER = 4  # source with just(trigger.value)
+    TRIGGER = 4  # source or intermediary
     # ABORT?
 
     # run
     ACTION = 60
     SEND = 61  # emit a message/signal/notification/...
     YIELD = 62  # to other program/human
-    # SEND, APPLY, CR EATE, PASS?
 
     # state
     # VALUE = 100  # read (and write?) value
 
     # containers
-    # GROUP = 500  # sub-flow
+    GROUP = 500  # subflow region
     LOOP = 501  # repeat
-    # LOOP, REPEAT, ...?
 
     # misc
     TEXT = 900  # no-op, just for documentation

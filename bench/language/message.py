@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import structlog
 
-from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
+from bench.language.const import NODE_TYPES, EnumType, NodeType, ObjectKind, StructType, enum_
 from bench.language.node import (
     BenchNode,
     HasNodeBase,
@@ -62,7 +62,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
-    value: "CustomObject | None" = p_value_runtime(42, typ=None)  # freely typed
+    value: "CustomObject | None" = p_value_runtime(42, kind=ObjectKind.MEMBER, typ=None)
 
     # flags
     is_pinned: bool = p_regular(50, default=False)
