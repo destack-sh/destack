@@ -9,6 +9,7 @@ from sortedcontainers import SortedDict
 
 from bench.language.action import ContextBuilder
 from bench.language.block import Block
+from bench.language.const import ObjectKind
 from bench.language.field import TypeBase
 from bench.language.flow import ActionStep, Pipe, Step, StepType
 from bench.language.run import Run, RunError, RunKind, RunOptions
@@ -126,7 +127,7 @@ class StepState:
         """Wrap a Step in a StepState."""
         input_type = step.input_type
         assert input_type is not None, f"{step!r} has no input type"
-        inputs = CustomObject.new({}, input_type)
+        inputs = CustomObject.new(ObjectKind.INPUT, {}, input_type)
         return StepState(step=step, input_type=input_type, inputs=inputs)
 
 

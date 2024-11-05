@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
-from bench.language.const import BlockType, EnumType, NodeType, StructType, enum_
+from bench.language.const import BlockType, EnumType, NodeType, ObjectKind, StructType, enum_
 from bench.language.node import BuiltinObject, NodeReference, Struct, object_, struct_
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import constraint
@@ -64,14 +64,18 @@ class Call(Struct):
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
     )
     inputs_packed: Any = p_value_packed(31)
-    inputs: Any = p_value_runtime(31, typ=lambda self: cast(Call, self).node.input_type)
+    inputs: Any = p_value_runtime(
+        31, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).node.input_type
+    )
     # inputs, ...?
 
     @staticmethod
     def new(node: "Block | Step", inputs: Any, **kwargs) -> "Call":
         input_type = node.input_type
         assert input_type is not None, f"no input type for {node!r}"
-        return Call(node=node, inputs=coerce_custom_object(input_type, inputs), **kwargs)
+        return Call(
+            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, input_type, inputs), **kwargs
+        )
 
 
 @struct_(StructType.CONTINUE)
@@ -96,6 +100,13 @@ class Continue(Struct):
     @staticmethod
     def new(node: "Block | Step | Pipe", **kwargs) -> "Continue":
         return Continue(node=node, **kwargs)
+
+
+@struct_(StructType.CONTEXT)
+class Context(Struct):
+    """Context for a Run."""
+
+    pass
 
 
 class ContextBuilder:

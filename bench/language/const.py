@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.04.2"
+VERSION = "2024.11.05.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -102,8 +102,9 @@ class EnumType(IdEnum):
     FIELD_ZONE = 20082
     TYPE_KIND = 20083
     TYPE_FORMAT = 20384
+    OBJECT_KIND = 20385
     BLOCK_TYPE = 20390
-    ACTION_MODE = 20391
+    ACTION_MODE = 20400
 
     # basic
     SCHEDULE_TYPE = 20100
@@ -393,11 +394,16 @@ class StructType(IdEnum):
     # type
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
-    SCHEDULE = 10202
-    FILE_INFO = 10203
-    FILE_REFERENCE = 10204
-    ICON = 10205
-    SECRET_REFERENCE = 10206
+    VARIABLE_OBJECT = 10210
+    MEMBER_OBJECT = 10211
+    INPUT_OBJECT = 10212
+    OUTPUT_OBJECT = 10213
+
+    SCHEDULE = 10220
+    FILE_INFO = 10221
+    FILE_REFERENCE = 10222
+    ICON = 10223
+    SECRET_REFERENCE = 10224
 
     # expressions
     EXPRESSION = 10300
@@ -419,6 +425,7 @@ class StructType(IdEnum):
     RUN_FRAME = 10504
     RUN_SPAN = 10505
     RUN_EVENT = 10506
+    CONTEXT = 10510
     CONTINUE = 10511
     CALL = 10512
     # RETRIEVE?
@@ -982,13 +989,24 @@ class TypeKind(IdEnum):
 
 @enum_(EnumType.FIELD_ZONE)
 class FieldType(IdEnum):
-    """The type of a Field within its Block."""
+    """The type of a Field within its Block. Overlaps with ObjectKind."""
 
     VARIABLE = 1
     MEMBER = 2
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
+
+
+@enum_(EnumType.OBJECT_KIND)
+class ObjectKind(IdEnum):
+    """The type of an Object. Overlaps with FieldType."""
+
+    VARIABLE = 1
+    MEMBER = 2
+    INPUT = 3
+    OUTPUT = 4
+    BUILTIN = 10
 
 
 @enum_(EnumType.TRIGGER_TYPE)

@@ -6,7 +6,7 @@ from .access import (
     PolicyRule,
     Subject,
 )
-from .action import ActionBase, ActionMode
+from .action import ActionBase, ActionMode, Call, Context, ContextBuilder, Continue
 from .bench import (
     AnonymousResourceNode,
     Bench,
@@ -70,9 +70,9 @@ from .expression import A, AggregationResult, C, ComputedValue, Expression, S, c
 from .field import (
     Field,
     FieldType,
+    TypeBase,
     TypeConstraint,
     TypeInfo,
-    TypeBase,
     constraint,
     to_type,
     to_type_scalar,
@@ -196,6 +196,7 @@ __all__ = [
     "BuiltinObject",
     "C",
     "Cache",
+    "Call",
     "Change",
     "ChangeCategory",
     "ChangeVignette",
@@ -215,6 +216,9 @@ __all__ = [
     "ComputedValue",
     "ConditionalType",
     "Connection",
+    "Context",
+    "ContextBuilder",
+    "Continue",
     "CustomObject",
     "Dependency",
     "Drive",
@@ -332,10 +336,10 @@ __all__ = [
     "Transaction",
     "Trigger",
     "TriggerType",
+    "TypeBase",
     "TypeConstraint",
     "TypeConstraintIn",
     "TypeInfo",
-    "TypeBase",
     "User",
     "ValidationError",
     "Value",

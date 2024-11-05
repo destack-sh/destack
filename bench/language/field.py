@@ -24,6 +24,7 @@ from bench.language.const import (
     EnumType,
     FieldType,
     NodeType,
+    ObjectKind,
     PrimitiveType,
     PrimitiveValue,
     StructType,
@@ -217,26 +218,15 @@ constraint = TypeConstraint
 @object_()
 class TypeBase(BuiltinObject):
     """
-    A Type is a kind of value that can go somewhere, often in a place described by a Field.
+    A Type describes the properties of a value for somewhere.
 
     A Type is of one of these kinds:
        1. Primitive (= column type, value is scalar, like int32, string, bool, datetime, ...)
-          [primitive_type] | [base_type = Block aliased to primitive_type]
        2. Struct (value is 'robust json', like Expression, File, Path, Text, Code, ...)
-          [bench_type~StructType]
        3. Node (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-          [bench_type~NodeType | None]
        4. Enum (value is builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
-          [bench_type~EnumType]
        5. Based Node (value is NodeReference that is an 'instance' of the block)
-          [bench_type~NodeType & base_type]
-           type = Record, base = Block -> values are Records in that database
-           type = Run, base = Block -> values are Runs of that block
-           type = Field, base = Block -> values are Fields in that block
-           type = Signal, base = Block -> values are Signals of that block type
-            ...
        6. Object (value is Object value of classy type, like Code inputs, Step outputs, Record value, ...)
-          [base_type~Block[is_classy]|Step]
        7. Literal (only allowable value is the type itself / or some constant value)
        8. Union (type is union of Field children with oneof=self)
 
@@ -269,7 +259,9 @@ class TypeBase(BuiltinObject):
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(packed=50, typ=lambda self: cast("TypeBase", self))
+    default = p_value_runtime(
+        packed=50, kind=ObjectKind.VARIABLE, typ=lambda self: cast("TypeBase", self)
+    )
     format: Optional["TypeFormat"] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
         54, require=False, array=False, default=None, struct=StructType.EXPRESSION
@@ -370,7 +362,8 @@ class TypeBase(BuiltinObject):
                     raise ValueError(f"no field {args!r} in {self.base_type!r}")
                 return field
         elif self.kind == TypeKind.OBJECT:
-            return coerce_custom_object_scalar(kwargs, self, as_packed=True)
+            object_kind = ObjectKind(self.base_field_type)
+            return coerce_custom_object_scalar(object_kind, kwargs, self, as_packed=True)
 
         raise ValueError(f"cannot create {self!r} (resolved={self!r}) directly")
 

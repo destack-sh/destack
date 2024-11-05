@@ -9,6 +9,8 @@ from bench.language import render
 from bench.language.action import ContextBuilder
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
+from bench.language.const import ObjectKind
+from bench.language.field import TypeBase
 from bench.language.file import upload
 from bench.language.flow import Step
 from bench.language.path import get_node, get_node_or_error, get_path
@@ -50,6 +52,7 @@ class CodeRunnerBase(Runner):
         context: ContextBuilder,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
+        output_type: TypeBase | None = None,
         run: Run | None = None,
     ) -> None:
         super().__init__(
@@ -60,6 +63,7 @@ class CodeRunnerBase(Runner):
             context=context,
             parent=parent,
             inputs=inputs,
+            output_type=output_type,
             run=run,
         )
         self.code = code
@@ -147,7 +151,7 @@ class CodeRunnerBase(Runner):
     def _coerce_outputs(self, outputs_raw: Any) -> CustomObject:
         """Coerves raw outputs into the output type for this run."""
         assert self.output_type, f"no output type for {self!r}"
-        outputs = coerce_custom_object(self.output_type, outputs_raw)
+        outputs = coerce_custom_object(ObjectKind.OUTPUT, self.output_type, outputs_raw)
         return outputs
 
 

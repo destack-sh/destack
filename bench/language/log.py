@@ -8,6 +8,7 @@ from bench.language.const import (
     AccessType,
     EnumType,
     NodeType,
+    ObjectKind,
     PrimitiveType,
     StructType,
     active_session,
@@ -84,7 +85,7 @@ class LogInfo(Struct):
     text: "Text | None" = p_internal(61, require=False, array=False, struct=StructType.TEXT)
     text_plain: str | None = p_internal(62)  # small optimization to avoid large Text instances
     value_packed: Any | None = p_value_packed(65)
-    value: Any = p_value_runtime(65, typ=None)  # freeform value only
+    value: Any = p_value_runtime(65, kind=ObjectKind.MEMBER, typ=None)  # freeform value only
 
 
 @timed_node_(NodeType.LOG)

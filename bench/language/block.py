@@ -8,6 +8,7 @@ from bench.language.const import (
     BlockType,
     FieldType,
     NodeType,
+    ObjectKind,
     StructType,
     TypeKind,
 )
@@ -72,7 +73,9 @@ class Block(SourceNode[BlockData]):
     )
 
     variables_packed: Any = p_value_packed(40)
-    variables: Any = p_value_runtime(packed=40, typ=lambda self: cast("Block", self).variable_type)
+    variables: Any = p_value_runtime(
+        packed=40, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Block", self).variable_type
+    )
 
     policies: list["Policy"] = p_regular(42, require=False, array=True, struct=StructType.POLICY)
     delegated_policies: list["Policy"] = p_regular(
@@ -241,7 +244,9 @@ class Block(SourceNode[BlockData]):
 class ValueBlock(Block):
     value_type: Optional["TypeInfo"] = p_regular(100, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(101)
-    value: Any = p_value_runtime(101, typ=lambda self: cast("ValueBlock", self).value_type)
+    value: Any = p_value_runtime(
+        101, kind=ObjectKind.MEMBER, typ=lambda self: cast("ValueBlock", self).value_type
+    )
 
 
 @node_subtype_(BlockType.TEXT)

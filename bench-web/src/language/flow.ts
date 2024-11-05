@@ -166,9 +166,11 @@ export class PipeState {
       const sourcePortPosition = this.flow.getPortPosition(this.source.value!, PortSide.OUTGOING);
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, PortSide.INCOMING);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
-      let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition);
-      if (path == null) { // fallback to direct path
-        path = this.flow.computePath("direct", sourcePortPosition, targetPortPosition)!;
+      const margin = { x: FLOW_GRID_STEP, y: 0 };
+      let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition, margin);
+      if (path == null) {
+        // fallback to direct path
+        path = this.flow.computePath("direct", sourcePortPosition, targetPortPosition, margin)!;
       }
       return path;
     });
@@ -705,7 +707,12 @@ export class FlowContext {
    *  4. Path computation must be very fast (we're doing it on every mouse move and state change).
    * NOTE :UX: improve pipe paths (better pathfinding, coordinate pipe paths, ...)
    * */
-  computePath(pathType: "direct" | "manhattan", source: Vector2, target: Vector2): PipePath | null {
+  computePath(
+    pathType: "direct" | "manhattan",
+    source: Vector2,
+    target: Vector2,
+    margin: { x: number; y: number },
+  ): PipePath | null {
     // swap it so that source is always outgoing
     if (pathType == "direct") {
       // direct path
@@ -725,7 +732,12 @@ export class FlowContext {
         .filter((s) => s != null) as BoundingBox[];
       function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
         for (const box of stepBoundingBoxes) {
-          if (box.x1 <= vec.x && vec.x <= box.x2 && box.y1 <= vec.y && vec.y <= box.y2) {
+          if (
+            vec.x >= box.x1 - margin.x &&
+            vec.x <= box.x2 + margin.x &&
+            vec.y >= box.y1 - margin.y &&
+            vec.y <= box.y2 + margin.y
+          ) {
             return box;
           }
         }

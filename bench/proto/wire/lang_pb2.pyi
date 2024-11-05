@@ -54,6 +54,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_FIELD_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_KIND: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_FORMAT: _ClassVar[EnumType]
+    ENUM_TYPE_OBJECT_KIND: _ClassVar[EnumType]
     ENUM_TYPE_BLOCK_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_MODE: _ClassVar[EnumType]
     ENUM_TYPE_SCHEDULE_TYPE: _ClassVar[EnumType]
@@ -175,6 +176,10 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_TYPE_INFO: _ClassVar[StructType]
     STRUCT_TYPE_TYPE_CONSTRAINT: _ClassVar[StructType]
+    STRUCT_TYPE_VARIABLE_OBJECT: _ClassVar[StructType]
+    STRUCT_TYPE_MEMBER_OBJECT: _ClassVar[StructType]
+    STRUCT_TYPE_INPUT_OBJECT: _ClassVar[StructType]
+    STRUCT_TYPE_OUTPUT_OBJECT: _ClassVar[StructType]
     STRUCT_TYPE_SCHEDULE: _ClassVar[StructType]
     STRUCT_TYPE_FILE_INFO: _ClassVar[StructType]
     STRUCT_TYPE_FILE_REFERENCE: _ClassVar[StructType]
@@ -197,6 +202,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_RUN_FRAME: _ClassVar[StructType]
     STRUCT_TYPE_RUN_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_RUN_EVENT: _ClassVar[StructType]
+    STRUCT_TYPE_CONTEXT: _ClassVar[StructType]
     STRUCT_TYPE_CONTINUE: _ClassVar[StructType]
     STRUCT_TYPE_CALL: _ClassVar[StructType]
     STRUCT_TYPE_BREAKPOINT: _ClassVar[StructType]
@@ -273,6 +279,10 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_TEXT_SPAN: _ClassVar[ObjectType]
     OBJECT_TYPE_TYPE_INFO: _ClassVar[ObjectType]
     OBJECT_TYPE_TYPE_CONSTRAINT: _ClassVar[ObjectType]
+    OBJECT_TYPE_VARIABLE_OBJECT: _ClassVar[ObjectType]
+    OBJECT_TYPE_MEMBER_OBJECT: _ClassVar[ObjectType]
+    OBJECT_TYPE_INPUT_OBJECT: _ClassVar[ObjectType]
+    OBJECT_TYPE_OUTPUT_OBJECT: _ClassVar[ObjectType]
     OBJECT_TYPE_SCHEDULE: _ClassVar[ObjectType]
     OBJECT_TYPE_FILE_INFO: _ClassVar[ObjectType]
     OBJECT_TYPE_FILE_REFERENCE: _ClassVar[ObjectType]
@@ -295,6 +305,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_RUN_FRAME: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_SPAN: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_EVENT: _ClassVar[ObjectType]
+    OBJECT_TYPE_CONTEXT: _ClassVar[ObjectType]
     OBJECT_TYPE_CONTINUE: _ClassVar[ObjectType]
     OBJECT_TYPE_CALL: _ClassVar[ObjectType]
     OBJECT_TYPE_BREAKPOINT: _ClassVar[ObjectType]
@@ -371,6 +382,10 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_TEXT_SPAN: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_INFO: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_CONSTRAINT: _ClassVar[BenchType]
+    BENCH_TYPE_VARIABLE_OBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_MEMBER_OBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_INPUT_OBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_OUTPUT_OBJECT: _ClassVar[BenchType]
     BENCH_TYPE_SCHEDULE: _ClassVar[BenchType]
     BENCH_TYPE_FILE_INFO: _ClassVar[BenchType]
     BENCH_TYPE_FILE_REFERENCE: _ClassVar[BenchType]
@@ -393,6 +408,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_RUN_FRAME: _ClassVar[BenchType]
     BENCH_TYPE_RUN_SPAN: _ClassVar[BenchType]
     BENCH_TYPE_RUN_EVENT: _ClassVar[BenchType]
+    BENCH_TYPE_CONTEXT: _ClassVar[BenchType]
     BENCH_TYPE_CONTINUE: _ClassVar[BenchType]
     BENCH_TYPE_CALL: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT: _ClassVar[BenchType]
@@ -434,6 +450,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_KIND: _ClassVar[BenchType]
     BENCH_TYPE_TYPE_FORMAT: _ClassVar[BenchType]
+    BENCH_TYPE_OBJECT_KIND: _ClassVar[BenchType]
     BENCH_TYPE_BLOCK_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_ACTION_MODE: _ClassVar[BenchType]
     BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
@@ -813,6 +830,15 @@ class TypeFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TYPE_FORMAT_PHONE_NUMBER: _ClassVar[TypeFormat]
     TYPE_FORMAT_SLUG: _ClassVar[TypeFormat]
 
+class ObjectKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    OBJECT_KIND_UNSPECIFIED: _ClassVar[ObjectKind]
+    OBJECT_KIND_VARIABLE: _ClassVar[ObjectKind]
+    OBJECT_KIND_MEMBER: _ClassVar[ObjectKind]
+    OBJECT_KIND_INPUT: _ClassVar[ObjectKind]
+    OBJECT_KIND_OUTPUT: _ClassVar[ObjectKind]
+    OBJECT_KIND_BUILTIN: _ClassVar[ObjectKind]
+
 class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BLOCK_TYPE_UNSPECIFIED: _ClassVar[BlockType]
@@ -1183,6 +1209,7 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_ACTION: _ClassVar[StepType]
     STEP_TYPE_SEND: _ClassVar[StepType]
     STEP_TYPE_YIELD: _ClassVar[StepType]
+    STEP_TYPE_GROUP: _ClassVar[StepType]
     STEP_TYPE_LOOP: _ClassVar[StepType]
     STEP_TYPE_TEXT: _ClassVar[StepType]
 
@@ -1514,6 +1541,7 @@ ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_FIELD_ZONE: EnumType
 ENUM_TYPE_TYPE_KIND: EnumType
 ENUM_TYPE_TYPE_FORMAT: EnumType
+ENUM_TYPE_OBJECT_KIND: EnumType
 ENUM_TYPE_BLOCK_TYPE: EnumType
 ENUM_TYPE_ACTION_MODE: EnumType
 ENUM_TYPE_SCHEDULE_TYPE: EnumType
@@ -1629,6 +1657,10 @@ STRUCT_TYPE_TEXT_LINE: StructType
 STRUCT_TYPE_TEXT_SPAN: StructType
 STRUCT_TYPE_TYPE_INFO: StructType
 STRUCT_TYPE_TYPE_CONSTRAINT: StructType
+STRUCT_TYPE_VARIABLE_OBJECT: StructType
+STRUCT_TYPE_MEMBER_OBJECT: StructType
+STRUCT_TYPE_INPUT_OBJECT: StructType
+STRUCT_TYPE_OUTPUT_OBJECT: StructType
 STRUCT_TYPE_SCHEDULE: StructType
 STRUCT_TYPE_FILE_INFO: StructType
 STRUCT_TYPE_FILE_REFERENCE: StructType
@@ -1651,6 +1683,7 @@ STRUCT_TYPE_RUN_TRACE: StructType
 STRUCT_TYPE_RUN_FRAME: StructType
 STRUCT_TYPE_RUN_SPAN: StructType
 STRUCT_TYPE_RUN_EVENT: StructType
+STRUCT_TYPE_CONTEXT: StructType
 STRUCT_TYPE_CONTINUE: StructType
 STRUCT_TYPE_CALL: StructType
 STRUCT_TYPE_BREAKPOINT: StructType
@@ -1724,6 +1757,10 @@ OBJECT_TYPE_TEXT_LINE: ObjectType
 OBJECT_TYPE_TEXT_SPAN: ObjectType
 OBJECT_TYPE_TYPE_INFO: ObjectType
 OBJECT_TYPE_TYPE_CONSTRAINT: ObjectType
+OBJECT_TYPE_VARIABLE_OBJECT: ObjectType
+OBJECT_TYPE_MEMBER_OBJECT: ObjectType
+OBJECT_TYPE_INPUT_OBJECT: ObjectType
+OBJECT_TYPE_OUTPUT_OBJECT: ObjectType
 OBJECT_TYPE_SCHEDULE: ObjectType
 OBJECT_TYPE_FILE_INFO: ObjectType
 OBJECT_TYPE_FILE_REFERENCE: ObjectType
@@ -1746,6 +1783,7 @@ OBJECT_TYPE_RUN_TRACE: ObjectType
 OBJECT_TYPE_RUN_FRAME: ObjectType
 OBJECT_TYPE_RUN_SPAN: ObjectType
 OBJECT_TYPE_RUN_EVENT: ObjectType
+OBJECT_TYPE_CONTEXT: ObjectType
 OBJECT_TYPE_CONTINUE: ObjectType
 OBJECT_TYPE_CALL: ObjectType
 OBJECT_TYPE_BREAKPOINT: ObjectType
@@ -1819,6 +1857,10 @@ BENCH_TYPE_TEXT_LINE: BenchType
 BENCH_TYPE_TEXT_SPAN: BenchType
 BENCH_TYPE_TYPE_INFO: BenchType
 BENCH_TYPE_TYPE_CONSTRAINT: BenchType
+BENCH_TYPE_VARIABLE_OBJECT: BenchType
+BENCH_TYPE_MEMBER_OBJECT: BenchType
+BENCH_TYPE_INPUT_OBJECT: BenchType
+BENCH_TYPE_OUTPUT_OBJECT: BenchType
 BENCH_TYPE_SCHEDULE: BenchType
 BENCH_TYPE_FILE_INFO: BenchType
 BENCH_TYPE_FILE_REFERENCE: BenchType
@@ -1841,6 +1883,7 @@ BENCH_TYPE_RUN_TRACE: BenchType
 BENCH_TYPE_RUN_FRAME: BenchType
 BENCH_TYPE_RUN_SPAN: BenchType
 BENCH_TYPE_RUN_EVENT: BenchType
+BENCH_TYPE_CONTEXT: BenchType
 BENCH_TYPE_CONTINUE: BenchType
 BENCH_TYPE_CALL: BenchType
 BENCH_TYPE_BREAKPOINT: BenchType
@@ -1882,6 +1925,7 @@ BENCH_TYPE_PRIMITIVE_TYPE: BenchType
 BENCH_TYPE_FIELD_ZONE: BenchType
 BENCH_TYPE_TYPE_KIND: BenchType
 BENCH_TYPE_TYPE_FORMAT: BenchType
+BENCH_TYPE_OBJECT_KIND: BenchType
 BENCH_TYPE_BLOCK_TYPE: BenchType
 BENCH_TYPE_ACTION_MODE: BenchType
 BENCH_TYPE_SCHEDULE_TYPE: BenchType
@@ -2191,6 +2235,12 @@ TYPE_FORMAT_EMAIL: TypeFormat
 TYPE_FORMAT_EMOJI: TypeFormat
 TYPE_FORMAT_PHONE_NUMBER: TypeFormat
 TYPE_FORMAT_SLUG: TypeFormat
+OBJECT_KIND_UNSPECIFIED: ObjectKind
+OBJECT_KIND_VARIABLE: ObjectKind
+OBJECT_KIND_MEMBER: ObjectKind
+OBJECT_KIND_INPUT: ObjectKind
+OBJECT_KIND_OUTPUT: ObjectKind
+OBJECT_KIND_BUILTIN: ObjectKind
 BLOCK_TYPE_UNSPECIFIED: BlockType
 BLOCK_TYPE_PAGE: BlockType
 BLOCK_TYPE_TEXT: BlockType
@@ -2457,6 +2507,7 @@ STEP_TYPE_TRIGGER: StepType
 STEP_TYPE_ACTION: StepType
 STEP_TYPE_SEND: StepType
 STEP_TYPE_YIELD: StepType
+STEP_TYPE_GROUP: StepType
 STEP_TYPE_LOOP: StepType
 STEP_TYPE_TEXT: StepType
 PORT_SIDE_UNSPECIFIED: PortSide
@@ -2776,6 +2827,30 @@ class PropertyReferenceData(_message.Message):
         references_node: _Optional[_Union[NodeType, str]] = ...,
         references_meta: _Optional[str] = ...,
     ) -> None: ...
+
+class VariableObjectData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
+class MemberObjectData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
+class InputObjectData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
+class OutputObjectData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class ValueData(_message.Message):
     __slots__ = ("metatype", "type", "name", "text", "value_packed")
@@ -3381,6 +3456,12 @@ class ContinueData(_message.Message):
         node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         mapping: _Optional[_Union[CodeData, _Mapping]] = ...,
     ) -> None: ...
+
+class ContextData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class SelectOptionsData(_message.Message):
     __slots__ = (

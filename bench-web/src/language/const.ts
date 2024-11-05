@@ -103,7 +103,7 @@ export const OUTGOING_STEP_TYPES = [StepType.COMPLETE, StepType.FAIL];
 export const INVISIBLE_STEP_TYPES = [StepType.TEXT] 
 export const RUN_STEP_TYPES = STEP_TYPES.filter((st) => st >= 50 && st < 100);
 export const CONTROL_STEP_TYPES = STEP_TYPES.filter((st) => st >= 100 && st < 150);
-export const CONTAINER_STEP_TYPES = STEP_TYPES.filter((st) => st >= 500 && st < 550);
+export const CONTAINER_STEP_TYPES = STEP_TYPES.filter((st) => st >= 500 && st < 560);
 
 // run
 export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];

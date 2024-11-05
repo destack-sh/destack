@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
-from bench.language.const import BlockType, NodeType
+from bench.language.const import BlockType, NodeType, ObjectKind
 from bench.language.field import TypeBase
 from bench.language.node import HasNodeBase, RuntimeNode, timed_node_
 from bench.language.property import p_internal, p_node_parent, p_value_packed, p_value_runtime
@@ -39,7 +39,7 @@ class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
     # content
     value_packed: Any | None = p_value_packed(42)
     value: "CustomObject | None" = p_value_runtime(
-        42, typ=lambda self: cast("Signal", self).value_type
+        42, kind=ObjectKind.MEMBER, typ=lambda self: cast("Signal", self).value_type
     )
 
     # context
