@@ -95,7 +95,7 @@ const HOVER_MENU: HoverMenuOptions = {
       ...(props as ViewProps),
       title: undefined,
       size: {
-        metatype: ObjectType.BOX,
+        metatype: ObjectType.RECTANGLE,
         width: Math.max(
           FILE_POPOVER_WIDTH_MIN,
           Math.min(FILE_POPOVER_WIDTH_MAX, getElement(context.triggerElement)!.getBoundingClientRect().width),

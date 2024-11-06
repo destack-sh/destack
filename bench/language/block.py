@@ -231,7 +231,7 @@ class Block(SourceNode[BlockData]):
         return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod
-    def new[BlockT: Block](
+    def new[BlockT: Block = Block](
         typ: BlockType | Type[BlockT] | NodeSubtypeStub[BlockT], name: str, **kwargs
     ) -> "BlockT":
         if isinstance(typ, type):

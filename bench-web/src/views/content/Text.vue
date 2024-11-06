@@ -255,7 +255,7 @@ class MentionView implements PmNodeView {
                 props: {
                   modelValue: pmNode.attrs.nodePtr,
                   isInline: true,
-                  size: { metatype: ObjectType.BOX, width: 400 },
+                  size: { metatype: ObjectType.RECTANGLE, width: 400 },
                 },
               },
             });

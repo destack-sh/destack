@@ -238,7 +238,7 @@ defineExpose<ViewExposed>({
               variant: Variant.PRIMARY, // full dropdown
               title: undefined, // clear title
               size: {
-                metatype: ObjectType.BOX,
+                metatype: ObjectType.RECTANGLE,
                 width: Math.max(
                   MIN_WIDTH,
                   buttonRef?.getBoundingClientRect().width! + (variant == Variant.STEALTH ? 10 : 0), // see above

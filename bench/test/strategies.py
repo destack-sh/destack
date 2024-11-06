@@ -22,7 +22,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.field import Field, TypeConstraint, TypeInfo, TypeBase
+from bench.language.field import Field, TypeBase, TypeConstraint, TypeInfo
 from bench.language.node import BuiltinObject
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationError
@@ -359,6 +359,7 @@ def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]
         "bench_type": bench_type,
         "base_type": base_type,
         "base_field_type": None,  # NOTE :Incomplete: base_field_type is not rendered properly
+        "format": None,
     }
 
 

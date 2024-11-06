@@ -219,7 +219,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.COLOR]: "fas fa-palette",
   [StructType.FONT]: "fas fa-font",
   [StructType.OFFSET]: "fas fa-arrows-alt",
-  [StructType.BOX]: "fas fa-box",
+  [StructType.RECTANGLE]: "fas fa-box",
   [StructType.VECTOR2]: "fas fa-vector-square",
   [StructType.VECTOR3]: "fas fa-vector-square",
   [StructType.VECTOR4]: "fas fa-vector-square",

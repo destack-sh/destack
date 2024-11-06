@@ -136,12 +136,12 @@ export function splitView(
       const update = { id: view.id, ck: view.ck };
       if (isAbsolute) {
         const newSize = isHorizontal ? { width: targetPx } : { height: targetPx };
-        return { ...update, size: { metatype: ObjectType.BOX, ...newSize } };
+        return { ...update, size: { metatype: ObjectType.RECTANGLE, ...newSize } };
       } else {
         const total = getTotals();
         const targetRelativeUnits = roundToDigits((targetPx / total.relativePx) * total.relativeUnits, 3);
         const newSize = isHorizontal ? { widthRelative: targetRelativeUnits } : { heightRelative: targetRelativeUnits };
-        return { ...update, size: { metatype: ObjectType.BOX, ...newSize } };
+        return { ...update, size: { metatype: ObjectType.RECTANGLE, ...newSize } };
       }
     };
 
@@ -214,12 +214,12 @@ export function useSplitView(
  */
 export function splitBox(size?: RectangleData): RectangleData {
   size = size ?? {
-    metatype: ObjectType.BOX,
+    metatype: ObjectType.RECTANGLE,
     widthRelative: DEFAULT_RELATIVE_UNITS,
     heightRelative: DEFAULT_RELATIVE_UNITS,
   };
   return {
-    metatype: ObjectType.BOX,
+    metatype: ObjectType.RECTANGLE,
     width: size.width != null ? size.width / 2 : undefined,
     widthRelative: size.width != null ? undefined : (size.widthRelative ?? DEFAULT_RELATIVE_UNITS) / 2,
     height: size.height != null ? size.height / 2 : undefined,
