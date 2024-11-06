@@ -1098,7 +1098,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       type: ViewType.SPLIT,
       name: "Side",
       orientation: Orientation.VERTICAL,
-      size: makeStruct({ metatype: StructType.BOX, width: 320 }),
+      size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
       children: [
         {
           type: ViewType.TAB,
@@ -1119,13 +1119,13 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
     {
       type: ViewType.TAB,
       name: "Primary",
-      size: makeStruct({ metatype: StructType.BOX, widthRelative: 1500 }),
+      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 1500 }),
     },
     {
       type: ViewType.SPLIT,
       name: "Secondary",
       orientation: Orientation.VERTICAL,
-      size: makeStruct({ metatype: StructType.BOX, widthRelative: 700 }),
+      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 700 }),
       children: [
         { type: ViewType.TAB, name: "SecondaryTop", children: [{ type: ViewType.INSPECT }] },
         { type: ViewType.TAB, name: "SecondaryBottom", children: [{ type: ViewType.START }] },

@@ -1,15 +1,14 @@
 # run ./scripts/update-requirements.sh
 
--r bench/requirements/base.in
+-r base.in
 
 aiodocker==0.22.2
 docker==7.1.0
 kubernetes-asyncio==30.3.0
 kubernetes==30.1.0
-orjson==3.10.3
 posthog==3.0.2
 protobuf==4.24.3
-psycopg[binary,pool]==3.2.2
+psycopg[binary,pool]==3.2.3
 redis[hiredis]==4.5.4
 uvicorn==0.23.2
 starlette==0.34.0

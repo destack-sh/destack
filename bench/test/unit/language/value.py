@@ -89,6 +89,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
 
     # coerce
     Action1Output = Action1.to_type(as_object=True, field_type=FieldType.OUTPUT)
+    assert Action1Output is not None
     obj = coerce_custom_object(
         ObjectKind.OUTPUT,
         Action1Output,

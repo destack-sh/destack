@@ -402,65 +402,61 @@ def _add_logging_level(
         )
 
     # Lock because logger class and level name are queried and set
-    logging._acquireLock()  # type: ignore
-    try:
-        registered_num = logging.getLevelName(level_name)
-        logger_class = logging.getLoggerClass()
-        logger_adapter = logging.LoggerAdapter
+    registered_num = logging.getLevelName(level_name)
+    logger_class = logging.getLoggerClass()
+    logger_adapter = logging.LoggerAdapter
 
-        if registered_num != "Level " + level_name:
-            items_found += 1
-            items_conflict += check_conflict(
-                registered_num != level_num,
-                f"Level {level_name!r} already registered " "in logging module",
-            )
+    if registered_num != "Level " + level_name:
+        items_found += 1
+        items_conflict += check_conflict(
+            registered_num != level_num,
+            f"Level {level_name!r} already registered " "in logging module",
+        )
 
-        current_level = getattr(logging, level_name, _UNSET)
-        if current_level is not _UNSET:
-            items_found += 1
-            items_conflict += check_conflict(
-                current_level != level_num,
-                f"Level {level_name!r} already defined " "in logging module",
-            )
+    current_level = getattr(logging, level_name, _UNSET)
+    if current_level is not _UNSET:
+        items_found += 1
+        items_conflict += check_conflict(
+            current_level != level_num,
+            f"Level {level_name!r} already defined " "in logging module",
+        )
 
-        logging_func = getattr(logging, method_name, _UNSET)
-        if logging_func is not _UNSET:
-            items_found += 1
-            items_conflict += check_func_conflict(
-                logging_func, method_name, for_logging_module.__name__, True, "logging module"
-            )
+    logging_func = getattr(logging, method_name, _UNSET)
+    if logging_func is not _UNSET:
+        items_found += 1
+        items_conflict += check_func_conflict(
+            logging_func, method_name, for_logging_module.__name__, True, "logging module"
+        )
 
-        logger_method = getattr(logger_class, method_name, _UNSET)
-        if logger_method is not _UNSET:
-            items_found += 1
-            items_conflict += check_func_conflict(
-                logger_method, method_name, for_logger_class.__name__, False, "logger class"
-            )
+    logger_method = getattr(logger_class, method_name, _UNSET)
+    if logger_method is not _UNSET:
+        items_found += 1
+        items_conflict += check_func_conflict(
+            logger_method, method_name, for_logger_class.__name__, False, "logger class"
+        )
 
-        adapter_method = getattr(logger_adapter, method_name, _UNSET)
-        if adapter_method is not _UNSET:
-            items_found += 1
-            items_conflict += check_func_conflict(
-                adapter_method, method_name, for_logger_adapter.__name__, False, "logger adapter"
-            )
+    adapter_method = getattr(logger_adapter, method_name, _UNSET)
+    if adapter_method is not _UNSET:
+        items_found += 1
+        items_conflict += check_func_conflict(
+            adapter_method, method_name, for_logger_adapter.__name__, False, "logger adapter"
+        )
 
-        # Make sure the method names are set to sensible values, but
-        # preserve the names of the old methods for future verification.
-        def label_func(func):
-            func._original_name = func.__name__
-            func.__name__ = method_name
-            func._exc_info = exc_info
-            func._stack_info = stack_info
+    # Make sure the method names are set to sensible values, but
+    # preserve the names of the old methods for future verification.
+    def label_func(func):
+        func._original_name = func.__name__
+        func.__name__ = method_name
+        func._exc_info = exc_info
+        func._stack_info = stack_info
 
-        label_func(for_logging_module)
-        label_func(for_logger_class)
-        label_func(for_logger_adapter)
+    label_func(for_logging_module)
+    label_func(for_logger_class)
+    label_func(for_logger_adapter)
 
-        # Actually add the new level
-        logging.addLevelName(level_num, level_name)
-        setattr(logging, level_name, level_num)
-        setattr(logging, method_name, for_logging_module)
-        setattr(logger_class, method_name, for_logger_class)
-        setattr(logger_adapter, method_name, for_logger_adapter)
-    finally:
-        logging._releaseLock()  # type: ignore
+    # Actually add the new level
+    logging.addLevelName(level_num, level_name)
+    setattr(logging, level_name, level_num)
+    setattr(logging, method_name, for_logging_module)
+    setattr(logger_class, method_name, for_logger_class)
+    setattr(logger_adapter, method_name, for_logger_adapter)

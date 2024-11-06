@@ -118,7 +118,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           referenceMargin: 0,
           props: {
             ...(props as ViewProps),
-            size: { metatype: ObjectType.BOX, width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!) },
+            size: { metatype: ObjectType.RECTANGLE, width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!) },
             isInline: true,
           },
           propsRef: () => ({ modelValue: props.modelValue }),
