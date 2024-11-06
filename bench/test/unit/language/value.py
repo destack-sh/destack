@@ -3,9 +3,18 @@ from typing import cast
 import pytest
 from hypothesis import given
 
+from bench.language.action import ActionMode, Call, Continue
 from bench.language.bench import Package
 from bench.language.block import Block, ValueBlock
-from bench.language.const import STRUCT_TYPES, BlockType, NodeType, PrimitiveType, StructType
+from bench.language.const import (
+    STRUCT_TYPES,
+    BlockType,
+    FieldType,
+    NodeType,
+    ObjectKind,
+    PrimitiveType,
+    StructType,
+)
 from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
@@ -14,10 +23,13 @@ from bench.language.validation import constraint, on_invalid_raise
 from bench.language.value import (
     CustomObject,
     check_value,
+    coerce_custom_object,
     pack_builtin_object_data,
+    pack_custom_object,
     pack_value,
     sample_value,
     unpack_builtin_object_data,
+    unpack_custom_object,
     unpack_value,
 )
 from bench.proto import wiring
@@ -63,6 +75,43 @@ def test_coerce_nested_value(session: Session, package: Package) -> None:
     assert object_outer.Field4 == object_inner
 
 
+def test_custom_object_with_builtin_properties(session: Session, package: Package) -> None:
+    """Coerce, pack & unpack custom object with builtin properties."""
+    Action1 = Block.new(
+        BlockType.ACTION,
+        "Action1",
+        mode=ActionMode.STRICT,
+        fields=[
+            Field.output("Output1", PrimitiveType.INT32),
+            Field.output("Output 2 with a Space", Text),
+        ],
+    )
+
+    # coerce
+    Action1Output = Action1.to_type(as_object=True, field_type=FieldType.OUTPUT)
+    obj = coerce_custom_object(
+        ObjectKind.OUTPUT,
+        Action1Output,
+        {
+            "Output1": 42,
+            "Output 2 with a Space": Text.plain("hello bench!"),
+            "call": Call(node=Action1),
+        },
+    )
+    assert obj.call == Call(node=Action1)
+
+    # get/set
+    obj.call = None
+    assert obj.call is None
+    obj.continuations = [Continue(node=Action1)]
+    assert obj.continuations[0].node is Action1
+
+    # pack/unpack
+    obj_packed = pack_custom_object(obj, Action1Output)
+    obj_unpacked = unpack_custom_object(ObjectKind.OUTPUT, obj_packed, Action1Output)
+    assert obj_unpacked.equals(obj)
+
+
 def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
 
@@ -90,20 +139,40 @@ def test_roundtrip_nested_value(session: Session, package: Package):
     # inner class
     class2 = Block(type=BlockType.CLASS, name="Class2")
     class2.fields.create(
-        name="Field1", bench_type=NodeType.FIELD, base_type=choice1, kind=TypeKind.BASED_NODE
+        type=FieldType.MEMBER,
+        name="Field1",
+        bench_type=NodeType.FIELD,
+        base_type=choice1,
+        kind=TypeKind.BASED_NODE,
     )
     class2.fields.create(name="Field2", bench_type=NodeType.BLOCK, kind=TypeKind.NODE)
 
     # outer class
     class1 = Block(type=BlockType.CLASS, name="Class1")
     class1.fields.create(
-        name="Field1", bench_type=NodeType.FIELD, base_type=choice1, kind=TypeKind.BASED_NODE
+        type=FieldType.MEMBER,
+        name="Field1",
+        bench_type=NodeType.FIELD,
+        base_type=choice1,
+        kind=TypeKind.BASED_NODE,
     )
     class1.fields.create(
-        name="Field2", primitive_type=PrimitiveType.INT32, kind=TypeKind.PRIMITIVE, is_list=True
+        type=FieldType.MEMBER,
+        name="Field2",
+        primitive_type=PrimitiveType.INT32,
+        kind=TypeKind.PRIMITIVE,
+        is_list=True,
     )
-    class1.fields.create(name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT)
-    class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.OBJECT)
+    class1.fields.create(
+        type=FieldType.MEMBER, name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT
+    )
+    class1.fields.create(
+        type=FieldType.MEMBER,
+        name="Field4",
+        base_type=class2,
+        base_field_type=FieldType.MEMBER,
+        kind=TypeKind.OBJECT,
+    )
 
     # outer value
     value = cast(CustomObject, class1())
@@ -158,6 +227,11 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.EDIT_INFO,
     StructType.EDIT_OPERATION,
     StructType.CHANGE,
+    # custom objects are never instantiated
+    StructType.VARIABLE_OBJECT,
+    StructType.MEMBER_OBJECT,
+    StructType.INPUT_OBJECT,
+    StructType.OUTPUT_OBJECT,
     # references have special handling
     StructType.NODE_REFERENCE,
     StructType.FILE_REFERENCE,
