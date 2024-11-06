@@ -175,7 +175,7 @@ class Block(SourceNode[BlockData]):
         if self.type == BlockType.CLASS:
             # NOTE: we turn Class Blocks into Alias Types here for correctness, but that means
             #  we have to resolve them again (unnecessarily) before instantiating.
-            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self)
+            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=FieldType.MEMBER)
         elif self.type == BlockType.CHOICE:
             typ = TypeInfo(
                 kind=TypeKind.BASED_NODE,
@@ -205,6 +205,7 @@ class Block(SourceNode[BlockData]):
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
+                assert field_type is not None, f"missing field_type for object {self!r}"
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
         else:
             return None

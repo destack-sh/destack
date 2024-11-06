@@ -362,6 +362,7 @@ class TypeBase(BuiltinObject):
                     raise ValueError(f"no field {args!r} in {self.base_type!r}")
                 return field
         elif self.kind == TypeKind.OBJECT:
+            assert self.base_field_type is not None, f"missing base field type for {self!r}"
             object_kind = ObjectKind(self.base_field_type)
             return coerce_custom_object_scalar(object_kind, kwargs, self, as_packed=True)
 

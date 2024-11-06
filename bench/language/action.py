@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from bench.language.const import BlockType, EnumType, NodeType, ObjectKind, StructType, enum_
+from bench.language.field import TypeBase
 from bench.language.node import BuiltinObject, NodeReference, Struct, object_, struct_
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import constraint
@@ -65,9 +66,13 @@ class Call(Struct):
     )
     inputs_packed: Any = p_value_packed(31)
     inputs: Any = p_value_runtime(
-        31, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).node.input_type
+        31, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).input_type
     )
-    # inputs, ...?
+
+    @property
+    def input_type(self) -> Optional["TypeBase"]:
+        node = self.node
+        return node.input_type if node is not None else None
 
     @staticmethod
     def new(node: "Block | Step", inputs: Any, **kwargs) -> "Call":

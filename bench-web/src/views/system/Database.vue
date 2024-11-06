@@ -698,7 +698,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
           :key="i"
-          class="group rounded-sm px-2 py-0.5 hover:bg-sky-100"
+          class="group rounded-sm px-2 py-0.5 hover:bg-primary-100"
         >
           <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
           <span class="text-gray-900">{{
@@ -779,7 +779,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <span>Field</span>
         </button>
         <!-- Add record -->
-        <button class="group/button rounded-sm px-2 py-0.5 hover:bg-sky-100" @click="() => createRecord()">
+        <button class="group/button rounded-sm px-2 py-0.5 hover:bg-primary-100" @click="() => createRecord()">
           <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-sky-900" />
           <span class="">Record</span>
         </button>
@@ -861,7 +861,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
-              column.isInspected ? 'bg-sky-100' : column.isHighlighted ? 'bg-sky-50' : 'hover:bg-gray-100',
+              column.isInspected ? 'bg-primary-100' : column.isHighlighted ? 'bg-primary-50' : 'hover:bg-gray-100',
             ]"
             :style="{
               paddingLeft: x == 0 ? `${paddingX ?? 0}px` : undefined,
@@ -1015,7 +1015,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
-            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-sky-100' : '']"
+            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-primary-100' : '']"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT_MIN}px`,

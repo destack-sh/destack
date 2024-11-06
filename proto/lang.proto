@@ -1556,6 +1556,8 @@ message InputObjectData {
 
 message OutputObjectData {
   ObjectType metatype = 1;
+  optional CallData call = 100;
+  repeated ContinueData continuations = 101;
 }
 
 message ValueData {

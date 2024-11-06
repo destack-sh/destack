@@ -332,6 +332,7 @@ class Step(SourceNode[StepData]):
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
+                assert field_type is not None, f"missing field_type for object {self!r}"
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
             return typ
 
