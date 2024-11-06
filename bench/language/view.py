@@ -381,9 +381,9 @@ class Transform(Struct):
     rotate_x: Optional[float] = p_regular(40, default=None)
 
 
-@struct_(StructType.BOX)
-class Box(Struct):
-    """A box value. Absolute units are contextual (and perhaps in our Spacing scale)."""
+@struct_(StructType.RECTANGLE)
+class Rectangle(Struct):
+    """A rectangle. Absolute units are contextual (often in our Spacing scale)."""
 
     width: Optional[int] = p_regular(50, default=None)
     height: Optional[int] = p_regular(51, default=None)
@@ -393,7 +393,7 @@ class Box(Struct):
 
 @struct_(StructType.OFFSET)
 class Offset(Struct):
-    """A position value. Absolute units are contextual (and perhaps in our Spacing scale)."""
+    """A position value. Absolute units are contextual (often in our Spacing scale)."""
 
     top: Optional[int] = p_regular(40, default=None)
     right: Optional[int] = p_regular(41, default=None)
@@ -500,8 +500,8 @@ class View(SourceNode[ViewData]):
     position: Optional[Offset] = p_regular(
         60, default=None, require=False, array=False, struct=StructType.OFFSET
     )
-    size: Optional[Box] = p_regular(
-        61, default=None, require=False, array=False, struct=StructType.BOX
+    size: Optional[Rectangle] = p_regular(
+        61, default=None, require=False, array=False, struct=StructType.RECTANGLE
     )
     margin: Optional[Offset] = p_regular(
         62, default=None, require=False, array=False, struct=StructType.OFFSET

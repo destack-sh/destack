@@ -1,4 +1,4 @@
-import { BoxData, ViewData, ViewType } from "@/proto/wire";
+import { RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { toPlainNodeRef } from "@/proto/wiring";
 import { getVueComponentType } from "@/ui/view";
 import type { ViewComponent } from "@/views/common";
@@ -130,7 +130,7 @@ export function getViewComponent<T extends ViewType>(viewType: T): (typeof COMPO
   return component ?? null;
 }
 
-export function getViewBinding(view: ViewData, size: Pick<BoxData, "width" | "height">): Record<string, any> {
+export function getViewBinding(view: ViewData, size: Pick<RectangleData, "width" | "height">): Record<string, any> {
   // probably need to filter these?
   const component = COMPONENT_BY_VIEW_TYPE[view.type];
   if (!component) throw new Error(`no registered component for view type: ${view.type}`);

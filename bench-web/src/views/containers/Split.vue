@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { RectangleData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -17,7 +17,7 @@ const props = defineProps<
   {
     self: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    size: Required<Pick<BoxData, "width" | "height">>;
+    size: Required<Pick<RectangleData, "width" | "height">>;
   } & Pick<ViewData, "type" | "name" | "title" | "icon" | "orientation" | "focus">
 >();
 const emit = defineEmits(viewEmits());

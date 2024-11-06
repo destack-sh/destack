@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { BoxData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { RectangleData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -20,7 +20,7 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "title" | "icon" | "nodePtr"
   >

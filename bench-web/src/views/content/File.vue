@@ -9,7 +9,7 @@ import {
   type FileUpload,
 } from "@/language/file";
 import {
-  BoxData,
+  RectangleData,
   FileFormat,
   FileReferenceData,
   FileType,
@@ -42,7 +42,7 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
       id: string;
     modelValue?: FileReferenceData;
-    size?: Partial<Pick<BoxData, "width" | "height">>;
+    size?: Partial<Pick<RectangleData, "width" | "height">>;
   } & Partial<
     Pick<
       ViewData,

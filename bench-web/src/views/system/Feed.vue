@@ -7,7 +7,7 @@ import { isRunTerminal } from "@/language/session";
 import {
   AccessType,
   BlockData,
-  BoxData,
+  RectangleData,
   ChangeCategory,
   EditType,
   ExpressionData,
@@ -78,7 +78,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    size?: Required<Pick<BoxData, "width" | "height">>;
+    size?: Required<Pick<RectangleData, "width" | "height">>;
   } & Partial<Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "subnodePacked">>
 >();
 const emit = defineEmits(viewEmits());

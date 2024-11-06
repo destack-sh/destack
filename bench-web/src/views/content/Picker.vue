@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {
   BenchType,
-  BoxData,
+  RectangleData,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -35,7 +35,7 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     modelValue?: any;
-    size?: Partial<Pick<BoxData, "width" | "height">>;
+    size?: Partial<Pick<RectangleData, "width" | "height">>;
     placeholder?: string;
     customIndex?: SearchIndex<any>;
   } & Partial<

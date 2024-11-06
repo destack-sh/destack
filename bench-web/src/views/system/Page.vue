@@ -10,7 +10,7 @@ import {
   BenchType,
   BlockData,
   BlockType,
-  BoxData,
+  RectangleData,
   ColorShade,
   ColorType,
   NodeReferenceData,
@@ -59,7 +59,7 @@ const BLOCK_GAP_Y = 12;
 const HANDLE_WIDTH = 6;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "icon" | "nodePtr" | "focus" | "variant" | "selection"
   >

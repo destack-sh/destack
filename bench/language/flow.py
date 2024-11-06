@@ -41,13 +41,13 @@ from bench.utils.func import IdEnum
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Box,
         Code,
         Color,
         Expression,
         Field,
         Icon,
         NodeReference,
+        Rectangle,
         Text,
         Trigger,
         TypeConstraint,
@@ -252,8 +252,8 @@ class Step(SourceNode[StepData]):
     position: Optional["Vector2"] = p_regular(
         80, default=None, require=False, array=False, struct=StructType.VECTOR2
     )
-    size: Optional["Box"] = p_regular(
-        81, default=None, require=False, array=False, struct=StructType.BOX
+    size: Optional["Rectangle"] = p_regular(
+        81, default=None, require=False, array=False, struct=StructType.RECTANGLE
     )
 
     steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
