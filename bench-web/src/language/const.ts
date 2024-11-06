@@ -256,7 +256,7 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.COLOR,
   StructType.FONT,
   StructType.OFFSET,
-  StructType.BOX,
+  StructType.RECTANGLE,
   // access
   StructType.POLICY,
   StructType.POLICY_RULE,

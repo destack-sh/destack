@@ -408,7 +408,7 @@ async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
     Shape = Block.new(
         BlockType.CLASS,
         "Shape",
-        fields=[Field.member("kind", ShapeKind)],
+        fields=[Field.member("Kind", ShapeKind)],
     )
     subpage.blocks.extend(ShapeKind, Shape)
     await local_runtime.commit()
@@ -420,7 +420,7 @@ async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
 assert ShapeKind is not None
 assert ShapeKind.fields.Circle is not None
 assert ShapeKind.Rectangle is not None
-return Shape(kind=ShapeKind.Square)
+return Shape(Kind=ShapeKind.Square)
 """),
         fields=[Field.output("Result", Shape)],
         mode=ActionMode.STRICT,
@@ -430,7 +430,7 @@ return Shape(kind=ShapeKind.Square)
 
     runner = await local_runtime.run(Function)
     assert runner.outputs and isinstance(runner.outputs.Result, CustomObject)
-    assert runner.outputs.Result.kind == ShapeKind.fields.Square
+    assert runner.outputs.Result.Kind == ShapeKind.fields.Square
 
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):

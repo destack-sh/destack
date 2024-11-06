@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BoxData, NodeType, Orientation, ViewData } from "@/proto/wire/";
+import { RectangleData, NodeType, Orientation, ViewData } from "@/proto/wire/";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/ui/layout";
@@ -14,7 +14,7 @@ const props = defineProps<
     trackWidth: ScrollbarWidth;
     trackIsOverlay?: boolean;
     trackIsAlwaysVisible?: boolean;
-    size: Pick<BoxData, "width" | "height">;
+    size: Pick<RectangleData, "width" | "height">;
     sizeIsDynamic?: boolean;
     stickToEnd?: boolean;
   } & Pick<ViewData, "orientation" | "variant">

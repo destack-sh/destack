@@ -194,7 +194,7 @@ enum StructType {
   STRUCT_TYPE_LOG_INFO = 10550;
   STRUCT_TYPE_COLOR = 11000;
   STRUCT_TYPE_FONT = 11001;
-  STRUCT_TYPE_BOX = 11002;
+  STRUCT_TYPE_RECTANGLE = 11002;
   STRUCT_TYPE_OFFSET = 11003;
   STRUCT_TYPE_TRANSFORM = 11004;
   STRUCT_TYPE_VECTOR2 = 11020;
@@ -297,7 +297,7 @@ enum ObjectType {
   OBJECT_TYPE_LOG_INFO = 10550;
   OBJECT_TYPE_COLOR = 11000;
   OBJECT_TYPE_FONT = 11001;
-  OBJECT_TYPE_BOX = 11002;
+  OBJECT_TYPE_RECTANGLE = 11002;
   OBJECT_TYPE_OFFSET = 11003;
   OBJECT_TYPE_TRANSFORM = 11004;
   OBJECT_TYPE_VECTOR2 = 11020;
@@ -400,7 +400,7 @@ enum BenchType {
   BENCH_TYPE_LOG_INFO = 10550;
   BENCH_TYPE_COLOR = 11000;
   BENCH_TYPE_FONT = 11001;
-  BENCH_TYPE_BOX = 11002;
+  BENCH_TYPE_RECTANGLE = 11002;
   BENCH_TYPE_OFFSET = 11003;
   BENCH_TYPE_TRANSFORM = 11004;
   BENCH_TYPE_VECTOR2 = 11020;
@@ -2024,7 +2024,7 @@ message TransformData {
   optional float rotate_x = 40;
 }
 
-message BoxData {
+message RectangleData {
   ObjectType metatype = 1;
   optional int32 width = 50;
   optional int32 height = 51;
@@ -2863,7 +2863,7 @@ message StepData {
   repeated NodeReferenceData roles_ptr = 40;
   optional NodeReferenceData identity_ptr = 41;
   optional Vector2Data position = 80;
-  optional BoxData size = 81;
+  optional RectangleData size = 81;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -2998,7 +2998,7 @@ message ViewData {
   optional Variant variant = 50;
   optional FontData font = 51;
   optional OffsetData position = 60;
-  optional BoxData size = 61;
+  optional RectangleData size = 61;
   optional OffsetData margin = 62;
   optional OffsetData padding = 63;
   optional Orientation orientation = 64;

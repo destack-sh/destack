@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BoxData, NodeType, ViewData, ViewType } from "@/proto/wire";
+import { RectangleData, NodeType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -14,7 +14,7 @@ const props = defineProps<
     id: string;
     modelValue?: any;
     preparedConnection?: PreparedGetConnection;
-    size?: Partial<Pick<BoxData, "width" | "height">>;
+    size?: Partial<Pick<RectangleData, "width" | "height">>;
   } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
   >

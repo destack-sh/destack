@@ -7,7 +7,7 @@ import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "
 import {
   BlockData,
   BlockType,
-  BoxData,
+  RectangleData,
   CHILD_NODE_TYPES,
   NodeReferenceData,
   NodeType,
@@ -51,7 +51,7 @@ const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
     ViewData,
     "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked"
   >

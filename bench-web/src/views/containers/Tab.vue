@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { cloneNode } from "@/language/node";
-import { BoxData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { RectangleData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -17,7 +17,7 @@ import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
     ViewData,
     "focus" | "variant"
   >

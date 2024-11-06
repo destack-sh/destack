@@ -1,4 +1,4 @@
-import { ObjectType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
+import { ObjectType, RectangleData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { Connection } from "@/system/connection";
 import type { Transaction } from "@/language/transaction";
 import { roundToDigits } from "@/utils/functools";
@@ -212,7 +212,7 @@ export function useSplitView(
 /**
  * Gets the exact half sized box for a view (for both dimensions, for absolute and relative)
  */
-export function splitBox(size?: BoxData): BoxData {
+export function splitBox(size?: RectangleData): RectangleData {
   size = size ?? {
     metatype: ObjectType.BOX,
     widthRelative: DEFAULT_RELATIVE_UNITS,

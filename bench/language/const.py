@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.06.0"
+VERSION = "2024.11.06.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -435,7 +435,7 @@ class StructType(IdEnum):
     # space/views
     COLOR = 11000
     FONT = 11001
-    BOX = 11002
+    RECTANGLE = 11002
     OFFSET = 11003
     TRANSFORM = 11004
     VECTOR2 = 11020

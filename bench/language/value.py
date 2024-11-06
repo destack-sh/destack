@@ -712,7 +712,7 @@ def check_custom_object_scalar(
     """Checks whether the given object value has the expected type (recursively)."""
     if _check_is_object(value, typ, invalid):
         for field in typ._fields:
-            field_value = cast(SomeValue, getattr(value, field.name, None))
+            field_value = value._do_get(field)
             check_value(field_value, field, invalid)
 
 

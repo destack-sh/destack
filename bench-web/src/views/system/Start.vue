@@ -4,7 +4,7 @@ import { makeTypeInfo } from "@/language/field";
 import { unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
 import { isRunnable, isRunTerminal, type RunnableNode } from "@/language/session";
 import {
-  BoxData,
+  RectangleData,
   ChangeCategory,
   ExpressionType,
   FeedViewData,
@@ -47,7 +47,7 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 1200;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
     ViewData,
     "name" | "title" | "nodePtr" | "focus" | "variant" | "subnodePacked"
   >

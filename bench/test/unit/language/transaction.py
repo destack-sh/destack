@@ -4,6 +4,7 @@ from bench.language.field import Field, to_type
 from bench.language.flow import ActionStep, Step, StepType
 from bench.language.node import Node
 from bench.language.run import RunErrorType, RunOptions
+from bench.language.view import Rectangle
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -39,20 +40,20 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [Block.get_property("icon").key]
 
     # nested scalar struct set
-    ActionStep1.run_options = RunOptions(max_attempts=3)
-    ActionStep1.run_options.max_attempts = 4
+    ActionStep1.size = Rectangle(width=3, height=4)
+    ActionStep1.size.width = 4
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
-        ActionStep.get_property("run_options").key,
-        RunOptions.get_property("max_attempts").key,
+        ActionStep.get_property("size").key,
+        Rectangle.get_property("width").key,
     ]
 
     # nested scalar struct clear
-    ActionStep1.run_options.max_concurrency = None
+    ActionStep1.size.width = None
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [
-        ActionStep.get_property("run_options").key,
-        RunOptions.get_property("max_concurrency").key,
+        ActionStep.get_property("size").key,
+        Rectangle.get_property("width").key,
     ]
 
     # subtype set
@@ -87,9 +88,12 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [Block.get_property("roles").key]
 
     # nested list parent_key set
+    ActionStep1.run_options = RunOptions()
     ActionStep1.run_options.retry_on = [RunErrorType.CODE_INVALID, RunErrorType.INVALID_VALUE]
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
+        Node.get_property("subnode_packed").key,
+        str(StepType.ACTION),
         ActionStep.get_property("run_options").key,
         RunOptions.get_property("retry_on").key,
     ]

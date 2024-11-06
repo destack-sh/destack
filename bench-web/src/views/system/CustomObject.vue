@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {
   BlockType,
-  BoxData,
+  RectangleData,
   FieldType,
   IconData,
   NodeType,
@@ -31,7 +31,7 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     modelValue?: any;
-    size?: Partial<Pick<BoxData, "width" | "height">>;
+    size?: Partial<Pick<RectangleData, "width" | "height">>;
     preparedConnection?: PreparedGetConnection;
   } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">

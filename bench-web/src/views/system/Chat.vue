@@ -4,7 +4,7 @@ import { makeTypeInfo, TITLE_TYPE } from "@/language/field";
 import { emptyText, isTextEmpty, trimText } from "@/language/text";
 import {
   BenchType,
-  BoxData,
+  RectangleData,
   IconData,
   MessageData,
   NodeReferenceData,
@@ -66,7 +66,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    size?: Required<Pick<BoxData, "width" | "height">>;
+    size?: Required<Pick<RectangleData, "width" | "height">>;
   } & Partial<Pick<ViewData, "title" | "nodePtr" | "focus" | "variant">>
 >();
 const emit = defineEmits(viewEmits());

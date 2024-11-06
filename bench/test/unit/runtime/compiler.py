@@ -907,34 +907,6 @@ globals()
     assert v.refs == set()
 
 
-def test_compile_code_snippet():
-    code = Code.from_string("""\
-x = 1 + y + CONST
-_y = x + 1
-_y
-""")
-    compiled = compile_code(code, CodeType.SNIPPET, {"CONST": 0})
-    assert compiled.code == code.to_string()
-    assert compiled.transformed_code == compiled.code  # no transformation
-    assert set(compiled.references.keys()) == {"y"}  # exclude global refs
-
-
-def test_compile_code_script():
-    code = Code.from_string("""\
-x = y + 1
-def a():
-    pass
-""")
-    compiled = compile_code(code, CodeType.SCRIPT, {})
-    assert compiled.code == code.to_string()
-    assert compiled.transformed_code == compiled.code  # no transformation
-    assert set(compiled.references.keys()) == {"y"}
-    assert compiled.definitions == {
-        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE, references={"y"}),
-        "a": CodeDefinition("a", kind=CodeDefinitionKind.FUNCTION),
-    }
-
-
 def test_compile_code_function():
     code = Code.from_string("""\
 x = 1
