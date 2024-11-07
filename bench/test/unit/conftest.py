@@ -36,7 +36,7 @@ from bench.language.const import (
     UserStatus,
     _active_session,
 )
-from bench.language.flow import Step
+from bench.language.flow import Pipe, Step
 from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, BuiltinObject, GraphScope
 from bench.language.run import Run
@@ -222,7 +222,11 @@ class RuntimeHandle:
         return await self.session.commit()
 
     async def run(
-        self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
+        self,
+        run: Run | Block | Step | Pipe,
+        *,
+        inputs: Any | None = None,
+        return_error: bool = False,
     ) -> Runner:
         runner = await self.runtime.run(run, inputs=inputs, return_error=return_error)
         assert runner is not None, f"no runner for {run!r}"

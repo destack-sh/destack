@@ -1247,7 +1247,7 @@ enum PortSide {
 
 enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
-  PIPE_TYPE_GO = 1;
+  PIPE_TYPE_PASS = 1;
   PIPE_TYPE_SELECT = 2;
   PIPE_TYPE_OPTION = 3;
   PIPE_TYPE_TRIGGER = 4;
@@ -1916,6 +1916,7 @@ message SessionContextData {
 
 message TextOptionsData {
   ObjectType metatype = 1;
+  optional float temperature = 30;
 }
 
 message AudioOptionsData {

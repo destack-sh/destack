@@ -119,7 +119,7 @@ export class StepState {
           NodeType.STEP,
           StepType.ACTION,
           this.step.value?.subnodePacked,
-          "nodePtr",
+          "delegatePtr",
         );
         return nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
       } else {
@@ -632,7 +632,7 @@ export class FlowContext {
           // if both ports are field ports, make it a data pipe by default
           const pipe = createPipe(this.tx, this.graph, {
             parent: this.flow.value,
-            pipe: { type: PipeType.GO },
+            pipe: { type: PipeType.PASS },
             source: sourcePort,
             target: targetPort,
           });
@@ -878,7 +878,7 @@ export function getStepFields(
     if (flow == null) return null;
     let node: BlockData | StepData | undefined | null = null;
     if (step.type == StepType.ACTION) {
-      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "nodePtr");
+      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "delegatePtr");
       node = graph.getMaybe(nodePtr) as BlockData | StepData | undefined;
     }
     related = {

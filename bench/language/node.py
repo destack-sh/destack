@@ -1159,7 +1159,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     if not self_value[i].equals(other_value[i], identity_map=identity_map):
                         return False  # unequal struct
             else:
-                if type(self_value) != type(other_value) or (
+                if type(self_value) is not type(other_value) or (
                     self_value is not None
                     and not cast(Struct, self_value).equals(other_value, identity_map=identity_map)
                 ):
@@ -1784,7 +1784,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     def __eq__(self, other: Any):
         """Equals node identity."""
-        return self is other or (type(self) == type(other) and (self.id == other.id))
+        return self is other or (type(self) is type(other) and (self.id == other.id))
 
     def _stable_hash(self):
         """Hash node identity."""

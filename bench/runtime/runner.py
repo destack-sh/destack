@@ -8,7 +8,7 @@ from opentelemetry import trace
 from bench.language.code import Code
 from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
-from bench.language.flow import StepType
+from bench.language.flow import Pipe
 from bench.language.log import LogInfo
 from bench.language.run import (
     Context,
@@ -66,7 +66,7 @@ class Runner:
         self,
         *,
         runtime: "Runtime",
-        node: "Block | Step",
+        node: "Block | Step | Pipe",
         track: bool,
         options: RunOptions,
         context: Context,
@@ -168,7 +168,7 @@ class Runner:
 
 
 def run_from_node(
-    node: "Block | Step",
+    node: "Block | Step | Pipe",
     *,
     options: RunOptions | None = None,
     inputs: Any | None = None,
@@ -183,14 +183,21 @@ def run_from_node(
         options = RunOptions()
 
     if isinstance(node, Block):
-        step = None
         block = node
+        step = None
+        pipe = None
         kind = node.run_kind
         assert kind is not None, f"no run kind for {node!r}"
     elif isinstance(node, Step):
         step = node
         block = step.block
+        pipe = None
         kind = RunKind.STEP
+    elif isinstance(node, Pipe):
+        pipe = node
+        block = pipe.block
+        step = None
+        kind = RunKind.PIPE
     else:
         assert_never(node)
 
@@ -236,7 +243,7 @@ def runner_from_run(runtime: "Runtime", run: Run, *, track: bool) -> "Runner":
 
 def runner_from_node(
     runtime: "Runtime",
-    node: "Block | Step",
+    node: "Block | Step | Pipe",
     track: bool,
     *,
     kind: RunKind | None = None,
@@ -279,19 +286,16 @@ def runner_from_node(
 
         return FlowRunner(**base_kwargs)
     elif run_kind == RunKind.STEP:
-        from bench.runtime.flow import ActionStepRunner, CompleteStepRunner, StartStepRunner
+        from bench.runtime.flow import STEP_RUNNER_BY_STEP_TYPE
 
-        if not isinstance(node, Step):
-            raise ValueError(f"unexpected node for {run!r}: {node!r}")
-        if node.type == StepType.START:
-            return StartStepRunner(**base_kwargs)
-        elif node.type == StepType.COMPLETE:
-            return CompleteStepRunner(**base_kwargs)
-        elif node.type == StepType.ACTION:
-            return ActionStepRunner(**base_kwargs)
-        else:
-            raise ValueError(f"unexpected node for {run!r}: {node!r}")
+        assert isinstance(node, Step), f"expected Step, got {node!r}"
+        runner_cls = STEP_RUNNER_BY_STEP_TYPE[node.type]
+        return runner_cls(**base_kwargs)
     elif run_kind == RunKind.PIPE:
-        raise NotImplementedError()
+        from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE
+
+        assert isinstance(node, Pipe), f"expected Pipe, got {node!r}"
+        runner_cls = PIPE_RUNNER_BY_PIPE_TYPE[node.type]
+        return runner_cls(**base_kwargs)
     else:
         assert_never(run_kind)

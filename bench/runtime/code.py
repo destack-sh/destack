@@ -11,7 +11,7 @@ from bench.language.code import Code, CodeType
 from bench.language.const import ObjectKind
 from bench.language.field import TypeBase
 from bench.language.file import upload
-from bench.language.flow import Step
+from bench.language.flow import Pipe, Step
 from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
 from bench.language.run import Run, RunKind, RunOptions
@@ -44,7 +44,7 @@ class CodeRunnerBase(Runner):
         self,
         *,
         runtime: Runtime,
-        node: Block | Step,
+        node: Block | Step | Pipe,
         code: Code,
         track: bool,
         options: RunOptions,

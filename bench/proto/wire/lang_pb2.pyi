@@ -1241,7 +1241,7 @@ class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PIPE_TYPE_UNSPECIFIED: _ClassVar[PipeType]
-    PIPE_TYPE_GO: _ClassVar[PipeType]
+    PIPE_TYPE_PASS: _ClassVar[PipeType]
     PIPE_TYPE_SELECT: _ClassVar[PipeType]
     PIPE_TYPE_OPTION: _ClassVar[PipeType]
     PIPE_TYPE_TRIGGER: _ClassVar[PipeType]
@@ -2552,7 +2552,7 @@ PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
 PIPE_TYPE_UNSPECIFIED: PipeType
-PIPE_TYPE_GO: PipeType
+PIPE_TYPE_PASS: PipeType
 PIPE_TYPE_SELECT: PipeType
 PIPE_TYPE_OPTION: PipeType
 PIPE_TYPE_TRIGGER: PipeType
@@ -3999,10 +3999,16 @@ class SessionContextData(_message.Message):
     ) -> None: ...
 
 class TextOptionsData(_message.Message):
-    __slots__ = ("metatype",)
+    __slots__ = ("metatype", "temperature")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TEMPERATURE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+    temperature: float
+    def __init__(
+        self,
+        metatype: _Optional[_Union[ObjectType, str]] = ...,
+        temperature: _Optional[float] = ...,
+    ) -> None: ...
 
 class AudioOptionsData(_message.Message):
     __slots__ = ("metatype",)
