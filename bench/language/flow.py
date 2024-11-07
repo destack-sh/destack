@@ -325,7 +325,7 @@ class Step(SourceNode[StepData]):
             assert self.parent is not None, f"{self!r} has no parent"
             return self.parent.output_type
         elif self.type == StepType.ACTION and cast(ActionStep, self).node_ptr:
-            node = cast(ActionStep, self).node
+            node = cast(ActionStep, self).delegate
             assert isinstance(node, Block), f"{self!r} has no block: {node!r}"
             return node.to_type(as_object=as_object, field_type=field_type)
         else:

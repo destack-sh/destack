@@ -1,6 +1,6 @@
 from asyncio import CancelledError
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
 
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
@@ -67,6 +67,7 @@ class RunKind(IdEnum):
     ACTION = 2
     STEP = 10
     FLOW = 11
+    PIPE = 12
 
 
 @enum_(EnumType.MODEL_PROVIDER)
@@ -103,12 +104,47 @@ class ModelType(IdEnum):  # :ModelType
         return ModelProvider((self.value // 100) * 100)
 
 
+@struct_(StructType.TEXT_OPTIONS)
+class TextOptions(Struct):
+    """Options for text models (in/out)."""
+
+    temperature: Optional[float] = p_regular(
+        30, constraint=TypeConstraintIn(min_value=0.0, max_value=5.0)
+    )
+
+
+@struct_(StructType.AUDIO_OPTIONS)
+class AudioOptions(Struct):
+    """Options for audio models (in/out)."""
+
+    pass
+
+
+@struct_(StructType.IMAGE_OPTIONS)
+class ImageOptions(Struct):
+    """Options for image models (in/out)."""
+
+    pass
+
+
+@struct_(StructType.VIDEO_OPTIONS)
+class VideoOptions(Struct):
+    """Options for video models (in/out)."""
+
+    pass
+
+
 @enum_(EnumType.CACHE_MODE)
 class CacheMode(IdEnum):
     """How to handle caching."""
 
     NEVER = 1
     ALWAYS = 2
+
+
+@struct_(StructType.CONTEXT_OPTIONS)
+class ContextOptions(Struct):
+    pass
 
 
 @struct_(StructType.RUN_OPTIONS)
@@ -146,8 +182,13 @@ class RunOptions(Struct):
     suppress_fail: Optional[bool] = p_regular(45, default=None)
     suppress_abort: Optional[bool] = p_regular(46, default=None)
 
+    # context
+    context_options: Optional["ContextOptions"] = p_regular(
+        50, require=False, array=False, struct=StructType.CONTEXT_OPTIONS
+    )
+
     # debug
-    breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
+    breakpoints: list["Breakpoint"] = p_regular(60, array=True, struct=StructType.BREAKPOINT)
 
     # cache
     cache_mode: Optional["CacheMode"] = p_regular(70)
@@ -156,6 +197,18 @@ class RunOptions(Struct):
     # model
     model_provider: Optional["ModelProvider"] = p_regular(80)
     model_type: Optional["ModelType"] = p_regular(81)
+    text_options: Optional[TextOptions] = p_regular(
+        82, require=False, array=False, struct=StructType.TEXT_OPTIONS
+    )
+    audio_options: Optional[AudioOptions] = p_regular(
+        83, require=False, array=False, struct=StructType.AUDIO_OPTIONS
+    )
+    image_options: Optional[ImageOptions] = p_regular(
+        84, require=False, array=False, struct=StructType.IMAGE_OPTIONS
+    )
+    video_options: Optional[VideoOptions] = p_regular(
+        85, require=False, array=False, struct=StructType.VIDEO_OPTIONS
+    )
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
@@ -354,6 +407,11 @@ class RunError(Struct, BenchError):
         return RunError(kind=kind, type=typ, title=title, text=text)
 
 
+@struct_(StructType.CONTEXT)
+class Context(Struct):
+    pass
+
+
 @timed_node_(NodeType.RUN)
 class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     """
@@ -372,6 +430,9 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     block: Optional["Block"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
     pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
+    context: Optional["Context"] = p_internal(
+        38, require=False, array=False, struct=StructType.CONTEXT
+    )
     options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
     # status (overall)
@@ -499,48 +560,3 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     ) -> None:
         if self.root_ptr is not None and self.root_ptr.id == self.id:
             invalid(self, "root points to self", (Run.root, Run.id))
-
-    @staticmethod
-    def new(
-        node: "Block | Step",
-        *,
-        options: RunOptions | None = None,
-        inputs: Any | None = None,
-        parent: "Run | None" = None,
-        **kwargs,
-    ) -> "Run":
-        """Creates a Run from a Block."""
-        from bench.language import Block, Step
-        from bench.language.value import coerce_custom_object
-
-        if options is None:
-            options = RunOptions()
-
-        if isinstance(node, Block):
-            step = None
-            block = node
-            kind = node.run_kind
-            assert kind is not None, f"no run kind for {node!r}"
-        elif isinstance(node, Step):
-            step = node
-            block = step.block
-            kind = RunKind.STEP
-        else:
-            assert_never(node)
-
-        run = Run(
-            parent=parent or node.package,
-            kind=kind,
-            block=block,
-            step=step,
-            options=options,
-            **kwargs,
-        )
-        if inputs is None:
-            inputs = {}
-        if run.input_type is not None:
-            inputs = coerce_custom_object(ObjectKind.INPUT, run.input_type, inputs)
-            run.inputs = inputs
-            if kwargs:
-                inputs.update(kwargs)
-        return run

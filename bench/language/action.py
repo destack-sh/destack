@@ -40,7 +40,7 @@ class ActionBase(BuiltinObject):
         struct=StructType.CODE,
         description="Current implementation code for this action.",
     )
-    node: Optional["Block"] = p_regular(
+    delegate: Optional["Block"] = p_regular(
         103,
         require=False,
         references=NodeType.BLOCK,
@@ -105,23 +105,3 @@ class Continue(Struct):
     @staticmethod
     def new(node: "Block | Step | Pipe", **kwargs) -> "Continue":
         return Continue(node=node, **kwargs)
-
-
-@struct_(StructType.CONTEXT)
-class Context(Struct):
-    """Context for a Run."""
-
-    pass
-
-
-class ContextBuilder:
-    def __init__(self, task: Optional["Text"] = None) -> None:
-        self._task: Optional[Text] = task
-
-    def copy(self) -> "ContextBuilder":
-        return ContextBuilder(task=self._task)
-
-    def task(self, task: "Text") -> "ContextBuilder":
-        copy = self.copy()
-        copy._task = task
-        return copy

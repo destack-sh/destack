@@ -77,7 +77,7 @@ def test_node_subtype_property_access(session: "Session"):
 
     # subtype -> node ref property
     BlockStep1 = Step.new(ActionStep, "BlockStep1", node=Text1)
-    assert BlockStep1.node == Text1
+    assert BlockStep1.delegate == Text1
     assert BlockStep1.node_ptr == Text1.to_ref()
 
     # subtype -> value packed property

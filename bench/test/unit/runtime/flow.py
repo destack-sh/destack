@@ -5,7 +5,8 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.field import Field
 from bench.language.flow import Step, StepType
-from bench.language.run import Run, RunErrorType, RunOptions
+from bench.language.run import RunErrorType, RunOptions
+from bench.runtime.runner import run_from_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -344,7 +345,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
-    run = Run.new(Flow)
+    run = run_from_node(Flow)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)

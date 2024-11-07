@@ -6,7 +6,6 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import render
-from bench.language.action import ContextBuilder
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.const import ObjectKind
@@ -25,7 +24,7 @@ from bench.runtime.capture import (
 )
 from bench.runtime.compiler import CompiledCode, compile_code
 from bench.runtime.core import CodeInvalidError
-from bench.runtime.runner import Runner
+from bench.runtime.runner import Context, Runner
 from bench.runtime.runtime import Runtime
 
 logger = structlog.get_logger(__name__)
@@ -49,7 +48,7 @@ class CodeRunnerBase(Runner):
         code: Code,
         track: bool,
         options: RunOptions,
-        context: ContextBuilder,
+        context: Context,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
