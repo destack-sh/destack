@@ -84,7 +84,7 @@ FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldType, ...]] = {
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    GO = 1
+    PASS = 1
     SELECT = 2
     OPTION = 3
     TRIGGER = 4
@@ -92,7 +92,7 @@ class PipeType(IdEnum):
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
-    PipeType.GO: "->",
+    PipeType.PASS: "->",
     PipeType.SELECT: "-?>",
     PipeType.OPTION: "-o>",
     PipeType.TRIGGER: "-&>",
@@ -155,6 +155,32 @@ class Pipe(SourceNode[PipeData]):
         source = self.source
         target = self.target
         return f"{source.absolute_path if source else '???'} {sign} {target.absolute_path if target else '???'}"
+
+    @property
+    def run_kind(self) -> RunKind:
+        return RunKind.PIPE
+
+    @property
+    def block(self) -> "Block | None":
+        """Gets the containing ancestor Block (if any)"""
+        from bench.language.block import Block
+
+        parent = self.parent
+        while parent is not None:
+            if isinstance(parent, Block):
+                return parent
+            parent = parent.parent
+        return None
+
+    @property
+    def input_type(self) -> "TypeBase | None":
+        source = self.source
+        return source.output_type if source is not None else None
+
+    @property
+    def output_type(self) -> "TypeBase | None":
+        target = self.target
+        return target.input_type if target is not None else None
 
     @staticmethod
     def new(type: PipeType, name: str, **kwargs) -> "Pipe":

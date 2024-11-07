@@ -290,7 +290,7 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
-  [PipeType.GO]: "fas fa-arrow-right-long",
+  [PipeType.PASS]: "fas fa-arrow-right-long",
   [PipeType.SELECT]: "fas fa-question",
   [PipeType.OPTION]: "fas fa-circle-small",
   [PipeType.TRIGGER]: "fas fa-bolt",

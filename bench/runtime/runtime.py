@@ -9,7 +9,7 @@ from opentelemetry import baggage, context, trace
 
 from bench.language.block import Block
 from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
-from bench.language.flow import Step
+from bench.language.flow import Pipe, Step
 from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -260,7 +260,7 @@ class Runtime:
     @tracer.start_as_current_span("runtime.run")
     async def run(
         self,
-        run: Run | Block | Step,
+        run: Run | Block | Step | Pipe,
         *,
         options: RunOptions | None = None,
         inputs: Any | None = None,

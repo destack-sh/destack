@@ -47,10 +47,11 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 1200;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
-    ViewData,
-    "name" | "title" | "nodePtr" | "focus" | "variant" | "subnodePacked"
-  >
+  {
+    self: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    size: Required<Pick<RectangleData, "width" | "height">>;
+  } & Pick<ViewData, "name" | "title" | "nodePtr" | "focus" | "variant" | "subnodePacked">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -118,7 +119,7 @@ watch(currentRunnableNode, (newNode) => {
 const runnablePtr = computed(() => (lastRunnableNode.value != null ? toPlainNodeRef(lastRunnableNode.value) : null));
 const baseTypePtr = computed(() => {
   if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.ACTION) {
-    return unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, lastRunnableNode.value.subnodePacked, "nodePtr");
+    return unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, lastRunnableNode.value.subnodePacked, "delegatePtr");
   } else {
     return runnablePtr.value ?? undefined;
   }

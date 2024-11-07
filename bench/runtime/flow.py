@@ -10,7 +10,7 @@ from sortedcontainers import SortedDict
 from bench.language.block import Block
 from bench.language.const import ObjectKind
 from bench.language.field import TypeBase
-from bench.language.flow import ActionStep, Pipe, Step, StepType
+from bench.language.flow import ActionStep, Pipe, PipeType, Step, StepType
 from bench.language.run import Run, RunError, RunKind, RunOptions
 from bench.language.value import CustomObject
 from bench.runtime.action import ActionRunner
@@ -210,14 +210,19 @@ class FlowRunner(Runner):
         logger.debug("flow.fail", flow=self.node, runner=self)
 
 
+#
+# Steps
+#
+
+
 class StepRunner(Runner):
-    kind: ClassVar[RunKind] = RunKind.FLOW
+    kind: ClassVar[RunKind] = RunKind.STEP
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Block | Step,
+        node: Block | Step | Pipe,
         track: bool,
         options: RunOptions,
         context: Context,
@@ -239,11 +244,6 @@ class StepRunner(Runner):
         self.flow: FlowRunner | None = None
 
 
-#
-# Boundary steps
-#
-
-
 class StartStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
@@ -256,11 +256,6 @@ class CompleteStepRunner(StepRunner):
         self.outputs = self.inputs
         if self.flow is not None:  # may be running outside of flow
             self.flow._complete(outputs=self.outputs)
-
-
-#
-# Run steps
-#
 
 
 class ActionStepRunner(StepRunner):
@@ -278,3 +273,75 @@ class ActionStepRunner(StepRunner):
         )
         await self.runtime.run_runner(runner)
         self.outputs = runner.outputs
+
+
+STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunner]] = {
+    StepType.START: StartStepRunner,
+    StepType.COMPLETE: CompleteStepRunner,
+    StepType.ACTION: ActionStepRunner,
+}
+
+#
+# Pipes
+#
+
+
+class PipeRunner(Runner):
+    kind: ClassVar[RunKind] = RunKind.PIPE
+
+    def __init__(
+        self,
+        *,
+        runtime: Runtime,
+        node: Block | Pipe,
+        track: bool,
+        options: RunOptions,
+        context: Context,
+        parent: Runner | None = None,
+        inputs: CustomObject | None = None,
+        run: Run | None = None,
+    ) -> None:
+        super().__init__(
+            runtime=runtime,
+            node=node,
+            track=track,
+            options=options,
+            context=context,
+            parent=parent,
+            inputs=inputs,
+            run=run,
+        )
+        self.flow: FlowRunner | None = None
+
+    @override
+    async def run_once(self) -> None:
+        self.outputs = self.inputs
+
+
+class PassPipeRunner(PipeRunner):
+    pass
+
+
+class SelectPipeRunner(PipeRunner):
+    pass
+
+
+class OptionPipeRunner(PipeRunner):
+    pass
+
+
+class TriggerPipeRunner(PipeRunner):
+    pass
+
+
+class StreamPipeRunner(PipeRunner):
+    pass
+
+
+PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunner]] = {
+    PipeType.PASS: PassPipeRunner,
+    PipeType.SELECT: SelectPipeRunner,
+    PipeType.OPTION: OptionPipeRunner,
+    PipeType.TRIGGER: TriggerPipeRunner,
+    PipeType.STREAM: StreamPipeRunner,
+}

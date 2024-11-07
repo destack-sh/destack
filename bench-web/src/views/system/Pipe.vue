@@ -32,7 +32,7 @@ const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
 const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName(pipe.value.metatype, pipe.value.name));
-const showPipeMeta = computed(() => !isGeneratedName.value || pipe.value?.type != PipeType.GO);
+const showPipeMeta = computed(() => !isGeneratedName.value || pipe.value?.type != PipeType.PASS);
 
 //
 // Interaction
@@ -91,7 +91,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     >
       <!-- Type-->
       <IconInline
-        v-if="pipe.type != PipeType.GO"
+        v-if="pipe.type != PipeType.PASS"
         v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
         class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-gray-700"
       />

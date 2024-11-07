@@ -13,7 +13,7 @@ from bench.language.code import Code
 from bench.language.const import BlockType
 from bench.language.field import TypeBase
 from bench.language.file import FileBase
-from bench.language.flow import ActionStep, Step, StepType
+from bench.language.flow import ActionStep, Pipe, Step, StepType
 from bench.language.node import SourceNode
 from bench.language.run import ModelProvider, ModelType, Run, RunKind, RunOptions
 from bench.language.text import Text
@@ -137,7 +137,8 @@ class PromptCompiler[I, R](ABC):
 
 class ChatPromptCompiler[R](PromptCompiler[str | FileBase, R]):
     @override
-    async def render(self, prompt: Prompt, budget: float) -> list[str | FileBase]: ...
+    async def render(self, prompt: Prompt, budget: float) -> list[str | FileBase]:
+        raise NotImplementedError("nocheckin: render")
 
     @override
     def measure(self, item: PromptItem) -> float | None:
@@ -257,7 +258,7 @@ class ActionRunner(Runner):
     async def _run_code(
         self,
         code: Code,
-        node: Step | Block,
+        node: Step | Block | Pipe,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
     ) -> CustomObject | None:
@@ -313,7 +314,7 @@ openai_client = openai.AsyncClient(
 )
 
 
-class OpenaiCompiler(PromptCompiler[str | FileBase, openai_chat_types.ChatCompletionMessageParam]):
+class OpenaiCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMessageParam]):
     def assemble(
         self, parts: list[str | FileBase]
     ) -> list[openai_chat_types.ChatCompletionMessageParam]:
