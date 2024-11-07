@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.06.1"
+VERSION = "2024.11.07.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -207,6 +207,7 @@ class NodeType(IdEnum):
     # resource (anonymous)
     FILE = 550
     SECRET = 551
+    BROWSER = 552
 
     # auth
     MEMBERSHIP = 600
@@ -425,9 +426,14 @@ class StructType(IdEnum):
     RUN_FRAME = 10504
     RUN_SPAN = 10505
     RUN_EVENT = 10506
-    CONTEXT = 10510
-    CONTINUE = 10511
-    CALL = 10512
+    TEXT_OPTIONS = 10510
+    AUDIO_OPTIONS = 10511
+    IMAGE_OPTIONS = 10512
+    VIDEO_OPTIONS = 10513
+    CONTEXT_OPTIONS = 10520
+    CONTINUE = 10530
+    CALL = 10531
+    CONTEXT = 10532
     # RETRIEVE?
     BREAKPOINT = 10540
     LOG_INFO = 10550

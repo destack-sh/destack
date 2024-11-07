@@ -20,7 +20,7 @@ from bench.runtime.core import (
     DYNAMIC_CODE_GLOBALS,
     STATIC_CODE_GLOBALS,
 )
-from bench.runtime.runner import Runner
+from bench.runtime.runner import Runner, run_from_node, runner_from_run
 from bench.utils.oracle import Oracle
 
 logger = structlog.get_logger(__name__)
@@ -271,11 +271,11 @@ class Runtime:
         if not isinstance(run, Run):
             if options is None:
                 options = ATTEMPT_THRICE if run.run_kind == RunKind.ACTION else ATTEMPT_ONCE
-            run = Run.new(run, options=options, inputs=inputs, parent=self.active_run)
+            run = run_from_node(run, options=options, inputs=inputs, parent=self.active_run)
         runner = None
         async with self.session.active():
             try:
-                runner = await Runner.from_run(runtime=self, run=run, track=True)
+                runner = runner_from_run(runtime=self, run=run, track=True)
                 await self.run_runner(runner)
                 logger.info("runtime.run", run=run, runner=runner, span="current")
             except (BenchError, ValueError, TypeError) as e:

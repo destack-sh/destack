@@ -6,6 +6,7 @@ from bench.language.expression import Expression, S, apply_sort, evaluate_condit
 from bench.language.field import Field
 from bench.language.run import Run, RunOptions
 from bench.language.session import Session
+from bench.runtime.runner import run_from_node
 
 # NOTE :Test: generate expressions to test with hypothesis
 
@@ -36,7 +37,7 @@ def test_evaluate_conditional_stringy(session: Session):
 def test_evaluate_conditional_node(session: Session, package: Package):
     Code1 = Block.new(BlockType.ACTION, "Code1", code=code("pass"))
     package.blocks.append(Code1)
-    Run1 = Run.new(Code1, options=RunOptions())
+    Run1 = run_from_node(Code1, options=RunOptions())
 
     cond = Run.get_property("block").is_equal(Code1)
     assert evaluate_conditional(cond, Run1) is True

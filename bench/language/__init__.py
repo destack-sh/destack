@@ -6,7 +6,7 @@ from .access import (
     PolicyRule,
     Subject,
 )
-from .action import ActionBase, ActionMode, Call, Context, ContextBuilder, Continue
+from .action import ActionBase, ActionMode, Call, Continue
 from .bench import (
     AnonymousResourceNode,
     Bench,
@@ -25,6 +25,7 @@ from .bench import (
     Vault,
 )
 from .block import Block
+from .browser import Browser
 from .code import Code, CodeLine, CodeType, code
 from .connection import (
     AggregateConnection,
@@ -112,6 +113,8 @@ from .query import (
 )
 from .render import render, render_expr, render_stmt
 from .run import (
+    Context,
+    ContextOptions,
     Run,
     RunAttempt,
     RunError,
@@ -192,6 +195,7 @@ __all__ = [
     "Block",
     "BlockType",
     "Branch",
+    "Browser",
     "BuiltinObject",
     "C",
     "Cache",
@@ -216,7 +220,7 @@ __all__ = [
     "ConditionalType",
     "Connection",
     "Context",
-    "ContextBuilder",
+    "ContextOptions",
     "Continue",
     "CustomObject",
     "Dependency",

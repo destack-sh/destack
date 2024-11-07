@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.06.1"
+VERSION = "2024.11.07.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -530,6 +530,31 @@ SECRET_TABLE = Table(
         Column("current_status", PrimitiveType.INT16),
         Column("value_type", PrimitiveType.JSON),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+    ),
+)
+
+BROWSER_TABLE = Table(
+    "bench_browser",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("region", PrimitiveType.INT16),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
     ),
 )
 
@@ -1248,6 +1273,7 @@ RUN_TABLE = Table(
         Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("context", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.INTERVAL, is_nullable=True),

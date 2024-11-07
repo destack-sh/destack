@@ -5,13 +5,21 @@ from typing import TYPE_CHECKING, Any, ClassVar, Iterable, assert_never
 import structlog
 from opentelemetry import trace
 
-from bench.language.action import ContextBuilder
 from bench.language.code import Code
 from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import StepType
 from bench.language.log import LogInfo
-from bench.language.run import Run, RunAttempt, RunError, RunEvent, RunKind, RunOptions, RunSpan
+from bench.language.run import (
+    Context,
+    Run,
+    RunAttempt,
+    RunError,
+    RunEvent,
+    RunKind,
+    RunOptions,
+    RunSpan,
+)
 from bench.language.value import CustomObject
 from bench.runtime.core import RunImpossibleError
 from bench.utils.uuidt import UUIDT
@@ -61,7 +69,7 @@ class Runner:
         node: "Block | Step",
         track: bool,
         options: RunOptions,
-        context: ContextBuilder,
+        context: Context,
         parent: "Runner | None" = None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
@@ -114,58 +122,6 @@ class Runner:
                 self.runtime.session._create(run)
             self.run = run
 
-    @staticmethod
-    async def from_run(runtime: "Runtime", run: Run, track: bool) -> "Runner":
-        """Make a Runner from a Run."""
-        if run.options is None:
-            raise RunImpossibleError(f"no options for {run!r}")
-        node = run.step or run.block
-        if node is None:
-            raise RunImpossibleError(f"no node for {run!r}")
-        if run.inputs is None and run.input_type is not None:
-            inputs = CustomObject.new(ObjectKind.INPUT, {}, run.input_type)
-        else:
-            inputs = run.inputs
-
-        base_kwargs: dict[str, Any] = {
-            "runtime": runtime,
-            "options": run.options,
-            "context": ContextBuilder(),  # nocheckin: where to get/restore Run context?
-            "inputs": inputs,
-            "run": run,
-            "track": track,
-            "node": node,
-        }
-
-        if run.kind == RunKind.CODE:
-            from bench.runtime.code import CodeFunctionRunner
-
-            code = getattr(node, "code", None) or Code.empty()
-            return CodeFunctionRunner(**base_kwargs, code=code)
-        elif run.kind == RunKind.ACTION:
-            from bench.runtime.action import ActionRunner
-
-            return ActionRunner(**base_kwargs)
-        elif run.kind == RunKind.STEP:
-            from bench.runtime.flow import ActionStepRunner, CompleteStepRunner, StartStepRunner
-
-            if not isinstance(node, Step):
-                raise ValueError(f"unexpected node for {run!r}: {node!r}")
-            if node.type == StepType.START:
-                return StartStepRunner(**base_kwargs)
-            elif node.type == StepType.COMPLETE:
-                return CompleteStepRunner(**base_kwargs)
-            elif node.type == StepType.ACTION:
-                return ActionStepRunner(**base_kwargs)
-            else:
-                raise ValueError(f"unexpected node for {run!r}: {node!r}")
-        elif run.kind == RunKind.FLOW:
-            from bench.runtime.flow import FlowRunner
-
-            return FlowRunner(**base_kwargs)
-        else:
-            assert_never(run.kind)
-
     def __str__(self):
         str_parts: list[str] = [
             self.status.bench_name,
@@ -209,3 +165,133 @@ class Runner:
     async def run_once(self) -> None:
         """Runs the runnable once."""
         raise NotImplementedError
+
+
+def run_from_node(
+    node: "Block | Step",
+    *,
+    options: RunOptions | None = None,
+    inputs: Any | None = None,
+    parent: "Run | None" = None,
+    **kwargs,
+) -> "Run":
+    """Creates a Run from a runnable Node."""
+    from bench.language import Block, Step
+    from bench.language.value import coerce_custom_object
+
+    if options is None:
+        options = RunOptions()
+
+    if isinstance(node, Block):
+        step = None
+        block = node
+        kind = node.run_kind
+        assert kind is not None, f"no run kind for {node!r}"
+    elif isinstance(node, Step):
+        step = node
+        block = step.block
+        kind = RunKind.STEP
+    else:
+        assert_never(node)
+
+    run = Run(
+        parent=parent or node.package,
+        kind=kind,
+        block=block,
+        step=step,
+        options=options,
+        **kwargs,
+    )
+    if inputs is None:
+        inputs = {}
+    if run.input_type is not None:
+        inputs = coerce_custom_object(ObjectKind.INPUT, run.input_type, inputs)
+        run.inputs = inputs
+        if kwargs:
+            inputs.update(kwargs)
+    return run
+
+
+def runner_from_run(runtime: "Runtime", run: Run, *, track: bool) -> "Runner":
+    """Make a Runner from a Run."""
+    node = run.step or run.block
+    if node is None:
+        raise RunImpossibleError(f"no node for {run!r}")
+    if run.inputs is None and run.input_type is not None:
+        inputs = CustomObject.new(ObjectKind.INPUT, {}, run.input_type)
+    else:
+        inputs = run.inputs
+
+    return runner_from_node(
+        runtime,
+        node,
+        kind=run.kind,
+        options=run.options,
+        context=run.context,
+        inputs=inputs,
+        run=run,
+        track=track,
+    )
+
+
+def runner_from_node(
+    runtime: "Runtime",
+    node: "Block | Step",
+    track: bool,
+    *,
+    kind: RunKind | None = None,
+    options: RunOptions | None = None,
+    context: Context | None = None,
+    inputs: Any | None = None,
+    parent: "Run | None" = None,
+    run: Run | None = None,
+    **kwargs,
+) -> "Runner":
+    """Make a Runner from a runnable Node."""
+
+    if options is None:
+        options = RunOptions()
+
+    base_kwargs: dict[str, Any] = {
+        "runtime": runtime,
+        "options": options,
+        "context": context,
+        "inputs": inputs,
+        "run": run,
+        "track": track,
+        "node": node,
+        "parent": parent,
+    }
+
+    run_kind = kind or node.run_kind
+    assert run_kind is not None, f"no run kind for {node!r}"
+    if run_kind == RunKind.CODE:
+        from bench.runtime.code import CodeFunctionRunner
+
+        code = getattr(node, "code", None) or Code.empty()
+        return CodeFunctionRunner(**base_kwargs, code=code)
+    elif run_kind == RunKind.ACTION:
+        from bench.runtime.action import ActionRunner
+
+        return ActionRunner(**base_kwargs)
+    elif run_kind == RunKind.FLOW:
+        from bench.runtime.flow import FlowRunner
+
+        return FlowRunner(**base_kwargs)
+    elif run_kind == RunKind.STEP:
+        from bench.runtime.flow import ActionStepRunner, CompleteStepRunner, StartStepRunner
+
+        if not isinstance(node, Step):
+            raise ValueError(f"unexpected node for {run!r}: {node!r}")
+        if node.type == StepType.START:
+            return StartStepRunner(**base_kwargs)
+        elif node.type == StepType.COMPLETE:
+            return CompleteStepRunner(**base_kwargs)
+        elif node.type == StepType.ACTION:
+            return ActionStepRunner(**base_kwargs)
+        else:
+            raise ValueError(f"unexpected node for {run!r}: {node!r}")
+    elif run_kind == RunKind.PIPE:
+        raise NotImplementedError()
+    else:
+        assert_never(run_kind)

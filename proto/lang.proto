@@ -111,6 +111,7 @@ enum NodeType {
   NODE_TYPE_CACHE = 505;
   NODE_TYPE_FILE = 550;
   NODE_TYPE_SECRET = 551;
+  NODE_TYPE_BROWSER = 552;
   NODE_TYPE_MEMBERSHIP = 600;
   NODE_TYPE_INVITE = 601;
   NODE_TYPE_BRANCH = 1000;
@@ -187,9 +188,14 @@ enum StructType {
   STRUCT_TYPE_RUN_FRAME = 10504;
   STRUCT_TYPE_RUN_SPAN = 10505;
   STRUCT_TYPE_RUN_EVENT = 10506;
-  STRUCT_TYPE_CONTEXT = 10510;
-  STRUCT_TYPE_CONTINUE = 10511;
-  STRUCT_TYPE_CALL = 10512;
+  STRUCT_TYPE_TEXT_OPTIONS = 10510;
+  STRUCT_TYPE_AUDIO_OPTIONS = 10511;
+  STRUCT_TYPE_IMAGE_OPTIONS = 10512;
+  STRUCT_TYPE_VIDEO_OPTIONS = 10513;
+  STRUCT_TYPE_CONTEXT_OPTIONS = 10520;
+  STRUCT_TYPE_CONTINUE = 10530;
+  STRUCT_TYPE_CALL = 10531;
+  STRUCT_TYPE_CONTEXT = 10532;
   STRUCT_TYPE_BREAKPOINT = 10540;
   STRUCT_TYPE_LOG_INFO = 10550;
   STRUCT_TYPE_COLOR = 11000;
@@ -218,6 +224,7 @@ enum ObjectType {
   OBJECT_TYPE_CACHE = 505;
   OBJECT_TYPE_FILE = 550;
   OBJECT_TYPE_SECRET = 551;
+  OBJECT_TYPE_BROWSER = 552;
   OBJECT_TYPE_MEMBERSHIP = 600;
   OBJECT_TYPE_INVITE = 601;
   OBJECT_TYPE_BRANCH = 1000;
@@ -290,9 +297,14 @@ enum ObjectType {
   OBJECT_TYPE_RUN_FRAME = 10504;
   OBJECT_TYPE_RUN_SPAN = 10505;
   OBJECT_TYPE_RUN_EVENT = 10506;
-  OBJECT_TYPE_CONTEXT = 10510;
-  OBJECT_TYPE_CONTINUE = 10511;
-  OBJECT_TYPE_CALL = 10512;
+  OBJECT_TYPE_TEXT_OPTIONS = 10510;
+  OBJECT_TYPE_AUDIO_OPTIONS = 10511;
+  OBJECT_TYPE_IMAGE_OPTIONS = 10512;
+  OBJECT_TYPE_VIDEO_OPTIONS = 10513;
+  OBJECT_TYPE_CONTEXT_OPTIONS = 10520;
+  OBJECT_TYPE_CONTINUE = 10530;
+  OBJECT_TYPE_CALL = 10531;
+  OBJECT_TYPE_CONTEXT = 10532;
   OBJECT_TYPE_BREAKPOINT = 10540;
   OBJECT_TYPE_LOG_INFO = 10550;
   OBJECT_TYPE_COLOR = 11000;
@@ -321,6 +333,7 @@ enum BenchType {
   BENCH_TYPE_CACHE = 505;
   BENCH_TYPE_FILE = 550;
   BENCH_TYPE_SECRET = 551;
+  BENCH_TYPE_BROWSER = 552;
   BENCH_TYPE_MEMBERSHIP = 600;
   BENCH_TYPE_INVITE = 601;
   BENCH_TYPE_BRANCH = 1000;
@@ -393,9 +406,14 @@ enum BenchType {
   BENCH_TYPE_RUN_FRAME = 10504;
   BENCH_TYPE_RUN_SPAN = 10505;
   BENCH_TYPE_RUN_EVENT = 10506;
-  BENCH_TYPE_CONTEXT = 10510;
-  BENCH_TYPE_CONTINUE = 10511;
-  BENCH_TYPE_CALL = 10512;
+  BENCH_TYPE_TEXT_OPTIONS = 10510;
+  BENCH_TYPE_AUDIO_OPTIONS = 10511;
+  BENCH_TYPE_IMAGE_OPTIONS = 10512;
+  BENCH_TYPE_VIDEO_OPTIONS = 10513;
+  BENCH_TYPE_CONTEXT_OPTIONS = 10520;
+  BENCH_TYPE_CONTINUE = 10530;
+  BENCH_TYPE_CALL = 10531;
+  BENCH_TYPE_CONTEXT = 10532;
   BENCH_TYPE_BREAKPOINT = 10540;
   BENCH_TYPE_LOG_INFO = 10550;
   BENCH_TYPE_COLOR = 11000;
@@ -1107,6 +1125,7 @@ enum RunKind {
   RUN_KIND_ACTION = 2;
   RUN_KIND_STEP = 10;
   RUN_KIND_FLOW = 11;
+  RUN_KIND_PIPE = 12;
 }
 
 enum RunErrorKind {
@@ -1750,10 +1769,6 @@ message ContinueData {
   optional CodeData mapping = 50;
 }
 
-message ContextData {
-  ObjectType metatype = 1;
-}
-
 message SelectOptionsData {
   ObjectType metatype = 1;
   bool select_all_properties = 40;
@@ -1899,6 +1914,26 @@ message SessionContextData {
   optional NodeReferenceData identity_ptr = 87;
 }
 
+message TextOptionsData {
+  ObjectType metatype = 1;
+}
+
+message AudioOptionsData {
+  ObjectType metatype = 1;
+}
+
+message ImageOptionsData {
+  ObjectType metatype = 1;
+}
+
+message VideoOptionsData {
+  ObjectType metatype = 1;
+}
+
+message ContextOptionsData {
+  ObjectType metatype = 1;
+}
+
 message RunOptionsData {
   ObjectType metatype = 1;
   optional int32 max_attempts = 30;
@@ -1912,11 +1947,16 @@ message RunOptionsData {
   repeated RunErrorType retry_on = 44;
   optional bool suppress_fail = 45;
   optional bool suppress_abort = 46;
-  repeated BreakpointData breakpoints = 50;
+  optional ContextOptionsData context_options = 50;
+  repeated BreakpointData breakpoints = 60;
   optional CacheMode cache_mode = 70;
   optional google.protobuf.Duration cache_retention = 71;
   optional ModelProvider model_provider = 80;
   optional ModelType model_type = 81;
+  optional TextOptionsData text_options = 82;
+  optional AudioOptionsData audio_options = 83;
+  optional ImageOptionsData image_options = 84;
+  optional VideoOptionsData video_options = 85;
 }
 
 message BreakpointData {
@@ -1977,6 +2017,10 @@ message RunErrorData {
   optional TextData text = 33;
   optional NodeReferenceData node_ptr = 34;
   optional RunTraceData trace = 35;
+}
+
+message ContextData {
+  ObjectType metatype = 1;
 }
 
 message ObjectMappingData {
@@ -2646,7 +2690,7 @@ message ActionBlockData {
   ActionMode mode = 100;
   optional TextData text = 101;
   optional CodeData code = 102;
-  optional NodeReferenceData node_ptr = 103;
+  optional NodeReferenceData delegate_ptr = 103;
   optional RunOptionsData run_options = 110;
 }
 
@@ -2663,6 +2707,25 @@ message DatabaseBlockData {
 // A building block with logic, types, UI, state, auth, AI, ...
 message QueryBlockData {
   optional NodeReferenceData query_ptr = 100;
+}
+
+message BrowserData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceStatus status = 36;
+  ResourceStatus current_status = 37;
 }
 
 message RecordData {
@@ -2765,6 +2828,7 @@ message RunData {
   optional NodeReferenceData block_ptr = 33;
   optional NodeReferenceData step_ptr = 34;
   optional NodeReferenceData pipe_ptr = 35;
+  optional ContextData context = 38;
   RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
@@ -2871,7 +2935,7 @@ message ActionStepData {
   ActionMode mode = 100;
   optional TextData text = 101;
   optional CodeData code = 102;
-  optional NodeReferenceData node_ptr = 103;
+  optional NodeReferenceData delegate_ptr = 103;
   optional RunOptionsData run_options = 110;
 }
 
@@ -3175,28 +3239,29 @@ message SomeNodeData {
     CacheData cache = 11;
     FileData file = 12;
     SecretData secret = 13;
-    MembershipData membership = 14;
-    InviteData invite = 15;
-    BranchData branch = 16;
-    PackageData package = 17;
-    DependencyData dependency = 18;
-    SpaceData space = 19;
-    BlockData block = 20;
-    TriggerData trigger = 21;
-    FieldData field = 22;
-    QueryData query = 23;
-    ViewData view = 24;
-    StepData step = 25;
-    PipeData pipe = 26;
-    BadgeData badge = 27;
-    MessageData message = 28;
-    RecordData record = 29;
-    SessionData session = 30;
-    RunData run = 31;
-    SignalData signal = 32;
-    LogData log = 33;
-    NotificationData notification = 34;
-    SkipData skip = 35;
+    BrowserData browser = 14;
+    MembershipData membership = 15;
+    InviteData invite = 16;
+    BranchData branch = 17;
+    PackageData package = 18;
+    DependencyData dependency = 19;
+    SpaceData space = 20;
+    BlockData block = 21;
+    TriggerData trigger = 22;
+    FieldData field = 23;
+    QueryData query = 24;
+    ViewData view = 25;
+    StepData step = 26;
+    PipeData pipe = 27;
+    BadgeData badge = 28;
+    MessageData message = 29;
+    RecordData record = 30;
+    SessionData session = 31;
+    RunData run = 32;
+    SignalData signal = 33;
+    LogData log = 34;
+    NotificationData notification = 35;
+    SkipData skip = 36;
   };
 }
 

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.11.06.1"
+VERSION = "2024.11.07.2"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -34,6 +34,7 @@ AnyNodeData = Union[
     CacheData,
     FileData,
     SecretData,
+    BrowserData,
     MembershipData,
     InviteData,
     BranchData,
@@ -108,9 +109,14 @@ AnyStructData = Union[
     RunFrameData,
     RunSpanData,
     RunEventData,
-    ContextData,
+    TextOptionsData,
+    AudioOptionsData,
+    ImageOptionsData,
+    VideoOptionsData,
+    ContextOptionsData,
     ContinueData,
     CallData,
+    ContextData,
     BreakpointData,
     LogInfoData,
     ColorData,

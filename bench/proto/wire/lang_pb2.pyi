@@ -126,6 +126,7 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_CACHE: _ClassVar[NodeType]
     NODE_TYPE_FILE: _ClassVar[NodeType]
     NODE_TYPE_SECRET: _ClassVar[NodeType]
+    NODE_TYPE_BROWSER: _ClassVar[NodeType]
     NODE_TYPE_MEMBERSHIP: _ClassVar[NodeType]
     NODE_TYPE_INVITE: _ClassVar[NodeType]
     NODE_TYPE_BRANCH: _ClassVar[NodeType]
@@ -202,9 +203,14 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_RUN_FRAME: _ClassVar[StructType]
     STRUCT_TYPE_RUN_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_RUN_EVENT: _ClassVar[StructType]
-    STRUCT_TYPE_CONTEXT: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT_OPTIONS: _ClassVar[StructType]
+    STRUCT_TYPE_AUDIO_OPTIONS: _ClassVar[StructType]
+    STRUCT_TYPE_IMAGE_OPTIONS: _ClassVar[StructType]
+    STRUCT_TYPE_VIDEO_OPTIONS: _ClassVar[StructType]
+    STRUCT_TYPE_CONTEXT_OPTIONS: _ClassVar[StructType]
     STRUCT_TYPE_CONTINUE: _ClassVar[StructType]
     STRUCT_TYPE_CALL: _ClassVar[StructType]
+    STRUCT_TYPE_CONTEXT: _ClassVar[StructType]
     STRUCT_TYPE_BREAKPOINT: _ClassVar[StructType]
     STRUCT_TYPE_LOG_INFO: _ClassVar[StructType]
     STRUCT_TYPE_COLOR: _ClassVar[StructType]
@@ -233,6 +239,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_CACHE: _ClassVar[ObjectType]
     OBJECT_TYPE_FILE: _ClassVar[ObjectType]
     OBJECT_TYPE_SECRET: _ClassVar[ObjectType]
+    OBJECT_TYPE_BROWSER: _ClassVar[ObjectType]
     OBJECT_TYPE_MEMBERSHIP: _ClassVar[ObjectType]
     OBJECT_TYPE_INVITE: _ClassVar[ObjectType]
     OBJECT_TYPE_BRANCH: _ClassVar[ObjectType]
@@ -305,9 +312,14 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_RUN_FRAME: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_SPAN: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_EVENT: _ClassVar[ObjectType]
-    OBJECT_TYPE_CONTEXT: _ClassVar[ObjectType]
+    OBJECT_TYPE_TEXT_OPTIONS: _ClassVar[ObjectType]
+    OBJECT_TYPE_AUDIO_OPTIONS: _ClassVar[ObjectType]
+    OBJECT_TYPE_IMAGE_OPTIONS: _ClassVar[ObjectType]
+    OBJECT_TYPE_VIDEO_OPTIONS: _ClassVar[ObjectType]
+    OBJECT_TYPE_CONTEXT_OPTIONS: _ClassVar[ObjectType]
     OBJECT_TYPE_CONTINUE: _ClassVar[ObjectType]
     OBJECT_TYPE_CALL: _ClassVar[ObjectType]
+    OBJECT_TYPE_CONTEXT: _ClassVar[ObjectType]
     OBJECT_TYPE_BREAKPOINT: _ClassVar[ObjectType]
     OBJECT_TYPE_LOG_INFO: _ClassVar[ObjectType]
     OBJECT_TYPE_COLOR: _ClassVar[ObjectType]
@@ -336,6 +348,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CACHE: _ClassVar[BenchType]
     BENCH_TYPE_FILE: _ClassVar[BenchType]
     BENCH_TYPE_SECRET: _ClassVar[BenchType]
+    BENCH_TYPE_BROWSER: _ClassVar[BenchType]
     BENCH_TYPE_MEMBERSHIP: _ClassVar[BenchType]
     BENCH_TYPE_INVITE: _ClassVar[BenchType]
     BENCH_TYPE_BRANCH: _ClassVar[BenchType]
@@ -408,9 +421,14 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_RUN_FRAME: _ClassVar[BenchType]
     BENCH_TYPE_RUN_SPAN: _ClassVar[BenchType]
     BENCH_TYPE_RUN_EVENT: _ClassVar[BenchType]
-    BENCH_TYPE_CONTEXT: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_AUDIO_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_IMAGE_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_VIDEO_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_CONTEXT_OPTIONS: _ClassVar[BenchType]
     BENCH_TYPE_CONTINUE: _ClassVar[BenchType]
     BENCH_TYPE_CALL: _ClassVar[BenchType]
+    BENCH_TYPE_CONTEXT: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT: _ClassVar[BenchType]
     BENCH_TYPE_LOG_INFO: _ClassVar[BenchType]
     BENCH_TYPE_COLOR: _ClassVar[BenchType]
@@ -1105,6 +1123,7 @@ class RunKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_KIND_ACTION: _ClassVar[RunKind]
     RUN_KIND_STEP: _ClassVar[RunKind]
     RUN_KIND_FLOW: _ClassVar[RunKind]
+    RUN_KIND_PIPE: _ClassVar[RunKind]
 
 class RunErrorKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1610,6 +1629,7 @@ NODE_TYPE_VAULT: NodeType
 NODE_TYPE_CACHE: NodeType
 NODE_TYPE_FILE: NodeType
 NODE_TYPE_SECRET: NodeType
+NODE_TYPE_BROWSER: NodeType
 NODE_TYPE_MEMBERSHIP: NodeType
 NODE_TYPE_INVITE: NodeType
 NODE_TYPE_BRANCH: NodeType
@@ -1683,9 +1703,14 @@ STRUCT_TYPE_RUN_TRACE: StructType
 STRUCT_TYPE_RUN_FRAME: StructType
 STRUCT_TYPE_RUN_SPAN: StructType
 STRUCT_TYPE_RUN_EVENT: StructType
-STRUCT_TYPE_CONTEXT: StructType
+STRUCT_TYPE_TEXT_OPTIONS: StructType
+STRUCT_TYPE_AUDIO_OPTIONS: StructType
+STRUCT_TYPE_IMAGE_OPTIONS: StructType
+STRUCT_TYPE_VIDEO_OPTIONS: StructType
+STRUCT_TYPE_CONTEXT_OPTIONS: StructType
 STRUCT_TYPE_CONTINUE: StructType
 STRUCT_TYPE_CALL: StructType
+STRUCT_TYPE_CONTEXT: StructType
 STRUCT_TYPE_BREAKPOINT: StructType
 STRUCT_TYPE_LOG_INFO: StructType
 STRUCT_TYPE_COLOR: StructType
@@ -1711,6 +1736,7 @@ OBJECT_TYPE_VAULT: ObjectType
 OBJECT_TYPE_CACHE: ObjectType
 OBJECT_TYPE_FILE: ObjectType
 OBJECT_TYPE_SECRET: ObjectType
+OBJECT_TYPE_BROWSER: ObjectType
 OBJECT_TYPE_MEMBERSHIP: ObjectType
 OBJECT_TYPE_INVITE: ObjectType
 OBJECT_TYPE_BRANCH: ObjectType
@@ -1783,9 +1809,14 @@ OBJECT_TYPE_RUN_TRACE: ObjectType
 OBJECT_TYPE_RUN_FRAME: ObjectType
 OBJECT_TYPE_RUN_SPAN: ObjectType
 OBJECT_TYPE_RUN_EVENT: ObjectType
-OBJECT_TYPE_CONTEXT: ObjectType
+OBJECT_TYPE_TEXT_OPTIONS: ObjectType
+OBJECT_TYPE_AUDIO_OPTIONS: ObjectType
+OBJECT_TYPE_IMAGE_OPTIONS: ObjectType
+OBJECT_TYPE_VIDEO_OPTIONS: ObjectType
+OBJECT_TYPE_CONTEXT_OPTIONS: ObjectType
 OBJECT_TYPE_CONTINUE: ObjectType
 OBJECT_TYPE_CALL: ObjectType
+OBJECT_TYPE_CONTEXT: ObjectType
 OBJECT_TYPE_BREAKPOINT: ObjectType
 OBJECT_TYPE_LOG_INFO: ObjectType
 OBJECT_TYPE_COLOR: ObjectType
@@ -1811,6 +1842,7 @@ BENCH_TYPE_VAULT: BenchType
 BENCH_TYPE_CACHE: BenchType
 BENCH_TYPE_FILE: BenchType
 BENCH_TYPE_SECRET: BenchType
+BENCH_TYPE_BROWSER: BenchType
 BENCH_TYPE_MEMBERSHIP: BenchType
 BENCH_TYPE_INVITE: BenchType
 BENCH_TYPE_BRANCH: BenchType
@@ -1883,9 +1915,14 @@ BENCH_TYPE_RUN_TRACE: BenchType
 BENCH_TYPE_RUN_FRAME: BenchType
 BENCH_TYPE_RUN_SPAN: BenchType
 BENCH_TYPE_RUN_EVENT: BenchType
-BENCH_TYPE_CONTEXT: BenchType
+BENCH_TYPE_TEXT_OPTIONS: BenchType
+BENCH_TYPE_AUDIO_OPTIONS: BenchType
+BENCH_TYPE_IMAGE_OPTIONS: BenchType
+BENCH_TYPE_VIDEO_OPTIONS: BenchType
+BENCH_TYPE_CONTEXT_OPTIONS: BenchType
 BENCH_TYPE_CONTINUE: BenchType
 BENCH_TYPE_CALL: BenchType
+BENCH_TYPE_CONTEXT: BenchType
 BENCH_TYPE_BREAKPOINT: BenchType
 BENCH_TYPE_LOG_INFO: BenchType
 BENCH_TYPE_COLOR: BenchType
@@ -2442,6 +2479,7 @@ RUN_KIND_CODE: RunKind
 RUN_KIND_ACTION: RunKind
 RUN_KIND_STEP: RunKind
 RUN_KIND_FLOW: RunKind
+RUN_KIND_PIPE: RunKind
 RUN_ERROR_KIND_UNSPECIFIED: RunErrorKind
 RUN_ERROR_KIND_INTERNAL: RunErrorKind
 RUN_ERROR_KIND_RUNTIME: RunErrorKind
@@ -3466,12 +3504,6 @@ class ContinueData(_message.Message):
         mapping: _Optional[_Union[CodeData, _Mapping]] = ...,
     ) -> None: ...
 
-class ContextData(_message.Message):
-    __slots__ = ("metatype",)
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
-
 class SelectOptionsData(_message.Message):
     __slots__ = (
         "metatype",
@@ -3966,6 +3998,36 @@ class SessionContextData(_message.Message):
         identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
     ) -> None: ...
 
+class TextOptionsData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
+class AudioOptionsData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
+class ImageOptionsData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
+class VideoOptionsData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
+class ContextOptionsData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
 class RunOptionsData(_message.Message):
     __slots__ = (
         "metatype",
@@ -3980,11 +4042,16 @@ class RunOptionsData(_message.Message):
         "retry_on",
         "suppress_fail",
         "suppress_abort",
+        "context_options",
         "breakpoints",
         "cache_mode",
         "cache_retention",
         "model_provider",
         "model_type",
+        "text_options",
+        "audio_options",
+        "image_options",
+        "video_options",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
@@ -3998,11 +4065,16 @@ class RunOptionsData(_message.Message):
     RETRY_ON_FIELD_NUMBER: _ClassVar[int]
     SUPPRESS_FAIL_FIELD_NUMBER: _ClassVar[int]
     SUPPRESS_ABORT_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     BREAKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CACHE_MODE_FIELD_NUMBER: _ClassVar[int]
     CACHE_RETENTION_FIELD_NUMBER: _ClassVar[int]
     MODEL_PROVIDER_FIELD_NUMBER: _ClassVar[int]
     MODEL_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    IMAGE_OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    VIDEO_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     max_attempts: int
     max_concurrency: int
@@ -4015,11 +4087,16 @@ class RunOptionsData(_message.Message):
     retry_on: _containers.RepeatedScalarFieldContainer[RunErrorType]
     suppress_fail: bool
     suppress_abort: bool
+    context_options: ContextOptionsData
     breakpoints: _containers.RepeatedCompositeFieldContainer[BreakpointData]
     cache_mode: CacheMode
     cache_retention: _duration_pb2.Duration
     model_provider: ModelProvider
     model_type: ModelType
+    text_options: TextOptionsData
+    audio_options: AudioOptionsData
+    image_options: ImageOptionsData
+    video_options: VideoOptionsData
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -4034,11 +4111,16 @@ class RunOptionsData(_message.Message):
         retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ...,
         suppress_fail: bool = ...,
         suppress_abort: bool = ...,
+        context_options: _Optional[_Union[ContextOptionsData, _Mapping]] = ...,
         breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ...,
         cache_mode: _Optional[_Union[CacheMode, str]] = ...,
         cache_retention: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         model_provider: _Optional[_Union[ModelProvider, str]] = ...,
         model_type: _Optional[_Union[ModelType, str]] = ...,
+        text_options: _Optional[_Union[TextOptionsData, _Mapping]] = ...,
+        audio_options: _Optional[_Union[AudioOptionsData, _Mapping]] = ...,
+        image_options: _Optional[_Union[ImageOptionsData, _Mapping]] = ...,
+        video_options: _Optional[_Union[VideoOptionsData, _Mapping]] = ...,
     ) -> None: ...
 
 class BreakpointData(_message.Message):
@@ -4215,6 +4297,12 @@ class RunErrorData(_message.Message):
         node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         trace: _Optional[_Union[RunTraceData, _Mapping]] = ...,
     ) -> None: ...
+
+class ContextData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class ObjectMappingData(_message.Message):
     __slots__ = ("metatype", "field_mappings")
@@ -6574,23 +6662,23 @@ class TextBlockData(_message.Message):
     def __init__(self, text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
 
 class ActionBlockData(_message.Message):
-    __slots__ = ("mode", "text", "code", "node_ptr", "run_options")
+    __slots__ = ("mode", "text", "code", "delegate_ptr", "run_options")
     MODE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELEGATE_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     mode: ActionMode
     text: TextData
     code: CodeData
-    node_ptr: NodeReferenceData
+    delegate_ptr: NodeReferenceData
     run_options: RunOptionsData
     def __init__(
         self,
         mode: _Optional[_Union[ActionMode, str]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
-        node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
     ) -> None: ...
 
@@ -6611,6 +6699,77 @@ class QueryBlockData(_message.Message):
     QUERY_PTR_FIELD_NUMBER: _ClassVar[int]
     query_ptr: NodeReferenceData
     def __init__(self, query_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
+class BrowserData(_message.Message):
+    __slots__ = (
+        "metatype",
+        "id",
+        "parent_ptr",
+        "bench_ptr",
+        "created_at",
+        "created_by_ptr",
+        "created_epoch",
+        "updated_at",
+        "updated_by_ptr",
+        "updated_epoch",
+        "deleted_at",
+        "subnode_packed",
+        "text",
+        "region",
+        "status",
+        "current_status",
+    )
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    REGION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    parent_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    created_epoch: int
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    updated_epoch: int
+    deleted_at: _timestamp_pb2.Timestamp
+    subnode_packed: _struct_pb2.Value
+    text: TextData
+    region: Region
+    status: ResourceStatus
+    current_status: ResourceStatus
+    def __init__(
+        self,
+        metatype: _Optional[_Union[ObjectType, str]] = ...,
+        id: _Optional[str] = ...,
+        parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        created_epoch: _Optional[int] = ...,
+        updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        updated_epoch: _Optional[int] = ...,
+        deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
+        subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
+        text: _Optional[_Union[TextData, _Mapping]] = ...,
+        region: _Optional[_Union[Region, str]] = ...,
+        status: _Optional[_Union[ResourceStatus, str]] = ...,
+        current_status: _Optional[_Union[ResourceStatus, str]] = ...,
+    ) -> None: ...
 
 class RecordData(_message.Message):
     __slots__ = (
@@ -6941,6 +7100,7 @@ class RunData(_message.Message):
         "block_ptr",
         "step_ptr",
         "pipe_ptr",
+        "context",
         "options",
         "status",
         "duration",
@@ -6988,6 +7148,7 @@ class RunData(_message.Message):
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     STEP_PTR_FIELD_NUMBER: _ClassVar[int]
     PIPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
@@ -7034,6 +7195,7 @@ class RunData(_message.Message):
     block_ptr: NodeReferenceData
     step_ptr: NodeReferenceData
     pipe_ptr: NodeReferenceData
+    context: ContextData
     options: RunOptionsData
     status: RunStatus
     duration: _duration_pb2.Duration
@@ -7082,6 +7244,7 @@ class RunData(_message.Message):
         block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         step_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         pipe_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        context: _Optional[_Union[ContextData, _Mapping]] = ...,
         options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
         status: _Optional[_Union[RunStatus, str]] = ...,
         duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
@@ -7353,23 +7516,23 @@ class StepData(_message.Message):
     ) -> None: ...
 
 class ActionStepData(_message.Message):
-    __slots__ = ("mode", "text", "code", "node_ptr", "run_options")
+    __slots__ = ("mode", "text", "code", "delegate_ptr", "run_options")
     MODE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELEGATE_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     mode: ActionMode
     text: TextData
     code: CodeData
-    node_ptr: NodeReferenceData
+    delegate_ptr: NodeReferenceData
     run_options: RunOptionsData
     def __init__(
         self,
         mode: _Optional[_Union[ActionMode, str]] = ...,
         text: _Optional[_Union[TextData, _Mapping]] = ...,
         code: _Optional[_Union[CodeData, _Mapping]] = ...,
-        node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ...,
     ) -> None: ...
 
@@ -8329,6 +8492,7 @@ class SomeNodeData(_message.Message):
         "cache",
         "file",
         "secret",
+        "browser",
         "membership",
         "invite",
         "branch",
@@ -8365,6 +8529,7 @@ class SomeNodeData(_message.Message):
     CACHE_FIELD_NUMBER: _ClassVar[int]
     FILE_FIELD_NUMBER: _ClassVar[int]
     SECRET_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_FIELD_NUMBER: _ClassVar[int]
     MEMBERSHIP_FIELD_NUMBER: _ClassVar[int]
     INVITE_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
@@ -8400,6 +8565,7 @@ class SomeNodeData(_message.Message):
     cache: CacheData
     file: FileData
     secret: SecretData
+    browser: BrowserData
     membership: MembershipData
     invite: InviteData
     branch: BranchData
@@ -8437,6 +8603,7 @@ class SomeNodeData(_message.Message):
         cache: _Optional[_Union[CacheData, _Mapping]] = ...,
         file: _Optional[_Union[FileData, _Mapping]] = ...,
         secret: _Optional[_Union[SecretData, _Mapping]] = ...,
+        browser: _Optional[_Union[BrowserData, _Mapping]] = ...,
         membership: _Optional[_Union[MembershipData, _Mapping]] = ...,
         invite: _Optional[_Union[InviteData, _Mapping]] = ...,
         branch: _Optional[_Union[BranchData, _Mapping]] = ...,
