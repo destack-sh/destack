@@ -21,7 +21,7 @@ from bench.language.query import Query
 from bench.language.render import RenderOptions, render_expr, render_stmt
 from bench.language.run import ModelProvider, ModelType, Run, RunKind, RunOptions
 from bench.language.text import Text
-from bench.language.value import CustomObject, OutputObject
+from bench.language.value import CustomObject, OutputObject, sample_value
 from bench.runtime.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, ModelFailedError, RunImpossibleError
 from bench.runtime.runner import Context, Runner, runner_from_node
@@ -325,7 +325,77 @@ class PromptType(PromptCompound):
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
         code = render_expr(self.type, options=context.render_options)
-        return [PromptText(title=self.title, text=code)]
+        sample_object = sample_value(self.type)
+        assert isinstance(sample_object, CustomObject), f"bad sample object {sample_object!r}"
+        return [
+            PromptText(title=self.title, text=code),
+            PromptObject(title="Example of type", weight=1, object=sample_object),
+        ]
+
+
+# common base prompts
+# NOTE :Robustness!: tune prompting
+# (right now we just naively use the same text prompts for all models)
+PROMPT_BY_TASK_TYPE: dict[TaskType, Sequence[PromptPart]] = {
+    TaskType.ADAPT: (
+        PromptText(
+            title="Your Task: Adapt",
+            text="""\
+Adapt the implementation around the current node to the desired behaviour given the context.
+Usually that just means looking at the current node, but sometimes other nodes too.
+If the implementation already looks good, just respond with `pass`.
+Manipulate nodes via the ORM by just adding/removing Nodes and updating their properties.
+""",
+        ),
+        PromptText(
+            title="Example: Add simple implementation",
+            text="""\
+# context
+Action1 = Block.new(
+    BlockType.ACTION, 
+    "Do Math", 
+    text=md("Add 1"), 
+    fields=(Field.input("x", int), Field.output("y", int)),
+)
+# output: update the implementation
+Action1.code = code("return {'y': x + 1}")
+""",
+        ),
+        PromptText(
+            title="Example: Keep implementation",
+            text="""\
+# context
+Action1 = Block.new(
+    BlockType.ACTION,
+    "Concatene",
+    code=code("return {'Result': A + B}"),
+    fields=(Field.input("A", str), Field.input("B", str), Field.output("Result", str)),
+)
+# output: accept
+pass
+""",
+        ),
+        PromptText(
+            title="Example: Unclear requirements",
+            text="""\
+# context
+Action1 = Block.new(
+    BlockType.ACTION,
+    "Action1",
+    text=md("Raise the Shakra"),
+    fields=(Field.output("Number", int),),
+)
+# output: raise
+raise ModelIncapableError("Unclear requirements for Action1")
+""",
+        ),
+    ),
+}
+SYSTEM_PROMPT = """\
+You are a programming assistant on an agent development platform called Bench. 
+You will be given context and a specific task with access to the Bench Python ORM.
+You must always respond directly with valid inline Python code (escaping as needed).
+"""
 
 
 class Prompt:
@@ -335,6 +405,12 @@ class Prompt:
         self.task = task
         self.scope = scope
         self.items = items
+
+    def __str__(self) -> str:
+        return f"task={self.task.name}, scope={self.scope!r}, items={len(self.items)}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self!s}>"
 
     def prepend(self, item: PromptPart) -> None:
         self.items.insert(0, item)
@@ -354,22 +430,30 @@ class Prompt:
         output_type: TypeBase | None,
     ) -> "Prompt":
         """Build a Prompt from the given context."""
-        items = []
-
         # context
-        for ancestor in runner.ancestors:
+        context_items: list[PromptPart] = []
+        for ancestor in reversed(tuple(runner.ancestors)):
             if ancestor.run is not None:
-                items.append(PromptRun(title="Parent run", weight=500, node=ancestor.run))
-        items.append(PromptSource(title="Current node", weight=1000, node=runner.node))
-        # NOTE :Incomplete: further Context to Prompt?
+                context_items.append(PromptRun(title="Parent run", weight=1, node=ancestor.run))
+        context_items.append(PromptSource(title="Current node", weight=10, node=runner.node))
+        # NOTE :Incomplete: more general Context to Prompt?
 
         # core
+        task_items: list[PromptPart] = list(PROMPT_BY_TASK_TYPE.get(task, ()))
+        assert task_items, f"no task parts for {task!r}"
         if inputs is not None:
-            items.append(PromptObject(title="Inputs", weight=1000, object=inputs))
+            task_items.append(PromptObject(title="Inputs", weight=10, object=inputs))
         if output_type is not None:
-            items.append(PromptType(title="Output type", weight=1000, type=output_type))
+            task_items.append(PromptType(title="Output type", weight=10, type=output_type))
 
-        return Prompt(task=task, scope=runner.node, items=items)
+        return Prompt(
+            task=task,
+            scope=runner.node,
+            items=[
+                PromptRegion(title="Context", weight=1, content=context_items),
+                PromptRegion(title="Task", weight=1, content=task_items),
+            ],
+        )
 
 
 @dataclass
@@ -391,20 +475,6 @@ class PromptCompiler[I, R](ABC):
     async def assemble(self, parts: list[I]) -> list[R]:
         """Assemble basic Prompt parts into some result."""
         ...
-
-
-# common base prompts
-# (right now we just naively use the same text prompts for all models)
-CHAT_PROMPT_BY_TASK_TYPE: dict[TaskType, Sequence[PromptPart]] = {
-    TaskType.ADAPT: (
-        PromptText(title="Adapt", text="Adapt the code to the given inputs and output type."),
-    ),
-    TaskType.RUN: (PromptText(title="Run", text="Run the code with the given inputs."),),
-}
-CHAT_SYSTEM_PROMPT = """\
-You are a programming assistant on an agent development platform called Bench. 
-You will be given context and a specific task with access to the Bench Python ORM.
-You must always respond directly with valid inline Python code (with proper escaping)."""
 
 
 class ChatPromptCompiler[R](PromptCompiler[PromptElement, R]):
@@ -487,6 +557,8 @@ class OpenaiChatCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMess
                     content.append({"type": "text", "text": self.SEPARATOR})
             elif isinstance(part, PromptText):
                 text = part.text.to_string() if not isinstance(part.text, str) else part.text
+                if part.title:
+                    text = f"# {part.title}\n{text}"
                 content.append({"type": "text", "text": text})
             elif isinstance(part, PromptFile):
                 raise NotImplementedError
@@ -510,7 +582,7 @@ async def _generate_code_openai(
     rendered_prompt_parts = await compiler.compile(prompt=prompt, budget=10_000)
     rendered_prompt = await compiler.assemble(rendered_prompt_parts)
     messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-        {"role": "system", "content": CHAT_SYSTEM_PROMPT},
+        {"role": "system", "content": SYSTEM_PROMPT},
         *rendered_prompt,
     ]
 
