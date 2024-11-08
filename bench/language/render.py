@@ -51,7 +51,7 @@ class RenderOptions:
     # types to 'fold in' directly as children of nodes (even if not referenced) :FoldedNodes
     folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
     node_filter: Collection[UUID] | None = None
-    stmt_separator: str = "\n"
+    statement_separator: str = "\n"
     simplify_paths: bool = True
     format: bool = True
     format_line_length: int = 100
@@ -369,7 +369,7 @@ class Renderer:
                 rendered_objs.append(
                     f"{parent_alias}.{parent_child_prop.name}.append({node_alias})"
                 )
-        rendered = self._options.stmt_separator.join(rendered_objs)
+        rendered = self._options.statement_separator.join(rendered_objs)
         return rendered
 
 

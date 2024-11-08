@@ -86,8 +86,8 @@ def test_project_custom_objects(shared_session: Session, shared_package: Package
     assert Text1 in projection  # via CustomObject2.Variable1.Text1
 
 
-def test_project_missing_nodes(shared_session: Session, shared_package: Package):
-    """'Missing' nodes that aren't loaded in the graph should also be projected."""
+def test_project_remote_nodes(shared_session: Session, shared_package: Package):
+    """'Remote' nodes that aren't loaded in the graph should also be projected."""
     Class1 = Block.new(BlockType.CLASS, "Class1", fields=[Field.member("File", File)])
     File1 = File(
         parent=shared_package.bench.main_drive,
@@ -135,6 +135,6 @@ def test_project_missing_nodes(shared_session: Session, shared_package: Package)
     projection = project(Variable1, Variable2, Text3, options=ProjectOptions())
     assert Variable1 in projection
     assert Variable2 in projection
-    assert projection.has_missing(File1)
-    assert projection.has_missing(File2)
-    assert projection.has_missing(File3)
+    assert projection.has_remote(File1)
+    assert projection.has_remote(File2)
+    assert projection.has_remote(File3)
