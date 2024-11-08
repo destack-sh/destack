@@ -68,6 +68,13 @@ class Call(Struct):
     inputs: Any = p_value_runtime(
         31, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).input_type
     )
+    mapping: Optional["Code"] = p_regular(
+        50,
+        require=False,
+        array=False,
+        struct=StructType.CODE,
+        description="Mapping for outputs from called node into new node.",
+    )
 
     @property
     def input_type(self) -> Optional["TypeBase"]:

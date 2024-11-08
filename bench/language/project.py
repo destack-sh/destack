@@ -38,7 +38,7 @@ class Projection:
     def __init__(self, options: ProjectOptions):
         self._options: ProjectOptions = options
         self._nodes_by_id: dict[UUID, Node] = {}
-        self._missing_nodes_by_id: dict[UUID, SomeNodeReference] = {}
+        self._remote_nodes_by_id: dict[UUID, SomeNodeReference] = {}
         self._depth_by_node_id: dict[UUID, int] = {}
         self._nodes_by_depth: dict[int, list[Node]] = {}
         self._nodes_to_collect: list[Node] = []
@@ -47,7 +47,7 @@ class Projection:
         str_parts = [
             f"nodes={len(self._nodes_by_id)}",
             f"depths={'|'.join([f'{d}:{len(n)}' for d, n in self._nodes_by_depth.items()] or ['<empty>'])}",
-            f"missing={len(self._missing_nodes_by_id)}",
+            f"missing={len(self._remote_nodes_by_id)}",
         ]
         return ", ".join(str_parts)
 
@@ -62,8 +62,8 @@ class Projection:
 
     has = __contains__
 
-    def has_missing(self, node: Node | SomeNodeReference) -> bool:
-        return node.id in self._missing_nodes_by_id
+    def has_remote(self, node: Node | SomeNodeReference) -> bool:
+        return node.id in self._remote_nodes_by_id
 
     def _visit_node(self, node: Node) -> bool:
         """Adds a node to the result set."""
@@ -74,11 +74,11 @@ class Projection:
         else:
             return False
 
-    def _visit_missing_node(self, node: SomeNodeReference) -> bool:
-        """Adds a node reference to the missing set."""
+    def _visit_node_ref(self, node: SomeNodeReference) -> bool:
+        """Adds a node reference to the remote set."""
         assert node.id is not None, f"missing id for {node!r}"
-        if node.id not in self._missing_nodes_by_id and node.node_type in self._options.node_types:
-            self._missing_nodes_by_id[node.id] = node
+        if node.id not in self._remote_nodes_by_id and node.node_type in self._options.node_types:
+            self._remote_nodes_by_id[node.id] = node
             return True
         else:
             return False
@@ -127,13 +127,13 @@ class Projection:
                     if prop_value is not None:
                         self._visit_node(cast(Node, prop_value))
                     else:
-                        self._visit_missing_node(wired_ptr)
+                        self._visit_node_ref(wired_ptr)
             else:
                 prop_value = obj._supergraph.get(wired_prop_value)
                 if prop_value is not None:
                     self._visit_node(cast(Node, prop_value))
                 else:
-                    self._visit_missing_node(wired_prop_value)
+                    self._visit_node_ref(wired_prop_value)
 
         # visit inner structs
         for prop in cls.__struct_properties__.values():
@@ -180,13 +180,13 @@ class Projection:
                     if field_value is not None:
                         self._visit_node(cast(Node, field_value))
                     else:
-                        self._visit_missing_node(wired_ptr)
+                        self._visit_node_ref(wired_ptr)
             else:
                 field_value = typ._supergraph.get(cast(SomeNodeReference, value))
                 if field_value is not None:
                     self._visit_node(cast(Node, field_value))
                 else:
-                    self._visit_missing_node(cast(SomeNodeReference, value))
+                    self._visit_node_ref(cast(SomeNodeReference, value))
 
     def _do_project(self, depth: int, max_depth: int):
         """Projects the current nodes to the given depth (or until we run out)."""
@@ -253,14 +253,14 @@ class Projection:
         """Gets the pages containing the collected source nodes."""
         return find_containing_pages(*self._nodes_by_id.values())
 
-    def get_missing_nodes(self) -> list[SomeNodeReference]:
+    def get_remote_nodes(self) -> list[SomeNodeReference]:
         """Gets the nodes that were referenced but not found."""
-        return list(self._missing_nodes_by_id.values())
+        return list(self._remote_nodes_by_id.values())
 
     def get_nodes_like[T: Node | SomeNodeReference](self, *node_classes: type[T]) -> list[T]:
         """Gets the nodes of the given type (including missing nodes)."""
         nodes = [n for n in self._nodes_by_id.values() if isinstance(n, node_classes)] + [
-            n for n in self._missing_nodes_by_id.values() if isinstance(n, node_classes)
+            n for n in self._remote_nodes_by_id.values() if isinstance(n, node_classes)
         ]
         return nodes
 

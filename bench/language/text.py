@@ -206,6 +206,8 @@ class Text(Struct):
     def to_markdown(self):
         return text_to_markdown(self)
 
+    to_string = to_markdown
+
     def __len__(self):
         return sum(len(line) for line in self.lines)
 

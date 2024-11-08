@@ -161,6 +161,13 @@ class Runner:
     def current_attempt(self) -> RunAttempt | None:
         return self.attempts[-1] if self.attempts else None
 
+    @property
+    def ancestors(self):
+        parent = self
+        while parent is not None:
+            yield parent
+            parent = parent.parent
+
     @abc.abstractmethod
     async def run_once(self) -> None:
         """Runs the runnable once."""

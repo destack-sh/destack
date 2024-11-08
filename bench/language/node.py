@@ -218,7 +218,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             or inspect.ismethod(prop)
             or inspect.isfunction(prop)
             or isinstance(prop, (property, classmethod, staticmethod))
-            or type(prop) == functools.cached_property
+            or type(prop) is functools.cached_property
         ):
             continue  # ignore reserved names and non-fields
         if not isinstance(prop, Property):
