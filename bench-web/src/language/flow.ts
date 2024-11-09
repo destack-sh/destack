@@ -167,10 +167,10 @@ export class PipeState {
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, PortSide.INCOMING);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
       const margin = { x: FLOW_GRID_STEP, y: 0 };
-      let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition, margin);
+      let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition, { margin });
       if (path == null) {
         // fallback to direct path
-        path = this.flow.computePath("direct", sourcePortPosition, targetPortPosition, margin)!;
+        path = this.flow.computePath("direct", sourcePortPosition, targetPortPosition, { margin })!;
       }
       return path;
     });
@@ -635,7 +635,7 @@ export class FlowContext {
         if (
           targetPort != null &&
           !portEquals(sourcePort, targetPort) &&
-          (SINK_STEP_TYPES.includes(sourcePort.parent.type) || SOURCE_STEP_TYPES.includes(targetPort?.parent.type))
+          !(SINK_STEP_TYPES.includes(sourcePort.parent.type) || SOURCE_STEP_TYPES.includes(targetPort?.parent.type))
         ) {
           // connect it up
           log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
@@ -722,9 +722,8 @@ export class FlowContext {
     pathType: "direct" | "manhattan",
     source: Vector2,
     target: Vector2,
-    margin: { x: number; y: number },
+    options: { margin: { x: number; y: number }; sourceIsFree?: boolean; targetIsFree?: boolean },
   ): PipePath | null {
-    // swap it so that source is always outgoing
     if (pathType == "direct") {
       // direct path
       const path: PipePath = {
@@ -744,10 +743,10 @@ export class FlowContext {
       function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
         for (const box of stepBoundingBoxes) {
           if (
-            vec.x >= box.x1 - margin.x &&
-            vec.x <= box.x2 + margin.x &&
-            vec.y >= box.y1 - margin.y &&
-            vec.y <= box.y2 + margin.y
+            vec.x >= box.x1 - options.margin.x &&
+            vec.x <= box.x2 + options.margin.x &&
+            vec.y >= box.y1 - options.margin.y &&
+            vec.y <= box.y2 + options.margin.y
           ) {
             return box;
           }
@@ -759,8 +758,8 @@ export class FlowContext {
       source = snapVec(source);
       target = snapVec(target);
       const innerPoints = pathfind(
-        { x: source.x, y: source.y + FLOW_GRID_STEP },
-        { x: target.x, y: target.y - FLOW_GRID_STEP },
+        { x: source.x, y: source.y + (options.sourceIsFree ? 0 : FLOW_GRID_STEP) },
+        { x: target.x, y: target.y - (options.targetIsFree ? 0 : FLOW_GRID_STEP) },
         { step: FLOW_GRID_STEP, maxIterations: 1000, hit: hitStep },
       );
       if (innerPoints == null) return null; // no path found
