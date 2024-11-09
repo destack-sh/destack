@@ -1,4 +1,4 @@
-import { INCOMING_STEP_TYPES, INVISIBLE_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
+import { SOURCE_STEP_TYPES, INVISIBLE_STEP_TYPES, SINK_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
 import { estimateTextHeight } from "@/language/text";
@@ -293,8 +293,12 @@ export class FlowContext {
     return this.dragging.value?.thing.kind == "step-port";
   }
 
-  isDraggingPortAt(step: StepData): boolean {
-    return this.dragging.value?.thing.kind == "step-port" && this.dragging.value?.thing.step.id == step.id;
+  isDraggingPortAt(step: StepData, side?: PortSide): boolean {
+    return (
+      this.dragging.value?.thing.kind == "step-port" &&
+      this.dragging.value?.thing.step.id == step.id &&
+      (!side || this.dragging.value?.thing.side == side)
+    );
   }
 
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
@@ -627,9 +631,14 @@ export class FlowContext {
         } else if (at.kind == "step") {
           targetPort = { parent: at.step, side: getOtherSide(sourcePort.side) };
         }
-        if (targetPort != null && !portEquals(sourcePort, targetPort)) {
+
+        if (
+          targetPort != null &&
+          !portEquals(sourcePort, targetPort) &&
+          (SINK_STEP_TYPES.includes(sourcePort.parent.type) || SOURCE_STEP_TYPES.includes(targetPort?.parent.type))
+        ) {
+          // connect it up
           log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
-          // if both ports are field ports, make it a data pipe by default
           const pipe = createPipe(this.tx, this.graph, {
             parent: this.flow.value,
             pipe: { type: PipeType.PASS },
@@ -639,6 +648,8 @@ export class FlowContext {
           if (this.view.value != null) {
             canvas.inspect({ node: pipe, view: this.view.value });
           }
+        } else {
+          // nothing to do
         }
       }
     } catch (e) {
@@ -850,8 +861,8 @@ export function getOtherSide(side: PortSide): PortSide {
 export function getStepSides(step: StepData): PortSide[] {
   if (step.type == StepType.TEXT) return []; // no ports
   const sides: PortSide[] = [];
-  if (!INCOMING_STEP_TYPES.includes(step.type)) sides.push(PortSide.INCOMING);
-  if (!OUTGOING_STEP_TYPES.includes(step.type)) sides.push(PortSide.OUTGOING);
+  if (!SOURCE_STEP_TYPES.includes(step.type)) sides.push(PortSide.INCOMING);
+  if (!SINK_STEP_TYPES.includes(step.type)) sides.push(PortSide.OUTGOING);
   return sides;
 }
 
