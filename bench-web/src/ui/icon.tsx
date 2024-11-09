@@ -284,6 +284,7 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   // control
   // ...
   // containers
+  [StepType.GROUP]: "fas fa-frame",
   [StepType.LOOP]: "fas fa-repeat",
   // misc
   [StepType.TEXT]: "fas fa-align-left",

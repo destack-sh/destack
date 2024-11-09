@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar, Mapping, Sequence, assert_never, cast, override
@@ -29,7 +30,7 @@ from bench.utils.func import IdEnum
 from bench.utils.utils import get_from_env
 
 Action = ActionStep | ActionBlock
-PASS_CODE = code("pass")
+CODE_PASS = code("pass")
 
 
 class TaskType(IdEnum):
@@ -59,12 +60,14 @@ class ActionRunner(Runner):
                 inputs=self.inputs,
                 output_type=self.output_type,
             )
-        elif action.mode == ActionMode.ADAPTIVE:
+            return
+
+        if action.mode == ActionMode.ADAPTIVE:
             # adapt (if needed) & run implementation
             update_code = await self._generate_code(
                 task=TaskType.ADAPT, inputs=None, output_type=None
             )
-            if update_code != PASS_CODE:
+            if update_code != CODE_PASS:
                 await self._run_code(code=update_code, node=action, inputs=None, output_type=None)
             self.outputs = await self._run_implementation(
                 code=action.code,
@@ -77,12 +80,12 @@ class ActionRunner(Runner):
             implementation_code = await self._generate_code(
                 task=TaskType.RUN, inputs=self.inputs, output_type=self.output_type
             )
-            if implementation_code != PASS_CODE:
+            if implementation_code != CODE_PASS:
                 self.outputs = await self._run_implementation(
                     code=implementation_code,
                     delegate=action.delegate,
                     inputs=self.inputs,
-                    output_type=None,
+                    output_type=self.output_type,
                 )
         else:
             assert_never(action.mode)
@@ -95,6 +98,7 @@ class ActionRunner(Runner):
     ) -> Code:
         """Generate Code that does something and outputs an object of the given type."""
 
+        # nocheckin: caching
         model = ModelType.OPENAI_GPT4_0
         prompt = Prompt.from_context(
             task=task, runner=self, context=self.context, inputs=inputs, output_type=output_type
@@ -204,27 +208,31 @@ class PromptPart:
 
 
 @dataclass
-class PromptBreak(PromptPart):
+class PromptElement(PromptPart, ABC):
+    """A basic Prompt element that can be rendered directly."""
+
+    pass
+
+
+@dataclass
+class PromptBreak(PromptElement):
     """A semantic break in the prompt."""
 
     pass
 
 
 @dataclass
-class PromptText(PromptPart):
+class PromptText(PromptElement):
     """Arbitrary text in the prompt."""
 
     text: str | Text | Code
 
 
 @dataclass
-class PromptFile(PromptPart):
+class PromptFile(PromptElement):
     """Some file in the prompt."""
 
     file: FileBase
-
-
-PromptElement = PromptBreak | PromptText | PromptFile
 
 
 @dataclass
@@ -333,71 +341,6 @@ class PromptType(PromptCompound):
         ]
 
 
-# common base prompts
-# NOTE :Robustness!: tune prompting
-# (right now we just naively use the same text prompts for all models)
-PROMPT_BY_TASK_TYPE: dict[TaskType, Sequence[PromptPart]] = {
-    TaskType.ADAPT: (
-        PromptText(
-            title="Your Task: Adapt",
-            text="""\
-Adapt the implementation around the current node to the desired behaviour given the context.
-Usually that just means looking at the current node, but sometimes other nodes too.
-If the implementation already looks good, just respond with `pass`.
-Manipulate nodes via the ORM by just adding/removing Nodes and updating their properties.
-""",
-        ),
-        PromptText(
-            title="Example: Add simple implementation",
-            text="""\
-# context
-Action1 = Block.new(
-    BlockType.ACTION, 
-    "Do Math", 
-    text=md("Add 1"), 
-    fields=(Field.input("x", int), Field.output("y", int)),
-)
-# output: update the implementation
-Action1.code = code("return {'y': x + 1}")
-""",
-        ),
-        PromptText(
-            title="Example: Keep implementation",
-            text="""\
-# context
-Action1 = Block.new(
-    BlockType.ACTION,
-    "Concatene",
-    code=code("return {'Result': A + B}"),
-    fields=(Field.input("A", str), Field.input("B", str), Field.output("Result", str)),
-)
-# output: accept
-pass
-""",
-        ),
-        PromptText(
-            title="Example: Unclear requirements",
-            text="""\
-# context
-Action1 = Block.new(
-    BlockType.ACTION,
-    "Action1",
-    text=md("Raise the Shakra"),
-    fields=(Field.output("Number", int),),
-)
-# output: raise
-raise ModelIncapableError("Unclear requirements for Action1")
-""",
-        ),
-    ),
-}
-SYSTEM_PROMPT = """\
-You are a programming assistant on an agent development platform called Bench. 
-You will be given context and a specific task with access to the Bench Python ORM.
-You must always respond directly with valid inline Python code (escaping as needed).
-"""
-
-
 class Prompt:
     """A prompt for an LLM-like model."""
 
@@ -439,8 +382,7 @@ class Prompt:
         # NOTE :Incomplete: more general Context to Prompt?
 
         # core
-        task_items: list[PromptPart] = list(PROMPT_BY_TASK_TYPE.get(task, ()))
-        assert task_items, f"no task parts for {task!r}"
+        task_items: list[PromptPart] = []
         if inputs is not None:
             task_items.append(PromptObject(title="Inputs", weight=10, object=inputs))
         if output_type is not None:
@@ -523,6 +465,121 @@ def _strip_code_completion(completion: str) -> str:
 
 
 #
+# Prompting
+# NOTE :Robustness!: tune prompting
+# (right now we just naively use the same text prompts for all models)
+#
+
+
+def get_system_prompt(task: TaskType, node: Node) -> str:
+    today = datetime.datetime.now(tz=datetime.UTC).date()
+    base_text = f"""\
+You are a programming assistant on an agent development platform called Bench. 
+You will be given context and a specific task in the Bench Python ORM.
+You must always respond directly with valid inline Python code (escaping as needed).
+
+Today: {today.strftime('%d %B, %Y')}.
+"""
+
+    if task == TaskType.ADAPT:
+        task_text = """\
+Task: ADAPT (mode=ActionMode.ADAPTIVE)
+
+Adapt the implementation around the current node to the desired behaviour given the context.
+Usually that just means looking at the current node, but sometimes other nodes too.
+If the implementation already looks good, just respond with `pass`.
+Manipulate nodes via the ORM by updating their properties directly or even adding/removing nodes.
+
+If the implementation should differ per input (e.g., requires AI), set the type to DYNAMIC.
+        """
+    elif task == TaskType.RUN:
+        task_text = """\
+Task: RUN (mode=ActionMode.DYNAMIC)
+
+Generate the output for the specific given inputs (do not attempt to generalize).
+You may perform any intermediate computations as needed in Python.
+"""
+    else:
+        assert_never(task)
+
+    return f"{base_text}{task_text}"
+
+
+GENERAL_EXAMPLES = (
+    PromptText(
+        title="Example: Add simple static implementation",
+        text="""\
+# context
+Action1 = Block.new(
+    BlockType.ACTION, 
+    "Do Math", 
+    mode=ActionMode.ADAPTIVE,
+    text=md("Add 1"), 
+    fields=(Field.input("x", int), Field.output("y", int)),
+)
+# output: update the implementation
+Action1.code = code("return {'y': x + 1}")
+""",
+    ),
+    PromptText(
+        title="Example: Keep static implementation",
+        text="""\
+# context
+Action1 = Block.new(
+    BlockType.ACTION,
+    "Concatene",
+    mode=ActionMode.ADAPTIVE,
+    code=code("return {'Result': A + B}"),
+    fields=(Field.input("A", str), Field.input("B", str), Field.output("Result", str)),
+)
+# output: accept current implementation
+pass
+""",
+    ),
+    PromptText(
+        title="Example: Unclear requirements",
+        text="""\
+# context
+Action1 = Block.new(
+    BlockType.ACTION,
+    "Action1",
+    mode=ActionMode.ADAPTIVE,
+    text=md("Raise the Shakra"),
+    fields=(Field.output("Number", int),),
+)
+# output: raise
+raise ModelIncapableError("Unclear requirements for Action1")
+""",
+    ),
+    PromptText(
+        title="Example: Change to dynamic implementation",
+        text="""\
+# context
+Action1 = Block.new(
+    BlockType.ACTION,
+    "Action1",
+    mode=ActionMode.ADAPTIVE,
+    text=md("Summarize the text"),
+    fields=(Field.input("Text", str), Field.output("Summary", str)),
+    code=code("return {'Summary': Text[:10] + '...'}"),
+)
+# output: mark as dynamic (ignoring previous implementation)
+Action1.mode = ActionMode.DYNAMIC
+""",
+    ),
+)
+
+
+def get_task_prompt(task: TaskType, scope: Node) -> list[PromptPart]:
+    if task == TaskType.ADAPT or task == TaskType.RUN:
+        ...
+    else:
+        assert_never(task)
+
+    return [base_prompt, *GENERAL_EXAMPLES]
+
+
+#
 # OpenAI
 #
 
@@ -563,7 +620,7 @@ class OpenaiChatCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMess
             elif isinstance(part, PromptFile):
                 raise NotImplementedError
             else:
-                assert_never(part)
+                raise RuntimeError(f"unexpected part {part!r}")
         return [{"role": "user", "content": content}]
 
 
@@ -574,7 +631,7 @@ async def _generate_code_openai(
     options: RunOptions,
 ) -> str:
     """Generate code for the given output type using an OpenAI model."""
-    model_type = options.model_type or ModelType.OPENAI_GPT4_0
+    model_type = options.model_type or ModelType.OPENAI_GPT4_O_MINI
     model_id = OPENAI_MODEL_BY_TYPE[model_type]
 
     # render messages
@@ -582,7 +639,7 @@ async def _generate_code_openai(
     rendered_prompt_parts = await compiler.compile(prompt=prompt, budget=10_000)
     rendered_prompt = await compiler.assemble(rendered_prompt_parts)
     messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": get_system_prompt(task=prompt.task, node=prompt.scope)},
         *rendered_prompt,
     ]
 
