@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { SINK_STEP_TYPES, SOURCE_STEP_TYPES, toCamelName } from "@/language/const";
 import {
   createStep,
   FLOW_CANVAS_DOT_SIZE,
@@ -87,18 +87,29 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath = computed(() => {
   if (flowCtx.draggable?.kind != "step-port") return null;
   // preview path between current dragged port and step (or point in canvas if nothing)
-  let sourcePos = flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.side)!;
-  const cursorStep = flowCtx.getStepAt(flowCtx.cursorWorldPos.value);
+  let sourceStep: StepData | null = flowCtx.draggable.step;
+  let sourcePos = flowCtx.getPortPosition(sourceStep, flowCtx.draggable.side)!;
+  let targetStep: StepData | null = flowCtx.getStepAt(flowCtx.cursorWorldPos.value);
   let targetPos: Vector2;
-  if (cursorStep != null) {
+  if (targetStep != null) {
     targetPos =
-      flowCtx.getPortPosition(cursorStep, getOtherSide(flowCtx.draggable.side)) ?? flowCtx.cursorWorldPos.value;
+      flowCtx.getPortPosition(targetStep, getOtherSide(flowCtx.draggable.side)) ?? flowCtx.cursorWorldPos.value;
   } else {
     targetPos = flowCtx.cursorWorldPos.value;
   }
   if (flowCtx.draggable.side == PortSide.INCOMING) {
     [sourcePos, targetPos] = [targetPos, sourcePos];
+    [sourceStep, targetStep] = [targetStep, sourceStep];
   }
+
+  // reject if source is sink or target is source
+  if (
+    (sourceStep != null && SINK_STEP_TYPES.includes(sourceStep.type)) ||
+    (targetStep != null && SOURCE_STEP_TYPES.includes(targetStep?.type))
+  ) {
+    return null;
+  }
+
   const margin = { x: FLOW_GRID_STEP, y: 0 };
   let path = flowCtx.computePath("manhattan", sourcePos, targetPos, margin);
   if (path == null) {

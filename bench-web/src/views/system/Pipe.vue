@@ -54,7 +54,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     >
       <defs>
         <marker
-          id="arrowhead-main"
+          :id="'arrowhead-main-' + pipe.id"
           markerWidth="10"
           markerHeight="7"
           refX="9"
@@ -72,7 +72,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        marker-end="url(#arrowhead-main)"
+        :marker-end="'url(#arrowhead-main-' + pipe.id + ')'"
         class="transition-colors duration-150"
         :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathSvg"

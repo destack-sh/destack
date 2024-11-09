@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
-import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
+import { SOURCE_STEP_TYPES, SINK_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
 import {
   FLOW_GRID_STEP,
@@ -154,9 +154,10 @@ defineExpose<ViewExposed>({ self, id, actions });
       ]"
     >
       <button
-        class="relative cursor-crosshair rounded-2xl border bg-white outline-none transition-colors duration-150 hover:bg-gray-100"
+        class="relative cursor-crosshair rounded-2xl border outline-none transition-colors duration-150"
         :class="[
           flowCtx.isDraggingPort || isInspected || isHighlighted ? '' : 'opacity-0 group-hover/step:opacity-100',
+          flowCtx.isDraggingPortAt(step, side) ? 'bg-primary-400' : 'bg-white hover:bg-primary-400',
           isInspected ||
           isHighlighted ||
           (flowCtx.draggable?.kind == 'step-port' &&
