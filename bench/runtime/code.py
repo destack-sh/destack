@@ -9,7 +9,7 @@ from bench.language import render
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.const import ObjectKind
-from bench.language.field import TypeBase
+from bench.language.field import Field, TypeBase
 from bench.language.file import upload
 from bench.language.flow import Pipe, Step
 from bench.language.path import get_node, get_node_or_error, get_path
@@ -141,6 +141,12 @@ class CodeRunnerBase(Runner):
         resolved_references = {}
         for reference_name in self.compiled.references:
             reference = get_node_or_error(self.node, f"^{reference_name}")
+            if isinstance(reference, Field):
+                # replace Field reference with the underlying type if it's the same name
+                # (this is useful for Choice/)
+                base_type = reference.base_type
+                if base_type is not None and base_type.code_name == reference_name:
+                    reference = base_type
             resolved_references[reference_name] = reference
         glbls.update(resolved_references)  # may shadow existing glbls
 
