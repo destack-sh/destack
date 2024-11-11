@@ -615,8 +615,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
         if (self.type == FieldType.OPTION) != (self.kind == TypeKind.LITERAL):
             invalid(self, "option field must be literal", None)
 
-    fields = TypeBase._fields
-
     @property
     def base(self) -> Optional[Node]:
         return self.parent

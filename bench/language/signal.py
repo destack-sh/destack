@@ -4,9 +4,8 @@ import structlog
 
 from bench.language.const import BlockType, NodeType, ObjectKind
 from bench.language.field import TypeBase
-from bench.language.node import HasNodeBase, RuntimeNode, timed_node_
+from bench.language.node import HasNodeBase, HasTimeIdentity, StateNode, timed_node_
 from bench.language.property import p_internal, p_node_parent, p_value_packed, p_value_runtime
-from bench.language.session import HasSessionContext
 from bench.language.validation import constraint
 from bench.proto.wire import AnyNodeData, NodeReferenceData, SignalData
 
@@ -22,7 +21,7 @@ logger = structlog.get_logger(__name__)
 
 
 @timed_node_(NodeType.SIGNAL, passthrough_get="value", passthrough_set="value")
-class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
+class Signal(HasTimeIdentity, StateNode[SignalData], HasNodeBase):
     """
     A Signal emitted in this Bench, usually received in Triggers.
     """

@@ -119,7 +119,7 @@ class ActionRunner(Runner):
         """Generate Code that does something and outputs an object of the given type."""
 
         # nocheckin: caching
-        model = ModelType.OPENAI_GPT4_0
+        model = self.options.model_type or OPENAI_DEFAULT_MODEL
         prompt = make_prompt(
             task=task, runner=self, context=self.context, inputs=inputs, output_type=output_type
         )
@@ -354,7 +354,7 @@ class PromptType(PromptCompound):
         assert isinstance(sample_object, CustomObject), f"bad sample object {sample_object!r}"
         return [
             PromptText(title=self.title, text=code),
-            PromptObject(title="Example of type", weight=1, object=sample_object),
+            PromptObject(title="Example value", weight=1, object=sample_object),
         ]
 
 
@@ -392,7 +392,6 @@ def make_prompt(
     """Build a Prompt from the given context."""
     # context
     context_items: list[PromptPart] = []
-    context_items.append(PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES))
     for ancestor in reversed(tuple(runner.ancestors)):
         if ancestor.run is not None:
             context_items.append(PromptRun(title="Parent run", weight=5, node=ancestor.run))
@@ -400,22 +399,30 @@ def make_prompt(
     # NOTE :Incomplete: more general Context to Prompt?
 
     # core
-    task_items: list[PromptPart] = [PromptSource(title="Current node", weight=10, node=runner.node)]
+    task_prompt: list[PromptPart] = [
+        PromptText(title="Task instructions", text=get_task_prompt(task)),
+        PromptSource(title="Current node", weight=10, node=runner.node),
+    ]
     if inputs is not None:
-        task_items.append(PromptObject(title="Inputs", weight=10, object=inputs))
+        task_prompt.append(PromptObject(title="Inputs", weight=10, object=inputs))
     else:
-        task_items.append(PromptText(title="Inputs", text="No inputs"))
+        task_prompt.append(PromptText(title="Inputs", text="No inputs"))
     if output_type is not None:
-        task_items.append(PromptType(title="Output type", weight=10, type=output_type))
+        task_prompt.append(PromptType(title="Output type", weight=10, type=output_type))
     else:
-        task_items.append(PromptText(title="Output type", text="No output type"))
+        task_prompt.append(PromptText(title="Output type", text="No output type"))
 
     return Prompt(
         task=task,
         scope=runner.node,
         items=[
+            PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES),
             PromptRegion(title="Context", weight=1, content=context_items),
-            PromptRegion(title="Task", weight=1, content=task_items),
+            PromptRegion(
+                title=f"Task: {task.name} (might have to change, see above)",
+                weight=1,
+                content=task_prompt,
+            ),
         ],
     )
 
@@ -493,19 +500,29 @@ def _strip_code_completion(completion: str) -> str:
 #
 
 
-def get_system_prompt(task: TaskType, node: Node) -> str:
+def get_system_prompt(node: Node) -> str:
     today = datetime.datetime.now(tz=datetime.UTC).date()
     base_text = f"""\
 You are a programming assistant on an agent development platform called Bench.
 You will be given context and a specific task in the Bench Python ORM.
 You must always respond directly with valid inline Python code (escaping as needed).
-Value/object types and schemas must be strictly respected.
+You may interpret and extrapolate a task when it's vague, but guess less if it's specific.
+You must adhere to the types exactly (no missing required & no extraneous values).
+You must consider whether an action requires any form of AI at runtime (you are the AI)
+ - if it seems like any sort of intelligence analysis or extraction is required, it's DYNAMIC
+ - if it's really good old scripting or basic static logic, it's ADAPTIVE
+ - if unsure and the task might require a bit of AI, assume it does and set to DYNAMIC
+There is no 'external' AI system, for DYNAMIC actions you must generate the right outputs for some inputs.
+If you're in an action in the improper mode, you must change it.
 
 Today: {today.strftime('%d %B, %Y')}.
 """
+    return base_text
 
+
+def get_task_prompt(task: TaskType):
     if task == TaskType.ADAPT:
-        task_text = """\
+        return """\
 Task: ADAPT (mode=ActionMode.ADAPTIVE)
 
 Adapt the implementation around the current node to the desired behaviour given the context.
@@ -513,28 +530,27 @@ Usually that just means looking at the current node, but sometimes other nodes t
 If the implementation already looks good, just respond with `pass`.
 Manipulate nodes via the ORM by updating their properties directly or even adding/removing nodes.
 
-If the implementation should be dynamic per input (e.g., requires AI) instead,
- set the node's mode to DYNAMIC and raise ActionModeChangedError.
+If the implementation should be dynamic per input (i.e., requires any hint of AI) instead,
+ you must set the node's mode to DYNAMIC and raise ActionModeChangedError instead.
         """
     elif task == TaskType.RUN:
-        task_text = """\
+        return """\
 Task: RUN (mode=ActionMode.DYNAMIC)
 
 Generate the output for the specific given inputs (do not attempt to generalize).
-You may perform any intermediate computations as needed in Python.
+You may perform any intermediate computations as needed in Python, but you shouldn't try
+ to imitate AI logic in code. You are the AI, and you have to generate any AI outputs/intermediates.
 
-If the implementation shouldn't be dynamic per input (e.g., is just simple code) instead,
- set the node's mode to ADAPTIVE and raise ActionModeChangedError. 
+If the implementation shouldn't be dynamic per input (i.e., good old code) instead,
+ you must set the node's mode to ADAPTIVE and raise ActionModeChangedError instead. 
 """
     else:
         assert_never(task)
 
-    return f"{base_text}{task_text}"
-
 
 GENERAL_EXAMPLES = (
     PromptText(
-        "Multi-line Code",
+        "Example: Multi-line Code",
         text="""\
 # Code should be escaped and start at the root indent level (then 4 spaces per indent level)
 code(\"\"\"\\
@@ -624,7 +640,7 @@ Action1 = Block.new(
     fields=(Field.input("Text", str), Field.output("Summary", str)),
     code=code("return {'Summary': Text[:10] + '...'}"),
 )
-# output: change to dynamic (ignoring previous implementation)
+# output: change to dynamic (requires a bit of AI)
 Action1.mode = ActionMode.DYNAMIC
 raise ActionModeChangedError()
 """,
@@ -642,7 +658,7 @@ CountPeople = Block.new(
 )
 # inputs
 CountPeople(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
-# output: dynamic implementation (requires AI)
+# output: dynamic implementation (requires some AI)
 people = ["Alice", "Bob"]
 return {"Count": len(people)}
 """,
@@ -660,7 +676,7 @@ CountWords = Block.new(
 )
 # inputs
 CountWords(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
-# output: change to adaptive (doesn't really need AI)
+# output: change to adaptive (doesn't need AI)
 CountWords.mode = ActionMode.ADAPTIVE
 raise ActionModeChangedError()
 """,
@@ -683,6 +699,7 @@ OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
     ModelType.OPENAI_O1_MINI: "o1-mini-2024-09-12",
     ModelType.OPENAI_O1_PREVIEW: "o1-preview-09-12",
 }
+OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
 
 
 class OpenaiChatCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMessageParam]):
@@ -720,7 +737,7 @@ async def _generate_code_openai(
     options: RunOptions,
 ) -> str:
     """Generate code for the given output type using an OpenAI model."""
-    model_type = options.model_type or ModelType.OPENAI_GPT4_O_MINI
+    model_type = options.model_type or OPENAI_DEFAULT_MODEL
     model_id = OPENAI_MODEL_BY_TYPE[model_type]
 
     # render messages
@@ -728,7 +745,7 @@ async def _generate_code_openai(
     rendered_prompt_parts = await compiler.compile(prompt=prompt, budget=10_000)
     rendered_prompt = await compiler.assemble(rendered_prompt_parts)
     messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-        {"role": "system", "content": get_system_prompt(task=prompt.task, node=prompt.scope)},
+        {"role": "system", "content": get_system_prompt(node=prompt.scope)},
         *rendered_prompt,
     ]
 
@@ -758,6 +775,7 @@ anthropic_client = anthropic.AsyncClient(
 ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
     ModelType.ANTHROPIC_CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022"
 }
+ANTHROPIC_DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
 
 
 class AnthropicChatCompiler(ChatPromptCompiler[anthropic_types.MessageParam]):
