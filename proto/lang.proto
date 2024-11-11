@@ -1146,6 +1146,7 @@ enum RunErrorType {
   RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
   RUN_ERROR_TYPE_NON_RETRYABLE = 499;
   RUN_ERROR_TYPE_MODEL_FAILED = 500;
+  RUN_ERROR_TYPE_ACTION_MODE_CHANGED = 501;
   RUN_ERROR_TYPE_RETRYABLE = 999;
 }
 
@@ -1761,12 +1762,15 @@ message CallData {
   ObjectType metatype = 1;
   NodeReferenceData node_ptr = 30;
   optional google.protobuf.Value inputs_packed = 31;
+  optional ObjectMappingData mapping = 50;
+  optional CodeData mapping_code = 51;
 }
 
 message ContinueData {
   ObjectType metatype = 1;
   NodeReferenceData node_ptr = 30;
-  optional CodeData mapping = 50;
+  optional ObjectMappingData mapping = 50;
+  optional CodeData mapping_code = 51;
 }
 
 message SelectOptionsData {
@@ -1969,13 +1973,14 @@ message BreakpointData {
 
 message RunAttemptData {
   ObjectType metatype = 1;
-  RunStatus status = 30;
-  optional google.protobuf.Duration duration = 31;
-  optional google.protobuf.Timestamp started_at = 32;
-  optional int32 started_epoch = 33;
-  optional google.protobuf.Timestamp terminated_at = 35;
-  optional int32 terminated_epoch = 36;
-  optional RunErrorData error = 37;
+  optional CodeData code = 30;
+  RunStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp started_at = 42;
+  optional int32 started_epoch = 43;
+  optional google.protobuf.Timestamp terminated_at = 45;
+  optional int32 terminated_epoch = 46;
+  optional RunErrorData error = 47;
 }
 
 message RunTraceData {
@@ -2691,7 +2696,7 @@ message ActionBlockData {
   ActionMode mode = 100;
   optional TextData text = 101;
   optional CodeData code = 102;
-  optional NodeReferenceData delegate_ptr = 103;
+  repeated NodeReferenceData tools_ptr = 103;
   optional RunOptionsData run_options = 110;
 }
 
@@ -2885,7 +2890,7 @@ message PipeData {
   optional ExpressionData condition = 60;
   optional CodeData condition_code = 61;
   optional TypeConstraintData constraint = 62;
-  optional CodeData mapping = 70;
+  optional ObjectMappingData mapping = 70;
   optional CodeData mapping_code = 71;
   optional google.protobuf.Duration delay = 80;
   optional ColorData color = 91;
@@ -2936,7 +2941,7 @@ message ActionStepData {
   ActionMode mode = 100;
   optional TextData text = 101;
   optional CodeData code = 102;
-  optional NodeReferenceData delegate_ptr = 103;
+  repeated NodeReferenceData tools_ptr = 103;
   optional RunOptionsData run_options = 110;
 }
 

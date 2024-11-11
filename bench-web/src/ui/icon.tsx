@@ -300,9 +300,9 @@ export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons
 
 export const ICON_BY_ACTION_MODE: Record<ActionMode, IconData> = _makeIcons<ActionMode>({
   [ActionMode.UNSPECIFIED]: "fas fa-question",
-  [ActionMode.STRICT]: "fas fa-shield",
-  [ActionMode.ADAPTIVE]: "fas fa-recycle",
-  [ActionMode.DYNAMIC]: "fas fa-atom-simple",
+  [ActionMode.STRICT]: "fas fa-dice-d4",
+  [ActionMode.ADAPTIVE]: "fas fa-dice-d6",
+  [ActionMode.DYNAMIC]: "fas fa-dice-d8",
 })
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({

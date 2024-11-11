@@ -99,7 +99,7 @@ async def test_run_action_dynamic_text(hosted_runtime: RuntimeHandle):
     assert ActionBlock1.mode == ActionMode.DYNAMIC  # should change to dynamic
 
     # Change so that it should run as adaptive again
-    ActionBlock1.text = md("The text is positive if it contains 'good'")
+    ActionBlock1.text = md("The text is positive if it contains the phrase 'good' (verbatim)")
     runner = await hosted_runtime.run(ActionBlock1, inputs={"Text": "That was good!"})
     assert runner.outputs and runner.outputs.Sentiment == Sentiment.fields.Positive
     assert ActionBlock1.mode == ActionMode.ADAPTIVE  # should change back to adaptive

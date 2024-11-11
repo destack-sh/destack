@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Collection, assert_never, cast
+from typing import TYPE_CHECKING, Collection, Sequence, assert_never, cast
 from uuid import UUID
 
 import structlog
@@ -21,7 +21,7 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class ProjectOptions:
     max_depth: int = 10
-    inline_pages: bool = True  # whether to include all source nodes of contained pages
+    inline_pages: bool = False  # whether to include all source nodes of contained pages
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # child ndoes to 'consider' implicitly references by parents :FoldedNodes
     inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
@@ -36,7 +36,7 @@ class Projection:
     """
 
     def __init__(self, options: ProjectOptions):
-        self._options: ProjectOptions = options
+        self.options: ProjectOptions = options
         self._nodes_by_id: dict[UUID, Node] = {}
         self._remote_nodes_by_id: dict[UUID, SomeNodeReference] = {}
         self._depth_by_node_id: dict[UUID, int] = {}
@@ -67,7 +67,7 @@ class Projection:
 
     def _visit_node(self, node: Node) -> bool:
         """Adds a node to the result set."""
-        if node.id not in self._nodes_by_id and node.metatype in self._options.node_types:
+        if node.id not in self._nodes_by_id and node.metatype in self.options.node_types:
             self._nodes_by_id[node.id] = node
             self._nodes_to_collect.append(node)
             return True
@@ -77,7 +77,7 @@ class Projection:
     def _visit_node_ref(self, node: SomeNodeReference) -> bool:
         """Adds a node reference to the remote set."""
         assert node.id is not None, f"missing id for {node!r}"
-        if node.id not in self._remote_nodes_by_id and node.node_type in self._options.node_types:
+        if node.id not in self._remote_nodes_by_id and node.node_type in self.options.node_types:
             self._remote_nodes_by_id[node.id] = node
             return True
         else:
@@ -86,7 +86,7 @@ class Projection:
     def _collect_node(self, node: Node):
         """Collects a node (recursively)."""
         self._collect_builtin_object_scalar(node)
-        self._collect_node_children(node, self._options.inline_node_types)
+        self._collect_node_children(node, self.options.inline_node_types)
 
     def _collect_node_children(self, node: Node, node_types: Collection[NodeType]):
         """Collects children of a node (recursively)."""
@@ -211,14 +211,15 @@ class Projection:
         *objs: BuiltinObject | CustomObject | None,
         max_depth: int | None = None,
         inline_pages: bool | None = None,
-    ):
+    ) -> Sequence[Node]:
         """
         Collect all referenced nodes from the given objects.
         If inlining pages, we do a second pass where we collect all source children of contained pages.
+        Return the new nodes collected.
         """
 
-        max_depth = self._options.max_depth if max_depth is None else max_depth
-        inline_pages = self._options.inline_pages if inline_pages is None else inline_pages
+        max_depth = self.options.max_depth if max_depth is None else max_depth
+        inline_pages = self.options.inline_pages if inline_pages is None else inline_pages
         old_nodes_by_id = {**self._nodes_by_id}
 
         # collect nodes from initial values
@@ -245,9 +246,10 @@ class Projection:
             containing_pages = find_containing_pages(*new_nodes_by_id.values())
             for page in containing_pages:
                 self._collect_node(page)
-                self._collect_node_children(page, self._options.inline_page_node_types)
+                self._collect_node_children(page, self.options.inline_page_node_types)
             # and project that
             self._do_project(depth, depth + 1)
+        return tuple(self._nodes_by_id[id] for id in self._nodes_by_id if id not in old_nodes_by_id)
 
     def get_containing_pages(self) -> list[Block]:
         """Gets the pages containing the collected source nodes."""

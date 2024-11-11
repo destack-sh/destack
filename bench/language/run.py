@@ -48,6 +48,7 @@ from bench.utils.tenacity import RetryOptions
 if TYPE_CHECKING:
     from bench.language import (
         Block,
+        Code,
         CustomObject,
         Expression,
         LogInfo,
@@ -260,14 +261,17 @@ class Breakpoint(Struct):
 class RunAttempt(Struct):
     """A single attempt at a Run."""
 
-    status: RunStatus = p_internal(30, default=RunStatus.SCHEDULED)
-    duration: Optional[timedelta] = p_internal(31, default=None)
-    started_at: Optional[datetime] = p_internal(32, default=None)
-    started_epoch: Optional[int] = p_internal(33, default=None)
-    terminated_at: Optional[datetime] = p_internal(35, default=None)
-    terminated_epoch: Optional[int] = p_internal(36, default=None)
+    code: Optional["Code"] = p_internal(
+        30, default=None, require=False, array=False, struct=StructType.CODE
+    )
+    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
+    duration: Optional[timedelta] = p_internal(41, default=None)
+    started_at: Optional[datetime] = p_internal(42, default=None)
+    started_epoch: Optional[int] = p_internal(43, default=None)
+    terminated_at: Optional[datetime] = p_internal(45, default=None)
+    terminated_epoch: Optional[int] = p_internal(46, default=None)
     error: Optional["RunError"] = p_internal(
-        37, require=False, array=False, struct=StructType.RUN_ERROR
+        47, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
     def __content_str__(self) -> str:
@@ -346,6 +350,7 @@ class RunErrorType(IdEnum):
     NON_RETRYABLE = 499
     # retryable
     MODEL_FAILED = 500
+    ACTION_MODE_CHANGED = 501
     RETRYABLE = 999
 
     @property

@@ -7,6 +7,8 @@ from typing import ClassVar, Mapping, Sequence, assert_never, cast, override
 import anthropic
 import openai
 import regex
+import structlog
+from opentelemetry import trace
 
 from bench.language import code
 from bench.language.action import ActionMode
@@ -28,6 +30,9 @@ from bench.runtime.core import ATTEMPT_ONCE, ModelFailedError, RunImpossibleErro
 from bench.runtime.runner import Context, Runner, runner_from_node
 from bench.utils.func import IdEnum
 from bench.utils.utils import get_from_env
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 Action = ActionStep | ActionBlock
 CODE_PASS = code("pass")
@@ -54,15 +59,31 @@ class ActionRunner(Runner):
         action = self.action
         if action.mode == ActionMode.STRICT:
             # run implementation directly
-            self.outputs = await self._run_implementation(
-                code=action.code,
-                delegate=action.delegate,
-                inputs=self.inputs,
-                output_type=self.output_type,
-            )
-            return
-
-        if action.mode == ActionMode.ADAPTIVE:
+            if action.code is not None:
+                self.outputs = await self._run_code(
+                    code=action.code,
+                    node=action,
+                    inputs=self.inputs,
+                    output_type=self.output_type,
+                )
+            else:
+                tools = action.tools
+                if not tools:
+                    raise RunImpossibleError(f"no tools for {self!r}")
+                elif len(tools) > 1:
+                    raise RunImpossibleError(f"multiple tools for {self!r}")
+                # run delegate directly
+                delegate_runner = runner_from_node(
+                    self.runtime,
+                    tools[0],
+                    track=False,
+                    context=self.context,
+                    inputs=self.inputs,
+                    output_type=self.output_type,
+                )
+                await self.runtime.run_runner(delegate_runner)
+                self.outputs = delegate_runner.outputs
+        elif action.mode == ActionMode.ADAPTIVE:
             # adapt (if needed) & run implementation
             update_code = await self._generate_code(
                 task=TaskType.ADAPT, inputs=None, output_type=None
@@ -70,8 +91,8 @@ class ActionRunner(Runner):
             if update_code != CODE_PASS:
                 await self._run_code(code=update_code, node=action, inputs=None, output_type=None)
             self.outputs = await self._run_implementation(
-                code=action.code,
-                delegate=action.delegate,
+                code=action.code or Code.empty(),
+                tools=action.tools,
                 inputs=self.inputs,
                 output_type=self.output_type,
             )
@@ -80,13 +101,12 @@ class ActionRunner(Runner):
             implementation_code = await self._generate_code(
                 task=TaskType.RUN, inputs=self.inputs, output_type=self.output_type
             )
-            if implementation_code != CODE_PASS:
-                self.outputs = await self._run_implementation(
-                    code=implementation_code,
-                    delegate=action.delegate,
-                    inputs=self.inputs,
-                    output_type=self.output_type,
-                )
+            self.outputs = await self._run_implementation(
+                code=implementation_code,
+                tools=action.tools,
+                inputs=self.inputs,
+                output_type=self.output_type,
+            )
         else:
             assert_never(action.mode)
 
@@ -100,7 +120,7 @@ class ActionRunner(Runner):
 
         # nocheckin: caching
         model = ModelType.OPENAI_GPT4_0
-        prompt = Prompt.from_context(
+        prompt = make_prompt(
             task=task, runner=self, context=self.context, inputs=inputs, output_type=output_type
         )
         if model.provider == ModelProvider.OPENAI:
@@ -123,56 +143,42 @@ class ActionRunner(Runner):
 
     async def _run_implementation(
         self,
-        code: Code | None,
-        delegate: Block | None,
+        code: Code,
+        tools: Sequence[Block],
         inputs: CustomObject | None,
         output_type: TypeBase | None,
     ) -> CustomObject | None:
         """Runs the implementation of the given Action and returns the output."""
-        if delegate is not None:
-            # run delegate directly
+        outputs = await self._run_code(
+            code=code, node=self.node, inputs=inputs, output_type=output_type
+        )
+        call = cast(OutputObject, outputs).call
+        if call is not None:
+            # run tool/delegate
+            # NOTE :Robustness: should delegate be (optionally) restricted to tools?
             delegate_runner = runner_from_node(
                 self.runtime,
-                delegate,
+                call.node,
                 track=False,
                 context=self.context,
-                inputs=self.inputs,
-                output_type=self.output_type,
+                inputs=call.inputs,
             )
             await self.runtime.run_runner(delegate_runner)
-            return delegate_runner.outputs
-        elif code is not None:
-            outputs = await self._run_code(
-                code=code, node=self.node, inputs=inputs, output_type=output_type
-            )
-            call = cast(OutputObject, outputs).call
-            if call is not None:
-                # run delegate
-                delegate_runner = runner_from_node(
-                    self.runtime,
-                    call.node,
-                    track=False,
-                    context=self.context,
-                    inputs=call.inputs,
+            if call.mapping_code is not None:
+                # run mapping code
+                delegate_outputs = await self._run_code(
+                    code=call.mapping_code,
+                    node=self.node,
+                    inputs=delegate_runner.outputs,
+                    output_type=output_type,
                 )
-                await self.runtime.run_runner(delegate_runner)
-                if call.mapping is not None:
-                    # run mapping code
-                    delegate_outputs = await self._run_code(
-                        code=call.mapping,
-                        node=self.node,
-                        inputs=delegate_runner.outputs,
-                        output_type=output_type,
-                    )
-                else:
-                    delegate_outputs = delegate_runner.outputs
-                assert output_type is not None, f"missing output type for {self!r}"
-                if outputs is None:
-                    outputs = CustomObject.new(ObjectKind.OUTPUT, {}, output_type)
-                outputs.update(delegate_outputs)
-            return outputs
-        else:
-            raise RunImpossibleError(f"missing implementation for {self!r}")
+            else:
+                delegate_outputs = delegate_runner.outputs
+            assert output_type is not None, f"missing output type for {self!r}"
+            if outputs is None:
+                outputs = CustomObject.new(ObjectKind.OUTPUT, {}, output_type)
+            outputs.update(delegate_outputs)
+        return outputs
 
     async def _run_code(
         self,
@@ -251,7 +257,7 @@ class PromptCompound(PromptPart, ABC):
 class PromptRegion(PromptCompound):
     """A region for enclosing other items."""
 
-    content: list[PromptPart]
+    content: Sequence[PromptPart]
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
@@ -289,14 +295,19 @@ class PromptRun(PromptCompound):
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
         parts: list[PromptPart] = [
-            PromptText(title="Run", text=f"Run {self.node.id}"),
+            PromptText(title="Run", text=f"# Run {self.node!r} ({self.node.status.bench_name})"),
         ]
         if self.node.variables:
             parts.append(PromptObject(title="Variables", weight=2, object=self.node.variables))
         if self.node.inputs:
             parts.append(PromptObject(title="Inputs", weight=3, object=self.node.inputs))
-        if self.node.outputs:
-            parts.append(PromptObject(title="Outputs", weight=1, object=self.node.outputs))
+        else:
+            parts.append(PromptText(title="Inputs", text="No inputs"))
+        if self.node.status.is_terminal:
+            if self.node.outputs:
+                parts.append(PromptObject(title="Outputs", weight=1, object=self.node.outputs))
+            else:
+                parts.append(PromptText(title="Outputs", text="No outputs"))
         return parts
 
 
@@ -308,8 +319,14 @@ class PromptSource(PromptCompound):
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
-        code = render_stmt(self.node, options=context.render_options)
-        return [PromptText(title=self.title, text=code)]
+        context_nodes = context.projection.project(self.node)
+        context_code = "\n".join(
+            render_stmt(n, options=context.render_options)
+            for n in context_nodes
+            if n.metatype not in context.render_options.folded_child_types and n != self.node
+        )
+        node_code = render_stmt(self.node, options=context.render_options)
+        return [PromptText(title=self.title, text=f"{context_code}\n\n{node_code}")]
 
 
 @dataclass
@@ -364,38 +381,43 @@ class Prompt:
     def extend(self, items: list[PromptPart]) -> None:
         self.items.extend(items)
 
-    @staticmethod
-    def from_context(
-        task: TaskType,
-        runner: Runner,
-        context: Context,
-        inputs: CustomObject | None,
-        output_type: TypeBase | None,
-    ) -> "Prompt":
-        """Build a Prompt from the given context."""
-        # context
-        context_items: list[PromptPart] = []
-        for ancestor in reversed(tuple(runner.ancestors)):
-            if ancestor.run is not None:
-                context_items.append(PromptRun(title="Parent run", weight=1, node=ancestor.run))
-        context_items.append(PromptSource(title="Current node", weight=10, node=runner.node))
-        # NOTE :Incomplete: more general Context to Prompt?
 
-        # core
-        task_items: list[PromptPart] = []
-        if inputs is not None:
-            task_items.append(PromptObject(title="Inputs", weight=10, object=inputs))
-        if output_type is not None:
-            task_items.append(PromptType(title="Output type", weight=10, type=output_type))
+def make_prompt(
+    task: TaskType,
+    runner: Runner,
+    context: Context,
+    inputs: CustomObject | None,
+    output_type: TypeBase | None,
+) -> "Prompt":
+    """Build a Prompt from the given context."""
+    # context
+    context_items: list[PromptPart] = []
+    context_items.append(PromptRegion(title="Examples", weight=1, content=GENERAL_EXAMPLES))
+    for ancestor in reversed(tuple(runner.ancestors)):
+        if ancestor.run is not None:
+            context_items.append(PromptRun(title="Parent run", weight=5, node=ancestor.run))
+    context_items.append(PromptSource(title="Current node", weight=10, node=runner.node))
+    # NOTE :Incomplete: more general Context to Prompt?
 
-        return Prompt(
-            task=task,
-            scope=runner.node,
-            items=[
-                PromptRegion(title="Context", weight=1, content=context_items),
-                PromptRegion(title="Task", weight=1, content=task_items),
-            ],
-        )
+    # core
+    task_items: list[PromptPart] = [PromptSource(title="Current node", weight=10, node=runner.node)]
+    if inputs is not None:
+        task_items.append(PromptObject(title="Inputs", weight=10, object=inputs))
+    else:
+        task_items.append(PromptText(title="Inputs", text="No inputs"))
+    if output_type is not None:
+        task_items.append(PromptType(title="Output type", weight=10, type=output_type))
+    else:
+        task_items.append(PromptText(title="Output type", text="No output type"))
+
+    return Prompt(
+        task=task,
+        scope=runner.node,
+        items=[
+            PromptRegion(title="Context", weight=1, content=context_items),
+            PromptRegion(title="Task", weight=1, content=task_items),
+        ],
+    )
 
 
 @dataclass
@@ -445,7 +467,7 @@ class ChatPromptCompiler[R](PromptCompiler[PromptElement, R]):
             elements.extend(await expand(part))
 
         # shrink/grow to budget (if needed)
-        # nocheckin: budget
+        # nocheckin: budget/weight
 
         return elements
 
@@ -474,9 +496,10 @@ def _strip_code_completion(completion: str) -> str:
 def get_system_prompt(task: TaskType, node: Node) -> str:
     today = datetime.datetime.now(tz=datetime.UTC).date()
     base_text = f"""\
-You are a programming assistant on an agent development platform called Bench. 
+You are a programming assistant on an agent development platform called Bench.
 You will be given context and a specific task in the Bench Python ORM.
 You must always respond directly with valid inline Python code (escaping as needed).
+Value/object types and schemas must be strictly respected.
 
 Today: {today.strftime('%d %B, %Y')}.
 """
@@ -490,7 +513,8 @@ Usually that just means looking at the current node, but sometimes other nodes t
 If the implementation already looks good, just respond with `pass`.
 Manipulate nodes via the ORM by updating their properties directly or even adding/removing nodes.
 
-If the implementation should differ per input (e.g., requires AI), set the type to DYNAMIC.
+If the implementation should be dynamic per input (e.g., requires AI) instead,
+ set the node's mode to DYNAMIC and raise ActionModeChangedError.
         """
     elif task == TaskType.RUN:
         task_text = """\
@@ -498,6 +522,9 @@ Task: RUN (mode=ActionMode.DYNAMIC)
 
 Generate the output for the specific given inputs (do not attempt to generalize).
 You may perform any intermediate computations as needed in Python.
+
+If the implementation shouldn't be dynamic per input (e.g., is just simple code) instead,
+ set the node's mode to ADAPTIVE and raise ActionModeChangedError. 
 """
     else:
         assert_never(task)
@@ -507,7 +534,41 @@ You may perform any intermediate computations as needed in Python.
 
 GENERAL_EXAMPLES = (
     PromptText(
-        title="Example: Add simple static implementation",
+        "Multi-line Code",
+        text="""\
+# Code should be escaped and start at the root indent level (then 4 spaces per indent level)
+code(\"\"\"\\
+if len(Text) > 10:
+    return {'IsLong': True}
+else:
+    return {'IsLong': False, 'Length': len(Text)}
+\"\"\")
+""",
+    ),
+    PromptText(
+        "Example: Create node (Field)",
+        text="""\
+# add option field
+Sentiment.fields.add(Field.option("Neutral"))
+# add database column
+Database.fields.add(Field.member("Name", str))
+# access field
+Database.fields.Name or Sentiment.fields.Neutral
+""",
+    ),
+    PromptText(
+        "Example: Types and values",
+        text="""\
+# types are defined in Blocks
+Choice1 = Block.new(BlockType.CHOICE, "Choice1", fields=[Field.option("A"), Field.option("B")])
+Class1 = Block.new(BlockType.CLASS; "Class1", fields=[Field.member("Name", str), Field.member("Choice", Choice1)])
+# values are nodes or custom objects (instances of class-like types)
+A = Choice1.fields.A
+Object = Class1(Name="Alice", Choice=Choice.fields.B)
+""",
+    ),
+    PromptText(
+        title="Example: Add implementation",
         text="""\
 # context
 Action1 = Block.new(
@@ -517,12 +578,12 @@ Action1 = Block.new(
     text=md("Add 1"), 
     fields=(Field.input("x", int), Field.output("y", int)),
 )
-# output: update the implementation
+# output: update implementation
 Action1.code = code("return {'y': x + 1}")
 """,
     ),
     PromptText(
-        title="Example: Keep static implementation",
+        title="Example: Keep implementation",
         text="""\
 # context
 Action1 = Block.new(
@@ -547,8 +608,8 @@ Action1 = Block.new(
     text=md("Raise the Shakra"),
     fields=(Field.output("Number", int),),
 )
-# output: raise
-raise ModelIncapableError("Unclear requirements for Action1")
+# output: raise (no/unclear instructions)
+raise ModelIncapableError(f"Unclear requirements for {Action1!r}")
 """,
     ),
     PromptText(
@@ -563,20 +624,48 @@ Action1 = Block.new(
     fields=(Field.input("Text", str), Field.output("Summary", str)),
     code=code("return {'Summary': Text[:10] + '...'}"),
 )
-# output: mark as dynamic (ignoring previous implementation)
+# output: change to dynamic (ignoring previous implementation)
 Action1.mode = ActionMode.DYNAMIC
+raise ActionModeChangedError()
+""",
+    ),
+    PromptText(
+        title="Example: Dynamic implementation",
+        text="""\
+# context
+CountPeople = Block.new(
+    BlockType.ACTION,
+    "CountPeople",
+    mode=ActionMode.DYNAMIC,
+    text=md("Count the number of people"),
+    fields=(Field.input("Text", str), Field.output("Count", int)),
+)
+# inputs
+CountPeople(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
+# output: dynamic implementation (requires AI)
+people = ["Alice", "Bob"]
+return {"Count": len(people)}
+""",
+    ),
+    PromptText(
+        title="Example: Change to adaptive implementation",
+        text="""\
+# context
+CountWords = Block.new(
+    BlockType.ACTION,
+    "CountWords",
+    mode=ActionMode.DYNAMIC,
+    text=md("Count the number of words"),
+    fields=(Field.input("Text", str), Field.output("Count", int)),
+)
+# inputs
+CountWords(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
+# output: change to adaptive (doesn't really need AI)
+CountWords.mode = ActionMode.ADAPTIVE
+raise ActionModeChangedError()
 """,
     ),
 )
-
-
-def get_task_prompt(task: TaskType, scope: Node) -> list[PromptPart]:
-    if task == TaskType.ADAPT or task == TaskType.RUN:
-        ...
-    else:
-        assert_never(task)
-
-    return [base_prompt, *GENERAL_EXAMPLES]
 
 
 #
@@ -610,7 +699,7 @@ class OpenaiChatCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMess
             if isinstance(part, PromptBreak):
                 content.append({"type": "text", "text": self.SEPARATOR})
                 if part.title:
-                    content.append({"type": "text", "text": part.title})  # noqa: FURB113
+                    content.append({"type": "text", "text": f"# {part.title}"})  # noqa: FURB113
                     content.append({"type": "text", "text": self.SEPARATOR})
             elif isinstance(part, PromptText):
                 text = part.text.to_string() if not isinstance(part.text, str) else part.text
