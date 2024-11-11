@@ -234,6 +234,20 @@ class Renderer:
 
     def render_node_ref(self, node: Node | NodeReferenceBase) -> str:
         """Renders a python-valid reference to the given node in this context."""
+        if (
+            isinstance(node, Node)
+            and node.metatype in self._options.folded_child_types
+            and "name" in node.__properties__
+        ):
+            # refer named folded children from parent
+            parent = node.parent
+            if parent is not None:
+                parent_alias = self.render_node_ref(parent)
+                parent_cls = NODE_CLASS_BY_TYPE[parent.metatype]
+                parent_child_prop = parent_cls.get_node_child_property(node.metatype)
+                alias = f"{parent_alias}.{parent_child_prop.name}.{node.code_name}"
+                return alias
+
         alias = self._aliasing.get(node)
         if alias is not None:
             # already have an alias

@@ -81,7 +81,7 @@ async def test_run_action_dynamic_text(hosted_runtime: RuntimeHandle):
     Sentiment = Block.new(
         BlockType.CHOICE,
         "Sentiment",
-        fields=[Field.option("Positive"), Field.option("Neutral"), Field.option("Negative")],
+        fields=[Field.option("Positive"), Field.option("Negative")],
     )
     ActionBlock1 = Block.new(
         ActionBlock,

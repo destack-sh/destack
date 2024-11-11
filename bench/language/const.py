@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.11.0"
+VERSION = "2024.11.11.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -240,11 +240,11 @@ class NodeType(IdEnum):
     # state (versioned)
     MESSAGE = 1100  # (based, timed)
     RECORD = 1101  # (based)
+    SIGNAL = 1102  # (based, timed)
 
     # runtime
     SESSION = 1900  # (timed)
     RUN = 1901  # (based, timed)
-    SIGNAL = 1902  # (based, timed)
     LOG = 1903  # (timed)
     NOTIFICATION = 1904  # (timed)
 
