@@ -351,6 +351,31 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
     assert runner.outputs and runner.outputs.Result1 is False and runner.outputs.Result2 == 12
 
 
+async def test_run_code_function_output_object_raw(local_runtime: RuntimeHandle):
+    """Run a code function and return the output object directly."""
+    Function = Block.new(
+        BlockType.ACTION,
+        "Function",
+        code=code("""\
+return coerce_custom_object(
+    kind=ObjectKind.OUTPUT, 
+    typ=self.to_type(as_object=True, field_type=FieldType.OUTPUT), 
+    value_raw={"Input1": 1, "Input2": 2},
+)
+"""),
+        fields=[
+            Field.output("Input1", int),
+            Field.output("Input2", int),
+        ],
+        mode=ActionMode.STRICT,
+    )
+    local_runtime.page().blocks.append(Function)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Function, inputs={})
+    assert runner.outputs and runner.outputs.Input1 == 1 and runner.outputs.Input2 == 2
+
+
 async def test_run_code_function_output_choice(local_runtime: RuntimeHandle):
     """Run a code function with a dict and a Choice type, should coerce into object."""
     Color = Block.new(

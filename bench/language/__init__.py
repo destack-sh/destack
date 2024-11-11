@@ -142,7 +142,7 @@ from .transaction import (
 from .trigger import Trigger
 from .user import Handle, Organization, User
 from .validation import TypeConstraintIn, ValidationError
-from .value import CustomObject, Value
+from .value import CustomObject, Value, check_value, check_value_scalar, coerce_custom_object
 from .view import (
     Alignment,
     Anchor,
@@ -360,8 +360,11 @@ __all__ = [
     "WatchAggregateUpdate",
     "WatchGetUpdate",
     "WatchSearchUpdate",
+    "check_value",
+    "check_value_scalar",
     "code",
     "coerce_conditional",
+    "coerce_custom_object",
     "constraint",
     "get_node",
     "get_node_or_error",

@@ -313,7 +313,7 @@ class Renderer:
     def render_custom_object_scalar_expr(self, value: "CustomObject", typ: "TypeBase") -> str:
         """Renders single Object into an expression."""
         assert typ.base_type is not None, f"{value!r} has no base type"
-        repr_by_name: dict[str, str] = {}
+        kwargs: dict[str, str] = {}
         for field in typ._base_fields:
             if typ.base_field_type is not None and field.type != typ.base_field_type:
                 continue
@@ -321,10 +321,15 @@ class Renderer:
             field_value_repr = self.render_value_expr(field_value, field)
             field_code_name = field.code_name
             assert field_code_name, f"{field!r} has no code name"
-            repr_by_name[field_code_name] = field_value_repr
-        return (
-            f"{typ.base_type.code_name}({', '.join(f'{k}={v}' for k, v in repr_by_name.items())})"
-        )
+            kwargs[field_code_name] = field_value_repr
+        if typ.base_field_type == FieldType.MEMBER:
+            kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
+            kwargs_str = f"{typ.base_type.code_name}({kwargs_str})"
+            return kwargs_str
+        else:
+            kwargs_str = ", ".join(f"'{k}': {v}" for k, v in kwargs.items())
+            kwargs_str = f"{{{', '.join({kwargs_str})}}}"
+            return kwargs_str
 
     def render_value_expr(self, value: "SomeValue | None", typ: "TypeBase") -> str:
         """Renders a value into an expression."""
