@@ -1,3 +1,4 @@
+import textwrap
 from typing import TYPE_CHECKING
 
 import black
@@ -67,11 +68,15 @@ class Code(Struct):
         return any(other in line for line in self.lines)
 
     def to_string(self) -> str:
-        return code_to_string(self)
+        return "\n".join(line.content or "" for line in self.lines)
 
     @staticmethod
     def from_string(s: str) -> "Code":
-        return string_to_code(s)
+        if not s:
+            return Code.empty()
+        s = textwrap.dedent(s)
+        lines = [CodeLine(content=line or None) for line in s.split("\n")]
+        return Code(lines=lines)
 
     @staticmethod
     def empty() -> "Code":
@@ -79,16 +84,6 @@ class Code(Struct):
 
 
 code = Code.from_string
-
-
-def code_to_string(code: Code) -> str:
-    return "\n".join(line.content or "" for line in code.lines)
-
-
-def string_to_code(s: str) -> Code:
-    if not s:
-        return Code.empty()
-    return Code(lines=[CodeLine(content=line or None) for line in s.split("\n")])
 
 
 @tracer.start_as_current_span(name="code.format")

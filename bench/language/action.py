@@ -9,7 +9,7 @@ from bench.language.value import coerce_custom_object
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Pipe, RunOptions, Step, Text
+    from bench.language import Block, Code, ObjectMapping, Pipe, RunOptions, Step, Text
 
 
 @enum_(EnumType.ACTION_MODE)
@@ -40,12 +40,13 @@ class ActionBase(BuiltinObject):
         struct=StructType.CODE,
         description="Current implementation code for this action.",
     )
-    delegate: Optional["Block"] = p_regular(
+    tools: list["Block"] = p_regular(
         103,
         require=False,
+        array=True,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
-        description="Current implementation for this action (may be wrapped in code).",
+        description="Available implementations for this action.",
     )
     run_options: Optional["RunOptions"] = p_regular(
         110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
@@ -56,7 +57,7 @@ class ActionBase(BuiltinObject):
 
 @struct_(StructType.CALL)
 class Call(Struct):
-    """A context-specific call to a Run inside the current Run."""
+    """A Call to a Run (inside/from the current Run usually)."""
 
     node: Union["Block", "Step"] = p_regular(
         30,
@@ -68,12 +69,19 @@ class Call(Struct):
     inputs: Any = p_value_runtime(
         31, kind=ObjectKind.INPUT, typ=lambda self: cast(Call, self).input_type
     )
-    mapping: Optional["Code"] = p_regular(
+    mapping: Optional["ObjectMapping"] = p_regular(
         50,
         require=False,
         array=False,
+        struct=StructType.OBJECT_MAPPING,
+        description="Mapping for inputs from current node into called node.",
+    )
+    mapping_code: Optional["Code"] = p_regular(
+        51,
+        require=False,
+        array=False,
         struct=StructType.CODE,
-        description="Mapping for outputs from called node into new node.",
+        description="Mapping for outputs from called node into new node. Takes precedence over mapping.",
     )
 
     @property
@@ -92,7 +100,7 @@ class Call(Struct):
 
 @struct_(StructType.CONTINUE)
 class Continue(Struct):
-    """A context-specific continuation for a Run to proceed elsewhere (like in a Flow)."""
+    """A "Continuation" of a Run somewhere (like in a Flow)."""
 
     node: Union["Block", "Step", "Pipe"] = p_regular(
         30,
@@ -101,12 +109,19 @@ class Continue(Struct):
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
     )
     # inputs, ...?
-    mapping: Optional["Code"] = p_regular(
+    mapping: Optional["ObjectMapping"] = p_regular(
         50,
         require=False,
         array=False,
+        struct=StructType.OBJECT_MAPPING,
+        description="Mapping for inputs from current node into next node.",
+    )
+    mapping_code: Optional["Code"] = p_regular(
+        51,
+        require=False,
+        array=False,
         struct=StructType.CODE,
-        description="Mapping to get inputs for next node.",
+        description="Mapping to get inputs for next node. Takes precedence over mapping.",
     )
 
     @staticmethod

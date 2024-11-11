@@ -23,7 +23,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.field import Field, TypeConstraint, TypeBase, reverse_type_scalar
+from bench.language.field import Field, TypeBase, TypeConstraint, reverse_type_scalar
 from bench.language.flow import Step
 from bench.language.node import BuiltinObject, Node, NodeReferenceBase, SomeNodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
@@ -165,13 +165,17 @@ class Aliasing:
                 alias = f"{obj.metatype.bench_name}_{alias}"
         else:
             alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
-            alias = alias + "1"
-        # bump digit at end to make alias unique
-        count = regex.search(r"\d+$", alias)
-        count = int(count.group()) if count else 1
-        while alias in self._node_by_alias:
-            count += 1
-            alias = regex.sub(r"\d+$", str(count + 1), alias)
+        if alias in self._node_by_alias:
+            # bump digit at end to make alias unique
+            count = regex.search(r"\d+$", alias)
+            if count is None:
+                alias = f"{alias}2"
+                count = 1
+            else:
+                count = int(count.group())
+            while alias in self._node_by_alias:
+                count += 1
+                alias = regex.sub(r"\d+$", str(count + 1), alias)
         self._alias_by_node_id[cast(UUID, obj.id)] = alias
         self._node_by_alias[alias] = obj
         return alias
@@ -627,10 +631,13 @@ class TypeInfoRenderer(BuiltinObjectRenderer[TypeBase]):
         kwargs: dict[str, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        type_args = renderer._render_args(
-            rendered_kwargs.pop("_type_in"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
-        )
+        if "_type_in" in rendered_kwargs:
+            type_args = renderer._render_args(
+                rendered_kwargs.pop("_type_in"),
+                renderer._render_kwargs(**rendered_kwargs) or None,
+            )
+        else:
+            type_args = renderer._render_args(renderer._render_kwargs(**rendered_kwargs) or None)
         return f"to_type({type_args})"
 
 

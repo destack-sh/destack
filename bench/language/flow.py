@@ -134,11 +134,21 @@ class Pipe(SourceNode[PipeData]):
     )
 
     # mapping
-    mapping: Optional["Code"] = p_regular(
-        70, default=None, require=False, array=False, struct=StructType.CODE
+    mapping: Optional["ObjectMapping"] = p_regular(
+        70,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.OBJECT_MAPPING,
+        description="Mapping for inputs from source node into target node.",
     )
     mapping_code: Optional["Code"] = p_regular(
-        71, default=None, require=False, array=False, struct=StructType.CODE
+        71,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.CODE,
+        description="Mapping for outputs from source node into target node. Takes precedence over mapping.",
     )
 
     # modulation
@@ -341,7 +351,6 @@ class Step(SourceNode[StepData]):
         self, as_object: bool = True, field_type: FieldType | None = None
     ) -> "TypeBase | None":
         """Gets a type represented by this Step (if any)"""
-        from bench.language.block import Block
         from bench.language.field import TypeInfo
 
         if self.type == StepType.START:
@@ -351,8 +360,9 @@ class Step(SourceNode[StepData]):
             assert self.parent is not None, f"{self!r} has no parent"
             return self.parent.output_type
         elif self.type == StepType.ACTION and cast(ActionStep, self).node_ptr:
-            node = cast(ActionStep, self).delegate
-            assert isinstance(node, Block), f"{self!r} has no block: {node!r}"
+            tools = cast(ActionStep, self).tools
+            assert len(tools) == 1, f"{self!r} should have exactly one tool: {tools!r}"
+            node = tools[0]
             return node.to_type(as_object=as_object, field_type=field_type)
         else:
             if not as_object:

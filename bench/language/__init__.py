@@ -79,7 +79,7 @@ from .field import (
     to_type_scalar,
 )
 from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
-from .flow import Pipe, PipeType, Step, StepType
+from .flow import FieldMapping, ObjectMapping, Pipe, PipeType, Step, StepType
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
@@ -230,6 +230,7 @@ __all__ = [
     "EditOperation",
     "Expression",
     "Field",
+    "FieldMapping",
     "FieldType",
     "File",
     "FileFormat",
@@ -272,6 +273,7 @@ __all__ = [
     "NodeSuperGraph",
     "NodeType",
     "Notification",
+    "ObjectMapping",
     "ObjectType",
     "Offset",
     "Organization",

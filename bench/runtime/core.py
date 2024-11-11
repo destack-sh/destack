@@ -16,6 +16,7 @@ from bench.language.path import get_node
 from bench.language.run import RunErrorType, RunKind, RunOptions
 from bench.language.setup import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
 from bench.runtime.capture import LogSink
+from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 if TYPE_CHECKING:
@@ -76,6 +77,10 @@ class ModelIncapableError(NonRetryableError):
     run_error_type = RunErrorType.MODEL_INCAPABLE
 
 
+class ActionModeChangedError(ModelIncapableError):
+    run_error_type = RunErrorType.ACTION_MODE_CHANGED
+
+
 class ModelFailedError(RetryableError):
     run_error_type = RunErrorType.MODEL_FAILED
 
@@ -84,6 +89,8 @@ class ModelFailedError(RetryableError):
 # Globals
 #
 
+RUNTIME_ERROR_CLASSES = get_subclasses(RuntimeError)
+
 # all bench types
 STATIC_CODE_GLOBALS: dict[str, Any] = {
     **{k: v for k, v in vars(language).items() if not k.startswith("__")},
@@ -91,10 +98,7 @@ STATIC_CODE_GLOBALS: dict[str, Any] = {
     **NODE_CLASS_STUBS_BY_NAME,
     "Image": Image,
     # some error types
-    "NonRetryableError": NonRetryableError,
-    "RetryableError": RetryableError,
-    "RunImpossibleError": RunImpossibleError,
-    "ModelIncapableError": ModelIncapableError,
+    **{c.__name__: c for c in RUNTIME_ERROR_CLASSES},
     # external
     "asyncio": asyncio,
     "sleep": asyncio.sleep,
