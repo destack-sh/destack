@@ -154,10 +154,7 @@ class Block(SourceNode[BlockData]):
         return any(f.type == FieldType.INPUT or f.type == FieldType.OUTPUT for f in self.fields)
 
     def __call__(self, *args, **kwargs) -> Any:
-        if self.type.is_runnable:
-            assert not (args and kwargs), f"{self!r} does not accept both args and kwargs"
-            return self.active_session.runtime.run(self, inputs=args or kwargs)
-        elif self.type.is_type:
+        if self.type.is_type:
             typ = self.to_type()
             if typ is None:
                 raise ValueError(f"{self!r} does not have an implicit type")
