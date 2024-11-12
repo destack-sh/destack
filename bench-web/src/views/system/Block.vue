@@ -148,9 +148,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     v-if="block"
     ref="blockRef"
     class="group/block relative select-none rounded"
-    :class="[
-      isInspected ? 'border-primary-700' : 'border-gray-200',
-    ]"
+    :class="[isInspected ? 'border-primary-700' : 'border-gray-200']"
     :style="{}"
   >
     <!-- Header -->
@@ -162,12 +160,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       }"
     >
       <!-- Icon -->
-      <div
-        class="ml-1 flex flex-row items-center rounded px-1 py-1"
-        :style="{
-          backgroundColor: getNodeColorHex(block, ColorShade.S300),
-        }"
-      >
+      <div class="ml-1 flex flex-row items-center rounded px-0.5">
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
@@ -180,6 +173,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             })
           "
           v-bind="getNodeIcon(block)"
+          :style="{
+            color: getNodeColorHex(block, ColorShade.S600),
+          }"
           class="w-5 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer"
         />
       </div>
@@ -286,7 +282,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           ref="textRef"
           is-input
           class=""
-          :class="block.type == BlockType.ACTION ? 'px-2 ' : ''"
+          :class="block.type == BlockType.ACTION ? 'px-2' : ''"
           :variant="Variant.STEALTH"
           placeholder="Text..."
           :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"

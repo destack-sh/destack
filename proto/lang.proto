@@ -1289,7 +1289,7 @@ enum ViewType {
   VIEW_TYPE_TIMELINE = 408;
   VIEW_TYPE_HISTORY = 409;
   VIEW_TYPE_HUB = 410;
-  VIEW_TYPE_DETAIL = 411;
+  VIEW_TYPE_HELP = 411;
   VIEW_TYPE_WINDOW = 1000;
   VIEW_TYPE_TAB = 1002;
   VIEW_TYPE_SPLIT = 1003;
@@ -3062,6 +3062,8 @@ message TreeViewData {
   repeated NodeType node_types = 100;
   optional bool filter_is_page = 101;
   optional bool is_default_expanded = 102;
+  repeated NodeReferenceData expanded_nodes_ptr = 103;
+  repeated NodeReferenceData collapsed_nodes_ptr = 104;
   optional TreeViewPreset preset = 110;
 }
 

@@ -81,12 +81,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ]"
   >
     <!-- Icon -->
-    <div
-      class="ml-1 h-full rounded px-0.5"
-      :style="{
-        backgroundColor: field.type != FieldType.OPTION ? getNodeColorHex(field, ColorShade.S300) : undefined,
-      }"
-    >
+    <div class="ml-1 h-full">
       <IconInline
         v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
         v-menu="
@@ -98,8 +93,11 @@ defineExpose<ViewExposed>({ self, id, actions });
             onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
           })
         "
+        :style="{
+          color: field.type != FieldType.OPTION ? getNodeColorHex(field, ColorShade.S600) : undefined,
+        }"
         v-bind="getNodeIcon(field)"
-        class="w-5 rounded-sm p-0.5 hover:cursor-pointer"
+        class="w-5 rounded-sm hover:cursor-pointer"
       />
     </div>
     <!-- Name -->
