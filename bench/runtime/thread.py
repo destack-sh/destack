@@ -21,6 +21,7 @@ from bench.proto.wire import (
     ServiceKind,
 )
 from bench.runtime.base import RuntimeServiceBase
+from bench.runtime.cache import RedisCache
 from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.runtime.runtime import Runtime
 from bench.utils.oracle import Oracle
@@ -90,8 +91,11 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
     async def start(self):
         await super().start()
         assert self._session is not None, f"no session for {self!r}"
+        assert self._bench is not None, f"no bench for {self!r}"
+        cache = RedisCache(bench=self._bench)
         self._runtime = Runtime(
             session=self._session,
+            cache=cache,
             oracle=self._oracle,
             static_glbls=STATIC_CODE_GLOBALS,
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,

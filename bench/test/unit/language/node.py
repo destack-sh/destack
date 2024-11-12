@@ -76,8 +76,8 @@ def test_node_subtype_property_access(session: "Session"):
     assert Text1.text is not None and Text1.text.to_markdown() == "Hello, world!"
 
     # subtype -> node ref property
-    BlockStep1 = Step.new(ActionStep, "BlockStep1", node=Text1)
-    assert BlockStep1.delegate == Text1
+    BlockStep1 = Step.new(ActionStep, "BlockStep1", tools=[Text1])
+    assert BlockStep1.tools == [Text1]
     assert BlockStep1.node_ptr == Text1.to_ref()
 
     # subtype -> value packed property

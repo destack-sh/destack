@@ -604,7 +604,9 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                     return  # invalid path
                 next_obj = cast(CustomObject, obj)._do_get(field)
                 if next_obj is None:
-                    raise NotImplementedError("nocheckin apply_edit_operation init nested object?")
+                    raise NotImplementedError(
+                        "NOTE :Incomplete: apply_edit_operation init nested object?"
+                    )
             if not (type(next_obj) is CustomObject or isinstance(next_obj, BuiltinObject)):
                 return  # invalid path
             obj = next_obj

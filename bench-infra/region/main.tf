@@ -264,6 +264,21 @@ resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
 }
 
 #
+# Elasticache
+# 
+
+resource "aws_elasticcache_cluster" "bench_redis" {
+  cluster_id           = "bench-${var.env}-${var.cloud}-${var.region}-redis"
+  engine               = "redis"
+  engine_version       = "7.x"
+  node_type            = "cache.t3.small"
+  num_cache_nodes      = 1
+  parameter_group_name = "default.redis7.x"
+  port                 = 6379
+  subnet_group_name    = "bench-${var.env}-${var.region}-redis-subnet-group"
+}
+
+#
 # Supervisor (if primary)
 # NOTE :Infra: supervisor should probably be in its own cluster? (or even just a lone EC2 instance)
 #

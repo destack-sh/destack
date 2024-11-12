@@ -7,6 +7,7 @@ import pytest
 import uvloop
 
 from bench.language.validation import clean_name
+from bench.runtime.cache import MemoryCache
 from bench.runtime.remote import RemoteEngine
 from bench.runtime.runtime import Runtime
 from bench.sql.client import pg_connection
@@ -73,7 +74,7 @@ def create_omni_session(omni_store: Store, oracle: Oracle):
     return session
 
 
-@pytest.fixture()
+@pytest.fixture
 def omni_session(omni_store: Store):
     """
     Gets the per test function global real session.
@@ -112,7 +113,7 @@ def make_session(name: str):
 # https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549 :PytestAsyncContext
 
 
-@pytest.fixture()  # :PytestAsyncContext
+@pytest.fixture  # :PytestAsyncContext
 async def session_async(request):
     session = make_session(clean_name(request.node.name))
     await session.open(set_in_context=False)
@@ -132,14 +133,14 @@ def make_package(session: Session):
     return package
 
 
-@pytest.fixture()
+@pytest.fixture
 def session(session_async: Session):
     active_session_token = _active_session.set(session_async)
     yield session_async
     _active_session.reset(active_session_token)
 
 
-@pytest.fixture()
+@pytest.fixture
 def package(session: Session):
     package = make_package(session)
     return package
@@ -238,7 +239,7 @@ class RuntimeHandle:
 #
 
 
-@pytest.fixture()
+@pytest.fixture
 async def local_runtime_async(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         # setup user/client
@@ -287,7 +288,7 @@ async def local_runtime_async(global_store: Store):
         _oracle=REAL_ORACLE,
         _supergraph=bench._supergraph,
     )
-    runtime = Runtime(session=session, oracle=REAL_ORACLE)
+    runtime = Runtime(session=session, cache=MemoryCache(bench), oracle=REAL_ORACLE)
     handle = RuntimeHandle(
         supergraph=bench._supergraph,
         user=user,
@@ -307,7 +308,7 @@ async def local_runtime_async(global_store: Store):
                 await delete_test_db(store)
 
 
-@pytest.fixture()
+@pytest.fixture
 def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
     active_session_token = _active_session.set(local_runtime_async.session)
     yield local_runtime_async
@@ -319,7 +320,7 @@ def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
 #
 
 
-@pytest.fixture()
+@pytest.fixture
 async def hosted_bench(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         user = User(
@@ -363,7 +364,7 @@ async def hosted_bench(global_store: Store):
     return bench
 
 
-@pytest.fixture()
+@pytest.fixture
 async def host_service(global_store: Store, hosted_bench: Bench):
     host = HostService(bench_id=hosted_bench.id, global_store=global_store, oracle=REAL_ORACLE)
     await host.start()
@@ -379,13 +380,13 @@ async def host_service(global_store: Store, hosted_bench: Bench):
                 await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))
 
 
-@pytest.fixture()
+@pytest.fixture
 async def host(host_service: HostService):
     async with SimulatedChannel(services=(host_service,), oracle=REAL_ORACLE) as channel:
         yield HostClient(channel)
 
 
-@pytest.fixture()
+@pytest.fixture
 async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     user = hosted_bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
@@ -422,7 +423,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _origin=client.to_origin(nonce=None)._to_data(),
     )
     session.track(hosted_bench)
-    runner = Runtime(session=session, oracle=REAL_ORACLE)
+    runner = Runtime(session=session, cache=MemoryCache(hosted_bench), oracle=REAL_ORACLE)
     handle = RuntimeHandle(
         supergraph=hosted_bench._supergraph,
         user=user,
@@ -436,7 +437,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         yield handle
 
 
-@pytest.fixture()
+@pytest.fixture
 def hosted_runtime(hosted_runtime_async: RuntimeHandle):  # :PytestAsyncContext
     active_session_token = _active_session.set(hosted_runtime_async.session)
     yield hosted_runtime_async
