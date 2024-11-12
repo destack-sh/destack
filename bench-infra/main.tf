@@ -158,6 +158,10 @@ module "region_aws_eu_frankfurt" {
   global_pg_password   = var.global_pg_password
   global_pg_crypto_key = var.global_pg_crypto_key
 
+  # cache
+  local_cache_system_password = var.local_cache_system_password
+  local_cache_user_password   = var.local_cache_user_password
+
   # web
   web_zone_id                     = data.cloudflare_zone.main_website.id
   web_certificate_arn             = aws_acm_certificate.main_website.arn

@@ -70,6 +70,21 @@ variable "global_pg_crypto_key" {
 }
 
 # 
+# Cache
+# 
+
+variable "local_cache_system_password" {
+  type        = string
+  description = "Password for the local cache system"
+  sensitive   = true
+}
+variable "local_cache_user_password" {
+  type        = string
+  description = "Password for the local cache user"
+  sensitive   = true
+}
+
+# 
 # 3rd party secrets
 # 
 

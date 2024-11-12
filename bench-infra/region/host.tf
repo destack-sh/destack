@@ -22,10 +22,14 @@ locals {
     GLOBAL_PG_PASSWORD   = var.global_pg_password
     GLOBAL_PG_CRYPTO_KEY = var.global_pg_crypto_key
 
+    LOCAL_CACHE_HOST     = aws_elasticache_replication_group.bench_redis.primary_endpoint_address
+    LOCAL_CACHE_USERNAME = "user"
+    LOCAL_CACHE_PASSWORD = var.local_cache_user_password
+
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
-    TRACING   = 1
-    LOG_LEVEL = "DEBUG"
-    LOG_MODE  = "JSON"
+    TRACING       = 1
+    LOG_LEVEL     = "DEBUG"
+    LOG_MODE      = "JSON"
 
     SENTRY_DSN        = var.sentry_dsn
     NEON_API_KEY      = var.neon_api_key

@@ -267,16 +267,43 @@ resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
 # Elasticache
 # 
 
-resource "aws_elasticcache_cluster" "bench_redis" {
-  cluster_id           = "bench-${var.env}-${var.cloud}-${var.region}-redis"
-  engine               = "redis"
-  engine_version       = "7.x"
-  node_type            = "cache.t3.small"
-  num_cache_nodes      = 1
-  parameter_group_name = "default.redis7.x"
-  port                 = 6379
-  subnet_group_name    = "bench-${var.env}-${var.region}-redis-subnet-group"
+resource "aws_elasticache_user" "system" {
+  user_id       = "system"
+  user_name     = "default"
+  engine        = "REDIS"
+  passwords     = ["${var.local_cache_system_password}"]
+  access_string = "on ~* +@all"
 }
+resource "aws_elasticache_user" "user" {
+  user_id       = "user"
+  user_name     = "user"
+  engine        = "REDIS"
+  passwords     = ["${var.local_cache_user_password}"]
+  access_string = "on ~* +get +set"
+}
+resource "aws_elasticache_user_group" "group" {
+  user_group_id = "group"
+  engine        = "REDIS"
+  user_ids = [
+    aws_elasticache_user.system.user_id,
+    aws_elasticache_user.user.user_id,
+  ]
+}
+resource "aws_elasticache_replication_group" "bench_redis" {
+  replication_group_id       = "bench-${var.env}-${var.cloud}-${var.region}-redis"
+  description                = "Bench Redis"
+  engine                     = "redis"
+  engine_version             = "7.1"
+  node_type                  = "cache.t3.small"
+  parameter_group_name       = "default.redis7"
+  port                       = 6379
+  user_group_ids             = [aws_elasticache_user_group.group.user_group_id]
+  automatic_failover_enabled = false
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  replicas_per_node_group    = 1
+}
+
 
 #
 # Supervisor (if primary)
@@ -296,6 +323,10 @@ module "supervisor" {
 
   vpc_id            = aws_vpc.region_vpc.id
   public_subnet_ids = aws_subnet.public[*].id
+
+  local_cache_host     = aws_elasticache_replication_group.bench_redis.primary_endpoint_address
+  local_cache_username = "default"
+  local_cache_password = var.local_cache_system_password
 
   global_pg_host       = var.global_pg_host
   global_pg_name       = var.global_pg_name

@@ -41,6 +41,10 @@ locals {
     GLOBAL_PG_PASSWORD   = var.global_pg_password
     GLOBAL_PG_CRYPTO_KEY = var.global_pg_crypto_key
 
+    LOCAL_CACHE_HOST     = var.local_cache_host
+    LOCAL_CACHE_USERNAME = var.local_cache_username
+    LOCAL_CACHE_PASSWORD = var.local_cache_password
+
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
     TRACING       = 1
     LOG_LEVEL     = "DEBUG"
