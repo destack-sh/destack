@@ -4,21 +4,20 @@ FROM python:3.13-slim AS bench-base
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench"
 
+# own the libs
 RUN apt-get update
-# install postgresql-libs
 RUN apt-get install -y libpq-dev libzbar-dev postgresql-client
-# install ML libs
 RUN apt-get install -y ffmpeg
-# install GCC and Fortran
-RUN apt-get install -y gcc gfortran
+RUN apt-get install -y gcc gfortran g++
 RUN apt-get install -y pkg-config cmake libopenblas-dev liblapack-dev
-# install git
+RUN apt-get install -y libxml2-dev libxslt-dev
 RUN apt-get install -y git
-# install curl
 RUN apt-get install -y curl
-# install uv 
-ADD --chmod=755 https://astral.sh/uv/install.sh /install.sh
-RUN /install.sh && rm /install.sh
+
+# uv
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+ENV PATH="/root/.local/bin/:$PATH"
 
 ENV PYTHONUNBUFFERED=1
 
@@ -26,7 +25,7 @@ ENV PYTHONUNBUFFERED=1
 FROM bench-base AS bench-system
 
 COPY bench/requirements/system.txt requirements.txt
-RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # copy relevant files
 COPY bench/ bench/
@@ -53,7 +52,7 @@ FROM bench-base AS bench-runtime
 RUN apt-get install -y pandoc
 
 COPY bench/requirements/runtime.txt requirements.txt
-RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # copy relevant files
 COPY bench/ bench/ 

@@ -20,7 +20,7 @@ VITE_COMMIT="VITE_COMMIT" VITE_ENV="VITE_ENV" VITE_SUPERVISOR_URL="VITE_SUPERVIS
 # image names
 IMAGES=("bench-system" "bench-runtime")
 for IMAGE in ${IMAGES[@]}; do
-  # Build the Docker image and tag it properly (with commit hash)
+  # Build the Docker image and tag it
   docker build . \
     --target $IMAGE \
     -f bench-infra/docker/Dockerfile.bench \
