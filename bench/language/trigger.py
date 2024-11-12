@@ -92,7 +92,7 @@ class Trigger(SourceNode[TriggerData]):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.SIGNAL]),
+        constraint=constraint(block_types=[BlockType.MESSAGE]),
     )
     condition: Optional["Expression"] = p_regular(
         52, default=None, require=False, array=False, struct=StructType.EXPRESSION

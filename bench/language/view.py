@@ -50,7 +50,7 @@ class ViewType(IdEnum):
     USER_WIZARD = 1
     BENCH_WIZARD = 2
     # internal
-    EMPTY = 80
+    EMPTY = 100
 
     # 'system'
     # nodes
@@ -75,6 +75,8 @@ class ViewType(IdEnum):
     FEED = 407
     TIMELINE = 408
     HISTORY = 409
+    HUB = 410
+    DETAIL = 411
 
     #
     # Organization
@@ -601,8 +603,6 @@ class Space(SourceNode[SpaceData]):
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
-
-    bar_position: Anchor = p_regular(40, default=Anchor.TOP)
 
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION

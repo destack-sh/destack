@@ -217,7 +217,7 @@ defineExpose({ isActive, open });
         <div
           v-if="isActive /* trigger inner transition */"
           ref="containerRef"
-          class="fixed z-60 h-fit rounded-sm border border-gray-700 bg-white text-sm opacity-100 transition-transform duration-150"
+          class="fixed z-60 h-fit rounded border border-gray-400 bg-white text-sm opacity-100 transition-transform duration-150"
           :style="{
             top: box.top + 40 + 'px',
             width: PANEL_WIDTH + 'px',
@@ -228,7 +228,7 @@ defineExpose({ isActive, open });
         >
           <!-- Header (pr is +2px for inset scroll track) -->
           <div
-            class="flex w-full flex-row items-center gap-x-2 border-b border-gray-700 pl-[18px] pr-[18px] text-sm text-gray-900"
+            class="flex w-full flex-row items-center gap-x-2 border-b border-gray-200 pl-[18px] pr-[18px] text-sm text-gray-900"
             :style="{ height: PANEL_HEADER_HEIGHT + 'px' }"
           >
             <!-- Icon -->

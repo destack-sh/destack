@@ -17,10 +17,11 @@ import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
-    ViewData,
-    "focus" | "variant"
-  >
+  {
+    self: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    size: Required<Pick<RectangleData, "width" | "height">>;
+  } & Pick<ViewData, "focus" | "variant">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -234,12 +235,11 @@ defineExpose<ViewExposed>({ self, actions });
             };
           }
         "
-        class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-gray-200 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 select-none flex-row items-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
-          i == focusedTabIdx ? 'bg-white text-gray-900' : 'border-b ',
+          i == focusedTabIdx ? 'bg-white text-gray-900' : 'border-b',
           i != focusedTabIdx ? 'text-gray-600' : '',
-          hasOneTab ? 'w-full max-w-full' : 'max-w-52 border-r',
         ]"
         :draggable="true"
         @click="focus(tab)"
@@ -253,7 +253,6 @@ defineExpose<ViewExposed>({ self, actions });
         <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
         <!-- Close tab -->
         <button
-          v-if="!hasOneTab"
           class="ml-1.5 group-hover:text-gray-400"
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"

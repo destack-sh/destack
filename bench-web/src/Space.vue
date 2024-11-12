@@ -1,20 +1,18 @@
 <script lang="ts" setup>
 import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES } from "@/language/const";
-import { Anchor, NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
+import { NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
 import { toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { assignSpaceInPackage, bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
 import { user } from "@/system/user";
 import { IS_IN_ALT_MODE, fireActionById } from "@/ui/action";
-import { createDesktopDefaultSpace } from "@/ui/space";
 import { makeIcon } from "@/ui/icon";
 import { keytrap } from "@/ui/keymap";
 import { isDraggingGlobal } from "@/ui/layout";
 import { hasActivePopover } from "@/ui/popover";
+import { createDesktopDefaultSpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
-import { SPACE_DEFAULT_BAR_POSITION, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { DISCORD_URL } from "@/utils/globals";
-import Bar from "@/views/builtins/Bar.vue";
 import DragOverlay from "@/views/builtins/DragOverlay.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import Omnibar from "@/views/builtins/Omnibar.vue";
@@ -26,51 +24,11 @@ import Button from "@/views/controls/Button.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
-const BAR_WIDTH = VIEW_DEFAULT_HEADER_HEIGHT;
-const BAR_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const TOP_INSET_WITHOUT_BAR = 1;
-
 const spaceRef = ref<HTMLElement | null>(null);
-const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
+const mainBox = computed(() => ({ left: 0, top: 0, width: spaceWidth.value, height: spaceHeight.value }));
 const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
 const window = computed(() => windows.value[0]); // assumes :OneRootWindow for now
-
-// figure out main box / bar layout
-const barPosition = computed(() => space.value?.barPosition ?? SPACE_DEFAULT_BAR_POSITION);
-const barOrientation = computed(() =>
-  barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? Orientation.HORIZONTAL : Orientation.VERTICAL,
-);
-const barOffset = computed(() => {
-  if (barPosition.value == Anchor.LEFT) return { left: 0, top: TOP_INSET_WITHOUT_BAR };
-  else if (barPosition.value == Anchor.TOP) return { left: 0, top: 0 };
-  else if (barPosition.value == Anchor.RIGHT) return { left: spaceWidth.value - BAR_WIDTH, top: TOP_INSET_WITHOUT_BAR };
-  else if (barPosition.value == Anchor.BOTTOM)
-    return { left: 0, top: TOP_INSET_WITHOUT_BAR + spaceHeight.value - BAR_HEIGHT };
-  else throw new Error(`unexpected bar position: ${barPosition.value}`);
-});
-const mainOffset = computed(() => {
-  if (barPosition.value == Anchor.LEFT) return { left: BAR_WIDTH, top: TOP_INSET_WITHOUT_BAR };
-  else if (barPosition.value == Anchor.TOP) return { left: 0, top: BAR_HEIGHT };
-  else if (barPosition.value == Anchor.RIGHT) return { left: 0, top: TOP_INSET_WITHOUT_BAR };
-  else if (barPosition.value == Anchor.BOTTOM) return { left: 0, top: TOP_INSET_WITHOUT_BAR };
-  else throw new Error(`unexpected bar position: ${barPosition.value}`);
-});
-const mainBox = computed(() => ({
-  ...mainOffset.value,
-  width: spaceWidth.value - (barPosition.value == Anchor.LEFT || barPosition.value == Anchor.RIGHT ? BAR_WIDTH : 0),
-  height:
-    spaceHeight.value -
-    (barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? BAR_HEIGHT : 0) -
-    (barPosition.value == Anchor.TOP ? 0 : TOP_INSET_WITHOUT_BAR),
-}));
-const mainBoxStyle = computed(() => ({
-  left: mainOffset.value.left + "px",
-  top: mainOffset.value.top + "px",
-  width: mainBox.value.width + "px",
-  height: mainBox.value.height + "px",
-}));
-
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 
 // suppress save everywhere
@@ -118,46 +76,24 @@ watch(
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
-    <!-- Bar -->
-    <Bar
-      ref="barRef"
-      class="absolute border-gray-200"
-      :class="[
-        barPosition == Anchor.TOP ? 'border-b' : '',
-        barPosition == Anchor.BOTTOM ? 'border-t' : '',
-        barPosition == Anchor.LEFT ? 'border-r' : '',
-        barPosition == Anchor.RIGHT ? 'border-l' : '',
-      ]"
-      :anchor="barPosition"
-      :orientation="barOrientation"
-      :space-graph="spaceGraph"
-      :space-connection="spaceConnection"
-      :style="{
-        left: barOffset.left + 'px',
-        top: barOffset.top + 'px',
-        width: (barOrientation == Orientation.HORIZONTAL ? spaceWidth : BAR_WIDTH) + 'px',
-        height: (barOrientation == Orientation.HORIZONTAL ? BAR_HEIGHT : spaceHeight) + 'px',
-      }"
-    />
     <!-- Space root (:OneRootWindow) -->
     <Split
       v-if="window"
       id="window"
       class="absolute"
-      :style="mainBoxStyle"
       :type="ViewType.WINDOW"
       :self="toPlainNodeRef(window)"
-      :size="mainBox"
       :focus="window.focus"
       :name="window.name"
+      :size="mainBox"
       :orientation="Orientation.HORIZONTAL"
     />
     <!-- Loading... -->
-    <div v-else-if="!spaceConnection.isConnected.value" class="absolute bg-white" :style="{ ...mainBoxStyle }">
+    <div v-else-if="!spaceConnection.isConnected.value" class="absolute h-full w-full bg-white">
       <Inaccessible class="h-full w-full" :node="spacePtr" :connection="spaceConnection" />
     </div>
     <!-- Does not have a space (not signed, space empty or disappeared) -->
-    <div v-else class="absolute flex flex-col justify-center bg-white text-center" :style="{ ...mainBoxStyle }">
+    <div v-else class="absolute flex h-full w-full flex-col justify-center bg-white text-center">
       <div v-if="space && bench" class="flex w-fit flex-col gap-y-2 self-center">
         <!-- Space empty for some reason -->
         <span>

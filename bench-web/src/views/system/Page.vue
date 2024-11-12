@@ -3,24 +3,22 @@ import { BLOCK_CONTEXT_ACTIONS, createBlock, useFlatNodeMoveActions } from "@/la
 import { toCamelName } from "@/language/const";
 import { makeTypeInfo, NAME_TYPE } from "@/language/field";
 import { uploadFile } from "@/language/file";
-import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
+import { isDescendantOf } from "@/language/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/node";
 import { packValue } from "@/language/value";
 import {
   BenchType,
   BlockData,
   BlockType,
-  RectangleData,
-  ColorShade,
-  ColorType,
   NodeReferenceData,
   NodeType,
   Orientation,
+  RectangleData,
   TypeKind,
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire/";
 import {
   describeNode,
@@ -39,7 +37,6 @@ import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { COLOR_BY_BLOCK_TYPE, getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
@@ -293,10 +290,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <NodePath :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :graph="pkgGraph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
-        <!-- Search -->
-        <button class="h-fit text-gray-400 hover:text-primary-700" @click="fireActionById('common.search.findInView')">
-          <i class="fas fa-magnifying-glass w-5 text-center" />
-        </button>
       </div>
     </div>
 

@@ -44,14 +44,7 @@ const path = computed(() => {
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
         <IconInline v-bind="getNodeIcon(node)" :color="getNodeColor(node)" class="mr-1.5 w-5" />
-        <span
-          :class="
-            node.id == container?.id || node.id == focus?.id || canvas.isInspected(node)
-              ? 'underline decoration-gray-700 underline-offset-3'
-              : ''
-          "
-          >{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span
-        >
+        <span>{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span>
       </button>
       <!-- Separator -->
       <i v-if="i < path.length - 1" class="fas fa-chevron-right text-gray-400" />

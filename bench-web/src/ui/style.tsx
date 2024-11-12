@@ -129,8 +129,7 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   // types
   [BlockType.CLASS]: ColorType.GREEN,
   [BlockType.CHOICE]: ColorType.GREEN,
-  [BlockType.SIGNAL]: ColorType.GREEN,
-  [BlockType.NOTIFICATION]: ColorType.GREEN,
+  [BlockType.MESSAGE]: ColorType.GREEN,
   // runnables
   [BlockType.ACTION]: ColorType.ORANGE,
   [BlockType.FLOW]: ColorType.ORANGE,

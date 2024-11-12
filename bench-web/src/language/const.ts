@@ -6,11 +6,11 @@ import {
   EditType,
   EnumType,
   FieldData,
+  MessageData,
   ModelProvider,
   ModelType,
   NodeReferenceData,
   NodeType,
-  NotificationData,
   ObjectType,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
@@ -19,14 +19,13 @@ import {
   RecordData,
   RunData,
   RunStatus,
-  SignalData,
   StepType,
   StructType,
   TypeFormat,
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -66,30 +65,21 @@ export const BASED_NODE_TYPES = [
   NodeType.RECORD,
   NodeType.MESSAGE,
   NodeType.RUN,
-  NodeType.SIGNAL,
-  NodeType.NOTIFICATION,
 ];
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1000 && nt < 1100);
 export const STATE_NODE_TYPES = SOURCE_NODE_TYPES.filter((nt) => nt >= 1100 && nt < 1200);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1200 && nt < 1300);
-export const TIMED_NODE_TYPES = [
-  NodeType.SESSION,
-  NodeType.RUN,
-  NodeType.SIGNAL,
-  NodeType.LOG,
-  NodeType.NOTIFICATION,
-  NodeType.MESSAGE,
-];
+export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE];
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 500 && nt < 600);
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
 export const PAGE_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
-export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
+export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.MESSAGE, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.ACTION, BlockType.FLOW];
 export const CLASSY_BLOCK_TYPES = [
   BlockType.CLASS,
-  BlockType.SIGNAL,
+  BlockType.MESSAGE,
   ...RUNNABLE_BLOCK_TYPES,
   BlockType.VALUE,
   BlockType.DATABASE,
@@ -100,7 +90,7 @@ export const STEP_TYPES = Object.values(StepType).filter((v) => typeof v == "num
 export const BOUNDARY_STEP_TYPES = STEP_TYPES.filter((st) => st < 50);
 export const SOURCE_STEP_TYPES = [StepType.START];
 export const SINK_STEP_TYPES = [StepType.COMPLETE, StepType.FAIL];
-export const INVISIBLE_STEP_TYPES = [StepType.TEXT] 
+export const INVISIBLE_STEP_TYPES = [StepType.TEXT];
 export const RUN_STEP_TYPES = STEP_TYPES.filter((st) => st >= 50 && st < 100);
 export const CONTROL_STEP_TYPES = STEP_TYPES.filter((st) => st >= 100 && st < 150);
 export const CONTAINER_STEP_TYPES = STEP_TYPES.filter((st) => st >= 500 && st < 560);
@@ -129,8 +119,8 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
     return (node as FieldData).parentPtr ?? null;
   } else if (node.metatype == ObjectType.RUN) {
     return (node as RunData).stepPtr ?? (node as RunData).blockPtr ?? null;
-  } else if (node.metatype == ObjectType.SIGNAL || node.metatype == ObjectType.NOTIFICATION) {
-    return (node as SignalData | NotificationData).blockPtr ?? null;
+  } else if (node.metatype == ObjectType.MESSAGE) {
+    return (node as MessageData).blockPtr ?? null;
   } else {
     return null;
   }

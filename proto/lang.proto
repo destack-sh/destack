@@ -130,9 +130,7 @@ enum NodeType {
   NODE_TYPE_RECORD = 1101;
   NODE_TYPE_SESSION = 1900;
   NODE_TYPE_RUN = 1901;
-  NODE_TYPE_SIGNAL = 1902;
   NODE_TYPE_LOG = 1903;
-  NODE_TYPE_NOTIFICATION = 1904;
   NODE_TYPE_SKIP = 9000;
 }
 
@@ -243,9 +241,7 @@ enum ObjectType {
   OBJECT_TYPE_RECORD = 1101;
   OBJECT_TYPE_SESSION = 1900;
   OBJECT_TYPE_RUN = 1901;
-  OBJECT_TYPE_SIGNAL = 1902;
   OBJECT_TYPE_LOG = 1903;
-  OBJECT_TYPE_NOTIFICATION = 1904;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_SESSION_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
@@ -352,9 +348,7 @@ enum BenchType {
   BENCH_TYPE_RECORD = 1101;
   BENCH_TYPE_SESSION = 1900;
   BENCH_TYPE_RUN = 1901;
-  BENCH_TYPE_SIGNAL = 1902;
   BENCH_TYPE_LOG = 1903;
-  BENCH_TYPE_NOTIFICATION = 1904;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_SESSION_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
@@ -866,8 +860,7 @@ enum BlockType {
   BLOCK_TYPE_TEXT = 2;
   BLOCK_TYPE_CLASS = 10;
   BLOCK_TYPE_CHOICE = 11;
-  BLOCK_TYPE_SIGNAL = 12;
-  BLOCK_TYPE_NOTIFICATION = 13;
+  BLOCK_TYPE_MESSAGE = 12;
   BLOCK_TYPE_ACTION = 21;
   BLOCK_TYPE_FLOW = 22;
   BLOCK_TYPE_VALUE = 30;
@@ -1274,7 +1267,7 @@ enum ViewType {
   VIEW_TYPE_UNSPECIFIED = 0;
   VIEW_TYPE_USER_WIZARD = 1;
   VIEW_TYPE_BENCH_WIZARD = 2;
-  VIEW_TYPE_EMPTY = 80;
+  VIEW_TYPE_EMPTY = 100;
   VIEW_TYPE_PAGE = 201;
   VIEW_TYPE_BLOCK = 202;
   VIEW_TYPE_FIELD = 203;
@@ -1295,6 +1288,8 @@ enum ViewType {
   VIEW_TYPE_FEED = 407;
   VIEW_TYPE_TIMELINE = 408;
   VIEW_TYPE_HISTORY = 409;
+  VIEW_TYPE_HUB = 410;
+  VIEW_TYPE_DETAIL = 411;
   VIEW_TYPE_WINDOW = 1000;
   VIEW_TYPE_TAB = 1002;
   VIEW_TYPE_SPLIT = 1003;
@@ -3005,35 +3000,14 @@ message MessageData {
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   NodeReferenceData origin_ptr = 32;
-  optional PathData path = 33;
+  NodeReferenceData block_ptr = 33;
   optional NodeReferenceData reply_to_ptr = 34;
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Value value_packed = 42;
+  optional google.protobuf.Timestamp expires_at = 44;
+  optional google.protobuf.Timestamp read_at = 45;
   bool is_pinned = 50;
-}
-
-message NotificationData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData block_ptr = 32;
-  NotificationLevel level = 33;
-  optional google.protobuf.Timestamp expires_at = 34;
-  optional google.protobuf.Timestamp read_at = 35;
-  optional string title = 40;
-  optional TextData text = 41;
-  optional google.protobuf.Value value_packed = 42;
 }
 
 message ViewData {
@@ -3131,7 +3105,6 @@ message SpaceData {
   optional TextData text = 32;
   string order_key = 33;
   repeated PolicyData policies = 34;
-  Anchor bar_position = 40;
   optional SelectionData focus = 70;
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
@@ -3158,32 +3131,6 @@ message SecretData {
   ResourceStatus current_status = 37;
   TypeInfoData value_type = 40;
   optional google.protobuf.Value value_packed = 41;
-}
-
-message SignalData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData block_ptr = 32;
-  optional google.protobuf.Value value_packed = 42;
-  optional NodeReferenceData session_ptr = 80;
-  optional NodeReferenceData run_ptr = 81;
-  optional NodeReferenceData run_root_ptr = 82;
-  optional NodeReferenceData client_ptr = 83;
-  optional NodeReferenceData machine_ptr = 84;
-  optional NodeReferenceData server_ptr = 85;
-  optional NodeReferenceData user_ptr = 86;
-  optional NodeReferenceData identity_ptr = 87;
 }
 
 message TriggerData {
@@ -3264,10 +3211,8 @@ message SomeNodeData {
     RecordData record = 30;
     SessionData session = 31;
     RunData run = 32;
-    SignalData signal = 33;
-    LogData log = 34;
-    NotificationData notification = 35;
-    SkipData skip = 36;
+    LogData log = 33;
+    SkipData skip = 34;
   };
 }
 

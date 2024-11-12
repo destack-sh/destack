@@ -51,10 +51,11 @@ const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
-    ViewData,
-    "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked"
-  >
+  {
+    self: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    size: Required<Pick<RectangleData, "width" | "height">>;
+  } & Pick<ViewData, "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked">
 >();
 
 const containerRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
@@ -489,8 +490,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Name otherwise -->
           <span
             v-else
-            class="select-none truncate decoration-gray-700 underline-offset-3"
-            :class="[isFocused(node) || canvas.isInspected(node) || canvas.isHighlighted(node) ? 'underline' : '']"
+            class="select-none truncate"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />
           <!-- Meta -->

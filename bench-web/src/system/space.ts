@@ -132,7 +132,6 @@ export async function assignSpaceInPackage() {
       packagePtr: toPlainNodeRef(pkg.value),
       name: "MySpace",
       orderKey: "a0",
-      barPosition: Anchor.TOP,
     });
     createEmptySpace(pkgConnection.tx, space);
     local.setSpace(toPlainNodeRef(space));

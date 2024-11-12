@@ -1,8 +1,18 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import structlog
 
-from bench.language.const import NODE_TYPES, EnumType, NodeType, ObjectKind, StructType, enum_
+from bench.language.const import (
+    NODE_TYPES,
+    BlockType,
+    EnumType,
+    NodeType,
+    ObjectKind,
+    StructType,
+    enum_,
+)
+from bench.language.field import TypeBase, constraint
 from bench.language.node import (
     BenchNode,
     HasNodeBase,
@@ -10,13 +20,19 @@ from bench.language.node import (
     StateNode,
     timed_node_,
 )
-from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
+from bench.language.property import (
+    p_internal,
+    p_node_parent,
+    p_regular,
+    p_value_packed,
+    p_value_runtime,
+)
 from bench.language.validation import TITLE_CONSTRAINT
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, CustomObject, NodeReference, Package, Path, Step, Text, View
+    from bench.language import Block, CustomObject, NodeReference, Package, Step, Text, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -50,9 +66,15 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
     type: MessageType = p_regular(30, require=True, default=MessageType.NATIVE)
     origin: BenchNode = p_regular(32, require=True, references=NODE_TYPES.tuple)
-    path: Optional["Path"] = p_regular(33, require=False, array=False, struct=StructType.PATH)
+    block: "Block" = p_internal(
+        33,
+        require=True,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(block_types=[BlockType.MESSAGE]),
+    )
     reply_to: Optional["Message"] = p_regular(
-        34, require=False, default=None, references=NodeType.MESSAGE, same_bench=True
+        34, require=False, array=False, references=NodeType.MESSAGE
     )
     if TYPE_CHECKING:
         origin_ptr: Optional[NodeReference] = None
@@ -62,7 +84,11 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
-    value: "CustomObject | None" = p_value_runtime(42, kind=ObjectKind.MEMBER, typ=None)
+    value: "CustomObject | None" = p_value_runtime(
+        42, kind=ObjectKind.MEMBER, typ=lambda self: cast("Message", self).value_type
+    )
+    expires_at: Optional[datetime] = p_internal(44, default=None)
+    read_at: Optional[datetime] = p_internal(45, default=None)
 
     # flags
     is_pinned: bool = p_regular(50, default=False)
@@ -84,4 +110,8 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast("MessageData", data).origin_ptr
+        return cast("MessageData", data).block_ptr
+
+    @property
+    def value_type(self) -> "TypeBase | None":
+        return self.block.to_type(as_object=True)

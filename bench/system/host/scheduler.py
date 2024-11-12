@@ -10,9 +10,9 @@ from opentelemetry import trace
 
 from bench.language.bench import Bench, ResourceStatus
 from bench.language.const import NodeType, RunStatus
+from bench.language.message import Message
 from bench.language.run import Run, RunError, RunErrorKind, RunErrorType
 from bench.language.session import Session
-from bench.language.signal import Signal
 from bench.language.text import Text
 from bench.language.trigger import Trigger
 from bench.proto.services import get_channel
@@ -193,10 +193,10 @@ class RunPlugin(HostPlugin[Run]):
             )
 
 
-class SignalTriggerPlugin(DeferredHostPlugin[Signal | Trigger]):
-    """Process active Triggers when they receive Signals."""
+class MessageTriggerPlugin(DeferredHostPlugin[Message | Trigger]):
+    """Process active Triggers when they receive Messages."""
 
-    watch_types = bittuple(NodeType.SIGNAL, NodeType.TRIGGER)
+    watch_types = bittuple(NodeType.MESSAGE, NodeType.TRIGGER)
 
     ...
 

@@ -4,7 +4,7 @@ from typing import cast
 import pytest
 from hypothesis import given
 
-from bench.language import Bench, NodeReference, Property, Server, Signal
+from bench.language import Bench, Message, NodeReference, Property, Server
 from bench.language.bench import Client, Package
 from bench.language.block import ActionBlock, Block, ValueBlock
 from bench.language.code import Code
@@ -156,13 +156,13 @@ def test_node_pointers_consistency(session: "Session"):
     block_a_1.roles = [block_a_2]
 
     # based pointers
-    signal_a = Signal(parent=package_a, block=block_a_1)
-    assert signal_a.bench_id == bench_a.id
-    assert signal_a.to_ref().equals(
+    message_a = Message(parent=package_a, block=block_a_1)
+    assert message_a.bench_id == bench_a.id
+    assert message_a.to_ref().equals(
         NodeReference(
-            node_type=NodeType.SIGNAL,
-            id=signal_a.id,
-            ck=signal_a.ck,
+            node_type=NodeType.MESSAGE,
+            id=message_a.id,
+            ck=message_a.ck,
             bench_id=bench_a.id,
             base_ck=block_a_1.ck,
             base_bench_id=bench_a.id,
@@ -180,20 +180,20 @@ def test_node_pointers_consistency(session: "Session"):
     assert block_b.bench_id == bench_b.id
     assert block_b.roles
     assert block_b.roles[0].bench_id == bench_a.id
-    signal_b = Signal(parent=package_b, block=block_a_1)
-    assert signal_b.bench_id == bench_b.id
-    assert signal_b.to_ref().equals(
+    message_b = Message(parent=package_b, block=block_a_1)
+    assert message_b.bench_id == bench_b.id
+    assert message_b.to_ref().equals(
         NodeReference(
-            node_type=NodeType.SIGNAL,
-            id=signal_b.id,
-            ck=signal_b.ck,
+            node_type=NodeType.MESSAGE,
+            id=message_b.id,
+            ck=message_b.ck,
             bench_id=bench_b.id,
             base_ck=block_a_1.ck,
             base_bench_id=bench_a.id,
         )
     )
-    assert signal_b.parent_ptr
-    assert signal_b.parent_ptr.bench_id == bench_b.id
+    assert message_b.parent_ptr
+    assert message_b.parent_ptr.bench_id == bench_b.id
 
     # rich references
     file1 = File(

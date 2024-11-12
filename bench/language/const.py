@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.12.0"
+VERSION = "2024.11.12.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -240,13 +240,11 @@ class NodeType(IdEnum):
     # state (versioned)
     MESSAGE = 1100  # (based, timed)
     RECORD = 1101  # (based)
-    SIGNAL = 1102  # (based, timed)
 
     # runtime
     SESSION = 1900  # (timed)
     RUN = 1901  # (based, timed)
     LOG = 1903  # (timed)
-    NOTIFICATION = 1904  # (timed)
 
     #
     # Misc
@@ -304,21 +302,9 @@ STATE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1100 and 
 RUNTIME_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1900 and nt.id < 2000))
 
 BASED_NODE_TYPES = bittuple(  # :HasBase
-    NodeType.FIELD,
-    NodeType.RUN,
-    NodeType.SIGNAL,
-    NodeType.NOTIFICATION,
-    NodeType.MESSAGE,
-    NodeType.RECORD,
+    NodeType.FIELD, NodeType.RUN, NodeType.MESSAGE, NodeType.RECORD
 )
-TIMED_NODE_TYPES = bittuple(
-    NodeType.SESSION,
-    NodeType.RUN,
-    NodeType.SIGNAL,
-    NodeType.LOG,
-    NodeType.NOTIFICATION,
-    NodeType.MESSAGE,
-)
+TIMED_NODE_TYPES = bittuple(NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE)
 IN_PACKAGE_NODE_TYPES = bittuple(
     *tuple(nt for nt in NODE_TYPES if nt.id >= 1001 and nt.id < 2000), NodeType.SKIP
 )
@@ -647,9 +633,8 @@ class BlockType(IdEnum):
     # types
     CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
-    SIGNAL = 12  # define a signal type with fields
-    NOTIFICATION = 13  # define a new notification type
-    # MESSAGE, RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
+    MESSAGE = 12  # define a signal type with fields
+    # RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
     ACTION = 21  # define a code function/script with fields (optionally incl. input/output)
@@ -692,7 +677,7 @@ class BlockTypes:
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 20 <= t.id < 30))
     CLASSES = bittuple(
-        BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE
+        BlockType.CLASS, BlockType.MESSAGE, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE
     )
 
 

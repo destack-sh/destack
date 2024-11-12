@@ -52,16 +52,16 @@ export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.delete",
 ];
 
-export const FLOW_GRID_STEP = 32;
+export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
 
-export const FLOW_CANVAS_DOT_SIZE = 4;
+export const FLOW_CANVAS_DOT_SIZE = 2;
 export const FLOW_SCALE_MIN = 0.5;
 export const FLOW_SCALE_MAX = 4.0;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
-export const STEP_HEADER_HEIGHT = FLOW_GRID_STEP;
+export const STEP_HEADER_HEIGHT = FLOW_GRID_STEP * 2;
 
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
 export function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
@@ -119,8 +119,8 @@ export class StepState {
           NodeType.STEP,
           StepType.ACTION,
           this.step.value?.subnodePacked,
-          "delegatePtr",
-        );
+          "toolsPtr",
+        )?.[0];
         return nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
       } else {
         return null;
@@ -888,7 +888,7 @@ export function getStepFields(
     if (flow == null) return null;
     let node: BlockData | StepData | undefined | null = null;
     if (step.type == StepType.ACTION) {
-      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "delegatePtr");
+      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "toolsPtr")?.[0];
       node = graph.getMaybe(nodePtr) as BlockData | StepData | undefined;
     }
     related = {
@@ -992,7 +992,7 @@ export function pathToSvgSpline(points: Vector2[], tension: number = 0.05): stri
 
 /** Gets the view width for a Step. */
 export function getStepWidth(step: StepData): number {
-  return FLOW_GRID_STEP * 10;
+  return FLOW_GRID_STEP * 24;
 }
 
 /** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */
