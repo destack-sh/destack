@@ -84,6 +84,27 @@ variable "global_pg_crypto_key" {
 }
 
 #
+# Cache
+# 
+
+variable "local_cache_host" {
+  type        = string
+  description = "Host for the Redis cache"
+}
+
+variable "local_cache_username" {
+  type        = string
+  description = "Port for the Redis cache"
+}
+
+variable "local_cache_password" {
+  type        = string
+  description = "Password for the Redis cache"
+  sensitive   = true
+}
+
+
+#
 # Kubernetes
 # 
 
