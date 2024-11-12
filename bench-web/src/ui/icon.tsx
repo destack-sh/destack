@@ -197,9 +197,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   // runtime
   [NodeType.SESSION]: "fas fa-circle-play",
   [NodeType.RUN]: "fas fa-play",
-  [NodeType.SIGNAL]: "fas fa-signal-stream",
   [NodeType.LOG]: "fas fa-file-alt",
-  [NodeType.NOTIFICATION]: "fas fa-bell",
 });
 
 export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeIcons<StructType>({
@@ -255,8 +253,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   // class
   [BlockType.CLASS]: "fas fa-shapes",
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
-  [BlockType.SIGNAL]: "fas fa-signal-stream",
-  [BlockType.NOTIFICATION]: "fas fa-bell",
+  [BlockType.MESSAGE]: "fas fa-envelope",
   // runnable
   [BlockType.ACTION]: "fas fa-circle-play",
   [BlockType.FLOW]: "fas fa-diagram-project",

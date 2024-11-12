@@ -180,9 +180,11 @@ class Block(SourceNode[BlockData]):
                 bench_type=NodeType.FIELD,
                 base_field_type=FieldType.OPTION,
             )
-        elif self.type == BlockType.SIGNAL:
+        elif self.type == BlockType.MESSAGE:
             if not as_object:
-                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.SIGNAL)
+                typ = TypeInfo(
+                    kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.MESSAGE
+                )
             else:
                 typ = TypeInfo(
                     kind=TypeKind.OBJECT,

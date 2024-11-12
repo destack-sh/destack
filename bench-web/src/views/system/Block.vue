@@ -149,7 +149,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     ref="blockRef"
     class="group/block relative select-none rounded"
     :class="[
-      block.type != BlockType.TEXT && block.type != BlockType.PAGE ? 'border' : '',
       isInspected ? 'border-primary-700' : 'border-gray-200',
     ]"
     :style="{}"
@@ -189,7 +188,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         id="name"
         ref="nameRef"
         class="ml-2 flex-shrink-0 font-medium transition-colors duration-150"
-        :class="[isHighlighted ? 'underline decoration-gray-700 underline-offset-3' : '']"
         is-input
         :value-type="NAME_TYPE"
         placeholder="Name..."
@@ -251,9 +249,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200">
       <!-- Types -->
       <Type
-        v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.NOTIFICATION].includes(block.type)"
+        v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
         id="type"
-        class="px-2 py-2"
+        class="px-1 py-1"
         :node="block"
         :prepared-connection="pkgGetConnection"
         :node-ptr="props.nodePtr"
@@ -262,7 +260,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-b border-gray-200 px-2 pb-1 pt-2">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200 px-2 pb-2 pt-1">
           <Type
             id="type.input"
             class=""
@@ -288,7 +286,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           ref="textRef"
           is-input
           class=""
-          :class="block.type == BlockType.ACTION ? 'px-2 py-2' : ''"
+          :class="block.type == BlockType.ACTION ? 'px-2 ' : ''"
           :variant="Variant.STEALTH"
           placeholder="Text..."
           :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"

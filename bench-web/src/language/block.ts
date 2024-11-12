@@ -254,8 +254,8 @@ export function blockToType(block: BlockData): TypeInfoData {
     baseFieldType = FieldType.OPTION;
   } else if (block.type == BlockType.CLASS) {
     kind = TypeKind.OBJECT;
-  } else if (block.type == BlockType.SIGNAL) {
-    benchType = BenchType.SIGNAL;
+  } else if (block.type == BlockType.MESSAGE) {
+    benchType = BenchType.MESSAGE;
     kind = TypeKind.BASED_NODE;
   } else if (block.type == BlockType.DATABASE) {
     benchType = BenchType.RECORD;

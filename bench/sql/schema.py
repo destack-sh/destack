@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.12.0"
+VERSION = "2024.11.12.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -753,7 +753,6 @@ SPACE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("bar_position", PrimitiveType.INT16, default="1"),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
         Column("inspection_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1180,12 +1179,18 @@ MESSAGE_TABLE = Table(
         Column("origin_bench_id", PrimitiveType.UUID),
         Column("origin_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("origin_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("path", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID),
+        Column("block_ck", PrimitiveType.UUID),
+        Column("block_bench_id", PrimitiveType.UUID),
         Column("reply_to_id", PrimitiveType.UUID, is_nullable=True),
+        Column("reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("reply_to_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("read_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("is_pinned", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(
@@ -1317,52 +1322,6 @@ RUN_TABLE = Table(
     ),
 )
 
-SIGNAL_TABLE = Table(
-    "bench_signal",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("block_id", PrimitiveType.UUID),
-        Column("block_ck", PrimitiveType.UUID),
-        Column("block_bench_id", PrimitiveType.UUID),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("session_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-    ),
-    indexes=(
-        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-        Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
-        Index(
-            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
-        ),
-    ),
-)
-
 LOG_TABLE = Table(
     "bench_log",
     (
@@ -1407,45 +1366,6 @@ LOG_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-    ),
-    indexes=(
-        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-        Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
-        Index(
-            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
-        ),
-    ),
-)
-
-NOTIFICATION_TABLE = Table(
-    "bench_notification",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("block_id", PrimitiveType.UUID),
-        Column("block_ck", PrimitiveType.UUID),
-        Column("block_bench_id", PrimitiveType.UUID),
-        Column("level", PrimitiveType.INT16),
-        Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("read_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("title", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),

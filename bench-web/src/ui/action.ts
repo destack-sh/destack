@@ -173,7 +173,6 @@ export const ACTION_BUILTIN_IDS = [
   "view.space.resetBlank",
   "view.space.resetDefault",
   "view.space.resetAdvanced",
-  "view.space.rotateBarPosition",
   // user
   "user.auth.signup",
   "user.auth.login",
@@ -1068,19 +1067,6 @@ contributeActionMap<"view">({
       const tx = canvas.tx();
       clearSpace(tx, canvas.graph, space.value);
       createDesktopDefaultSpace(tx, space.value);
-    },
-  },
-  "view.space.rotateBarPosition": {
-    isEnabled: hasLocalBench,
-    title: "Rotate the Bar",
-    text: "Rotate the bar position in this space",
-    icon: "fas fa-rotate",
-    action: () => {
-      if (space.value == null) throw new Error("no space");
-      const tx = canvas.tx();
-      const barPosition = space.value.barPosition ?? SPACE_DEFAULT_BAR_POSITION;
-      const nextBarPosition = EXPOSED_ANCHORS[(EXPOSED_ANCHORS.indexOf(barPosition) + 1) % EXPOSED_ANCHORS.length];
-      tx.update(space.value, { barPosition: nextBarPosition });
     },
   },
 });
