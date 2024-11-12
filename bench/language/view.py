@@ -76,7 +76,7 @@ class ViewType(IdEnum):
     TIMELINE = 408
     HISTORY = 409
     HUB = 410
-    DETAIL = 411
+    HELP = 411
 
     #
     # Organization
@@ -553,6 +553,12 @@ class TreeView(View):
     node_types: list[NodeType] = p_regular(100, array=True)
     filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
     is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
+    expanded_nodes: list[Node] = p_regular(
+        103, require=False, array=True, references=NODE_TYPES.tuple
+    )
+    collapsed_nodes: list[Node] = p_regular(
+        104, require=False, array=True, references=NODE_TYPES.tuple
+    )
 
     preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
 

@@ -1282,7 +1282,7 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_TIMELINE: _ClassVar[ViewType]
     VIEW_TYPE_HISTORY: _ClassVar[ViewType]
     VIEW_TYPE_HUB: _ClassVar[ViewType]
-    VIEW_TYPE_DETAIL: _ClassVar[ViewType]
+    VIEW_TYPE_HELP: _ClassVar[ViewType]
     VIEW_TYPE_WINDOW: _ClassVar[ViewType]
     VIEW_TYPE_TAB: _ClassVar[ViewType]
     VIEW_TYPE_SPLIT: _ClassVar[ViewType]
@@ -2580,7 +2580,7 @@ VIEW_TYPE_FEED: ViewType
 VIEW_TYPE_TIMELINE: ViewType
 VIEW_TYPE_HISTORY: ViewType
 VIEW_TYPE_HUB: ViewType
-VIEW_TYPE_DETAIL: ViewType
+VIEW_TYPE_HELP: ViewType
 VIEW_TYPE_WINDOW: ViewType
 VIEW_TYPE_TAB: ViewType
 VIEW_TYPE_SPLIT: ViewType
@@ -7967,20 +7967,33 @@ class ViewData(_message.Message):
     ) -> None: ...
 
 class TreeViewData(_message.Message):
-    __slots__ = ("node_types", "filter_is_page", "is_default_expanded", "preset")
+    __slots__ = (
+        "node_types",
+        "filter_is_page",
+        "is_default_expanded",
+        "expanded_nodes_ptr",
+        "collapsed_nodes_ptr",
+        "preset",
+    )
     NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
     FILTER_IS_PAGE_FIELD_NUMBER: _ClassVar[int]
     IS_DEFAULT_EXPANDED_FIELD_NUMBER: _ClassVar[int]
+    EXPANDED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
+    COLLAPSED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     PRESET_FIELD_NUMBER: _ClassVar[int]
     node_types: _containers.RepeatedScalarFieldContainer[NodeType]
     filter_is_page: bool
     is_default_expanded: bool
+    expanded_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    collapsed_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     preset: TreeViewPreset
     def __init__(
         self,
         node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ...,
         filter_is_page: bool = ...,
         is_default_expanded: bool = ...,
+        expanded_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
+        collapsed_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...,
         preset: _Optional[_Union[TreeViewPreset, str]] = ...,
     ) -> None: ...
 

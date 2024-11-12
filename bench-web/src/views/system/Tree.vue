@@ -23,6 +23,7 @@ import {
   SomeNodeReferenceData,
   isNode,
   toNodeRef,
+  toPlainNodeRef,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -77,7 +78,6 @@ const filterIsPage = computed(() => {
     return unpackSubnodeProperty(NodeType.VIEW, ViewType.TREE, props.subnodePacked, "filterIsPage");
   }
 });
-const isDefaultExpanded = computed(() => preset.value == TreeViewPreset.OUTLINE);
 const inspectedNodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.EXPLORE) {
     return [NodeType.BLOCK];
@@ -121,11 +121,20 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
 // Visible subtree
 //
 
+const expandedNodes = useSubnodeProperty(
+  NodeType.VIEW,
+  ViewType.TREE,
+  toRef(props, "subnodePacked"),
+  "expandedNodesPtr",
+);
 function isExpanded(node: AnyNodeData | SomeNodeReferenceData) {
-  return true;
+  return expandedNodes.value?.some((ref) => ref.id == node.id);
 }
 function toggleExpanded(node: AnyNodeData | SomeNodeReferenceData) {
-  // NOTE :Incomplete: Tree expansion
+  const expandedNodesPtr = isExpanded(node)
+    ? expandedNodes.value?.filter((ref) => ref.id != node.id)
+    : [...(expandedNodes.value ?? []), toPlainNodeRef(node as SomeNodeReferenceData)];
+  state.update({ metatype: NodeType.VIEW, type: ViewType.TREE, subnode: { expandedNodesPtr } }, { debounce: "long" });
 }
 
 function isIncludedSelf(node: AnyNodeData) {
@@ -338,7 +347,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 <template>
   <div class="h-full w-full">
     <!-- Header -->
-    <div class="group w-full" :style="{ height: VIEW_DEFAULT_HEADER_HEIGHT + 'px' }">
+    <div class="group/header w-full" :style="{ height: VIEW_DEFAULT_HEADER_HEIGHT + 'px' }">
       <div
         class="mx-auto flex h-full max-w-full flex-row items-center pl-1.5 pr-3"
         :style="{ minWidth: VIEW_DEFAULT_MIN_WIDTH + 'px', maxWidth: VIEW_DEFAULT_MAX_WIDTH + 'px' }"
@@ -439,7 +448,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group relative flex flex-row items-center border-y py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-700 data-[dragging=true]:opacity-50"
+          class="group/node relative mx-1 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
           :class="[
             (focusedNode?.id == node.id && isFocusAbsolute) ||
             (activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center')
@@ -449,7 +458,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             (node as any).name != null ? '' : 'italic',
           ]"
           :style="{
-            paddingLeft: 10 + depth * DEPTH_OFFSET + 'px',
+            paddingLeft: 6 + depth * DEPTH_OFFSET + 'px',
             paddingRight: 8 + 'px',
           }"
           role="treeitem"
@@ -467,8 +476,21 @@ defineExpose<ViewExposed>({ self, actions, focus });
               width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)',
             }"
           />
-          <!-- Icon / title -->
-          <IconInline v-bind="getNodeIcon(node)" :color="getNodeColor(node)" class="mr-1.5 w-5 flex-shrink-0" />
+          <!-- Icon/Expand button -->
+          <button class="group/icon relative mr-1.5 flex-shrink-0" @click="() => toggleExpanded(node)">
+            <IconInline
+              v-bind="getNodeIcon(node)"
+              :color="getNodeColor(node)"
+              class="w-5 transition-colors duration-75"
+              :class="hasChildren ? 'group-hover/node:opacity-0' : ''"
+            />
+            <span
+              v-if="hasChildren"
+              class="absolute left-0 w-5 rounded bg-gray-100 text-gray-700 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
+              :class="isExpanded(node) ? 'rotate-90' : 'rotate-9'"
+              ><i class="fas fa-chevron-right"
+            /></span>
+          </button>
           <!-- Name (editable) if editing -->
           <NativeInput
             v-if="node.id == editingNodePtr?.id"
@@ -499,7 +521,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <button
               v-if="isNode(node, NodeType.BLOCK)"
               role="button"
-              class="text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
+              class="text-gray-400 opacity-0 hover:text-primary-700 group-hover/node:opacity-100"
               @click.stop="
                 () => {
                   const block = createBlock(pkgConnection.tx, pkgGraph, {

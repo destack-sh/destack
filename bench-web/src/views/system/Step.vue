@@ -185,12 +185,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       }"
     >
       <!-- Icon -->
-      <div
-        class="ml-1 flex flex-row items-center rounded px-1 py-1"
-        :style="{
-          backgroundColor: getNodeColorHex(step, ColorShade.S300),
-        }"
-      >
+      <div class="ml-1 flex flex-row items-center rounded px-1 py-1">
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
@@ -202,6 +197,9 @@ defineExpose<ViewExposed>({ self, id, actions });
               onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
             })
           "
+          :style="{
+            color: getNodeColorHex(step, ColorShade.S600),
+          }"
           v-bind="getNodeIcon(step)"
           class="w-5 flex-shrink-0 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer"
         />

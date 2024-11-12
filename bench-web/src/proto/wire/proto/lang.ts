@@ -5354,6 +5354,14 @@ export interface TreeViewData {
      */
     isDefaultExpanded?: boolean;
     /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 103;
+     */
+    expandedNodesPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 104;
+     */
+    collapsedNodesPtr: NodeReferenceData[];
+    /**
      * @generated from protobuf field: optional symbolx.bench.TreeViewPreset preset = 110;
      */
     preset?: TreeViewPreset;
@@ -10500,9 +10508,9 @@ export enum ViewType {
      */
     HUB = 410,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DETAIL = 411;
+     * @generated from protobuf enum value: VIEW_TYPE_HELP = 411;
      */
-    DETAIL = 411,
+    HELP = 411,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 1000;
      */
@@ -24543,12 +24551,16 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
             { no: 100, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 101, name: "filter_is_page", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 102, name: "is_default_expanded", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 103, name: "expanded_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 104, name: "collapsed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 110, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] }
         ]);
     }
     create(value?: PartialMessage<TreeViewData>): TreeViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeTypes = [];
+        message.expandedNodesPtr = [];
+        message.collapsedNodesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<TreeViewData>(this, message, value);
         return message;
@@ -24570,6 +24582,12 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
                     break;
                 case /* optional bool is_default_expanded */ 102:
                     message.isDefaultExpanded = reader.bool();
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr */ 103:
+                    message.expandedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr */ 104:
+                    message.collapsedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.TreeViewPreset preset */ 110:
                     message.preset = reader.int32();
@@ -24599,6 +24617,12 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
         /* optional bool is_default_expanded = 102; */
         if (message.isDefaultExpanded !== undefined)
             writer.tag(102, WireType.Varint).bool(message.isDefaultExpanded);
+        /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 103; */
+        for (let i = 0; i < message.expandedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.expandedNodesPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 104; */
+        for (let i = 0; i < message.collapsedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.collapsedNodesPtr[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TreeViewPreset preset = 110; */
         if (message.preset !== undefined)
             writer.tag(110, WireType.Varint).int32(message.preset);
@@ -27507,6 +27531,8 @@ export enum TreeViewProperty {
   nodeTypes = 100,
   filterIsPage = 101,
   isDefaultExpanded = 102,
+  expandedNodesPtr = 103,
+  collapsedNodesPtr = 104,
   preset = 110,
 }
 
@@ -29363,6 +29389,8 @@ export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
   [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const StartViewDataInfo: Record<StartViewProperty, PropertyInfo> = {
