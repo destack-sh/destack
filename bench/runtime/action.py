@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar, Mapping, Sequence, assert_never, cast, override
+from typing import Any, ClassVar, Mapping, Sequence, assert_never, cast, override
 
 import anthropic
 import openai
@@ -22,13 +22,13 @@ from bench.language.node import Node, SomeNodeReference, SourceNode
 from bench.language.project import Projection, ProjectOptions
 from bench.language.query import Query
 from bench.language.render import RenderOptions, render_expr, render_stmt
-from bench.language.run import ModelProvider, ModelType, Run, RunKind, RunOptions
+from bench.language.run import CacheMode, ModelProvider, ModelType, Run, RunKind, RunOptions
 from bench.language.text import Text
 from bench.language.value import CustomObject, OutputObject, sample_value
 from bench.runtime.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, ModelFailedError, RunImpossibleError
 from bench.runtime.runner import Context, Runner, runner_from_node
-from bench.utils.func import IdEnum
+from bench.utils.func import IdEnum, stable_hash
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -86,7 +86,7 @@ class ActionRunner(Runner):
         elif action.mode == ActionMode.ADAPTIVE:
             # adapt (if needed) & run implementation
             update_code = await self._generate_code(
-                task=TaskType.ADAPT, inputs=None, output_type=None
+                task=TaskType.ADAPT, inputs=None, output_type=None, include_run_context=False
             )
             if update_code != CODE_PASS:
                 await self._run_code(code=update_code, node=action, inputs=None, output_type=None)
@@ -99,7 +99,10 @@ class ActionRunner(Runner):
         elif action.mode == ActionMode.DYNAMIC:
             # generate a new implementation every time
             implementation_code = await self._generate_code(
-                task=TaskType.RUN, inputs=self.inputs, output_type=self.output_type
+                task=TaskType.RUN,
+                inputs=self.inputs,
+                output_type=self.output_type,
+                include_run_context=True,
             )
             self.outputs = await self._run_implementation(
                 code=implementation_code,
@@ -115,29 +118,51 @@ class ActionRunner(Runner):
         task: TaskType,
         inputs: CustomObject | None,
         output_type: TypeBase | None,
+        include_run_context: bool,
     ) -> Code:
         """Generate Code that does something and outputs an object of the given type."""
 
-        # nocheckin: caching
+        # prepare prompt
         model = self.options.model_type or OPENAI_DEFAULT_MODEL
         prompt = make_prompt(
-            task=task, runner=self, context=self.context, inputs=inputs, output_type=output_type
+            task=task,
+            runner=self,
+            context=self.context,
+            inputs=inputs,
+            output_type=output_type,
+            include_run_context=include_run_context,
         )
+        compiler: PromptCompiler[Any, Any]
         if model.provider == ModelProvider.OPENAI:
-            completion = await _generate_code_openai(
-                prompt=prompt,
-                output_type=output_type,
-                user_id=str(self.runtime.package.id),
-                options=self.options,
-            )
+            compiler = OpenaiChatCompiler()
         elif model.provider == ModelProvider.ANTHROPIC:
-            completion = await _generate_code_anthropic(
-                prompt=prompt, output_type=output_type, options=self.options
-            )
+            compiler = AnthropicChatCompiler()
         else:
             raise RunImpossibleError(f"unsupported model provider {model.provider!r}")
+        compiled_prompt = await compiler.compile(prompt, budget=1000)
+        rendered_prompt = await compiler.assemble(compiled_prompt)
+
+        # generate
+        cache_key = (
+            f"prompt_{model.value}{stable_hash(prompt.task, prompt.scope.id, rendered_prompt):x}"
+        )
+        if self.options.cache_mode != CacheMode.NEVER:
+            cached_completion = await self.runtime.cache.get(cache_key)
+            if cached_completion is not None:
+                return Code.from_string(cached_completion.decode())
+
+        # run model
+        completion = await compiler.generate_code(
+            prompt=prompt,
+            model=model,
+            rendered_prompt=rendered_prompt,  # type: ignore
+            user_id=str(self.runtime.session.bench_id),
+            options=self.options,
+        )
         if not completion:
             raise ModelFailedError(f"bad completion from {model!r}: {completion}")
+        if self.options.cache_mode != CacheMode.NEVER:  # update cache
+            await self.runtime.cache.set(cache_key, completion.encode())
 
         return Code.from_string(completion)
 
@@ -295,7 +320,9 @@ class PromptRun(PromptCompound):
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:
         parts: list[PromptPart] = [
-            PromptText(title="Run", text=f"# Run {self.node!r} ({self.node.status.bench_name})"),
+            PromptText(
+                title="Run", text=f"# Run {self.node.base!r} ({self.node.status.bench_name})"
+            ),
         ]
         if self.node.variables:
             parts.append(PromptObject(title="Variables", weight=2, object=self.node.variables))
@@ -388,13 +415,15 @@ def make_prompt(
     context: Context,
     inputs: CustomObject | None,
     output_type: TypeBase | None,
+    include_run_context: bool,
 ) -> "Prompt":
     """Build a Prompt from the given context."""
     # context
     context_items: list[PromptPart] = []
-    for ancestor in reversed(tuple(runner.ancestors)):
-        if ancestor.run is not None:
-            context_items.append(PromptRun(title="Parent run", weight=5, node=ancestor.run))
+    if include_run_context:
+        for ancestor in reversed(tuple(runner.ancestors)):
+            if ancestor.run is not None:
+                context_items.append(PromptRun(title="Parent run", weight=5, node=ancestor.run))
     context_items.append(PromptSource(title="Current node", weight=10, node=runner.node))
     # NOTE :Incomplete: more general Context to Prompt?
 
@@ -438,13 +467,25 @@ class PromptCompiler[I, R](ABC):
     """Compile Prompts into some model backend format."""
 
     @abstractmethod
-    async def compile(self, prompt: Prompt, budget: float) -> list[I]:
+    async def compile(self, prompt: Prompt, budget: float) -> Sequence[I]:
         """Compile the Prompt into a list of basic prompt parts."""
         ...
 
     @abstractmethod
-    async def assemble(self, parts: list[I]) -> list[R]:
-        """Assemble basic Prompt parts into some result."""
+    async def assemble(self, parts: Sequence[I]) -> Sequence[R]:
+        """Assemble basic Prompt parts into some rendered prompt."""
+        ...
+
+    @abstractmethod
+    async def generate_code(
+        self,
+        prompt: Prompt,
+        model: ModelType,
+        rendered_prompt: list[R],
+        user_id: str,
+        options: RunOptions,
+    ) -> str:
+        """Generate code with some model from the result."""
         ...
 
 
@@ -452,7 +493,7 @@ class ChatPromptCompiler[R](PromptCompiler[PromptElement, R]):
     """Compile a Prompt into chat messages."""
 
     @override
-    async def compile(self, prompt: Prompt, budget: float) -> list[PromptElement]:
+    async def compile(self, prompt: Prompt, budget: float) -> Sequence[PromptElement]:
         projection = Projection(options=ProjectOptions())
         context = CompilationContext(
             prompt=prompt, projection=projection, render_options=RenderOptions(scope=prompt.scope)
@@ -474,7 +515,7 @@ class ChatPromptCompiler[R](PromptCompiler[PromptElement, R]):
             elements.extend(await expand(part))
 
         # shrink/grow to budget (if needed)
-        # nocheckin: budget/weight
+        # TODO :Incomplete!: budget/weight for Prompts
 
         return elements
 
@@ -710,8 +751,8 @@ class OpenaiChatCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMess
 
     @override
     async def assemble(
-        self, parts: list[PromptElement]
-    ) -> list[openai_chat_types.ChatCompletionMessageParam]:
+        self, parts: Sequence[PromptElement]
+    ) -> Sequence[openai_chat_types.ChatCompletionMessageParam]:
         content: list[openai_chat_types.ChatCompletionContentPartParam] = []
         for part in parts:
             if isinstance(part, PromptBreak):
@@ -730,38 +771,32 @@ class OpenaiChatCompiler(ChatPromptCompiler[openai_chat_types.ChatCompletionMess
                 raise RuntimeError(f"unexpected part {part!r}")
         return [{"role": "user", "content": content}]
 
-
-async def _generate_code_openai(
-    prompt: Prompt,
-    output_type: TypeBase | None,
-    user_id: str,
-    options: RunOptions,
-) -> str:
-    """Generate code for the given output type using an OpenAI model."""
-    model_type = options.model_type or OPENAI_DEFAULT_MODEL
-    model_id = OPENAI_MODEL_BY_TYPE[model_type]
-
-    # render messages
-    compiler = OpenaiChatCompiler()
-    rendered_prompt_parts = await compiler.compile(prompt=prompt, budget=10_000)
-    rendered_prompt = await compiler.assemble(rendered_prompt_parts)
-    messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-        {"role": "system", "content": get_system_prompt(node=prompt.scope)},
-        *rendered_prompt,
-    ]
-
-    # generate
-    temperature = options.text_options.temperature if options.text_options else 0.1
-    completion = await openai_client.chat.completions.create(
-        messages=messages,
-        model=model_id,
-        temperature=temperature,
-        user=user_id,
-    )
-    completion_text = completion.choices[0].message.content
-    if completion_text:
-        completion_text = _strip_code_completion(completion_text)
-    return completion_text or ""
+    @override
+    async def generate_code(
+        self,
+        prompt: Prompt,
+        model: ModelType,
+        rendered_prompt: Sequence[openai_chat_types.ChatCompletionMessageParam],
+        user_id: str,
+        options: RunOptions,
+    ) -> str:
+        assert model in OPENAI_MODEL_BY_TYPE, f"unsupported model type {model!r}"
+        model_id = OPENAI_MODEL_BY_TYPE[model]
+        messages: list[openai_chat_types.ChatCompletionMessageParam] = [
+            {"role": "system", "content": get_system_prompt(node=prompt.scope)},
+            *rendered_prompt,
+        ]
+        temperature = options.text_options.temperature if options.text_options else 0.1
+        completion = await openai_client.chat.completions.create(
+            messages=messages,
+            model=model_id,
+            temperature=temperature,
+            user=user_id,
+        )
+        completion_text = completion.choices[0].message.content
+        if completion_text:
+            completion_text = _strip_code_completion(completion_text)
+        return completion_text or ""
 
 
 #
@@ -783,12 +818,17 @@ class AnthropicChatCompiler(ChatPromptCompiler[anthropic_types.MessageParam]):
     """Compile a Prompt into Anthropic chat messages."""
 
     @override
-    async def assemble(self, parts: list[PromptElement]) -> list[anthropic_types.MessageParam]:
+    async def assemble(self, parts: Sequence[PromptElement]) -> list[anthropic_types.MessageParam]:
         raise NotImplementedError
 
-
-async def _generate_code_anthropic(
-    prompt: Prompt, output_type: TypeBase | None, options: RunOptions
-) -> str:
-    """Generate code for the given output type using an Anthropic model."""
-    raise NotImplementedError
+    @override
+    async def generate_code(
+        self,
+        prompt: Prompt,
+        model: ModelType,
+        rendered_prompt: Sequence[anthropic_types.MessageParam],
+        user_id: str,
+        options: RunOptions,
+    ) -> str:
+        assert model in ANTHROPIC_MODEL_BY_TYPE, f"unsupported model type {model!r}"
+        raise NotImplementedError

@@ -1,5 +1,4 @@
 import asyncio
-import dataclasses
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, cast, override
 
@@ -40,23 +39,10 @@ class FlowRunner(Runner):
 
     _force_complete: CustomObject | Literal[True] | None = None
     _force_fail: RunError | None = None
-    _tick_id: int = 0
-    _tick_queue: asyncio.Queue[FlowTick] = dataclasses.field(default_factory=asyncio.Queue)
-
-    def _get_tick_id(self) -> int:
-        self._tick_id += 1
-        return self._tick_id
 
     def _abort(self):
         """Abort any (non-boundary) running steps."""
-        for runner in self._active_steps.values():
-            if runner.options.suppress_abort:
-                continue
-            logger.trace("step.abort", step=runner.node, runner=runner)
-            if runner.task is not None:
-                runner.task.cancel()
-            if runner.outer_task is not None:
-                runner.outer_task.cancel()
+        raise NotImplementedError
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete the Flow immediately. Aborts current other steps. Noop if already done."""
