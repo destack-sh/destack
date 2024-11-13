@@ -423,7 +423,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                         edits=request.edits,
                     )
                     break
-                except Exception as e:
+                except BaseException as e:
                     self.logger.error(
                         "graph.commit.error", subject=subject, exc_info=e, span="current"
                     )

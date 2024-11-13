@@ -6,18 +6,11 @@ import {
   getStepSides,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
-  useFlowContext
+  useFlowContext,
 } from "@/language/flow";
 import { cloneNode, unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
-import {
-  FieldData,
-  NodeType,
-  PortSide,
-  StepType,
-  Variant,
-  ViewData
-} from "@/proto/wire";
+import { FieldData, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { IS_CHROMIUM } from "@/system/client";
 import { runtime } from "@/system/runtime";
@@ -165,7 +158,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       }"
     >
       <!-- Icon -->
-      <div class="ml-1 flex flex-row items-center rounded px-1 py-1">
+      <div class="ml-1 flex flex-row items-center px-1">
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
@@ -185,7 +178,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <NativeInput
         id="name"
         ref="nameRef"
-        class="ml-2 truncate font-medium text-gray-700 transition-colors duration-150"
+        class="ml-1 truncate text-gray-700 transition-colors duration-150"
         is-input
         placeholder="Name..."
         :value-type="NAME_TYPE"
@@ -194,7 +187,9 @@ defineExpose<ViewExposed>({ self, id, actions });
         @update:model-value="(newValue) => flowCtx.tx.update(step!, { name: newValue as string }, { debounce: 'long' })"
       />
       <!-- Controls/Meta -->
-      <div class="ml-auto flex flex-row pl-2 pr-1.5">
+      <div
+        class="ml-auto flex flex-row pl-2 pr-1.5 opacity-0 transition-colors duration-150 group-hover/step:opacity-100"
+      >
         <!-- Menu -->
         <button
           v-menu="
