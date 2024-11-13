@@ -56,8 +56,8 @@ export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
 
 export const FLOW_CANVAS_DOT_SIZE = 2;
-export const FLOW_SCALE_MIN = 0.5;
-export const FLOW_SCALE_MAX = 4.0;
+export const FLOW_SCALE_MIN = 0.6;
+export const FLOW_SCALE_MAX = 1.0;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;

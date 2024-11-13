@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { BLOCK_CONTEXT_ACTIONS, createBlock, isInlinePage, useFlatNodeMoveActions } from "@/language/block";
-import { PAGE_BLOCK_TYPES } from "@/language/const";
-import { makeTypeInfo, NAME_TYPE } from "@/language/field";
+import { BLOCK_CONTEXT_ACTIONS, createBlock, useFlatNodeMoveActions } from "@/language/block";
+import { HEAVY_BLOCK_TYPES } from "@/language/const";
+import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/node";
@@ -15,10 +15,9 @@ import {
   Orientation,
   RectangleData,
   TypeKind,
-  Variant,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire/";
 import {
   describeNode,
@@ -39,11 +38,11 @@ import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInf
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
+import IconName from "@/views/builtins/IconName.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import NativeInput from "@/views/content/NativeInput.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
@@ -275,20 +274,18 @@ defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
   <div v-if="page" class="flex w-full select-none flex-col bg-white text-gray-900">
-    <!-- TODO :UX: entire Page/Block/.. design & navigation -->
-    <!-- (should it be more notebook like or more page like? where should extra block interactions & metadata go?,
-          what about a line with multiple block 'columns' in it? how to navigate around these blocks? ...) -->
-
-    <!-- Header -->
+    <!-- Meta header -->
     <div
       data-keep-inspection-in-base-view="true"
-      class="group flex w-full max-w-full flex-row pl-2 pr-3"
+      class="group flex w-full max-w-full flex-row px-2"
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Breadcrumb -->
       <NodePath :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :graph="pkgGraph" />
       <!-- Meta & Controls -->
-      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1"></div>
+      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
+        <!-- ... -->
+      </div>
     </div>
 
     <!-- Page content -->
@@ -312,24 +309,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div ref="contentRef" class="mb-[320px] flex min-h-full flex-col">
         <!-- Page header (title) -->
         <div
-          class="mx-auto px-0.5"
+          class="mx-auto mb-2 mt-5 flex flex-row items-center"
           :style="{
             width: widths.block + 'px',
           }"
         >
-          <NativeInput
-            id="name"
-            ref="nameRef"
-            class="mb-2 mt-4 flex-shrink-0 text-3xl font-bold transition-colors duration-150"
-            placeholder="Name..."
-            is-input
-            :value-type="NAME_TYPE"
-            :variant="Variant.STEALTH"
-            :model-value="page.name"
-            @update:model-value="
-              (newValue) => pkgConnection.tx.update(page!, { name: newValue as string }, { debounce: 'long' })
-            "
-          />
+          <!-- Icon -->
+          <IconName ref="iconNameRef" size="title" :node="page" :tx="() => pkgConnection.tx" />
         </div>
 
         <!-- Blocks -->
@@ -337,14 +323,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <div
             class="group/block-line relative flex min-w-fit flex-row"
             :style="{
-              paddingTop: isInlinePage(block) ? '10px' : undefined,
+              paddingTop: HEAVY_BLOCK_TYPES.includes(block.type) ? '10px' : undefined,
               marginTop: BLOCK_GAP_Y + 'px',
             }"
           >
             <!-- Left gutter -->
             <div
-              class="relative flex flex-shrink-0 flex-row items-start px-1 justify-end gap-x-1 text-right opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100"
-              :class="isInlinePage(block) ? 'pt-2' : 'pt-1'"
+              class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-1 px-1 text-right opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100"
+              :class="HEAVY_BLOCK_TYPES.includes(block.type) ? 'pt-2' : 'pt-1'"
               :style="{ width: widths.gutter + 'px' }"
             >
               <!-- Create above / below -->

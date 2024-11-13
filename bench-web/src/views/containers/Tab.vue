@@ -257,7 +257,7 @@ defineExpose<ViewExposed>({ self, actions });
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"
         >
-          <i class="fas fa-xmark hover:text-primary-700" />
+          <i class="fas fa-xmark hover:text-gray-700" />
         </button>
         <!-- Drop indicator -->
         <div

@@ -54,6 +54,8 @@ import {
   VIEW_DEFAULT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
+import IconName from "@/views/builtins/IconName.vue";
+import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
@@ -62,11 +64,12 @@ import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
+const META_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
 const ROW_ACTIONS_WIDTH = 32;
-const FULL_PADDING = 12;
+const GUTTER_WIDTH = 60;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; paddingX?: number; paddingY?: number } & Partial<
@@ -136,7 +139,7 @@ function addSort(column: ColumnView, type: ExpressionType) {
 }
 
 // NOTE :Cleanup: unfortunately we need to wait until the block we're querying actually exists remotely :SearchWithMissingBlock
-const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 25));
+const limit = computed(() => (props.variant == Variant.COMPACT ? 10 : 30));
 const {
   graph: recordGraph,
   roots: records,
@@ -677,118 +680,144 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="h-full select-none"
     :style="{
-      marginLeft: variant == Variant.COMPACT ? '0' : `${FULL_PADDING}px`,
-      marginRight: variant == Variant.COMPACT ? '0' : `${FULL_PADDING}px`,
-      marginBottom: variant == Variant.COMPACT ? '0' : `${FULL_PADDING}px`,
+      marginBottom: variant == Variant.COMPACT ? '0' : `${GUTTER_WIDTH}px`,
     }"
   >
-    <!-- Action header -->
+    <!-- Meta header -->
     <div
-      class="flex w-full flex-row items-center gap-x-1"
+      v-if="variant != Variant.COMPACT"
+      data-keep-inspection-in-base-view="true"
+      class="group flex w-full max-w-full flex-row px-2"
+      :style="{ height: META_HEADER_HEIGHT + 'px' }"
+    >
+      <!-- Breadcrumb -->
+      <NodePath :container="nodePtr" :graph="pkgGraph" />
+      <!-- Meta & Controls -->
+      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
+        <!-- ... -->
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div
       :style="{
-        height: variant == Variant.COMPACT ? undefined : `${ACTION_HEADER_HEIGHT}px`,
-        paddingLeft: `${props.paddingX ?? 0}px`,
-        paddingRight: `${props.paddingX ?? 0}px`,
-        paddingBottom: variant == Variant.COMPACT ? '8px' : undefined,
+        marginLeft: variant != Variant.COMPACT ? `${GUTTER_WIDTH}px` : undefined,
+        marginRight: variant != Variant.COMPACT ? `${GUTTER_WIDTH}px` : undefined,
       }"
     >
-      <!-- Expressions (filters/sorts) -->
-      <!-- TODO :UX: Incomplete: filter/sort Database/Table view properly -->
-      <div class="flex flex-row items-center gap-x-1">
-        <!-- (this should of course be Expression views) -->
-        <div
-          v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
-          :key="i"
-          class="group rounded-xl border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
-        >
-          <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
-          <span class="text-gray-900">{{
-            findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
-          }}</span>
-          <button class="ml-1.5 text-gray-400 opacity-0 group-hover:opacity-100" @click="() => sorts.splice(i, 1)">
-            <i class="fas fa-xmark" />
-          </button>
-        </div>
+      <!-- Page header (title) -->
+      <div v-if="variant != Variant.COMPACT" class="mb-2 mt-5 px-0.5">
+        <IconName v-if="block" size="title" :node="block" :tx="() => pkgConnection.tx" />
       </div>
-      <!-- Meta (pagination, status, controls) -->
-      <div class="ml-auto flex flex-row items-center gap-x-2">
-        <!-- Staleness/Loading -->
-        <Transition
-          enter-active-class="transition-opacity ease-in duration-150"
-          enter-from-class="opacity-0"
-          enter-to-class="opacity-100"
-          leave-active-class="transition-all ease-out duration-150"
-          leave-from-class="opacity-100"
-          leave-to-class="opacity-0"
-        >
-          <span v-if="isStale || isConnecting" class="ml-1">
-            <i class="fas fa-circle-small animate-pulse text-gray-400" />
-          </span>
-        </Transition>
 
-        <!-- Selection -->
-        <div v-if="hasSelectionRows" class="flex flex-row items-center rounded border">
-          <button class="h-full px-2 py-0.5 font-medium text-primary-700 hover:bg-gray-100" @click="selectNone">
-            {{ numSelectedRows }} selected
-          </button>
-          <button
-            v-tooltip="{ title: 'Duplicate', small: true }"
-            class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
-            @click="duplicateSelection"
+      <!-- Action header -->
+      <div
+        class="flex w-full flex-row items-center gap-x-1"
+        :style="{
+          height: variant == Variant.COMPACT ? undefined : `${ACTION_HEADER_HEIGHT}px`,
+          paddingLeft: `${props.paddingX ?? 0}px`,
+          paddingRight: `${props.paddingX ?? 0}px`,
+          paddingBottom: variant == Variant.COMPACT ? '8px' : undefined,
+        }"
+      >
+        <!-- Expressions (filters/sorts) -->
+        <!-- TODO :UX: Incomplete: filter/sort Database/Table view properly -->
+        <div class="flex flex-row items-center gap-x-1">
+          <!-- (this should of course be Expression views) -->
+          <div
+            v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
+            :key="i"
+            class="group rounded-xl border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
           >
-            <i class="fas fa-clone" />
-          </button>
-          <button
-            v-tooltip="{ title: 'Delete', small: true }"
-            class="w-8 py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
-            @click="deleteSelection"
+            <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
+            <span class="text-gray-900">{{
+              findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
+            }}</span>
+            <button class="ml-1.5 text-gray-400 opacity-0 group-hover:opacity-100" @click="() => sorts.splice(i, 1)">
+              <i class="fas fa-xmark" />
+            </button>
+          </div>
+        </div>
+        <!-- Meta (pagination, status, controls) -->
+        <div class="ml-auto flex flex-row items-center gap-x-2">
+          <!-- Staleness/Loading -->
+          <Transition
+            enter-active-class="transition-opacity ease-in duration-150"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-all ease-out duration-150"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
           >
-            <i class="fas fa-trash-can" />
-          </button>
-        </div>
+            <span v-if="isStale || isConnecting" class="ml-1">
+              <i class="fas fa-circle-small animate-pulse text-gray-400" />
+            </span>
+          </Transition>
 
-        <!-- Pagination -->
-        <!-- TODO :Incomplete: Database pagination -->
-        <div>
-          <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
-        </div>
+          <!-- Selection -->
+          <div v-if="hasSelectionRows" class="flex flex-row items-center rounded border">
+            <button class="h-full px-2 py-0.5 font-medium text-primary-700 hover:bg-gray-100" @click="selectNone">
+              {{ numSelectedRows }} selected
+            </button>
+            <button
+              v-tooltip="{ title: 'Duplicate', small: true }"
+              class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
+              @click="duplicateSelection"
+            >
+              <i class="fas fa-clone" />
+            </button>
+            <button
+              v-tooltip="{ title: 'Delete', small: true }"
+              class="w-8 py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
+              @click="deleteSelection"
+            >
+              <i class="fas fa-trash-can" />
+            </button>
+          </div>
 
-        <!-- Controls -->
-        <!-- Add field -->
-        <button
-          class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
-          :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
-          @click="
-            (e) => {
-              const button = (e.target as HTMLElement).closest('button')!;
-              pushPopover({
-                trigger: button,
-                reference: button,
-                info: {
-                  component: ViewType.PICKER,
-                  placement: 'bottom-left',
-                  offset: 'referenceWidth',
-                  props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-                  onApply: (typeInfo: TypeIdentity) => {
-                    createField(pkgConnection.tx, pkgGraph, { anchor: 'inside', target: block!, field: typeInfo });
+          <!-- Pagination -->
+          <!-- TODO :Incomplete: Database pagination -->
+          <div>
+            <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
+          </div>
+
+          <!-- Controls -->
+          <!-- Add field -->
+          <button
+            class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
+            :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
+            @click="
+              (e) => {
+                const button = (e.target as HTMLElement).closest('button')!;
+                pushPopover({
+                  trigger: button,
+                  reference: button,
+                  info: {
+                    component: ViewType.PICKER,
+                    placement: 'bottom-left',
+                    offset: 'referenceWidth',
+                    props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+                    onApply: (typeInfo: TypeIdentity) => {
+                      createField(pkgConnection.tx, pkgGraph, { anchor: 'inside', target: block!, field: typeInfo });
+                    },
                   },
-                },
-              });
-            }
-          "
-        >
-          <i class="fa fa-plus mr-1.5 text-center" />
-          <span>Field</span>
-        </button>
-        <!-- Add record -->
-        <button
-          class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
-          :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
-          @click="() => createRecord()"
-        >
-          <i class="fa fa-plus mr-1.5 text-center" />
-          <span class="">Record</span>
-        </button>
+                });
+              }
+            "
+          >
+            <i class="fa fa-plus mr-1.5 text-center" />
+            <span>Field</span>
+          </button>
+          <!-- Add record -->
+          <button
+            class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
+            :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
+            @click="() => createRecord()"
+          >
+            <i class="fa fa-plus mr-1.5 text-center" />
+            <span class="">Record</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -801,7 +830,14 @@ defineExpose<ViewExposed>({ self, id, actions });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <div class="flex flex-col border-gray-200">
+      <div
+        class="flex flex-col border-gray-200"
+        :style="{
+          marginLeft: variant != Variant.COMPACT ? `${GUTTER_WIDTH - ROW_ACTIONS_WIDTH}px` : undefined,
+          marginRight: variant != Variant.COMPACT ? `${GUTTER_WIDTH}px` : undefined,
+          marginBottom: variant != Variant.COMPACT ? `200px` : undefined,
+        }"
+      >
         <!-- Column headers (sticky) -->
         <div
           ref="headerRef"
@@ -867,7 +903,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
-              column.isInspected ? 'bg-primary-100' : column.isHighlighted ? 'bg-primary-50' : 'hover:bg-gray-100',
+              column.isInspected ? 'bg-gray-100' : column.isHighlighted ? 'bg-gray-50' : 'hover:bg-gray-100',
             ]"
             :style="{
               paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,
@@ -1021,7 +1057,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
-            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-primary-100' : '']"
+            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-gray-100' : '']"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT_MIN}px`,

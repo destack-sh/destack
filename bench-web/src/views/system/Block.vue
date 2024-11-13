@@ -1,38 +1,30 @@
 <script lang="ts" setup>
-import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
-import { NAME_TYPE } from "@/language/field";
+import { HEAVY_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
 import { unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
   BlockType,
-  ColorShade,
   FieldType,
   NodeReferenceData,
   NodeType,
   TypeKind,
   Variant,
-  ViewData,
+  ViewData
 } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import { getNodeIcon, IconInline } from "@/ui/icon";
-import { type PopoverInfoIn } from "@/ui/popover";
-import type { TooltipInfo } from "@/ui/tooltip";
-import { focusInElement } from "@/ui/view";
+import IconName from "@/views/builtins/IconName.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import Icon from "@/views/content/Icon.vue";
-import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
 import Database from "@/views/system/Database.vue";
 import Flow from "@/views/system/Flow.vue";
 import Type from "@/views/system/Type.vue";
-import { c } from "vite/dist/node/types.d-aGj9QkWt";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -48,7 +40,7 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const blockRef = ref<HTMLElement | null>(null);
-const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
+const iconNameRef: Ref<InstanceType<typeof IconName> | null> = ref(null);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
@@ -63,8 +55,8 @@ const hasFunctionFields = computed(
     fields.value.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT),
 );
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
-const isPagey = computed(() => PAGE_BLOCK_TYPES.includes(block.value?.type!));
-const isInlinePage = computed(() => isPagey.value && block.value?.type != BlockType.PAGE);
+const isHeavy = computed(() => HEAVY_BLOCK_TYPES.includes(block.value?.type!));
+const isInlinePage = computed(() => isHeavy.value && block.value?.type != BlockType.PAGE);
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 
@@ -121,16 +113,12 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   // common
   "common.edit.rename": {
     action: () => {
-      nextTick(() => focusInElement(nameRef.value!));
+      nextTick(() => iconNameRef.value?.focusName());
     },
   },
   "common.navigate.open": (action, ctx) => {
     if (block.value == null) return false;
     canvas.goToNode(block.value, { where: "bestFrame" });
-  },
-  "common.navigate.openInPage": (action, ctx) => {
-    if (block.value == null) return false;
-    canvas.goToNode(block.value, { where: "bestFrame", preferPage: true });
   },
 };
 
@@ -151,49 +139,22 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->
-    <div v-if="block.type != BlockType.TEXT && block.type" class="flex flex-row items-center rounded-t py-1">
-      <!-- Icon -->
-      <div class="flex flex-row items-center rounded px-0.5">
-        <IconInline
-          v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
-          v-menu="
-            (): PopoverInfoIn => ({
-              component: Icon,
-              placement: 'bottom-right',
-              offset: '-referenceWidth',
-              props: { modelValue: block!.icon, isInput: true },
-              onApply: (newIcon) => pkgConnection.tx.update(block!, { icon: newIcon }),
-            })
-          "
-          v-bind="getNodeIcon(block)"
-          :style="{
-          }"
-          class="w-5 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100"
-          :class="isInlinePage ? 'text-medium mr-0.5' : ''"
-        />
-      </div>
-      <!-- Name -->
-      <NativeInput
-        id="name"
-        ref="nameRef"
-        class="ml-0.5 flex-shrink-0 font-medium transition-colors duration-150"
-        :class="
-          block.type == BlockType.PAGE
-            ? 'underline decoration-gray-300 underline-offset-3'
-            : isPagey
-              ? 'text-xl font-extrabold'
-              : ''
-        "
-        is-input
-        :value-type="NAME_TYPE"
-        placeholder="Name..."
-        :variant="Variant.STEALTH"
-        :model-value="block.name"
-        @update:model-value="
-          (newValue) => pkgConnection.tx.update(block!, { name: newValue as string }, { debounce: 'long' })
-        "
+    <div v-if="block.type != BlockType.TEXT && block.type" class="flex flex-row items-center rounded-t px-1 py-1">
+      <IconName
+        ref="iconNameRef"
+        :size="isHeavy ? 'large' : 'regular'"
+        :underline="block.type == BlockType.PAGE"
+        :node="block"
+        :tx="() => pkgConnection.tx"
       />
-      <!-- ... -->
+      <!-- Open in its own page -->
+      <button
+        v-if="isHeavy"
+        class="rounded px-0.5 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+        @click="() => canvas.goToNode(block!)"
+      >
+        <i class="fas fa-arrow-up-right" />
+      </button>
     </div>
     <!-- Body -->
     <Text
@@ -250,7 +211,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <Flow
           v-if="block.type == BlockType.FLOW"
           id="flow"
-          class="h-[400px] mt-2"
+          class="mt-2 h-[400px]"
           v-bind="state.getChildState('flow')"
           :node-ptr="props.nodePtr"
           :variant="Variant.COMPACT"

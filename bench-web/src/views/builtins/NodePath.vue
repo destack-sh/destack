@@ -29,11 +29,12 @@ const path = computed(() => {
 </script>
 <template>
   <!-- Breadcrumb -->
-  <div class="flex flex-row items-center gap-x-1 truncate">
+  <div class="flex flex-row items-center truncate">
     <template v-for="(node, i) in path" :key="i">
       <!-- Node -->
       <button
         class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100"
+        :class="i > 0 ? 'ml-1' : ''"
         role="button"
         :data-node-id="node.id"
         :data-node-ck="(node as any).ck"
@@ -42,11 +43,11 @@ const path = computed(() => {
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
-        <IconInline v-bind="getNodeIcon(node)" class="mr-1.5 w-5" />
+        <IconInline v-bind="getNodeIcon(node)" class="mr-1.5 text-gray-700 w-5" />
         <span>{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span>
       </button>
       <!-- Separator -->
-      <i v-if="i < path.length - 1" class="fas fa-chevron-right text-gray-400" />
+      <span v-if="i < path.length - 1" class="ml-1.5 text-gray-400">/</span>
     </template>
   </div>
 </template>

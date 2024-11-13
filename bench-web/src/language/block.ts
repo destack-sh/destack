@@ -1,4 +1,3 @@
-import { PAGE_BLOCK_TYPES } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, moveNode, NodeIn } from "@/language/node";
@@ -29,7 +28,6 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.duplicate",
   "common.edit.delete",
   "common.navigate.open",
-  "common.navigate.openInPage",
   "session.run.start",
   "message.chat.message",
 ];
@@ -267,8 +265,4 @@ export function blockToType(block: BlockData): TypeInfoData {
   const type = makeTypeInfo({ kind, benchType, baseFieldType });
   type.baseTypePtr = toNodeRef(block);
   return type;
-}
-
-export function isInlinePage(block: BlockData): boolean {
-  return block.type != BlockType.PAGE && PAGE_BLOCK_TYPES.includes(block.type);
 }

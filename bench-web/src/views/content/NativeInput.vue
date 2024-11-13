@@ -132,6 +132,7 @@ defineExpose<ViewExposed & { select: () => void }>({
       <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S600" class="mr-0.5 w-5" />
       <!-- Current value -->
       <template v-if="!valueType?.isList">
+        <!-- nocheckin: fix NativeInput width in Stealth mode (should be exactly as wide as content) -->
         <!-- Scalar -->
         <input
           ref="inputRef"
