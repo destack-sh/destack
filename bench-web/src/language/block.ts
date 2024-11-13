@@ -34,14 +34,6 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "message.chat.message",
 ];
 
-export function getBlockHeaderHeight(block: BlockData): number {
-  if (PAGE_BLOCK_TYPES.includes(block.type) && block.type != BlockType.PAGE) {
-    return 40; // inline header title
-  } else {
-    return 28;
-  }
-}
-
 /** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
   graph: ReadNodeGraph;
@@ -275,4 +267,8 @@ export function blockToType(block: BlockData): TypeInfoData {
   const type = makeTypeInfo({ kind, benchType, baseFieldType });
   type.baseTypePtr = toNodeRef(block);
   return type;
+}
+
+export function isInlinePage(block: BlockData): boolean {
+  return block.type != BlockType.PAGE && PAGE_BLOCK_TYPES.includes(block.type);
 }

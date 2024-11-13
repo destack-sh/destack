@@ -88,7 +88,7 @@ const absoluteStyle = computed(() => {
             ? getColorHex(ColorType.GRAY, ColorShade.S100)
             : getToastColorHex(toast, ColorShade.S50),
       }"
-      class="group/toast relative rounded-sm border-l-4 px-3.5 py-2"
+      class="group/toast relative rounded border-l-4 px-3.5 py-2"
     >
       <!-- Header -->
       <div class="flex flex-row">

@@ -114,7 +114,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         })
       "
       :disabled="isDisabled || !isInput"
-      class="group flex w-full flex-row items-center rounded-sm border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-primary-700"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-primary-700"
     >
       <template v-if="modelValue != null">
         <IconInline v-bind="modelValue" />
@@ -166,7 +166,7 @@ defineExpose<ViewExposed>({ self, id, focus });
             })
           "
           :disabled="isDisabled || !isInput"
-          class="rounded-sm px-0.5 enabled:hover:bg-gray-100"
+          class="rounded px-0.5 enabled:hover:bg-gray-100"
         >
           <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
         </button>
@@ -198,7 +198,7 @@ defineExpose<ViewExposed>({ self, id, focus });
                   small: true,
                 } as TooltipInfo
               "
-              class="select-none rounded-sm border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
+              class="select-none rounded border border-transparent py-1.5 hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
               :class="item.faName"
               role="menuitem"
               :data-selected="item.faName == modelValue?.faName"

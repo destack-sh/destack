@@ -1,13 +1,12 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
-import { Alignment, ColorShade, FieldType, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { Alignment, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { type PopoverInfoIn } from "@/ui/popover";
-import { getColorHex, getNodeColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -74,10 +73,10 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 rounded border transition-colors duration-75"
+    class="flex w-fit items-center gap-x-1.5 rounded border border-gray-200 transition-colors duration-75"
     :class="[
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200',
+      isInspected || isHighlighted ? 'bg-gray-100' : 'hover:bg-gray-100',
     ]"
   >
     <!-- Icon -->
@@ -93,14 +92,8 @@ defineExpose<ViewExposed>({ self, id, actions });
             onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
           })
         "
-        :style="{
-          color:
-            field?.icon?.color != null
-              ? getColorHex(field?.icon?.color, ColorShade.S600)
-              : getNodeColorHex(field, ColorShade.S600),
-        }"
         v-bind="getNodeIcon(field)"
-        class="w-5 rounded-sm hover:cursor-pointer"
+        class="w-5 rounded text-gray-700 hover:cursor-pointer hover:bg-gray-100"
       />
     </div>
     <!-- Name -->

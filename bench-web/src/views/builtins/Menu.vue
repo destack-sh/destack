@@ -181,7 +181,7 @@ defineExpose({ focus, clear, query });
 </script>
 <template>
   <ul
-    class="flex min-w-60 max-w-[360px] flex-col rounded-sm border border-gray-200 bg-white py-1 text-gray-900"
+    class="flex min-w-60 max-w-[360px] flex-col rounded border border-gray-200 bg-white py-1 text-gray-900"
     role="menu"
     @keydown.escape.stop.prevent="emit('close')"
     @click.stop="queryRef?.focus()"
@@ -193,7 +193,7 @@ defineExpose({ focus, clear, query });
         <input
           ref="queryRef"
           v-model="query"
-          class="max-w-60 cursor-default rounded-sm border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
           @keydown.enter.stop.prevent="fire(activeItemIdx ?? 0)"
           @keydown.up.stop.prevent="focus('previous')"
@@ -218,8 +218,11 @@ defineExpose({ focus, clear, query });
         :ref="(ref?: any) => (ref != null ? (itemRefs[i] = ref) : delete itemRefs[i])"
         role="menuitem"
         :data-active="activeItemIdx === i"
-        class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded-sm px-2"
-        :class="[item.isDisabled ? 'text-gray-500' : 'hover:cursor-pointer hover:bg-gray-100 hover:text-primary-700']"
+        class="mx-1 mb-[1px] mt-[2px] flex h-[28px] flex-row items-center rounded px-2"
+        :class="[
+          item.isDisabled ? 'text-gray-500' : 'hover:cursor-pointer hover:bg-gray-100',
+          activeNestedItemIdx == i || activeItemIdx == i ? 'bg-gray-100' : '',
+        ]"
         @click.prevent="(e) => !item.isDisabled && (e.stopPropagation(), fire(i))"
         @mouseenter="() => onMouseEnter(i)"
         @mouseleave="() => onMouseLeave(i)"
@@ -233,11 +236,7 @@ defineExpose({ focus, clear, query });
         />
         <span v-else class="mr-1.5 w-[18px] flex-shrink-0">&nbsp;</span>
         <!-- Title -->
-        <span
-          class="select-none truncate underline-offset-3"
-          :class="[activeNestedItemIdx == i || activeItemIdx == i ? 'underline' : '']"
-          v-html="itemTitleMarked[i] ?? item.title"
-        />
+        <span class="select-none truncate" v-html="itemTitleMarked[i] ?? item.title" />
         <!-- Checked, shortcut or nested menu -->
         <i
           v-if="item.type == 'toggle' || item.type == 'option'"

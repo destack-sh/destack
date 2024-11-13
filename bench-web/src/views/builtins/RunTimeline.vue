@@ -159,7 +159,7 @@ watchEffect(() => {
       <div
         v-for="span in timeline.spans"
         :key="span.id"
-        class="group/span relative flex w-full flex-row items-center rounded-sm hover:bg-gray-100"
+        class="group/span relative flex w-full flex-row items-center rounded hover:bg-gray-100"
         :style="{
           height: ROW_HEIGHT + 'px',
         }"
@@ -199,7 +199,7 @@ watchEffect(() => {
         </div>
         <!-- Timeline -->
         <div
-          class="absolute transform rounded-sm transition-all duration-100"
+          class="absolute transform rounded transition-all duration-100"
           :style="{
             height: ROW_HEIGHT - 2 * BAR_PADDING + 'px',
             top: BAR_PADDING + 'px',

@@ -446,7 +446,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             })
           "
           :data-message-id="message.id"
-          class="group/message relative mx-auto flex max-w-full flex-row gap-x-2.5 rounded-sm py-0.5"
+          class="group/message relative mx-auto flex max-w-full flex-row gap-x-2.5 rounded py-0.5"
           :class="[
             isContinuationBreak ? 'mt-2' : '',
             replyingTo?.id == message.id ? 'bg-secondary-100' : '',
@@ -456,7 +456,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
         >
           <!-- Handle -->
           <div
-            class="-mr-1 rounded-sm transition-colors duration-75"
+            class="-mr-1 rounded transition-colors duration-75"
             :style="{ width: HANDLE_WIDTH + 'px' }"
             :class="
               message.id == inspectionPtr?.id
@@ -473,7 +473,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
           <!-- Author Icon -->
           <div
             v-if="!isContinued"
-            class="mt-0.5 flex h-fit flex-shrink-0 flex-col justify-center rounded-sm border border-gray-200 bg-gray-100 text-center text-gray-700"
+            class="mt-0.5 flex h-fit flex-shrink-0 flex-col justify-center rounded border border-gray-200 bg-gray-100 text-center text-gray-700"
             :style="{ width: asideSize + 'px', height: asideSize + 'px' }"
           >
             <IconInline v-bind="author.icon" />
@@ -498,7 +498,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             <div
               v-if="replyToMessage"
               role="button"
-              class="my-0.5 rounded-sm border-secondary-200 bg-gray-100 px-2 py-1 hover:cursor-pointer"
+              class="my-0.5 rounded border-secondary-200 bg-gray-100 px-2 py-1 hover:cursor-pointer"
               :style="{ borderLeftWidth: HANDLE_WIDTH + 'px' }"
               @click="focus(toPlainNodeRef(replyToMessage))"
             >
@@ -516,12 +516,12 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
             <Text :id="message.id + '.text'" :model-value="message.text" :variant="Variant.STEALTH" />
             <!-- Controls (floating) -->
             <div
-              class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded-sm border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
+              class="absolute right-1.5 top-0 z-10 ml-auto flex flex-row gap-x-2 rounded border border-gray-200 bg-white px-2 py-1 opacity-0 group-hover/message:opacity-100"
             >
               <!-- Reply -->
               <button
                 v-tooltip="{ title: 'Reply', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
-                class="rounded-sm text-gray-400 hover:bg-gray-100 hover:text-primary-700"
+                class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-700"
                 @click.stop="replyTo(message)"
               >
                 <i class="fas fa-reply w-5 text-center" />
@@ -529,7 +529,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
               <!-- Thread (not supported yet) -->
               <button
                 v-tooltip="{ title: 'Thread', referenceMargin: 8, small: true, showDelay: 200, hideDelay: 100 }"
-                class="rounded-sm text-gray-300"
+                class="rounded text-gray-300"
               >
                 <i class="fas fa-reel w-5 text-center" />
               </button>
@@ -545,7 +545,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
                     }),
                   })
                 "
-                class="rounded-sm text-gray-400 hover:bg-gray-100 hover:text-primary-700"
+                class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-700"
               >
                 <i class="fas fa-ellipsis-v w-5 text-center" />
               </button>

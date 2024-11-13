@@ -699,7 +699,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
           :key="i"
-          class="group rounded-sm px-2 py-0.5 hover:bg-primary-100"
+          class="group rounded-xl border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
         >
           <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
           <span class="text-gray-900">{{
@@ -727,7 +727,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         </Transition>
 
         <!-- Selection -->
-        <div v-if="hasSelectionRows" class="flex flex-row items-center rounded-sm border">
+        <div v-if="hasSelectionRows" class="flex flex-row items-center rounded border">
           <button class="h-full px-2 py-0.5 font-medium text-primary-700 hover:bg-gray-100" @click="selectNone">
             {{ numSelectedRows }} selected
           </button>
@@ -756,7 +756,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Controls -->
         <!-- Add field -->
         <button
-          class="group/button rounded-sm px-2 py-0.5 hover:bg-green-100"
+          class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
+          :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
           @click="
             (e) => {
               const button = (e.target as HTMLElement).closest('button')!;
@@ -776,12 +777,16 @@ defineExpose<ViewExposed>({ self, id, actions });
             }
           "
         >
-          <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-green-900" />
+          <i class="fa fa-plus mr-1.5 text-center" />
           <span>Field</span>
         </button>
         <!-- Add record -->
-        <button class="group/button rounded-sm px-2 py-0.5 hover:bg-primary-100" @click="() => createRecord()">
-          <i class="fa fa-plus mr-1.5 text-center group-hover/button:text-sky-900" />
+        <button
+          class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
+          :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
+          @click="() => createRecord()"
+        >
+          <i class="fa fa-plus mr-1.5 text-center" />
           <span class="">Record</span>
         </button>
       </div>
@@ -819,7 +824,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <input
               type="checkbox"
-              class="h-4 w-4 rounded-sm border-gray-200 transition-colors duration-150 focus:ring-0"
+              class="h-4 w-4 rounded border-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
               :checked="isAllSelectedRows"
               @change="(e) => ((e.target as HTMLInputElement).checked ? selectAll() : selectNone())"
@@ -865,8 +870,8 @@ defineExpose<ViewExposed>({ self, id, actions });
               column.isInspected ? 'bg-primary-100' : column.isHighlighted ? 'bg-primary-50' : 'hover:bg-gray-100',
             ]"
             :style="{
-              paddingLeft: x == 0 ? `${paddingX ?? 0}px` : undefined,
-              paddingRight: x == columns.length - 1 ? `${paddingX ?? 0}px` : undefined,
+              paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,
+              paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
               width: `${column.width}px`,
             }"
             :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
@@ -887,7 +892,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Drop indicator -->
             <div
               v-if="column.kind == 'field' && activeHeaderDropZone?.targetId == column.field.id"
-              class="absolute z-10 h-full w-1 rounded-sm bg-primary-700"
+              class="absolute z-10 h-full w-1 rounded bg-primary-700"
               :class="[activeHeaderDropZone?.anchor == 'start' ? (x == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
             />
             <!-- Icon/Name -->
@@ -905,7 +910,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   },
                 })
               "
-              class="mr-1.5 rounded-sm p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+              class="mr-1.5 rounded p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
               v-bind="column.icon"
             />
             <NativeInput
@@ -999,7 +1004,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <input
               type="checkbox"
-              class="h-4 w-4 rounded-sm border-gray-200 transition-colors duration-150 focus:ring-0"
+              class="h-4 w-4 rounded border-gray-200 transition-colors duration-150 focus:ring-0"
               :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
               :checked="hasSelectionRows && isSelectedRow(record)"
               @change="(e) => setSelectionRow(record, (e.target as HTMLInputElement).checked, shiftKey ?? false)"

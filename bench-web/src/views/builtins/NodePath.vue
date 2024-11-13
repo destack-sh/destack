@@ -7,7 +7,6 @@ import { toCamelName } from "@/language/const";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
 import { computed, toRef } from "vue";
-import { getNodeColor } from "@/ui/style";
 
 const props = defineProps<{
   container?: NodeReferenceData;
@@ -34,7 +33,7 @@ const path = computed(() => {
     <template v-for="(node, i) in path" :key="i">
       <!-- Node -->
       <button
-        class="flex cursor-pointer flex-row items-center rounded-sm px-0.5 hover:bg-gray-100"
+        class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100"
         role="button"
         :data-node-id="node.id"
         :data-node-ck="(node as any).ck"
@@ -43,7 +42,7 @@ const path = computed(() => {
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
-        <IconInline v-bind="getNodeIcon(node)" :color="getNodeColor(node)" class="mr-1.5 w-5" />
+        <IconInline v-bind="getNodeIcon(node)" class="mr-1.5 w-5" />
         <span>{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span>
       </button>
       <!-- Separator -->
