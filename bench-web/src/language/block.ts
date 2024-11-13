@@ -1,3 +1,4 @@
+import { PAGE_BLOCK_TYPES } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, moveNode, NodeIn } from "@/language/node";
@@ -15,7 +16,7 @@ import {
   TypeInfoData,
   TypeKind,
   ValueBlockData,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { pkgGraph } from "@/system/space";
@@ -32,6 +33,14 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "session.run.start",
   "message.chat.message",
 ];
+
+export function getBlockHeaderHeight(block: BlockData): number {
+  if (PAGE_BLOCK_TYPES.includes(block.type) && block.type != BlockType.PAGE) {
+    return 40; // inline header title
+  } else {
+    return 28;
+  }
+}
 
 /** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
@@ -197,7 +206,7 @@ export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
-    block: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>
+    block: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>;
     anchor: "before" | "after" | "inside";
     target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
   },

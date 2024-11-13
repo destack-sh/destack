@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BLOCK_CONTEXT_ACTIONS, createBlock, useFlatNodeMoveActions } from "@/language/block";
+import { BLOCK_CONTEXT_ACTIONS, createBlock, getBlockHeaderHeight, useFlatNodeMoveActions } from "@/language/block";
 import { toCamelName } from "@/language/const";
 import { makeTypeInfo, NAME_TYPE } from "@/language/field";
 import { uploadFile } from "@/language/file";
@@ -18,7 +18,7 @@ import {
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire/";
 import {
   describeNode,
@@ -32,8 +32,8 @@ import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { bench, canvas } from "@/system/space";
-import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
-import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
+import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
@@ -51,15 +51,16 @@ import { computed, nextTick, ref, toRef, type Ref } from "vue";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
-const MIN_GUTTER_WIDTH = 44;
+const MIN_GUTTER_WIDTH = 60;
 const BLOCK_GAP_Y = 12;
 const HANDLE_WIDTH = 6;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
-    ViewData,
-    "name" | "icon" | "nodePtr" | "focus" | "variant" | "selection"
-  >
+  {
+    self: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    size: Required<Pick<RectangleData, "width" | "height">>;
+  } & Pick<ViewData, "name" | "icon" | "nodePtr" | "focus" | "variant" | "selection">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -289,8 +290,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <!-- Breadcrumb -->
       <NodePath :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :graph="pkgGraph" />
       <!-- Meta & Controls -->
-      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
-      </div>
+      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1"></div>
     </div>
 
     <!-- Page content -->
@@ -311,7 +311,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <div ref="contentRef" class="mb-16 flex min-h-full flex-col">
+      <div ref="contentRef" class="mb-[320px] flex min-h-full flex-col">
         <!-- Page header (title) -->
         <div
           class="mx-auto px-0.5"
@@ -344,10 +344,40 @@ defineExpose<ViewExposed>({ self, actions, focus });
           >
             <!-- Left gutter -->
             <div
-              class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-2 text-right"
-              :style="{ width: widths.gutter + 'px' }"
+              class="relative flex flex-shrink-0 flex-row items-center justify-end gap-x-1 text-right opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100"
+              :style="{ width: widths.gutter + 'px', height: `${getBlockHeaderHeight(block)}px` }"
             >
-              <!-- ... -->
+              <!-- Create above / below -->
+              <button
+                v-menu="
+                  (): PopoverInfoIn => ({
+                    component: ViewType.PICKER,
+                    placement: 'bottom',
+                    props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
+                    onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'before', block),
+                  })
+                "
+                class="ml-2 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+                :style="{}"
+              >
+                <i class="fas fa-plus" />
+              </button>
+              <!-- Drag -->
+              <button
+                v-menu="
+                  (): PopoverInfo => ({
+                    kind: 'menu',
+                    placement: 'bottom-left',
+                    offset: 'referenceWidth',
+                    items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
+                  })
+                "
+                class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                :draggable="true"
+                @dragstart.stop="(e) => startDraggingIfAllowed(e, pkgGraph, block)"
+              >
+                <i class="fas fa-grip-vertical w-5 text-center" />
+              </button>
             </div>
 
             <!-- Block wrapper -->
@@ -375,80 +405,21 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { ...context, triggerNode: block } }),
                   })
                 "
-                class="w-full data-[dragging=true]:opacity-50"
+                class="w-full"
+                :class="isDragging(block) ? 'opacity-50' : ''"
                 :node-ptr="toNodeRefOneOf(block)"
                 :prepared-connection="preparedPkgConnection"
                 v-bind="state.getChildState(block.id)"
-                :draggable="block.type != BlockType.DATABASE && block.type != BlockType.FLOW"
-                @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block!)"
               />
             </div>
 
             <!-- Right gutter -->
             <div
-              class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
-              :style="{ width: widths.gutter }"
-            >
-              <!-- Create above / below -->
-              <button
-                v-menu="
-                  (): PopoverInfoIn => ({
-                    component: ViewType.PICKER,
-                    placement: 'bottom',
-                    props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
-                    onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'before', block),
-                  })
-                "
-                class="ml-2 -translate-y-1/2 opacity-0 text-gray-400 hover:text-primary-700 transition-colors duration-150 hover:opacity-100 group-hover/block-line:opacity-100 data-[popover=true]:opacity-100"
-                :style="{
-                  marginTop: -BLOCK_GAP_Y / 2 +'px',
-                }"
-              >
-                <i class="fas fa-plus" />
-              </button>
-            </div>
+              class="relative flex flex-shrink-0 flex-row items-center justify-start px-0.5 transition-colors duration-75"
+              :style="{ width: widths.gutter, height: `${getBlockHeaderHeight(block)}px` }"
+            ></div>
           </div>
         </template>
-
-        <!-- Footer -->
-        <!-- Quick create -->
-        <div
-          v-if="page != null"
-          class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1"
-          data-keep-inspection-in-base-view="true"
-        >
-          <template
-            v-for="blockType in [
-              BlockType.PAGE,
-              BlockType.CHOICE,
-              BlockType.ACTION,
-              BlockType.FLOW,
-              BlockType.DATABASE,
-              BlockType.VIEW,
-              BlockType.TEXT,
-            ]"
-            :key="blockType"
-          >
-            <button
-              v-tooltip="{
-                title: `${toCamelName(BlockType, blockType)}`,
-                showDelay: 200,
-                hideDelay: 100,
-                small: true,
-                referenceMargin: 8,
-                group: 'page.footer',
-              }"
-              class="rounded-sm px-2 py-1 text-base text-gray-700 transition-colors duration-100 hover:bg-gray-100 hover:text-primary-700"
-              @click="
-                () => {
-                  createAndFocusBlock({ type: blockType }, 'inside', page!);
-                }
-              "
-            >
-              <IconInline v-bind="ICON_BY_BLOCK_TYPE[blockType]" />
-            </button>
-          </template>
-        </div>
       </div>
     </Scroll>
   </div>

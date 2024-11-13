@@ -20,10 +20,11 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string; size: Required<Pick<RectangleData, "width" | "height">> } & Pick<
-    ViewData,
-    "name" | "title" | "icon" | "nodePtr"
-  >
+  {
+    self: TypedNodeReferenceData<NodeType.VIEW>;
+    id: string;
+    size: Required<Pick<RectangleData, "width" | "height">>;
+  } & Pick<ViewData, "name" | "title" | "icon" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -47,9 +48,9 @@ defineExpose<ViewExposed>({ self });
 <template>
   <div v-if="inspectedNode && inspectionLayout" class="h-full w-full">
     <!-- Header -->
-    <div class="group w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
+    <div class="group/header w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex h-full max-w-full flex-row items-center pl-2 pr-2.5"
+        class="mx-auto flex h-full max-w-full flex-row items-center pl-2 pr-3"
         :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Node -->
@@ -58,7 +59,7 @@ defineExpose<ViewExposed>({ self });
         <button
           v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"
           :disabled="nodePtr == null && inspectedNode == null"
-          class="ml-1.5 hover:text-primary-700"
+          class="ml-1.5 opacity-0 transition-colors duration-150 hover:text-primary-700 group-hover/header:opacity-100"
           :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
           @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: inspectedNode })"
         >

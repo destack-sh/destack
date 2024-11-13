@@ -349,7 +349,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <!-- Header -->
     <div class="group/header w-full" :style="{ height: VIEW_DEFAULT_HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex h-full max-w-full flex-row items-center pl-1.5 pr-3"
+        class="mx-auto flex h-full max-w-full flex-row items-center pl-2 pr-3"
         :style="{ minWidth: VIEW_DEFAULT_MIN_WIDTH + 'px', maxWidth: VIEW_DEFAULT_MAX_WIDTH + 'px' }"
       >
         <!-- Location -->
@@ -448,7 +448,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group/node relative mx-1 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
+          class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
           :class="[
             (focusedNode?.id == node.id && isFocusAbsolute) ||
             (activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center')
