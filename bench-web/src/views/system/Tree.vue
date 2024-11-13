@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { createBlock, useHierarchicalNodeMoveActions } from "@/language/block";
-import { PAGE_BLOCK_TYPES, toCamelName } from "@/language/const";
+import { HEAVY_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
 import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
@@ -138,7 +138,8 @@ function toggleExpanded(node: AnyNodeData | SomeNodeReferenceData) {
 
 function isIncludedSelf(node: AnyNodeData) {
   if (filterIsPage.value) {
-    if (node.metatype == ObjectType.BLOCK) return PAGE_BLOCK_TYPES.includes((node as BlockData).type);
+    if (node.metatype == ObjectType.BLOCK)
+      return (node as BlockData).type == BlockType.PAGE || HEAVY_BLOCK_TYPES.includes((node as BlockData).type);
     else return true;
   } else {
     return true; // include everything
@@ -149,7 +150,7 @@ function isIncludedChildren(node: AnyNodeData) {
     return true;
   } else if (filterIsPage.value === false) {
     // don't descend into pages for outline
-    if (node.metatype == ObjectType.BLOCK) return !PAGE_BLOCK_TYPES.includes((node as BlockData).type);
+    if (node.metatype == ObjectType.BLOCK) return (node as BlockData).type != BlockType.PAGE;
     else return true;
   } else {
     return true; // include everything
@@ -306,11 +307,6 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
     canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
-  },
-  "common.navigate.openInPage": (action, ctx) => {
-    const node = getItemFromContext(ctx).item?.node;
-    if (node == null) return false;
-    canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE, preferPage: true });
   },
   "common.edit.rename": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;

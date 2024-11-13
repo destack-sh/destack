@@ -312,14 +312,10 @@ defineExpose<ViewExposed>({
         v-tooltip="{ icon: item.icon, title: item.title, small: true, group: 'picker' }"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
-        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-50 hover:text-primary-700 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
+        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-100 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
         @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
       >
-        <IconInline
-          v-if="variant == Variant.STEALTH && item.icon"
-          v-bind="item.icon"
-          class="w-5 group-hover:text-primary-700"
-        />
+        <IconInline v-if="variant == Variant.STEALTH && item.icon" v-bind="item.icon" class="w-5" />
         <template v-else>{{ item.title }}</template>
       </button>
       <div v-if="results.length == 0" class="mx-auto">
@@ -385,25 +381,17 @@ defineExpose<ViewExposed>({
             <li
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               role="menuitem"
-              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded border border-transparent px-1.5 hover:bg-gray-100 data-[active=true]:border-primary-700"
+              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded border border-transparent px-1.5 hover:bg-gray-100"
+              :class="[isActive(item) ? 'bg-gray-100' : '']"
               :data-selected="isSelected(item)"
               :data-active="isActive(item)"
               @click.prevent="select(item)"
             >
               <!-- Content -->
-              <IconInline
-                v-if="item.icon"
-                v-bind="item.icon"
-                class="mr-1.5 w-5 flex-shrink-0"
-                :class="isActive(item) ? 'text-primary-700' : 'text-gray-700'"
-              />
+              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span class="flex-1 select-none">
-                <span
-                  class="truncate"
-                  :class="isActive(item) ? 'text-primary-700' : ''"
-                  v-html="item.titleMarked ?? item.title"
-                />
+                <span class="truncate" v-html="item.titleMarked ?? item.title" />
                 <!-- Checked -->
                 <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
               </span>

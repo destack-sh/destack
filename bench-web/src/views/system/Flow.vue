@@ -38,13 +38,18 @@ import {
 } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
-import { Vector2 } from "@/ui/view";
+import { Vector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
+import IconName from "@/views/builtins/IconName.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
+import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
+
+const META_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const GUTTER_WIDTH = 60;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
@@ -62,9 +67,12 @@ const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeRefer
 const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 
+const headerRef: Ref<HTMLElement | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
+const headerSize = useElementSize(headerRef);
+
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
   spaceTx: () => spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
@@ -214,219 +222,228 @@ const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
-  <div
-    ref="containerRef"
-    v-contextmenu="
-      (context: PopoverContext): PopoverInfo => ({
-        kind: 'menu',
-        placement: 'bottom-right',
-        items: menuActionsLike(
-          ['common.create.step', 'common.create.pipe', 'common.edit.paste', 'message.chat.message'],
-          { context: { ...context, triggerNode: flow! } },
-        ),
-      })
-    "
-    class="group/flow relative w-full select-none"
-    :class="[
-      variant == Variant.COMPACT || variant == Variant.STEALTH ? '' : 'h-full',
-      flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
-    ]"
-    @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
-    @mousemove="(e: MouseEvent) => flowCtx.onDragging(e)"
-    @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
-    @mouseleave="(e) => flowCtx.cancelDragging()"
-    @wheel.prevent="(e) => flowCtx.onWheel(e)"
-  >
-    <!-- NOTE :UX: Flow should multitouch gestures properly -->
-    <!-- Background grid (infinitely repeated) -->
-    <div class="absolute h-full w-full overflow-hidden" :style="{}">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-full w-full text-gray-200"
-        :style="{
-          // extra spacing for smooth infinite scrolling
-          width: `${100 / scale}%`,
-          height: `${100 / scale}%`,
-          transformOrigin: '0 0',
-          transform: `scale(${scale}, ${scale}) translate(${((transform?.translateX ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${((transform?.translateY ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
-        }"
-      >
-        <defs>
-          <pattern
-            id="dot-pattern"
-            :x="0"
-            :y="0"
-            :width="FLOW_GRID_STEP"
-            :height="FLOW_GRID_STEP"
-            patternUnits="userSpaceOnUse"
-          >
-            <circle
-              :cx="FLOW_CANVAS_DOT_SIZE / 2"
-              :cy="FLOW_CANVAS_DOT_SIZE / 2"
-              :r="FLOW_CANVAS_DOT_SIZE / 2"
-              fill="currentColor"
-            />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#dot-pattern)" />
-      </svg>
-    </div>
-
-    <!-- Contents -->
-    <div class="z-0 h-full w-full overflow-hidden">
-      <div
-        class="relative h-full w-full"
-        :style="{
-          transformOrigin: '0 0',
-          transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
-        }"
-      >
-        <!-- Pipes -->
-        <Pipe
-          v-for="pipe in pipes"
-          :id="pipe.id"
-          :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
-          :key="pipe.id"
-          v-contextmenu="
-            (context: PopoverContext): PopoverInfo => ({
-              kind: 'menu',
-              placement: 'bottom-right',
-              items: menuActionsLike(PIPE_CONTEXT_ACTIONS, { context: { ...context, triggerNode: pipe } }),
-            })
-          "
-          :node-ptr="toNodeRefOneOf(pipe)"
-          class="absolute"
-        />
-        <!-- Pending Pipe (above Steps for clarity)-->
-        <div
-          v-if="flowCtx.draggable?.kind == 'step-port'"
-          class="pointer-events-none absolute text-gray-700 opacity-50"
-        >
-          <svg v-if="pendingPath" class="overflow-visible">
-            <path
-              :stroke-width="PIPE_WIDTH * 2"
-              stroke-linecap="round"
-              stroke-linejoin="bevel"
-              stroke="currentColor"
-              fill="none"
-              :d="pathToSvgSpline(pendingPath.points)"
-            />
-          </svg>
-        </div>
-        <!-- Steps -->
-        <Step
-          v-for="step in steps"
-          :id="step.id"
-          :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
-          :key="step.id"
-          v-contextmenu="
-            (context: PopoverContext): PopoverInfo => ({
-              kind: 'menu',
-              placement: 'bottom-right',
-              items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { ...context, triggerNode: step } }),
-            })
-          "
-          class="absolute"
-          :style="{
-            width: getStepWidth(step) + 'px',
-            left: (step.position?.x ?? 0) + 'px',
-            top: (step.position?.y ?? 0) + 'px',
-          }"
-          :node-ptr="toNodeRefOneOf(step)"
-          @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
-        />
-      </div>
-    </div>
-
-    <!-- Overlay -->
+  <div :class="[variant == Variant.COMPACT ? '' : 'h-full']">
+    <!-- Meta header -->
     <div
-      class="pointer-events-none absolute left-0 top-0 flex w-full flex-row flex-wrap justify-between gap-y-3 overflow-hidden p-1"
+      v-if="variant != Variant.COMPACT"
+      data-keep-inspection-in-base-view="true"
+      class="group flex w-full max-w-full flex-row px-2"
+      :style="{ height: META_HEADER_HEIGHT + 'px' }"
     >
-      <!-- Node path -->
-      <NodePath
-        v-if="variant != Variant.STEALTH && variant != Variant.COMPACT && flowCtx.flow.value != null"
-        class="pointer-events-auto flex-shrink-0 border border-gray-200 bg-white px-2"
-        :container="nodePtr"
-        :focus="props.focus?.nodesPtr[0]"
-        :graph="pkgGraph"
-      />
-      <!-- Menu (Create) -->
-      <div
-        v-if="variant != Variant.STEALTH"
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
-        :class="
-          variant != Variant.COMPACT
-            ? 'absolute left-1/2 -translate-x-1/2'
-            : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
-        "
-      >
-        <!-- Create -->
-        <button
-          v-for="stepType in [
-            StepType.START,
-            StepType.TRIGGER,
-            StepType.ACTION,
-            StepType.COMPLETE,
-            StepType.LOOP,
-            StepType.TEXT,
-          ]"
-          :key="stepType"
-          v-tooltip="{
-            title: `${toCamelName(StepType, stepType)}`,
-            showDelay: 200,
-            hideDelay: 100,
-            small: true,
-            referenceMargin: 8,
-            group: 'flow.create',
-          }"
-          class="rounded px-0.5"
-          :class="
-            variant != Variant.COMPACT
-              ? 'text-gray-700 hover:bg-gray-100'
-              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
-          "
-          @click="
-            flow &&
-              createStep(pkgConnection.tx, pkgGraph, {
-                step: { type: stepType },
-                parent: flow,
-                near: flowCtx.centerVec,
-              })
-          "
-        >
-          <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
-        </button>
+      <!-- Breadcrumb -->
+      <NodePath :container="nodePtr" :graph="pkgGraph" />
+      <!-- Meta & Controls -->
+      <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
+        <!-- ... -->
       </div>
-      <!-- Menu (Actions) -->
-      <div
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
-        :class="
-          variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
-        "
-      >
-        <button
-          v-for="action of (
-            ['common.navigate.zoomIn', 'common.navigate.zoomOut', 'common.navigate.reset'] as ActionBuiltinId[]
-          ).map(getAction)"
-          :key="action.id"
-          v-tooltip="{
-            title: action.title,
-            showDelay: 200,
-            hideDelay: 100,
-            small: true,
-            referenceMargin: 8,
-            group: 'flow.actions',
+    </div>
+    <!-- Header -->
+    <div
+      v-if="variant != Variant.COMPACT"
+      ref="headerRef"
+      :style="{
+        marginLeft: `${GUTTER_WIDTH}px`,
+        marginRight: `${GUTTER_WIDTH}px`,
+      }"
+    >
+      <IconName v-if="flow" size="title" :node="flow" :tx="() => pkgConnection.tx" />
+    </div>
+    <!-- Canvas body -->
+    <div
+      ref="containerRef"
+      v-contextmenu="
+        (context: PopoverContext): PopoverInfo => ({
+          kind: 'menu',
+          placement: 'bottom-right',
+          items: menuActionsLike(
+            ['common.create.step', 'common.create.pipe', 'common.edit.paste', 'message.chat.message'],
+            { context: { ...context, triggerNode: flow! } },
+          ),
+        })
+      "
+      class="group/flow relative w-full select-none"
+      :class="[
+        variant == Variant.COMPACT ? 'h-full' : '',
+        flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
+      ]"
+      :style="{ height: `calc(100% - ${META_HEADER_HEIGHT + headerSize.height.value}px)` }"
+      @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
+      @mousemove="(e: MouseEvent) => flowCtx.onDragging(e)"
+      @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
+      @mouseleave="(e) => flowCtx.cancelDragging()"
+      @wheel.prevent="(e) => flowCtx.onWheel(e)"
+    >
+      <!-- NOTE :UX: Flow should multitouch gestures properly -->
+      <!-- Background grid (infinitely repeated) -->
+      <div class="absolute h-full w-full overflow-hidden" :style="{}">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-full w-full text-gray-200"
+          :style="{
+            // extra spacing for smooth infinite scrolling
+            width: `${100 / scale}%`,
+            height: `${100 / scale}%`,
+            transformOrigin: '0 0',
+            transform: `scale(${scale}, ${scale}) translate(${((transform?.translateX ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${((transform?.translateY ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
           }"
-          class="rounded px-0.5"
-          :class="
-            variant != Variant.COMPACT
-              ? 'text-gray-700 hover:bg-gray-100 hover:text-primary-700'
-              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
-          "
-          @click="fireAction(action)"
         >
-          <IconInline v-bind="action.icon" class="w-5 text-center" />
-        </button>
+          <defs>
+            <pattern
+              id="dot-pattern"
+              :x="0"
+              :y="0"
+              :width="FLOW_GRID_STEP"
+              :height="FLOW_GRID_STEP"
+              patternUnits="userSpaceOnUse"
+            >
+              <circle
+                :cx="FLOW_CANVAS_DOT_SIZE / 2"
+                :cy="FLOW_CANVAS_DOT_SIZE / 2"
+                :r="FLOW_CANVAS_DOT_SIZE / 2"
+                fill="currentColor"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#dot-pattern)" />
+        </svg>
+      </div>
+
+      <!-- Contents -->
+      <div class="z-0 h-full w-full overflow-hidden">
+        <div
+          class="relative h-full w-full"
+          :style="{
+            transformOrigin: '0 0',
+            transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
+          }"
+        >
+          <!-- Pipes -->
+          <Pipe
+            v-for="pipe in pipes"
+            :id="pipe.id"
+            :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
+            :key="pipe.id"
+            v-contextmenu="
+              (context: PopoverContext): PopoverInfo => ({
+                kind: 'menu',
+                placement: 'bottom-right',
+                items: menuActionsLike(PIPE_CONTEXT_ACTIONS, { context: { ...context, triggerNode: pipe } }),
+              })
+            "
+            :node-ptr="toNodeRefOneOf(pipe)"
+            class="absolute"
+          />
+          <!-- Pending Pipe (above Steps for clarity)-->
+          <div
+            v-if="flowCtx.draggable?.kind == 'step-port'"
+            class="pointer-events-none absolute text-gray-700 opacity-50"
+          >
+            <svg v-if="pendingPath" class="overflow-visible">
+              <path
+                :stroke-width="PIPE_WIDTH * 2"
+                stroke-linecap="round"
+                stroke-linejoin="bevel"
+                stroke="currentColor"
+                fill="none"
+                :d="pathToSvgSpline(pendingPath.points)"
+              />
+            </svg>
+          </div>
+          <!-- Steps -->
+          <Step
+            v-for="step in steps"
+            :id="step.id"
+            :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
+            :key="step.id"
+            v-contextmenu="
+              (context: PopoverContext): PopoverInfo => ({
+                kind: 'menu',
+                placement: 'bottom-right',
+                items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { ...context, triggerNode: step } }),
+              })
+            "
+            class="absolute"
+            :style="{
+              width: getStepWidth(step) + 'px',
+              left: (step.position?.x ?? 0) + 'px',
+              top: (step.position?.y ?? 0) + 'px',
+            }"
+            :node-ptr="toNodeRefOneOf(step)"
+            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
+          />
+        </div>
+      </div>
+
+      <!-- Overlay -->
+      <div class="pointer-events-none absolute bottom-0 left-0 flex w-full flex-row items-center justify-center p-2">
+        <!-- Menu -->
+        <div
+          class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
+          :class="
+            variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
+          "
+        >
+          <!-- Create -->
+          <button
+            v-for="stepType in [
+              StepType.START,
+              StepType.TRIGGER,
+              StepType.ACTION,
+              StepType.COMPLETE,
+              StepType.LOOP,
+              StepType.TEXT,
+            ]"
+            :key="stepType"
+            v-tooltip="{
+              title: `${toCamelName(StepType, stepType)}`,
+              showDelay: 200,
+              hideDelay: 100,
+              small: true,
+              referenceMargin: 8,
+              group: 'flow.create',
+            }"
+            class="rounded px-1"
+            :class="
+              variant != Variant.COMPACT
+                ? 'text-base text-gray-700 hover:bg-gray-100'
+                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+            "
+            @click="
+              flow &&
+                createStep(pkgConnection.tx, pkgGraph, {
+                  step: { type: stepType },
+                  parent: flow,
+                  near: flowCtx.centerVec,
+                })
+            "
+          >
+            <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
+          </button>
+          <div class="h-full w-[1px] bg-gray-200">&nbsp;</div>
+          <button
+            v-for="action of (
+              ['common.navigate.zoomIn', 'common.navigate.zoomOut', 'common.navigate.reset'] as ActionBuiltinId[]
+            ).map(getAction)"
+            :key="action.id"
+            v-tooltip="{
+              title: action.title,
+              showDelay: 200,
+              hideDelay: 100,
+              small: true,
+              referenceMargin: 8,
+              group: 'flow.actions',
+            }"
+            class="rounded px-1 text-base"
+            :class="
+              variant != Variant.COMPACT
+                ? 'text-gray-700 hover:bg-gray-100 hover:text-primary-700'
+                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+            "
+            @click="fireAction(action)"
+          >
+            <IconInline v-bind="action.icon" class="w-5 text-center" />
+          </button>
+        </div>
       </div>
     </div>
   </div>

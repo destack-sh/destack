@@ -86,7 +86,6 @@ export const ACTION_BUILTIN_IDS = [
   "common.edit.duplicate",
   "common.edit.delete",
   "common.navigate.open",
-  "common.navigate.openInPage",
   "common.navigate.up",
   "common.navigate.down",
   "common.navigate.left",
@@ -559,12 +558,6 @@ declareActionMap<"common">({
     title: "Open",
     text: "Open this node in a new view",
     shortcuts: ["mod+enter"],
-  },
-  "common.navigate.openInPage": {
-    icon: "fas fa-magnifying-glass-plus",
-    title: "Open in Page",
-    text: "Open this node in a new page",
-    shortcuts: ["mod+shift+enter"],
   },
   "common.navigate.up": {
     icon: "fas fa-arrow-up",

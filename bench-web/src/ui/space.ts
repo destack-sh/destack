@@ -1,4 +1,4 @@
-import { HELPER_VIEW_TYPES, PAGE_BLOCK_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
+import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
 import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { cloneNode, generateNodeName, makeNode, NodeIn } from "@/language/node";
@@ -845,7 +845,7 @@ export class SpaceCanvas {
       // open generic block in containing page
       const containingPage = graph
         .getAncestors(nodePtr, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
-        .find((n) => PAGE_BLOCK_TYPES.includes(n.type));
+        .find((n) => n.type == BlockType.PAGE);
       if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
       const view = this.addView(
         {
