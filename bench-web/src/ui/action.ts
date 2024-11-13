@@ -1,24 +1,21 @@
-import { EXPOSED_ANCHORS } from "@/language/const";
 import { getEditStack } from "@/language/edit";
 import { getAllTransactionBuffers } from "@/language/transaction";
-import { packBuiltinObject } from "@/language/value";
 import {
-  ObjectType,
   TreeViewPreset,
   ViewType,
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
-  type TextData,
+  type TextData
 } from "@/proto/wire";
-import { describeNode, type AnyNodeReferenceData } from "@/proto/wiring";
+import { type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
 import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
-import { clearSpace, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
+import { clearSpace, createDesktopDefaultSpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
-import { collectViewComponentsUp, SPACE_DEFAULT_BAR_POSITION } from "@/ui/view";
+import { collectViewComponentsUp } from "@/ui/view";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -169,7 +166,6 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.splitLeft",
   "view.layout.splitRight",
   "view.layout.pinSplit",
-  "view.space.resetBlank",
   "view.space.resetDefault",
   "view.space.resetAdvanced",
   // user
@@ -1037,19 +1033,6 @@ declareActionMap<"view">({
 });
 contributeActionMap<"view">({
   // canvas
-  "view.space.resetBlank": {
-    isEnabled: computed(() => isDeveloperMode.value && space.value != null),
-    icon: "fas fa-galaxy",
-    title: "Clear Space",
-    text: "Clear the space and start blank",
-    action: () => {
-      if (pkg.value == null) return;
-      if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
-      const tx = canvas.tx();
-      clearSpace(tx, canvas.graph, space.value);
-      createEmptySpace(tx, space.value);
-    },
-  },
   "view.space.resetDefault": {
     isEnabled: hasLocalBench,
     title: "Restore Default Space",

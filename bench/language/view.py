@@ -74,8 +74,7 @@ class ViewType(IdEnum):
     START = 406
     FEED = 407
     TIMELINE = 408
-    HISTORY = 409
-    HUB = 410
+    HUB = 409
     HELP = 411
 
     #
@@ -85,8 +84,9 @@ class ViewType(IdEnum):
     # layout
     WINDOW = 1000
     TAB = 1002
-    SPLIT = 1003
-    SPLIT_DRAWER = 1004
+    BACKTAB = 1003
+    SPLIT = 1005
+    SPLIT_DRAWER = 1006
     STACK = 1010
     DRAWER = 1011
     SCROLL = 1012
@@ -462,6 +462,21 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
+@struct_(StructType.RECTANGLE_CONSTRAINT)
+class RectangleConstraint(Struct):
+    """Constraints for a Rectangle."""
+
+    min_width: Optional[int] = p_regular(50, default=None)
+    max_width: Optional[int] = p_regular(51, default=None)
+    min_height: Optional[int] = p_regular(52, default=None)
+    max_height: Optional[int] = p_regular(53, default=None)
+
+
+#
+# Views
+#
+
+
 @local_node_(NodeType.VIEW)
 class View(SourceNode[ViewData]):
     """A view of a user interface in a Bench."""
@@ -515,6 +530,9 @@ class View(SourceNode[ViewData]):
     alignment: Optional[Alignment] = p_regular(65, default=None, require=False)
     transform: Optional[Transform] = p_regular(
         66, default=None, require=False, array=False, struct=StructType.TRANSFORM
+    )
+    constraint: Optional[RectangleConstraint] = p_regular(
+        67, default=None, require=False, array=False, struct=StructType.RECTANGLE_CONSTRAINT
     )
     ...  # scroll/...
 
@@ -596,6 +614,11 @@ class IconView(View):
     include_color: bool = p_regular(100, default=False)
 
 
+#
+# Space
+#
+
+
 @enum_(EnumType.SPACE_TYPE)
 class SpaceType(IdEnum):
     DESKTOP = 10
@@ -629,6 +652,11 @@ class Space(SourceNode[SpaceData]):
     )
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
+
+
+#
+# Icon
+#
 
 
 @enum_(EnumType.ICON_KIND)

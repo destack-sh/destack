@@ -220,6 +220,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_VECTOR3: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR4: _ClassVar[StructType]
     STRUCT_TYPE_LINE: _ClassVar[StructType]
+    STRUCT_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[StructType]
 
 class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -327,6 +328,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_VECTOR3: _ClassVar[ObjectType]
     OBJECT_TYPE_VECTOR4: _ClassVar[ObjectType]
     OBJECT_TYPE_LINE: _ClassVar[ObjectType]
+    OBJECT_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[ObjectType]
 
 class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -434,6 +436,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_VECTOR3: _ClassVar[BenchType]
     BENCH_TYPE_VECTOR4: _ClassVar[BenchType]
     BENCH_TYPE_LINE: _ClassVar[BenchType]
+    BENCH_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[BenchType]
     BENCH_TYPE_ENUM_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
@@ -1280,11 +1283,11 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_START: _ClassVar[ViewType]
     VIEW_TYPE_FEED: _ClassVar[ViewType]
     VIEW_TYPE_TIMELINE: _ClassVar[ViewType]
-    VIEW_TYPE_HISTORY: _ClassVar[ViewType]
     VIEW_TYPE_HUB: _ClassVar[ViewType]
     VIEW_TYPE_HELP: _ClassVar[ViewType]
     VIEW_TYPE_WINDOW: _ClassVar[ViewType]
     VIEW_TYPE_TAB: _ClassVar[ViewType]
+    VIEW_TYPE_BACKTAB: _ClassVar[ViewType]
     VIEW_TYPE_SPLIT: _ClassVar[ViewType]
     VIEW_TYPE_SPLIT_DRAWER: _ClassVar[ViewType]
     VIEW_TYPE_STACK: _ClassVar[ViewType]
@@ -1716,6 +1719,7 @@ STRUCT_TYPE_VECTOR2: StructType
 STRUCT_TYPE_VECTOR3: StructType
 STRUCT_TYPE_VECTOR4: StructType
 STRUCT_TYPE_LINE: StructType
+STRUCT_TYPE_RECTANGLE_CONSTRAINT: StructType
 OBJECT_TYPE_UNSPECIFIED: ObjectType
 OBJECT_TYPE_BENCH: ObjectType
 OBJECT_TYPE_USER: ObjectType
@@ -1820,6 +1824,7 @@ OBJECT_TYPE_VECTOR2: ObjectType
 OBJECT_TYPE_VECTOR3: ObjectType
 OBJECT_TYPE_VECTOR4: ObjectType
 OBJECT_TYPE_LINE: ObjectType
+OBJECT_TYPE_RECTANGLE_CONSTRAINT: ObjectType
 BENCH_TYPE_UNSPECIFIED: BenchType
 BENCH_TYPE_BENCH: BenchType
 BENCH_TYPE_USER: BenchType
@@ -1924,6 +1929,7 @@ BENCH_TYPE_VECTOR2: BenchType
 BENCH_TYPE_VECTOR3: BenchType
 BENCH_TYPE_VECTOR4: BenchType
 BENCH_TYPE_LINE: BenchType
+BENCH_TYPE_RECTANGLE_CONSTRAINT: BenchType
 BENCH_TYPE_ENUM_TYPE: BenchType
 BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
@@ -2578,11 +2584,11 @@ VIEW_TYPE_CHAT: ViewType
 VIEW_TYPE_START: ViewType
 VIEW_TYPE_FEED: ViewType
 VIEW_TYPE_TIMELINE: ViewType
-VIEW_TYPE_HISTORY: ViewType
 VIEW_TYPE_HUB: ViewType
 VIEW_TYPE_HELP: ViewType
 VIEW_TYPE_WINDOW: ViewType
 VIEW_TYPE_TAB: ViewType
+VIEW_TYPE_BACKTAB: ViewType
 VIEW_TYPE_SPLIT: ViewType
 VIEW_TYPE_SPLIT_DRAWER: ViewType
 VIEW_TYPE_STACK: ViewType
@@ -4569,6 +4575,27 @@ class LineData(_message.Message):
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
         points: _Optional[_Iterable[_Union[Vector2Data, _Mapping]]] = ...,
+    ) -> None: ...
+
+class RectangleConstraintData(_message.Message):
+    __slots__ = ("metatype", "min_width", "max_width", "min_height", "max_height")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    MIN_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    MAX_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    MIN_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    MAX_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    min_width: int
+    max_width: int
+    min_height: int
+    max_height: int
+    def __init__(
+        self,
+        metatype: _Optional[_Union[ObjectType, str]] = ...,
+        min_width: _Optional[int] = ...,
+        max_width: _Optional[int] = ...,
+        min_height: _Optional[int] = ...,
+        max_height: _Optional[int] = ...,
     ) -> None: ...
 
 class IconData(_message.Message):
@@ -7828,6 +7855,7 @@ class ViewData(_message.Message):
         "orientation",
         "alignment",
         "transform",
+        "constraint",
         "selection",
         "focus",
         "is_hidden",
@@ -7871,6 +7899,7 @@ class ViewData(_message.Message):
     ORIENTATION_FIELD_NUMBER: _ClassVar[int]
     ALIGNMENT_FIELD_NUMBER: _ClassVar[int]
     TRANSFORM_FIELD_NUMBER: _ClassVar[int]
+    CONSTRAINT_FIELD_NUMBER: _ClassVar[int]
     SELECTION_FIELD_NUMBER: _ClassVar[int]
     FOCUS_FIELD_NUMBER: _ClassVar[int]
     IS_HIDDEN_FIELD_NUMBER: _ClassVar[int]
@@ -7913,6 +7942,7 @@ class ViewData(_message.Message):
     orientation: Orientation
     alignment: Alignment
     transform: TransformData
+    constraint: RectangleConstraintData
     selection: SelectionData
     focus: SelectionData
     is_hidden: bool
@@ -7957,6 +7987,7 @@ class ViewData(_message.Message):
         orientation: _Optional[_Union[Orientation, str]] = ...,
         alignment: _Optional[_Union[Alignment, str]] = ...,
         transform: _Optional[_Union[TransformData, _Mapping]] = ...,
+        constraint: _Optional[_Union[RectangleConstraintData, _Mapping]] = ...,
         selection: _Optional[_Union[SelectionData, _Mapping]] = ...,
         focus: _Optional[_Union[SelectionData, _Mapping]] = ...,
         is_hidden: bool = ...,

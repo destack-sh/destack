@@ -128,7 +128,7 @@ class Block(SourceNode[BlockData]):
 
     @property
     def is_page(self) -> bool:
-        return self.type.is_page
+        return self.type == BlockType.PAGE
 
     @property
     def is_type(self) -> bool:

@@ -17,7 +17,6 @@ import {
   SelectionData,
   SpaceData,
   StructType,
-  TreeViewPreset,
   ViewData,
   ViewProperty,
   ViewType,
@@ -731,7 +730,7 @@ export class SpaceCanvas {
         // no parent at all, reset space (either we're in a local empty space or it got messed up somehow)
         log.debug("canvas.repairCanvas", this.spacePtr.value);
         const space = this.graph.getOrError(this.spacePtr.value!);
-        parent = createEmptySpace(tx, space).primary;
+        parent = createDesktopDefaultSpace(tx, space).primary;
       }
 
       // create & focus
@@ -1087,49 +1086,27 @@ function makeLayout(
   return { viewsByName };
 }
 
-/** Sets up a minimal empty space with one root tab */
-export function createEmptySpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
-  const window = makeMainWindow(space, tx);
-  const layout = makeLayout(tx, window, [{ type: ViewType.TAB, name: "Primary", children: [] }]);
-  return { primary: layout.viewsByName["Primary"] };
-}
-
 /** Creates the default three-side canvas */
 export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
   const window = makeMainWindow(space, tx);
   const layout = makeLayout(tx, window, [
     {
-      type: ViewType.SPLIT,
+      type: ViewType.HUB,
       name: "Side",
-      orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
-      children: [
-        {
-          type: ViewType.TAB,
-          name: "SideTop",
-          children: [
-            { type: ViewType.TREE, title: "Explore", subnode: { nodeTypes: [], preset: TreeViewPreset.EXPLORE } },
-          ],
-        },
-        {
-          type: ViewType.TAB,
-          name: "SideBottom",
-          children: [
-            { type: ViewType.TREE, title: "Outline", subnode: { nodeTypes: [], preset: TreeViewPreset.OUTLINE } },
-          ],
-        },
-      ],
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 240, maxWidth: 400 }),
     },
     {
-      type: ViewType.TAB,
+      type: ViewType.BACKTAB,
       name: "Primary",
       size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 1500 }),
     },
     {
-      type: ViewType.SPLIT,
-      name: "Secondary",
+      type: ViewType.HELP,
+      name: "Detail",
       orientation: Orientation.VERTICAL,
-      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 700 }),
+      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 800 }),
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 400, maxWidth: 800 }),
       children: [
         { type: ViewType.TAB, name: "SecondaryTop", children: [{ type: ViewType.INSPECT }] },
         { type: ViewType.TAB, name: "SecondaryBottom", children: [{ type: ViewType.START }] },
