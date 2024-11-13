@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { BLOCK_CONTEXT_ACTIONS, createBlock, getBlockHeaderHeight, useFlatNodeMoveActions } from "@/language/block";
-import { toCamelName } from "@/language/const";
+import { BLOCK_CONTEXT_ACTIONS, createBlock, isInlinePage, useFlatNodeMoveActions } from "@/language/block";
+import { PAGE_BLOCK_TYPES } from "@/language/const";
 import { makeTypeInfo, NAME_TYPE } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
@@ -34,7 +34,6 @@ import { runtime } from "@/system/runtime";
 import { bench, canvas } from "@/system/space";
 import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
-import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -52,8 +51,7 @@ const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 60;
-const BLOCK_GAP_Y = 12;
-const HANDLE_WIDTH = 6;
+const BLOCK_GAP_Y = 6;
 
 const props = defineProps<
   {
@@ -339,13 +337,15 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <div
             class="group/block-line relative flex min-w-fit flex-row"
             :style="{
+              paddingTop: isInlinePage(block) ? '10px' : undefined,
               marginTop: BLOCK_GAP_Y + 'px',
             }"
           >
             <!-- Left gutter -->
             <div
-              class="relative flex flex-shrink-0 flex-row items-center justify-end gap-x-1 text-right opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100"
-              :style="{ width: widths.gutter + 'px', height: `${getBlockHeaderHeight(block)}px` }"
+              class="relative flex flex-shrink-0 flex-row items-start px-1 justify-end gap-x-1 text-right opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100"
+              :class="isInlinePage(block) ? 'pt-2' : 'pt-1'"
+              :style="{ width: widths.gutter + 'px' }"
             >
               <!-- Create above / below -->
               <button
@@ -354,7 +354,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     component: ViewType.PICKER,
                     placement: 'bottom',
                     props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
-                    onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'before', block),
+                    onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'after', block),
                   })
                 "
                 class="ml-2 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
@@ -382,7 +382,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
             <!-- Block wrapper -->
             <div
-              class="group/block-wrapper relative rounded-sm"
+              class="group/block-wrapper relative rounded"
               :style="{
                 width: widths.block + 'px',
               }"
@@ -390,7 +390,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               <!-- Drag above/below -->
               <div
                 v-if="activeDropZone?.targetId == block.id"
-                class="absolute z-10 h-1 w-full rounded-sm bg-primary-500"
+                class="absolute z-10 h-1 w-full rounded bg-primary-500"
                 :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
               />
 
@@ -412,12 +412,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 v-bind="state.getChildState(block.id)"
               />
             </div>
-
-            <!-- Right gutter -->
-            <div
-              class="relative flex flex-shrink-0 flex-row items-center justify-start px-0.5 transition-colors duration-75"
-              :style="{ width: widths.gutter, height: `${getBlockHeaderHeight(block)}px` }"
-            ></div>
           </div>
         </template>
       </div>

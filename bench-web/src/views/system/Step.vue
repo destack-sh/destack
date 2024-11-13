@@ -1,57 +1,37 @@
 <script lang="ts" setup>
-import { blockToType } from "@/language/block";
-import { SOURCE_STEP_TYPES, SINK_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, NAME_TYPE, type TypeIdentity } from "@/language/field";
+import { createField, NAME_TYPE } from "@/language/field";
 import {
   FLOW_GRID_STEP,
   FLOW_PORT_SIZE,
   getStepSides,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
-  useFlowContext,
-  type Port,
+  useFlowContext
 } from "@/language/flow";
-import { cloneNode, moveNode, onNodeMorphed, unpackSubnodeProperty } from "@/language/node";
+import { cloneNode, unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import {
-  BenchType,
-  ColorShade,
-  ColorType,
   FieldData,
   NodeType,
-  Orientation,
   PortSide,
-  RunStatus,
   StepType,
   Variant,
-  ViewData,
-  ViewType,
+  ViewData
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { IS_CHROMIUM } from "@/system/client";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import {
-  startDragging,
-  useDropZone,
-  useMultiDropZone,
-  useSingleDropZone,
-  type DraggedContent,
-  type MultiAnchor,
-} from "@/ui/drag";
-import { getNodeIcon, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
-import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { COLOR_BY_RUN_STATUS, getColorHex, getNodeColorHex, getRunColorHex } from "@/ui/style";
+import { getNodeIcon, IconInline } from "@/ui/icon";
+import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { COLOR_BY_RUN_STATUS } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
-import { formatDuration, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
-import Field from "@/views/system/Field.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
@@ -197,11 +177,8 @@ defineExpose<ViewExposed>({ self, id, actions });
               onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
             })
           "
-          :style="{
-            color: getNodeColorHex(step, ColorShade.S600),
-          }"
           v-bind="getNodeIcon(step)"
-          class="w-5 flex-shrink-0 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer"
+          class="w-5 flex-shrink-0 rounded py-0.5 text-gray-700 hover:cursor-pointer"
         />
       </div>
       <!-- Name -->
@@ -228,7 +205,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
             })
           "
-          class="rounded-sm text-gray-400 hover:text-gray-700"
+          class="rounded text-gray-400 hover:text-gray-700"
         >
           <i class="fas fa-ellipsis-v w-5 text-center" />
         </button>
@@ -266,7 +243,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
             })
           "
-          class="rounded-sm text-gray-400 hover:text-gray-700"
+          class="rounded text-gray-400 hover:text-gray-700"
         >
           <i class="fas fa-ellipsis-v w-5 text-center" />
         </button>
@@ -275,7 +252,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- NOTE :UX: show last step output/error here? -->
   </div>
-  <div v-else ref="containerRef" class="rounded-sm border border-gray-200 bg-white">
+  <div v-else ref="containerRef" class="rounded border border-gray-200 bg-white">
     <!-- should never be rendered by containing flow -->
     <span class="text-danger-600">???</span>
   </div>

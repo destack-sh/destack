@@ -353,7 +353,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Menu (Create) -->
       <div
         v-if="variant != Variant.STEALTH"
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1.5"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
         :class="
           variant != Variant.COMPACT
             ? 'absolute left-1/2 -translate-x-1/2'
@@ -379,10 +379,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.create',
           }"
-          class="rounded-sm px-0.5"
+          class="rounded px-0.5"
           :class="
             variant != Variant.COMPACT
-              ? 'text-gray-700 hover:bg-gray-100 hover:text-primary-700'
+              ? 'text-gray-700 hover:bg-gray-100'
               : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
           "
           @click="
@@ -399,7 +399,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
       <!-- Menu (Actions) -->
       <div
-        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1.5"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
         :class="
           variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
         "
@@ -417,7 +417,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             referenceMargin: 8,
             group: 'flow.actions',
           }"
-          class="rounded-sm px-0.5"
+          class="rounded px-0.5"
           :class="
             variant != Variant.COMPACT
               ? 'text-gray-700 hover:bg-gray-100 hover:text-primary-700'

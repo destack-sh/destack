@@ -433,7 +433,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           <!-- Handle -->
           <div
             v-if="!isInline"
-            class="flex-shrink-0 rounded-sm transition-colors duration-75"
+            class="flex-shrink-0 rounded transition-colors duration-75"
             :style="{ width: HANDLE_WIDTH + 'px' }"
             :class="
               item.id == inspectionPtr?.id

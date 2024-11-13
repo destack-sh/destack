@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { getBlockHeaderHeight } from "@/language/block";
 import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { unpackSubnodeProperty } from "@/language/node";
@@ -22,7 +21,6 @@ import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { type PopoverInfoIn } from "@/ui/popover";
-import { getNodeColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -58,7 +56,6 @@ const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodeP
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
-const blockHeight = computed(() => (block.value != null ? getBlockHeaderHeight(block.value) : 32));
 
 const hasFunctionFields = computed(
   () =>
@@ -154,13 +151,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->
-    <div
-      v-if="block.type != BlockType.TEXT && block.type"
-      class="flex flex-row items-center rounded-t"
-      :style="{
-        height: `${blockHeight}px`,
-      }"
-    >
+    <div v-if="block.type != BlockType.TEXT && block.type" class="flex flex-row items-center rounded-t py-1">
       <!-- Icon -->
       <div class="flex flex-row items-center rounded px-0.5">
         <IconInline
@@ -176,9 +167,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           "
           v-bind="getNodeIcon(block)"
           :style="{
-            color: getNodeColorHex(block, ColorShade.S600),
           }"
-          class="w-5 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer"
+          class="w-5 rounded py-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100"
           :class="isInlinePage ? 'text-medium mr-0.5' : ''"
         />
       </div>
@@ -285,8 +275,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :node-ptr="props.nodePtr"
         :variant="Variant.COMPACT"
         is-input
-        :padding-x="6"
-        :padding-y="8"
       />
     </div>
   </div>

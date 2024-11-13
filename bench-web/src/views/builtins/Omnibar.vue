@@ -285,7 +285,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.itemId] = ref) : delete resultsRefs[item.itemId])"
                   role="button"
                   :data-selected="item.itemId === activeResultLocalId"
-                  class="my-0.5 flex w-full flex-row items-center rounded-sm border border-transparent px-2 py-1 hover:text-primary-700 data-[selected=true]:bg-gray-100"
+                  class="my-0.5 flex w-full flex-row items-center rounded border border-transparent px-2 py-1 data-[selected=true]:bg-gray-100"
                   @click.stop.prevent="() => fire(item.itemId)"
                 >
                   <!-- Content -->
@@ -299,7 +299,7 @@ defineExpose({ isActive, open });
                     <!-- Title -->
                     <span
                       :class="
-                        item.itemId === activeResultLocalId ? 'decoration-gray-700 underline underline-offset-3' : ''
+                        item.itemId === activeResultLocalId ? 'underline decoration-gray-700 underline-offset-3' : ''
                       "
                       v-html="item.titleMarked ?? item.title"
                     />

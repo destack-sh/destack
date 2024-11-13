@@ -7,7 +7,6 @@ import { describeNode, isNode } from "@/proto/wiring";
 import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
-import { getNodeColor } from "@/ui/style";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, ref } from "vue";
 
@@ -48,8 +47,7 @@ const name = computed(() => (props.node as any).name);
         })
       "
       v-bind="getNodeIcon(node)"
-      :color="getNodeColor(node)"
-      class="w-5 rounded-sm p-1 text-gray-700 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      class="w-5 rounded p-1 text-gray-700 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
       :class="isInput ? 'cursor-pointer' : ''"
     />
     <!-- Name (editable & has name) -->

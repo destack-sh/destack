@@ -118,7 +118,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Input -->
     <div
       v-if="isInput"
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm transition-colors duration-75 hover:border-gray-200"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-200"
       :class="[
         isDisabled
           ? 'bg-gray-100 text-gray-700'
@@ -161,7 +161,7 @@ defineExpose<ViewExposed & { select: () => void }>({
       </template>
       <template v-else>
         <!-- List -->
-        <div v-for="(v, i) in values" :key="i" class="rounded-sm bg-gray-100 px-1 hover:text-primary-700">
+        <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1 hover:text-primary-700">
           <span class="truncate">{{ v }}</span>
           <!-- Remove -->
           <button
@@ -179,7 +179,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           :value="currentValue"
           spellcheck="false"
           :type="inputType"
-          class="rounded-sm border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-700 focus:ring-0"
+          class="rounded border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-700 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :size="variant == Variant.STEALTH ? size : undefined"
           :disabled="isDisabled"
@@ -199,7 +199,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Read-only -->
     <div
       v-else
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm text-gray-700 outline-1 outline-primary-700 focus-within:outline hover:border-gray-200"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-primary-700 focus-within:outline hover:border-gray-200"
       :class="[variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-1' : '']"
     >
       <template v-if="!valueType?.isList">
@@ -215,7 +215,7 @@ defineExpose<ViewExposed & { select: () => void }>({
       </template>
       <template v-else>
         <!-- List -->
-        <div v-for="(v, i) in values" :key="i" class="truncate rounded-sm bg-gray-100 px-1">{{ v }}</div>
+        <div v-for="(v, i) in values" :key="i" class="truncate rounded bg-gray-100 px-1">{{ v }}</div>
       </template>
     </div>
   </ViewContentWrapper>

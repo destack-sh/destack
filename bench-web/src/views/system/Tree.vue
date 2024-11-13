@@ -7,12 +7,12 @@ import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "
 import {
   BlockData,
   BlockType,
-  RectangleData,
   CHILD_NODE_TYPES,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
+  RectangleData,
   TreeViewPreset,
   Variant,
   ViewData,
@@ -36,7 +36,6 @@ import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
-import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
@@ -367,7 +366,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Create -->
           <button
             v-if="pkg != null"
-            class="rounded-sm py-0.5 text-gray-400 hover:text-primary-700"
+            class="rounded px-0.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="
               () => {
                 // NOTE: we assume that pkgGraph root == pkg (may be incorrect later)
@@ -393,7 +392,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <input
           ref="queryRef"
           v-model="query"
-          class="max-w-60 cursor-default rounded-sm border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
           :data-suppress-actions="'common.navigate' /* allow select & move */"
           @keydown.enter.stop.prevent="
@@ -450,11 +449,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :data-node-type="node.metatype"
           class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
           :class="[
-            (focusedNode?.id == node.id && isFocusAbsolute) ||
-            (activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center')
+            activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-primary-700'
               : 'border-transparent',
-            isFocused(node) ? 'bg-gray-100' : '',
+            isFocused(node) || (focusedNode?.id == node.id && isFocusAbsolute) ? 'bg-gray-100' : '',
             (node as any).name != null ? '' : 'italic',
           ]"
           :style="{
@@ -469,7 +467,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Drop indicator -->
           <div
             v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-            class="absolute z-10 h-1 rounded-sm bg-primary-700"
+            class="absolute z-10 h-1 rounded bg-primary-700"
             :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[2px]']"
             :style="{
               left: 8 + depth * DEPTH_OFFSET + 'px',
@@ -477,10 +475,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
             }"
           />
           <!-- Icon/Expand button -->
-          <button class="group/icon relative mr-1.5 flex-shrink-0" @click="() => toggleExpanded(node)">
+          <button class="group/icon relative mr-1.5 flex-shrink-0" @click.stop="() => toggleExpanded(node)">
             <IconInline
               v-bind="getNodeIcon(node)"
-              :color="getNodeColor(node)"
               class="w-5 transition-colors duration-75"
               :class="hasChildren ? 'group-hover/node:opacity-0' : ''"
             />
@@ -521,7 +518,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <button
               v-if="isNode(node, NodeType.BLOCK)"
               role="button"
-              class="text-gray-400 opacity-0 hover:text-primary-700 group-hover/node:opacity-100"
+              class="text-gray-400 opacity-0 hover:text-gray-700 group-hover/node:opacity-100"
               @click.stop="
                 () => {
                   const block = createBlock(pkgConnection.tx, pkgGraph, {
