@@ -40,6 +40,9 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.CHAT]: () => import("@/views/system/Chat.vue"),
   [ViewType.START]: () => import("@/views/system/Start.vue"),
   [ViewType.FEED]: () => import("@/views/system/Feed.vue"),
+  [ViewType.HUB]: () => import("@/views/system/Hub.vue"),
+  [ViewType.HELP]: () => import("@/views/system/Help.vue"),
+  [ViewType.BACKTAB]: () => import("@/views/system/Backtab.vue"),
 
   //
   // Organization

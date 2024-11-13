@@ -1,7 +1,7 @@
 import { SOURCE_NODE_TYPES } from "@/language/const";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
 import { getHostClient } from "@/proto/services";
-import { Anchor, BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
+import { BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
   makeScope,
   nodeReference,
@@ -13,7 +13,7 @@ import {
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { createDesktopDefaultSpace, createEmptySpace, SpaceCanvas } from "@/ui/space";
+import { createDesktopDefaultSpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { setCanvas as _setCanvas } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -133,7 +133,7 @@ export async function assignSpaceInPackage() {
       name: "MySpace",
       orderKey: "a0",
     });
-    createEmptySpace(pkgConnection.tx, space);
+    createDesktopDefaultSpace(pkgConnection.tx, space);
     local.setSpace(toPlainNodeRef(space));
     spaceGraph.graph = pkgGraph;
     await pkgConnection.txBuffer.commit();

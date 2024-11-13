@@ -205,6 +205,7 @@ enum StructType {
   STRUCT_TYPE_VECTOR3 = 11021;
   STRUCT_TYPE_VECTOR4 = 11022;
   STRUCT_TYPE_LINE = 11035;
+  STRUCT_TYPE_RECTANGLE_CONSTRAINT = 11040;
 }
 
 enum ObjectType {
@@ -312,6 +313,7 @@ enum ObjectType {
   OBJECT_TYPE_VECTOR3 = 11021;
   OBJECT_TYPE_VECTOR4 = 11022;
   OBJECT_TYPE_LINE = 11035;
+  OBJECT_TYPE_RECTANGLE_CONSTRAINT = 11040;
 }
 
 enum BenchType {
@@ -419,6 +421,7 @@ enum BenchType {
   BENCH_TYPE_VECTOR3 = 11021;
   BENCH_TYPE_VECTOR4 = 11022;
   BENCH_TYPE_LINE = 11035;
+  BENCH_TYPE_RECTANGLE_CONSTRAINT = 11040;
   BENCH_TYPE_ENUM_TYPE = 20001;
   BENCH_TYPE_NODE_TYPE = 20002;
   BENCH_TYPE_STRUCT_TYPE = 20003;
@@ -1287,13 +1290,13 @@ enum ViewType {
   VIEW_TYPE_START = 406;
   VIEW_TYPE_FEED = 407;
   VIEW_TYPE_TIMELINE = 408;
-  VIEW_TYPE_HISTORY = 409;
-  VIEW_TYPE_HUB = 410;
+  VIEW_TYPE_HUB = 409;
   VIEW_TYPE_HELP = 411;
   VIEW_TYPE_WINDOW = 1000;
   VIEW_TYPE_TAB = 1002;
-  VIEW_TYPE_SPLIT = 1003;
-  VIEW_TYPE_SPLIT_DRAWER = 1004;
+  VIEW_TYPE_BACKTAB = 1003;
+  VIEW_TYPE_SPLIT = 1005;
+  VIEW_TYPE_SPLIT_DRAWER = 1006;
   VIEW_TYPE_STACK = 1010;
   VIEW_TYPE_DRAWER = 1011;
   VIEW_TYPE_SCROLL = 1012;
@@ -2113,6 +2116,14 @@ message Vector4Data {
 message LineData {
   ObjectType metatype = 1;
   repeated Vector2Data points = 30;
+}
+
+message RectangleConstraintData {
+  ObjectType metatype = 1;
+  optional int32 min_width = 50;
+  optional int32 max_width = 51;
+  optional int32 min_height = 52;
+  optional int32 max_height = 53;
 }
 
 message IconData {
@@ -3048,6 +3059,7 @@ message ViewData {
   optional Orientation orientation = 64;
   optional Alignment alignment = 65;
   optional TransformData transform = 66;
+  optional RectangleConstraintData constraint = 67;
   optional SelectionData selection = 70;
   optional SelectionData focus = 71;
   bool is_hidden = 80;

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.12.2"
+VERSION = "2024.11.13.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -434,6 +434,7 @@ class StructType(IdEnum):
     VECTOR3 = 11021
     VECTOR4 = 11022
     LINE = 11035
+    RECTANGLE_CONSTRAINT = 11040
     ...
 
 
@@ -653,10 +654,6 @@ class BlockType(IdEnum):
     IDENTITY = 51  # define an identity with roles & policies
 
     @property
-    def is_page(self) -> bool:
-        return self in BlockTypes.PAGES
-
-    @property
     def is_type(self) -> bool:
         return self in BlockTypes.TYPES
 
@@ -673,7 +670,6 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 
 
 class BlockTypes:
-    PAGES = bittuple(BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW)
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 20 <= t.id < 30))
     CLASSES = bittuple(

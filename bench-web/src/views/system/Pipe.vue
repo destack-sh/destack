@@ -81,7 +81,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Midpoint meta -->
     <div
-      class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded border px-2 py-0.5 transition-colors duration-150"
+      class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded-2xl border px-2 py-0.5 transition-colors duration-150"
       :class="[
         showPipeMeta
           ? ['bg-white', isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200']

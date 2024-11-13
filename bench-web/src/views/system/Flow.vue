@@ -241,6 +241,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div
       v-if="variant != Variant.COMPACT"
       ref="headerRef"
+      class="mb-2 mt-5"
       :style="{
         marginLeft: `${GUTTER_WIDTH}px`,
         marginRight: `${GUTTER_WIDTH}px`,
@@ -266,14 +267,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         variant == Variant.COMPACT ? 'h-full' : '',
         flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
       ]"
-      :style="{ height: `calc(100% - ${META_HEADER_HEIGHT + headerSize.height.value}px)` }"
+      :style="{ height: `calc(100% - ${META_HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)` }"
       @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
       @mousemove="(e: MouseEvent) => flowCtx.onDragging(e)"
       @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
       @mouseleave="(e) => flowCtx.cancelDragging()"
       @wheel.prevent="(e) => flowCtx.onWheel(e)"
     >
-      <!-- NOTE :UX: Flow should multitouch gestures properly -->
+      <!-- NOTE :UX: handle multitouch gestures in Flow properly -->
       <!-- Background grid (infinitely repeated) -->
       <div class="absolute h-full w-full overflow-hidden" :style="{}">
         <svg

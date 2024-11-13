@@ -58,6 +58,20 @@ export function splitView(
   const getRelativeUnits = (view: ViewData) => {
     return layoutRef.value.orientation == Orientation.HORIZONTAL ? view.size?.widthRelative : view.size?.heightRelative;
   };
+  const getMinSize = (view: ViewData) => {
+    if (layoutRef.value.orientation == Orientation.HORIZONTAL) {
+      return view.constraint?.minWidth ?? MIN_SPLIT_SIZE;
+    } else {
+      return view.constraint?.minHeight ?? MIN_SPLIT_SIZE;
+    }
+  };
+  const getMaxSize = (view: ViewData) => {
+    if (layoutRef.value.orientation == Orientation.HORIZONTAL) {
+      return view.constraint?.maxWidth ?? Number.MAX_SAFE_INTEGER;
+    } else {
+      return view.constraint?.maxHeight ?? Number.MAX_SAFE_INTEGER;
+    }
+  };
 
   /* Figure out assigned space */
   function getTotals() {
@@ -117,17 +131,27 @@ export function splitView(
     const isHorizontal = layoutRef.value.orientation === Orientation.HORIZONTAL;
 
     // figure out new target sizes
-    const a = sizedViews.value[sepIdx];
-    const b = sizedViews.value[sepIdx + 1];
-    let aTargetPx = sepAtPx - (isHorizontal ? a.left : a.top);
-    let bTargetPx = isHorizontal ? b.left + b.width - sepAtPx : b.top + b.height - sepAtPx;
+    const viewA = sizedViews.value[sepIdx];
+    const viewB = sizedViews.value[sepIdx + 1];
+    let viewATargetPx = sepAtPx - (isHorizontal ? viewA.left : viewA.top);
+    let viewBTargetPx = isHorizontal ? viewB.left + viewB.width - sepAtPx : viewB.top + viewB.height - sepAtPx;
     // clamp target sizes
-    if (aTargetPx < MIN_SPLIT_SIZE) {
-      bTargetPx += aTargetPx - MIN_SPLIT_SIZE;
-      aTargetPx = MIN_SPLIT_SIZE;
-    } else if (bTargetPx < MIN_SPLIT_SIZE) {
-      aTargetPx += bTargetPx - MIN_SPLIT_SIZE;
-      bTargetPx = MIN_SPLIT_SIZE;
+    const viewAMin = getMinSize(viewA.view);
+    const viewBMin = getMinSize(viewB.view);
+    const viewAMax = getMaxSize(viewA.view);
+    const viewBMax = getMaxSize(viewB.view);
+    if (viewATargetPx < viewAMin) {
+      viewBTargetPx += viewATargetPx - viewAMin;
+      viewATargetPx = viewAMin;
+    } else if (viewATargetPx > viewAMax) {
+      viewBTargetPx += viewATargetPx - viewAMax;
+      viewATargetPx = viewAMax;
+    } else if (viewBTargetPx < viewBMin) {
+      viewATargetPx += viewBTargetPx - viewBMin;
+      viewBTargetPx = viewBMin;
+    } else if (viewBTargetPx > viewBMax) {
+      viewATargetPx += viewBTargetPx - viewBMax;
+      viewBTargetPx = viewBMax;
     }
 
     // create a partial view update to set the view to a specific size in pixels (relative or absolute)
@@ -145,7 +169,7 @@ export function splitView(
       }
     };
 
-    return [updateViewPx(a.view, aTargetPx), updateViewPx(b.view, bTargetPx)];
+    return [updateViewPx(viewA.view, viewATargetPx), updateViewPx(viewB.view, viewBTargetPx)];
   }
 
   return { sizedViews, updateSeparator };
