@@ -100,7 +100,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-if="!isGeneratedName || isInspected || isHighlighted"
         id="name"
         ref="nameRef"
-        class="ml-1.5 flex-shrink-0 font-medium transition-colors duration-150"
+        class="ml-1.5 flex-shrink-0 transition-colors duration-150"
         :class="[
           isGeneratedName && !isInspected && !isHighlighted ? 'opacity-0' : 'opacity-100',
           isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',

@@ -703,7 +703,7 @@ def apply_edit_operation_data(
                 # custom object field
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 if is_prepass:
-                    if key in cast(ProtoStruct, obj):
+                    if key in cast(ProtoStruct, obj).keys():  # noqa: SIM118
                         old_value_packed = cast(ProtoStruct, obj).__getitem__(key)
                         op.old_value_packed.CopyFrom(pack_proto_json(old_value_packed))  # type: ignore
                     else:

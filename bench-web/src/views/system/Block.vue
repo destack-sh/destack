@@ -227,7 +227,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200 pb-2">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
           <Type
             id="type.input"
             class=""
@@ -250,7 +250,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <Flow
           v-if="block.type == BlockType.FLOW"
           id="flow"
-          class="h-[400px]"
+          class="h-[400px] mt-2"
           v-bind="state.getChildState('flow')"
           :node-ptr="props.nodePtr"
           :variant="Variant.COMPACT"

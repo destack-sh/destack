@@ -100,7 +100,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <NativeInput
       id="name"
       ref="nameRef"
-      class="flex-shrink-0 py-[3px] font-medium text-gray-700 transition-colors duration-150"
+      class="flex-shrink-0 py-[3px] text-gray-700 transition-colors duration-150"
       :alignment="orientation == Orientation.HORIZONTAL_REVERSED ? Alignment.END : Alignment.START"
       is-input
       placeholder="Name..."
