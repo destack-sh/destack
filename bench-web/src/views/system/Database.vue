@@ -686,9 +686,10 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       class="flex w-full flex-row items-center gap-x-1"
       :style="{
-        height: `${ACTION_HEADER_HEIGHT}px`,
+        height: variant == Variant.COMPACT ? undefined : `${ACTION_HEADER_HEIGHT}px`,
         paddingLeft: `${props.paddingX ?? 0}px`,
         paddingRight: `${props.paddingX ?? 0}px`,
+        paddingBottom: variant == Variant.COMPACT ? '8px' : undefined,
       }"
     >
       <!-- Expressions (filters/sorts) -->

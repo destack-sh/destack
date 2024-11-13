@@ -1,3 +1,4 @@
+import type { ReadNodeGraph } from "@/language/graph";
 import {
   FileFormat,
   FileType,
@@ -8,8 +9,7 @@ import {
   type AnyNodeData,
   type NodeReferenceData,
 } from "@/proto/wire";
-import { isNodeRef, isStruct, toNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
-import type { ReadNodeGraph } from "@/language/graph";
+import { isNodeRef, isStruct, SomeNodeReferenceData, toNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
@@ -48,6 +48,14 @@ const dropZonesByElement: Map<HTMLElement | SVGElement, DropZone> = new Map();
 const activeDropZone: Ref<DropZone | null> = ref(null);
 
 export const DRAG_DISALLOWED_ELEMENTS = new Set(["input", "textarea", "contenteditable"]);
+
+/** Checks whether the given node is currently being dragged */
+export function isDragging(node: AnyNodeData | SomeNodeReferenceData) {
+  return (
+    (activeDragged.value?.kind == "node" && activeDragged.value.node.id == node.id) ||
+    (activeDragged.value?.kind == "selection" && activeDragged.value.nodes.some((n) => n.id == node.id))
+  );
+}
 
 /** Checks whether the given element may be dragged. */
 export function isDraggingAllowed(element: HTMLElement | SVGElement | null): boolean {

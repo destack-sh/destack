@@ -237,7 +237,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     @mouseleave="(e) => flowCtx.cancelDragging()"
     @wheel.prevent="(e) => flowCtx.onWheel(e)"
   >
-    <!-- NOTE :UX: handle multitouch gestures -->
+    <!-- NOTE :UX: Flow should multitouch gestures properly -->
     <!-- Background grid (infinitely repeated) -->
     <div class="absolute h-full w-full overflow-hidden" :style="{}">
       <svg
@@ -354,7 +354,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <div
         v-if="variant != Variant.STEALTH"
         class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1.5"
-        :class="variant != Variant.COMPACT ? 'absolute left-1/2 -translate-x-1/2' : ''"
+        :class="
+          variant != Variant.COMPACT
+            ? 'absolute left-1/2 -translate-x-1/2'
+            : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
+        "
       >
         <!-- Create -->
         <button
@@ -396,6 +400,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Menu (Actions) -->
       <div
         class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-sm border border-gray-200 bg-white px-2 py-1.5"
+        :class="
+          variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
+        "
       >
         <button
           v-for="action of (

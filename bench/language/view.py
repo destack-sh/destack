@@ -591,6 +591,11 @@ class UserWizardView(View):
     stage: UserWizardViewStage | None = p_regular(100)
 
 
+@node_subtype_(ViewType.ICON)
+class IconView(View):
+    include_color: bool = p_regular(100, default=False)
+
+
 @enum_(EnumType.SPACE_TYPE)
 class SpaceType(IdEnum):
     DESKTOP = 10

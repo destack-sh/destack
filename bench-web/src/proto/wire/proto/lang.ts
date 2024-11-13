@@ -5412,6 +5412,17 @@ export interface UserWizardViewData {
     stage?: UserWizardViewStage;
 }
 /**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.IconViewData
+ */
+export interface IconViewData {
+    /**
+     * @generated from protobuf field: bool include_color = 100;
+     */
+    includeColor: boolean;
+}
+/**
  * @generated from protobuf message symbolx.bench.SpaceData
  */
 export interface SpaceData {
@@ -24797,6 +24808,53 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
  */
 export const UserWizardViewData = new UserWizardViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class IconViewData$Type extends MessageType$<IconViewData> {
+    constructor() {
+        super("symbolx.bench.IconViewData", [
+            { no: 100, name: "include_color", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<IconViewData>): IconViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.includeColor = false;
+        if (value !== undefined)
+            reflectionMergePartial<IconViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: IconViewData): IconViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* bool include_color */ 100:
+                    message.includeColor = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: IconViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* bool include_color = 100; */
+        if (message.includeColor !== false)
+            writer.tag(100, WireType.Varint).bool(message.includeColor);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.IconViewData
+ */
+export const IconViewData = new IconViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class SpaceData$Type extends MessageType$<SpaceData> {
     constructor() {
         super("symbolx.bench.SpaceData", [
@@ -26380,12 +26438,13 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | UserWizardViewData;
+export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | UserWizardViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.TREE]: TreeViewData,
   [ViewType.START]: StartViewData,
   [ViewType.FEED]: FeedViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
+  [ViewType.ICON]: IconViewData,
 }
 
 export type StepSubtype = ActionStepData | TextStepData | LoopStepData;
@@ -27551,6 +27610,10 @@ export enum UserWizardViewProperty {
   stage = 100,
 }
 
+export enum IconViewProperty {
+  includeColor = 100,
+}
+
 export enum ActionStepProperty {
   mode = 100,
   text = 101,
@@ -28436,6 +28499,7 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.START]: StartViewProperty,
   [ViewType.FEED]: FeedViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
+  [ViewType.ICON]: IconViewProperty,
 }
 
 export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
@@ -29405,6 +29469,9 @@ export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
+export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
+  [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
 export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
   [ActionStepProperty.mode]: { id: 100, name: 'mode', component: ObjectType.STEP, enumType: EnumType.ACTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ActionStepProperty.text]: { id: 101, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -30101,6 +30168,7 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.START]: StartViewDataInfo,
   [ViewType.FEED]: FeedViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
+  [ViewType.ICON]: IconViewDataInfo,
 }
 export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, PropertyInfo>>> = {
   [StepType.ACTION]: ActionStepDataInfo,

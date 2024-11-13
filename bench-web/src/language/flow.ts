@@ -166,7 +166,7 @@ export class PipeState {
       const sourcePortPosition = this.flow.getPortPosition(this.source.value!, PortSide.OUTGOING);
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, PortSide.INCOMING);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
-      const margin = { x: FLOW_GRID_STEP, y: 0 };
+      const margin = { x: FLOW_GRID_STEP * (2 + ((this.pipe.value?.name.length ?? 0) / 4)), y: 0 };
       let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition, { margin });
       if (path == null) {
         // fallback to direct path
@@ -531,7 +531,9 @@ export class FlowContext {
 
   /** Resets the viewport to the 'center' of the canvas */
   resetViewport() {
-    this.panToCenter({ kind: "canvas" });
+    if (this.contentBoundingBox.value != null) {
+      this.panToCenter({ kind: "canvas" });
+    }
     this.zoom(1, "center", 0);
   }
 
@@ -992,7 +994,7 @@ export function pathToSvgSpline(points: Vector2[], tension: number = 0.05): stri
 
 /** Gets the view width for a Step. */
 export function getStepWidth(step: StepData): number {
-  return FLOW_GRID_STEP * 24;
+  return FLOW_GRID_STEP * 18;
 }
 
 /** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */

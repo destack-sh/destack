@@ -8030,6 +8030,12 @@ class UserWizardViewData(_message.Message):
     stage: UserWizardViewStage
     def __init__(self, stage: _Optional[_Union[UserWizardViewStage, str]] = ...) -> None: ...
 
+class IconViewData(_message.Message):
+    __slots__ = ("include_color",)
+    INCLUDE_COLOR_FIELD_NUMBER: _ClassVar[int]
+    include_color: bool
+    def __init__(self, include_color: bool = ...) -> None: ...
+
 class SpaceData(_message.Message):
     __slots__ = (
         "metatype",

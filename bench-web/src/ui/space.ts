@@ -706,9 +706,9 @@ export class SpaceCanvas {
       predicate: options?.predicate,
     });
     const currentFrame = this.focusedRoot;
-    log.debug("canvas.addView", view, { existing, options, focusedRoot: currentFrame });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
+      log.debug("canvas.addView.create", view, { existing, options, focusedRoot: currentFrame });
       // find/make root
       let parent: ViewData | null = null;
       if (options?.where == null || options?.where == "currentFrame") {
@@ -753,10 +753,14 @@ export class SpaceCanvas {
       this.focus({ node: newView });
       return newView;
     } else if (options?.ifPresent == "focus") {
+      log.trace("canvas.addView.focus", view, { existing, options });
       this.focus({ node: existing });
       return existing;
     } else if (options?.ifPresent == "upsertAndFocus") {
-      tx.update(existing, { icon: toIconMaybe(view.icon), focus: view.focus });
+      log.trace("canvas.addView.upsertAndFocus", view, { existing, options });
+      if (!deepValueEquals(existing.icon, view.icon) || !deepValueEquals(existing.focus, view.focus)) {
+        tx.update(existing, { icon: toIconMaybe(view.icon), focus: view.focus }, { debounce: "tick" });
+      }
       this.focus({ node: existing });
       return existing;
     } else {
@@ -872,7 +876,7 @@ export class SpaceCanvas {
    * Removes the given view from the space graph, taking care to clean up.
    */
   removeView(graph: ReadNodeGraph, view: ViewData) {
-    log.debug("canvas.remove", view);
+    log.trace("canvas.remove", view);
     const parent = graph.get(view.parentPtr!) as ViewData;
     this.tx().delete(view);
     this.cleanupRootViews(graph, parent);

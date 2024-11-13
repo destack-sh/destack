@@ -7,7 +7,7 @@ import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { type PopoverInfoIn } from "@/ui/popover";
-import { getNodeColorHex } from "@/ui/style";
+import { getColorHex, getNodeColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -89,12 +89,15 @@ defineExpose<ViewExposed>({ self, id, actions });
             component: Icon,
             placement: 'bottom-right',
             offset: '-referenceWidth',
-            props: { modelValue: field!.icon },
+            props: { modelValue: field!.icon, isInput: true },
             onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
           })
         "
         :style="{
-          color: field.type != FieldType.OPTION ? getNodeColorHex(field, ColorShade.S600) : undefined,
+          color:
+            field?.icon?.color != null
+              ? getColorHex(field?.icon?.color, ColorShade.S600)
+              : getNodeColorHex(field, ColorShade.S600),
         }"
         v-bind="getNodeIcon(field)"
         class="w-5 rounded-sm hover:cursor-pointer"

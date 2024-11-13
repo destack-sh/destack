@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
+import { getBlockHeaderHeight } from "@/language/block";
 import { PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { unpackSubnodeProperty } from "@/language/node";
@@ -20,9 +20,8 @@ import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import { startDraggingIfAllowed } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { type PopoverInfoIn } from "@/ui/popover";
 import { getNodeColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
@@ -35,9 +34,8 @@ import Value from "@/views/content/Value.vue";
 import Database from "@/views/system/Database.vue";
 import Flow from "@/views/system/Flow.vue";
 import Type from "@/views/system/Type.vue";
+import { c } from "vite/dist/node/types.d-aGj9QkWt";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-
-const HEADER_HEIGHT = 32;
 
 const props = defineProps<
   {
@@ -60,12 +58,16 @@ const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodeP
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
+const blockHeight = computed(() => (block.value != null ? getBlockHeaderHeight(block.value) : 32));
 
 const hasFunctionFields = computed(
   () =>
     RUNNABLE_BLOCK_TYPES.includes(block.value?.type!) &&
     fields.value.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT),
 );
+const isPage = computed(() => block.value?.type == BlockType.PAGE);
+const isPagey = computed(() => PAGE_BLOCK_TYPES.includes(block.value?.type!));
+const isInlinePage = computed(() => isPagey.value && block.value?.type != BlockType.PAGE);
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 
@@ -147,20 +149,20 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative select-none rounded"
-    :class="[isInspected ? 'border-primary-700' : 'border-gray-200']"
-    :style="{}"
+    class="group/block relative select-none rounded transition-colors duration-150"
+    :class="[isInspected ? 'border-primary-700' : 'border-gray-200', isPage ? 'cursor-pointer hover:bg-gray-100' : '']"
+    @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->
     <div
       v-if="block.type != BlockType.TEXT && block.type"
-      class="flex flex-row items-center rounded-t hover:cursor-grab"
+      class="flex flex-row items-center rounded-t"
       :style="{
-        height: `${HEADER_HEIGHT}px`,
+        height: `${blockHeight}px`,
       }"
     >
       <!-- Icon -->
-      <div class="ml-1 flex flex-row items-center rounded px-0.5">
+      <div class="flex flex-row items-center rounded px-0.5">
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
@@ -177,13 +179,21 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             color: getNodeColorHex(block, ColorShade.S600),
           }"
           class="w-5 rounded-sm py-0.5 text-gray-700 hover:cursor-pointer"
+          :class="isInlinePage ? 'text-medium mr-0.5' : ''"
         />
       </div>
       <!-- Name -->
       <NativeInput
         id="name"
         ref="nameRef"
-        class="ml-2 flex-shrink-0 font-medium transition-colors duration-150"
+        class="ml-0.5 flex-shrink-0 font-medium transition-colors duration-150"
+        :class="
+          block.type == BlockType.PAGE
+            ? 'underline decoration-gray-300 underline-offset-3'
+            : isPagey
+              ? 'text-xl font-extrabold'
+              : ''
+        "
         is-input
         :value-type="NAME_TYPE"
         placeholder="Name..."
@@ -193,34 +203,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           (newValue) => pkgConnection.tx.update(block!, { name: newValue as string }, { debounce: 'long' })
         "
       />
-      <!-- Tags, triggers, roles, queries, etc. -->
-      <div class="ml-auto pl-2 pr-1.5">
-        <!-- Quick actions -->
-        <div class="flex flex-row gap-x-1.5">
-          <!-- Open -->
-          <button
-            v-if="PAGE_BLOCK_TYPES.includes(block.type)"
-            class="text-gray-400 hover:text-gray-700"
-            @click="canvas.goToNode(block!, { where: 'bestFrame' })"
-          >
-            <i class="fas fa-magnifying-glass-plus" />
-          </button>
-          <!-- Menu -->
-          <button
-            v-menu="
-              (): PopoverInfo => ({
-                kind: 'menu',
-                placement: 'bottom-left',
-                offset: 'referenceWidth',
-                items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
-              })
-            "
-            class="text-gray-400 hover:text-gray-700"
-          >
-            <i class="fas fa-ellipsis-v w-5 text-center" />
-          </button>
-        </div>
-      </div>
       <!-- ... -->
     </div>
     <!-- Body -->
@@ -229,7 +211,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       id="text"
       ref="textRef"
       is-input
-      class="px-0.5"
+      class="px-1 pt-1"
       :variant="Variant.STEALTH"
       :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
       v-bind="state.getChildState('text')"
@@ -247,7 +229,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <Type
         v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
         id="type"
-        class="px-1 py-1"
         :node="block"
         :prepared-connection="pkgGetConnection"
         :node-ptr="props.nodePtr"
@@ -256,7 +237,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200 px-2 pb-2 pt-1">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200 pb-2">
           <Type
             id="type.input"
             class=""
@@ -275,30 +256,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :field-type="FieldType.OUTPUT"
           />
         </div>
-        <!-- Action -->
-        <Text
-          v-if="block.type == BlockType.ACTION"
-          id="text"
-          ref="textRef"
-          is-input
-          class=""
-          :class="block.type == BlockType.ACTION ? 'px-2' : ''"
-          :variant="Variant.STEALTH"
-          placeholder="Text..."
-          :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
-          v-bind="state.getChildState('text')"
-          @update:model-value="
-            (newText) =>
-              pkgConnection.tx.update(
-                block!,
-                makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.ACTION, subnode: { text: newText } }),
-                { debounce: 'long' },
-              )
-          "
-        />
         <!-- Flow -->
         <Flow
-          v-else-if="block.type == BlockType.FLOW"
+          v-if="block.type == BlockType.FLOW"
           id="flow"
           class="h-[400px]"
           v-bind="state.getChildState('flow')"
