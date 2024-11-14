@@ -56,7 +56,6 @@ const hasFunctionFields = computed(
 );
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
 const isHeavy = computed(() => HEAVY_BLOCK_TYPES.includes(block.value?.type!));
-const isInlinePage = computed(() => isHeavy.value && block.value?.type != BlockType.PAGE);
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 
@@ -150,7 +149,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Open in its own page -->
       <button
         v-if="isHeavy"
-        class="rounded px-0.5 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+        class="rounded ml-1.5 px-0.5 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
         @click="() => canvas.goToNode(block!)"
       >
         <i class="fas fa-arrow-up-right" />
@@ -211,7 +210,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <Flow
           v-if="block.type == BlockType.FLOW"
           id="flow"
-          class="mt-2 h-[500px]"
+          class="mt-2 h-[400px]"
           v-bind="state.getChildState('flow')"
           :node-ptr="props.nodePtr"
           :variant="Variant.COMPACT"

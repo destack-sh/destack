@@ -49,7 +49,7 @@ const splitLayout: Ref<SplitLayout> = computed(() => ({
   dividerSize: BORDER_SIZE,
 }));
 const containerRef: Ref<HTMLElement | null> = ref(null);
-// nocheckin: use state instead of canvas.tx in useSplitView
+// TODO :Cleanup: use view state instead of canvas.tx in useSplitView
 const { sizedViews, draggingIdx } = useSplitView(splits, toRef(props, "size"), containerRef, splitLayout, canvas.tx);
 
 // actions

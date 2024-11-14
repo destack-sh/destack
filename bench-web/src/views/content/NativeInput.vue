@@ -7,6 +7,7 @@ import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { getNativeConstraintProps, TEXT_DIRECTION_BY_ALIGNMENT } from "@/ui/view";
 import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
@@ -32,7 +33,6 @@ const values = computed(() => {
   else if (props.valueType?.isList) return modelValue.value as any[];
   else return [modelValue.value];
 });
-const inputRef = ref<HTMLInputElement | null>(null);
 const inputType = computed(() => {
   if (props.valueType?.isSecret) return "password";
   else if (props.type == ViewType.NUMBER) return "number";
@@ -41,6 +41,10 @@ const inputType = computed(() => {
 const size = computed(() => {
   return Math.max(3, props.placeholder?.length ?? 0, (modelValue.value as string)?.length ?? 0);
 });
+
+const inputRef = ref<HTMLInputElement | null>(null);
+const measureRef = ref<HTMLSpanElement | null>(null);
+const measureSize = useElementSize(measureRef);
 
 // sync currentValue (may be invalid) with modelValue
 const currentValue: Ref<string | null | undefined> = ref(null);
@@ -132,7 +136,6 @@ defineExpose<ViewExposed & { select: () => void }>({
       <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S600" class="mr-0.5 w-5" />
       <!-- Current value -->
       <template v-if="!valueType?.isList">
-        <!-- nocheckin: fix NativeInput width in Stealth mode (should be exactly as wide as content) -->
         <!-- Scalar -->
         <input
           ref="inputRef"
@@ -145,12 +148,16 @@ defineExpose<ViewExposed & { select: () => void }>({
             TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
             validationError != null ? 'text-danger-600' : '',
           ]"
-          :size="variant == Variant.STEALTH ? size : undefined"
+          :style="{
+            width: measureSize.width.value != null ? measureSize.width.value + 'px' : 'auto',
+          }"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="emit('apply')"
           @input="currentValue = ($event.target as HTMLInputElement).value"
         />
+        <!-- Invisible input to measure width -->
+        <span ref="measureRef" class="pointer-events-none invisible absolute">{{ currentValue }}</span>
         <!-- Clear -->
         <button
           v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"

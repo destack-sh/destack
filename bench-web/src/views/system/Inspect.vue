@@ -1,15 +1,12 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
-import { RectangleData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
-import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { getInspectionLayout } from "@/ui/inspect";
 import { ScrollbarWidth } from "@/ui/layout";
-import { toggleHelperViewPin, VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
@@ -21,18 +18,18 @@ const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
   {
-    self: TypedNodeReferenceData<NodeType.VIEW>;
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    size: Required<Pick<RectangleData, "width" | "height">>;
-  } & Pick<ViewData, "name" | "title" | "icon" | "nodePtr">
+  } & Pick<ViewData, "icon" | "size" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
+
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const inspectedPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectedPtr);
 const inspectedNode = pkgGraph.getRef(inspectedPtr);
 
@@ -42,44 +39,15 @@ const inspectionLayout = computed(() => {
   return layout;
 });
 
-canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self });
+defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="inspectedNode && inspectionLayout" class="h-full w-full">
-    <!-- Header -->
-    <div class="group/header w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
-      <div
-        class="mx-auto flex h-full max-w-full flex-row items-center pl-2 pr-3"
-        :style="{ minWidth: MIN_WIDTH + 'px' }"
-      >
-        <!-- Node -->
-        <NodeReference :node="inspectedNode" :connection="pkgConnection" is-input class="font-medium" />
-        <!-- Pin/unpin node -->
-        <button
-          v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"
-          :disabled="nodePtr == null && inspectedNode == null"
-          class="ml-1.5 opacity-0 transition-colors duration-150 hover:text-primary-700 group-hover/header:opacity-100"
-          :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
-          @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: inspectedNode })"
-        >
-          <i class="fas mr-1.5" :class="nodePtr == null ? 'fa-unlock' : 'fa-lock'" />
-        </button>
-        <!-- Meta & Controls  -->
-        <div class="ml-auto flex flex-row items-center pl-1.5">
-          <IconInline
-            v-bind="ICON_BY_NODE_TYPE[inspectedNode.metatype as unknown as NodeType]"
-            :shade="ColorShade.S500"
-            class="mr-1 w-5 text-gray-500"
-          />
-          <span class="text-gray-500">{{ toCamelName(ObjectType, inspectedNode.metatype) }}</span>
-        </div>
-      </div>
-    </div>
+  <div v-if="inspectedNode && inspectionLayout" class="" :class="size == null ? '' : 'h-full w-full'">
     <!-- Inspection content -->
-    <Scroll
+    <component
+      :is="size == null ? 'div' : Scroll"
       id="scroll"
-      :size="{ width: props.size.width, height: props.size.height - HEADER_HEIGHT }"
+      :size="{ width: size?.width, height: (size?.height ?? 0) - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
@@ -136,13 +104,9 @@ defineExpose<ViewExposed>({ self });
           </li>
         </template>
       </ul>
-    </Scroll>
+    </component>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center text-center">
     <!-- Empty/missing state -->
-    <span>
-      <i class="fas fa-empty-set text-gray-500" />
-      <span class="ml-1.5 text-gray-600">Select Node to Inspect</span>
-    </span>
   </div>
 </template>

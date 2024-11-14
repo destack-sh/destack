@@ -1,11 +1,16 @@
 <script lang="ts" setup>
-import { ViewData, NodeType } from "@/proto/wire";
+import { ViewData, NodeType, ViewType, HelpAspect } from "@/proto/wire";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import { canvas } from "@/system/space";
+import { canvas, inspectionPtr, pkgConnection, pkgGraph } from "@/system/space";
 import { toRef } from "vue";
-import { TypedNodeReferenceData } from "@/proto/wiring";
+import { TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { useSubnodeProperty } from "@/language/node";
+import { computedValue } from "@/utils/ref";
+import NodeReference from "@/views/builtins/NodeReference.vue";
+import { toCamelName } from "@/language/const";
+import Inspect from "@/views/system/Inspect.vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
@@ -22,12 +27,57 @@ const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
+const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "subnodePacked"), "aspect");
+
+const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
+const inspectedPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
+const inspectedNode = pkgGraph.getRef(inspectedPtr);
 
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <div class="h-full w-full">
+  <div class="flex h-full w-full flex-col">
     <!-- nocheckin: Help -->
-    {{ children.length }}
+    <!-- Bench Header -->
+    <div
+      class="mx-2 my-1.5 flex cursor-pointer flex-row items-center rounded pl-2.5 pr-1"
+      :style="{
+        height: `${VIEW_DEFAULT_BAR_HEADER_HEIGHT - 12}px`,
+      }"
+    >
+      <!-- Node -->
+      <NodeReference v-if="inspectedNode" :node="inspectedNode" :connection="pkgConnection" is-input />
+      <span v-else class="text-gray-400">Nothing</span>
+    </div>
+
+    <!-- Header -->
+    <div
+      class="mx-3 my-1.5 flex flex-row items-center gap-x-2"
+      :style="{
+        height: `${HEADER_HEIGHT - 12}px`,
+      }"
+    >
+      <button
+        v-for="a in [HelpAspect.INSPECT, HelpAspect.RUN]"
+        :key="a"
+        class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
+        :class="[
+          a == aspect ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
+        ]"
+        @click="
+          state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect: a } }, { debounce: 'short' })
+        "
+      >
+        <span>{{ toCamelName(HelpAspect, a) }} </span>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div v-if="aspect == HelpAspect.INSPECT">
+      <Inspect id="inspect" :node-ptr="props.nodePtr" />
+    </div>
+    <div v-else class="mx-5">
+      <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>
+    </div>
   </div>
 </template>

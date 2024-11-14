@@ -148,51 +148,6 @@ defineExpose<ViewExposed>({ self });
 <template>
   <div v-if="lastRunnableNode" class="h-full w-full">
     <!-- NOTE :UX: start view is ugly -->
-    <!-- Header -->
-    <div class="group flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
-      <div
-        class="mx-auto flex w-full max-w-full flex-row items-center pl-2 pr-2.5"
-        :style="{ minWidth: MIN_WIDTH + 'px' }"
-      >
-        <!-- Runnable -->
-        <NodeReference class="font-medium" :node="lastRunnableNode" is-input :connection="pkgConnection" />
-        <!-- Pin/unpin node -->
-        <button
-          v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"
-          :disabled="nodePtr == null && lastRunnableNode == null"
-          class="ml-1.5 hover:text-primary-700"
-          :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
-          @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: lastRunnableNode })"
-        >
-          <i class="fas mr-1.5" :class="nodePtr == null ? 'fa-unlock' : 'fa-lock'" />
-        </button>
-        <!-- Meta & Controls -->
-        <div class="ml-auto flex flex-row items-center gap-x-2 pl-1.5">
-          <!-- Start -->
-          <button
-            :disabled="lastRunnableNode == null"
-            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-700 disabled:text-gray-400"
-            @click="() => createRun()"
-          >
-            <i class="fas fa-play w-5 text-center" />
-            <span class="ml-1">Start</span>
-          </button>
-          <!-- Stop -->
-          <button
-            :disabled="lastRunnableNode == null || run == null || isRunTerminal(run)"
-            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-700 disabled:text-gray-400"
-            @click="
-              () =>
-                run &&
-                runConnection.tx.with({ category: ChangeCategory.SESSION }).update(run, { killedAt: Timestamp.now() })
-            "
-          >
-            <i class="fas fa-stop w-5 text-center" />
-            <span class="ml-1">Stop</span>
-          </button>
-        </div>
-      </div>
-    </div>
     <!-- Body -->
     <Scroll
       id="scroll"

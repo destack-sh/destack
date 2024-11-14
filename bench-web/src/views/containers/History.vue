@@ -61,6 +61,5 @@ defineExpose<ViewExposed>({ self });
       :self="toPlainNodeRef(focusedView)"
       v-bind="getViewBinding(focusedView, size)"
     />
-    <Empty v-else :type="ViewType.TAB" class="flex h-full w-full flex-col items-center justify-center" />
   </div>
 </template>

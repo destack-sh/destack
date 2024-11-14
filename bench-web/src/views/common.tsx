@@ -89,7 +89,7 @@ export const ViewContentWrapper: FunctionalComponent<{
     <div class={classBase}>
       {props.title && <label class={labelClass}>{props.title}</label>}
       {isUnsupported ? (
-        <div class="text-red-500">{IS_DEV ? (props.type ?? "<no view type>") : "???"}</div>
+        <div class="text-red-600">{IS_DEV ? (props.type ?? "<no view type>") : "???"}</div>
       ) : slots.default ? (
         slots.default()
       ) : null}

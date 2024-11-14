@@ -1507,13 +1507,16 @@ class HubAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     HUB_ASPECT_UNSPECIFIED: _ClassVar[HubAspect]
     HUB_ASPECT_SOURCE: _ClassVar[HubAspect]
     HUB_ASPECT_ACTIVITY: _ClassVar[HubAspect]
+    HUB_ASPECT_CATALOG: _ClassVar[HubAspect]
     HUB_ASPECT_LIBRARY: _ClassVar[HubAspect]
-    HUB_ASPECT_EXTERNAL: _ClassVar[HubAspect]
 
 class HelpAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     HELP_ASPECT_UNSPECIFIED: _ClassVar[HelpAspect]
-    HELP_ASPECT_DETAIL: _ClassVar[HelpAspect]
+    HELP_ASPECT_INSPECT: _ClassVar[HelpAspect]
+    HELP_ASPECT_RUN: _ClassVar[HelpAspect]
+    HELP_ASPECT_CHAT: _ClassVar[HelpAspect]
+    HELP_ASPECT_VERSION: _ClassVar[HelpAspect]
 
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2786,10 +2789,13 @@ TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
 HUB_ASPECT_UNSPECIFIED: HubAspect
 HUB_ASPECT_SOURCE: HubAspect
 HUB_ASPECT_ACTIVITY: HubAspect
+HUB_ASPECT_CATALOG: HubAspect
 HUB_ASPECT_LIBRARY: HubAspect
-HUB_ASPECT_EXTERNAL: HubAspect
 HELP_ASPECT_UNSPECIFIED: HelpAspect
-HELP_ASPECT_DETAIL: HelpAspect
+HELP_ASPECT_INSPECT: HelpAspect
+HELP_ASPECT_RUN: HelpAspect
+HELP_ASPECT_CHAT: HelpAspect
+HELP_ASPECT_VERSION: HelpAspect
 USER_STATUS_UNSPECIFIED: UserStatus
 USER_STATUS_INVITED: UserStatus
 USER_STATUS_RESERVED: UserStatus

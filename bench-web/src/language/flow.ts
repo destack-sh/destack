@@ -166,7 +166,7 @@ export class PipeState {
       const sourcePortPosition = this.flow.getPortPosition(this.source.value!, PortSide.OUTGOING);
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, PortSide.INCOMING);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
-      const margin = { x: FLOW_GRID_STEP * (2 + ((this.pipe.value?.name.length ?? 0) / 4)), y: 0 };
+      const margin = { x: FLOW_GRID_STEP * (2 + (this.pipe.value?.name.length ?? 0) / 4), y: 0 };
       let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition, { margin });
       if (path == null) {
         // fallback to direct path
@@ -537,10 +537,10 @@ export class FlowContext {
     this.zoom(1, "center", 0);
   }
 
-  /** Zooms the canvas in/out in response to a "wheel" event. */
+  /** Pan the canvas in response to a wheel event */
   onWheel(e: WheelEvent) {
-    const viewCenterVec = this.viewportToViewVec({ x: e.clientX, y: e.clientY });
-    this.zoom(e.deltaY < 0 ? "in" : "out", viewCenterVec, Math.abs(e.deltaY * 0.5));
+    // NOTE :UX: handle multitouch gestures in Flow better (zoom)
+    this.pan({ x: e.deltaX, y: e.deltaY });
   }
 
   /** Starts dragging a thing if it's not a disallowed element (like an input). */

@@ -11395,13 +11395,13 @@ export enum HubAspect {
      */
     ACTIVITY = 2,
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_LIBRARY = 3;
+     * @generated from protobuf enum value: HUB_ASPECT_CATALOG = 3;
      */
-    LIBRARY = 3,
+    CATALOG = 3,
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_EXTERNAL = 4;
+     * @generated from protobuf enum value: HUB_ASPECT_LIBRARY = 4;
      */
-    EXTERNAL = 4
+    LIBRARY = 4
 }
 /**
  * @generated from protobuf enum symbolx.bench.HelpAspect
@@ -11412,9 +11412,21 @@ export enum HelpAspect {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: HELP_ASPECT_DETAIL = 1;
+     * @generated from protobuf enum value: HELP_ASPECT_INSPECT = 1;
      */
-    DETAIL = 1
+    INSPECT = 1,
+    /**
+     * @generated from protobuf enum value: HELP_ASPECT_RUN = 2;
+     */
+    RUN = 2,
+    /**
+     * @generated from protobuf enum value: HELP_ASPECT_CHAT = 3;
+     */
+    CHAT = 3,
+    /**
+     * @generated from protobuf enum value: HELP_ASPECT_VERSION = 4;
+     */
+    VERSION = 4
 }
 /**
  * @generated from protobuf enum symbolx.bench.UserStatus

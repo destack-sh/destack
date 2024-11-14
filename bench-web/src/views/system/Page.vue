@@ -290,6 +290,19 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- ... -->
+        <button
+          v-menu="
+            (): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-left',
+              offset: 'referenceWidth',
+              items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: page } }),
+            })
+          "
+          class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+        >
+          <i class="fas fa-ellipsis w-5 text-center" />
+        </button>
       </div>
     </div>
 
