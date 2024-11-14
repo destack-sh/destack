@@ -600,8 +600,8 @@ class FeedView(View):
 class HubAspect(IdEnum):
     SOURCE = 1
     ACTIVITY = 2
-    LIBRARY = 3
-    EXTERNAL = 4
+    CATALOG = 3
+    LIBRARY = 4
 
 
 @node_subtype_(ViewType.HUB)
@@ -611,7 +611,10 @@ class HubView(View):
 
 @enum_(EnumType.HELP_ASPECT)
 class HelpAspect(IdEnum):
-    DETAIL = 1
+    INSPECT = 1
+    RUN = 2
+    CHAT = 3
+    VERSION = 4
 
 
 @node_subtype_(ViewType.HELP)

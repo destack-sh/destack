@@ -51,7 +51,6 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    sizeIsDynamic?: boolean;
   } & Pick<ViewData, "icon" | "nodePtr" | "size" | "focus" | "selection" | "subnodePacked">
 >();
 
@@ -343,7 +342,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
-  <div ref="containerRef" :class="sizeIsDynamic ? '' : 'h-full w-full'">
+  <div ref="containerRef" :class="size == null ? '' : 'h-full w-full'">
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
     <div class="relative">
@@ -372,7 +371,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
 
     <!-- Content -->
     <component
-      :is="sizeIsDynamic ? 'div' : Scroll"
+      :is="size == null ? 'div' : Scroll"
       v-if="expandedItems.length > 0"
       id="scroll"
       :size="{ width: containerSize.width.value, height: containerSize.height.value - HEADER_HEIGHT }"

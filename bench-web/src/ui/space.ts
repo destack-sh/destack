@@ -1101,7 +1101,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 500 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 400, maxWidth: 800 }),
-      subnode: { aspect: HelpAspect.DETAIL },
+      subnode: { aspect: HelpAspect.INSPECT },
     },
   ]);
   return { primary: layout.viewsByName["Primary"] };

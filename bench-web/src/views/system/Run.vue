@@ -58,7 +58,6 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="run != null">
-    <!-- Header -->
     <div
       v-if="variant != Variant.COMPACT"
       class="group mx-auto flex w-full flex-row items-center"

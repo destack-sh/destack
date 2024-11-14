@@ -436,8 +436,8 @@ export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
 });
 export const ICON_BY_HUB_ASPECT: Partial<Record<HubAspect, IconData>> = _makeIcons({
   [HubAspect.SOURCE]: 'fas fa-code',
-  [HubAspect.ACTIVITY]: 'fas fa-play',
-  [HubAspect.EXTERNAL]: 'fas fa-globe',
+  [HubAspect.ACTIVITY]: 'fas fa-wave-pulse',
+  [HubAspect.CATALOG]: 'fas fa-globe',
   [HubAspect.LIBRARY]: 'fas fa-shapes',
 });
 

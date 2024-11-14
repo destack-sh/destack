@@ -11,7 +11,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    trackWidth: ScrollbarWidth;
+    trackWidth?: ScrollbarWidth;
     trackIsOverlay?: boolean;
     trackIsAlwaysVisible?: boolean;
     size: Pick<RectangleData, "width" | "height">;
@@ -27,17 +27,18 @@ const containerRef = ref<HTMLElement | null>(null);
 const innerRef = ref<HTMLElement | null>(null);
 const areaMouse = useMouseInElement(containerRef);
 const isMouseInArea = computed(() => !areaMouse.isOutside.value);
+const trackWidth = computed(() => props.trackWidth ?? ScrollbarWidth.sm);
 const horizontalScrollArea = useScrollArea({
   container: containerRef,
   inner: innerRef,
   orientation: Orientation.HORIZONTAL,
-  trackWidth: toRef(props, "trackWidth"),
+  trackWidth,
 });
 const verticalScrollArea = useScrollArea({
   container: containerRef,
   inner: innerRef,
   orientation: Orientation.VERTICAL,
-  trackWidth: toRef(props, "trackWidth"),
+  trackWidth,
 });
 
 function scrollToEnd() {
@@ -51,12 +52,12 @@ function scrollToEnd() {
 
 const sizeStyles = computed(() => {
   if (props.orientation == Orientation.HORIZONTAL) {
-    const width = props.trackIsOverlay ? props.size.width : (props.size.width ?? 0) - props.trackWidth;
+    const width = props.trackIsOverlay ? props.size.width : (props.size.width ?? 0) - trackWidth.value;
     return {
       [props.sizeIsDynamic ? "maxWidth" : "width"]: width + "px",
     };
   } else {
-    const height = props.trackIsOverlay ? props.size.height : (props.size.height ?? 0) - props.trackWidth;
+    const height = props.trackIsOverlay ? props.size.height : (props.size.height ?? 0) - trackWidth.value;
     return {
       [props.sizeIsDynamic ? "maxHeight" : "height"]: height + "px",
     };
@@ -93,12 +94,24 @@ watch([isSomeScrolling], () => {
   }
 });
 
-canvas.registerView(self, id)
-defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; scrollToEnd: () => void }>({
+canvas.registerView(self, id);
+defineExpose<
+  ViewExposed & {
+    isScrolling: Ref<boolean>;
+    isAtEnd: Ref<boolean>;
+    isHorizontalOverflown: Ref<boolean>;
+    isVerticalOverflown: Ref<boolean>;
+    isOverflown: Ref<boolean>;
+    scrollToEnd: () => void;
+  }
+>({
   self,
   id,
   isScrolling: isSomeScrolling,
   isAtEnd: computed(() => horizontalScrollArea.isAtEnd.value && verticalScrollArea.isAtEnd.value),
+  isHorizontalOverflown: horizontalScrollArea.isOverflown,
+  isVerticalOverflown: verticalScrollArea.isOverflown,
+  isOverflown: computed(() => horizontalScrollArea.isOverflown.value || verticalScrollArea.isOverflown.value),
   scrollToEnd,
 });
 </script>

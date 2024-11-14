@@ -2,21 +2,23 @@
 import { createBlock } from "@/language/block";
 import { toCamelName } from "@/language/const";
 import { packSubnode, useSubnodeProperty } from "@/language/node";
-import { BlockType, HubAspect, NodeType, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
+import { BlockType, HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
-import { ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
+import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
 import { MenuItem, PopoverInfoIn, menuActionsLike, menuItemFromAction } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { isDeveloperMode } from "@/utils/globals";
 import { viewEmits, type ViewExposed } from "@/views/common";
+import Scroll from "@/views/containers/Scroll.vue";
 import Tree from "@/views/system/Tree.vue";
-import { computed, toRef } from "vue";
+import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const FOOTER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
@@ -119,6 +121,10 @@ const state = canvas.registerView(self, id);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HUB, toRef(props, "subnodePacked"), "aspect");
+const visibleAspects = [HubAspect.SOURCE, HubAspect.ACTIVITY, HubAspect.CATALOG];
+const visibleAspectsOverflow = computed(() => visibleAspects.length * 75 > (props.size?.width ?? 0));
+
+const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 
 defineExpose<ViewExposed>({ self });
 </script>
@@ -134,9 +140,7 @@ defineExpose<ViewExposed>({ self });
     >
       <span>
         <i class="fas fa-circle mr-2 text-primary-500" />
-        <span v-if="bench" class="font-medium">
-          {{ bench.name }}
-        </span>
+        <span v-if="bench" class="font-medium"> {{ bench.slug }}'s Bench </span>
         <span v-else class="italic"> Bench </span>
       </span>
     </div>
@@ -144,83 +148,109 @@ defineExpose<ViewExposed>({ self });
     <!-- Header -->
     <div
       class="mx-3 my-1.5 flex flex-row items-center gap-x-2"
+      :class="[visibleAspectsOverflow ? 'justify-between' : '']"
       :style="{
         height: `${HEADER_HEIGHT - 12}px`,
       }"
     >
       <button
-        v-for="a in [HubAspect.SOURCE, HubAspect.ACTIVITY, HubAspect.EXTERNAL]"
+        v-for="a in visibleAspects"
         :key="a"
+        v-tooltip="{
+          small: true,
+          text: toCamelName(HubAspect, a),
+          isEnabled: visibleAspectsOverflow,
+          group: 'hub-aspect',
+        }"
         class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
         :class="[
           a == aspect ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
+          visibleAspectsOverflow ? 'flex-1 justify-center' : '',
         ]"
-        @click="state.update({ metatype: NodeType.VIEW, type: ViewType.HUB, subnode: { aspect: a } })"
+        @click="
+          state.update({ metatype: NodeType.VIEW, type: ViewType.HUB, subnode: { aspect: a } }, { debounce: 'short' })
+        "
       >
-        <span>{{ toCamelName(HubAspect, a) }} </span>
+        <IconInline v-if="visibleAspectsOverflow" v-bind="ICON_BY_HUB_ASPECT[a]" />
+        <span v-else>{{ toCamelName(HubAspect, a) }} </span>
       </button>
     </div>
 
-    <!-- Base controls -->
-    <!-- ... -->
-
+    <!-- Content: Source -->
     <div v-if="aspect == HubAspect.SOURCE">
-      <!-- Main tree -->
-      <div
-        class="mx-4 mt-1.5 flex flex-row items-center"
-        :style="{
-          height: `${HEADER_HEIGHT - 6}px`,
-        }"
+      <Scroll
+        id="scroll"
+        ref="scrollRef"
+        :orientation="Orientation.VERTICAL"
+        size-is-dynamic
+        :size="{ width: size?.width, height: (size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT }"
       >
-        <span class="font-medium">Pages</span>
-        <!-- Create -->
-        <button
-          v-if="pkg != null"
-          class="ml-auto rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700"
-          @click.stop="
-            () => {
-              if (pkg == null) return;
-              const block = createBlock(pkgConnection.tx, pkgGraph, {
-                anchor: 'inside',
-                target: pkg,
-                block: { type: BlockType.PAGE },
-              });
-              canvas.goToNode(block);
-            }
-          "
+        <!-- Main tree -->
+        <div
+          class="mx-4 mt-1.5 flex flex-row items-center"
+          :style="{
+            height: `${HEADER_HEIGHT - 6}px`,
+          }"
         >
-          <i class="fas fa-plus" />
-        </button>
-      </div>
-      <Tree
-        id="explore"
-        class=""
-        :node-ptr="props.nodePtr"
-        :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.EXPLORE })"
-        size-is-dynamic
-        v-bind="state.getChildState('explore')"
-      />
-      <!-- Outline -->
-      <div
-        class="mx-4 mt-1.5 flex flex-row items-center"
-        :style="{
-          height: `${HEADER_HEIGHT - 6}px`,
-        }"
-      >
-        <span class="font-medium">Outline</span>
-      </div>
-      <Tree
-        id="outline"
-        class=""
-        :node-ptr="props.nodePtr"
-        :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.OUTLINE })"
-        size-is-dynamic
-        v-bind="state.getChildState('outline')"
-      />
+          <span class="font-medium">Pages</span>
+          <!-- Create -->
+          <button
+            v-if="pkg != null"
+            class="ml-auto rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700"
+            @click.stop="
+              () => {
+                if (pkg == null) return;
+                const block = createBlock(pkgConnection.tx, pkgGraph, {
+                  anchor: 'inside',
+                  target: pkg,
+                  block: { type: BlockType.PAGE },
+                });
+                canvas.goToNode(block);
+              }
+            "
+          >
+            <i class="fas fa-plus" />
+          </button>
+        </div>
+        <Tree
+          id="explore"
+          class=""
+          :node-ptr="props.nodePtr"
+          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.EXPLORE })"
+          size-is-dynamic
+          v-bind="state.getChildState('scroll.explore')"
+        />
+        <!-- Outline -->
+        <div
+          class="mx-4 mt-1.5 flex flex-row items-center"
+          :style="{
+            height: `${HEADER_HEIGHT - 6}px`,
+          }"
+        >
+          <span class="font-medium">Outline</span>
+        </div>
+        <Tree
+          id="outline"
+          class=""
+          :node-ptr="props.nodePtr"
+          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.OUTLINE })"
+          size-is-dynamic
+          v-bind="state.getChildState('scroll.outline')"
+        />
+      </Scroll>
+    </div>
+    <div v-else class="mx-5">
+      <span class="text-red-600">{{ toCamelName(HubAspect, aspect) }}</span>
     </div>
 
     <!-- User -->
-    <div class="absolute bottom-0 z-10 flex h-[44px] w-full flex-row items-center border-gray-200">
+    <div
+      class="absolute bottom-0 z-10 flex w-full flex-row items-center border-t bg-white"
+      :class="[scrollRef?.isOverflown ? 'border-gray-200' : 'border-transparent']"
+      :style="{
+        height: `${FOOTER_HEIGHT}px`,
+      }"
+    >
       <button
         v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: USER_MENU_ITEMS, placement: 'top-left' })"
         class="mx-2 w-full py-1 pl-2.5 pr-1.5 text-left text-gray-700 transition-colors duration-75 hover:bg-gray-100"
