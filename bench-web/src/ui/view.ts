@@ -411,6 +411,5 @@ export type HistoryState = {
   focusedView: Ref<ViewData | null>;
   canGoBackward: Ref<boolean>;
   canGoForward: Ref<boolean>;
-  goBackward: () => void;
-  goForward: () => void;
+  go: (delta: number) => void;
 };

@@ -19,14 +19,14 @@ defineExpose({
     <button
       class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoBackward.value"
-      @click="history?.goBackward()"
+      @click="history?.go(-1)"
     >
       <i class="fas fa-arrow-left" />
     </button>
     <button
       class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoForward.value"
-      @click="history?.goForward()"
+      @click="history?.go(1)"
     >
       <i class="fas fa-arrow-right" />
     </button>
