@@ -6,7 +6,7 @@ import {
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
-  type TextData
+  type TextData,
 } from "@/proto/wire";
 import { type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
@@ -49,13 +49,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.omnibar.space",
   "space.omnibar.views",
   "space.omnibar.view",
-  "space.launch.chat",
-  "space.launch.inspect",
-  "space.launch.create",
-  "space.launch.explorer",
-  "space.launch.outline",
-  "space.launch.docs",
-  "space.launch.start",
+  "space.launch.documentation",
   "space.launch.discord",
   "space.launch.notifications",
   "space.edit.inspect",
@@ -1100,53 +1094,7 @@ contributeActionMap<"developer">({
 
 // space actions
 contributeActionMap<"space">({
-  "space.launch.chat": {
-    title: "Open Chat",
-    text: "Chat on your Bench",
-    icon: "fas fa-message",
-    action: () => {
-      canvas.addView({ type: ViewType.CHAT, title: "Chat" }, { ifPresent: "upsertAndFocus" });
-    },
-  },
-  "space.launch.inspect": {
-    title: "Open Inspector",
-    text: "Open the Inspector View",
-    icon: "fas fa-eye",
-    action: () => {
-      canvas.addView({ type: ViewType.INSPECT, title: "Inspect" }, { ifPresent: "upsertAndFocus" });
-    },
-  },
-  "space.launch.create": {
-    title: "Open Creator",
-    text: "Get relevant blocks and templates",
-    icon: "fas fa-plus",
-    action: () => {
-      canvas.addView({ type: ViewType.CREATE, title: "Create" }, { ifPresent: "upsertAndFocus" });
-    },
-  },
-  "space.launch.explorer": {
-    title: "Open Explorer",
-    text: "Navigate nodes in the space",
-    icon: "fas fa-compass",
-    action: () => {
-      canvas.addView(
-        { type: ViewType.TREE, title: "Explore", subnode: { nodeTypes: [], preset: TreeViewPreset.EXPLORE } },
-        { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Explore") },
-      );
-    },
-  },
-  "space.launch.outline": {
-    title: "Open Outline",
-    text: "Navigate an outline of nodes",
-    icon: "fas fa-list-tree",
-    action: () => {
-      canvas.addView(
-        { type: ViewType.TREE, title: "Outline", subnode: { nodeTypes: [], preset: TreeViewPreset.OUTLINE } },
-        { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Outline") },
-      );
-    },
-  },
-  "space.launch.docs": {
+  "space.launch.documentation": {
     title: "Open Documentation",
     text: "Get help from our examples and guides",
     icon: "fas fa-book-open",
@@ -1159,7 +1107,6 @@ contributeActionMap<"space">({
     url: DISCORD_URL,
     action: () => {
       // open in new tab
-      window.open(DISCORD_URL, "_blank");
     },
   },
   "space.launch.notifications": {
@@ -1168,14 +1115,6 @@ contributeActionMap<"space">({
     icon: "fas fa-bell",
     isEnabled: ref(false),
     action: ACTION_COMING_SOON,
-  },
-  "space.launch.start": {
-    title: "Open Start",
-    text: "Start a new Run",
-    icon: "fas fa-play",
-    action: () => {
-      canvas.addView({ type: ViewType.START, title: "Start" }, { ifPresent: "upsertAndFocus" });
-    },
   },
   // edit
   "space.edit.inspect": {

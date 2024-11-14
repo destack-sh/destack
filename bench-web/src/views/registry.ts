@@ -42,7 +42,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FEED]: () => import("@/views/system/Feed.vue"),
   [ViewType.HUB]: () => import("@/views/system/Hub.vue"),
   [ViewType.HELP]: () => import("@/views/system/Help.vue"),
-  [ViewType.BACKTAB]: () => import("@/views/system/Backtab.vue"),
 
   //
   // Organization
@@ -51,6 +50,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // layout
   [ViewType.WINDOW]: () => import("@/views/containers/Split.vue"), // shared with Split
   [ViewType.TAB]: () => import("@/views/containers/Tab.vue"),
+  [ViewType.HISTORY]: () => import("@/views/containers/History.vue"),
   [ViewType.SPLIT]: () => import("@/views/containers/Split.vue"),
   [ViewType.SCROLL]: () => import("@/views/containers/Scroll.vue"),
 

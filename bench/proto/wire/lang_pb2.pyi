@@ -107,6 +107,8 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ALIGNMENT: _ClassVar[EnumType]
     ENUM_TYPE_USER_WIZARD_STAGE: _ClassVar[EnumType]
     ENUM_TYPE_TREE_VIEW_PRESET: _ClassVar[EnumType]
+    ENUM_TYPE_HUB_ASPECT: _ClassVar[EnumType]
+    ENUM_TYPE_HELP_ASPECT: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumType]
 
@@ -518,6 +520,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ALIGNMENT: _ClassVar[BenchType]
     BENCH_TYPE_USER_WIZARD_STAGE: _ClassVar[BenchType]
     BENCH_TYPE_TREE_VIEW_PRESET: _ClassVar[BenchType]
+    BENCH_TYPE_HUB_ASPECT: _ClassVar[BenchType]
+    BENCH_TYPE_HELP_ASPECT: _ClassVar[BenchType]
     BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_ORGANIZATION_STATUS: _ClassVar[BenchType]
 
@@ -1287,7 +1291,7 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_HELP: _ClassVar[ViewType]
     VIEW_TYPE_WINDOW: _ClassVar[ViewType]
     VIEW_TYPE_TAB: _ClassVar[ViewType]
-    VIEW_TYPE_BACKTAB: _ClassVar[ViewType]
+    VIEW_TYPE_HISTORY: _ClassVar[ViewType]
     VIEW_TYPE_SPLIT: _ClassVar[ViewType]
     VIEW_TYPE_SPLIT_DRAWER: _ClassVar[ViewType]
     VIEW_TYPE_STACK: _ClassVar[ViewType]
@@ -1498,6 +1502,19 @@ class TreeViewPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TREE_VIEW_PRESET_EXPLORE: _ClassVar[TreeViewPreset]
     TREE_VIEW_PRESET_OUTLINE: _ClassVar[TreeViewPreset]
 
+class HubAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    HUB_ASPECT_UNSPECIFIED: _ClassVar[HubAspect]
+    HUB_ASPECT_SOURCE: _ClassVar[HubAspect]
+    HUB_ASPECT_ACTIVITY: _ClassVar[HubAspect]
+    HUB_ASPECT_LIBRARY: _ClassVar[HubAspect]
+    HUB_ASPECT_EXTERNAL: _ClassVar[HubAspect]
+
+class HelpAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    HELP_ASPECT_UNSPECIFIED: _ClassVar[HelpAspect]
+    HELP_ASPECT_DETAIL: _ClassVar[HelpAspect]
+
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     USER_STATUS_UNSPECIFIED: _ClassVar[UserStatus]
@@ -1612,6 +1629,8 @@ ENUM_TYPE_ORIENTATION: EnumType
 ENUM_TYPE_ALIGNMENT: EnumType
 ENUM_TYPE_USER_WIZARD_STAGE: EnumType
 ENUM_TYPE_TREE_VIEW_PRESET: EnumType
+ENUM_TYPE_HUB_ASPECT: EnumType
+ENUM_TYPE_HELP_ASPECT: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
 ENUM_TYPE_ORGANIZATION_STATUS: EnumType
 NODE_TYPE_UNSPECIFIED: NodeType
@@ -2011,6 +2030,8 @@ BENCH_TYPE_ORIENTATION: BenchType
 BENCH_TYPE_ALIGNMENT: BenchType
 BENCH_TYPE_USER_WIZARD_STAGE: BenchType
 BENCH_TYPE_TREE_VIEW_PRESET: BenchType
+BENCH_TYPE_HUB_ASPECT: BenchType
+BENCH_TYPE_HELP_ASPECT: BenchType
 BENCH_TYPE_USER_STATUS: BenchType
 BENCH_TYPE_ORGANIZATION_STATUS: BenchType
 ACCESS_MODE_UNSPECIFIED: AccessMode
@@ -2588,7 +2609,7 @@ VIEW_TYPE_HUB: ViewType
 VIEW_TYPE_HELP: ViewType
 VIEW_TYPE_WINDOW: ViewType
 VIEW_TYPE_TAB: ViewType
-VIEW_TYPE_BACKTAB: ViewType
+VIEW_TYPE_HISTORY: ViewType
 VIEW_TYPE_SPLIT: ViewType
 VIEW_TYPE_SPLIT_DRAWER: ViewType
 VIEW_TYPE_STACK: ViewType
@@ -2762,6 +2783,13 @@ USER_WIZARD_VIEW_STAGE_LOG_IN: UserWizardViewStage
 TREE_VIEW_PRESET_UNSPECIFIED: TreeViewPreset
 TREE_VIEW_PRESET_EXPLORE: TreeViewPreset
 TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
+HUB_ASPECT_UNSPECIFIED: HubAspect
+HUB_ASPECT_SOURCE: HubAspect
+HUB_ASPECT_ACTIVITY: HubAspect
+HUB_ASPECT_LIBRARY: HubAspect
+HUB_ASPECT_EXTERNAL: HubAspect
+HELP_ASPECT_UNSPECIFIED: HelpAspect
+HELP_ASPECT_DETAIL: HelpAspect
 USER_STATUS_UNSPECIFIED: UserStatus
 USER_STATUS_INVITED: UserStatus
 USER_STATUS_RESERVED: UserStatus
@@ -8054,6 +8082,18 @@ class FeedViewData(_message.Message):
         filter: _Optional[_Union[ExpressionData, _Mapping]] = ...,
         filter_pills: _Optional[_Iterable[str]] = ...,
     ) -> None: ...
+
+class HubViewData(_message.Message):
+    __slots__ = ("aspect",)
+    ASPECT_FIELD_NUMBER: _ClassVar[int]
+    aspect: HubAspect
+    def __init__(self, aspect: _Optional[_Union[HubAspect, str]] = ...) -> None: ...
+
+class HelpViewData(_message.Message):
+    __slots__ = ("aspect",)
+    ASPECT_FIELD_NUMBER: _ClassVar[int]
+    aspect: HelpAspect
+    def __init__(self, aspect: _Optional[_Union[HelpAspect, str]] = ...) -> None: ...
 
 class UserWizardViewData(_message.Message):
     __slots__ = ("stage",)

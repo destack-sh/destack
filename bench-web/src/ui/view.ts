@@ -23,9 +23,10 @@ import {
   Vector2Data,
   Vector3Data,
   Vector4Data,
+  ViewData,
   ViewType,
   type AnyNodeData,
-  type AnyNodeReferenceData
+  type AnyNodeReferenceData,
 } from "@/proto/wire";
 import {
   isNodeRef,
@@ -44,6 +45,7 @@ import type { MaybeElement } from "@vueuse/core";
 import { type ComponentInstance, type Ref } from "vue";
 
 export const SPACE_DEFAULT_BAR_POSITION = Anchor.TOP;
+export const VIEW_DEFAULT_BAR_HEADER_HEIGHT = 44;
 export const VIEW_DEFAULT_HEADER_HEIGHT = 36;
 export const VIEW_DEFAULT_MIN_WIDTH = 240;
 export const VIEW_DEFAULT_MAX_WIDTH = 800;
@@ -397,3 +399,18 @@ export function addVector2(vec: Vector2Data | null | undefined, add: Partial<Vec
     y: (vec?.y ?? 0) + (add.y ?? 0),
   };
 }
+
+//
+// History
+//
+
+export const HISTORY_STATE_KEY = Symbol("history");
+export type HistoryState = {
+  history: Ref<ViewData[]>;
+  focusedViewIdx: Ref<number | null>;
+  focusedView: Ref<ViewData | null>;
+  canGoBackward: Ref<boolean>;
+  canGoForward: Ref<boolean>;
+  goBackward: () => void;
+  goForward: () => void;
+};

@@ -92,6 +92,8 @@ enum EnumType {
   ENUM_TYPE_ALIGNMENT = 21011;
   ENUM_TYPE_USER_WIZARD_STAGE = 21200;
   ENUM_TYPE_TREE_VIEW_PRESET = 21201;
+  ENUM_TYPE_HUB_ASPECT = 21202;
+  ENUM_TYPE_HELP_ASPECT = 21203;
   ENUM_TYPE_USER_STATUS = 29000;
   ENUM_TYPE_ORGANIZATION_STATUS = 29001;
 }
@@ -503,6 +505,8 @@ enum BenchType {
   BENCH_TYPE_ALIGNMENT = 21011;
   BENCH_TYPE_USER_WIZARD_STAGE = 21200;
   BENCH_TYPE_TREE_VIEW_PRESET = 21201;
+  BENCH_TYPE_HUB_ASPECT = 21202;
+  BENCH_TYPE_HELP_ASPECT = 21203;
   BENCH_TYPE_USER_STATUS = 29000;
   BENCH_TYPE_ORGANIZATION_STATUS = 29001;
 }
@@ -1294,7 +1298,7 @@ enum ViewType {
   VIEW_TYPE_HELP = 411;
   VIEW_TYPE_WINDOW = 1000;
   VIEW_TYPE_TAB = 1002;
-  VIEW_TYPE_BACKTAB = 1003;
+  VIEW_TYPE_HISTORY = 1003;
   VIEW_TYPE_SPLIT = 1005;
   VIEW_TYPE_SPLIT_DRAWER = 1006;
   VIEW_TYPE_STACK = 1010;
@@ -1512,6 +1516,19 @@ enum TreeViewPreset {
   TREE_VIEW_PRESET_UNSPECIFIED = 0;
   TREE_VIEW_PRESET_EXPLORE = 1;
   TREE_VIEW_PRESET_OUTLINE = 2;
+}
+
+enum HubAspect {
+  HUB_ASPECT_UNSPECIFIED = 0;
+  HUB_ASPECT_SOURCE = 1;
+  HUB_ASPECT_ACTIVITY = 2;
+  HUB_ASPECT_LIBRARY = 3;
+  HUB_ASPECT_EXTERNAL = 4;
+}
+
+enum HelpAspect {
+  HELP_ASPECT_UNSPECIFIED = 0;
+  HELP_ASPECT_DETAIL = 1;
 }
 
 enum UserStatus {
@@ -3090,6 +3107,16 @@ message FeedViewData {
   optional NodeType query_node_type = 100;
   optional ExpressionData filter = 101;
   repeated string filter_pills = 102;
+}
+
+// A view of a user interface in a Bench.
+message HubViewData {
+  HubAspect aspect = 100;
+}
+
+// A view of a user interface in a Bench.
+message HelpViewData {
+  HelpAspect aspect = 100;
 }
 
 // A view of a user interface in a Bench.

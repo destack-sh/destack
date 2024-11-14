@@ -122,7 +122,7 @@ export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
 };
 
 export type PopoverInfo = (
-  | ({ kind: "menu" } & MenuInfo)
+  | ({ kind: "menu" } & MenuInfo & { width?: number, height?: number })
   | {
       kind: "component";
       component: any | ViewType;

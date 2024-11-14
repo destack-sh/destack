@@ -12,7 +12,6 @@ import {
   NodeType,
   ObjectType,
   Orientation,
-  RectangleData,
   TreeViewPreset,
   Variant,
   ViewData,
@@ -29,36 +28,36 @@ import {
 } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
-import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
+import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
-import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
+import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
-import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
-import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
+import { useElementSize } from "@vueuse/core";
+import { computed, nextTick, ref, toRef, watch, watchEffect, type Ref } from "vue";
 
 const DEPTH_OFFSET = 16;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
-const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
   {
-    self: TypedNodeReferenceData<NodeType.VIEW>;
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    size: Required<Pick<RectangleData, "width" | "height">>;
-  } & Pick<ViewData, "type" | "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "subnodePacked">
+    sizeIsDynamic?: boolean;
+  } & Pick<ViewData, "icon" | "nodePtr" | "size" | "focus" | "selection" | "subnodePacked">
 >();
 
-const containerRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
+const containerRef: Ref<HTMLElement | null> = ref(null);
+const containerSize = useElementSize(containerRef);
+const listRef: Ref<HTMLElement | null> = ref(null);
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const emit = defineEmits(viewEmits());
@@ -66,7 +65,6 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const { graph: spaceGraph } = useExistingConnection(self);
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
 const filterIsPage = computed(() => {
   if (preset.value == TreeViewPreset.EXPLORE) {
@@ -120,29 +118,34 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
 // Visible subtree
 //
 
-const expandedNodes = useSubnodeProperty(
+const expandedNodesPtr = useSubnodeProperty(
   NodeType.VIEW,
   ViewType.TREE,
   toRef(props, "subnodePacked"),
   "expandedNodesPtr",
 );
 function isExpanded(node: AnyNodeData | SomeNodeReferenceData) {
-  return expandedNodes.value?.some((ref) => ref.id == node.id);
+  return expandedNodesPtr.value?.some((ref) => ref.id == node.id);
 }
 function toggleExpanded(node: AnyNodeData | SomeNodeReferenceData) {
-  const expandedNodesPtr = isExpanded(node)
-    ? expandedNodes.value?.filter((ref) => ref.id != node.id)
-    : [...(expandedNodes.value ?? []), toPlainNodeRef(node as SomeNodeReferenceData)];
-  state.update({ metatype: NodeType.VIEW, type: ViewType.TREE, subnode: { expandedNodesPtr } }, { debounce: "long" });
+  const newExpandedNodesPtr = isExpanded(node)
+    ? expandedNodesPtr.value?.filter((ref) => ref.id != node.id)
+    : [...(expandedNodesPtr.value ?? []), toPlainNodeRef(node as SomeNodeReferenceData)];
+  state.update(
+    { metatype: NodeType.VIEW, type: ViewType.TREE, subnode: { expandedNodesPtr: newExpandedNodesPtr } },
+    { debounce: "long" },
+  );
 }
 
 function isIncludedSelf(node: AnyNodeData) {
   if (filterIsPage.value) {
-    if (node.metatype == ObjectType.BLOCK)
-      return (node as BlockData).type == BlockType.PAGE || HEAVY_BLOCK_TYPES.includes((node as BlockData).type);
-    else return true;
+    if (isNode(node, NodeType.BLOCK)) {
+      return node.type == BlockType.PAGE || HEAVY_BLOCK_TYPES.includes(node.type);
+    } else {
+      return true;
+    }
   } else {
-    return true; // include everything
+    return !isNode(node, NodeType.BLOCK) || node.type != BlockType.TEXT;
   }
 }
 function isIncludedChildren(node: AnyNodeData) {
@@ -163,7 +166,7 @@ const { items: expandedItems } = walkDescendantsRef({
   isExpanded,
   isIncludedSelf,
   isIncludedChildren,
-  watchSource: () => [props.focus],
+  watchSource: () => [props.focus, expandedNodesPtr.value],
 });
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
@@ -232,7 +235,7 @@ function clear() {
 }
 
 function fire(node: AnyNodeData) {
-  canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
+  canvas.goToNode(node, { skipSelf: preset.value == TreeViewPreset.OUTLINE });
 }
 
 /** Navigate horizontally to expand/collapse */
@@ -271,7 +274,7 @@ watch(
 // dragging
 const { activeDropZone } = useMultiDropZone({
   name: "explore",
-  container: containerRef,
+  container: listRef,
   targets: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
   hasCenterAnchor: true,
@@ -306,7 +309,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.navigate.open": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
-    canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
+    canvas.goToNode(node, { skipSelf: preset.value == TreeViewPreset.OUTLINE });
   },
   "common.edit.rename": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
@@ -337,50 +340,10 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   }),
 };
 
-defineExpose<ViewExposed>({ self, actions, focus });
+defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
-  <div class="h-full w-full">
-    <!-- Header -->
-    <div class="group/header w-full" :style="{ height: VIEW_DEFAULT_HEADER_HEIGHT + 'px' }">
-      <div
-        class="mx-auto flex h-full max-w-full flex-row items-center pl-2 pr-3"
-        :style="{ minWidth: VIEW_DEFAULT_MIN_WIDTH + 'px', maxWidth: VIEW_DEFAULT_MAX_WIDTH + 'px' }"
-      >
-        <!-- Location -->
-        <!-- NOTE :UX: should probably be only node crumb in explorer header? -->
-        <div v-if="preset == TreeViewPreset.EXPLORE" class="flex flex-row items-center px-1">
-          <IconInline
-            v-bind="bench != null ? getNodeIcon(bench) : DEFAULT_BENCH_ICON"
-            class="mr-1.5 w-5 text-gray-600"
-          />
-          <span class="text-gray-900">{{ bench?.name ?? "???" }}</span>
-        </div>
-        <NodePath v-else :focus="rootPtr" :graph="pkgGraph" class="px-0.5" />
-        <!-- Controls -->
-        <div class="ml-auto flex flex-row items-center pl-1.5">
-          <!-- Create -->
-          <button
-            v-if="pkg != null"
-            class="rounded px-0.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
-            @click="
-              () => {
-                // NOTE: we assume that pkgGraph root == pkg (may be incorrect later)
-                if (pkg == null) return;
-                const block = createBlock(pkgConnection.tx, pkgGraph, {
-                  anchor: 'inside',
-                  target: pkg,
-                  block: { type: BlockType.PAGE },
-                });
-                canvas.goToNode(block, { where: 'bestFrame', ifPresent: 'upsertAndFocus' });
-              }
-            "
-          >
-            <i class="fas fa-plus" />
-          </button>
-        </div>
-      </div>
-    </div>
+  <div ref="containerRef" :class="sizeIsDynamic ? '' : 'h-full w-full'">
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
     <div class="relative">
@@ -408,10 +371,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
     </div>
 
     <!-- Content -->
-    <Scroll
+    <component
+      :is="sizeIsDynamic ? 'div' : Scroll"
       v-if="expandedItems.length > 0"
       id="scroll"
-      :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
+      :size="{ width: containerSize.width.value, height: containerSize.height.value - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
@@ -419,7 +383,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     >
       <!-- Nodes -->
       <!-- NOTE :UX: it would be neat to have hover/focused/selected nodes highlighted (everywhere) -->
-      <ul ref="containerRef" class="group/list mb-1 flex flex-col text-gray-900">
+      <ul ref="listRef" class="group/list mb-1 flex flex-col text-gray-900">
         <!-- Node -->
         <li
           v-for="({ node, depth, hasChildren }, i) in expandedItems"
@@ -522,7 +486,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     target: node,
                     block: { type: BlockType.PAGE },
                   });
-                  canvas.goToNode(block, { where: 'bestFrame', ifPresent: 'upsertAndFocus' });
+                  canvas.goToNode(block);
                   if (!isExpanded(node)) toggleExpanded(node);
                 }
               "
@@ -533,21 +497,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- ... -->
         </li>
       </ul>
-    </Scroll>
-    <div
-      v-else
-      class="flex w-full flex-col justify-center text-center"
-      :style="{
-        height: `calc(100% - ${HEADER_HEIGHT}px)`,
-      }"
-    >
+    </component>
+    <div v-else class="flex h-full w-full flex-col justify-center text-center">
       <!-- Missing state -->
-      <span>
-        <i class="fas fa-empty-set text-gray-500" />
-        <span class="ml-1.5 text-gray-600">
-          {{ rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect" }}
-        </span>
-      </span>
     </div>
   </div>
 </template>

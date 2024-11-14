@@ -1,14 +1,16 @@
 import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
 import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
-import { cloneNode, generateNodeName, makeNode, NodeIn } from "@/language/node";
+import { cloneNode, generateNodeName, makeNode, NodeIn, packSubnode, unpackSubnode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
-import { makeEdit, TransactionOptions, type Transaction } from "@/language/transaction";
+import { makeEdit, newChangeId, TransactionOptions, type Transaction } from "@/language/transaction";
 import { unpackBuiltinObject } from "@/language/value";
 import {
   BlockType,
   ChangeCategory,
   DESCENDANT_NODE_TYPES,
+  HelpAspect,
+  HubAspect,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -83,7 +85,6 @@ export type ViewIn = Partial<NodeIn<NodeType.VIEW>> &
 
 type OpenViewOptions = {
   predicate?: (view: ViewData) => boolean;
-  where?: "currentFrame" | "bestFrame";
   ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
   props?: ViewIn;
 };
@@ -621,6 +622,15 @@ export class SpaceCanvas {
           .update(baseView, update as NodeIn<any>, options);
       } else {
         // subview update
+        if ("subnode" in update && "type" in update) {
+          // merge current subnode into new subnode
+          // (we override subview values at the property level, so this would get lost otherwise)
+          const key = update.type.toString();
+          if ((instance?.props?.subnodePacked as any)?.[key] != null) {
+            const subnode = unpackSubnode(NodeType.VIEW, update.type, instance!.props.subnodePacked as any);
+            update.subnode = { ...subnode, ...update.subnode };
+          }
+        }
         const edits = makeEdit(baseView, update as NodeIn<any>);
         for (const edit of edits) {
           edit.path = [SUBVIEWS_PROPERTY_KEY, componentId, ...edit.path];
@@ -637,17 +647,6 @@ export class SpaceCanvas {
     if (ROOT_VIEW_TYPES.has(view.type)) return view;
     const ancestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
     return ancestors.find((v) => ROOT_VIEW_TYPES.has(v.type)) ?? view;
-  }
-
-  /** Gets the current subroot view ('lowest' focused view within a root) */
-  get focusedRoot(): ViewData | null {
-    if (this.focusedViewPtr.value == null) return null;
-    if (this.spacePtr.value == null) return null;
-
-    // traverse focused view up until we find a root
-    const view = this.graph.get(this.focusedViewPtr.value);
-    if (view == null) return null;
-    return this.getRootView(view);
   }
 
   /** Whether a given node is a view in our space */
@@ -704,51 +703,43 @@ export class SpaceCanvas {
       nodePtr: unwrapProtoOneOf(view.nodePtr),
       predicate: options?.predicate,
     });
-    const currentFrame = this.focusedRoot;
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
-      log.debug("canvas.addView.create", view, { existing, options, focusedRoot: currentFrame });
-      // find/make root
-      let parent: ViewData | null = null;
-      if (options?.where == null || options?.where == "currentFrame") {
-        parent = currentFrame;
-      } else if (options?.where == "bestFrame" && currentFrame != null) {
-        // NOTE :UX: improve how we choose the best frame for a new view
-        // if there's an existing frame containing the same view type, use that
-        const similarView = this.views.find((v) => v.type == view.type);
-        if (similarView != null) {
-          parent = this.getRootView(similarView);
+      // find root
+      const parent =
+        this.views.find((v) => v.type == ViewType.TAB || v.type == ViewType.HISTORY) ??
+        this.views.find((v) => v.type == ViewType.WINDOW || v.type == ViewType.SPLIT) ??
+        this.space.value!;
+      log.debug("canvas.addView.create", view, { existing, options, parent });
+      let siblings = this.graph.getChildren(parent, NodeType.VIEW);
+      const change = this.tx().with({ change: { key: newChangeId() } });
+
+      // prune history from current focused tab
+      if (isNode(parent, NodeType.VIEW) && parent.type == ViewType.HISTORY) {
+        const focusedId = parent.focus?.nodesPtr[0].id;
+        const focusedTabIdx = siblings.findIndex((tab) => tab.id == focusedId) ?? -1;
+        for (let i = focusedTabIdx + 1; i < siblings.length; i++) {
+          change.delete(siblings[i]);
         }
-      } else {
-        throw new Error(`unexpected where: ${options?.where}`);
-      }
-      if (parent == null) {
-        // no parent so far, just use current
-        parent = currentFrame;
-      }
-      if (parent == null) {
-        // no parent at all, reset space (either we're in a local empty space or it got messed up somehow)
-        log.debug("canvas.repairCanvas", this.spacePtr.value);
-        const space = this.graph.getOrError(this.spacePtr.value!);
-        parent = createDesktopDefaultSpace(tx, space).primary;
+        siblings = siblings.slice(0, focusedTabIdx + 1);
       }
 
       // create & focus
-      const rootChildren = this.graph.getChildren(parent, NodeType.VIEW);
       const newView = makeNode({
         ...view,
         metatype: NodeType.VIEW,
         packagePtr: parent.packagePtr,
-        orderKey: generateOrderKey(rootChildren[-1]?.orderKey ?? null, null),
+        orderKey: generateOrderKey(siblings[-1]?.orderKey ?? null, null),
         parentPtr: toPlainNodeRef(parent),
         icon: toIconMaybe(view.icon),
       });
-      if ((view.name ?? "").length == 0)
+      if ((view.name ?? "").length == 0) {
         newView.name = generateNodeName(
           newView,
           this.graph.getDescendants(this.spacePtr.value!, { metatypes: [NodeType.VIEW] }),
         );
-      tx.create(newView);
+      }
+      change.create(newView);
       this.focus({ node: newView });
       return newView;
     } else if (options?.ifPresent == "focus") {
@@ -779,7 +770,7 @@ export class SpaceCanvas {
    */
   goToNode(
     node: AnyNodeData | NodeReferenceData | null,
-    options?: { graph?: ReadNodeGraph; skipSelf?: boolean; preferPage?: boolean } & OpenViewOptions,
+    options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
   ) {
     const nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     const graph = options?.graph ?? this.graph;
@@ -795,7 +786,7 @@ export class SpaceCanvas {
       // just focus directly
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     } else if (
-      (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW && !options?.preferPage) ||
+      (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
       isNode(node, NodeType.STEP) ||
       isNode(node, NodeType.PIPE) ||
       (isNode(node, NodeType.FIELD) && getContainingFlow(graph, node) != null)
@@ -814,6 +805,7 @@ export class SpaceCanvas {
       );
       this.inspect({ node: nodePtr, view });
     } else if ((isNode(node, NodeType.BLOCK) && node.type == BlockType.DATABASE) || isNode(node, NodeType.RECORD)) {
+      // open as database
       let view: ViewData;
       if (isNode(node, NodeType.RECORD)) {
         const block = graph.get(node.blockPtr!);
@@ -834,7 +826,7 @@ export class SpaceCanvas {
         );
       }
       this.inspect({ node: nodePtr, view });
-    } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW && !options?.preferPage) {
+    } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW) {
       // open as view
       this.addView(
         { type: ViewType.VIEW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
@@ -1094,23 +1086,22 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       type: ViewType.HUB,
       name: "Side",
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
-      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 240, maxWidth: 400 }),
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 280, maxWidth: 500 }),
+      subnode: { aspect: HubAspect.SOURCE },
     },
     {
-      type: ViewType.BACKTAB,
-      name: "Primary",
-      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 1500 }),
+      type: ViewType.HISTORY,
+      name: "Main",
+      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 1000 }),
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600 }),
     },
     {
       type: ViewType.HELP,
       name: "Detail",
       orientation: Orientation.VERTICAL,
-      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 800 }),
+      size: makeStruct({ metatype: StructType.RECTANGLE, width: 500 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 400, maxWidth: 800 }),
-      children: [
-        { type: ViewType.TAB, name: "SecondaryTop", children: [{ type: ViewType.INSPECT }] },
-        { type: ViewType.TAB, name: "SecondaryBottom", children: [{ type: ViewType.START }] },
-      ],
+      subnode: { aspect: HelpAspect.DETAIL },
     },
   ]);
   return { primary: layout.viewsByName["Primary"] };

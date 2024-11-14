@@ -1723,7 +1723,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             prop_value = []
                         else:
                             continue  # skip optional None
-                    else:
+                    elif "subnode_packed" not in kwargs:
                         raise ValueError(f"missing required value for {prop!r}")
                 self._do_set(prop.name, prop_value, track=False, validate=False)
 
