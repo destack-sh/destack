@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { NodeType, RectangleData, ViewData, ViewType } from "@/proto/wire";
-import { toPlainNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
+import { toPlainNodeRef, TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { canvas } from "@/system/space";
+import { canvas, pkgGraph } from "@/system/space";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -42,11 +42,21 @@ const history: HistoryState = {
   focusedView,
   canGoBackward: computed(() => (focusedViewIdx.value ?? 0) > 0),
   canGoForward: computed(() => (focusedViewIdx.value ?? 0) < views.value.length - 1),
-  goBackward: () => {
-    canvas.focus({ node: views.value[focusedViewIdx.value! - 1] });
-  },
-  goForward: () => {
-    canvas.focus({ node: views.value[focusedViewIdx.value! + 1] });
+  go: (delta: number) => {
+    // try to go up to delta times (skipping views where we don't have the node anymore)
+    if (delta == 0 ||focusedViewIdx.value == null) return;
+    let viewIdx = focusedViewIdx.value;
+    while (delta != 0) {
+      viewIdx += Math.sign(delta);
+      const view = views.value[viewIdx];
+      if (view == null) return;
+      const viewNodePtr = unwrapProtoOneOf(view.nodePtr);
+      if (viewNodePtr != null && !pkgGraph.has(viewNodePtr)) continue;
+      delta -= Math.sign(delta);
+    }
+    const view = views.value[viewIdx];
+    if (view == null) return;
+    canvas.focus({ node: view });
   },
 };
 provide(HISTORY_STATE_KEY, history);

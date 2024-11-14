@@ -9,12 +9,13 @@ import { startDragging } from "@/ui/drag";
 import { computed, toRef } from "vue";
 
 const props = defineProps<{
-  container?: NodeReferenceData;
+  container: NodeReferenceData;
   focus?: NodeReferenceData | null;
+  self: NodeReferenceData | null;
   graph: ReadNodeGraph;
 }>();
 
-const METATYPES = [NodeType.BLOCK, NodeType.VIEW, NodeType.STEP, NodeType.FIELD];
+const METATYPES = [NodeType.BLOCK, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.FIELD];
 
 const ancestorsFocus = props.graph.getAncestorsRef(toRef(props, "focus"), { includeSelf: true, metatypes: METATYPES });
 const ancestorsSelf = props.graph.getAncestorsRef(toRef(props, "container"), {
@@ -26,6 +27,7 @@ const path = computed(() => {
     ancestorsFocus.value.length > ancestorsSelf.value.length ? ancestorsFocus.value : ancestorsSelf.value;
   return ancestors.slice().reverse();
 });
+const selfIndex = computed(() => path.value.findIndex((node) => node.id == props.container.id));
 </script>
 <template>
   <!-- Breadcrumb -->
@@ -34,7 +36,7 @@ const path = computed(() => {
       <!-- Node -->
       <button
         class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100"
-        :class="i > 0 ? 'ml-1' : ''"
+        :class="[i > 0 ? 'ml-1' : '', i > selfIndex && selfIndex != -1 ? 'text-gray-400' : 'text-gray-900']"
         role="button"
         :data-node-id="node.id"
         :data-node-ck="(node as any).ck"
@@ -43,7 +45,11 @@ const path = computed(() => {
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
-        <IconInline v-bind="getNodeIcon(node)" class="mr-1.5 text-gray-700 w-5" />
+        <IconInline
+          v-bind="getNodeIcon(node)"
+          class="mr-1.5 w-5"
+          :class="i > selfIndex && selfIndex != -1 ? 'text-gray-400' : 'text-gray-700'"
+        />
         <span>{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span>
       </button>
       <!-- Separator -->

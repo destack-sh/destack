@@ -696,7 +696,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- History -->
       <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
-      <NodePath :container="nodePtr" :graph="pkgGraph" />
+      <NodePath :container="nodePtr" :self="nodePtr" :graph="pkgGraph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- ... -->
