@@ -164,6 +164,10 @@ function close(popover: PopoverInstance | undefined) {
         :ref="(el) => registerContainerRef(popover, el)"
         :key="popover.id"
         class="pointer-events-auto absolute z-70 shadow-sm shadow-gray-300"
+        :style="{
+          width: popover.info.width != null ? popover.info.width + 'px' : '',
+          height: popover.info.height != null ? popover.info.height + 'px' : '',
+        }"
         data-outside-view="true"
         v-bind="popover.info"
         @close="() => close(popover)"
@@ -172,7 +176,7 @@ function close(popover: PopoverInstance | undefined) {
       <div
         v-else-if="popover?.info.kind == 'component'"
         :ref="(el) => registerContainerRef(popover, el)"
-        class="pointer-events-auto shadow-sm shadow-gray-300 absolute z-70 flex flex-col rounded border border-gray-200 bg-white text-gray-900"
+        class="pointer-events-auto absolute z-70 flex flex-col rounded border border-gray-200 bg-white text-gray-900 shadow-sm shadow-gray-300"
         :style="{
           width: popover.info.props?.size?.width != null ? popover.info.props.size.width + 'px' : '',
           height: popover.info.props?.size?.height != null ? popover.info.props.size.height + 'px' : '',

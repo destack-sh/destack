@@ -16,6 +16,7 @@ import {
   FieldType,
   FileFormat,
   FileType,
+  HubAspect,
   IconKind,
   LogLevel,
   NodeReferenceData,
@@ -149,7 +150,6 @@ function _makeIcons<K extends string | number>(icons: Partial<Record<K, IconIn>>
 export const DEFAULT_MISSING_ICON = makeIcon({ faName: "fas fa-question" });
 export const DEFAULT_VIEW_ICON = makeIcon({ faName: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
-export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-circle-dot" });
 export const DEFAULT_ENUM_ICON = makeIcon({ faName: "fas fa-caret-circle-down" });
 export const DEFAULT_SYSTEM_ICON = makeIcon({ faName: "fas fa-gear" });
 
@@ -335,7 +335,6 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
   [ViewType.START]: "fas fa-play",
   [ViewType.FEED]: "fas fa-list-timeline",
   [ViewType.TIMELINE]: "fas fa-timeline",
-  [ViewType.HISTORY]: "fas fa-clock-rotate-left",
 
   //
   // Organization
@@ -434,6 +433,12 @@ export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
   [Anchor.TOP]: "fas fa-align-top",
   [Anchor.RIGHT]: "fas fa-align-right",
   [Anchor.BOTTOM]: "fas fa-align-bottom",
+});
+export const ICON_BY_HUB_ASPECT: Partial<Record<HubAspect, IconData>> = _makeIcons({
+  [HubAspect.SOURCE]: 'fas fa-code',
+  [HubAspect.ACTIVITY]: 'fas fa-play',
+  [HubAspect.EXTERNAL]: 'fas fa-globe',
+  [HubAspect.LIBRARY]: 'fas fa-shapes',
 });
 
 export const ICON_BY_TYPE_KIND: Partial<Record<TypeKind, IconData>> = _makeIcons({

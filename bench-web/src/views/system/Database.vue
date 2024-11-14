@@ -51,9 +51,11 @@ import {
   expandSelection,
   focusInElement,
   getViewForValueType,
+  VIEW_DEFAULT_BAR_HEADER_HEIGHT,
   VIEW_DEFAULT_HEADER_HEIGHT,
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
+import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import IconName from "@/views/builtins/IconName.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -64,7 +66,7 @@ import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
-const META_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
@@ -172,6 +174,7 @@ const {
 // State
 //
 
+const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const headerRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
@@ -687,9 +690,11 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-if="variant != Variant.COMPACT"
       data-keep-inspection-in-base-view="true"
-      class="group flex w-full max-w-full flex-row px-2"
-      :style="{ height: META_HEADER_HEIGHT + 'px' }"
+      class="group flex w-full max-w-full flex-row items-center px-2"
+      :style="{ height: (historyRef?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT) + 'px' }"
     >
+      <!-- History -->
+      <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
       <NodePath :container="nodePtr" :graph="pkgGraph" />
       <!-- Meta & Controls -->
@@ -805,7 +810,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               }
             "
           >
-            <i class="fa fa-plus mr-1.5 text-center" />
+            <i class="fas fa-plus mr-1.5 text-center" />
             <span>Field</span>
           </button>
           <!-- Add record -->
@@ -814,7 +819,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
             @click="() => createRecord()"
           >
-            <i class="fa fa-plus mr-1.5 text-center" />
+            <i class="fas fa-plus mr-1.5 text-center" />
             <span class="">Record</span>
           </button>
         </div>

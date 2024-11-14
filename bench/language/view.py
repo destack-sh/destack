@@ -84,7 +84,7 @@ class ViewType(IdEnum):
     # layout
     WINDOW = 1000
     TAB = 1002
-    BACKTAB = 1003
+    HISTORY = 1003
     SPLIT = 1005
     SPLIT_DRAWER = 1006
     STACK = 1010
@@ -594,6 +594,29 @@ class FeedView(View):
         101, default=None, require=False, struct=StructType.EXPRESSION
     )
     filter_pills: list[str] = p_regular(102, array=True)
+
+
+@enum_(EnumType.HUB_ASPECT)
+class HubAspect(IdEnum):
+    SOURCE = 1
+    ACTIVITY = 2
+    LIBRARY = 3
+    EXTERNAL = 4
+
+
+@node_subtype_(ViewType.HUB)
+class HubView(View):
+    aspect: HubAspect = p_regular(100)
+
+
+@enum_(EnumType.HELP_ASPECT)
+class HelpAspect(IdEnum):
+    DETAIL = 1
+
+
+@node_subtype_(ViewType.HELP)
+class HelpView(View):
+    aspect: HelpAspect = p_regular(100)
 
 
 @enum_(EnumType.USER_WIZARD_STAGE)

@@ -5432,6 +5432,28 @@ export interface FeedViewData {
 /**
  * A view of a user interface in a Bench.
  *
+ * @generated from protobuf message symbolx.bench.HubViewData
+ */
+export interface HubViewData {
+    /**
+     * @generated from protobuf field: symbolx.bench.HubAspect aspect = 100;
+     */
+    aspect: HubAspect;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.HelpViewData
+ */
+export interface HelpViewData {
+    /**
+     * @generated from protobuf field: symbolx.bench.HelpAspect aspect = 100;
+     */
+    aspect: HelpAspect;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
  * @generated from protobuf message symbolx.bench.UserWizardViewData
  */
 export interface UserWizardViewData {
@@ -6281,6 +6303,14 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 21201;
      */
     TREE_VIEW_PRESET = 21201,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_HUB_ASPECT = 21202;
+     */
+    HUB_ASPECT = 21202,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_HELP_ASPECT = 21203;
+     */
+    HELP_ASPECT = 21203,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 29000;
      */
@@ -7897,6 +7927,14 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 21201;
      */
     TREE_VIEW_PRESET = 21201,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_HUB_ASPECT = 21202;
+     */
+    HUB_ASPECT = 21202,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_HELP_ASPECT = 21203;
+     */
+    HELP_ASPECT = 21203,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 29000;
      */
@@ -10568,9 +10606,9 @@ export enum ViewType {
      */
     TAB = 1002,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BACKTAB = 1003;
+     * @generated from protobuf enum value: VIEW_TYPE_HISTORY = 1003;
      */
-    BACKTAB = 1003,
+    HISTORY = 1003,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_SPLIT = 1005;
      */
@@ -11339,6 +11377,44 @@ export enum TreeViewPreset {
      * @generated from protobuf enum value: TREE_VIEW_PRESET_OUTLINE = 2;
      */
     OUTLINE = 2
+}
+/**
+ * @generated from protobuf enum symbolx.bench.HubAspect
+ */
+export enum HubAspect {
+    /**
+     * @generated from protobuf enum value: HUB_ASPECT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: HUB_ASPECT_SOURCE = 1;
+     */
+    SOURCE = 1,
+    /**
+     * @generated from protobuf enum value: HUB_ASPECT_ACTIVITY = 2;
+     */
+    ACTIVITY = 2,
+    /**
+     * @generated from protobuf enum value: HUB_ASPECT_LIBRARY = 3;
+     */
+    LIBRARY = 3,
+    /**
+     * @generated from protobuf enum value: HUB_ASPECT_EXTERNAL = 4;
+     */
+    EXTERNAL = 4
+}
+/**
+ * @generated from protobuf enum symbolx.bench.HelpAspect
+ */
+export enum HelpAspect {
+    /**
+     * @generated from protobuf enum value: HELP_ASPECT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: HELP_ASPECT_DETAIL = 1;
+     */
+    DETAIL = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.UserStatus
@@ -24885,6 +24961,100 @@ class FeedViewData$Type extends MessageType$<FeedViewData> {
  */
 export const FeedViewData = new FeedViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class HubViewData$Type extends MessageType$<HubViewData> {
+    constructor() {
+        super("symbolx.bench.HubViewData", [
+            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HubAspect", HubAspect, "HUB_ASPECT_"] }
+        ]);
+    }
+    create(value?: PartialMessage<HubViewData>): HubViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.aspect = 0;
+        if (value !== undefined)
+            reflectionMergePartial<HubViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HubViewData): HubViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.HubAspect aspect */ 100:
+                    message.aspect = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: HubViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.HubAspect aspect = 100; */
+        if (message.aspect !== 0)
+            writer.tag(100, WireType.Varint).int32(message.aspect);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.HubViewData
+ */
+export const HubViewData = new HubViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class HelpViewData$Type extends MessageType$<HelpViewData> {
+    constructor() {
+        super("symbolx.bench.HelpViewData", [
+            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HelpAspect", HelpAspect, "HELP_ASPECT_"] }
+        ]);
+    }
+    create(value?: PartialMessage<HelpViewData>): HelpViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.aspect = 0;
+        if (value !== undefined)
+            reflectionMergePartial<HelpViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HelpViewData): HelpViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.HelpAspect aspect */ 100:
+                    message.aspect = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: HelpViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.HelpAspect aspect = 100; */
+        if (message.aspect !== 0)
+            writer.tag(100, WireType.Varint).int32(message.aspect);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.HelpViewData
+ */
+export const HelpViewData = new HelpViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
     constructor() {
         super("symbolx.bench.UserWizardViewData", [
@@ -26438,6 +26608,8 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
   [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
+  [EnumType.HUB_ASPECT]: HubAspect,
+  [EnumType.HELP_ASPECT]: HelpAspect,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
 }
@@ -26564,11 +26736,13 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | UserWizardViewData | IconViewData;
+export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | HubViewData | HelpViewData | UserWizardViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.TREE]: TreeViewData,
   [ViewType.START]: StartViewData,
   [ViewType.FEED]: FeedViewData,
+  [ViewType.HUB]: HubViewData,
+  [ViewType.HELP]: HelpViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.ICON]: IconViewData,
 }
@@ -26783,6 +26957,8 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
   [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
+  [EnumType.HUB_ASPECT]: HubAspect,
+  [EnumType.HELP_ASPECT]: HelpAspect,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
 }
@@ -27734,6 +27910,14 @@ export enum FeedViewProperty {
   filterPills = 102,
 }
 
+export enum HubViewProperty {
+  aspect = 100,
+}
+
+export enum HelpViewProperty {
+  aspect = 100,
+}
+
 export enum UserWizardViewProperty {
   stage = 100,
 }
@@ -28636,6 +28820,8 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.TREE]: TreeViewProperty,
   [ViewType.START]: StartViewProperty,
   [ViewType.FEED]: FeedViewProperty,
+  [ViewType.HUB]: HubViewProperty,
+  [ViewType.HELP]: HelpViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.ICON]: IconViewProperty,
 }
@@ -28833,7 +29019,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28860,7 +29046,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28884,7 +29070,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29605,6 +29791,12 @@ export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
   [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [FeedViewProperty.filterPills]: { id: 102, name: 'filter_pills', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
+  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
+  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
@@ -30314,6 +30506,8 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.TREE]: TreeViewDataInfo,
   [ViewType.START]: StartViewDataInfo,
   [ViewType.FEED]: FeedViewDataInfo,
+  [ViewType.HUB]: HubViewDataInfo,
+  [ViewType.HELP]: HelpViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.ICON]: IconViewDataInfo,
 }

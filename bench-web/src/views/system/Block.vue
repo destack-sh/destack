@@ -118,7 +118,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   },
   "common.navigate.open": (action, ctx) => {
     if (block.value == null) return false;
-    canvas.goToNode(block.value, { where: "bestFrame" });
+    canvas.goToNode(block.value);
   },
 };
 
@@ -211,7 +211,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <Flow
           v-if="block.type == BlockType.FLOW"
           id="flow"
-          class="mt-2 h-[400px]"
+          class="mt-2 h-[500px]"
           v-bind="state.getChildState('flow')"
           :node-ptr="props.nodePtr"
           :variant="Variant.COMPACT"

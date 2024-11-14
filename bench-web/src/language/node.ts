@@ -208,7 +208,7 @@ type _NodeSubnodeProperties<T extends NodeType, ST extends _NodeSubtype<T>> = ST
 export function packSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
   nodeType: T,
   type: ST,
-  subnode: ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never,
+  subnode: ST extends keyof NodeSubtypeMapping[T] ? Partial<NodeSubtypeMapping[T][ST]> : never,
 ): JsonValue {
   if (subnode == null || typeof subnode != "object" || Object.keys(subnode).length == 0) {
     return {}; // empty subnode

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.13.1"
+VERSION = "2024.11.14.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -164,6 +164,8 @@ class EnumType(IdEnum):
     # view states
     USER_WIZARD_STAGE = 21200
     TREE_VIEW_PRESET = 21201
+    HUB_ASPECT = 21202
+    HELP_ASPECT = 21203
 
     # user
     USER_STATUS = 29000

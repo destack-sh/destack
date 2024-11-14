@@ -16,6 +16,8 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
+const HEADER_HEIGHT = 32; // NOTE :UX: should tab header height == default header height? (weirdly big but consistent)
+
 const props = defineProps<
   {
     self: TypedNodeReferenceData<NodeType.VIEW>;
@@ -26,8 +28,6 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-
-const HEADER_HEIGHT = 32; // NOTE :UX: should tab header height == default header height? (weirdly big but consistent)
 
 // focus
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
@@ -61,7 +61,6 @@ const focusedTabIdx: Ref<number | null> = computed(() => {
     return 0;
   }
 });
-const hasOneTab = computed(() => tabs.value.length == 1);
 const innerSize = computed(() => ({ width: props.size.width, height: props.size.height - HEADER_HEIGHT }));
 
 function focus(tab: ViewData) {

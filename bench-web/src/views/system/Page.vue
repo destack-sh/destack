@@ -17,7 +17,7 @@ import {
   TypeKind,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire/";
 import {
   describeNode,
@@ -35,9 +35,10 @@ import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
+import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import IconName from "@/views/builtins/IconName.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
@@ -79,6 +80,8 @@ const preparedPkgConnection = useGetConnection(
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
 const page = pkgGraph.getRef(nodePtr) as Ref<BlockData | undefined>;
 const blocks = pkgGraph.getChildrenRef(nodePtr, NodeType.BLOCK);
+
+const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
@@ -277,9 +280,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <!-- Meta header -->
     <div
       data-keep-inspection-in-base-view="true"
-      class="group flex w-full max-w-full flex-row px-2"
-      :style="{ height: HEADER_HEIGHT + 'px' }"
+      class="group flex w-full max-w-full flex-row items-center px-2"
+      :style="{ height: (historyRef?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT) + 'px' }"
     >
+      <!-- History -->
+      <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
       <NodePath :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :graph="pkgGraph" />
       <!-- Meta & Controls -->

@@ -49,6 +49,7 @@ const splitLayout: Ref<SplitLayout> = computed(() => ({
   dividerSize: BORDER_SIZE,
 }));
 const containerRef: Ref<HTMLElement | null> = ref(null);
+// nocheckin: use state instead of canvas.tx in useSplitView
 const { sizedViews, draggingIdx } = useSplitView(splits, toRef(props, "size"), containerRef, splitLayout, canvas.tx);
 
 // actions
@@ -134,7 +135,7 @@ defineExpose<ViewExposed>({ self, actions });
 <template>
   <div
     ref="containerRef"
-    class="relative bg-gray-100"
+    class="relative"
     :style="{ width: size.width + 'px', height: size.height + 'px' }"
     :class="[draggingIdx != null ? (isHorizontal ? 'cursor-ew-resize' : 'cursor-ns-resize') : '']"
   >
@@ -142,7 +143,7 @@ defineExpose<ViewExposed>({ self, actions });
     <template v-for="({ left, top, width, height, view }, viewIdx) in sizedViews" :key="view.id">
       <!-- Frame -->
       <div
-        class="absolute border-gray-200 bg-gray-100"
+        class="absolute border-gray-200"
         :style="{
           borderLeftWidth: viewIdx > 0 && isHorizontal ? BORDER_SIZE + 'px' : '0',
           borderTopWidth: viewIdx > 0 && !isHorizontal ? BORDER_SIZE + 'px' : '0',

@@ -68,7 +68,7 @@ watch(
   <!-- Space -->
   <div
     ref="spaceRef"
-    class="select-none overflow-hidden bg-gray-100 text-sm"
+    class="select-none overflow-hidden bg-white text-sm"
     :class="[
       isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',

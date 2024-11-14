@@ -38,8 +38,9 @@ import {
 } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
-import { Vector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { Vector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
+import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import IconName from "@/views/builtins/IconName.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -48,7 +49,7 @@ import Step from "@/views/system/Step.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
 
-const META_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const GUTTER_WIDTH = 60;
 
 const props = defineProps<
@@ -67,6 +68,7 @@ const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeRefer
 const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 
+const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
@@ -227,9 +229,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div
       v-if="variant != Variant.COMPACT"
       data-keep-inspection-in-base-view="true"
-      class="group flex w-full max-w-full flex-row px-2"
-      :style="{ height: META_HEADER_HEIGHT + 'px' }"
+      class="group flex w-full max-w-full flex-row items-center px-2"
+      :style="{ height: (historyRef?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT) + 'px' }"
     >
+      <!-- History -->
+      <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
       <NodePath :container="nodePtr" :graph="pkgGraph" />
       <!-- Meta & Controls -->
@@ -267,7 +271,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         variant == Variant.COMPACT ? 'h-full' : '',
         flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
       ]"
-      :style="{ height: `calc(100% - ${META_HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)` }"
+      :style="{ height: `calc(100% - ${HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)` }"
       @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
       @mousemove="(e: MouseEvent) => flowCtx.onDragging(e)"
       @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
