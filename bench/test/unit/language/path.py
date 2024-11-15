@@ -132,7 +132,7 @@ def test_parse_path_invalid(invalid_path: str):
         parse_path(invalid_path)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_package(session: Session):
     bench = Bench(name="bench1", slug="bench")
     bench.main_branch = bench.branches.create(name="Main")
@@ -143,7 +143,7 @@ def mock_package(session: Session):
     return package
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_package_populated(session: Session):
     # make bench
     bench = Bench(name="bench1", slug="bench")

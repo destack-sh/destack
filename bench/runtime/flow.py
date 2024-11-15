@@ -1,18 +1,19 @@
 import asyncio
-from abc import ABC
-from typing import TYPE_CHECKING, ClassVar, Literal, cast, override
+from abc import ABC, abstractmethod
+from typing import ClassVar, Literal, Sequence, assert_never, cast, override
 
 import structlog
 from opentelemetry import trace
 
 from bench.language.block import FlowBlock
 from bench.language.const import RunErrorKind
-from bench.language.flow import ActionStep, Pipe, PipeType, Step, StepType
-from bench.language.run import Run, RunError, RunKind, RunOptions
+from bench.language.flow import ActionStep, Pipe, PipeType, PortSide, Step, StepType
+from bench.language.interrupt import Interrupt
+from bench.language.run import Run, RunError, RunKind, RunnableNode, RunOptions
 from bench.language.value import CustomObject
 from bench.runtime.action import ActionRunner
 from bench.runtime.core import RetryableError
-from bench.runtime.runner import Context, Runner
+from bench.runtime.runner import Context, Interrupted, Runner
 from bench.runtime.runtime import Runtime
 
 logger = structlog.get_logger(__name__)
@@ -23,14 +24,21 @@ tracer = trace.get_tracer(__name__)
 #
 
 
-class FlowRunnerBase(ABC):
+class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
     """Runs a Flow or sub-Flow."""
 
     _force_complete: CustomObject | Literal[True] | None = None
     _force_fail: RunError | None = None
 
-    if TYPE_CHECKING:
-        node: FlowBlock | Step  # from implementing Runner
+    @abstractmethod
+    def get_steps(self) -> Sequence[Step]:
+        """Gets all Steps in this (sub-)Flow."""
+        ...
+
+    @abstractmethod
+    def get_pipes_at(self, step: Step, side: PortSide) -> Sequence[Pipe]:
+        """Gets all Pipes connected to a Step."""
+        ...
 
     def _abort(self):
         """Abort any (non-boundary) running steps."""
@@ -54,15 +62,40 @@ class FlowRunnerBase(ABC):
         self._abort()  # cancel all active steps
         logger.debug("flow.fail", flow=self.node, runner=self)
 
+    def _tick(
+        self,
+    ): ...
 
-class FlowRunner(Runner[FlowBlock], FlowRunnerBase):
+    def _on_terminated(self, runner: Runner) -> None: ...
+
+    @override
+    async def run(self) -> None:
+        assert self.tracked_run is not None, f"{self!r} must be tracked"
+        seeds: list[Step] = []
+        for step in self.get_steps():
+            if step.type == StepType.START:
+                seeds.append(step)
+
+        # nocheckin: restore seeds from Runs?
+
+
+class FlowRunner(FlowRunnerBase[FlowBlock]):
     """Runs an entire Flow."""
 
     kind: ClassVar[RunKind] = RunKind.FLOW
 
     @override
-    async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin: FlowRunner.run_once")
+    def get_steps(self) -> Sequence[Step]:
+        return self.node.steps
+
+    @override
+    def get_pipes_at(self, step: Step, side: PortSide) -> Sequence[Pipe]:
+        if side == PortSide.INCOMING:
+            return tuple(pipe for pipe in self.node.pipes if pipe.target_id == step.id)
+        elif side == PortSide.OUTGOING:
+            return tuple(pipe for pipe in self.node.pipes if pipe.source_id == step.id)
+        else:
+            assert_never(side)
 
 
 #
@@ -81,6 +114,7 @@ class StepRunnerBase(Runner[Step], ABC):
         track: bool,
         options: RunOptions,
         context: Context,
+        flow: FlowRunner | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         run: Run | None = None,
@@ -95,19 +129,18 @@ class StepRunnerBase(Runner[Step], ABC):
             inputs=inputs,
             run=run,
         )
-        self.outer_task: asyncio.Task | None = None
-        self.flow: FlowRunner | None = None
+        self.flow = flow
 
 
 class StartStepRunner(StepRunnerBase):
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         self.outputs = self.inputs
 
 
 class CompleteStepRunner(StepRunnerBase):
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         self.outputs = self.inputs
         if self.flow is not None:
             self.flow._complete(outputs=self.outputs)
@@ -115,7 +148,7 @@ class CompleteStepRunner(StepRunnerBase):
 
 class FailStepRunner(StepRunnerBase):
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         self.outputs = self.inputs
         if self.flow is not None:
             e = RetryableError("Flow failed")
@@ -125,13 +158,13 @@ class FailStepRunner(StepRunnerBase):
 
 class TriggerStepRunner(StepRunnerBase):
     @override
-    async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin: TriggerStepRunner")
+    async def run(self) -> None:
+        raise NotImplementedError
 
 
 class ActionStepRunner(StepRunnerBase):
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         assert self.node.type == StepType.ACTION, f"unexpected node {self.node!r}"
         runner = ActionRunner(
             runtime=self.runtime,
@@ -146,31 +179,24 @@ class ActionStepRunner(StepRunnerBase):
         self.outputs = runner.outputs
 
 
-class SendStepRunner(StepRunnerBase):
-    @override
-    async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin: SendStepRunner")
-
-
 class YieldStepRunner(StepRunnerBase):
     @override
-    async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin: YieldStepRunner")
-
-
-class LoopStepRunner(StepRunnerBase, FlowRunnerBase):
-    @override
-    async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin: GroupStepRunner")
+    async def run(self) -> None:
+        assert self.tracked_run is not None, f"{self!r} must be tracked"
+        interrupt = self.tracked_run.interrupt
+        if interrupt is None:
+            interrupt = Interrupt.from_yield(self.tracked_run)
+            raise Interrupted(cast(Runner, self), self.tracked_run, interrupt)
+        else:
+            self.outputs = interrupt.outputs
 
 
 STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
     StepType.START: StartStepRunner,
     StepType.COMPLETE: CompleteStepRunner,
     StepType.FAIL: FailStepRunner,
-    StepType.SEND: SendStepRunner,
+    StepType.YIELD: YieldStepRunner,
     StepType.ACTION: ActionStepRunner,
-    StepType.LOOP: LoopStepRunner,
 }
 
 #
@@ -206,7 +232,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
         self.flow: FlowRunner | None = None
 
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         self.outputs = self.inputs
 
 

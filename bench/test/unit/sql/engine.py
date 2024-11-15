@@ -103,7 +103,7 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture
 async def test_cur(blank_store: Store):
     # creates test schema
     async with pg_connection(blank_store, autocommit=True) as conn:

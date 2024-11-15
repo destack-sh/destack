@@ -162,7 +162,7 @@ class CodeScriptRunner(CodeRunnerBase):
     """Run a code script and update the state's exported definitions."""
 
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         # compile
         compiled = await self._compile_code(CodeType.SCRIPT)
         if not compiled.body_co:
@@ -188,7 +188,7 @@ class CodeFunctionRunner(CodeRunnerBase):
     """Run a code function and update the run's outputs."""
 
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         # compile
         compiled = await self._compile_code(CodeType.FUNCTION)
         if not compiled.body_co:

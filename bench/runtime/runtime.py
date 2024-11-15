@@ -19,7 +19,7 @@ from bench.runtime.core import (
     DYNAMIC_CODE_GLOBALS,
     STATIC_CODE_GLOBALS,
 )
-from bench.runtime.runner import Runner, run_from_node, runner_from_run
+from bench.runtime.runner import Runner, RunnerHook, run_from_node, runner_from_run
 from bench.utils.oracle import Oracle
 
 logger = structlog.get_logger(__name__)
@@ -76,10 +76,10 @@ class Runtime:
     @property
     def active_run(self) -> Run | None:
         runner = self._active_runner.get(None)
-        return runner.run if runner else None
+        return runner.tracked_run if runner else None
 
-    @tracer.start_as_current_span("runtime.run_runner.once_retrying")
-    async def _do_run_once_retrying(self, runner: Runner):
+    @tracer.start_as_current_span("runtime.run_runner.retrying")
+    async def _do_run_retrying(self, runner: Runner):
         """Runs a a Runner, retrying automatically and updating the Runner along the way."""
         # check inputs
         if runner.input_type is not None:
@@ -121,7 +121,7 @@ class Runtime:
                         with tracer.start_as_current_span("runtime.attempt.run"):
                             started_at = self.oracle.utc()
                             attempt._do_set("started_at", started_at, validate=False)
-                            runner.task = asyncio.create_task(runner.run_once())
+                            runner.task = asyncio.create_task(runner.run())
                             await runner.task
                             terminated_at = self.oracle.utc()
                         if runner.output_type is not None:
@@ -176,10 +176,10 @@ class Runtime:
             # reset active run
             self._active_runner.reset(active_run_runner_token)
 
-    @tracer.start_as_current_span("runtime.run_runner.once_tracked")
-    async def _do_run_once_retrying_tracked(self, runner: Runner):
+    @tracer.start_as_current_span("runtime.run_runner.tracked")
+    async def _do_run_tracked(self, runner: Runner):
         """Runs a Runner, retrying automatically and updating the Run along the way."""
-        run = runner.run
+        run = runner.tracked_run
         assert run is not None, f"missing run in {runner!r}"
         context.attach(baggage.set_baggage("run_id", str(run.id)))
 
@@ -207,7 +207,7 @@ class Runtime:
 
         # actually attempt Run
         try:
-            await self._do_run_once_retrying(runner)
+            await self._do_run_retrying(runner)
         finally:
             # get status from last runner / last attempt
             run._do_set("attempts", runner.attempts, validate=False)
@@ -235,23 +235,24 @@ class Runtime:
             self.session.commit_optimistic()
 
     @tracer.start_as_current_span("runtime.run_runner")
-    async def run_runner(self, runner: Runner):
+    async def run_runner(self, runner: Runner, hook: RunnerHook | None = None):
         """Runs something runnable, considering its dependencies and run options."""
-
-        # NOTE :Incomplete: prepare run runner context (Runner.prepare?)
-        #  (for code, we need the referenced imports/exports ready)
-
-        # run it
         async with self.session.active():
             self._active_runners_by_id[runner.id] = runner
+            exc = None
             try:
                 trace.get_current_span().set_attribute("runner", repr(runner))
-                if runner.run is not None:
-                    await self._do_run_once_retrying_tracked(runner)
+                if runner.tracked_run is not None:
+                    await self._do_run_tracked(runner)
                 else:
-                    await self._do_run_once_retrying(runner)
+                    await self._do_run_retrying(runner)
+            except Exception as e:
+                exc = e
+                raise
             finally:
                 self._active_runners_by_id.pop(runner.id, None)
+                if hook is not None:
+                    hook(runner, exc)
                 if not runner.is_tracked and runner.parent is not None:
                     # add inner spans/logs/events to parent
                     runner.parent.logs.extend(runner.logs)

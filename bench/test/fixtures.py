@@ -101,7 +101,7 @@ async def delete_test_db(store: Store):
         await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
 
 
-@pytest.fixture()
+@pytest.fixture
 async def blank_store(request: pytest.FixtureRequest):
     """Gets the per test function blank store"""
 
@@ -113,7 +113,7 @@ async def blank_store(request: pytest.FixtureRequest):
         await delete_test_db(store)
 
 
-@pytest.fixture()
+@pytest.fixture
 async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
@@ -125,7 +125,7 @@ async def global_store(request: pytest.FixtureRequest):
         await delete_test_db(store)
 
 
-@pytest.fixture()
+@pytest.fixture
 async def omni_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 

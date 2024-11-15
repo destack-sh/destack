@@ -51,7 +51,7 @@ class ActionRunner(Runner):
         return cast(Action, self.node)
 
     @override
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         assert self.node.type in (
             BlockType.ACTION,
             StepType.ACTION,
@@ -422,8 +422,10 @@ def make_prompt(
     context_items: list[PromptPart] = []
     if include_run_context:
         for ancestor in reversed(tuple(runner.ancestors)):
-            if ancestor.run is not None:
-                context_items.append(PromptRun(title="Parent run", weight=5, node=ancestor.run))
+            if ancestor.tracked_run is not None:
+                context_items.append(
+                    PromptRun(title="Parent run", weight=5, node=ancestor.tracked_run)
+                )
     context_items.append(PromptSource(title="Current node", weight=10, node=runner.node))
     # NOTE :Incomplete: more general Context to Prompt?
 

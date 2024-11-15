@@ -1,11 +1,18 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from git import TYPE_CHECKING
 
-from bench.language.const import EnumType, NodeType, StructType, enum_
+from bench.language.const import EnumType, NodeType, ObjectKind, StructType, enum_
 from bench.language.node import NodeReference, RuntimeNode, Struct, struct_, timed_node_
-from bench.language.property import p_internal, p_node_ancestor, p_node_parent, p_regular
+from bench.language.property import (
+    p_internal,
+    p_node_ancestor,
+    p_node_parent,
+    p_regular,
+    p_value_packed,
+    p_value_runtime,
+)
 from bench.language.session import HasSessionContext
 from bench.language.trigger import Trigger
 from bench.utils.func import IdEnum
@@ -73,13 +80,17 @@ class Interrupt(RuntimeNode, HasSessionContext):
     parent: "Run" = p_node_parent(4, NodeType.RUN)
     kind: InterruptKind = p_regular(30, require=True)
     root: "Run | None" = p_node_ancestor(
-        32, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
+        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
-    block: Optional["Block"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
-    pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
+    block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(33, require=False, array=False, references=NodeType.STEP)
+    pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
+    trigger: Optional["Trigger"] = p_regular(
+        37, require=False, default=None, references=NodeType.TRIGGER
+    )
+    attempt_no: Optional[int] = p_internal(38, require=False, default=None)
 
     # status
     status: InterruptStatus = p_internal(40, default=InterruptStatus.OPEN)
@@ -88,6 +99,16 @@ class Interrupt(RuntimeNode, HasSessionContext):
     closed_at: Optional[datetime] = p_regular(43, require=False, default=None)
 
     # content
-    trigger: Optional["Trigger"] = p_regular(
-        50, require=False, default=None, references=NodeType.TRIGGER
-    )
+    outputs_packed: Any = p_value_packed(50)
+    outputs: Any = p_value_runtime(50, kind=ObjectKind.OUTPUT, typ=None)
+
+    @staticmethod
+    def from_yield(run: "Run") -> "Interrupt":
+        return Interrupt(
+            kind=InterruptKind.YIELD,
+            parent=run,
+            session=run.session,
+            block=run.block,
+            step=run.step,
+            pipe=run.pipe,
+        )

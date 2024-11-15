@@ -43,7 +43,7 @@ async def test_run_flow_empty(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.run and not runner.run.runs  # no nested runs
+    assert runner.tracked_run and not runner.tracked_run.runs  # no nested runs
 
 
 async def test_run_flow_spurious(local_runtime: RuntimeHandle):
@@ -58,7 +58,7 @@ async def test_run_flow_spurious(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.run and len(runner.run.runs) == 1  # just Start
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 1  # just Start
 
 
 async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
@@ -72,7 +72,7 @@ async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.run and len(runner.run.runs) == 2  # two steps
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 3  # two steps + pipe
 
 
 async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
@@ -88,7 +88,7 @@ async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.run and len(runner.run.runs) == 2
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
 async def test_run_flow_pipe_to_nowhere(local_runtime: RuntimeHandle):
@@ -105,7 +105,7 @@ async def test_run_flow_pipe_to_nowhere(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.run and len(runner.run.runs) == 2
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 4
 
 
 async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
@@ -174,7 +174,7 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1, inputs={"Input1": 2})
-    assert runner.run and len(runner.run.runs) == 3  # three steps
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 3  # three steps
     assert runner.outputs and runner.outputs.Output1 == 4
 
 
@@ -192,7 +192,7 @@ async def test_run_flow_error(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.run and len(runner.run.runs) == 2
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 2
 
 
 async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle):
@@ -214,7 +214,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
 
     runner = await local_runtime.run(Flow1)
     assert runner.status == RunStatus.COMPLETED
-    assert runner.run and len(runner.run.runs) == 3
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
 async def test_run_flow_race(local_runtime: RuntimeHandle):
@@ -236,13 +236,13 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.run
-    aborted_runs = [r for r in runner.run.runs if r.status == RunStatus.ABORTED]
+    assert runner.tracked_run
+    aborted_runs = [r for r in runner.tracked_run.runs if r.status == RunStatus.ABORTED]
     assert len(aborted_runs) == 2  # the two losers should be aborted
-    assert len(runner.run.runs) == 5  # all steps should run exactly once
+    assert len(runner.tracked_run.runs) == 5  # all steps should run exactly once
     # slowers steps should be aborted
-    assert runner.runs[2].node == Race2 and runner.runs[2].status == RunStatus.ABORTED
-    assert runner.runs[3].node == Race3 and runner.runs[3].status == RunStatus.ABORTED
+    assert runner.runners[2].node == Race2 and runner.runners[2].status == RunStatus.ABORTED
+    assert runner.runners[3].node == Race3 and runner.runners[3].status == RunStatus.ABORTED
 
 
 async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
@@ -259,7 +259,7 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.run and len(runner.run.runs) == 4  # two steps
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 4  # two steps
 
 
 async def test_run_flow_infinite_loop_with_extra_hop(local_runtime: RuntimeHandle):
@@ -305,9 +305,13 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED
-    assert runner.run and runner.run.duration and runner.run.duration.total_seconds() < 1
+    assert (
+        runner.tracked_run
+        and runner.tracked_run.duration
+        and runner.tracked_run.duration.total_seconds() < 1
+    )
     # code step should also be aborted
-    assert runner.runs[1].node == Code1 and runner.runs[1].status == RunStatus.ABORTED
+    assert runner.runners[1].node == Code1 and runner.runners[1].status == RunStatus.ABORTED
 
 
 async def test_run_flow_yield(local_runtime: RuntimeHandle):

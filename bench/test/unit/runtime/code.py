@@ -174,7 +174,7 @@ async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
-    assert runner.run and runner.run.duration is not None
+    assert runner.tracked_run and runner.tracked_run.duration is not None
 
 
 async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
@@ -514,4 +514,8 @@ async def test_run_code_abort(local_runtime: RuntimeHandle):
     runner = await run_task
     # run should be aborted
     assert runner.status == RunStatus.ABORTED
-    assert runner.run and runner.run.duration and runner.run.duration.total_seconds() < 1
+    assert (
+        runner.tracked_run
+        and runner.tracked_run.duration
+        and runner.tracked_run.duration.total_seconds() < 1
+    )

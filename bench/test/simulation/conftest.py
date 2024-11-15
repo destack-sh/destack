@@ -11,6 +11,6 @@ _setup_test_env()
 
 # NOTE: simulation tests must be run with one event loop per function to isolate
 #  (and use our custom event loop for fast-forwarding support)
-@pytest.fixture()
+@pytest.fixture
 def event_loop_policy():
     return SimulatedEventLoopPolicy()
