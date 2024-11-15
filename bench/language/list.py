@@ -124,7 +124,7 @@ class NodeList[V: Node](abc.ABC):
         self.extend(*nodes)
 
 
-class LocalNodeList[V: Node](NodeList[V], Collection[V]):
+class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
     """A NodeList backed by a local graph."""
 
     def __str__(self):
@@ -210,7 +210,7 @@ class LocalNodeList[V: Node](NodeList[V], Collection[V]):
     def __getitem__(self, item: int) -> V: ...
     @overload
     def __getitem__(self, item: slice) -> list[V]: ...
-    def __getitem__(self, item: Union[str, UUID, int, slice]):
+    def __getitem__(self, item: Union[str, UUID, int, slice]):  # type: ignore
         """Gets a node by index or name."""
         if isinstance(item, (str, UUID)):
             return self.get(item)

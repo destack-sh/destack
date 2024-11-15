@@ -1,6 +1,6 @@
 import abc
 import asyncio
-from typing import TYPE_CHECKING, Any, ClassVar, Iterable, assert_never, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, assert_never, cast
 
 import structlog
 from opentelemetry import trace
@@ -9,6 +9,7 @@ from bench.language.code import Code
 from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe
+from bench.language.interrupt import Interrupt
 from bench.language.log import LogInfo
 from bench.language.run import (
     Context,
@@ -34,6 +35,18 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+class Interrupted(Exception):  # noqa: N818
+    """A Runner/Run is interrupted."""
+
+    def __init__(self, runner: "Runner", run: Run, interrupt: Interrupt):
+        self.runner = runner
+        self.run = run
+        self.interrupt = interrupt
+
+
+RunnerHook = Callable[["Runner", Exception | None], None]
+
+
 class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """A runner for a single Run (tracked Run or untracked RunSpan)."""
 
@@ -53,12 +66,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "output_type",
         "outputs",
         "parent",
-        "run",
+        "runners",
+        "runners_by_id",
         "runs",
         "runtime",
         "spans",
         "status",
         "task",
+        "tracked_run",
     )
 
     kind: ClassVar[RunKind]
@@ -94,18 +109,18 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.logs: list[LogInfo] = []
         self.spans: list[RunSpan] = []
         self.events: list[RunEvent] = []
-        self.runs: list[Runner] = []
-        self.run = run
+        self.runners: list[Runner] = []
+        self.tracked_run = run
         self.task: asyncio.Task | None = None
         self.is_cancelled = False
 
         # nest active Runners/Runs
         if self.parent is not None:
-            self.parent.runs.append(self)
+            self.parent.runners.append(self)
         if track and run is None:
             if self.parent is not None:
-                assert self.parent.run is not None, f"{self.parent!r} has no Run"
-                parent_run = self.parent.run
+                assert self.parent.tracked_run is not None, f"{self.parent!r} has no Run"
+                parent_run = self.parent.tracked_run
             else:
                 parent_run = None
             with tracer.start_as_current_span("runtime.create_run"):
@@ -121,7 +136,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     _skip_validate_self=True,
                 )
                 self.runtime.session._create(run)
-            self.run = run
+            self.tracked_run = run
 
     def __str__(self):
         str_parts: list[str] = [
@@ -131,10 +146,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         ]
         if self.attempts:
             str_parts.append(f"attempts={self.attempts}")
-        if self.runs:
-            str_parts.append(f"runs={len(self.runs)}")
-        if self.run:
-            str_parts.append(f"run={self.run}")
+        if self.runners:
+            str_parts.append(f"runs={len(self.runners)}")
+        if self.tracked_run:
+            str_parts.append(f"run={self.tracked_run}")
         return ", ".join(str_parts)
 
     def __repr__(self):
@@ -147,12 +162,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 
     def walk(self) -> Iterable["Runner"]:
         yield self
-        for run in self.runs:
+        for run in self.runners:
             yield from run.walk()
 
     @property
     def is_tracked(self) -> bool:
-        return self.run is not None
+        return self.tracked_run is not None
 
     @property
     def is_nested(self) -> bool:
@@ -170,7 +185,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             parent = parent.parent
 
     @abc.abstractmethod
-    async def run_once(self) -> None:
+    async def run(self) -> None:
         """Runs the runnable once."""
         ...
 

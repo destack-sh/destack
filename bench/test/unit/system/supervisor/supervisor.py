@@ -30,7 +30,7 @@ from bench.utils.oracle import REAL_ORACLE
 #
 
 
-@pytest.fixture()
+@pytest.fixture
 async def supervisor_service(global_store):
     supervisor_service = SupervisorService(global_store, REAL_ORACLE, HostMap({}))
     await supervisor_service.start()
@@ -39,7 +39,7 @@ async def supervisor_service(global_store):
     await supervisor_service.wait_closed()
 
 
-@pytest.fixture()
+@pytest.fixture
 async def supervisor(supervisor_service):
     async with SimulatedChannel(services=(supervisor_service,), oracle=REAL_ORACLE) as channel:
         yield SupervisorClient(channel=channel)

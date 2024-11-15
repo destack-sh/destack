@@ -1,5 +1,6 @@
 from datetime import timedelta
 from typing import TYPE_CHECKING, Optional, Type, Union, cast
+from uuid import UUID
 
 import cachetools
 
@@ -115,7 +116,11 @@ class Pipe(SourceNode[PipeData]):
     target: "Step" = p_regular(36, require=True, references=NodeType.STEP)
     if TYPE_CHECKING:
         source_ptr: Optional[NodeReference] = None
+        source_id: Optional[UUID] = None
+        source_ck: Optional[str] = None
         target_ptr: Optional[NodeReference] = None
+        target_id: Optional[UUID] = None
+        target_ck: Optional[str] = None
 
     # associated_fields, ...?
 

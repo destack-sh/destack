@@ -13,6 +13,7 @@ from bench.language.const import (
     StructType,
     enum_,
 )
+from bench.language.list import LocalNodeList
 from bench.language.node import (
     HasNodeBase,
     Node,
@@ -387,14 +388,19 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     kind: RunKind = p_system(30)
     root: "Run | None" = p_node_ancestor(
-        32, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
+        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
-
-    block: Optional["Block"] = p_internal(33, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(34, require=False, array=False, references=NodeType.STEP)
-    pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
+    block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(33, require=False, array=False, references=NodeType.STEP)
+    pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
+    incoming: list["Run"] = p_internal(
+        36, require=False, array=True, references=NodeType.RUN, same_bench=True
+    )
+    outgoing: list["Run"] = p_internal(
+        37, require=False, array=True, references=NodeType.RUN, same_bench=True
+    )
     context: Optional["Context"] = p_internal(
         38, require=False, array=False, struct=StructType.CONTEXT
     )
@@ -452,7 +458,8 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     # ...HasSessionContext[70-89]
 
-    runs: list["Run"] = p_node_children(NodeType.RUN)
+    runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
+    interrupts: LocalNodeList["Interrupt"] = p_node_children(NodeType.INTERRUPT)
 
     def __content_str__(self):
         node = self.runnable

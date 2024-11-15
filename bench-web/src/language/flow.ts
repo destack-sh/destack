@@ -540,7 +540,9 @@ export class FlowContext {
   /** Pan the canvas in response to a wheel event */
   onWheel(e: WheelEvent) {
     // NOTE :UX: handle multitouch gestures in Flow better (zoom)
-    this.pan({ x: e.deltaX, y: e.deltaY });
+    const deltaX = e.deltaX;
+    const deltaY = (e as any).webkitDirectionInvertedFromDevice ? -e.deltaY : e.deltaY;
+    this.pan({ x: deltaX, y: deltaY });
   }
 
   /** Starts dragging a thing if it's not a disallowed element (like an input). */
