@@ -6,15 +6,13 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import render
-from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.const import ObjectKind
 from bench.language.field import Field, TypeBase
 from bench.language.file import upload
-from bench.language.flow import Pipe, Step
 from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
-from bench.language.run import Run, RunKind, RunOptions
+from bench.language.run import Run, RunKind, RunnableNode, RunOptions
 from bench.language.value import CustomObject, coerce_custom_object
 from bench.runtime.capture import (
     MAX_LOG_LINE_LENGTH,
@@ -44,7 +42,7 @@ class CodeRunnerBase(Runner):
         self,
         *,
         runtime: Runtime,
-        node: Block | Step | Pipe,
+        node: RunnableNode,
         code: Code,
         track: bool,
         options: RunOptions,

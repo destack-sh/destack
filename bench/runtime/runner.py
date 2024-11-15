@@ -1,6 +1,6 @@
 import abc
 import asyncio
-from typing import TYPE_CHECKING, Any, ClassVar, Iterable, assert_never
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, assert_never, cast
 
 import structlog
 from opentelemetry import trace
@@ -17,6 +17,7 @@ from bench.language.run import (
     RunError,
     RunEvent,
     RunKind,
+    RunnableNode,
     RunOptions,
     RunSpan,
 )
@@ -33,7 +34,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Runner(abc.ABC):
+class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """A runner for a single Run (tracked Run or untracked RunSpan)."""
 
     __slots__ = (
@@ -66,7 +67,7 @@ class Runner(abc.ABC):
         self,
         *,
         runtime: "Runtime",
-        node: "Block | Step | Pipe",
+        node: N,
         track: bool,
         options: RunOptions,
         context: Context,
@@ -175,7 +176,7 @@ class Runner(abc.ABC):
 
 
 def run_from_node(
-    node: "Block | Step | Pipe",
+    node: "RunnableNode",
     *,
     options: RunOptions | None = None,
     inputs: Any | None = None,
@@ -251,7 +252,7 @@ def runner_from_run(runtime: "Runtime", run: Run, *, track: bool) -> "Runner":
 
 def runner_from_node(
     runtime: "Runtime",
-    node: "Block | Step | Pipe",
+    node: RunnableNode,
     track: bool,
     *,
     kind: RunKind | None = None,
@@ -276,6 +277,7 @@ def runner_from_node(
         "track": track,
         "node": node,
         "parent": parent,
+        **kwargs,
     }
 
     run_kind = kind or node.run_kind
@@ -284,26 +286,28 @@ def runner_from_node(
         from bench.runtime.code import CodeFunctionRunner
 
         code = getattr(node, "code", None) or Code.empty()
-        return CodeFunctionRunner(**base_kwargs, code=code)
+        runner = CodeFunctionRunner(**base_kwargs, code=code)
     elif run_kind == RunKind.ACTION:
         from bench.runtime.action import ActionRunner
 
-        return ActionRunner(**base_kwargs)
+        runner = ActionRunner(**base_kwargs)
     elif run_kind == RunKind.FLOW:
         from bench.runtime.flow import FlowRunner
 
-        return FlowRunner(**base_kwargs)
+        runner = FlowRunner(**base_kwargs)
     elif run_kind == RunKind.STEP:
         from bench.runtime.flow import STEP_RUNNER_BY_STEP_TYPE, Step
 
         assert isinstance(node, Step), f"expected Step, got {node!r}"
         runner_cls = STEP_RUNNER_BY_STEP_TYPE[node.type]
-        return runner_cls(**base_kwargs)
+        runner = runner_cls(**base_kwargs)
     elif run_kind == RunKind.PIPE:
         from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE, Pipe
 
         assert isinstance(node, Pipe), f"expected Pipe, got {node!r}"
         runner_cls = PIPE_RUNNER_BY_PIPE_TYPE[node.type]
-        return runner_cls(**base_kwargs)
+        runner = runner_cls(**base_kwargs)
     else:
         assert_never(run_kind)
+
+    return cast(Runner, runner)

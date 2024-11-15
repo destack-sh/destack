@@ -420,6 +420,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 :node-ptr="toNodeRefOneOf(block)"
                 :prepared-connection="preparedPkgConnection"
                 v-bind="state.getChildState(block.id)"
+                :draggable="block.type == BlockType.PAGE"
+                @dragstart.stop="(e) => startDraggingIfAllowed(e, pkgGraph, block)"
               />
             </div>
           </div>

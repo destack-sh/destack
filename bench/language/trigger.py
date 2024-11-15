@@ -13,9 +13,11 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.node import (
+    BuiltinObject,
     SourceNode,
     Struct,
     local_node_,
+    object_,
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
@@ -72,21 +74,12 @@ class Schedule(Struct):
                 invalid(self, "offset too large ('{self.offset}')", (Schedule.offset,))
 
 
-@local_node_(NodeType.TRIGGER)
-class Trigger(SourceNode[TriggerData]):
-    """A Trigger to run something."""
-
-    parent: Union["Block", "Run", None] = p_node_parent(4, NodeType.BLOCK, NodeType.RUN)
-    type: TriggerType = p_regular(30, require=True)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-
-    processed_epoch: Optional[int] = p_regular(40, default=None)
-
-    # trigger
+@object_()
+class TriggerBase(BuiltinObject):
     schedule: Optional[Schedule] = p_regular(
         50, default=None, require=False, array=False, struct=StructType.SCHEDULE
     )
-    signal: Optional["Block"] = p_regular(
+    message: Optional["Block"] = p_regular(
         51,
         default=None,
         require=False,
@@ -98,14 +91,24 @@ class Trigger(SourceNode[TriggerData]):
         52, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
 
-    # flags
-    is_paused: bool = p_regular(60, default=False)
+
+@local_node_(NodeType.TRIGGER)
+class Trigger(SourceNode[TriggerData], TriggerBase):
+    """A Trigger to run something."""
+
+    parent: Union["Block", "Run", None] = p_node_parent(4, NodeType.BLOCK, NodeType.RUN)
+    type: TriggerType = p_regular(30, require=True)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    is_paused: bool = p_regular(35, default=False)
+    processed_epoch: Optional[int] = p_regular(36, default=None)
+
+    # ...TriggerBase[50-69]
 
     def __content_str__(self):
         if self.type == TriggerType.SCHEDULE and self.schedule:
             content_str = self.schedule.__content_str__()
-        elif self.type == TriggerType.SIGNAL and self.signal:
-            content_str = self.signal.absolute_path
+        elif self.type == TriggerType.SIGNAL and self.message:
+            content_str = self.message.absolute_path
         else:
             content_str = None
         return f"{self.type} {content_str or '<none>'}"

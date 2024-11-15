@@ -711,8 +711,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       }"
     >
       <!-- Page header (title) -->
-      <div v-if="variant != Variant.COMPACT" class="mb-2 mt-5 px-0.5">
-        <IconName v-if="block" size="title" :node="block" :tx="() => pkgConnection.tx" />
+      <div v-if="variant != Variant.COMPACT">
+        <IconName v-if="block" class="mb-2 mt-5 px-0.5" size="title" :node="block" :tx="() => pkgConnection.tx" />
       </div>
 
       <!-- Action header -->

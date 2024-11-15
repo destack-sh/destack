@@ -17,6 +17,7 @@ import {
 import { cloneNode } from "@/language/node";
 import {
   ChangeCategory,
+  FieldType,
   NodeReferenceData,
   NodeType,
   PipeData,
@@ -46,6 +47,7 @@ import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
+import Type from "@/views/system/Type.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
 
@@ -245,13 +247,33 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div
       v-if="variant != Variant.COMPACT"
       ref="headerRef"
-      class="mb-2 mt-5"
       :style="{
         marginLeft: `${GUTTER_WIDTH}px`,
         marginRight: `${GUTTER_WIDTH}px`,
       }"
     >
-      <IconName v-if="flow" size="title" :node="flow" :tx="() => pkgConnection.tx" />
+      <!-- Title -->
+      <IconName v-if="flow" class="mb-2 mt-5" size="title" :node="flow" :tx="() => pkgConnection.tx" />
+      <!-- Signature -->
+      <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
+        <Type
+          id="type.input"
+          class=""
+          :node="flow"
+          :prepared-connection="pkgGetConnection"
+          :node-ptr="props.nodePtr"
+          :field-type="FieldType.INPUT"
+        />
+        <i class="fas fa-arrow-right-long text-base text-gray-400" />
+        <Type
+          id="type.output"
+          class=""
+          :node="flow"
+          :prepared-connection="pkgGetConnection"
+          :node-ptr="props.nodePtr"
+          :field-type="FieldType.OUTPUT"
+        />
+      </div>
     </div>
     <!-- Canvas body -->
     <div

@@ -37,10 +37,9 @@ from bench.language.const import (
     UserStatus,
     _active_session,
 )
-from bench.language.flow import Pipe, Step
 from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, BuiltinObject, GraphScope
-from bench.language.run import Run
+from bench.language.run import Run, RunnableNode
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata
 from bench.runtime.runner import Runner
@@ -74,7 +73,7 @@ def create_omni_session(omni_store: Store, oracle: Oracle):
     return session
 
 
-@pytest.fixture
+@pytest.fixture()
 def omni_session(omni_store: Store):
     """
     Gets the per test function global real session.
@@ -113,7 +112,7 @@ def make_session(name: str):
 # https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549 :PytestAsyncContext
 
 
-@pytest.fixture  # :PytestAsyncContext
+@pytest.fixture()  # :PytestAsyncContext
 async def session_async(request):
     session = make_session(clean_name(request.node.name))
     await session.open(set_in_context=False)
@@ -133,14 +132,14 @@ def make_package(session: Session):
     return package
 
 
-@pytest.fixture
+@pytest.fixture()
 def session(session_async: Session):
     active_session_token = _active_session.set(session_async)
     yield session_async
     _active_session.reset(active_session_token)
 
 
-@pytest.fixture
+@pytest.fixture()
 def package(session: Session):
     package = make_package(session)
     return package
@@ -224,7 +223,7 @@ class RuntimeHandle:
 
     async def run(
         self,
-        run: Run | Block | Step | Pipe,
+        run: Run | RunnableNode,
         *,
         inputs: Any | None = None,
         return_error: bool = False,
@@ -239,7 +238,7 @@ class RuntimeHandle:
 #
 
 
-@pytest.fixture
+@pytest.fixture()
 async def local_runtime_async(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         # setup user/client
@@ -308,7 +307,7 @@ async def local_runtime_async(global_store: Store):
                 await delete_test_db(store)
 
 
-@pytest.fixture
+@pytest.fixture()
 def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
     active_session_token = _active_session.set(local_runtime_async.session)
     yield local_runtime_async
@@ -320,7 +319,7 @@ def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
 #
 
 
-@pytest.fixture
+@pytest.fixture()
 async def hosted_bench(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         user = User(
@@ -364,7 +363,7 @@ async def hosted_bench(global_store: Store):
     return bench
 
 
-@pytest.fixture
+@pytest.fixture()
 async def host_service(global_store: Store, hosted_bench: Bench):
     host = HostService(bench_id=hosted_bench.id, global_store=global_store, oracle=REAL_ORACLE)
     await host.start()
@@ -380,13 +379,13 @@ async def host_service(global_store: Store, hosted_bench: Bench):
                 await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))
 
 
-@pytest.fixture
+@pytest.fixture()
 async def host(host_service: HostService):
     async with SimulatedChannel(services=(host_service,), oracle=REAL_ORACLE) as channel:
         yield HostClient(channel)
 
 
-@pytest.fixture
+@pytest.fixture()
 async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     user = hosted_bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
@@ -437,7 +436,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         yield handle
 
 
-@pytest.fixture
+@pytest.fixture()
 def hosted_runtime(hosted_runtime_async: RuntimeHandle):  # :PytestAsyncContext
     active_session_token = _active_session.set(hosted_runtime_async.session)
     yield hosted_runtime_async

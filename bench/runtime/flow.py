@@ -1,15 +1,17 @@
 import asyncio
 from abc import ABC
-from typing import ClassVar, Literal, cast, override
+from typing import TYPE_CHECKING, ClassVar, Literal, cast, override
 
 import structlog
 from opentelemetry import trace
 
-from bench.language.block import Block
+from bench.language.block import FlowBlock
+from bench.language.const import RunErrorKind
 from bench.language.flow import ActionStep, Pipe, PipeType, Step, StepType
 from bench.language.run import Run, RunError, RunKind, RunOptions
 from bench.language.value import CustomObject
 from bench.runtime.action import ActionRunner
+from bench.runtime.core import RetryableError
 from bench.runtime.runner import Context, Runner
 from bench.runtime.runtime import Runtime
 
@@ -21,11 +23,14 @@ tracer = trace.get_tracer(__name__)
 #
 
 
-class FlowRunnerBase(Runner, ABC):
+class FlowRunnerBase(ABC):
     """Runs a Flow or sub-Flow."""
 
     _force_complete: CustomObject | Literal[True] | None = None
     _force_fail: RunError | None = None
+
+    if TYPE_CHECKING:
+        node: FlowBlock | Step  # from implementing Runner
 
     def _abort(self):
         """Abort any (non-boundary) running steps."""
@@ -50,7 +55,7 @@ class FlowRunnerBase(Runner, ABC):
         logger.debug("flow.fail", flow=self.node, runner=self)
 
 
-class FlowRunner(FlowRunnerBase):
+class FlowRunner(Runner[FlowBlock], FlowRunnerBase):
     """Runs an entire Flow."""
 
     kind: ClassVar[RunKind] = RunKind.FLOW
@@ -65,14 +70,14 @@ class FlowRunner(FlowRunnerBase):
 #
 
 
-class StepRunnerBase(Runner, ABC):
+class StepRunnerBase(Runner[Step], ABC):
     kind: ClassVar[RunKind] = RunKind.STEP
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Block | Step | Pipe,
+        node: Step,
         track: bool,
         options: RunOptions,
         context: Context,
@@ -111,7 +116,11 @@ class CompleteStepRunner(StepRunnerBase):
 class FailStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin: FailStepRunner")
+        self.outputs = self.inputs
+        if self.flow is not None:
+            e = RetryableError("Flow failed")
+            error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+            self.flow._fail(error=error)
 
 
 class TriggerStepRunner(StepRunnerBase):
@@ -129,7 +138,7 @@ class ActionStepRunner(StepRunnerBase):
             node=cast(ActionStep, self.node),
             options=self.options,
             context=self.context,
-            parent=self,
+            parent=cast(Runner, self),
             inputs=self.inputs,
             track=False,
         )
@@ -149,12 +158,6 @@ class YieldStepRunner(StepRunnerBase):
         raise NotImplementedError("nocheckin: YieldStepRunner")
 
 
-class GroupStepRunner(StepRunnerBase, FlowRunnerBase):
-    @override
-    async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin: GroupStepRunner")
-
-
 class LoopStepRunner(StepRunnerBase, FlowRunnerBase):
     @override
     async def run_once(self) -> None:
@@ -167,7 +170,6 @@ STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
     StepType.FAIL: FailStepRunner,
     StepType.SEND: SendStepRunner,
     StepType.ACTION: ActionStepRunner,
-    StepType.GROUP: GroupStepRunner,
     StepType.LOOP: LoopStepRunner,
 }
 
@@ -176,14 +178,14 @@ STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
 #
 
 
-class PipeRunnerBase(Runner, ABC):
+class PipeRunnerBase(Runner[Pipe], ABC):
     kind: ClassVar[RunKind] = RunKind.PIPE
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Block | Pipe,
+        node: Pipe,
         track: bool,
         options: RunOptions,
         context: Context,

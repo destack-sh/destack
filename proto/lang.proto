@@ -49,6 +49,7 @@ enum EnumType {
   ENUM_TYPE_TEXT_LINE_TYPE = 20110;
   ENUM_TYPE_ICON_KIND = 20111;
   ENUM_TYPE_MESSAGE_TYPE = 20120;
+  ENUM_TYPE_MESSAGE_STATUS = 20121;
   ENUM_TYPE_EXPRESSION_KIND = 20200;
   ENUM_TYPE_EXPRESSION_OP = 20201;
   ENUM_TYPE_LITERAL_TYPE = 20202;
@@ -70,6 +71,9 @@ enum EnumType {
   ENUM_TYPE_TRIGGER_TYPE = 20520;
   ENUM_TYPE_BREAKPOINT_KIND = 20530;
   ENUM_TYPE_BREAKPOINT_ACTION = 20531;
+  ENUM_TYPE_BREAKPOINT_SCOPE = 20532;
+  ENUM_TYPE_INTERRUPT_KIND = 20533;
+  ENUM_TYPE_INTERRUPT_STATUS = 20534;
   ENUM_TYPE_CACHE_MODE = 20540;
   ENUM_TYPE_CODE_TYPE = 20560;
   ENUM_TYPE_MODEL_PROVIDER = 20570;
@@ -132,6 +136,7 @@ enum NodeType {
   NODE_TYPE_RECORD = 1101;
   NODE_TYPE_SESSION = 1900;
   NODE_TYPE_RUN = 1901;
+  NODE_TYPE_INTERRUPT = 1902;
   NODE_TYPE_LOG = 1903;
   NODE_TYPE_SKIP = 9000;
 }
@@ -243,6 +248,7 @@ enum ObjectType {
   OBJECT_TYPE_RECORD = 1101;
   OBJECT_TYPE_SESSION = 1900;
   OBJECT_TYPE_RUN = 1901;
+  OBJECT_TYPE_INTERRUPT = 1902;
   OBJECT_TYPE_LOG = 1903;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_SESSION_CONTEXT = 10001;
@@ -350,6 +356,7 @@ enum BenchType {
   BENCH_TYPE_RECORD = 1101;
   BENCH_TYPE_SESSION = 1900;
   BENCH_TYPE_RUN = 1901;
+  BENCH_TYPE_INTERRUPT = 1902;
   BENCH_TYPE_LOG = 1903;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_SESSION_CONTEXT = 10001;
@@ -459,6 +466,7 @@ enum BenchType {
   BENCH_TYPE_TEXT_LINE_TYPE = 20110;
   BENCH_TYPE_ICON_KIND = 20111;
   BENCH_TYPE_MESSAGE_TYPE = 20120;
+  BENCH_TYPE_MESSAGE_STATUS = 20121;
   BENCH_TYPE_EXPRESSION_KIND = 20200;
   BENCH_TYPE_EXPRESSION_OP = 20201;
   BENCH_TYPE_LITERAL_TYPE = 20202;
@@ -480,6 +488,9 @@ enum BenchType {
   BENCH_TYPE_TRIGGER_TYPE = 20520;
   BENCH_TYPE_BREAKPOINT_KIND = 20530;
   BENCH_TYPE_BREAKPOINT_ACTION = 20531;
+  BENCH_TYPE_BREAKPOINT_SCOPE = 20532;
+  BENCH_TYPE_INTERRUPT_KIND = 20533;
+  BENCH_TYPE_INTERRUPT_STATUS = 20534;
   BENCH_TYPE_CACHE_MODE = 20540;
   BENCH_TYPE_CODE_TYPE = 20560;
   BENCH_TYPE_MODEL_PROVIDER = 20570;
@@ -956,6 +967,17 @@ enum MessageType {
   MESSAGE_TYPE_SMS = 11;
 }
 
+enum MessageStatus {
+  MESSAGE_STATUS_UNSPECIFIED = 0;
+  MESSAGE_STATUS_DRAFT = 1;
+  MESSAGE_STATUS_PREPARED = 2;
+  MESSAGE_STATUS_SENDING = 3;
+  MESSAGE_STATUS_SENT = 4;
+  MESSAGE_STATUS_FAILED = 5;
+  MESSAGE_STATUS_RECEIVED = 6;
+  MESSAGE_STATUS_READ = 7;
+}
+
 enum ExpressionKind {
   EXPRESSION_KIND_UNSPECIFIED = 0;
   EXPRESSION_KIND_LITERAL = 1;
@@ -1179,12 +1201,32 @@ enum BreakpointKind {
   BREAKPOINT_KIND_START_RUN = 1;
   BREAKPOINT_KIND_FAIL_RUN = 2;
   BREAKPOINT_KIND_COMPLETE_RUN = 3;
-  BREAKPOINT_KIND_CODE_LINE = 20;
+  BREAKPOINT_KIND_RETRY_RUN = 4;
+  BREAKPOINT_KIND_FAIL_ATTEMPT = 5;
 }
 
 enum BreakpointAction {
   BREAKPOINT_ACTION_UNSPECIFIED = 0;
-  BREAKPOINT_ACTION_SUSPEND = 1;
+  BREAKPOINT_ACTION_YIELD = 1;
+  BREAKPOINT_ACTION_LOG = 2;
+}
+
+enum BreakpointScope {
+  BREAKPOINT_SCOPE_UNSPECIFIED = 0;
+  BREAKPOINT_SCOPE_SELF = 1;
+}
+
+enum InterruptKind {
+  INTERRUPT_KIND_UNSPECIFIED = 0;
+  INTERRUPT_KIND_PAUSE = 1;
+  INTERRUPT_KIND_YIELD = 2;
+  INTERRUPT_KIND_TRIGGER = 3;
+}
+
+enum InterruptStatus {
+  INTERRUPT_STATUS_UNSPECIFIED = 0;
+  INTERRUPT_STATUS_OPEN = 1;
+  INTERRUPT_STATUS_CLOSED = 2;
 }
 
 // How to handle caching.
@@ -1232,7 +1274,6 @@ enum StepType {
   STEP_TYPE_ACTION = 60;
   STEP_TYPE_SEND = 61;
   STEP_TYPE_YIELD = 62;
-  STEP_TYPE_GROUP = 500;
   STEP_TYPE_LOOP = 501;
   STEP_TYPE_TEXT = 900;
 }
@@ -1972,13 +2013,6 @@ message RunOptionsData {
   optional VideoOptionsData video_options = 85;
 }
 
-message BreakpointData {
-  ObjectType metatype = 1;
-  BreakpointKind kind = 30;
-  BreakpointAction action = 31;
-  optional ExpressionData condition = 40;
-}
-
 message RunAttemptData {
   ObjectType metatype = 1;
   optional CodeData code = 30;
@@ -2046,6 +2080,24 @@ message FieldMappingData {
   ObjectType metatype = 1;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
+}
+
+message ScheduleData {
+  ObjectType metatype = 1;
+  ScheduleType type = 30;
+  string timezone = 31;
+  int32 every = 40;
+  TimeInterval interval = 41;
+  optional google.protobuf.Duration offset = 42;
+  optional string cron = 50;
+}
+
+message BreakpointData {
+  ObjectType metatype = 1;
+  BreakpointKind kind = 30;
+  BreakpointScope scope = 31;
+  BreakpointAction action = 32;
+  optional ExpressionData condition = 40;
 }
 
 message LogInfoData {
@@ -2165,16 +2217,6 @@ message SecretReferenceData {
   optional string base_ck = 34;
   optional string base_bench_id = 35;
   string title = 43;
-}
-
-message ScheduleData {
-  ObjectType metatype = 1;
-  ScheduleType type = 30;
-  string timezone = 31;
-  int32 every = 40;
-  TimeInterval interval = 41;
-  optional google.protobuf.Duration offset = 42;
-  optional string cron = 50;
 }
 
 message BaseNodeData {
@@ -2863,6 +2905,8 @@ message RunData {
   optional google.protobuf.Timestamp started_at = 48;
   optional int32 started_epoch = 49;
   optional google.protobuf.Timestamp killed_at = 50;
+  optional google.protobuf.Timestamp interrupted_at = 51;
+  optional NodeReferenceData interrupt_ptr = 52;
   optional google.protobuf.Timestamp terminated_at = 55;
   optional int32 terminated_epoch = 56;
   optional google.protobuf.Value inputs_packed = 60;
@@ -2903,6 +2947,7 @@ message PipeData {
   string order_key = 33;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
+  optional RunOptionsData run_options = 50;
   optional ExpressionData condition = 60;
   optional CodeData condition_code = 61;
   optional TypeConstraintData constraint = 62;
@@ -2957,7 +3002,6 @@ message ActionStepData {
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message SendStepData {
-  optional TextData message = 100;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -2968,6 +3012,66 @@ message LoopStepData {
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message TextStepData {
   optional TextData text = 100;
+}
+
+message TriggerData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  TriggerType type = 30;
+  string name = 31;
+  bool is_paused = 35;
+  optional int32 processed_epoch = 36;
+  optional ScheduleData schedule = 50;
+  optional NodeReferenceData message_ptr = 51;
+  optional ExpressionData condition = 52;
+}
+
+message InterruptData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  InterruptKind kind = 30;
+  optional NodeReferenceData root_ptr = 32;
+  optional NodeReferenceData block_ptr = 33;
+  optional NodeReferenceData step_ptr = 34;
+  optional NodeReferenceData pipe_ptr = 35;
+  InterruptStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp opened_at = 42;
+  optional google.protobuf.Timestamp closed_at = 43;
+  optional NodeReferenceData trigger_ptr = 50;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
 }
 
 message LogData {
@@ -3019,9 +3123,10 @@ message MessageData {
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
-  NodeReferenceData origin_ptr = 32;
-  NodeReferenceData block_ptr = 33;
-  optional NodeReferenceData reply_to_ptr = 34;
+  MessageStatus status = 31;
+  NodeReferenceData origin_ptr = 35;
+  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData reply_to_ptr = 37;
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Value value_packed = 42;
@@ -3171,32 +3276,6 @@ message SecretData {
   optional google.protobuf.Value value_packed = 41;
 }
 
-message TriggerData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  TriggerType type = 30;
-  string name = 31;
-  optional int32 processed_epoch = 40;
-  optional ScheduleData schedule = 50;
-  optional NodeReferenceData signal_ptr = 51;
-  optional ExpressionData condition = 52;
-  bool is_paused = 60;
-}
-
 enum IdEnum {
   ID_ENUM_UNSPECIFIED = 0;
 }
@@ -3249,8 +3328,9 @@ message SomeNodeData {
     RecordData record = 30;
     SessionData session = 31;
     RunData run = 32;
-    LogData log = 33;
-    SkipData skip = 34;
+    InterruptData interrupt = 33;
+    LogData log = 34;
+    SkipData skip = 35;
   };
 }
 

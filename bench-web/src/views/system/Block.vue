@@ -149,7 +149,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Open in its own page -->
       <button
         v-if="isHeavy"
-        class="rounded ml-1.5 px-0.5 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+        class="rounded ml-1.5 px-1 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
         @click="() => canvas.goToNode(block!)"
       >
         <i class="fas fa-arrow-up-right" />

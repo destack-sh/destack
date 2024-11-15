@@ -81,6 +81,7 @@ from .field import (
 from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
 from .flow import FieldMapping, ObjectMapping, Pipe, PipeType, Step, StepType
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
+from .interrupt import Breakpoint, BreakpointAction, BreakpointKind, Interrupt, InterruptKind
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
 from .message import Message
@@ -192,6 +193,9 @@ __all__ = [
     "Block",
     "BlockType",
     "Branch",
+    "Breakpoint",
+    "BreakpointAction",
+    "BreakpointKind",
     "Browser",
     "BuiltinObject",
     "C",
@@ -247,6 +251,8 @@ __all__ = [
     "HasNodeBase",
     "Icon",
     "IconKind",
+    "Interrupt",
+    "InterruptKind",
     "Line",
     "LocalNodeList",
     "Log",
