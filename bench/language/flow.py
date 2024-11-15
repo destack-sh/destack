@@ -29,7 +29,7 @@ from bench.language.property import (
     p_node_parent,
     p_regular,
 )
-from bench.language.run import RunKind
+from bench.language.run import RunKind, RunOptions
 from bench.language.validation import (
     NAME_CONSTRAINT,
     constraint,
@@ -118,6 +118,11 @@ class Pipe(SourceNode[PipeData]):
         target_ptr: Optional[NodeReference] = None
 
     # associated_fields, ...?
+
+    # run
+    run_options: Optional["RunOptions"] = p_regular(
+        50, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
 
     # filter
     condition: Optional["Expression"] = p_regular(
@@ -216,10 +221,10 @@ class StepType(IdEnum):
     YIELD = 62  # to other program/human
 
     # state
-    # VALUE = 100  # read (and write?) value
+    # ...
 
     # containers
-    GROUP = 500  # subflow region
+    # GROUP = 500  # subflow region
     LOOP = 501  # repeat
 
     # misc

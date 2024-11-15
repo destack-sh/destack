@@ -48,9 +48,10 @@ from bench.utils.tenacity import RetryOptions
 if TYPE_CHECKING:
     from bench.language import (
         Block,
+        Breakpoint,
         Code,
         CustomObject,
-        Expression,
+        Interrupt,
         LogInfo,
         LogLevel,
         NodeReference,
@@ -62,6 +63,10 @@ if TYPE_CHECKING:
 
 
 # pyright: reportIncompatibleVariableOverride=false
+
+RunnableNode = Union["Block", "Step", "Pipe"]
+
+
 @enum_(EnumType.RUN_KIND)
 class RunKind(IdEnum):
     CODE = 1
@@ -176,7 +181,7 @@ class RunOptions(Struct):
     # context
     # ...
 
-    # debug
+    # control
     breakpoints: list["Breakpoint"] = p_regular(60, array=True, struct=StructType.BREAKPOINT)
 
     # cache
@@ -210,39 +215,6 @@ class RunOptions(Struct):
             else 30,
             # retry_on is handled separately in runtime because we need the specific RunErrorType
         )
-
-
-@enum_(EnumType.BREAKPOINT_KIND)
-class BreakpointKind(IdEnum):
-    # run
-    START_RUN = 1
-    FAIL_RUN = 2
-    COMPLETE_RUN = 3
-    # FAIL_ATTEMPT?
-    ...
-    # text
-    ...
-    # code
-    CODE_LINE = 20
-    # step
-    ...
-
-
-@enum_(EnumType.BREAKPOINT_ACTION)
-class BreakpointAction(IdEnum):
-    SUSPEND = 1
-
-
-@struct_(StructType.BREAKPOINT)
-class Breakpoint(Struct):
-    """A breakpoint in some context."""
-
-    kind: BreakpointKind = p_regular(30)
-    action: BreakpointAction = p_regular(31, default=BreakpointAction.SUSPEND)
-
-    condition: Optional["Expression"] = p_regular(
-        40, require=False, array=False, struct=StructType.EXPRESSION
-    )
 
 
 @struct_(StructType.RUN_ATTEMPT)
@@ -411,7 +383,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     Run a Block, Step or some lambda (Code) in a Session.
     """
 
-    # content
+    # meta
     parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     kind: RunKind = p_system(30)
     root: "Run | None" = p_node_ancestor(
@@ -428,8 +400,8 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     )
     options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
-    # status (overall)
-    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)  # desired status
+    # status
+    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
     duration: Optional[timedelta] = p_internal(
         41,
         default=None,
@@ -454,7 +426,10 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     started_at: Optional[datetime] = p_internal(48, default=None)
     started_epoch: Optional[int] = p_internal(49, default=None)
     killed_at: Optional[datetime] = p_internal(50, default=None)
-    # halted/... ...
+    interrupted_at: Optional[datetime] = p_internal(51, default=None)
+    interrupt: Optional["Interrupt"] = p_internal(
+        52, require=False, array=False, references=NodeType.INTERRUPT, same_bench=True
+    )
     terminated_at: Optional[datetime] = p_internal(55, default=None)
     terminated_epoch: Optional[int] = p_internal(56, default=None)
 
@@ -540,22 +515,12 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         run_data = cast(RunData, data)
-        if run_data.step_ptr.metatype != 0:
+        if run_data.pipe_ptr.metatype != 0:
+            return cast(RunData, data).pipe_ptr
+        elif run_data.step_ptr.metatype != 0:
             return cast(RunData, data).step_ptr
         else:
             return cast(RunData, data).block_ptr
-
-    def cancel(self):
-        """Cancels the Run before it happens."""
-        self.killed_at = self.active_session._oracle.utc()
-
-    def abort(self):
-        """Stops an active Run forcefully."""
-        self.killed_at = self.active_session._oracle.utc()
-
-    def kill(self):
-        """Kills a Run by any means necessary."""
-        self.killed_at = self.active_session._oracle.utc()
 
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler

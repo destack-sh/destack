@@ -56,25 +56,37 @@ class MessageType(IdEnum):
     # WHATSAPP, TELEGRAM, ...?
 
 
+@enum_(EnumType.MESSAGE_STATUS)
+class MessageStatus(IdEnum):
+    DRAFT = 1
+    PREPARED = 2
+    SENDING = 3
+    SENT = 4
+    FAILED = 5
+    RECEIVED = 6
+    READ = 7
+
+
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value")
 class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
     A Message by a User or program (author = created_by).
-    If the parent is also a Message, then this is part of a thread. Threads may be nested.
+    If the parent is also a Message, then this is part of a thread (which may also be nested).
     """
 
     parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
     type: MessageType = p_regular(30, require=True, default=MessageType.NATIVE)
-    origin: BenchNode = p_regular(32, require=True, references=NODE_TYPES.tuple)
+    status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
+    origin: BenchNode = p_regular(35, require=True, references=NODE_TYPES.tuple)
     block: "Block" = p_internal(
-        33,
+        36,
         require=True,
         array=False,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.MESSAGE]),
     )
     reply_to: Optional["Message"] = p_regular(
-        34, require=False, array=False, references=NodeType.MESSAGE
+        37, require=False, array=False, references=NodeType.MESSAGE
     )
     if TYPE_CHECKING:
         origin_ptr: Optional[NodeReference] = None
@@ -106,7 +118,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @property
     def base(self):
-        return self.origin
+        return self.block
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:

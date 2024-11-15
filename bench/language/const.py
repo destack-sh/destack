@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.15.0"
+VERSION = "2024.11.15.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -114,6 +114,7 @@ class EnumType(IdEnum):
     TEXT_LINE_TYPE = 20110
     ICON_KIND = 20111
     MESSAGE_TYPE = 20120
+    MESSAGE_STATUS = 20121
 
     # expression
     EXPRESSION_KIND = 20200
@@ -139,6 +140,9 @@ class EnumType(IdEnum):
     TRIGGER_TYPE = 20520
     BREAKPOINT_KIND = 20530
     BREAKPOINT_ACTION = 20531
+    BREAKPOINT_SCOPE = 20532
+    INTERRUPT_KIND = 20533
+    INTERRUPT_STATUS = 20534
     CACHE_MODE = 20540
     CODE_TYPE = 20560
     MODEL_PROVIDER = 20570
@@ -246,6 +250,7 @@ class NodeType(IdEnum):
     # runtime
     SESSION = 1900  # (timed)
     RUN = 1901  # (based, timed)
+    INTERRUPT = 1902  # (timed)
     LOG = 1903  # (timed)
 
     #
@@ -1061,7 +1066,7 @@ class RunStatus(IdEnum):
     QUEUED = 2
     # active
     RUNNING = 3
-    # halted
+    # interrupted
     PAUSED = 4
     SUSPENDED = 5
     # terminal
