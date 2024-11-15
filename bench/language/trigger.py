@@ -28,7 +28,7 @@ from bench.language.validation import (
 from bench.proto.wire import TriggerData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression
+    from bench.language import Block, Expression, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -76,7 +76,7 @@ class Schedule(Struct):
 class Trigger(SourceNode[TriggerData]):
     """A Trigger to run something."""
 
-    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
+    parent: Union["Block", "Run", None] = p_node_parent(4, NodeType.BLOCK, NodeType.RUN)
     type: TriggerType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
 

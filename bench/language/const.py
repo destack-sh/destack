@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.14.0"
+VERSION = "2024.11.15.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -418,7 +418,6 @@ class StructType(IdEnum):
     AUDIO_OPTIONS = 10511
     IMAGE_OPTIONS = 10512
     VIDEO_OPTIONS = 10513
-    CONTEXT_OPTIONS = 10520
     CONTINUE = 10530
     CALL = 10531
     CONTEXT = 10532

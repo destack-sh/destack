@@ -143,11 +143,6 @@ class CacheMode(IdEnum):
     ALWAYS = 2
 
 
-@struct_(StructType.CONTEXT_OPTIONS)
-class ContextOptions(Struct):
-    pass
-
-
 @struct_(StructType.RUN_OPTIONS)
 class RunOptions(Struct):
     """
@@ -161,17 +156,12 @@ class RunOptions(Struct):
     max_concurrency: Optional[int] = p_regular(
         31,
         constraint=TypeConstraintIn(min_value=0),
-        description="Maximum concurrent Runs (per context)",
+        description="Maximum concurrent Runs",
     )
     max_runs: Optional[int] = p_regular(
         32,
         constraint=TypeConstraintIn(min_value=0),
-        description="Maximum number of Runs of this runnable (per context)",
-    )
-    max_inner_runs: Optional[int] = p_regular(
-        33,
-        constraint=TypeConstraintIn(min_value=0),
-        description="Maximum number of Runs inside this Run (per context)",
+        description="Maximum number of Runs of this runnable",
     )
     timeout: Optional[timedelta] = p_regular(35)
 
@@ -184,9 +174,7 @@ class RunOptions(Struct):
     suppress_abort: Optional[bool] = p_regular(46, default=None)
 
     # context
-    context_options: Optional["ContextOptions"] = p_regular(
-        50, require=False, array=False, struct=StructType.CONTEXT_OPTIONS
-    )
+    # ...
 
     # debug
     breakpoints: list["Breakpoint"] = p_regular(60, array=True, struct=StructType.BREAKPOINT)
@@ -492,7 +480,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     runs: list["Run"] = p_node_children(NodeType.RUN)
 
     def __content_str__(self):
-        node = self.step or self.block
+        node = self.runnable
         path = node.absolute_path if node else "<lambda>"
         if self.duration is not None:
             duration_str = f"{self.duration.total_seconds():.3f}s"
@@ -501,6 +489,15 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
             )
         else:
             return f"{self.kind.bench_name}:{path}, {self.status.bench_name}"
+
+    @property
+    def runnable(self) -> Union["Block", "Step", "Pipe", None]:
+        if self.kind == RunKind.PIPE:
+            return self.pipe
+        elif self.kind == RunKind.STEP:
+            return self.step
+        else:
+            return self.block
 
     @property
     def is_active(self) -> bool:

@@ -113,7 +113,6 @@ from .query import (
 from .render import render, render_expr, render_stmt
 from .run import (
     Context,
-    ContextOptions,
     Run,
     RunAttempt,
     RunError,
@@ -218,7 +217,6 @@ __all__ = [
     "ConditionalType",
     "Connection",
     "Context",
-    "ContextOptions",
     "Continue",
     "CustomObject",
     "Dependency",

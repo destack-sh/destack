@@ -33,7 +33,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Runner:
+class Runner(abc.ABC):
     """A runner for a single Run (tracked Run or untracked RunSpan)."""
 
     __slots__ = (
@@ -171,7 +171,7 @@ class Runner:
     @abc.abstractmethod
     async def run_once(self) -> None:
         """Runs the runnable once."""
-        raise NotImplementedError
+        ...
 
 
 def run_from_node(
@@ -213,6 +213,7 @@ def run_from_node(
         kind=kind,
         block=block,
         step=step,
+        pipe=pipe,
         options=options,
         **kwargs,
     )
@@ -228,7 +229,7 @@ def run_from_node(
 
 def runner_from_run(runtime: "Runtime", run: Run, *, track: bool) -> "Runner":
     """Make a Runner from a Run."""
-    node = run.step or run.block
+    node = run.runnable
     if node is None:
         raise RunImpossibleError(f"no node for {run!r}")
     if run.inputs is None and run.input_type is not None:
@@ -293,13 +294,13 @@ def runner_from_node(
 
         return FlowRunner(**base_kwargs)
     elif run_kind == RunKind.STEP:
-        from bench.runtime.flow import STEP_RUNNER_BY_STEP_TYPE
+        from bench.runtime.flow import STEP_RUNNER_BY_STEP_TYPE, Step
 
         assert isinstance(node, Step), f"expected Step, got {node!r}"
         runner_cls = STEP_RUNNER_BY_STEP_TYPE[node.type]
         return runner_cls(**base_kwargs)
     elif run_kind == RunKind.PIPE:
-        from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE
+        from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE, Pipe
 
         assert isinstance(node, Pipe), f"expected Pipe, got {node!r}"
         runner_cls = PIPE_RUNNER_BY_PIPE_TYPE[node.type]
