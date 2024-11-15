@@ -192,7 +192,6 @@ enum StructType {
   STRUCT_TYPE_AUDIO_OPTIONS = 10511;
   STRUCT_TYPE_IMAGE_OPTIONS = 10512;
   STRUCT_TYPE_VIDEO_OPTIONS = 10513;
-  STRUCT_TYPE_CONTEXT_OPTIONS = 10520;
   STRUCT_TYPE_CONTINUE = 10530;
   STRUCT_TYPE_CALL = 10531;
   STRUCT_TYPE_CONTEXT = 10532;
@@ -300,7 +299,6 @@ enum ObjectType {
   OBJECT_TYPE_AUDIO_OPTIONS = 10511;
   OBJECT_TYPE_IMAGE_OPTIONS = 10512;
   OBJECT_TYPE_VIDEO_OPTIONS = 10513;
-  OBJECT_TYPE_CONTEXT_OPTIONS = 10520;
   OBJECT_TYPE_CONTINUE = 10530;
   OBJECT_TYPE_CALL = 10531;
   OBJECT_TYPE_CONTEXT = 10532;
@@ -408,7 +406,6 @@ enum BenchType {
   BENCH_TYPE_AUDIO_OPTIONS = 10511;
   BENCH_TYPE_IMAGE_OPTIONS = 10512;
   BENCH_TYPE_VIDEO_OPTIONS = 10513;
-  BENCH_TYPE_CONTEXT_OPTIONS = 10520;
   BENCH_TYPE_CONTINUE = 10530;
   BENCH_TYPE_CALL = 10531;
   BENCH_TYPE_CONTEXT = 10532;
@@ -1251,7 +1248,6 @@ enum PipeType {
   PIPE_TYPE_PASS = 1;
   PIPE_TYPE_SELECT = 2;
   PIPE_TYPE_OPTION = 3;
-  PIPE_TYPE_TRIGGER = 4;
   PIPE_TYPE_STREAM = 50;
 }
 
@@ -1953,16 +1949,11 @@ message VideoOptionsData {
   ObjectType metatype = 1;
 }
 
-message ContextOptionsData {
-  ObjectType metatype = 1;
-}
-
 message RunOptionsData {
   ObjectType metatype = 1;
   optional int32 max_attempts = 30;
   optional int32 max_concurrency = 31;
   optional int32 max_runs = 32;
-  optional int32 max_inner_runs = 33;
   optional google.protobuf.Duration timeout = 35;
   optional google.protobuf.Duration retry_interval = 40;
   optional float backoff = 41;
@@ -1970,7 +1961,6 @@ message RunOptionsData {
   repeated RunErrorType retry_on = 44;
   optional bool suppress_fail = 45;
   optional bool suppress_abort = 46;
-  optional ContextOptionsData context_options = 50;
   repeated BreakpointData breakpoints = 60;
   optional CacheMode cache_mode = 70;
   optional google.protobuf.Duration cache_retention = 71;
@@ -2929,12 +2919,6 @@ message SelectPipeData {
   optional TextData text = 100;
 }
 
-// A connection between two Steps in a Flow (source = outgoing, target = incoming).
-// Pipes are stored in the containing Flow or containing Step.
-message TriggerPipeData {
-  optional NodeReferenceData trigger_ptr = 100;
-}
-
 message StepData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2972,13 +2956,18 @@ message ActionStepData {
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
-message TextStepData {
-  optional TextData text = 100;
+message SendStepData {
+  optional TextData message = 100;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message LoopStepData {
   optional NodeReferenceData for_field_ptr = 100;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message TextStepData {
+  optional TextData text = 100;
 }
 
 message LogData {

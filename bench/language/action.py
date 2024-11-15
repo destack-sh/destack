@@ -52,7 +52,7 @@ class ActionBase(BuiltinObject):
         110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     if TYPE_CHECKING:
-        node_ptr: Optional["NodeReference"] = None
+        tools_ptr: tuple["NodeReference", ...] = ()
 
 
 @struct_(StructType.CALL)

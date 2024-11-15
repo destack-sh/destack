@@ -185,7 +185,7 @@ class Runtime:
         assert run is not None, f"missing run in {runner!r}"
         context.attach(baggage.set_baggage("run_id", str(run.id)))
 
-        # NOTE :Performance: update the run as efficiently as possible :RuntimeHotPath
+        # NOTE :Performance: update the Run as efficiently as possible :RuntimeHotPath
         # NOTE :UX :Performance: commit optimistically ideally only while inside user code
         #  (while we're inside a leaf Runner.run, but not while updating/creating Runs,
         #   so for instance inside a Flow we should wait for all initial Steps to start somehow)

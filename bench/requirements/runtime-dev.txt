@@ -11,6 +11,7 @@ anthropic==0.39.0
 anyio==4.6.2.post1
     # via
     #   anthropic
+    #   browserbase
     #   httpx
     #   openai
 atlassian-python-api==3.41.16
@@ -49,6 +50,8 @@ botocore-stubs==1.35.58
     # via boto3-stubs
 brotli==1.1.0
     # via httpx
+browserbase==1.0.0
+    # via -r bench/requirements/base.in
 build==1.2.2.post1
     # via pip-tools
 cachetools==5.2.0
@@ -106,6 +109,7 @@ distlib==0.3.9
 distro==1.9.0
     # via
     #   anthropic
+    #   browserbase
     #   openai
 dropbox==11.36.2
     # via -r bench/requirements/runtime.in
@@ -200,6 +204,7 @@ httpx==0.27.0
     # via
     #   -r bench/requirements/base.in
     #   anthropic
+    #   browserbase
     #   notion-client
     #   openai
 humanfriendly==10.0
@@ -410,6 +415,7 @@ pydantic==2.9.2
     # via
     #   -r bench/requirements/runtime.in
     #   anthropic
+    #   browserbase
     #   google-generativeai
     #   openai
     #   pyairtable
@@ -556,6 +562,7 @@ sniffio==1.3.1
     # via
     #   anthropic
     #   anyio
+    #   browserbase
     #   httpx
     #   openai
 sortedcontainers==2.4.0
@@ -596,6 +603,7 @@ types-s3transfer==0.10.3
 typing-extensions==4.12.2
     # via
     #   anthropic
+    #   browserbase
     #   google-generativeai
     #   openai
     #   opentelemetry-sdk

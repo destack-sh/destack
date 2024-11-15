@@ -1398,7 +1398,8 @@ class CustomObjectBase(BuiltinObject):
     (That is, these object bases are never directly instantiated.)
     """
 
-    # free_values, traces, sources, ...
+    # TODO :Incomplete: 'free' values in custom objects
+    # TODO :Incomplete: value tracing: sources, references, ...
     pass
 
 

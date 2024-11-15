@@ -26,7 +26,14 @@ const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;
 const pathSvg = computed(() => (path.value != null ? pathToSvgSpline(path.value.points) : undefined));
-const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S400));
+const pathColorHex = computed(() => {
+  const color = pipe.value?.color?.type ?? ColorType.GRAY;
+  if (color == ColorType.GRAY) {
+    return getColorHex(color, ColorShade.S400);
+  } else {
+    return getColorHex(color, ColorShade.S600);
+  }
+});
 
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
@@ -93,7 +100,11 @@ defineExpose<ViewExposed>({ self, id, actions });
       <IconInline
         v-if="pipe.type != PipeType.PASS"
         v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
-        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-gray-700"
+        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center"
+        :class="pipe.type == PipeType.OPTION ? ' ' : 'text-gray-700'"
+        :style="{
+          color: pipe.type == PipeType.OPTION ? pathColorHex : undefined,
+        }"
       />
       <!-- Name -->
       <NativeInput

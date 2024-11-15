@@ -49,7 +49,6 @@ if TYPE_CHECKING:
         NodeReference,
         Rectangle,
         Text,
-        Trigger,
         TypeConstraint,
         Vector2,
     )
@@ -87,7 +86,6 @@ class PipeType(IdEnum):
     PASS = 1
     SELECT = 2
     OPTION = 3
-    TRIGGER = 4
     STREAM = 50
 
 
@@ -95,7 +93,6 @@ SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
     PipeType.PASS: "->",
     PipeType.SELECT: "-?>",
     PipeType.OPTION: "-o>",
-    PipeType.TRIGGER: "-&>",
     PipeType.STREAM: "-=-",
 }
 PIPE_TYPES_BY_SIGN: dict[str, PipeType] = {v: k for k, v in SIGN_BY_PIPE_TYPE.items()}
@@ -204,15 +201,6 @@ class SelectPipe(Pipe):
     )
 
 
-@node_subtype_(PipeType.TRIGGER)
-class TriggerPipe(Pipe):
-    trigger: Optional["Trigger"] = p_regular(
-        100,
-        require=False,
-        references=NodeType.TRIGGER,
-    )
-
-
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
     # boundary (may be only incoming or outgoing)
@@ -224,7 +212,7 @@ class StepType(IdEnum):
 
     # run
     ACTION = 60
-    SEND = 61  # emit a message/signal/notification/...
+    SEND = 61  # emit a message
     YIELD = 62  # to other program/human
 
     # state
@@ -359,7 +347,7 @@ class Step(SourceNode[StepData]):
         elif self.type == StepType.COMPLETE:
             assert self.parent is not None, f"{self!r} has no parent"
             return self.parent.output_type
-        elif self.type == StepType.ACTION and cast(ActionStep, self).node_ptr:
+        elif self.type == StepType.ACTION and cast(ActionStep, self).tools_ptr:
             tools = cast(ActionStep, self).tools
             assert len(tools) == 1, f"{self!r} should have exactly one tool: {tools!r}"
             node = tools[0]
@@ -385,7 +373,7 @@ class Step(SourceNode[StepData]):
         return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod
-    def new[StepT: Step](
+    def new[StepT: Step = Step](
         typ: StepType | Type[StepT] | NodeSubtypeStub[StepT], name: str, **kwargs
     ) -> StepT:
         """Creates a new Step of the given type."""
@@ -399,14 +387,12 @@ class Step(SourceNode[StepData]):
 @node_subtype_(StepType.ACTION)
 class ActionStep(Step, ActionBase):
     # ...ActionBase[100-129]
-    ...
+    pass
 
 
-@node_subtype_(StepType.TEXT)
-class TextStep(Step):
-    text: Optional["Text"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.TEXT
-    )
+@node_subtype_(StepType.SEND)
+class SendStep(Step):
+    pass
 
 
 @node_subtype_(StepType.LOOP)
@@ -416,4 +402,11 @@ class LoopStep(Step):
         require=False,
         array=False,
         references=NodeType.FIELD,
+    )
+
+
+@node_subtype_(StepType.TEXT)
+class TextStep(Step):
+    text: Optional["Text"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.TEXT
     )
