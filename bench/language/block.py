@@ -77,6 +77,9 @@ class Block(SourceNode[BlockData]):
         packed=40, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Block", self).variable_type
     )
 
+    run_options: Optional["RunOptions"] = p_regular(
+        41, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
     policies: list["Policy"] = p_regular(42, require=False, array=True, struct=StructType.POLICY)
     delegated_policies: list["Policy"] = p_regular(
         43, require=False, array=True, struct=StructType.POLICY
@@ -264,9 +267,7 @@ class ActionBlock(Block, ActionBase):
 
 @node_subtype_(BlockType.FLOW)
 class FlowBlock(Block):
-    run_options: Optional["RunOptions"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
+    pass
 
 
 @node_subtype_(BlockType.DATABASE)

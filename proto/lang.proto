@@ -1131,11 +1131,12 @@ enum RunStatus {
   RUN_STATUS_QUEUED = 2;
   RUN_STATUS_RUNNING = 3;
   RUN_STATUS_PAUSED = 4;
-  RUN_STATUS_SUSPENDED = 5;
-  RUN_STATUS_CANCELLED = 6;
-  RUN_STATUS_ABORTED = 7;
-  RUN_STATUS_FAILED = 8;
-  RUN_STATUS_COMPLETED = 9;
+  RUN_STATUS_YIELDED = 5;
+  RUN_STATUS_WAITING = 6;
+  RUN_STATUS_CANCELLED = 7;
+  RUN_STATUS_ABORTED = 8;
+  RUN_STATUS_FAILED = 9;
+  RUN_STATUS_COMPLETED = 10;
 }
 
 enum RunKind {
@@ -1220,7 +1221,7 @@ enum InterruptKind {
   INTERRUPT_KIND_UNSPECIFIED = 0;
   INTERRUPT_KIND_PAUSE = 1;
   INTERRUPT_KIND_YIELD = 2;
-  INTERRUPT_KIND_TRIGGER = 3;
+  INTERRUPT_KIND_WAIT = 3;
 }
 
 enum InterruptStatus {
@@ -2730,6 +2731,7 @@ message BlockData {
   string order_key = 33;
   optional IconData icon = 34;
   optional google.protobuf.Value variables_packed = 40;
+  optional RunOptionsData run_options = 41;
   repeated PolicyData policies = 42;
   repeated PolicyData delegated_policies = 43;
   repeated NodeReferenceData roles_ptr = 44;
@@ -2755,12 +2757,10 @@ message ActionBlockData {
   optional TextData text = 101;
   optional CodeData code = 102;
   repeated NodeReferenceData tools_ptr = 103;
-  optional RunOptionsData run_options = 110;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message FlowBlockData {
-  optional RunOptionsData run_options = 100;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -2987,8 +2987,9 @@ message StepData {
   string name = 32;
   string order_key = 33;
   optional IconData icon = 35;
-  repeated NodeReferenceData roles_ptr = 40;
-  optional NodeReferenceData identity_ptr = 41;
+  optional RunOptionsData run_options = 41;
+  repeated NodeReferenceData roles_ptr = 42;
+  optional NodeReferenceData identity_ptr = 43;
   optional Vector2Data position = 80;
   optional RectangleData size = 81;
 }
@@ -2999,7 +3000,6 @@ message ActionStepData {
   optional TextData text = 101;
   optional CodeData code = 102;
   repeated NodeReferenceData tools_ptr = 103;
-  optional RunOptionsData run_options = 110;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.

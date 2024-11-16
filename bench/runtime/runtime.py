@@ -251,13 +251,18 @@ class Runtime:
                 raise
             finally:
                 self._active_runners_by_id.pop(runner.id, None)
-                if hook is not None:
-                    hook(runner, exc)
                 if not runner.is_tracked and runner.parent is not None:
                     # add inner spans/logs/events to parent
                     runner.parent.logs.extend(runner.logs)
                     runner.parent.events.extend(runner.events)
                     runner.parent.spans.extend(runner.spans)
+                if hook is not None:
+                    hook(runner, exc)
+
+    def create_runner(self, runner: Runner, on_stop: RunnerHook | None = None) -> Runner:
+        """Create a new Runner and run it."""
+        runner.outer_task = asyncio.create_task(self.run_runner(runner, hook=on_stop))
+        return runner
 
     @tracer.start_as_current_span("runtime.run")
     async def run(

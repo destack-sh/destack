@@ -23,7 +23,7 @@ from bench.language.run import (
     RunSpan,
 )
 from bench.language.value import CustomObject
-from bench.runtime.core import RunImpossibleError
+from bench.runtime.core import BASE_RUN_OPTIONS_BY_KIND, RunImpossibleError
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -63,11 +63,11 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "logs",
         "node",
         "options",
+        "outer_task",
         "output_type",
         "outputs",
         "parent",
         "runners",
-        "runners_by_id",
         "runs",
         "runtime",
         "spans",
@@ -112,6 +112,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.runners: list[Runner] = []
         self.tracked_run = run
         self.task: asyncio.Task | None = None
+        self.outer_task: asyncio.Task | None = None
         self.is_cancelled = False
 
         # nest active Runners/Runs
@@ -167,7 +168,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 
     @property
     def is_tracked(self) -> bool:
-        return self.tracked_run is not None
+        return self.tracked_run is not None 
 
     @property
     def is_nested(self) -> bool:
@@ -184,10 +185,21 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             yield parent
             parent = parent.parent
 
+    @property
+    def interrupt(self) -> Interrupt | None:
+        assert self.tracked_run is not None, f"{self!r} is not tracked"
+        return self.tracked_run.interrupt
+
     @abc.abstractmethod
     async def run(self) -> None:
         """Runs the runnable once."""
         ...
+
+
+def get_run_options(kind: RunKind, options: RunOptions | None):
+    """Get the combined run options for a node."""
+    base_options = BASE_RUN_OPTIONS_BY_KIND[kind]
+    return base_options.override(options)
 
 
 def run_from_node(
@@ -201,9 +213,6 @@ def run_from_node(
     """Creates a Run from a runnable Node."""
     from bench.language import Block, Step
     from bench.language.value import coerce_custom_object
-
-    if options is None:
-        options = RunOptions()
 
     if isinstance(node, Block):
         block = node
@@ -224,6 +233,7 @@ def run_from_node(
     else:
         assert_never(node)
 
+    options = get_run_options(kind, options)
     run = Run(
         parent=parent or node.package,
         kind=kind,

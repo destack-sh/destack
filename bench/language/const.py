@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.15.2"
+VERSION = "2024.11.16.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1068,28 +1068,29 @@ class RunStatus(IdEnum):
     RUNNING = 3
     # interrupted
     PAUSED = 4
-    SUSPENDED = 5
+    YIELDED = 5
+    WAITING = 6
     # terminal
-    CANCELLED = 6
-    ABORTED = 7
-    FAILED = 8
-    COMPLETED = 9
+    CANCELLED = 7
+    ABORTED = 8
+    FAILED = 9
+    COMPLETED = 10
 
     @property
     def is_active(self) -> bool:
         return self in ACTIVE_RUN_STATUSES
 
     @property
-    def is_halted(self) -> bool:
-        return self in HALTED_RUN_STATUSES
+    def is_interrupted(self) -> bool:
+        return self in INTERRUPTED_RUN_STATUSES
 
     @property
     def is_terminal(self) -> bool:
         return self in TERMINAL_RUN_STATUSES
 
 
-ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.SUSPENDED)
-HALTED_RUN_STATUSES = bittuple(RunStatus.PAUSED, RunStatus.SUSPENDED)
+INTERRUPTED_RUN_STATUSES = bittuple(RunStatus.PAUSED, RunStatus.YIELDED)
+ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, *INTERRUPTED_RUN_STATUSES)
 TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
     RunStatus.CANCELLED,
     RunStatus.ABORTED,

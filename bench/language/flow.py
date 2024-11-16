@@ -265,15 +265,18 @@ class Step(SourceNode[StepData]):
     )
 
     # content
+    run_options: Optional["RunOptions"] = p_regular(
+        41, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
     roles: list["Block"] = p_regular(
-        40,
+        42,
         require=False,
         array=True,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ROLE]),
     )
     identity: Optional["Block"] = p_regular(
-        41,
+        43,
         require=False,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.IDENTITY]),
