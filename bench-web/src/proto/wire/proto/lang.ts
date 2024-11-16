@@ -3966,6 +3966,10 @@ export interface BlockData {
      */
     variablesPacked?: JsonValue;
     /**
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 41;
+     */
+    runOptions?: RunOptionsData;
+    /**
      * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 42;
      */
     policies: PolicyData[];
@@ -4038,10 +4042,6 @@ export interface ActionBlockData {
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 103;
      */
     toolsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 110;
-     */
-    runOptions?: RunOptionsData;
 }
 /**
  * A building block with logic, types, UI, state, auth, AI, ...
@@ -4049,10 +4049,6 @@ export interface ActionBlockData {
  * @generated from protobuf message symbolx.bench.FlowBlockData
  */
 export interface FlowBlockData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 100;
-     */
-    runOptions?: RunOptionsData;
 }
 /**
  * A building block with logic, types, UI, state, auth, AI, ...
@@ -4879,11 +4875,15 @@ export interface StepData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 40;
+     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 41;
+     */
+    runOptions?: RunOptionsData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 42;
      */
     rolesPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 43;
      */
     identityPtr?: NodeReferenceData;
     /**
@@ -4917,10 +4917,6 @@ export interface ActionStepData {
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 103;
      */
     toolsPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData run_options = 110;
-     */
-    runOptions?: RunOptionsData;
 }
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -10224,25 +10220,29 @@ export enum RunStatus {
      */
     PAUSED = 4,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_SUSPENDED = 5;
+     * @generated from protobuf enum value: RUN_STATUS_YIELDED = 5;
      */
-    SUSPENDED = 5,
+    YIELDED = 5,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 6;
+     * @generated from protobuf enum value: RUN_STATUS_WAITING = 6;
      */
-    CANCELLED = 6,
+    WAITING = 6,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_ABORTED = 7;
+     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 7;
      */
-    ABORTED = 7,
+    CANCELLED = 7,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_FAILED = 8;
+     * @generated from protobuf enum value: RUN_STATUS_ABORTED = 8;
      */
-    FAILED = 8,
+    ABORTED = 8,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 9;
+     * @generated from protobuf enum value: RUN_STATUS_FAILED = 9;
      */
-    COMPLETED = 9
+    FAILED = 9,
+    /**
+     * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 10;
+     */
+    COMPLETED = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunKind
@@ -10501,9 +10501,9 @@ export enum InterruptKind {
      */
     YIELD = 2,
     /**
-     * @generated from protobuf enum value: INTERRUPT_KIND_TRIGGER = 3;
+     * @generated from protobuf enum value: INTERRUPT_KIND_WAIT = 3;
      */
-    TRIGGER = 3
+    WAIT = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.InterruptStatus
@@ -21716,6 +21716,7 @@ class BlockData$Type extends MessageType$<BlockData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 40, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 41, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 42, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 43, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 44, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -21811,6 +21812,9 @@ class BlockData$Type extends MessageType$<BlockData> {
                 case /* optional google.protobuf.Value variables_packed */ 40:
                     message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
+                case /* optional symbolx.bench.RunOptionsData run_options */ 41:
+                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
+                    break;
                 case /* repeated symbolx.bench.PolicyData policies */ 42:
                     message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
@@ -21904,6 +21908,9 @@ class BlockData$Type extends MessageType$<BlockData> {
         /* optional google.protobuf.Value variables_packed = 40; */
         if (message.variablesPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunOptionsData run_options = 41; */
+        if (message.runOptions)
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.PolicyData policies = 42; */
         for (let i = 0; i < message.policies.length; i++)
             PolicyData.internalBinaryWrite(message.policies[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -22038,8 +22045,7 @@ class ActionBlockData$Type extends MessageType$<ActionBlockData> {
             { no: 100, name: "mode", kind: "enum", T: () => ["symbolx.bench.ActionMode", ActionMode, "ACTION_MODE_"] },
             { no: 101, name: "text", kind: "message", T: () => TextData },
             { no: 102, name: "code", kind: "message", T: () => CodeData },
-            { no: 103, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 110, name: "run_options", kind: "message", T: () => RunOptionsData }
+            { no: 103, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ActionBlockData>): ActionBlockData {
@@ -22067,9 +22073,6 @@ class ActionBlockData$Type extends MessageType$<ActionBlockData> {
                 case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 103:
                     message.toolsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.RunOptionsData run_options */ 110:
-                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -22094,9 +22097,6 @@ class ActionBlockData$Type extends MessageType$<ActionBlockData> {
         /* repeated symbolx.bench.NodeReferenceData tools_ptr = 103; */
         for (let i = 0; i < message.toolsPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run_options = 110; */
-        if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22110,9 +22110,7 @@ export const ActionBlockData = new ActionBlockData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FlowBlockData$Type extends MessageType$<FlowBlockData> {
     constructor() {
-        super("symbolx.bench.FlowBlockData", [
-            { no: 100, name: "run_options", kind: "message", T: () => RunOptionsData }
-        ]);
+        super("symbolx.bench.FlowBlockData", []);
     }
     create(value?: PartialMessage<FlowBlockData>): FlowBlockData {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -22121,28 +22119,9 @@ class FlowBlockData$Type extends MessageType$<FlowBlockData> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FlowBlockData): FlowBlockData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.RunOptionsData run_options */ 100:
-                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
+        return target ?? this.create();
     }
     internalBinaryWrite(message: FlowBlockData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.RunOptionsData run_options = 100; */
-        if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23781,8 +23760,9 @@ class StepData$Type extends MessageType$<StepData> {
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
-            { no: 40, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 41, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "run_options", kind: "message", T: () => RunOptionsData },
+            { no: 42, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 43, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "position", kind: "message", T: () => Vector2Data },
             { no: 81, name: "size", kind: "message", T: () => RectangleData }
         ]);
@@ -23867,10 +23847,13 @@ class StepData$Type extends MessageType$<StepData> {
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 40:
+                case /* optional symbolx.bench.RunOptionsData run_options */ 41:
+                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 42:
                     message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 43:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
                     break;
                 case /* optional symbolx.bench.Vector2Data position */ 80:
@@ -23951,12 +23934,15 @@ class StepData$Type extends MessageType$<StepData> {
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 40; */
+        /* optional symbolx.bench.RunOptionsData run_options = 41; */
+        if (message.runOptions)
+            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 42; */
         for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 41; */
+            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData identity_ptr = 43; */
         if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.Vector2Data position = 80; */
         if (message.position)
             Vector2Data.internalBinaryWrite(message.position, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
@@ -23980,8 +23966,7 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
             { no: 100, name: "mode", kind: "enum", T: () => ["symbolx.bench.ActionMode", ActionMode, "ACTION_MODE_"] },
             { no: 101, name: "text", kind: "message", T: () => TextData },
             { no: 102, name: "code", kind: "message", T: () => CodeData },
-            { no: 103, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 110, name: "run_options", kind: "message", T: () => RunOptionsData }
+            { no: 103, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ActionStepData>): ActionStepData {
@@ -24009,9 +23994,6 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
                 case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 103:
                     message.toolsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.RunOptionsData run_options */ 110:
-                    message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -24036,9 +24018,6 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
         /* repeated symbolx.bench.NodeReferenceData tools_ptr = 103; */
         for (let i = 0; i < message.toolsPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData run_options = 110; */
-        if (message.runOptions)
-            RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28010,6 +27989,7 @@ export enum BlockProperty {
   orderKey = 33,
   icon = 34,
   variablesPacked = 40,
+  runOptions = 41,
   policies = 42,
   delegatedPolicies = 43,
   rolesPtr = 44,
@@ -28180,8 +28160,9 @@ export enum StepProperty {
   name = 32,
   orderKey = 33,
   icon = 35,
-  rolesPtr = 40,
-  identityPtr = 41,
+  runOptions = 41,
+  rolesPtr = 42,
+  identityPtr = 43,
   position = 80,
   size = 81,
 }
@@ -28467,11 +28448,10 @@ export enum ActionBlockProperty {
   text = 101,
   code = 102,
   toolsPtr = 103,
-  runOptions = 110,
 }
 
 export enum FlowBlockProperty {
-  runOptions = 100,
+
 }
 
 export enum DatabaseBlockProperty {
@@ -28523,7 +28503,6 @@ export enum ActionStepProperty {
   text = 101,
   code = 102,
   toolsPtr = 103,
-  runOptions = 110,
 }
 
 export enum SendStepProperty {
@@ -29951,6 +29930,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.icon]: { id: 34, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BlockProperty.variablesPacked]: { id: 40, name: 'variables_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [BlockProperty.runOptions]: { id: 41, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [BlockProperty.policies]: { id: 42, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.delegatedPolicies]: { id: 43, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.rolesPtr]: { id: 44, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [50], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -30116,8 +30096,9 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.icon]: { id: 35, name: 'icon', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [StepProperty.rolesPtr]: { id: 40, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [50], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.identityPtr]: { id: 41, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.runOptions]: { id: 41, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [StepProperty.rolesPtr]: { id: 42, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [50], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.identityPtr]: { id: 43, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.position]: { id: 80, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [StepProperty.size]: { id: 81, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE },
 }
@@ -30391,10 +30372,9 @@ export const ActionBlockDataInfo: Record<ActionBlockProperty, PropertyInfo> = {
   [ActionBlockProperty.text]: { id: 101, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ActionBlockProperty.code]: { id: 102, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionBlockProperty.toolsPtr]: { id: 103, name: 'tools_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionBlockProperty.runOptions]: { id: 110, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
 }
 export const FlowBlockDataInfo: Record<FlowBlockProperty, PropertyInfo> = {
-  [FlowBlockProperty.runOptions]: { id: 100, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+
 }
 export const DatabaseBlockDataInfo: Record<DatabaseBlockProperty, PropertyInfo> = {
   [DatabaseBlockProperty.queryPtr]: { id: 100, name: 'query_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.QUERY], referenceStruct: StructType.NODE_REFERENCE },
@@ -30436,7 +30416,6 @@ export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
   [ActionStepProperty.text]: { id: 101, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ActionStepProperty.code]: { id: 102, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionStepProperty.toolsPtr]: { id: 103, name: 'tools_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionStepProperty.runOptions]: { id: 110, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
 }
 export const SendStepDataInfo: Record<SendStepProperty, PropertyInfo> = {
 

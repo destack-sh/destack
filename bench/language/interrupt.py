@@ -61,9 +61,9 @@ class Breakpoint(Struct):
 
 @enum_(EnumType.INTERRUPT_KIND)
 class InterruptKind(IdEnum):
-    PAUSE = 1
-    YIELD = 2
-    TRIGGER = 3
+    PAUSE = 1  # external pause
+    YIELD = 2  # voluntary yield
+    WAIT = 3  # wait on trigger
 
 
 @enum_(EnumType.INTERRUPT_STATUS)

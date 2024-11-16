@@ -16,6 +16,7 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Code = Step.new(StepType.ACTION, "Code", mode=ActionMode.STRICT, code=code("pass"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
+    Fail = Step.new(StepType.FAIL, "Fail")
     Flow1.steps.extend(Start, Code, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
@@ -23,6 +24,7 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(Start)
     _ = await local_runtime.run(Code)
     _ = await local_runtime.run(Complete)
+    _ = await local_runtime.run(Fail)
 
 
 async def test_run_pipe_directly(local_runtime: RuntimeHandle):
@@ -314,6 +316,11 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     assert runner.runners[1].node == Code1 and runner.runners[1].status == RunStatus.ABORTED
 
 
+async def test_run_flow_pause(local_runtime: RuntimeHandle):
+    """Run a long async Flow and pause it, then resume it."""
+    pass  # nocheckin: pause/resume flows
+
+
 async def test_run_flow_yield(local_runtime: RuntimeHandle):
     """Run a Flow with a Yield step, then resume from the Yield."""
     Flow = Block.new(BlockType.FLOW, "Flow1")
@@ -327,4 +334,5 @@ async def test_run_flow_yield(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow)
-    # "nocheckin: pause/resume flows"
+    assert runner.status == RunStatus.YIELDED
+    # "nocheckin: yield/resume flows"

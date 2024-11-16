@@ -9,7 +9,7 @@ from bench.language.value import coerce_custom_object
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, ObjectMapping, Pipe, RunOptions, Step, Text
+    from bench.language import Block, Code, ObjectMapping, Pipe, Step, Text
 
 
 @enum_(EnumType.ACTION_MODE)
@@ -47,9 +47,6 @@ class ActionBase(BuiltinObject):
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
         description="Available implementations for this action.",
-    )
-    run_options: Optional["RunOptions"] = p_regular(
-        110, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     if TYPE_CHECKING:
         tools_ptr: tuple["NodeReference", ...] = ()
