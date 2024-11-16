@@ -13,7 +13,7 @@ from bench.language.const import BenchError
 from bench.language.file import upload
 from bench.language.node import Node
 from bench.language.path import get_node
-from bench.language.run import RunErrorType, RunKind, RunOptions
+from bench.language.run import RunError, RunErrorType, RunKind, RunOptions
 from bench.language.setup import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
 from bench.runtime.capture import LogSink
 from bench.utils.func import get_subclasses
@@ -39,7 +39,9 @@ BASE_RUN_OPTIONS_BY_KIND = {
 
 
 class RuntimeError(BenchError, RuntimeError):
-    pass
+    def __init__(self, message: str | None, error: RunError | None = None) -> None:
+        super().__init__(message)
+        self.error = error
 
 
 class RetryableError(RuntimeError):

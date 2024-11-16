@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, assert_neve
 import structlog
 from opentelemetry import trace
 
+from bench.language import Block, Step
 from bench.language.code import Code
 from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
@@ -27,7 +28,6 @@ from bench.runtime.core import BASE_RUN_OPTIONS_BY_KIND, RunImpossibleError
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Step
     from bench.runtime.runtime import Runtime
 
 
@@ -130,6 +130,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     kind=self.kind,
                     block=node if isinstance(node, Block) else node.block,
                     step=node if isinstance(node, Step) else None,
+                    pipe=node if isinstance(node, Pipe) else None,
                     options=options,
                     status=self.status,
                     inputs=self.inputs,
@@ -168,7 +169,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 
     @property
     def is_tracked(self) -> bool:
-        return self.tracked_run is not None 
+        return self.tracked_run is not None
 
     @property
     def is_nested(self) -> bool:
@@ -190,9 +191,21 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         assert self.tracked_run is not None, f"{self!r} is not tracked"
         return self.tracked_run.interrupt
 
+    def cancel(self):
+        self.is_cancelled = True
+        if self.outer_task is not None:
+            self.outer_task.cancel()
+        if self.task is not None:
+            self.task.cancel()
+
     @abc.abstractmethod
     async def run(self) -> None:
-        """Runs the runnable once."""
+        """
+        Run until the Run stops:
+         - On completion, return normally.
+         - On error, raise an exception.
+         - On interrupt, raise Interrupted.
+        """
         ...
 
 

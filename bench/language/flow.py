@@ -316,12 +316,12 @@ class Step(SourceNode[StepData]):
     def connect(
         self,
         type: PipeType,
-        source: "Step",
+        target: "Step",
         *,
         name: str | None = None,
         parent: Union["Block", "Step", None] = None,
     ) -> "Pipe":
-        """Connects a source Step to this Step."""
+        """Connects a target Step to this Step."""
         from bench.language.block import Block
 
         parent = parent or self.parent
@@ -340,8 +340,8 @@ class Step(SourceNode[StepData]):
         pipe = Pipe(
             type=type,
             name=name,
-            source=source,
-            target=self,
+            source=self,
+            target=target,
             parent=parent,
         )
         parent.pipes.append(pipe)
@@ -355,11 +355,11 @@ class Step(SourceNode[StepData]):
         from bench.language.field import TypeInfo
 
         if self.type == StepType.START:
-            assert self.parent is not None, f"{self!r} has no parent"
-            return self.parent.input_type
+            parent = self.parent
+            return parent.input_type if parent is not None else None
         elif self.type == StepType.COMPLETE:
-            assert self.parent is not None, f"{self!r} has no parent"
-            return self.parent.output_type
+            parent = self.parent
+            return parent.output_type if parent is not None else None
         elif self.type == StepType.ACTION and cast(ActionStep, self).tools_ptr:
             tools = cast(ActionStep, self).tools
             assert len(tools) == 1, f"{self!r} should have exactly one tool: {tools!r}"
