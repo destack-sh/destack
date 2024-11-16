@@ -7,7 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import FlowBlock
-from bench.language.const import RunErrorKind, RunStatus
+from bench.language.const import ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import ActionStep, Pipe, PipeType, PortSide, Step, StepType
 from bench.language.interrupt import Interrupt
@@ -70,7 +70,13 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
 
     def _abort(self):
         """Abort any (non-boundary) running steps."""
-        raise NotImplementedError
+        logger.debug("flow.abort", flow=self.node, runner=self)
+        for runner in self.runners:
+            if (
+                not (isinstance(runner.node, Step) and runner.node.type.is_boundary)
+                and not runner.options.suppress_abort
+            ):
+                runner.cancel()
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Steps."""
@@ -92,8 +98,9 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         self._stop_event.set()
         logger.debug("flow.fail", flow=self.node, runner=self)
 
-    def _check_stopped(self) -> None:
-        if not self._active_runners_by_id:
+    def _stop_if_needed(self) -> None:
+        """Checks whether this Flow should stop (and stops it)."""
+        if self._stop_result is None and len(self._active_runners_by_id) == 0:
             if self._interrupted_runners:
                 interrupt = self._interrupted_runners[-1].interrupt
                 assert interrupt is not None, f"no interrupt for {self._interrupted_runners[-1]!r}"
@@ -103,39 +110,46 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             self._stop_event.set()
 
     def _on_stopped(self, runner: Runner, exc: Exception | None) -> None:
+        """Tick this Flow when a Step or Pipe stops."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        logger.debug(
-            "flow.run.terminated", flow=self.node, node=runner.node, runner=runner, exc=exc
-        )
+        logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
         self._active_runners_by_id.pop(runner.id)
 
-        if runner.status == RunStatus.FAILED:
-            assert runner.error is not None, f"no error for failed runner {runner!r}"
-            if not runner.options.suppress_fail:
-                # bail on first unsuppressed error
-                self._fail(runner.error)
-        elif runner.status.is_interrupted:
-            self._interrupted_runners.append(runner)
-        elif runner.status.is_terminal:
+        if runner.status == RunStatus.COMPLETED:
             # feed forward connected Pipes/Steps
             outgoing: list[Run] = []
             if isinstance(runner.node, Step):
                 for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):
-                    next_run = self._run(pipe, incoming=(runner.tracked_run,))
+                    next_run = self._run(
+                        pipe, inputs=runner.outputs, incoming=(runner.tracked_run,)
+                    )
                     outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
                 # NOTE :Incomplete: allow Steps to wait for multiple incoming Pipes
-                next_run = self._run(runner.node.target, incoming=(runner.tracked_run,))
+                next_run = self._run(
+                    runner.node.target, inputs=runner.outputs, incoming=(runner.tracked_run,)
+                )
                 outgoing.append(next_run)
             else:
                 raise RuntimeError(f"unexpected {runner!r} in {self!r}")
             runner.tracked_run.outgoing = outgoing
+        elif runner.status.is_interrupted:
+            self._interrupted_runners.append(runner)
+        elif runner.status == RunStatus.FAILED:
+            assert runner.error is not None, f"no error for failed runner {runner!r}"
+            if not runner.options.suppress_fail:
+                # bail on first unsuppressed error
+                self._fail(runner.error)
+        elif runner.status in (RunStatus.ABORTED, RunStatus.CANCELLED):
+            pass  # ignore
         else:
             raise RuntimeError(f"unexpected stopped {runner!r} in {self!r}")
 
-        self._check_stopped()
+        self._stop_if_needed()
 
-    def _run(self, node: Step | Pipe, *, incoming: tuple[Run, ...]) -> Run:
+    def _run(
+        self, node: Step | Pipe, *, inputs: CustomObject | None, incoming: Sequence[Run]
+    ) -> Run:
         """Run a Step or Pipe in this Flow."""
         if isinstance(node, Step):
             runner_cls = STEP_RUNNER_BY_STEP_TYPE.get(node.type)
@@ -156,11 +170,12 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             flow=self,
             context=self.context,
             parent=cast(Runner, self),
+            inputs=inputs,
             track=True,
         )
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        runner.tracked_run.incoming = incoming
-        logger.debug("flow.run", flow=self.node, node=node, runner=runner)
+        runner.tracked_run.incoming_ptr = tuple(run.to_plain_ref() for run in incoming)
+        logger.debug("flow.tick", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
         return runner.tracked_run
@@ -168,18 +183,27 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
     @override
     async def run(self) -> None:
         assert self.tracked_run is not None, f"{self!r} must be tracked"
-        # nocheckin: restore seeds from Runs for resume?
-        seeds: list[Step] = []
+
+        # start / resume
+        # nocheckin: restore/resume
         for step in self.get_steps():
             if step.type == StepType.START:
-                seeds.append(step)
+                self._run(step, inputs=self.inputs, incoming=())
 
-        for step in seeds:
-            self._run(step, incoming=())
-        self._check_stopped()
+        # stop immediately if no progress is possible
+        self._stop_if_needed()
 
-        await self._stop_event.wait()
-        if isinstance(self._stop_result, Interrupt):
+        # wait for stop
+        try:
+            await self._stop_event.wait()
+        except Exception:
+            self._abort()  # abort if we get cancelled
+            raise
+        if isinstance(self._stop_result, CustomObject):
+            self.outputs = self._stop_result
+        elif isinstance(self._stop_result, RunError):
+            raise RetryableError(None, self._stop_result)
+        elif isinstance(self._stop_result, Interrupt):
             raise Interrupted(self, self.tracked_run, self._stop_result)
 
 
@@ -195,9 +219,17 @@ class FlowRunner(FlowRunnerBase[FlowBlock]):
     @override
     def get_pipes_at(self, step: Step, side: PortSide) -> Sequence[Pipe]:
         if side == PortSide.INCOMING:
-            return tuple(pipe for pipe in self.node.pipes if pipe.target_id == step.id)
+            return tuple(
+                pipe
+                for pipe in self.node.pipes
+                if pipe.target_id == step.id and pipe.source is not None
+            )
         elif side == PortSide.OUTGOING:
-            return tuple(pipe for pipe in self.node.pipes if pipe.source_id == step.id)
+            return tuple(
+                pipe
+                for pipe in self.node.pipes
+                if pipe.source_id == step.id and pipe.target is not None
+            )
         else:
             assert_never(side)
 
@@ -255,7 +287,7 @@ class FailStepRunner(StepRunnerBase):
     async def run(self) -> None:
         self.outputs = self.inputs
         if self.flow is not None:
-            e = RetryableError("Flow failed")
+            e = RetryableError("Flow failed")  # this should be customizable
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             self.flow._fail(error=error)
 
@@ -340,8 +372,15 @@ class PipeRunnerBase(Runner[Pipe], ABC):
     async def run(self) -> None:
         if self.node.delay is not None:
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
-        # nocheckin: run Pipe mapping
-        self.outputs = self.inputs
+        if self.output_type is not None:
+            # assemble/map inputs from incoming Runs/Context
+            # nocheckin: do Pipe mapping
+            self.outputs = CustomObject.new(ObjectKind.INPUT, {}, self.output_type)
+            if self.inputs is not None:
+                for field in self.outputs._type._fields:
+                    key = self.inputs._get_key(field.name)
+                    if key is not None:
+                        self.outputs[field] = self.inputs._do_get(key)
 
 
 class PassPipeRunner(PipeRunnerBase):

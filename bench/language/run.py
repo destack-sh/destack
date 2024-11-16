@@ -401,6 +401,9 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     outgoing: list["Run"] = p_internal(
         37, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
+    if TYPE_CHECKING:
+        incoming_ptr: tuple["NodeReference", ...] = ()
+        outgoing_ptr: tuple["NodeReference", ...] = ()
     context: Optional["Context"] = p_internal(
         38, require=False, array=False, struct=StructType.CONTEXT
     )

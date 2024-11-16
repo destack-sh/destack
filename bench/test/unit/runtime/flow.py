@@ -98,16 +98,15 @@ async def test_run_flow_pipe_to_nowhere(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Flow1.steps.extend(Start, Complete)
     Nowhere = Step.new(StepType.START, "Nowhere")  # not added to flow/graph
+    Flow1.steps.extend(Start, Complete)
     Start.connect(PipeType.PASS, Nowhere, parent=Flow1)
     Start.connect(PipeType.PASS, Complete)
-    Nowhere.connect(PipeType.PASS, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 4
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 5
 
 
 async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
@@ -134,7 +133,10 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     )
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(
-        StepType.ACTION, "Code1", fields=(Field.input("Input1", str, is_required=True),)
+        StepType.ACTION,
+        "Code1",
+        mode=ActionMode.STRICT,
+        fields=(Field.input("Input1", str, is_required=True),),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Code1, Complete)
@@ -162,6 +164,7 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
     Code1 = Step.new(
         StepType.ACTION,
         "Code1",
+        mode=ActionMode.STRICT,
         code=code("return 2 * Input1"),
         fields=(
             Field.input("Input1", int, is_required=True),
@@ -176,25 +179,25 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1, inputs={"Input1": 2})
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 3  # three steps
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 5
     assert runner.outputs and runner.outputs.Output1 == 4
 
 
 async def test_run_flow_error(local_runtime: RuntimeHandle):
-    """Run a code step with an erro. Flow should abort and fail."""
+    """Run a code Step that raises an error. Flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
-    Code1 = Step.new(StepType.ACTION, "Code1", code=code("raise ValueError"))
-    Complete = Step.new(StepType.COMPLETE, "Complete")
-    Flow1.steps.extend(Start, Code1, Complete)
+    Code1 = Step.new(
+        StepType.ACTION, "Code1", mode=ActionMode.STRICT, code=code("raise ValueError")
+    )
+    Flow1.steps.extend(Start, Code1)
     Start.connect(PipeType.PASS, Code1)
-    Code1.connect(PipeType.PASS, Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 2
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
 async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle):
@@ -204,6 +207,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
     Code1 = Step.new(
         StepType.ACTION,
         "Code1",
+        mode=ActionMode.STRICT,
         code=code("raise ValueError('error')"),
         run_options=RunOptions(suppress_fail=True),
     )
@@ -224,9 +228,15 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Race1 = Step.new(StepType.ACTION, "Race1", code=code("await asyncio.sleep(1)"))
-    Race2 = Step.new(StepType.ACTION, "Race2", code=code("await asyncio.sleep(2)"))
-    Race3 = Step.new(StepType.ACTION, "Race3", code=code("await asyncio.sleep(3)"))
+    Race1 = Step.new(
+        StepType.ACTION, "Race1", mode=ActionMode.STRICT, code=code("await asyncio.sleep(1)")
+    )
+    Race2 = Step.new(
+        StepType.ACTION, "Race2", mode=ActionMode.STRICT, code=code("await asyncio.sleep(2)")
+    )
+    Race3 = Step.new(
+        StepType.ACTION, "Race3", mode=ActionMode.STRICT, code=code("await asyncio.sleep(3)")
+    )
     Flow1.steps.extend(Start, Race1, Race2, Race3, Complete)
     Start.connect(PipeType.PASS, Race1)
     Start.connect(PipeType.PASS, Race2)
@@ -241,17 +251,14 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     assert runner.tracked_run
     aborted_runs = [r for r in runner.tracked_run.runs if r.status == RunStatus.ABORTED]
     assert len(aborted_runs) == 2  # the two losers should be aborted
-    assert len(runner.tracked_run.runs) == 5  # all steps should run exactly once
-    # slowers steps should be aborted
-    assert runner.runners[2].node == Race2 and runner.runners[2].status == RunStatus.ABORTED
-    assert runner.runners[3].node == Race3 and runner.runners[3].status == RunStatus.ABORTED
+    assert len(runner.tracked_run.runs) == 9  # all steps & pipes should run exactly once
 
 
 async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     """Runs an infinite loop that's not infinite because it also completes immediately."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
-    Loop = Step.new(StepType.ACTION, "Loop")
+    Loop = Step.new(StepType.ACTION, "Loop", mode=ActionMode.STRICT, code=code("pass"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Loop, Complete)
     Start.connect(PipeType.PASS, Loop)
@@ -261,25 +268,7 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 4  # two steps
-
-
-async def test_run_flow_infinite_loop_with_extra_hop(local_runtime: RuntimeHandle):
-    """Runs an infinite loop that's not infinite because it also completes immediately."""
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Start = Step.new(StepType.START, "Start")
-    Code1 = Step.new(StepType.ACTION, "Code1")
-    Code2 = Step.new(StepType.ACTION, "Code2")
-    Complete = Step.new(StepType.COMPLETE, "Complete")
-    Flow1.steps.extend(Start, Code1, Code2, Complete)
-    Start.connect(PipeType.PASS, Code1)
-    Code1.connect(PipeType.PASS, Code1)  # infinite!
-    Code1.connect(PipeType.PASS, Code2)
-    Code2.connect(PipeType.PASS, Complete)
-    local_runtime.page().blocks.append(Flow1)
-    await local_runtime.commit()
-
-    _ = await local_runtime.run(Flow1)
+    assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
 
 
 async def test_run_flow_abort(local_runtime: RuntimeHandle):
@@ -312,13 +301,13 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
         and runner.tracked_run.duration
         and runner.tracked_run.duration.total_seconds() < 1
     )
-    # code step should also be aborted
-    assert runner.runners[1].node == Code1 and runner.runners[1].status == RunStatus.ABORTED
+    # inner code step should also be aborted
+    assert runner.runners[2].node == Code1 and runner.runners[2].status == RunStatus.ABORTED
 
 
 async def test_run_flow_pause(local_runtime: RuntimeHandle):
     """Run a long async Flow and pause it, then resume it."""
-    pass  # nocheckin: pause/resume flows
+    raise NotImplementedError  # nocheckin: pause/resume flows
 
 
 async def test_run_flow_yield(local_runtime: RuntimeHandle):

@@ -318,7 +318,6 @@ class Runtime:
         if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
         for runner in reversed(list(root_runner.walk())):
-            runner.is_cancelled = True
-            if runner.task is not None:
-                runner.task.cancel()
-            logger.debug("runtime.run.abort", runner=runner)
+            if not runner.status.is_terminal:
+                runner.cancel()
+                logger.debug("runtime.run.abort", runner=runner)
