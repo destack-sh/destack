@@ -287,7 +287,7 @@ class HostPlugin[T: Node]:
 
     async def on_commit_prepare(
         self, session: Session, commit: Commit[T]
-    ) -> None | Sequence[EditData]:
+    ) -> Sequence[EditData] | None:
         """
         Add edits that logically belong to the same transaction.
         The commit contains only direct edits, not cascaded edits.

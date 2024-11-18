@@ -26,7 +26,6 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-
     # bench_block
     await cur.execute('ALTER TABLE "bench_block" ADD COLUMN "run_options" jsonb')
 

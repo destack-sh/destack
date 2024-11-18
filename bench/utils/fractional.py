@@ -2,12 +2,13 @@
 # (licensed as CC-0)
 # sync with fractional.ts in frontend
 
+import string
 from typing import Any, Optional, Protocol, cast
 
 from bench.utils.func import nextn
 
 # base digits in lexicographical order
-BASE_10_DIGITS = "0123456789"
+BASE_10_DIGITS = string.digits
 BASE_62_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE_95_DIGITS = (
     "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"

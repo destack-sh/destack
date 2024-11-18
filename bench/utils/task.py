@@ -129,7 +129,7 @@ class TaskManager:
     async def _run_scheduled_tasks(
         self,
         run_every: float,
-        process: Callable[[], None | Awaitable[None] | Coroutine[None, None, None]],
+        process: Callable[[], Awaitable[None] | Coroutine[None, None, None] | None],
         task_id: str,
         skip_errors: bool = False,
     ) -> None:
@@ -158,7 +158,7 @@ class TaskManager:
     def start_scheduled(
         self,
         every: float,
-        process: Callable[[], None | Awaitable[None] | Coroutine[None, None, None]],
+        process: Callable[[], Awaitable[None] | Coroutine[None, None, None] | None],
         task_id: str | None = None,
         *,
         skip_errors: bool,

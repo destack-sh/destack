@@ -106,7 +106,7 @@ def omit_empty(obj):
 T = typing.TypeVar("T")
 
 
-class frozendict(dict):  # noqa: N801
+class frozendict(dict):  # noqa: FURB189, N801, RUF100
     def __setitem__(self, key, value):
         raise TypeError("FrozenDict does not support item assignment")
 

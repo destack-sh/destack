@@ -137,7 +137,7 @@ class Object:
 
     def diff_flat(self, other: "TableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
-        assert type(self) == type(other), f"cannot diff {self!r} with {other!r}"
+        assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return {
             field_name: getattr(self, field_name)
             for field_name in self.FLAT_DATA_FIELDS
@@ -146,7 +146,7 @@ class Object:
 
     def diff_keys(self, other: "TableObject") -> tuple[str, ...]:
         """Get the keys (field names) where this object differs from another."""
-        assert type(self) == type(other), f"cannot diff {self!r} with {other!r}"
+        assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return tuple(
             field_name
             for field_name in self.FLAT_DATA_FIELDS

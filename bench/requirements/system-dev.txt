@@ -414,7 +414,7 @@ rich==13.9.4
     #   typer
 rsa==4.9
     # via google-auth
-ruff==0.7.2
+ruff==0.7.4
     # via -r bench/requirements/dev.in
 s3transfer==0.10.3
     # via boto3

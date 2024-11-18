@@ -4,7 +4,7 @@ from bench.language.const import Region
 from bench.system.provision.store import NEON_API_KEY, NEON_BASE_URL, NeonApiRemote
 
 
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_neon_provisioner():
     neon_api = NeonApiRemote(url=NEON_BASE_URL, api_key=NEON_API_KEY)
 

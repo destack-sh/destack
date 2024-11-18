@@ -40,7 +40,7 @@ async def restart_on_file_changes(on_restart: Callable | None = None):
     logger.debug("watcher.listen", cwd=cwd)
 
     try:
-        while True:
+        while True:  # noqa: ASYNC110
             await asyncio.sleep(0.1)
     except KeyboardInterrupt:
         observer.stop()

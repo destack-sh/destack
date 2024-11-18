@@ -788,7 +788,7 @@ def edit_data_graph(
     *,
     include_deleted: bool,
     is_prepass: bool = False,
-) -> None | list[EditData]:
+) -> list[EditData] | None:
     """
     Applies the edits to the data graph (edited nodes are copied before update).
     During prepass, we do some extra work (before applying the edits within in the system):

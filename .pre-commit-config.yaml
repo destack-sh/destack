@@ -1,18 +1,22 @@
 repos:
   # Python
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.5
+  - repo: local
     hooks:
       # lint
       - id: ruff
         name: ruff check (py)
-        exclude: ^bench/migrations
-        args: [ --fix ]
+        entry: ruff 
+        language: system
+        exclude: ^bench/(migrations|proto)
+        types: [ python ]
+        args: [ check, --fix ]
       # format
       - id: ruff-format
         name: ruff format (py)
-  - repo: local
-    hooks: # (on all files)
+        entry: ruff
+        language: system
+        types: [ python ]
+        args: [ format ]
       # typing
       - id: pyright
         name: pyright (py)
