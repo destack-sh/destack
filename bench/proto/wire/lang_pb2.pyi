@@ -4233,6 +4233,7 @@ class RunAttemptData(_message.Message):
         "interrupted_at",
         "interrupt_ptr",
         "error",
+        "intermediates_packed",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -4245,6 +4246,7 @@ class RunAttemptData(_message.Message):
     INTERRUPTED_AT_FIELD_NUMBER: _ClassVar[int]
     INTERRUPT_PTR_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    INTERMEDIATES_PACKED_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     code: CodeData
     status: RunStatus
@@ -4256,6 +4258,7 @@ class RunAttemptData(_message.Message):
     interrupted_at: _timestamp_pb2.Timestamp
     interrupt_ptr: NodeReferenceData
     error: RunErrorData
+    intermediates_packed: _struct_pb2.Value
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -4269,6 +4272,7 @@ class RunAttemptData(_message.Message):
         interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         interrupt_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         error: _Optional[_Union[RunErrorData, _Mapping]] = ...,
+        intermediates_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
     ) -> None: ...
 
 class RunTraceData(_message.Message):
@@ -7249,12 +7253,14 @@ class RunData(_message.Message):
         "killed_at",
         "interrupted_at",
         "interrupt_ptr",
+        "paused_at",
         "resumed_at",
         "terminated_at",
         "terminated_epoch",
-        "inputs_packed",
-        "outputs_packed",
         "variables_packed",
+        "inputs_packed",
+        "intermediates_packed",
+        "outputs_packed",
         "logs",
         "spans",
         "events",
@@ -7302,12 +7308,14 @@ class RunData(_message.Message):
     KILLED_AT_FIELD_NUMBER: _ClassVar[int]
     INTERRUPTED_AT_FIELD_NUMBER: _ClassVar[int]
     INTERRUPT_PTR_FIELD_NUMBER: _ClassVar[int]
+    PAUSED_AT_FIELD_NUMBER: _ClassVar[int]
     RESUMED_AT_FIELD_NUMBER: _ClassVar[int]
     TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
     TERMINATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
-    OUTPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
     VARIABLES_PACKED_FIELD_NUMBER: _ClassVar[int]
+    INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
+    INTERMEDIATES_PACKED_FIELD_NUMBER: _ClassVar[int]
+    OUTPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
     LOGS_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]
@@ -7354,12 +7362,14 @@ class RunData(_message.Message):
     killed_at: _timestamp_pb2.Timestamp
     interrupted_at: _timestamp_pb2.Timestamp
     interrupt_ptr: NodeReferenceData
+    paused_at: _timestamp_pb2.Timestamp
     resumed_at: _timestamp_pb2.Timestamp
     terminated_at: _timestamp_pb2.Timestamp
     terminated_epoch: int
-    inputs_packed: _struct_pb2.Value
-    outputs_packed: _struct_pb2.Value
     variables_packed: _struct_pb2.Value
+    inputs_packed: _struct_pb2.Value
+    intermediates_packed: _struct_pb2.Value
+    outputs_packed: _struct_pb2.Value
     logs: _containers.RepeatedCompositeFieldContainer[LogInfoData]
     spans: _containers.RepeatedCompositeFieldContainer[RunSpanData]
     events: _containers.RepeatedCompositeFieldContainer[RunEventData]
@@ -7408,12 +7418,14 @@ class RunData(_message.Message):
         killed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         interrupt_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        paused_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         resumed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         terminated_epoch: _Optional[int] = ...,
-        inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
-        outputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         variables_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
+        inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
+        intermediates_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
+        outputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...,
         logs: _Optional[_Iterable[_Union[LogInfoData, _Mapping]]] = ...,
         spans: _Optional[_Iterable[_Union[RunSpanData, _Mapping]]] = ...,
         events: _Optional[_Iterable[_Union[RunEventData, _Mapping]]] = ...,

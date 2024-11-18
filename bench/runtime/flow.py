@@ -9,13 +9,13 @@ from opentelemetry import trace
 from bench.language.block import FlowBlock
 from bench.language.const import ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
-from bench.language.flow import ActionStep, Pipe, PipeType, PortSide, Step, StepType
+from bench.language.flow import Pipe, PipeType, PortSide, Step, StepType
 from bench.language.interrupt import Interrupt
 from bench.language.run import Run, RunError, RunKind, RunnableNode, RunOptions
 from bench.language.value import CustomObject
-from bench.runtime.action import ActionRunner
+from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
-from bench.runtime.runner import Context, Interrupted, Runner, get_run_options
+from bench.runtime.runner import Context, Interrupted, Runner, get_run_options, restore_runner
 from bench.runtime.runtime import Runtime
 
 logger = structlog.get_logger(__name__)
@@ -120,13 +120,13 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             outgoing: list[Run] = []
             if isinstance(runner.node, Step):
                 for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):
-                    next_run = self._run(
+                    next_run = self._start(
                         pipe, inputs=runner.outputs, incoming=(runner.tracked_run,)
                     )
                     outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
                 # NOTE :Incomplete: allow Steps to wait for multiple incoming Pipes
-                next_run = self._run(
+                next_run = self._start(
                     runner.node.target, inputs=runner.outputs, incoming=(runner.tracked_run,)
                 )
                 outgoing.append(next_run)
@@ -147,7 +147,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
 
         self._stop_if_needed()
 
-    def _run(
+    def _start(
         self, node: Step | Pipe, *, inputs: CustomObject | None, incoming: Sequence[Run]
     ) -> Run:
         """Run a Step or Pipe in this Flow."""
@@ -175,7 +175,19 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         )
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         runner.tracked_run.incoming_ptr = tuple(run.to_plain_ref() for run in incoming)
-        logger.debug("flow.tick", flow=self.node, node=node, runner=runner)
+        logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
+        self._active_runners_by_id[runner.id] = runner
+        self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
+        return runner.tracked_run
+
+    def _resume(self, run: Run) -> Run:
+        """Resume a Run in this Flow."""
+        runner = restore_runner(self.runtime, run)
+        assert isinstance(
+            runner, (StepRunnerBase, PipeRunnerBase)
+        ), f"unexpected {runner!r} in {self!r}"
+        assert runner.tracked_run is not None, f"{runner!r} must be tracked"
+        logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
         return runner.tracked_run
@@ -185,10 +197,17 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         assert self.tracked_run is not None, f"{self!r} must be tracked"
 
         # start / resume
-        # nocheckin: restore/resume from Runs
-        for step in self.get_steps():
-            if step.type == StepType.START:
-                self._run(step, inputs=self.inputs, incoming=())
+        runs = self.tracked_run.runs.tolist()
+        if not runs:
+            # start from scratch
+            for step in self.get_steps():
+                if step.type == StepType.START:
+                    self._start(step, inputs=self.inputs, incoming=())
+        else:
+            # resume from interrupted
+            for run in runs:
+                if not run.outgoing_ptr and run.status.is_interrupted:
+                    self._resume(run)
 
         # stop immediately if no progress is possible
         self._stop_if_needed()
@@ -245,6 +264,8 @@ class FlowRunner(FlowRunnerBase[FlowBlock]):
 
 
 class StepRunnerBase(Runner[Step], ABC):
+    """Step Runner in a Flow."""
+
     kind: ClassVar[RunKind] = RunKind.STEP
 
     def __init__(
@@ -303,21 +324,8 @@ class TriggerStepRunner(StepRunnerBase):
         raise NotImplementedError
 
 
-class ActionStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        assert self.node.type == StepType.ACTION, f"unexpected node {self.node!r}"
-        runner = ActionRunner(
-            runtime=self.runtime,
-            node=cast(ActionStep, self.node),
-            options=self.options,
-            context=self.context,
-            parent=cast(Runner, self),
-            inputs=self.inputs,
-            track=False,
-        )
-        await self.runtime.run_runner(runner)
-        self.outputs = runner.outputs
+class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
+    pass
 
 
 class YieldStepRunner(StepRunnerBase):

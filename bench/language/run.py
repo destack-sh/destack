@@ -238,6 +238,8 @@ class RunAttempt(Struct):
     error: Optional["RunError"] = p_internal(
         51, require=False, array=False, struct=StructType.RUN_ERROR
     )
+    intermediates_packed: Any = p_value_packed(54)
+    intermediates: "CustomObject | None" = p_value_runtime(54, kind=ObjectKind.OUTPUT, typ=None)
 
     def __content_str__(self) -> str:
         if self.duration is not None:
@@ -443,22 +445,27 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     interrupt: Optional["Interrupt"] = p_internal(
         52, require=False, array=False, references=NodeType.INTERRUPT, same_bench=True
     )
+    paused_at: Optional[datetime] = p_internal(53, default=None)
     resumed_at: Optional[datetime] = p_internal(54, default=None)
     terminated_at: Optional[datetime] = p_internal(55, default=None)
     terminated_epoch: Optional[int] = p_internal(56, default=None)
 
     # content
-    inputs_packed: Any = p_value_packed(60)
-    inputs: "CustomObject | None" = p_value_runtime(
-        60, kind=ObjectKind.INPUT, typ=lambda self: cast("Run", self).input_type
-    )
-    outputs_packed: Any = p_value_packed(61)
-    outputs: "CustomObject | None" = p_value_runtime(
-        61, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Run", self).output_type
-    )
-    variables_packed: Any = p_value_packed(62)
+    variables_packed: Any = p_value_packed(60)
     variables: "CustomObject | None" = p_value_runtime(
-        62, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Run", self).variable_type
+        60, kind=ObjectKind.VARIABLE, typ=lambda self: cast("Run", self).variable_type
+    )
+    inputs_packed: Any = p_value_packed(61)
+    inputs: "CustomObject | None" = p_value_runtime(
+        61, kind=ObjectKind.INPUT, typ=lambda self: cast("Run", self).input_type
+    )
+    intermediates_packed: Any = p_value_packed(62)
+    intermediates: "CustomObject | None" = p_value_runtime(
+        62, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Run", self).output_type
+    )
+    outputs_packed: Any = p_value_packed(63)
+    outputs: "CustomObject | None" = p_value_runtime(
+        63, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
     logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
@@ -542,6 +549,16 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     ) -> None:
         if self.root_ptr is not None and self.root_ptr.id == self.id:
             invalid(self, "root points to self", (Run.root, Run.id))
+
+    def pause(self):
+        """Mark this Run as paused."""
+        assert self._session is not None, f"{self!r} has no session"
+        self.paused_at = self._session._oracle.utc()
+
+    def resume(self):
+        """Mark this Run as resumed."""
+        assert self._session is not None, f"{self!r} has no session"
+        self.resumed_at = self._session._oracle.utc()
 
     def kill(self):
         """Mark this Run as killed."""

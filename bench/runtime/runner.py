@@ -48,7 +48,13 @@ RunnerHook = Callable[["Runner", Exception | None], None]
 
 
 class Runner[N: RunnableNode = RunnableNode](abc.ABC):
-    """A runner for a single Run (tracked Run or untracked RunSpan)."""
+    """
+    A runner for a single Run (tracked Run or untracked RunSpan).
+    Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interrupt.
+    Once an Interrupt is handled, we try to run the Runner again - it may progress or raise another Interrupt.
+    Interruptible Runners may be nested, and it's the responsibility of the Runners
+     to ensure replay stability in all sub-Runners when resuming after an Interrupt.
+    """
 
     __slots__ = (
         "attempts",
@@ -215,7 +221,7 @@ def get_run_options(kind: RunKind, options: RunOptions | None):
     return base_options.override(options)
 
 
-def run_from_node(
+def make_run_from_node(
     node: "RunnableNode",
     *,
     options: RunOptions | None = None,
@@ -266,7 +272,7 @@ def run_from_node(
     return run
 
 
-def runner_from_run(runtime: "Runtime", run: Run, *, track: bool) -> "Runner":
+def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
     """Make a Runner from a Run."""
     node = run.runnable
     if node is None:
@@ -276,7 +282,7 @@ def runner_from_run(runtime: "Runtime", run: Run, *, track: bool) -> "Runner":
     else:
         inputs = run.inputs
 
-    return runner_from_node(
+    return make_runner(
         runtime,
         node,
         kind=run.kind,
@@ -284,11 +290,11 @@ def runner_from_run(runtime: "Runtime", run: Run, *, track: bool) -> "Runner":
         context=run.context,
         inputs=inputs,
         run=run,
-        track=track,
+        track=True,
     )
 
 
-def runner_from_node(
+def make_runner(
     runtime: "Runtime",
     node: RunnableNode,
     track: bool,

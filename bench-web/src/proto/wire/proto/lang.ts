@@ -1474,6 +1474,10 @@ export interface RunAttemptData {
      * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 51;
      */
     error?: RunErrorData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value intermediates_packed = 54;
+     */
+    intermediatesPacked?: JsonValue;
 }
 /**
  * @generated from protobuf message symbolx.bench.RunTraceData
@@ -4597,6 +4601,10 @@ export interface RunData {
      */
     interruptPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 53;
+     */
+    pausedAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 54;
      */
     resumedAt?: Timestamp;
@@ -4609,17 +4617,21 @@ export interface RunData {
      */
     terminatedEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 60;
+     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 60;
+     */
+    variablesPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 61;
      */
     inputsPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 61;
+     * @generated from protobuf field: optional google.protobuf.Value intermediates_packed = 62;
+     */
+    intermediatesPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 63;
      */
     outputsPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 62;
-     */
-    variablesPacked?: JsonValue;
     /**
      * @generated from protobuf field: repeated symbolx.bench.LogInfoData logs = 65;
      */
@@ -15778,7 +15790,8 @@ class RunAttemptData$Type extends MessageType$<RunAttemptData> {
             { no: 46, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 47, name: "interrupted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "interrupt_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 51, name: "error", kind: "message", T: () => RunErrorData }
+            { no: 51, name: "error", kind: "message", T: () => RunErrorData },
+            { no: 54, name: "intermediates_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<RunAttemptData>): RunAttemptData {
@@ -15827,6 +15840,9 @@ class RunAttemptData$Type extends MessageType$<RunAttemptData> {
                 case /* optional symbolx.bench.RunErrorData error */ 51:
                     message.error = RunErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
+                case /* optional google.protobuf.Value intermediates_packed */ 54:
+                    message.intermediatesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -15872,6 +15888,9 @@ class RunAttemptData$Type extends MessageType$<RunAttemptData> {
         /* optional symbolx.bench.RunErrorData error = 51; */
         if (message.error)
             RunErrorData.internalBinaryWrite(message.error, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value intermediates_packed = 54; */
+        if (message.intermediatesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.intermediatesPacked), writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23085,12 +23104,14 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 50, name: "killed_at", kind: "message", T: () => Timestamp },
             { no: 51, name: "interrupted_at", kind: "message", T: () => Timestamp },
             { no: 52, name: "interrupt_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 53, name: "paused_at", kind: "message", T: () => Timestamp },
             { no: 54, name: "resumed_at", kind: "message", T: () => Timestamp },
             { no: 55, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 56, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 60, name: "inputs_packed", kind: "message", T: () => Value },
-            { no: 61, name: "outputs_packed", kind: "message", T: () => Value },
-            { no: 62, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 60, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 61, name: "inputs_packed", kind: "message", T: () => Value },
+            { no: 62, name: "intermediates_packed", kind: "message", T: () => Value },
+            { no: 63, name: "outputs_packed", kind: "message", T: () => Value },
             { no: 65, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogInfoData },
             { no: 66, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunSpanData },
             { no: 67, name: "events", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunEventData },
@@ -23232,6 +23253,9 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData interrupt_ptr */ 52:
                     message.interruptPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptPtr);
                     break;
+                case /* optional google.protobuf.Timestamp paused_at */ 53:
+                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
+                    break;
                 case /* optional google.protobuf.Timestamp resumed_at */ 54:
                     message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
                     break;
@@ -23241,14 +23265,17 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional int32 terminated_epoch */ 56:
                     message.terminatedEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Value inputs_packed */ 60:
+                case /* optional google.protobuf.Value variables_packed */ 60:
+                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional google.protobuf.Value inputs_packed */ 61:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional google.protobuf.Value outputs_packed */ 61:
-                    message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                case /* optional google.protobuf.Value intermediates_packed */ 62:
+                    message.intermediatesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional google.protobuf.Value variables_packed */ 62:
-                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                case /* optional google.protobuf.Value outputs_packed */ 63:
+                    message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* repeated symbolx.bench.LogInfoData logs */ 65:
                     message.logs.push(LogInfoData.internalBinaryRead(reader, reader.uint32(), options));
@@ -23400,6 +23427,9 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData interrupt_ptr = 52; */
         if (message.interruptPtr)
             NodeReferenceData.internalBinaryWrite(message.interruptPtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp paused_at = 53; */
+        if (message.pausedAt)
+            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp resumed_at = 54; */
         if (message.resumedAt)
             Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
@@ -23409,15 +23439,18 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional int32 terminated_epoch = 56; */
         if (message.terminatedEpoch !== undefined)
             writer.tag(56, WireType.Varint).int32(message.terminatedEpoch);
-        /* optional google.protobuf.Value inputs_packed = 60; */
-        if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value outputs_packed = 61; */
-        if (message.outputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value variables_packed = 62; */
+        /* optional google.protobuf.Value variables_packed = 60; */
         if (message.variablesPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value inputs_packed = 61; */
+        if (message.inputsPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value intermediates_packed = 62; */
+        if (message.intermediatesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.intermediatesPacked), writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value outputs_packed = 63; */
+        if (message.outputsPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(63, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.LogInfoData logs = 65; */
         for (let i = 0; i < message.logs.length; i++)
             LogInfoData.internalBinaryWrite(message.logs[i], writer.tag(65, WireType.LengthDelimited).fork(), options).join();
@@ -28354,12 +28387,14 @@ export enum RunProperty {
   killedAt = 50,
   interruptedAt = 51,
   interruptPtr = 52,
+  pausedAt = 53,
   resumedAt = 54,
   terminatedAt = 55,
   terminatedEpoch = 56,
-  inputsPacked = 60,
-  outputsPacked = 61,
-  variablesPacked = 62,
+  variablesPacked = 60,
+  inputsPacked = 61,
+  intermediatesPacked = 62,
+  outputsPacked = 63,
   logs = 65,
   spans = 66,
   events = 67,
@@ -29008,6 +29043,7 @@ export enum RunAttemptProperty {
   interruptedAt = 47,
   interruptPtr = 50,
   error = 51,
+  intermediatesPacked = 54,
 }
 
 export enum RunTraceProperty {
@@ -29609,7 +29645,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.18.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29636,7 +29672,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.18.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29660,7 +29696,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.18.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.18.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30286,12 +30322,14 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.killedAt]: { id: 50, name: 'killed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.interruptedAt]: { id: 51, name: 'interrupted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.interruptPtr]: { id: 52, name: 'interrupt_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPT], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.pausedAt]: { id: 53, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.resumedAt]: { id: 54, name: 'resumed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.terminatedAt]: { id: 55, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.terminatedEpoch]: { id: 56, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.inputsPacked]: { id: 60, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.outputsPacked]: { id: 61, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.variablesPacked]: { id: 62, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.variablesPacked]: { id: 60, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.inputsPacked]: { id: 61, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.intermediatesPacked]: { id: 62, name: 'intermediates_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.outputsPacked]: { id: 63, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.logs]: { id: 65, name: 'logs', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LOG_INFO },
   [RunProperty.spans]: { id: 66, name: 'spans', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_SPAN },
   [RunProperty.events]: { id: 67, name: 'events', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_EVENT },
@@ -30873,6 +30911,7 @@ export const RunAttemptDataInfo: Record<RunAttemptProperty, PropertyInfo> = {
   [RunAttemptProperty.interruptedAt]: { id: 47, name: 'interrupted_at', component: ObjectType.RUN_ATTEMPT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunAttemptProperty.interruptPtr]: { id: 50, name: 'interrupt_ptr', component: ObjectType.RUN_ATTEMPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPT], referenceStruct: StructType.NODE_REFERENCE },
   [RunAttemptProperty.error]: { id: 51, name: 'error', component: ObjectType.RUN_ATTEMPT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
+  [RunAttemptProperty.intermediatesPacked]: { id: 54, name: 'intermediates_packed', component: ObjectType.RUN_ATTEMPT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const RunTraceDataInfo: Record<RunTraceProperty, PropertyInfo> = {
   [RunTraceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_TRACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

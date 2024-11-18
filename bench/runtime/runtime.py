@@ -22,7 +22,13 @@ from bench.runtime.core import (
     NonRetryableError,
     RetryableError,
 )
-from bench.runtime.runner import Interrupted, Runner, RunnerHook, run_from_node, runner_from_run
+from bench.runtime.runner import (
+    Interrupted,
+    Runner,
+    RunnerHook,
+    make_run_from_node,
+    restore_runner,
+)
 from bench.utils.oracle import Oracle
 
 logger = structlog.get_logger(__name__)
@@ -160,6 +166,7 @@ class Runtime:
                         attempt._do_set("status", status, validate=False)
                         attempt._do_set("interrupted_at", self.oracle.utc(), validate=False)
                         attempt._do_set("interrupt", e.interrupt, validate=False)
+                        log.debug("runtime.attempt.interrupted", attempt=attempt, span="current")
                         if runner.is_nested:
                             raise  # bubble up if not root runner
                         else:
@@ -230,7 +237,7 @@ class Runtime:
         run._do_set("server_ptr", self.session.server_ptr, validate=False)
         run._do_set("user_ptr", self.session.user_ptr, validate=False)
 
-        # start if not yet started
+        # mark started
         if run.started_at is None:
             run._do_set("started_epoch", self.session.epoch, validate=False)
             run._do_set("started_at", self.oracle.utc(), validate=False)
@@ -298,7 +305,7 @@ class Runtime:
                     hook(runner, exc)
 
     def create_runner(self, runner: Runner, on_stop: RunnerHook | None = None) -> Runner:
-        """Create a new Runner and run it."""
+        """Run a Runner asynchronously."""
         runner.outer_task = asyncio.create_task(self.run_runner(runner, hook=on_stop))
         return runner
 
@@ -316,11 +323,11 @@ class Runtime:
         if not isinstance(run, Run):
             if options is None:
                 options = ATTEMPT_THRICE if run.run_kind == RunKind.ACTION else ATTEMPT_ONCE
-            run = run_from_node(run, options=options, inputs=inputs, parent=self.active_run)
+            run = make_run_from_node(run, options=options, inputs=inputs, parent=self.active_run)
         runner = None
         async with self.session.active():
             try:
-                runner = runner_from_run(runtime=self, run=run, track=True)
+                runner = restore_runner(runtime=self, run=run)
                 await self.run_runner(runner)
                 logger.info("runtime.run", run=run, runner=runner, span="current")
             except (BenchError, ValueError, TypeError) as e:

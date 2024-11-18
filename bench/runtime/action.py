@@ -22,12 +22,21 @@ from bench.language.node import Node, SomeNodeReference, SourceNode
 from bench.language.project import Projection, ProjectOptions
 from bench.language.query import Query
 from bench.language.render import RenderOptions, render_expr, render_stmt
-from bench.language.run import CacheMode, ModelProvider, ModelType, Run, RunKind, RunOptions
+from bench.language.run import (
+    CacheMode,
+    ModelProvider,
+    ModelType,
+    Run,
+    RunAttempt,
+    RunKind,
+    RunnableNode,
+    RunOptions,
+)
 from bench.language.text import Text
-from bench.language.value import CustomObject, OutputObject, sample_value
+from bench.language.value import CustomObject, OutputObject, sample_value, unpack_custom_object
 from bench.runtime.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, ModelFailedError, RunImpossibleError
-from bench.runtime.runner import Context, Runner, runner_from_node
+from bench.runtime.runner import Context, Runner, make_runner, restore_runner
 from bench.utils.func import IdEnum, stable_hash
 from bench.utils.utils import get_from_env
 
@@ -43,41 +52,36 @@ class TaskType(IdEnum):
     RUN = 2
 
 
-class ActionRunner(Runner):
-    kind: ClassVar[RunKind] = RunKind.CODE
-
-    @property
-    def action(self) -> Action:
-        return cast(Action, self.node)
+class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
+    """Action Runner."""
 
     @override
     async def run(self) -> None:
-        assert self.node.type in (
-            BlockType.ACTION,
-            StepType.ACTION,
-        ), f"unexpected node {self.node!r}"
-        action = self.action
+        assert self.node.type in (BlockType.ACTION, StepType.ACTION), f"unexpected {self.node!r}"
+        assert self.tracked_run is not None, f"{self!r} must be tracked"
+        attempt = self.current_attempt
+        assert attempt is not None, f"no current attempt for {self!r}"
+        action = cast(Action, self.node)
         if action.mode == ActionMode.STRICT:
-            # run implementation directly
+            # run directly
             if action.code is not None:
-                self.outputs = await self._run_code(
-                    code=action.code,
-                    node=action,
+                # run implementation directly
+                self.outputs = await self._run_implementation(
+                    attempt=attempt,
+                    code=action.code or Code.empty(),
+                    tools=action.tools,
                     inputs=self.inputs,
-                    output_type=self.output_type,
                 )
             else:
+                # run delegate directly
                 tools = action.tools
                 if not tools:
                     raise RunImpossibleError(f"no tools for {self!r}")
                 elif len(tools) > 1:
                     raise RunImpossibleError(f"multiple tools for {self!r}")
-                # run delegate directly
-                delegate_runner = runner_from_node(
-                    self.runtime,
-                    tools[0],
-                    track=False,
-                    context=self.context,
+                delegate = tools[0]
+                delegate_runner = self._get_resumable_subrunner(
+                    node=delegate,
                     inputs=self.inputs,
                     output_type=self.output_type,
                 )
@@ -85,33 +89,64 @@ class ActionRunner(Runner):
                 self.outputs = delegate_runner.outputs
         elif action.mode == ActionMode.ADAPTIVE:
             # adapt (if needed) & run implementation
-            update_code = await self._generate_code(
-                task=TaskType.ADAPT, inputs=None, output_type=None, include_run_context=False
-            )
-            if update_code != CODE_PASS:
-                await self._run_code(code=update_code, node=action, inputs=None, output_type=None)
+            if attempt.code is None:
+                update_code = await self._generate_code(
+                    task=TaskType.ADAPT, inputs=None, output_type=None, include_run_context=False
+                )
+                if update_code != CODE_PASS:
+                    await self._run_code(
+                        code=update_code, node=action, inputs=None, output_type=None
+                    )
+                attempt._do_set("code", action.code, validate=False)
             self.outputs = await self._run_implementation(
-                code=action.code or Code.empty(),
+                attempt=attempt,
+                code=attempt.code or Code.empty(),
                 tools=action.tools,
                 inputs=self.inputs,
-                output_type=self.output_type,
             )
         elif action.mode == ActionMode.DYNAMIC:
             # generate a new implementation every time
-            implementation_code = await self._generate_code(
-                task=TaskType.RUN,
-                inputs=self.inputs,
-                output_type=self.output_type,
-                include_run_context=True,
-            )
+            if attempt.code is None:
+                implementation_code = await self._generate_code(
+                    task=TaskType.RUN,
+                    inputs=self.inputs,
+                    output_type=self.output_type,
+                    include_run_context=True,
+                )
+                attempt._do_set("code", implementation_code, validate=False)
             self.outputs = await self._run_implementation(
-                code=implementation_code,
+                attempt=attempt,
+                code=attempt.code or Code.empty(),
                 tools=action.tools,
                 inputs=self.inputs,
-                output_type=self.output_type,
             )
         else:
             assert_never(action.mode)
+
+    def _get_resumable_subrunner(
+        self, node: RunnableNode, inputs: CustomObject | None, output_type: TypeBase | None = None
+    ):
+        """
+        Gets the Runner for the given Node within this Runner.
+        If there is an interrupted Run inside the current Run for the node, we'll just return that.
+        Assumes there will only be on Runner for a given RunAttempt and Node.
+        """
+        assert self.tracked_run is not None, f"{self!r} must be tracked"
+        for run in self.tracked_run.runs:
+            # try to resume interrupted Run
+            if run.status.is_interrupted and run.runnable == node:
+                return restore_runner(self.runtime, run)
+        else:
+            # make new Runner
+            runner = make_runner(
+                runtime=self.runtime,
+                node=node,
+                track=True,
+                context=self.context,
+                inputs=inputs,
+                output_type=output_type,
+            )
+            return runner
 
     async def _generate_code(
         self,
@@ -168,26 +203,28 @@ class ActionRunner(Runner):
 
     async def _run_implementation(
         self,
+        attempt: RunAttempt,
         code: Code,
         tools: Sequence[Block],
         inputs: CustomObject | None,
-        output_type: TypeBase | None,
     ) -> CustomObject | None:
         """Runs the implementation of the given Action and returns the output."""
-        outputs = await self._run_code(
-            code=code, node=self.node, inputs=inputs, output_type=output_type
-        )
-        call = cast(OutputObject, outputs).call
-        if call is not None:
-            # run tool/delegate
-            # NOTE :Robustness: should delegate be (optionally) restricted to tools?
-            delegate_runner = runner_from_node(
-                self.runtime,
-                call.node,
-                track=False,
-                context=self.context,
-                inputs=call.inputs,
+        output_type = self.output_type
+        assert output_type is not None, f"missing output type for {self!r}"
+        if attempt.intermediates_packed is None:
+            intermediates = await self._run_code(
+                code=code, node=self.node, inputs=inputs, output_type=output_type
             )
+        else:
+            intermediates = unpack_custom_object(
+                ObjectKind.OUTPUT, attempt.intermediates_packed, typ=output_type
+            )
+        if intermediates is not None and cast(OutputObject, intermediates).call is not None:
+            # run tool/delegate
+            # NOTE :Robustness: should the Action delegate be restricted to tools (optionally)?
+            call = cast(OutputObject, intermediates).call
+            assert call is not None
+            delegate_runner = self._get_resumable_subrunner(node=call.node, inputs=call.inputs)
             await self.runtime.run_runner(delegate_runner)
             if call.mapping_code is not None:
                 # run mapping code
@@ -200,10 +237,10 @@ class ActionRunner(Runner):
             else:
                 delegate_outputs = delegate_runner.outputs
             assert output_type is not None, f"missing output type for {self!r}"
-            if outputs is None:
-                outputs = CustomObject.new(ObjectKind.OUTPUT, {}, output_type)
+            outputs = intermediates.clone()
             outputs.update(delegate_outputs)
-        return outputs
+        else:
+            return intermediates
 
     async def _run_code(
         self,
@@ -225,6 +262,12 @@ class ActionRunner(Runner):
         )
         await self.runtime.run_runner(code_runner)
         return code_runner.outputs
+
+
+class ActionRunner(ActionRunnerBase):
+    """Action Runner."""
+
+    kind: ClassVar[RunKind] = RunKind.ACTION
 
 
 #
