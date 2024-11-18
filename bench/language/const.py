@@ -1081,6 +1081,10 @@ class RunStatus(IdEnum):
         return self in ACTIVE_RUN_STATUSES
 
     @property
+    def is_stopped(self) -> bool:
+        return self >= 4
+
+    @property
     def is_interrupted(self) -> bool:
         return self in INTERRUPTED_RUN_STATUSES
 
