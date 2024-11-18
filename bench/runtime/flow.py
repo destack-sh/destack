@@ -185,7 +185,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         assert self.tracked_run is not None, f"{self!r} must be tracked"
 
         # start / resume
-        # nocheckin: restore/resume
+        # nocheckin: restore/resume from Runs
         for step in self.get_steps():
             if step.type == StepType.START:
                 self._run(step, inputs=self.inputs, incoming=())
@@ -199,12 +199,17 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         except Exception:
             self._abort()  # abort if we get cancelled
             raise
-        if isinstance(self._stop_result, CustomObject):
+        assert self._stop_result is not None, f"no stop result for {self!r}"
+        if self._stop_result == "completed":
+            pass  # no outputs
+        elif isinstance(self._stop_result, CustomObject):
             self.outputs = self._stop_result
         elif isinstance(self._stop_result, RunError):
-            raise RetryableError(None, self._stop_result)
+            raise RetryableError(message=self._stop_result.title, error=self._stop_result)
         elif isinstance(self._stop_result, Interrupt):
             raise Interrupted(self, self.tracked_run, self._stop_result)
+        else:
+            assert_never(self._stop_result)
 
 
 class FlowRunner(FlowRunnerBase[FlowBlock]):
@@ -322,6 +327,8 @@ class YieldStepRunner(StepRunnerBase):
         interrupt = self.tracked_run.interrupt
         if interrupt is None:
             interrupt = Interrupt.from_yield(self.tracked_run)
+            raise Interrupted(cast(Runner, self), self.tracked_run, interrupt)
+        elif interrupt.is_open:
             raise Interrupted(cast(Runner, self), self.tracked_run, interrupt)
         else:
             self.outputs = interrupt.outputs

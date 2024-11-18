@@ -231,8 +231,12 @@ class RunAttempt(Struct):
     started_epoch: Optional[int] = p_internal(43, default=None)
     terminated_at: Optional[datetime] = p_internal(45, default=None)
     terminated_epoch: Optional[int] = p_internal(46, default=None)
+    interrupted_at: Optional[datetime] = p_internal(47, default=None)
+    interrupt: Optional["Interrupt"] = p_internal(
+        50, require=False, array=False, references=NodeType.INTERRUPT, same_bench=True
+    )
     error: Optional["RunError"] = p_internal(
-        47, require=False, array=False, struct=StructType.RUN_ERROR
+        51, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
     def __content_str__(self) -> str:
@@ -439,6 +443,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     interrupt: Optional["Interrupt"] = p_internal(
         52, require=False, array=False, references=NodeType.INTERRUPT, same_bench=True
     )
+    resumed_at: Optional[datetime] = p_internal(54, default=None)
     terminated_at: Optional[datetime] = p_internal(55, default=None)
     terminated_epoch: Optional[int] = p_internal(56, default=None)
 
@@ -537,3 +542,10 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     ) -> None:
         if self.root_ptr is not None and self.root_ptr.id == self.id:
             invalid(self, "root points to self", (Run.root, Run.id))
+
+    def kill(self):
+        """Mark this Run as killed."""
+        assert self._session is not None, f"{self!r} has no session"
+        self.killed_at = self._session._oracle.utc()
+
+    cancel = abort = kill

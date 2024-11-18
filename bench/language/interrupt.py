@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from git import TYPE_CHECKING
 
-from bench.language.const import EnumType, NodeType, ObjectKind, StructType, enum_
+from bench.language.const import EnumType, NodeType, ObjectKind, RunStatus, StructType, enum_
 from bench.language.node import NodeReference, RuntimeNode, Struct, struct_, timed_node_
 from bench.language.property import (
     p_internal,
@@ -15,6 +15,7 @@ from bench.language.property import (
 )
 from bench.language.session import HasSessionContext
 from bench.language.trigger import Trigger
+from bench.language.value import CustomObject
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -66,6 +67,16 @@ class InterruptKind(IdEnum):
     WAIT = 3  # wait on trigger
 
 
+RUN_STATUS_BY_INTERRUPT_KIND: dict[InterruptKind, RunStatus] = {
+    InterruptKind.PAUSE: RunStatus.PAUSED,
+    InterruptKind.YIELD: RunStatus.YIELDED,
+    InterruptKind.WAIT: RunStatus.WAITING,
+}
+INTERRUPT_KIND_BY_RUN_STATUS: dict[RunStatus, InterruptKind] = {
+    v: k for k, v in RUN_STATUS_BY_INTERRUPT_KIND.items()
+}
+
+
 @enum_(EnumType.INTERRUPT_STATUS)
 class InterruptStatus(IdEnum):
     OPEN = 1
@@ -95,12 +106,29 @@ class Interrupt(RuntimeNode, HasSessionContext):
     # status
     status: InterruptStatus = p_internal(40, default=InterruptStatus.OPEN)
     duration: Optional[timedelta] = p_internal(41, require=False, default=None)
-    opened_at: Optional[datetime] = p_regular(42, require=False, default=None)
-    closed_at: Optional[datetime] = p_regular(43, require=False, default=None)
+    closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
 
     # content
     outputs_packed: Any = p_value_packed(50)
     outputs: Any = p_value_runtime(50, kind=ObjectKind.OUTPUT, typ=None)
+
+    def close(self, outputs: CustomObject | None = None) -> None:
+        """Mark this Interrupt as closed."""
+        if self.status == InterruptStatus.CLOSED:
+            return
+        assert self._session is not None, f"{self!r} has no session"
+        self.status = InterruptStatus.CLOSED
+        self.closed_at = self._session._oracle.utc()
+        self.duration = self.closed_at - self.created_at
+        self.outputs = outputs
+
+    @property
+    def is_open(self) -> bool:
+        return self.status == InterruptStatus.OPEN
+
+    @property
+    def is_closed(self) -> bool:
+        return self.status == InterruptStatus.CLOSED
 
     @staticmethod
     def from_yield(run: "Run") -> "Interrupt":

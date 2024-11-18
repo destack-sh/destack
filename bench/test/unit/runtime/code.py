@@ -510,7 +510,7 @@ async def test_run_code_abort(local_runtime: RuntimeHandle):
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    await local_runtime.runtime.abort_run(run)
+    await local_runtime.runtime.abort(run)
     runner = await run_task
     # run should be aborted
     assert runner.status == RunStatus.ABORTED
