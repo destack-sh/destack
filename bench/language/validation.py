@@ -12,8 +12,8 @@ if TYPE_CHECKING:
         FileType,
         Property,
         StepType,
-        TypeConstraint,
         TypeBase,
+        TypeConstraint,
         ViewType,
     )
     from bench.language.value import SomeValue

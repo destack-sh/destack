@@ -373,7 +373,7 @@ async def _do_test_simulation(spec: SimulationSpec):
 #  (organized by category and parameterized by simulation)
 
 
-@pytest.mark.quick()
+@pytest.mark.quick
 @pytest.mark.parametrize(
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.QUICK, ()), ids=lambda s: s.name
 )
@@ -388,7 +388,7 @@ async def test_simulation_default(spec: SimulationSpec):
     await _do_test_simulation(spec)
 
 
-@pytest.mark.careful()
+@pytest.mark.careful
 @pytest.mark.parametrize(
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.CAREFUL, ()), ids=lambda s: s.name
 )
@@ -396,7 +396,7 @@ async def test_simulation_careful(spec: SimulationSpec):
     await _do_test_simulation(spec)
 
 
-@pytest.mark.paranoid()
+@pytest.mark.paranoid
 @pytest.mark.parametrize(
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.PARANOID, ()), ids=lambda s: s.name
 )

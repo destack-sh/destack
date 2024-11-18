@@ -723,9 +723,7 @@ class FileBase(BuiltinObject):
             raise ValueError(f"cannot get image content of {self!r}")
 
     @tracer.start_as_current_span("file.downscale")
-    async def downscale(
-        self, max_pixels: int, max_size: int, quality_step: int = 20
-    ) -> "FileBase":
+    async def downscale(self, max_pixels: int, max_size: int, quality_step: int = 20) -> "FileBase":
         """Downscales the image to the given max size and max pixels."""
 
         # scale down size

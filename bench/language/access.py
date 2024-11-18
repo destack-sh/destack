@@ -793,7 +793,7 @@ def generate_access_matrix(
             zone_id = new_zones_by_identity.get(identity.id)
             if zone_id is not None:
                 zone = matrix._scoped_zones_by_id[zone_id]
-                matrix._lowest_zone_by_scope[(identity.id, node_data.id)] = zone
+                matrix._lowest_zone_by_scope[identity.id, node_data.id] = zone
 
         # descend into children
         #  (even if they don't have any legislative nodes since we want the runtime-only zone mapping)
@@ -830,7 +830,7 @@ def generate_access_matrix(
                 _skip_validate_self=True,
             )
             matrix.base_zones.append(base_zone)
-            matrix._base_zone_by_root[(identity.id, root.id)] = base_zone
+            matrix._base_zone_by_root[identity.id, root.id] = base_zone
 
         # add nested zones if there are any legislative nodes down here
         _assign_access_zones(root, root_id, root_zones_by_identity)
@@ -873,7 +873,7 @@ def evaluate_access(
 
     # check the zones for each identity (separately)
     for identity in matrix.identities:
-        base_zone: AccessZone = matrix._base_zone_by_root[(identity.id, root_id)]
+        base_zone: AccessZone = matrix._base_zone_by_root[identity.id, root_id]
         if scope_id is not None:
             start_scoped_zone = matrix._lowest_zone_by_scope.get((identity.id, scope_id))
         else:

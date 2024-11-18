@@ -208,7 +208,7 @@ def get_naive_object_strategy(object_type: ObjectType):
         ):
             continue  # :IgnoredGeneratedProperties
         elif (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
-            object_kwargs[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[(object_type, prop.name)]
+            object_kwargs[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[object_type, prop.name]
         elif prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
         elif prop.is_node_reference:

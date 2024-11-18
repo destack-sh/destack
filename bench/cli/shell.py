@@ -48,6 +48,6 @@ async def shell(bench: Optional[str] = None):  # type: ignore
     try:
         # allow SIGINT to pass to psql to abort queries
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run(["psql", connection_uri], check=True)  # noqa: ASYNC101
+        subprocess.run(["psql", connection_uri], check=True)  # noqa: ASYNC221
     finally:
         signal.signal(signal.SIGINT, sigint_handler)

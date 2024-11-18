@@ -171,8 +171,13 @@ def _complete_bench_setup():
             descendant_types[node_type].add(new_child)
             descendant_types[node_type] |= descendant_types[new_child]
             new_children.extend(child_types[new_child] - descendant_types[node_type])
-    global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
-    global DESCENDANT_NODE_TYPES_IN_STORE, HAS_CHILD_NODE_TYPES
+    global \
+        ANCESTOR_NODE_TYPES, \
+        DESCENDANT_NODE_TYPES, \
+        PARENT_NODE_TYPES, \
+        CHILD_NODE_TYPES, \
+        DESCENDANT_NODE_TYPES_IN_STORE, \
+        HAS_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
         is_local = node_type in LOCAL_NODE_TYPES
         ANCESTOR_NODE_TYPES[node_type] = bittuple(*ancestor_types[node_type], enum_cls=NodeType)
