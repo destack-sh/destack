@@ -78,12 +78,15 @@ class RunPlugin(HostPlugin[Run]):
 
     @override
     async def on_commit(self, session: Session, commit: Commit[Run]) -> None:
-        # start new scheduled runs
         for run in commit.added:
+            # start new scheduled runs
             if run.status == RunStatus.SCHEDULED and run.parent_type == NodeType.PACKAGE:
                 self._queue_operation(RunOperation.START, run)
-        # kill active runs with killed_at
         for run in commit.updated:
+            # resume active runs
+            if run.resumed_at is not None and run.status.is_interrupted:
+                self._queue_operation(RunOperation.RESUME, run)
+            # kill active runs with killed_at
             if run.killed_at is not None and not run.status.is_terminal:
                 self._queue_operation(RunOperation.KILL, run)
 

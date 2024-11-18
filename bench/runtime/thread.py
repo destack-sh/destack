@@ -156,7 +156,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         run = self._supergraph.get(UUID(request.run.id))
         if not isinstance(run, Run):
             return PauseRunResponse(is_processed=False)
-        await self._runtime.pause_run(run)
+        await self._runtime.pause(run)
         return PauseRunResponse(is_processed=True)
 
     @override
@@ -165,5 +165,5 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         run = self._supergraph.get(UUID(request.run.id))
         if not isinstance(run, Run):
             return KillRunResponse(is_processed=False)
-        await self._runtime.abort_run(run)
+        await self._runtime.abort(run)
         return KillRunResponse(is_processed=True)

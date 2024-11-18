@@ -292,7 +292,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    await local_runtime.runtime.abort_run(run)
+    await local_runtime.runtime.abort(run)
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED
@@ -303,11 +303,6 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     )
     # inner code step should also be aborted
     assert runner.runners[2].node == Code1 and runner.runners[2].status == RunStatus.ABORTED
-
-
-async def test_run_flow_pause(local_runtime: RuntimeHandle):
-    """Run a long async Flow and pause it, then resume it."""
-    raise NotImplementedError  # nocheckin: pause/resume flows
 
 
 async def test_run_flow_yield(local_runtime: RuntimeHandle):
@@ -322,6 +317,32 @@ async def test_run_flow_yield(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
+    # run up to yield
     runner = await local_runtime.run(Flow)
     assert runner.status == RunStatus.YIELDED
-    # "nocheckin: yield/resume flows"
+    assert runner.tracked_run
+    assert runner.tracked_run.interrupted_at and runner.tracked_run.interrupt
+    assert not runner.tracked_run.terminated_at and not runner.tracked_run.terminated_epoch
+    assert len(runner.attempts) == 1
+
+    # resume run (without handling Interrupt)
+    runner = await local_runtime.run(runner.tracked_run)
+    assert runner.status == RunStatus.YIELDED
+    assert runner.tracked_run
+    assert runner.tracked_run.interrupted_at and runner.tracked_run.interrupt
+    assert not runner.tracked_run.terminated_at and not runner.tracked_run.terminated_epoch
+    assert len(runner.attempts) == 1  # should be the same attempt
+
+    # handle interrupt
+    runner.tracked_run.interrupt.close()
+
+    # resume run (after handling Interrupt)
+    runner = await local_runtime.run(runner.tracked_run)
+    assert runner.status == RunStatus.COMPLETED
+    assert runner.tracked_run
+    assert len(runner.attempts) == 1
+
+
+async def test_run_flow_pause(local_runtime: RuntimeHandle):
+    """Run a long async Flow and pause it, then resume it."""
+    raise NotImplementedError

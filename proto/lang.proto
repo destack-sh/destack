@@ -2023,7 +2023,9 @@ message RunAttemptData {
   optional int32 started_epoch = 43;
   optional google.protobuf.Timestamp terminated_at = 45;
   optional int32 terminated_epoch = 46;
-  optional RunErrorData error = 47;
+  optional google.protobuf.Timestamp interrupted_at = 47;
+  optional NodeReferenceData interrupt_ptr = 50;
+  optional RunErrorData error = 51;
 }
 
 message RunTraceData {
@@ -2909,6 +2911,7 @@ message RunData {
   optional google.protobuf.Timestamp killed_at = 50;
   optional google.protobuf.Timestamp interrupted_at = 51;
   optional NodeReferenceData interrupt_ptr = 52;
+  optional google.protobuf.Timestamp resumed_at = 54;
   optional google.protobuf.Timestamp terminated_at = 55;
   optional int32 terminated_epoch = 56;
   optional google.protobuf.Value inputs_packed = 60;
@@ -3065,8 +3068,7 @@ message InterruptData {
   optional int32 attempt_no = 38;
   InterruptStatus status = 40;
   optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp opened_at = 42;
-  optional google.protobuf.Timestamp closed_at = 43;
+  optional google.protobuf.Timestamp closed_at = 42;
   optional google.protobuf.Value outputs_packed = 50;
   optional NodeReferenceData session_ptr = 80;
   optional NodeReferenceData run_ptr = 81;
