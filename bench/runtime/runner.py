@@ -10,7 +10,7 @@ from bench.language.code import Code
 from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe
-from bench.language.interrupt import Interrupt
+from bench.language.interrupt import BreakpointKind, Interrupt
 from bench.language.log import LogInfo
 from bench.language.run import (
     Context,
@@ -196,6 +196,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     def interrupt(self) -> Interrupt | None:
         assert self.tracked_run is not None, f"{self!r} is not tracked"
         return self.tracked_run.interrupt
+
+    def _trap_breakpoint(self, kind: BreakpointKind):
+        """Yield/resume the given kind of breakpoint if set in this Runner."""
+        self.runtime._trap_breakpoint(self, kind)
 
     def cancel(self):
         self.is_cancelled = True

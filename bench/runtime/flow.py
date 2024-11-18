@@ -205,6 +205,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                     self._start(step, inputs=self.inputs, incoming=())
         else:
             # resume from interrupted
+            # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?
             for run in runs:
                 if not run.outgoing_ptr and run.status.is_interrupted:
                     self._resume(run)

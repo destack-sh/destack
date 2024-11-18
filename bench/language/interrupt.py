@@ -26,19 +26,22 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.BREAKPOINT_KIND)
 class BreakpointKind(IdEnum):
-    # basic
-    START_RUN = 1
-    FAIL_RUN = 2
-    COMPLETE_RUN = 3
-    RETRY_RUN = 4
-    FAIL_ATTEMPT = 5
+    # run
+    RUN_BEFORE = 1
+    RUN_AFTER_FAILED = 2
+    RUN_AFTER_COMPLETED = 3
+    RUN_AFTER = 5
     # flow
+    ...
+    # action
     ...
 
 
 @enum_(EnumType.BREAKPOINT_SCOPE)
 class BreakpointScope(IdEnum):
     SELF = 1
+    # flow
+    STEP = 20
 
 
 @enum_(EnumType.BREAKPOINT_ACTION)
