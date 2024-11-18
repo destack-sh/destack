@@ -281,7 +281,6 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   // control
   // ...
   // containers
-  [StepType.GROUP]: "fas fa-frame",
   [StepType.LOOP]: "fas fa-repeat",
   // misc
   [StepType.TEXT]: "fas fa-align-left",
@@ -533,7 +532,8 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.QUEUED]: makeIcon({ faName: "fas fa-hourglass" }),
   [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-circle-notch" }),
   [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-circle-pause" }),
-  [RunStatus.SUSPENDED]: makeIcon({ faName: "fas fa-circle-pause" }),
+  [RunStatus.YIELDED]: makeIcon({ faName: "fas fa-circle-pause" }),
+  [RunStatus.WAITING]: makeIcon({ faName: "fas fa-circle-pause" }),
   [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-circle-check" }),
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
   [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),

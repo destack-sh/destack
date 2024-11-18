@@ -37,7 +37,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.TREE]: () => import("@/views/system/Tree.vue"),
   [ViewType.INSPECT]: () => import("@/views/system/Inspect.vue"),
   [ViewType.CREATE]: () => import("@/views/system/Create.vue"),
-  [ViewType.CHAT]: () => import("@/views/system/Chat.vue"),
   [ViewType.START]: () => import("@/views/system/Start.vue"),
   [ViewType.FEED]: () => import("@/views/system/Feed.vue"),
   [ViewType.HUB]: () => import("@/views/system/Hub.vue"),

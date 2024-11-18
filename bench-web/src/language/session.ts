@@ -1,4 +1,4 @@
-import { ACTIVE_RUN_STATUSES, HALTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } from "@/language/const";
+import { ACTIVE_RUN_STATUSES, INTERRUPTED_RUN_STATUSES, TERMINAL_RUN_STATUSES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
 import {
@@ -47,7 +47,7 @@ export function isRunActive(run: RunData): boolean {
 }
 
 export function isRunHalted(run: RunData): boolean {
-  return HALTED_RUN_STATUSES.includes(run.status);
+  return INTERRUPTED_RUN_STATUSES.includes(run.status);
 }
 
 export function isRunTerminal(run: RunData): boolean {
