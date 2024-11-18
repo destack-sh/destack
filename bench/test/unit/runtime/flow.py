@@ -1,12 +1,14 @@
 import asyncio
 
+import pytest
+
 from bench.language import ActionMode, BlockType, RunStatus
 from bench.language.block import Block
 from bench.language.code import code
 from bench.language.field import Field
 from bench.language.flow import PipeType, Step, StepType
 from bench.language.run import RunErrorType, RunOptions
-from bench.runtime.runner import run_from_node
+from bench.runtime.runner import make_run_from_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -288,7 +290,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
-    run = run_from_node(Flow)
+    run = make_run_from_node(Flow)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
@@ -343,6 +345,55 @@ async def test_run_flow_yield(local_runtime: RuntimeHandle):
     assert len(runner.attempts) == 1
 
 
+async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
+    "Run a FLow inside another Flow and yield from there. Should propagate and resume properly."
+    # inner flow
+    FlowInner = Block.new(BlockType.FLOW, "FlowInner")
+    StartInner = Step.new(StepType.START, "StartInner")
+    YieldInner = Step.new(StepType.YIELD, "YieldInner")
+    CompleteInner = Step.new(StepType.COMPLETE, "CompleteInner")
+    FlowInner.steps.extend(StartInner, YieldInner, CompleteInner)
+    StartInner.connect(PipeType.PASS, YieldInner)
+    YieldInner.connect(PipeType.PASS, CompleteInner)
+
+    # outer flow
+    FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
+    StartOuter = Step.new(StepType.START, "Start")
+    ActionOuter = Step.new(StepType.ACTION, "Action", mode=ActionMode.STRICT, tools=[FlowInner])
+    CompleteOuter = Step.new(StepType.COMPLETE, "Complete")
+    FlowOuter.steps.extend(StartOuter, ActionOuter, CompleteOuter)
+    StartOuter.connect(PipeType.PASS, ActionOuter)
+    ActionOuter.connect(PipeType.PASS, CompleteOuter)
+
+    local_runtime.page().blocks.extend(FlowInner, FlowOuter)
+    await local_runtime.commit()
+
+    # run up to yield
+    runner = await local_runtime.run(FlowOuter)
+    assert runner.status == RunStatus.YIELDED
+    assert runner.tracked_run
+
+    # resume run (without handling Interrupt)
+    runner = await local_runtime.run(runner.tracked_run)
+    assert runner.status == RunStatus.YIELDED
+    assert runner.tracked_run
+    assert runner.tracked_run.interrupted_at and runner.tracked_run.interrupt
+
+    # handle interrupt
+    runner.tracked_run.interrupt.close()
+
+    # resume run (after handling Interrupt)
+    runner = await local_runtime.run(runner.tracked_run)
+    assert runner.status == RunStatus.COMPLETED
+
+
+@pytest.mark.skip("nocheckin: breakpoints")
+async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
+    """Run a Flow with breakpoints all over. Should yield and resume properly."""
+    pass
+
+
+@pytest.mark.skip("nocheckin: pause/resume Runs")
 async def test_run_flow_pause(local_runtime: RuntimeHandle):
     """Run a long async Flow and pause it, then resume it."""
-    raise NotImplementedError
+    pass

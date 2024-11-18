@@ -358,10 +358,10 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
     value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
     if value_type is not None and value_type.kind == TypeKind.OBJECT:
         if value_packed is None:
+            # init custom objects to empty value object instead of None
+            #  (so we can track modifications properly)
             object_kind = prop.value_object_kind
             assert object_kind is not None, f"no object kind for {prop!r}"
-            # default custom objects to empty value object instead of None
-            #  (so we can track modifications properly)
             value_packed = {}
             obj._do_set(wired_prop.name, value_packed, track=False, validate=False)
             value = CustomObject(

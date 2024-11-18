@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.18.0"
+VERSION = "2024.11.18.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1305,12 +1305,14 @@ RUN_TABLE = Table(
         Column("interrupted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupt_id", PrimitiveType.UUID, is_nullable=True),
         Column("interrupt_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("resumed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_epoch", PrimitiveType.INT32, is_nullable=True),
-        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("intermediates_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("logs", PrimitiveType.JSON, is_array=True),
         Column("spans", PrimitiveType.JSON, is_array=True),
         Column("events", PrimitiveType.JSON, is_array=True),

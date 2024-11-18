@@ -8,7 +8,7 @@ from bench.language.run import Run, RunErrorType, RunKind, RunOptions
 from bench.language.value import CustomObject
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.runtime.core import ATTEMPT_ONCE
-from bench.runtime.runner import run_from_node
+from bench.runtime.runner import make_run_from_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -506,7 +506,7 @@ async def test_run_code_abort(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()
 
-    run = run_from_node(CodeBlock)
+    run = make_run_from_node(CodeBlock)
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
