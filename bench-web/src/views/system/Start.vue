@@ -119,7 +119,7 @@ watch(currentRunnableNode, (newNode) => {
 const runnablePtr = computed(() => (lastRunnableNode.value != null ? toPlainNodeRef(lastRunnableNode.value) : null));
 const baseTypePtr = computed(() => {
   if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.ACTION) {
-    return unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, lastRunnableNode.value.subnodePacked, "delegatePtr");
+    return unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, lastRunnableNode.value.subnodePacked, "toolsPtr")?.[0];
   } else {
     return runnablePtr.value ?? undefined;
   }

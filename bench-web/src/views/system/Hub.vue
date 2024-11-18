@@ -255,7 +255,7 @@ defineExpose<ViewExposed>({ self });
         v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: USER_MENU_ITEMS, placement: 'top-left' })"
         class="mx-2 w-full py-1 pl-2.5 pr-1.5 text-left text-gray-700 transition-colors duration-75 hover:bg-gray-100"
       >
-        <IconInline class="" v-bind="user.icon ?? makeIcon('fa fa-user-circle')" />
+        <IconInline class="" v-bind="user?.icon ?? makeIcon('fa fa-user-circle')" />
         <span v-if="user" class="ml-2">{{ user.name }}</span>
         <span v-else class="ml-2">Log In</span>
       </button>
