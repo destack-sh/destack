@@ -186,6 +186,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         assert isinstance(
             runner, (StepRunnerBase, PipeRunnerBase)
         ), f"unexpected {runner!r} in {self!r}"
+        runner.flow = self
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
@@ -295,11 +296,11 @@ class StepRunnerBase(Runner[Step], ABC):
         self.flow = flow
 
     @override
-    def _has_breakpoints(self, *sites: BreakpointSite):
-        if super()._has_breakpoints(*sites):
+    def _has_breakpoint_set(self, *sites: BreakpointSite):
+        if super()._has_breakpoint_set(*sites):
             return True
         if self.flow is not None:
-            for bp in self.flow.own_breakpoints:
+            for bp in self.flow.breakpoints:
                 if bp.scope == BreakpointScope.STEP and bp.site in sites:
                     return True
         return False
@@ -343,11 +344,8 @@ class YieldStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
         assert self.tracked_run is not None, f"{self!r} must be tracked"
-        interrupt = self.tracked_run.interrupt
-        if interrupt is None:
-            interrupt = Interrupt.from_run(InterruptKind.YIELD, self.tracked_run)
-            raise Interrupted(cast(Runner, self), self.tracked_run, interrupt)
-        elif interrupt.is_open:
+        interrupt = self._get_or_create_interrupt(InterruptKind.YIELD)
+        if interrupt.is_open:
             raise Interrupted(cast(Runner, self), self.tracked_run, interrupt)
         else:
             self.outputs = interrupt.outputs

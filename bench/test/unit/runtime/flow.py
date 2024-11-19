@@ -299,11 +299,8 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED
-    assert (
-        runner.tracked_run
-        and runner.tracked_run.duration
-        and runner.tracked_run.duration.total_seconds() < 1
-    )
+    assert runner.tracked_run
+    assert runner.tracked_run.duration and runner.tracked_run.duration.total_seconds() < 1
     # inner code step should also be aborted
     assert runner.runners[2].node == Code1 and runner.runners[2].status == RunStatus.ABORTED
 
@@ -416,27 +413,29 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
-    # check that all yield points are hit
+    # check that all yield points are hit in order
+    run = make_run_from_node(Flow)
     runner = None
     for yield_point in (Start, Yield, Yield, Action, Action, Complete):
         # run up to yield
-        runner = await local_runtime.run(Flow)
+        runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
         assert runner.interrupt and runner.interrupt.step == yield_point
         assert runner.tracked_run
+        run = runner.tracked_run
 
         # run up to yield again (without handling Interrupt)
-        runner = await local_runtime.run(runner.tracked_run)
+        runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
         assert runner.interrupt and runner.interrupt.step == yield_point
         assert runner.tracked_run
+        run = runner.tracked_run
 
         # handle interrupt
         runner.interrupt.close()
-    assert runner and runner.tracked_run  # make type checker happy
 
     # run up to completion
-    runner = await local_runtime.run(runner.tracked_run)
+    runner = await local_runtime.run(run)
     assert runner.status == RunStatus.COMPLETED
 
 

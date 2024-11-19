@@ -15,7 +15,7 @@ from bench.language.action import ActionMode
 from bench.language.block import ActionBlock, Block
 from bench.language.code import Code
 from bench.language.const import BlockType, ObjectKind
-from bench.language.field import TypeBase
+from bench.language.field import Field, TypeBase
 from bench.language.file import FileBase
 from bench.language.flow import ActionStep, Pipe, Step, StepType
 from bench.language.node import Node, SomeNodeReference, SourceNode
@@ -202,7 +202,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         self,
         attempt: RunAttempt,
         code: Code,
-        tools: Sequence[Block],
+        tools: Sequence[Block | Field],
         inputs: CustomObject | None,
     ) -> CustomObject | None:
         """Runs the implementation of the given Action and returns the output."""
