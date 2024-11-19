@@ -283,9 +283,21 @@ const { activeDropZone } = useMultiDropZone({
   allowDrop: (dragged, anchor, targetId) => {
     if (dragged.kind != "node") return false;
     const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
-    if (target == null || isDescendantOf(pkgGraph, target, dragged.node)) return false;
+    if (target == null || isDescendantOf(pkgGraph, target, dragged.node)) {
+      return false; // circular
+    }
     const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.nodeType;
-    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.nodeType)) return false;
+    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.nodeType)) {
+      return false; // not a child
+    }
+    if (
+      isNode(target, NodeType.BLOCK) &&
+      isNode(dragged.nodes[0], NodeType.BLOCK) &&
+      anchor == "center" &&
+      target.type != BlockType.PAGE
+    ) {
+      return false; // can only move blocks into page blocks
+    }
     return true;
   },
   onDrop: (dragged, anchor, targetId) => {

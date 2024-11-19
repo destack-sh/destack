@@ -13,7 +13,6 @@ from typing import (
 )
 
 import structlog
-from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import Block, Step
@@ -215,22 +214,34 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return self.tracked_run.interrupt
 
     @property
-    def own_breakpoints(self) -> Sequence[Breakpoint]:
+    def breakpoints(self) -> Sequence[Breakpoint]:
         if self.tracked_run is None or self.tracked_run.options is None:
             return ()
         else:
             return self.tracked_run.options.breakpoints
 
-    def _has_breakpoints(self, *sites: BreakpointSite):
+    def _has_breakpoint_set(self, *sites: BreakpointSite):
         """Gets all Breakpoints applicable to this Runner."""
-        for bp in self.own_breakpoints:
+        for bp in self.breakpoints:
             if bp.scope == BreakpointScope.SELF and bp.site in sites:
                 return True
         if self.parent is not None:
-            for bp in self.parent.own_breakpoints:
+            for bp in self.parent.breakpoints:
                 if bp.scope == BreakpointScope.CHILD and bp.site in sites:
                     return True
         return False
+
+    def _get_or_create_interrupt(
+        self, kind: InterruptKind, *, breakpoint: BreakpointSite | None = None
+    ):
+        """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
+        assert self.tracked_run is not None, f"{self!r} is not tracked"
+        for interrupt in self.tracked_run.interrupts:
+            if interrupt.kind == kind and interrupt.breakpoint_site == breakpoint:
+                return interrupt
+        interrupt = Interrupt.from_run(kind, self.tracked_run, breakpoint=breakpoint)
+        self.runtime.session._create(interrupt)
+        return interrupt
 
     @final
     def _trap_breakpoint(self, site: BreakpointSite, *alias_sites: BreakpointSite):
@@ -240,18 +251,15 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.tracked_run is None:
             return  # can't break into untracked Run
         # handle applicable breakpoint (if any)
-        if self._has_breakpoints(site, *alias_sites):
-            interrupt = first(
-                (i for i in self.tracked_run.interrupts if i.breakpoint_site == site), None
-            )
-            if interrupt is not None and interrupt.is_closed:
-                return  # breakpoint already handled
-            elif interrupt is not None:
-                raise Interrupted(self, self.tracked_run, interrupt)
-            else:
-                interrupt = Interrupt.from_run(
-                    InterruptKind.YIELD, self.tracked_run, breakpoint=site
+        if self._has_breakpoint_set(site, *alias_sites):
+            interrupt = self._get_or_create_interrupt(InterruptKind.YIELD, breakpoint=site)
+            if interrupt.is_closed:
+                logger.trace(
+                    "runtime.breakpoint.closed", runner=self, interrupt=interrupt, site=site
                 )
+                return  # breakpoint already handled
+            else:
+                logger.trace("runtime.breakpoint", runner=self, interrupt=interrupt, site=site)
                 raise Interrupted(self, self.tracked_run, interrupt)
 
     @final
@@ -287,7 +295,6 @@ def get_run_options(kind: RunKind, options: RunOptions | None):
 def make_run_from_node(
     node: "RunnableNode",
     *,
-    options: RunOptions | None = None,
     inputs: Any | None = None,
     parent: "Run | None" = None,
     **kwargs,
@@ -315,7 +322,7 @@ def make_run_from_node(
     else:
         assert_never(node)
 
-    options = get_run_options(kind, options)
+    options = get_run_options(kind, node.run_options)
     run = Run(
         parent=parent or node.package,
         kind=kind,
@@ -363,7 +370,6 @@ def make_runner(
     track: bool,
     *,
     kind: RunKind | None = None,
-    options: RunOptions | None = None,
     context: Context | None = None,
     inputs: Any | None = None,
     parent: "Run | None" = None,
@@ -372,9 +378,9 @@ def make_runner(
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
 
-    if options is None:
-        options = RunOptions()
-
+    run_kind = kind or node.run_kind
+    assert run_kind is not None, f"no run kind for {node!r}"
+    options = get_run_options(run_kind, run.options if run is not None else node.run_options)
     base_kwargs: dict[str, Any] = {
         "runtime": runtime,
         "options": options,
@@ -386,9 +392,6 @@ def make_runner(
         "parent": parent,
         **kwargs,
     }
-
-    run_kind = kind or node.run_kind
-    assert run_kind is not None, f"no run kind for {node!r}"
     if run_kind == RunKind.CODE:
         from bench.runtime.code import CodeFunctionRunner
 

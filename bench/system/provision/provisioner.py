@@ -22,8 +22,8 @@ tracer = trace.get_tracer(__name__)
 
 class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], abc.ABC):
     """
-    A provisioner for resources of the declared types.
-    Synchronize the declared state of Bench resources with their actual (external) state (both ways).
+    A provisioner for some types of Resources.
+    Synchronizes the declared state of Resources with their actual (external) state (bidirectionally).
     """
 
     """The nodes this Provisioner can handle (separate from node types to watch in HostPlugin.)"""

@@ -9,14 +9,12 @@ from opentelemetry import baggage, context, trace
 
 from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
 from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointSite
-from bench.language.run import Run, RunAttempt, RunError, RunKind, RunnableNode, RunOptions
+from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.language.value import CustomObject, check_value
 from bench.runtime.cache import Cache
 from bench.runtime.core import (
-    ATTEMPT_ONCE,
-    ATTEMPT_THRICE,
     DYNAMIC_CODE_GLOBALS,
     STATIC_CODE_GLOBALS,
     NonRetryableError,
@@ -138,7 +136,7 @@ class Runtime:
                 raise  # give up if not retryable (anymore)
         finally:
             runner.task = None
-            if runner.status.is_terminal:
+            if attempt.status.is_terminal:
                 if terminated_at is None:
                     terminated_at = self.oracle.utc()
                 attempt._do_set("terminated_at", terminated_at, validate=False)
@@ -203,14 +201,19 @@ class Runtime:
                     # no attempts, shouldn't actually get here if RetryOptions.max_attempts > 0
                     raise NonRetryableError(message="retry exhausted")
         finally:
+            # reset active run
+            self._active_runner.reset(active_run_runner_token)
+            last_attempt = runner.current_attempt
+            assert last_attempt is not None, f"missing last attempt for run {runner!r}"
+
             # breakpoint after
             runner._trap_pause()
-            if runner.status.is_terminal:
-                if runner.status == RunStatus.FAILED:
+            if last_attempt.status.is_terminal:
+                if last_attempt.status == RunStatus.FAILED:
                     runner._trap_breakpoint(
                         BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_FAILED
                     )
-                elif runner.status == RunStatus.COMPLETED:
+                elif last_attempt.status == RunStatus.COMPLETED:
                     runner._trap_breakpoint(
                         BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_COMPLETED
                     )
@@ -218,13 +221,8 @@ class Runtime:
                     runner._trap_breakpoint(BreakpointSite.RUN_AFTER)
 
             # run status = last attempt
-            last_attempt = runner.current_attempt
-            assert last_attempt is not None, f"missing last attempt for run {runner!r}"
             runner.status = last_attempt.status
             runner.error = last_attempt.error
-
-            # reset active run
-            self._active_runner.reset(active_run_runner_token)
 
     @tracer.start_as_current_span("runtime.run_runner.track")
     async def _do_run_tracked(self, runner: Runner):
@@ -259,11 +257,16 @@ class Runtime:
         try:
             await self._do_run(runner)
         except Interrupted as e:
-            last_attempt = runner.current_attempt
-            interrupted_at = (
-                last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
-            )
-            run._do_set("interrupted_at", interrupted_at, validate=False)
+            if not runner.status.is_interrupted:
+                # interrupt not handled in attempt loop (probably from a breakpoint)
+                last_attempt = runner.current_attempt
+                interrupted_at = (
+                    last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
+                )
+                runner.status = RUN_STATUS_BY_INTERRUPT_KIND[e.interrupt.kind]
+                run._do_set("interrupted_at", interrupted_at, validate=False)
+            else:
+                run._do_set("interrupted_at", self.oracle.utc(), validate=False)
             run._do_set("interrupt", e.interrupt, validate=False)
             raise
         finally:
@@ -318,9 +321,18 @@ class Runtime:
                 if hook is not None:
                     hook(runner, exc)
 
+    async def _wrap_run_runner(self, runner: Runner, hook: RunnerHook | None = None):
+        """Run the runner at the top-level, handling any exceptions."""
+        try:
+            await self.run_runner(runner, hook=hook)
+        except (Interrupted, asyncio.CancelledError):
+            pass  # already handled, not a top-level error
+        except Exception as e:
+            logger.error("runtime.run_runner.error", runner=runner, exc_info=e)
+
     def create_runner(self, runner: Runner, on_stop: RunnerHook | None = None) -> Runner:
         """Run a Runner asynchronously."""
-        runner.outer_task = asyncio.create_task(self.run_runner(runner, hook=on_stop))
+        runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner, hook=on_stop))
         return runner
 
     @tracer.start_as_current_span("runtime.run")
@@ -328,16 +340,13 @@ class Runtime:
         self,
         run: Run | RunnableNode,
         *,
-        options: RunOptions | None = None,
         inputs: Any | None = None,
         return_error: bool = False,
         optimistic: bool = False,
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime."""
         if not isinstance(run, Run):
-            if options is None:
-                options = ATTEMPT_THRICE if run.run_kind == RunKind.ACTION else ATTEMPT_ONCE
-            run = make_run_from_node(run, options=options, inputs=inputs, parent=self.active_run)
+            run = make_run_from_node(run, inputs=inputs, parent=self.active_run)
         runner = None
         async with self.session.active():
             try:

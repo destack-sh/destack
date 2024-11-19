@@ -119,8 +119,8 @@ export class StepState {
           NodeType.STEP,
           StepType.ACTION,
           this.step.value?.subnodePacked,
-          "toolsPtr",
-        )?.[0];
+          "delegatePtr",
+        );
         return nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
       } else {
         return null;
@@ -892,7 +892,7 @@ export function getStepFields(
     if (flow == null) return null;
     let node: BlockData | StepData | undefined | null = null;
     if (step.type == StepType.ACTION) {
-      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "toolsPtr")?.[0];
+      const nodePtr = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, step.subnodePacked, "delegatePtr");
       node = graph.getMaybe(nodePtr) as BlockData | StepData | undefined;
     }
     related = {

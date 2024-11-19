@@ -55,11 +55,14 @@ class BreakpointAction(IdEnum):
 
 @struct_(StructType.BREAKPOINT)
 class Breakpoint(Struct):
-    """A (conditional) Breakpoint for some Run."""
+    """A (conditional) Breakpoint for some Run. Overlapping Breakpoints coalesce."""
 
     site: BreakpointSite = p_regular(30)
     scope: BreakpointScope = p_regular(31, default=BreakpointScope.SELF)
     action: BreakpointAction = p_regular(32, default=BreakpointAction.YIELD)
+
+    def __content_str__(self) -> str:
+        return f"{self.site.bench_name}:{self.scope.bench_name} -> {self.action.bench_name}"
 
     @staticmethod
     def before(

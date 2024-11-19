@@ -202,7 +202,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
           class="rounded text-gray-400 hover:text-gray-700"
         >
-          <i class="fas fa-ellipsis-v w-5 text-center" />
+          <i class="fas fa-grip-horizontal w-5 text-center" />
         </button>
       </div>
     </div>
