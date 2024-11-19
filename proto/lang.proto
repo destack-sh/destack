@@ -69,9 +69,9 @@ enum EnumType {
   ENUM_TYPE_RUN_EVENT_TYPE = 20515;
   ENUM_TYPE_SESSION_STATUS = 20516;
   ENUM_TYPE_TRIGGER_TYPE = 20520;
-  ENUM_TYPE_BREAKPOINT_KIND = 20530;
+  ENUM_TYPE_BREAKPOINT_SITE = 20530;
   ENUM_TYPE_BREAKPOINT_ACTION = 20531;
-  ENUM_TYPE_BREAKPOINT_SCOPE = 20532;
+  ENUM_TYPE_BREAKPOINT_TARGET = 20532;
   ENUM_TYPE_INTERRUPT_KIND = 20533;
   ENUM_TYPE_INTERRUPT_STATUS = 20534;
   ENUM_TYPE_CACHE_MODE = 20540;
@@ -486,9 +486,9 @@ enum BenchType {
   BENCH_TYPE_RUN_EVENT_TYPE = 20515;
   BENCH_TYPE_SESSION_STATUS = 20516;
   BENCH_TYPE_TRIGGER_TYPE = 20520;
-  BENCH_TYPE_BREAKPOINT_KIND = 20530;
+  BENCH_TYPE_BREAKPOINT_SITE = 20530;
   BENCH_TYPE_BREAKPOINT_ACTION = 20531;
-  BENCH_TYPE_BREAKPOINT_SCOPE = 20532;
+  BENCH_TYPE_BREAKPOINT_TARGET = 20532;
   BENCH_TYPE_INTERRUPT_KIND = 20533;
   BENCH_TYPE_INTERRUPT_STATUS = 20534;
   BENCH_TYPE_CACHE_MODE = 20540;
@@ -1197,24 +1197,24 @@ enum TriggerType {
   TRIGGER_TYPE_SIGNAL = 2;
 }
 
-enum BreakpointKind {
-  BREAKPOINT_KIND_UNSPECIFIED = 0;
-  BREAKPOINT_KIND_START_RUN = 1;
-  BREAKPOINT_KIND_FAIL_RUN = 2;
-  BREAKPOINT_KIND_COMPLETE_RUN = 3;
-  BREAKPOINT_KIND_RETRY_RUN = 4;
-  BREAKPOINT_KIND_FAIL_ATTEMPT = 5;
+enum BreakpointSite {
+  BREAKPOINT_SITE_UNSPECIFIED = 0;
+  BREAKPOINT_SITE_RUN_BEFORE = 1;
+  BREAKPOINT_SITE_RUN_AFTER_FAILED = 2;
+  BREAKPOINT_SITE_RUN_AFTER_COMPLETED = 3;
+  BREAKPOINT_SITE_RUN_AFTER = 5;
 }
 
 enum BreakpointAction {
   BREAKPOINT_ACTION_UNSPECIFIED = 0;
   BREAKPOINT_ACTION_YIELD = 1;
-  BREAKPOINT_ACTION_LOG = 2;
 }
 
 enum BreakpointScope {
   BREAKPOINT_SCOPE_UNSPECIFIED = 0;
   BREAKPOINT_SCOPE_SELF = 1;
+  BREAKPOINT_SCOPE_CHILD = 2;
+  BREAKPOINT_SCOPE_STEP = 20;
 }
 
 enum InterruptKind {
@@ -2098,10 +2098,9 @@ message ScheduleData {
 
 message BreakpointData {
   ObjectType metatype = 1;
-  BreakpointKind kind = 30;
+  BreakpointSite site = 30;
   BreakpointScope scope = 31;
   BreakpointAction action = 32;
-  optional ExpressionData condition = 40;
 }
 
 message LogInfoData {
@@ -2760,6 +2759,7 @@ message ActionBlockData {
   optional TextData text = 101;
   optional CodeData code = 102;
   repeated NodeReferenceData tools_ptr = 103;
+  optional NodeReferenceData delegate_ptr = 104;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -3006,6 +3006,7 @@ message ActionStepData {
   optional TextData text = 101;
   optional CodeData code = 102;
   repeated NodeReferenceData tools_ptr = 103;
+  optional NodeReferenceData delegate_ptr = 104;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -3067,11 +3068,12 @@ message InterruptData {
   optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData step_ptr = 33;
   optional NodeReferenceData pipe_ptr = 34;
-  optional NodeReferenceData trigger_ptr = 37;
-  optional int32 attempt_no = 38;
+  optional int32 attempt_no = 37;
+  optional BreakpointSite breakpoint_site = 38;
   InterruptStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp closed_at = 42;
+  optional NodeReferenceData trigger_ptr = 49;
   optional google.protobuf.Value outputs_packed = 50;
   optional NodeReferenceData session_ptr = 80;
   optional NodeReferenceData run_ptr = 81;

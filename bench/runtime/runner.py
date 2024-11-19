@@ -1,8 +1,19 @@
 import abc
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, assert_never, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Iterable,
+    Sequence,
+    assert_never,
+    cast,
+    final,
+)
 
 import structlog
+from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import Block, Step
@@ -10,7 +21,13 @@ from bench.language.code import Code
 from bench.language.const import ObjectKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe
-from bench.language.interrupt import BreakpointKind, Interrupt
+from bench.language.interrupt import (
+    Breakpoint,
+    BreakpointScope,
+    BreakpointSite,
+    Interrupt,
+    InterruptKind,
+)
 from bench.language.log import LogInfo
 from bench.language.run import (
     Context,
@@ -197,9 +214,51 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         assert self.tracked_run is not None, f"{self!r} is not tracked"
         return self.tracked_run.interrupt
 
-    def _trap_breakpoint(self, kind: BreakpointKind):
-        """Yield/resume the given kind of breakpoint if set in this Runner."""
-        self.runtime._trap_breakpoint(self, kind)
+    @property
+    def own_breakpoints(self) -> Sequence[Breakpoint]:
+        if self.tracked_run is None or self.tracked_run.options is None:
+            return ()
+        else:
+            return self.tracked_run.options.breakpoints
+
+    def _has_breakpoints(self, *sites: BreakpointSite):
+        """Gets all Breakpoints applicable to this Runner."""
+        for bp in self.own_breakpoints:
+            if bp.scope == BreakpointScope.SELF and bp.site in sites:
+                return True
+        if self.parent is not None:
+            for bp in self.parent.own_breakpoints:
+                if bp.scope == BreakpointScope.CHILD and bp.site in sites:
+                    return True
+        return False
+
+    @final
+    def _trap_breakpoint(self, site: BreakpointSite, *alias_sites: BreakpointSite):
+        """
+        Yield/resume the given kind of breakpoint if set in this Runner.
+        """
+        if self.tracked_run is None:
+            return  # can't break into untracked Run
+        # handle applicable breakpoint (if any)
+        if self._has_breakpoints(site, *alias_sites):
+            interrupt = first(
+                (i for i in self.tracked_run.interrupts if i.breakpoint_site == site), None
+            )
+            if interrupt is not None and interrupt.is_closed:
+                return  # breakpoint already handled
+            elif interrupt is not None:
+                raise Interrupted(self, self.tracked_run, interrupt)
+            else:
+                interrupt = Interrupt.from_run(
+                    InterruptKind.YIELD, self.tracked_run, breakpoint=site
+                )
+                raise Interrupted(self, self.tracked_run, interrupt)
+
+    @final
+    def _trap_pause(self):
+        """Yield/resume a pause the given Runner if required."""
+        if self.tracked_run is None:
+            return
 
     def cancel(self):
         self.is_cancelled = True

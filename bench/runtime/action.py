@@ -74,12 +74,9 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                 )
             else:
                 # run delegate directly
-                tools = action.tools
-                if not tools:
-                    raise RunImpossibleError(f"no tools for {self!r}")
-                elif len(tools) > 1:
-                    raise RunImpossibleError(f"multiple tools for {self!r}")
-                delegate = tools[0]
+                delegate = action.delegate
+                if not delegate:
+                    raise RunImpossibleError(f"no delegate for {self!r}")
                 delegate_runner = self._get_resumable_subrunner(
                     node=delegate,
                     inputs=self.inputs,

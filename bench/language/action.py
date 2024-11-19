@@ -48,8 +48,17 @@ class ActionBase(BuiltinObject):
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
         description="Available implementations for this action.",
     )
+    delegate: Optional["Block"] = p_regular(
+        104,
+        require=False,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+        description="Current implementation for this action.",
+    )
     if TYPE_CHECKING:
         tools_ptr: tuple["NodeReference", ...] = ()
+        delegate_ptr: "NodeReference | None" = None
 
 
 @struct_(StructType.CALL)
