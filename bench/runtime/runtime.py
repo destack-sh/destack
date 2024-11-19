@@ -8,7 +8,7 @@ import structlog
 from opentelemetry import baggage, context, trace
 
 from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
-from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointKind
+from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointSite
 from bench.language.run import Run, RunAttempt, RunError, RunKind, RunnableNode, RunOptions
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -87,14 +87,6 @@ class Runtime:
     def active_run(self) -> Run | None:
         runner = self._active_runner.get(None)
         return runner.tracked_run if runner else None
-
-    def _trap_pause(self, runner: Runner):
-        """Pause the given Runner if required."""
-        pass
-
-    def _trap_breakpoint(self, runner: Runner, kind: BreakpointKind):
-        """Yield/resume the given kind of breakpoint if set in this Runner."""
-        pass
 
     @tracer.start_as_current_span("runtime.run_runner.attempt")
     async def _do_attempt(self, runner: Runner, retry: RetryState, attempt: RunAttempt):
@@ -179,9 +171,9 @@ class Runtime:
             retry.attempt -= 1  # don't count interrupted attempt (see above)
 
         # breakpoint before
-        self._trap_pause(runner)
+        runner._trap_pause()
         if last_attempt is None:
-            self._trap_breakpoint(runner, BreakpointKind.RUN_BEFORE)
+            runner._trap_breakpoint(BreakpointSite.RUN_BEFORE)
 
         # run
         active_run_runner_token = self._active_runner.set(runner)
@@ -212,13 +204,18 @@ class Runtime:
                     raise NonRetryableError(message="retry exhausted")
         finally:
             # breakpoint after
-            self._trap_pause(runner)
+            runner._trap_pause()
             if runner.status.is_terminal:
                 if runner.status == RunStatus.FAILED:
-                    self._trap_breakpoint(runner, BreakpointKind.RUN_AFTER_FAILED)
+                    runner._trap_breakpoint(
+                        BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_FAILED
+                    )
                 elif runner.status == RunStatus.COMPLETED:
-                    self._trap_breakpoint(runner, BreakpointKind.RUN_AFTER_COMPLETED)
-                self._trap_breakpoint(runner, BreakpointKind.RUN_AFTER)
+                    runner._trap_breakpoint(
+                        BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_COMPLETED
+                    )
+                else:
+                    runner._trap_breakpoint(BreakpointSite.RUN_AFTER)
 
             # run status = last attempt
             last_attempt = runner.current_attempt
@@ -268,6 +265,7 @@ class Runtime:
             )
             run._do_set("interrupted_at", interrupted_at, validate=False)
             run._do_set("interrupt", e.interrupt, validate=False)
+            raise
         finally:
             run._do_set("attempts", runner.attempts, validate=False)
             run._do_set("logs", runner.logs, validate=False)

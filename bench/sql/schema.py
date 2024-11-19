@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.18.1"
+VERSION = "2024.11.19.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1371,13 +1371,14 @@ INTERRUPT_TABLE = Table(
         Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
         Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
-        Column("trigger_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("trigger_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("attempt_no", PrimitiveType.INT32, is_nullable=True),
+        Column("breakpoint_site", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
+        Column("trigger_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("trigger_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),

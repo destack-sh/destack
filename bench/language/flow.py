@@ -360,11 +360,11 @@ class Step(SourceNode[StepData]):
         elif self.type == StepType.COMPLETE:
             parent = self.parent
             return parent.output_type if parent is not None else None
-        elif self.type == StepType.ACTION and cast(ActionStep, self).tools_ptr:
-            tools = cast(ActionStep, self).tools
-            assert len(tools) == 1, f"{self!r} should have exactly one tool: {tools!r}"
-            node = tools[0]
-            return node.to_type(as_object=as_object, field_type=field_type)
+        elif self.type == StepType.ACTION and cast(ActionStep, self).delegate_ptr:
+            delegate = cast(ActionStep, self).delegate
+            return (
+                delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
+            )
         else:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)

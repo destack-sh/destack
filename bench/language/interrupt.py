@@ -19,13 +19,13 @@ from bench.language.value import CustomObject
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Pipe, Run, Step
+    from bench.language import Block, Pipe, Run, Step
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.BREAKPOINT_KIND)
-class BreakpointKind(IdEnum):
+@enum_(EnumType.BREAKPOINT_SITE)
+class BreakpointSite(IdEnum):
     # run
     RUN_BEFORE = 1
     RUN_AFTER_FAILED = 2
@@ -37,9 +37,12 @@ class BreakpointKind(IdEnum):
     ...
 
 
-@enum_(EnumType.BREAKPOINT_SCOPE)
+@enum_(EnumType.BREAKPOINT_TARGET)
 class BreakpointScope(IdEnum):
+    # general
     SELF = 1
+    CHILD = 2
+    # DESCENDANT, ...?
     # flow
     STEP = 20
 
@@ -47,20 +50,44 @@ class BreakpointScope(IdEnum):
 @enum_(EnumType.BREAKPOINT_ACTION)
 class BreakpointAction(IdEnum):
     YIELD = 1
-    LOG = 2
+    # LOG, FAIL, ...?
 
 
 @struct_(StructType.BREAKPOINT)
 class Breakpoint(Struct):
     """A (conditional) Breakpoint for some Run."""
 
-    kind: BreakpointKind = p_regular(30)
+    site: BreakpointSite = p_regular(30)
     scope: BreakpointScope = p_regular(31, default=BreakpointScope.SELF)
     action: BreakpointAction = p_regular(32, default=BreakpointAction.YIELD)
 
-    condition: Optional["Expression"] = p_regular(
-        40, require=False, array=False, struct=StructType.EXPRESSION
-    )
+    @staticmethod
+    def before(
+        scope: BreakpointScope = BreakpointScope.SELF,
+        action: BreakpointAction = BreakpointAction.YIELD,
+    ) -> "Breakpoint":
+        return Breakpoint(site=BreakpointSite.RUN_BEFORE, scope=scope, action=action)
+
+    @staticmethod
+    def after(
+        scope: BreakpointScope = BreakpointScope.SELF,
+        action: BreakpointAction = BreakpointAction.YIELD,
+    ) -> "Breakpoint":
+        return Breakpoint(site=BreakpointSite.RUN_AFTER, scope=scope, action=action)
+
+    @staticmethod
+    def after_failed(
+        scope: BreakpointScope = BreakpointScope.SELF,
+        action: BreakpointAction = BreakpointAction.YIELD,
+    ) -> "Breakpoint":
+        return Breakpoint(site=BreakpointSite.RUN_AFTER_FAILED, scope=scope, action=action)
+
+    @staticmethod
+    def after_completed(
+        scope: BreakpointScope = BreakpointScope.SELF,
+        action: BreakpointAction = BreakpointAction.YIELD,
+    ) -> "Breakpoint":
+        return Breakpoint(site=BreakpointSite.RUN_AFTER_COMPLETED, scope=scope, action=action)
 
 
 @enum_(EnumType.INTERRUPT_KIND)
@@ -101,15 +128,16 @@ class Interrupt(RuntimeNode, HasSessionContext):
     block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(33, require=False, array=False, references=NodeType.STEP)
     pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
-    trigger: Optional["Trigger"] = p_regular(
-        37, require=False, default=None, references=NodeType.TRIGGER
-    )
-    attempt_no: Optional[int] = p_internal(38, require=False, default=None)
+    attempt_no: Optional[int] = p_internal(37, require=False, default=None)
+    breakpoint_site: BreakpointSite | None = p_internal(38)
 
     # status
     status: InterruptStatus = p_internal(40, default=InterruptStatus.OPEN)
     duration: Optional[timedelta] = p_internal(41, require=False, default=None)
     closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
+    trigger: Optional["Trigger"] = p_regular(
+        49, require=False, default=None, references=NodeType.TRIGGER
+    )
 
     # content
     outputs_packed: Any = p_value_packed(50)
@@ -134,12 +162,21 @@ class Interrupt(RuntimeNode, HasSessionContext):
         return self.status == InterruptStatus.CLOSED
 
     @staticmethod
-    def from_yield(run: "Run") -> "Interrupt":
+    def from_run(
+        kind: InterruptKind,
+        run: "Run",
+        trigger: "Trigger | None" = None,
+        attempt: Optional[int] = None,
+        breakpoint: BreakpointSite | None = None,
+    ) -> "Interrupt":
         return Interrupt(
-            kind=InterruptKind.YIELD,
+            kind=kind,
             parent=run,
             session=run.session,
             block=run.block,
             step=run.step,
             pipe=run.pipe,
+            trigger=trigger,
+            attempt_no=attempt,
+            breakpoint_site=breakpoint,
         )

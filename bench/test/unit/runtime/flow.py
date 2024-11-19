@@ -7,6 +7,7 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.field import Field
 from bench.language.flow import PipeType, Step, StepType
+from bench.language.interrupt import Breakpoint, BreakpointScope
 from bench.language.run import RunErrorType, RunOptions
 from bench.runtime.runner import make_run_from_node
 from bench.test.unit.conftest import RuntimeHandle
@@ -359,7 +360,7 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
     StartOuter = Step.new(StepType.START, "Start")
-    ActionOuter = Step.new(StepType.ACTION, "Action", mode=ActionMode.STRICT, tools=[FlowInner])
+    ActionOuter = Step.new(StepType.ACTION, "Action", mode=ActionMode.STRICT, delegate=FlowInner)
     CompleteOuter = Step.new(StepType.COMPLETE, "Complete")
     FlowOuter.steps.extend(StartOuter, ActionOuter, CompleteOuter)
     StartOuter.connect(PipeType.PASS, ActionOuter)
@@ -387,10 +388,56 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
 
 
-@pytest.mark.skip("nocheckin: breakpoints")
 async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
-    pass
+    Flow = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        run_options=RunOptions(breakpoints=[Breakpoint.before(BreakpointScope.STEP)]),
+    )
+    Start = Step.new(StepType.START, "Start")
+    Yield = Step.new(
+        StepType.YIELD, "Yield", run_options=RunOptions(breakpoints=[Breakpoint.before()])
+    )
+    Action = Step.new(
+        StepType.ACTION,
+        "Action",
+        mode=ActionMode.STRICT,
+        code=code("pass"),
+        run_options=RunOptions(
+            breakpoints=[Breakpoint.before(), Breakpoint.after_completed(), Breakpoint.after()]
+        ),
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow.steps.extend(Start, Yield, Action, Complete)
+    Start.connect(PipeType.PASS, Yield)
+    Yield.connect(PipeType.PASS, Action)
+    Action.connect(PipeType.PASS, Complete)
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
+
+    # check that all yield points are hit
+    runner = None
+    for yield_point in (Start, Yield, Yield, Action, Action, Complete):
+        # run up to yield
+        runner = await local_runtime.run(Flow)
+        assert runner.status == RunStatus.YIELDED
+        assert runner.interrupt and runner.interrupt.step == yield_point
+        assert runner.tracked_run
+
+        # run up to yield again (without handling Interrupt)
+        runner = await local_runtime.run(runner.tracked_run)
+        assert runner.status == RunStatus.YIELDED
+        assert runner.interrupt and runner.interrupt.step == yield_point
+        assert runner.tracked_run
+
+        # handle interrupt
+        runner.interrupt.close()
+    assert runner and runner.tracked_run  # make type checker happy
+
+    # run up to completion
+    runner = await local_runtime.run(runner.tracked_run)
+    assert runner.status == RunStatus.COMPLETED
 
 
 @pytest.mark.skip("nocheckin: pause/resume Runs")
