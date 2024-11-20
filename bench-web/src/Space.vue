@@ -32,15 +32,7 @@ const window = computed(() => windows.value[0]); // assumes :OneRootWindow for n
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 
 // suppress save everywhere
-const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => {
-  toaster.info({
-    override: "space.suppressSave",
-    icon: "fas fa-floppy-disk",
-    title: "No need to save",
-    text: "Bench synchronizes automatically.",
-  });
-  return true;
-});
+const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => true);
 onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title

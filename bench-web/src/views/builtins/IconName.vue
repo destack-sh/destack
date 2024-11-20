@@ -1,14 +1,15 @@
 <script lang="ts" setup>
+import { toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { Transaction } from "@/language/transaction";
-import { AnyNodeData, Variant } from "@/proto/wire";
+import { AnyNodeData, NodeType, Variant } from "@/proto/wire";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   size: "regular" | "large" | "title";
@@ -18,6 +19,7 @@ const props = defineProps<{
 }>();
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
 const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
+const nodeTypeName = computed(() => toCamelName(NodeType, props.node.metatype));
 
 defineExpose({
   focusIcon: () => focusInElement(iconRef.value!),
@@ -58,7 +60,7 @@ defineExpose({
         size == 'title' ? 'ml-1.5 text-3xl font-bold' : '',
         underline ? 'underline decoration-gray-300 underline-offset-3' : '',
       ]"
-      placeholder="Name..."
+      :placeholder="nodeTypeName"
       is-input
       :value-type="NAME_TYPE"
       :variant="Variant.STEALTH"

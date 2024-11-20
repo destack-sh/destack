@@ -3,15 +3,7 @@ import { HEAVY_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
 import { unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
-import {
-  BlockType,
-  FieldType,
-  NodeReferenceData,
-  NodeType,
-  TypeKind,
-  Variant,
-  ViewData
-} from "@/proto/wire";
+import { BlockType, FieldType, NodeReferenceData, NodeType, TypeKind, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
@@ -149,7 +141,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Open in its own page -->
       <button
         v-if="isHeavy"
-        class="rounded ml-1.5 px-1 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+        class="ml-1.5 rounded px-1 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
         @click="() => canvas.goToNode(block!)"
       >
         <i class="fas fa-arrow-up-right" />
@@ -188,6 +180,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
         <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
+          <Type
+            id="type.input"
+            class=""
+            :node="block"
+            :prepared-connection="pkgGetConnection"
+            :node-ptr="props.nodePtr"
+            :field-type="FieldType.VARIABLE"
+          />
           <Type
             id="type.input"
             class=""

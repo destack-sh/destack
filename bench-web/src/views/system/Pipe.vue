@@ -125,7 +125,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       />
       <button
         v-if="!isGeneratedName"
-        class="text-gray-400 hover:text-primary-700 group-hover/meta:opacity-100"
+        class="text-gray-400 hover:text-gray-700 group-hover/meta:opacity-100"
         :class="isInspected || isHighlighted ? '' : 'opacity-0'"
         @click="flowCtx.tx.update(pipe!, { name: makeNodeName(flowCtx.graph, pipe!) })"
       >

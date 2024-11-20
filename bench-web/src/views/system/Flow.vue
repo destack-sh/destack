@@ -418,10 +418,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <button
             v-for="stepType in [
               StepType.START,
-              StepType.TRIGGER,
               StepType.ACTION,
               StepType.COMPLETE,
-              StepType.LOOP,
+              StepType.FAIL,
               StepType.TEXT,
             ]"
             :key="stepType"
@@ -467,7 +466,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             class="rounded px-1 text-base"
             :class="
               variant != Variant.COMPACT
-                ? 'text-gray-700 hover:bg-gray-100 hover:text-primary-700'
+                ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                 : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
             "
             @click="fireAction(action)"

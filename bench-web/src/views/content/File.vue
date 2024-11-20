@@ -235,13 +235,13 @@ defineExpose<ViewExposed>({
         <!-- Clear -->
         <button
           v-if="modelValue != null && !valueType?.isRequired"
-          class="px-0.5 text-gray-400 opacity-0 hover:text-primary-700 group-hover:opacity-100"
+          class="px-0.5 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
           @click.stop="emit('update:modelValue', undefined)"
         >
           <i class="fas fa-xmark" />
         </button>
         <!-- Select -->
-        <button class="px-0.5 text-gray-400 hover:text-primary-700" @click.stop="fileInputRef?.click()">
+        <button class="px-0.5 text-gray-400 hover:text-gray-700" @click.stop="fileInputRef?.click()">
           <i class="fas fa-caret-down" />
         </button>
       </div>
@@ -383,7 +383,7 @@ defineExpose<ViewExposed>({
           <!-- Focus -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-700"
+            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="openFile()"
           >
             <i class="fas fa-magnifying-glass-plus" />
@@ -391,7 +391,7 @@ defineExpose<ViewExposed>({
           <!-- Replace -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-700"
+            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="fileInputRef?.click()"
           >
             <i class="fas fa-shuffle" />
@@ -399,7 +399,7 @@ defineExpose<ViewExposed>({
           <!-- Remove -->
           <button
             v-if="isInput && !isDisabled && !valueType?.isRequired"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-700"
+            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="emit('update:modelValue', null)"
           >
             <i class="fas fa-xmark" />

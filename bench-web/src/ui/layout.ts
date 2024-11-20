@@ -292,9 +292,11 @@ export function useScrollArea(area: {
   const isOverflown = computed(() => {
     if (area.container.value == null) return false;
     const isHorizontal = (orientationRef.value ?? DEFAULT_ORIENTATION) === Orientation.HORIZONTAL;
-    const clientSize = isHorizontal ? containerSize.width.value : containerSize.height.value;
-    const scrollSize = isHorizontal ? area.container.value.scrollWidth : area.container.value.scrollHeight;
-    return scrollSize > clientSize;
+    if (isHorizontal) {
+      return area.container.value.scrollWidth > containerSize.width.value;
+    } else {
+      return area.container.value.scrollHeight > containerSize.height.value;
+    }
   });
 
   const thumb: Ref<Rect> = computed(() => {

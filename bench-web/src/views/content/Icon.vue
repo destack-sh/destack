@@ -149,7 +149,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <i
           v-if="modelValue != null && !valueType?.isRequired"
           role="button"
-          class="fas fa-xmark mr-2 text-gray-400 hover:text-primary-700"
+          class="fas fa-xmark mr-2 text-gray-400 hover:text-gray-700"
           @click.stop="apply(undefined)"
         />
         <!-- Color -->
