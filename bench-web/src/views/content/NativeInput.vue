@@ -157,7 +157,9 @@ defineExpose<ViewExposed & { select: () => void }>({
           @input="currentValue = ($event.target as HTMLInputElement).value"
         />
         <!-- Invisible input to measure width -->
-        <span ref="measureRef" class="pointer-events-none invisible absolute">{{ currentValue }}</span>
+        <span ref="measureRef" class="pointer-events-none invisible absolute whitespace-pre">{{
+          (currentValue?.length ?? 0) > 0 ? currentValue : placeholder
+        }}</span>
         <!-- Clear -->
         <button
           v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"
