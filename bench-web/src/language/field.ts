@@ -1,13 +1,13 @@
 import {
-  CLASSY_BLOCK_TYPES,
   getTkB64FromCk,
   getTkB64FromPtr,
   NAME_CONSTRAINT,
   padCkFromTkB64,
   RUNNABLE_BLOCK_TYPES,
   toCamelName,
-  TYPE_BLOCK_TYPES
+  TYPE_BLOCK_TYPES,
 } from "@/language/const";
+import { getEnumTitle } from "@/language/enum";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName } from "@/language/node";
 import { getOrderKey } from "@/language/order";
@@ -47,7 +47,6 @@ import {
 } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
 import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
-import { getEnumTitle } from "@/ui/inspect";
 import { getRandomColorType } from "@/ui/style";
 import { assertNever, decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";

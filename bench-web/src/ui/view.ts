@@ -1,4 +1,5 @@
 import { isEnumType, isNodeType } from "@/language/const";
+import { getEnumOptions } from "@/language/enum";
 import { getStorageKey, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { type Transaction } from "@/language/transaction";
@@ -38,7 +39,6 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
-import { getEnumOptions } from "@/ui/inspect";
 import { isFocusableElement } from "@/utils/element";
 import { getViewTypeByComponentName, type ViewComponent, type ViewProps } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";

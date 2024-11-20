@@ -54,11 +54,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 <template>
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
     <!-- Path -->
-    <svg
-      class="absolute cursor-pointer overflow-visible"
-      :class="[isInspected || isHighlighted ? 'text-primary-700' : '']"
-      :style="{ color: !(isInspected || isHighlighted) ? pathColorHex : undefined }"
-    >
+    <svg class="absolute cursor-pointer overflow-visible" :style="{ color: pathColorHex }">
       <defs>
         <marker
           :id="'arrowhead-main-' + pipe.id"
@@ -91,7 +87,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded-2xl border px-2 py-0.5 transition-colors duration-150"
       :class="[
         showPipeMeta
-          ? ['bg-white', isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200']
+          ? [isInspected || isHighlighted ? 'border-gray-300 bg-gray-100' : 'border-gray-200 bg-white']
           : 'border-transparent bg-transparent',
       ]"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"

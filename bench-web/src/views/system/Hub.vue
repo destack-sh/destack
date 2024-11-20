@@ -5,12 +5,14 @@ import { packSubnode, useSubnodeProperty } from "@/language/node";
 import { BlockType, HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
+import { runtime } from "@/system/runtime";
 import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
 import { MenuItem, PopoverInfoIn, menuActionsLike, menuItemFromAction } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { isDeveloperMode } from "@/utils/globals";
+import IconName from "@/views/builtins/IconName.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Tree from "@/views/system/Tree.vue";
@@ -18,7 +20,7 @@ import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const FOOTER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
+const FOOTER_HEIGHT = computed(() => (runtime.focusedRun != null ? 68 : VIEW_DEFAULT_HEADER_HEIGHT));
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
@@ -243,17 +245,33 @@ defineExpose<ViewExposed>({ self });
       <span class="text-red-600">{{ toCamelName(HubAspect, aspect) }}</span>
     </div>
 
-    <!-- User -->
+    <!-- Footer -->
     <div
-      class="absolute bottom-0 z-10 flex w-full flex-row items-center border-t bg-white"
+      class="absolute bottom-0 z-10 flex w-full flex-col gap-y-1 border-t bg-white pt-1"
       :class="[scrollRef?.isOverflown ? 'border-gray-200' : 'border-transparent']"
       :style="{
         height: `${FOOTER_HEIGHT}px`,
       }"
     >
+      <!-- Focused Run -->
+      <div
+        v-if="runtime.focusedRun != null"
+        class="mx-2 flex cursor-pointer flex-row items-center gap-x-1 rounded py-1 pl-2.5 pr-2.5 hover:bg-gray-100"
+      >
+        <!-- nocheckin: focused Run controls -->
+        <IconName v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
+        <span v-else class="text-gray-400">Run</span>
+        <button class="ml-auto px-1">
+          <i class="fas fa-pause ml-auto text-gray-400 hover:text-gray-700" />
+        </button>
+        <button class="px-1">
+          <i class="fas fa-stop ml-auto text-gray-400 hover:text-gray-700" />
+        </button>
+      </div>
+      <!-- User -->
       <button
         v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: USER_MENU_ITEMS, placement: 'top-left' })"
-        class="mx-2 w-full py-1 pl-2.5 pr-1.5 text-left text-gray-700 transition-colors duration-75 hover:bg-gray-100"
+        class="mx-2 rounded py-1 pl-2.5 pr-1.5 text-left text-gray-700 transition-colors duration-75 hover:bg-gray-100"
       >
         <IconInline class="" v-bind="user?.icon ?? makeIcon('fa fa-user-circle')" />
         <span v-if="user" class="ml-2">{{ user.name }}</span>

@@ -1,10 +1,9 @@
 <script lang="ts" setup>
-import { NodeType, RectangleData, ViewData, ViewType } from "@/proto/wire";
+import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { toPlainNodeRef, TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, pkgGraph } from "@/system/space";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
-import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, provide, Ref, toRef } from "vue";
@@ -14,7 +13,7 @@ const props = defineProps<
     self: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
-  } & Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "subnodePacked">
+  } & Pick<ViewData, "icon" | "nodePtr" | "focus" | "subnodePacked">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");

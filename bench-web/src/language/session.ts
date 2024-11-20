@@ -25,18 +25,11 @@ export type RunnableNode = BlockData | StepData;
 export type RunnableObject = RunnableNode | TextData | CodeData;
 
 /** Whether the given node is runnable */
-export function isRunnable(node: AnyNodeData, graph: ReadNodeGraph, fields?: FieldData[]): node is RunnableNode {
+export function isRunnable(node: AnyNodeData): node is RunnableNode {
   if (isNode(node, NodeType.STEP)) {
     return true;
   } else if (isNode(node, NodeType.BLOCK)) {
-    if (node.type == BlockType.ACTION || node.type == BlockType.FLOW) {
-      return true;
-    } else if (node.type == BlockType.TEXT) {
-      fields = fields ?? graph.getChildren(node, NodeType.FIELD);
-      return fields.some((f) => f.type == FieldType.INPUT) && fields.some((f) => f.type == FieldType.OUTPUT);
-    } else {
-      return false;
-    }
+    return node.type == BlockType.ACTION || node.type == BlockType.FLOW;
   } else {
     return false;
   }

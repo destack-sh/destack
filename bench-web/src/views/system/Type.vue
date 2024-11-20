@@ -1,15 +1,24 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, FIELD_CONTEXT_ACTIONS } from "@/language/field";
+import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, TypeIdentity } from "@/language/field";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
-import { BlockType, FieldType, NodeType, Orientation, ViewData, type FieldData } from "@/proto/wire";
+import {
+  BenchType,
+  BlockType,
+  FieldType,
+  NodeType,
+  Orientation,
+  ViewData,
+  ViewType,
+  type FieldData,
+} from "@/proto/wire";
 import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -143,7 +152,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       {{ toCamelName(FieldType, props.fieldType) }}
     </div>
     <!-- Field wrapper -->
-    <li v-for="(field, i) in fields" :key="field.id" class="relative w-fit max-w-[200px]">
+    <li v-for="field in fields" :key="field.id" class="relative w-fit max-w-[200px]">
       <!-- Drop indicator -->
       <div
         v-if="activeDropZone?.targetId == field.id"
@@ -181,12 +190,26 @@ defineExpose<ViewExposed>({ self, id, actions });
     <button
       class="h-[28px] px-1 text-gray-400 hover:text-gray-700"
       @click="
-        () =>
-          createField(pkgConnection.tx, pkgGraph, {
-            anchor: 'inside',
-            target: block!,
-            field: { type: props.fieldType },
-          })
+        (e) => {
+          const button = (e.target as HTMLElement).closest('button')!;
+          pushPopover({
+            trigger: button,
+            reference: button,
+            info: {
+              component: ViewType.PICKER,
+              placement: 'bottom-left',
+              offset: 'referenceWidth',
+              props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+              onApply: (typeInfo: TypeIdentity) => {
+                createField(pkgConnection.tx, pkgGraph, {
+                  anchor: 'inside',
+                  target: block!,
+                  field: { ...typeInfo, type: fieldType },
+                });
+              },
+            },
+          });
+        }
       "
     >
       <i class="fas fa-plus mr-1.5" />

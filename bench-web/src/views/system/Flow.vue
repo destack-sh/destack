@@ -51,12 +51,13 @@ import Type from "@/views/system/Type.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
 
+const BACKGROUND_STYLE: "checker" | "dots" = "checker";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const GUTTER_WIDTH = 60;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "transform" | "variant">
+    Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -94,6 +95,7 @@ const flow = flowCtx.flow;
 const scale = flowCtx.scale;
 const steps = flowCtx.steps;
 const pipes = flowCtx.pipes;
+const fields = flowCtx.fields;
 const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath = computed(() => {
@@ -253,7 +255,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       }"
     >
       <!-- Title -->
-      <IconName v-if="flow" class="mb-2 mt-5" size="title" :node="flow" :tx="() => pkgConnection.tx" />
+      <IconName v-if="flow" class="mb-2 mt-5" size="title" is-input :node="flow" :tx="() => pkgConnection.tx" />
       <!-- Signature -->
       <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
         <Type
@@ -264,7 +266,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :node-ptr="props.nodePtr"
           :field-type="FieldType.INPUT"
         />
-        <i class="fas fa-arrow-right-long text-base text-gray-400" />
+        <i
+          v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
+          class="fas fa-arrow-right-long text-base text-gray-400"
+        />
         <Type
           id="type.output"
           class=""
@@ -272,6 +277,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :prepared-connection="pkgGetConnection"
           :node-ptr="props.nodePtr"
           :field-type="FieldType.OUTPUT"
+        />
+        <span v-if="fields?.some((f) => f.type == FieldType.VARIABLE)" class="text-xs text-gray-400">◆</span>
+        <Type
+          id="type.input"
+          :node="flow"
+          :prepared-connection="pkgGetConnection"
+          :node-ptr="props.nodePtr"
+          :field-type="FieldType.VARIABLE"
         />
       </div>
     </div>
@@ -308,6 +321,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Background grid (infinitely repeated) -->
       <div class="absolute h-full w-full overflow-hidden" :style="{}">
         <svg
+          v-if="BACKGROUND_STYLE == 'checker'"
           xmlns="http://www.w3.org/2000/svg"
           class="h-full w-full text-gray-200"
           :style="{
@@ -336,6 +350,52 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#dot-pattern)" />
+        </svg>
+        <svg
+          v-else-if="BACKGROUND_STYLE == 'dots'"
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-full w-full text-gray-200"
+          :style="{
+            width: `${105 / scale}%`,
+            height: `${105 / scale}%`,
+            transformOrigin: '0 0',
+            transform: `scale(${scale}, ${scale}) translate(${((transform?.translateX ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${((transform?.translateY ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
+          }"
+        >
+          <defs>
+            <pattern
+              id="checker-pattern"
+              :x="0"
+              :y="0"
+              :width="FLOW_GRID_STEP"
+              :height="FLOW_GRID_STEP"
+              patternUnits="userSpaceOnUse"
+            >
+              <rect x="0" y="0" :width="FLOW_GRID_STEP / 2" :height="FLOW_GRID_STEP / 2" fill="#f5f5f4" />
+              <rect
+                :x="FLOW_GRID_STEP / 2"
+                y="0"
+                :width="FLOW_GRID_STEP / 2"
+                :height="FLOW_GRID_STEP / 2"
+                fill="white"
+              />
+              <rect
+                x="0"
+                :y="FLOW_GRID_STEP / 2"
+                :width="FLOW_GRID_STEP / 2"
+                :height="FLOW_GRID_STEP / 2"
+                fill="white"
+              />
+              <rect
+                :x="FLOW_GRID_STEP / 2"
+                :y="FLOW_GRID_STEP / 2"
+                :width="FLOW_GRID_STEP / 2"
+                :height="FLOW_GRID_STEP / 2"
+                fill="#f5f5f4"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#checker-pattern)" />
         </svg>
       </div>
 
@@ -394,6 +454,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               })
             "
             class="absolute"
+            :class="[flowCtx?.isDragging(step) ? 'cursor-grabbing' : 'cursor-grab']"
             :style="{
               width: getStepWidth(step) + 'px',
               left: (step.position?.x ?? 0) + 'px',
@@ -416,13 +477,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         >
           <!-- Create -->
           <button
-            v-for="stepType in [
-              StepType.START,
-              StepType.ACTION,
-              StepType.COMPLETE,
-              StepType.FAIL,
-              StepType.TEXT,
-            ]"
+            v-for="stepType in [StepType.START, StepType.ACTION, StepType.COMPLETE, StepType.FAIL, StepType.TEXT]"
             :key="stepType"
             v-tooltip="{
               title: `${toCamelName(StepType, stepType)}`,

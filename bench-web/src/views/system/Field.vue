@@ -1,18 +1,13 @@
 <script lang="ts" setup>
-import { NAME_TYPE } from "@/language/field";
-import { Alignment, ColorShade, ColorType, FieldType, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import { IconInline, getNodeIcon } from "@/ui/icon";
-import { type PopoverInfoIn } from "@/ui/popover";
-import { getColorHex } from "@/ui/style";
-import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
+import IconName from "@/views/builtins/IconName.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, nextTick, ref, toRef } from "vue";
 
@@ -82,41 +77,11 @@ defineExpose<ViewExposed>({ self, id, actions });
       field.type == FieldType.INPUT || field.type == FieldType.OUTPUT || field.type == FieldType.MEMBER
         ? 'rounded pr-2'
         : '',
-      field.type == FieldType.VARIABLE ? 'pr-2' : ''
+      field.type == FieldType.VARIABLE ? 'rounded-2xl pr-2.5' : '',
     ]"
   >
     <!-- Icon -->
-    <div class="ml-1 h-full">
-      <IconInline
-        v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
-        v-menu="
-          (): PopoverInfoIn => ({
-            component: Icon,
-            placement: 'bottom-right',
-            offset: '-referenceWidth',
-            props: { modelValue: field!.icon, isInput: true },
-            onApply: (newIcon) => pkgConnection.tx.update(field!, { icon: newIcon }),
-          })
-        "
-        v-bind="getNodeIcon(field)"
-        class="w-5 rounded text-gray-700 hover:cursor-pointer hover:bg-gray-100"
-      />
-    </div>
-    <!-- Name -->
-    <NativeInput
-      id="name"
-      ref="nameRef"
-      class="flex-shrink-0 py-[3px] text-gray-700 transition-colors duration-150"
-      :alignment="orientation == Orientation.HORIZONTAL_REVERSED ? Alignment.END : Alignment.START"
-      is-input
-      placeholder="Name..."
-      :value-type="NAME_TYPE"
-      :variant="Variant.STEALTH"
-      :model-value="field.name"
-      @update:model-value="
-        (newValue) => pkgConnection.tx.update(field!, { name: newValue as string }, { debounce: 'long' })
-      "
-    />
+    <IconName class="px-1 py-[3px]" :node="field" :tx="() => pkgConnection.tx" size="regular" light is-input />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="pkgConnection" />
 </template>

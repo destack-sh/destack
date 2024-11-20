@@ -393,6 +393,16 @@ class PipeRunnerBase(Runner[Pipe], ABC):
         self.flow = flow
 
     @override
+    def _has_breakpoint_set(self, *sites: BreakpointSite):
+        if super()._has_breakpoint_set(*sites):
+            return True
+        if self.flow is not None:
+            for bp in self.flow.breakpoints:
+                if bp.scope == BreakpointScope.PIPE and bp.site in sites:
+                    return True
+        return False
+
+    @override
     async def run(self) -> None:
         if self.node.delay is not None:
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())

@@ -407,27 +407,45 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow.steps.extend(Start, Yield, Action, Complete)
-    Start.connect(PipeType.PASS, Yield)
+    StartToYield = Start.connect(
+        PipeType.PASS,
+        Yield,
+        run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
+    )
     Yield.connect(PipeType.PASS, Action)
-    Action.connect(PipeType.PASS, Complete)
+    ActionToComplete = Action.connect(
+        PipeType.PASS,
+        Complete,
+        run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
+    )
     local_runtime.page().blocks.append(Flow)
     await local_runtime.commit()
 
     # check that all yield points are hit in order
     run = make_run_from_node(Flow)
     runner = None
-    for yield_point in (Start, Yield, Yield, Action, Action, Complete):
+    for yield_point in (
+        Start,
+        StartToYield,
+        Yield,
+        Yield,
+        Action,
+        Action,
+        ActionToComplete,
+        ActionToComplete,
+        Complete,
+    ):
         # run up to yield
         runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
-        assert runner.interrupt and runner.interrupt.step == yield_point
+        assert runner.interrupt and runner.interrupt.runnable == yield_point
         assert runner.tracked_run
         run = runner.tracked_run
 
         # run up to yield again (without handling Interrupt)
         runner = await local_runtime.run(run)
         assert runner.status == RunStatus.YIELDED
-        assert runner.interrupt and runner.interrupt.step == yield_point
+        assert runner.interrupt and runner.interrupt.runnable == yield_point
         assert runner.tracked_run
         run = runner.tracked_run
 

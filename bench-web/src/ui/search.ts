@@ -1,5 +1,6 @@
 import { blockToType } from "@/language/block";
 import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
+import { EnumOption, getEnumOptions } from "@/language/enum";
 import { makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import {
@@ -28,7 +29,6 @@ import {
   ICON_BY_TYPE_KIND,
   type IconMetadata,
 } from "@/ui/icon";
-import { EnumOption, getEnumOptions } from "@/ui/inspect";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";

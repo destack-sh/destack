@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { createField, NAME_TYPE } from "@/language/field";
+import { createField } from "@/language/field";
 import {
   FLOW_GRID_STEP,
   FLOW_PORT_SIZE,
@@ -16,13 +16,11 @@ import { IS_CHROMIUM } from "@/system/client";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { getNodeIcon, IconInline } from "@/ui/icon";
-import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { menuActionsLike, type PopoverInfo } from "@/ui/popover";
 import { COLOR_BY_RUN_STATUS } from "@/ui/style";
-import type { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
+import IconName from "@/views/builtins/IconName.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
 import { useElementSize } from "@vueuse/core";
@@ -111,10 +109,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     v-if="step"
     ref="containerRef"
     class="group/step rounded border transition-colors duration-150"
-    :class="[
-      step.type == StepType.TEXT ? 'bg-gray-100' : 'bg-white',
-      isInspected || isHighlighted ? 'border-primary-700' : 'border-gray-200',
-    ]"
+    :class="[isInspected || isHighlighted ? 'border-gray-400 bg-gray-100' : 'border-gray-200 bg-white']"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Ports -->
@@ -130,14 +125,14 @@ defineExpose<ViewExposed>({ self, id, actions });
         class="relative cursor-crosshair rounded-2xl border outline-none transition-colors duration-150"
         :class="[
           flowCtx.isDraggingPort || isInspected || isHighlighted ? '' : 'opacity-0 group-hover/step:opacity-100',
-          flowCtx.isDraggingPortAt(step, side) ? 'bg-primary-400' : 'bg-white hover:bg-primary-400',
+          flowCtx.isDraggingPortAt(step, side) ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
           isInspected ||
           isHighlighted ||
           (flowCtx.draggable?.kind == 'step-port' &&
             flowCtx.draggable?.step?.ck == step.ck &&
             flowCtx.draggable.side == side)
-            ? 'border-primary-700'
-            : 'border-gray-200 hover:border-primary-700',
+            ? 'border-gray-400'
+            : 'border-gray-200 hover:border-gray-400',
         ]"
         :style="{
           width: FLOW_PORT_SIZE + 'px',
@@ -158,34 +153,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       }"
     >
       <!-- Icon -->
-      <div class="ml-1 flex flex-row items-center px-1">
-        <IconInline
-          v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
-          v-menu="
-            (): PopoverInfoIn => ({
-              component: Icon,
-              placement: 'bottom-right',
-              offset: '-referenceWidth',
-              props: { modelValue: step!.icon, isInput: true },
-              onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
-            })
-          "
-          v-bind="getNodeIcon(step)"
-          class="w-5 flex-shrink-0 rounded py-0.5 text-gray-700 hover:cursor-pointer"
-        />
-      </div>
-      <!-- Name -->
-      <NativeInput
-        id="name"
-        ref="nameRef"
-        class="ml-1 truncate text-gray-700 transition-colors duration-150"
-        is-input
-        placeholder="Name..."
-        :value-type="NAME_TYPE"
-        :variant="Variant.STEALTH"
-        :model-value="step.name"
-        @update:model-value="(newValue) => flowCtx.tx.update(step!, { name: newValue as string }, { debounce: 'long' })"
-      />
+      <IconName class="px-1" :tx="() => flowCtx.tx" size="regular" is-input :node="step" />
       <!-- Controls/Meta -->
       <div
         class="ml-auto flex flex-row pl-2 pr-1.5 opacity-0 transition-colors duration-150 group-hover/step:opacity-100"
@@ -200,9 +168,9 @@ defineExpose<ViewExposed>({ self, id, actions });
               items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
             })
           "
-          class="rounded text-gray-400 hover:text-gray-700"
+          class="rounded text-gray-400 hover:text-gray-700 data-[popover=true]:text-gray-700"
         >
-          <i class="fas fa-grip-horizontal w-5 text-center" />
+          <i class="fas fa-ellipsis-v w-5 text-center" />
         </button>
       </div>
     </div>
@@ -216,15 +184,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         placeholder="Text..."
         is-input
         :variant="Variant.STEALTH"
-        :model-value="unpackSubnodeProperty(NodeType.STEP, StepType.TEXT, step.subnodePacked, 'text')"
-        @update:model-value="
-          (newText) =>
-            flowCtx.tx.update(
-              step!,
-              makeEdit(step!, { metatype: NodeType.STEP, type: StepType.TEXT, subnode: { text: newText } }),
-              { debounce: 'long' },
-            )
-        "
+        :model-value="step.text"
+        @update:model-value="(newText) => flowCtx.tx.update(step!, { text: newText }, { debounce: 'long' })"
       />
       <!-- Floating meta -->
       <div class="absolute right-0 top-0 px-1.5 py-1.5">

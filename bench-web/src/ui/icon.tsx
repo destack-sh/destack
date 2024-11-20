@@ -174,6 +174,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.CACHE]: "fas fa-bolt",
   [NodeType.FILE]: "fas fa-file",
   [NodeType.SECRET]: "fas fa-key",
+  [NodeType.BROWSER]: "fas fa-browser",
 
   // source
   [NodeType.BRANCH]: "fas fa-code-branch",
@@ -226,7 +227,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.POLICY]: "fas fa-shield-check",
   [StructType.POLICY_RULE]: "fas fa-shield-check",
   // text
-  [StructType.TEXT]: "fas fa-text",
+  [StructType.TEXT]: "fas fa-align-left",
   [StructType.TEXT_LINE]: "fas fa-grip-lines",
   // run
   [StructType.RUN_OPTIONS]: "fas fa-play",

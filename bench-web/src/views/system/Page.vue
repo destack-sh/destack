@@ -340,7 +340,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           }"
         >
           <!-- Icon -->
-          <IconName ref="iconNameRef" size="title" :node="page" :tx="() => pkgConnection.tx" />
+          <IconName ref="iconNameRef" size="title" :node="page" is-input :tx="() => pkgConnection.tx" />
         </div>
 
         <!-- Blocks -->

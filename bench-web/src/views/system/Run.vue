@@ -20,7 +20,7 @@ const MAX_WIDTH = 1200;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedNodeConnection } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "size" | "nodePtr" | "isInline" | "variant">
+    Pick<ViewData, "icon" | "size" | "nodePtr" | "isInline" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
