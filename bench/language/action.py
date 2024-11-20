@@ -114,7 +114,10 @@ class Continue(Struct):
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
     )
-    # inputs, ...?
+    inputs_packed: Any = p_value_packed(31)
+    inputs: Any = p_value_runtime(
+        31, kind=ObjectKind.INPUT, typ=lambda self: cast(Continue, self).input_type
+    )
     mapping: Optional["ObjectMapping"] = p_regular(
         50,
         require=False,
@@ -129,6 +132,11 @@ class Continue(Struct):
         struct=StructType.CODE,
         description="Mapping to get inputs for next node. Takes precedence over mapping.",
     )
+
+    @property
+    def input_type(self) -> Optional["TypeBase"]:
+        node = self.node
+        return node.input_type if node is not None else None
 
     @staticmethod
     def new(node: "Block | Step | Pipe", **kwargs) -> "Continue":

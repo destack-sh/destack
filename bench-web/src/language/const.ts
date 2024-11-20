@@ -225,7 +225,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.TEXT,
   BlockType.ACTION,
   BlockType.FLOW,
-  BlockType.VIEW,
+  // BlockType.VIEW,
   BlockType.VALUE,
   BlockType.DATABASE,
 ];

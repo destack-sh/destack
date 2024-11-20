@@ -25,6 +25,7 @@ import {
   RecordProperty,
   SelectionData,
   Timestamp,
+  TypeKind,
   Variant,
   ViewData,
   ViewType,
@@ -761,19 +762,19 @@ defineExpose<ViewExposed>({ self, id, actions });
 
           <!-- Selection -->
           <div v-if="hasSelectionRows" class="flex flex-row items-center rounded border">
-            <button class="h-full px-2 py-0.5 font-medium text-primary-700 hover:bg-gray-100" @click="selectNone">
+            <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="selectNone">
               {{ numSelectedRows }} selected
             </button>
             <button
               v-tooltip="{ title: 'Duplicate', small: true }"
-              class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
+              class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
               @click="duplicateSelection"
             >
               <i class="fas fa-clone" />
             </button>
             <button
               v-tooltip="{ title: 'Delete', small: true }"
-              class="w-8 py-0.5 text-gray-700 hover:bg-gray-100 hover:text-primary-700"
+              class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
               @click="deleteSelection"
             >
               <i class="fas fa-trash-can" />
@@ -872,7 +873,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             />
           </div>
 
-          <!-- Column headers -->
+          <!-- Column header -->
           <div
             v-for="(column, x) in columns"
             :key="column.id"
@@ -969,18 +970,24 @@ defineExpose<ViewExposed>({ self, id, actions });
             />
             <span v-else class="truncate font-medium">{{ column.title }}</span>
           </div>
-        </div>
-        <!-- Empty columns -->
-        <div
-          v-if="columns.length == 0"
-          class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
-          :style="{
-            height: `${ROW_HEIGHT_MIN}px`,
-            marginLeft: variant == Variant.COMPACT ? undefined : `${ROW_ACTIONS_WIDTH}px`,
-            width: variant == Variant.COMPACT ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
-          }"
-        >
-          No columns.
+          <!-- Empty columns -->
+          <button
+            v-if="columns.length == 0"
+            class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
+            :style="{
+              height: `${ROW_HEIGHT_MIN}px`,
+              width: variant == Variant.COMPACT ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
+            }"
+            @click="
+              createField(pkgConnection.tx, pkgGraph, {
+                anchor: 'inside',
+                target: block!,
+                field: { type: FieldType.MEMBER, kind: TypeKind.STRUCT, benchType: BenchType.TEXT, name: 'Text' },
+              })
+            "
+          >
+            No columns. Click to add.
+          </button>
         </div>
 
         <!-- Status (if not connected or empty) -->
@@ -1003,9 +1010,9 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- No rows -->
         <button
           v-else-if="records.length == 0"
-          class="w-full text-center text-gray-400 hover:bg-gray-100 hover:text-primary-700"
+          class="w-full text-center text-gray-400 hover:bg-gray-100"
           :style="{ height: `${ROW_HEIGHT_MIN}px` }"
-          @click="createRecord"
+          @click="createRecord()"
         >
           <i class="fas fa-empty-set mr-1.5" />
           <span class="">No records. Click to add.</span>
@@ -1112,7 +1119,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- No columns -->
           <div
             v-if="columns.length == 0"
-            class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100 hover:text-primary-700"
+            class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100"
             :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           />
         </div>
