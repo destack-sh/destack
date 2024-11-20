@@ -1215,6 +1215,7 @@ enum BreakpointScope {
   BREAKPOINT_SCOPE_SELF = 1;
   BREAKPOINT_SCOPE_CHILD = 2;
   BREAKPOINT_SCOPE_STEP = 20;
+  BREAKPOINT_SCOPE_PIPE = 21;
 }
 
 enum InterruptKind {
@@ -1825,6 +1826,7 @@ message CallData {
 message ContinueData {
   ObjectType metatype = 1;
   NodeReferenceData node_ptr = 30;
+  optional google.protobuf.Value inputs_packed = 31;
   optional ObjectMappingData mapping = 50;
   optional CodeData mapping_code = 51;
 }
@@ -2732,6 +2734,7 @@ message BlockData {
   string name = 32;
   string order_key = 33;
   optional IconData icon = 34;
+  optional TextData text = 35;
   optional google.protobuf.Value variables_packed = 40;
   optional RunOptionsData run_options = 41;
   repeated PolicyData policies = 42;
@@ -2749,17 +2752,15 @@ message ValueBlockData {
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
-message TextBlockData {
-  optional TextData text = 100;
-}
-
-// A building block with logic, types, UI, state, auth, AI, ...
 message ActionBlockData {
   ActionMode mode = 100;
-  optional TextData text = 101;
   optional CodeData code = 102;
   repeated NodeReferenceData tools_ptr = 103;
   optional NodeReferenceData delegate_ptr = 104;
+}
+
+// A building block with logic, types, UI, state, auth, AI, ...
+message TextBlockData {
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -2993,6 +2994,7 @@ message StepData {
   string name = 32;
   string order_key = 33;
   optional IconData icon = 35;
+  optional TextData text = 36;
   optional RunOptionsData run_options = 41;
   repeated NodeReferenceData roles_ptr = 42;
   optional NodeReferenceData identity_ptr = 43;
@@ -3003,7 +3005,6 @@ message StepData {
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message ActionStepData {
   ActionMode mode = 100;
-  optional TextData text = 101;
   optional CodeData code = 102;
   repeated NodeReferenceData tools_ptr = 103;
   optional NodeReferenceData delegate_ptr = 104;
@@ -3020,7 +3021,6 @@ message LoopStepData {
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message TextStepData {
-  optional TextData text = 100;
 }
 
 message TriggerData {

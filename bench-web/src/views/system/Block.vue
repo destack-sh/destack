@@ -41,11 +41,6 @@ const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
-const hasFunctionFields = computed(
-  () =>
-    RUNNABLE_BLOCK_TYPES.includes(block.value?.type!) &&
-    fields.value.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT),
-);
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
 const isHeavy = computed(() => HEAVY_BLOCK_TYPES.includes(block.value?.type!));
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
@@ -136,6 +131,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :size="isHeavy ? 'large' : 'regular'"
         :underline="block.type == BlockType.PAGE"
         :node="block"
+        :is-input="block.type != BlockType.PAGE"
         :tx="() => pkgConnection.tx"
       />
       <!-- Open in its own page -->
@@ -155,16 +151,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       is-input
       class="px-1 pt-1"
       :variant="Variant.STEALTH"
-      :model-value="unpackSubnodeProperty(NodeType.BLOCK, block.type, block.subnodePacked, 'text')"
+      :model-value="block.text"
       v-bind="state.getChildState('text')"
-      @update:model-value="
-        (newText) =>
-          pkgConnection.tx.update(
-            block!,
-            makeEdit(block!, { metatype: NodeType.BLOCK, type: BlockType.TEXT, subnode: { text: newText } }),
-            { debounce: 'long' },
-          )
-      "
+      @update:model-value="(newText) => pkgConnection.tx.update(block!, { text: newText }, { debounce: 'long' })"
     />
     <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200">
       <!-- Types -->
@@ -179,15 +168,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Runnable -->
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
-          <Type
-            id="type.input"
-            class=""
-            :node="block"
-            :prepared-connection="pkgGetConnection"
-            :node-ptr="props.nodePtr"
-            :field-type="FieldType.VARIABLE"
-          />
+        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
           <Type
             id="type.input"
             class=""
@@ -196,7 +177,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :node-ptr="props.nodePtr"
             :field-type="FieldType.INPUT"
           />
-          <i v-if="hasFunctionFields" class="fas fa-arrow-right-long text-base text-gray-400" />
+          <i
+            v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
+            class="fas fa-arrow-right-long text-base text-gray-400"
+          />
           <Type
             id="type.output"
             class=""
@@ -204,6 +188,15 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :prepared-connection="pkgGetConnection"
             :node-ptr="props.nodePtr"
             :field-type="FieldType.OUTPUT"
+          />
+          <span v-if="fields?.some((f) => f.type == FieldType.VARIABLE)" class="text-xs text-gray-400">◆</span>
+          <Type
+            id="type.input"
+            class="ml"
+            :node="block"
+            :prepared-connection="pkgGetConnection"
+            :node-ptr="props.nodePtr"
+            :field-type="FieldType.VARIABLE"
           />
         </div>
         <!-- Flow -->

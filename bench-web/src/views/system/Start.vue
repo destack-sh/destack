@@ -2,19 +2,17 @@
 import { makeExpression } from "@/language/expression";
 import { makeTypeInfo } from "@/language/field";
 import { unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
-import { isRunnable, isRunTerminal, type RunnableNode } from "@/language/session";
+import { isRunnable, type RunnableNode } from "@/language/session";
 import {
-  RectangleData,
-  ChangeCategory,
   ExpressionType,
   FeedViewData,
   FieldType,
   NodeType,
   ObjectType,
   Orientation,
+  RectangleData,
   RunProperty,
   StepType,
-  Timestamp,
   TypeKind,
   Variant,
   ViewData,
@@ -32,9 +30,8 @@ import { useExistingConnection, useNode } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/ui/layout";
-import { toggleHelperViewPin, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -48,10 +45,9 @@ const MAX_WIDTH = 1200;
 
 const props = defineProps<
   {
-    self: TypedNodeReferenceData<NodeType.VIEW>;
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    size: Required<Pick<RectangleData, "width" | "height">>;
-  } & Pick<ViewData, "name" | "title" | "nodePtr" | "focus" | "variant" | "subnodePacked">
+  } & Pick<ViewData, "nodePtr" | "focus" | "size" | "variant" | "subnodePacked">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -110,7 +106,7 @@ const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 // current runnable / inputs
 // NOTE: we 'sticky' the last runnable node (so even if we currently don't have one, we keep the last one)
 const currentRunnableNode: Ref<RunnableNode | null | undefined> = computed(() =>
-  ancestors.value.find((node) => isRunnable(node, pkgGraph)),
+  ancestors.value.find((node) => isRunnable(node)),
 );
 const lastRunnableNode: Ref<RunnableNode | null> = ref(null);
 watch(currentRunnableNode, (newNode) => {
@@ -143,14 +139,15 @@ function createRun() {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self });
+defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="lastRunnableNode" class="h-full w-full">
     <!-- Body -->
-    <Scroll
+    <component
+      :is="size == null ? 'div' : Scroll"
       id="scroll"
-      :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
+      :size="{ width: size?.width, height: (size?.height ?? 0) - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
@@ -164,7 +161,7 @@ defineExpose<ViewExposed>({ self });
           <h4 class="font-semibold">Inputs</h4>
           <CustomObject
             id="inputs"
-            class="w-full py-2"
+            class="w-full py-1"
             :value-type="inputType"
             is-inline
             is-input
@@ -178,7 +175,7 @@ defineExpose<ViewExposed>({ self });
           <h4 class="font-semibold">Outputs</h4>
           <CustomObject
             id="outputs"
-            class="w-full py-2"
+            class="w-full py-1"
             :value-type="outputType"
             is-inline
             :variant="Variant.STEALTH"
@@ -199,7 +196,7 @@ defineExpose<ViewExposed>({ self });
           <RunTimeline :node-ptr="runPtr" class="mt-2" />
         </div>
       </div>
-    </Scroll>
+    </component>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center text-center">
     <!-- NOTE :UX: display possible nodes to start in context & all runs if nothing runnable selected -->

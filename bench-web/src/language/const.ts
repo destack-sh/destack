@@ -4,8 +4,11 @@ import {
   BlockProperty,
   BlockType,
   EditType,
+  ENUM_BY_TYPE,
   EnumType,
+  EnumTypeMapping,
   FieldData,
+  IconData,
   MessageData,
   ModelProvider,
   ModelType,
@@ -28,6 +31,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
+import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { Casing, toCasing } from "@/utils/string";
 
 export const FLOAT_EPSILON = 1e-6;

@@ -14,12 +14,32 @@ import { computed, ref } from "vue";
 const props = defineProps<{
   size: "regular" | "large" | "title";
   node: AnyNodeData;
-  tx: () => Transaction;
+  tx?: () => Transaction;
   underline?: boolean;
+  light?: boolean;
+  isInput?: boolean;
 }>();
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
 const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
 const nodeTypeName = computed(() => toCamelName(NodeType, props.node.metatype));
+const iconClass = computed(() => [
+  props.size == "regular" ? "w-5" : "",
+  props.size == "large" ? "w-5 text-base" : "",
+  props.size == "title" ? "w-8 text-2xl" : "",
+]);
+const nameClass = computed(() => [
+  props.size == "regular" ? ["ml-1", props.light ? "" : "font-medium"] : "",
+  props.size == "large" ? ["ml-1.5 text-xl", props.light ? "font-medium" : "font-bold"] : "",
+  props.size == "title" ? ["ml-1.5 text-3xl", props.light ? "font-medium" : "font-bold"] : "",
+  props.underline ? "underline decoration-gray-300 underline-offset-3" : "",
+]);
+
+function getTx() {
+  if (props.tx == null) {
+    throw new Error("no transaction provided");
+  }
+  return props.tx();
+}
 
 defineExpose({
   focusIcon: () => focusInElement(iconRef.value!),
@@ -37,35 +57,30 @@ defineExpose({
           placement: 'bottom-right',
           offset: '-referenceWidth',
           props: { modelValue: (node as any)!.icon, isInput: true },
-          onApply: (newIcon) => tx().update(node!, { icon: newIcon }),
+          isEnabled: isInput,
+          onApply: (newIcon) => getTx().update(node!, { icon: newIcon }),
         })
       "
       v-bind="getNodeIcon(node)"
-      :style="{}"
-      class="rounded text-center text-gray-700 hover:cursor-pointer hover:bg-gray-100"
-      :class="[
-        size == 'regular' ? 'w-5' : '',
-        size == 'large' ? 'w-5 text-base' : '',
-        size == 'title' ? 'w-8 text-2xl' : '',
-      ]"
+      class="rounded text-center text-gray-700"
+      :class="[...iconClass, isInput ? 'hover:cursor-pointer hover:bg-gray-100' : '']"
     />
     <!-- Name -->
     <NativeInput
+      v-if="isInput"
       id="name"
       ref="nameRef"
       class="flex-shrink-0 transition-colors duration-150"
-      :class="[
-        size == 'regular' ? 'ml-1 font-medium' : '',
-        size == 'large' ? 'ml-1.5 text-xl font-bold' : '',
-        size == 'title' ? 'ml-1.5 text-3xl font-bold' : '',
-        underline ? 'underline decoration-gray-300 underline-offset-3' : '',
-      ]"
+      :class="nameClass"
       :placeholder="nodeTypeName"
       is-input
       :value-type="NAME_TYPE"
       :variant="Variant.STEALTH"
       :model-value="(node as any).name"
-      @update:model-value="(newValue) => tx().update(node!, { name: newValue as string }, { debounce: 'long' })"
+      @update:model-value="(newValue) => getTx().update(node!, { name: newValue as string }, { debounce: 'long' })"
     />
+    <span v-else :class="nameClass">
+      {{ (node as any).name }}
+    </span>
   </div>
 </template>

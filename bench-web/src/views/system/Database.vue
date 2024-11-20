@@ -76,7 +76,7 @@ const GUTTER_WIDTH = 60;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; paddingX?: number; paddingY?: number } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "variant" | "isInput" | "selection">
+    Pick<ViewData, "icon" | "nodePtr" | "variant" | "isInput" | "selection">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -400,6 +400,7 @@ function writeColumnValue(
 
 //
 // Selection
+// nocheckin: use (shared) containing view selection state for Database
 //
 
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
@@ -713,7 +714,14 @@ defineExpose<ViewExposed>({ self, id, actions });
     >
       <!-- Page header (title) -->
       <div v-if="variant != Variant.COMPACT">
-        <IconName v-if="block" class="mb-2 mt-5 px-0.5" size="title" :node="block" :tx="() => pkgConnection.tx" />
+        <IconName
+          v-if="block"
+          is-input
+          class="mb-2 mt-5 px-0.5"
+          size="title"
+          :node="block"
+          :tx="() => pkgConnection.tx"
+        />
       </div>
 
       <!-- Action header -->

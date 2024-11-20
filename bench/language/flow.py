@@ -263,6 +263,9 @@ class Step(SourceNode[StepData]):
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
     )
+    text: Optional["Text"] = p_regular(
+        36, default=None, require=False, array=False, struct=StructType.TEXT
+    )
 
     # content
     run_options: Optional["RunOptions"] = p_regular(
@@ -320,6 +323,7 @@ class Step(SourceNode[StepData]):
         *,
         name: str | None = None,
         parent: Union["Block", "Step", None] = None,
+        run_options: RunOptions | None = None,
     ) -> "Pipe":
         """Connects a target Step to this Step."""
         from bench.language.block import Block
@@ -343,6 +347,7 @@ class Step(SourceNode[StepData]):
             source=self,
             target=target,
             parent=parent,
+            run_options=run_options,
         )
         parent.pipes.append(pipe)
         return pipe
@@ -420,6 +425,4 @@ class LoopStep(Step):
 
 @node_subtype_(StepType.TEXT)
 class TextStep(Step):
-    text: Optional["Text"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.TEXT
-    )
+    pass

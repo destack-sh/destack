@@ -301,6 +301,10 @@ export class FlowContext {
     );
   }
 
+  isDragging(step: StepData): boolean {
+    return this.dragging.value?.thing.kind == "step" && this.dragging.value?.thing.step.id == step.id;
+  }
+
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
     const stepRef = this.stepRefs.value[step.id!];
     return stepRef != null ? stepRef : null;

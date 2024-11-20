@@ -420,7 +420,7 @@ export function cloneNode<T extends AnyNodeData>(
   }
   if (isNode(clone, NodeType.STEP)) {
     // update position
-    clone.position = addVector2(clone.position, { x: FLOW_GRID_STEP, y: FLOW_GRID_STEP });
+    clone.position = addVector2(clone.position, { x: 0, y: FLOW_GRID_STEP * 3 });
   }
 
   // actually create node

@@ -45,6 +45,7 @@ class BreakpointScope(IdEnum):
     # DESCENDANT, ...?
     # flow
     STEP = 20
+    PIPE = 21
 
 
 @enum_(EnumType.BREAKPOINT_ACTION)
@@ -131,6 +132,10 @@ class Interrupt(RuntimeNode, HasSessionContext):
     block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(33, require=False, array=False, references=NodeType.STEP)
     pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
+    if TYPE_CHECKING:
+        block_ptr: Optional[NodeReference] = None
+        step_ptr: Optional[NodeReference] = None
+        pipe_ptr: Optional[NodeReference] = None
     attempt_no: Optional[int] = p_internal(37, require=False, default=None)
     breakpoint_site: BreakpointSite | None = p_internal(38)
 
@@ -146,6 +151,23 @@ class Interrupt(RuntimeNode, HasSessionContext):
     outputs_packed: Any = p_value_packed(50)
     outputs: Any = p_value_runtime(50, kind=ObjectKind.OUTPUT, typ=None)
 
+    @property
+    def runnable(self):
+        if self.pipe_ptr:
+            return self.pipe
+        elif self.step_ptr:
+            return self.step
+        else:
+            return self.block
+
+    @property
+    def is_open(self) -> bool:
+        return self.status == InterruptStatus.OPEN
+
+    @property
+    def is_closed(self) -> bool:
+        return self.status == InterruptStatus.CLOSED
+
     def close(self, outputs: CustomObject | None = None) -> None:
         """Mark this Interrupt as closed."""
         if self.status == InterruptStatus.CLOSED:
@@ -155,14 +177,6 @@ class Interrupt(RuntimeNode, HasSessionContext):
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
         self.outputs = outputs
-
-    @property
-    def is_open(self) -> bool:
-        return self.status == InterruptStatus.OPEN
-
-    @property
-    def is_closed(self) -> bool:
-        return self.status == InterruptStatus.CLOSED
 
     @staticmethod
     def from_run(

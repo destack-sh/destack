@@ -71,6 +71,9 @@ class Block(SourceNode[BlockData]):
     icon: Optional["Icon"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.ICON
     )
+    text: Optional["Text"] = p_regular(
+        35, default=None, require=False, array=False, struct=StructType.TEXT
+    )
 
     variables_packed: Any = p_value_packed(40)
     variables: Any = p_value_runtime(
@@ -252,17 +255,15 @@ class ValueBlock(Block):
     )
 
 
-@node_subtype_(BlockType.TEXT)
-class TextBlock(Block):
-    text: Optional["Text"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-
-
 @node_subtype_(BlockType.ACTION)
 class ActionBlock(Block, ActionBase):
     # ...ActionBase[100-129]
-    ...
+    pass
+
+
+@node_subtype_(BlockType.TEXT)
+class TextBlock(Block):
+    pass
 
 
 @node_subtype_(BlockType.FLOW)
