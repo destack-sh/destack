@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
+import { FieldType, NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -69,8 +69,9 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 border border-gray-200 pl-0.5 transition-colors duration-75"
+    class="flex items-center gap-x-1.5 pl-0.5 transition-colors duration-75"
     :class="[
+      variant != Variant.STEALTH ? 'border w-fit border-gray-200' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
       isInspected || isHighlighted ? 'bg-gray-100' : 'hover:bg-gray-100',
       field.type == FieldType.OPTION ? 'rounded-2xl pr-2.5' : '',

@@ -121,7 +121,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     v-if="block"
     ref="blockRef"
     class="group/block relative select-none rounded transition-colors duration-150"
-    :class="[isInspected ? 'border-primary-700' : 'border-gray-200', isPage ? 'cursor-pointer hover:bg-gray-100' : '']"
+    :class="[
+      isInspected ? 'border-primary-700' : 'border-gray-200',
+      isPage ? 'cursor-pointer hover:bg-gray-100' : '',
+      isHeavy ? 'mb-2' : '',
+    ]"
     @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->

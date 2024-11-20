@@ -194,9 +194,9 @@ defineExpose<ViewExposed>({
       class="group flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-200"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
-        variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
+        variant == Variant.STEALTH && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone
-          ? 'border-primary-700 outline outline-1 outline-primary-700'
+          ? 'border-gray-400 outline outline-1 outline-gray-400'
           : 'border-gray-200 hover:border-gray-200',
         variant == Variant.STEALTH && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
       ]"
@@ -206,7 +206,7 @@ defineExpose<ViewExposed>({
       <span v-if="optimisticValue != null" :class="[loadFailed ? 'text-danger-600' : 'text-gray-700']">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'" />
         <a
-          class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover:underline group-hover:decoration-primary-700"
+          class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover:underline group-hover:decoration-gray-700"
           :class="download?.getUrl.value != null ? 'hover:underline' : ''"
           :href="download?.getUrl.value ?? undefined"
           target="_blank"
@@ -225,7 +225,7 @@ defineExpose<ViewExposed>({
       <span
         v-else
         class="select-none transition-colors duration-75"
-        :class="[isInDropZone ? 'text-primary-700' : 'text-gray-400']"
+        :class="[isInDropZone ? 'text-gray-700' : 'text-gray-400']"
       >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
         <span>Upload {{ facetName }}</span>
@@ -254,9 +254,9 @@ defineExpose<ViewExposed>({
       class="group flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
-        variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
+        variant == Variant.STEALTH && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone
-          ? 'border-primary-700 text-primary-700 outline outline-2 outline-primary-700'
+          ? 'border-gray-400 text-gray-700 outline outline-2 outline-gray-400'
           : 'border-gray-200 text-gray-400 hover:border-gray-200',
       ]"
       @click.stop="fileInputRef!.click()"
@@ -277,8 +277,8 @@ defineExpose<ViewExposed>({
       class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
         variant != Variant.STEALTH ? 'border py-1' : '',
-        variant == Variant.STEALTH && isInDropZone ? 'bg-primary-100' : '',
-        isInDropZone ? 'border-primary-700 outline outline-2 outline-primary-700' : '',
+        variant == Variant.STEALTH && isInDropZone ? 'bg-gray-100' : '',
+        isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
       ]"
     >
       <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
@@ -321,7 +321,7 @@ defineExpose<ViewExposed>({
             :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
           />
           <a
-            class="ml-1.5 decoration-gray-300 underline-offset-3 hover:decoration-primary-700"
+            class="ml-1.5 decoration-gray-300 underline-offset-3 hover:decoration-gray-700"
             :class="download?.getUrl.value != null ? 'hover:underline' : ''"
             :href="download?.getUrl.value ?? undefined"
             target="_blank"

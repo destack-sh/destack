@@ -229,7 +229,7 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
 export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 
-export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
+export function getView(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
   if (type.kind == TypeKind.OBJECT) {
     // object
     return { type: ViewType.OBJECT, valueType: type as TypeInfoData };
@@ -293,7 +293,7 @@ export function getFieldViews(
   for (const field of fields) {
     if (options?.types != null && !options.types.includes(field.type)) continue;
     const storageKey = getStorageKey(field, field);
-    const view = getViewForValueType(field);
+    const view = getView(field);
     fieldViews.push({
       field,
       storageKey,

@@ -421,7 +421,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
-              ? 'border-primary-700'
+              ? 'border-gray-400'
               : 'border-transparent',
             isFocused(node) || (focusedNode?.id == node.id && isFocusAbsolute) ? 'bg-gray-100' : '',
             (node as any).name != null ? '' : 'italic',
@@ -438,7 +438,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <!-- Drop indicator -->
           <div
             v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-            class="absolute z-10 h-1 rounded bg-primary-700"
+            class="absolute z-10 h-1 rounded bg-gray-400"
             :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[2px]']"
             :style="{
               left: 8 + depth * DEPTH_OFFSET + 'px',
@@ -454,7 +454,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             />
             <span
               v-if="hasChildren"
-              class="absolute left-0 w-5 rounded bg-gray-100 text-gray-700 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
+              class="absolute left-0 w-5 rounded bg-gray-100 text-gray-400 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
               :class="isExpanded(node) ? 'rotate-90' : 'rotate-9'"
               ><i class="fas fa-chevron-right"
             /></span>
@@ -489,7 +489,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             <button
               v-if="isNode(node, NodeType.BLOCK)"
               role="button"
-              class="text-gray-400 opacity-0 hover:text-gray-700 group-hover/node:opacity-100"
+              class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
               @click.stop="
                 () => {
                   const block = createBlock(pkgConnection.tx, pkgGraph, {

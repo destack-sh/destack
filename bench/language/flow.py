@@ -112,6 +112,9 @@ class Pipe(SourceNode[PipeData]):
     type: PipeType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
+    text: Optional["Text"] = p_regular(
+        34, default=None, require=False, array=False, struct=StructType.TEXT
+    )
     source: "Step" = p_regular(35, require=True, references=NodeType.STEP)
     target: "Step" = p_regular(36, require=True, references=NodeType.STEP)
     if TYPE_CHECKING:
