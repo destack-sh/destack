@@ -206,7 +206,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         variant != Variant.STEALTH
           ? 'border border-gray-200 px-1 py-1.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-200'
           : 'stealth',
-        isInDropZone ? 'outline-dotted outline-2 outline-primary-700' : '',
+        isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
       ]"
     />
   </ViewContentWrapper>

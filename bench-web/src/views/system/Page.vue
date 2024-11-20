@@ -402,7 +402,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Drag above/below -->
             <div
               v-if="activeDropZone?.targetId == block.id"
-              class="absolute z-10 h-1 w-full rounded bg-primary-500"
+              class="absolute z-10 h-1 w-full rounded bg-gray-400"
               :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
             />
 
@@ -438,7 +438,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Add blocks -->
           <button
             v-for="blockType in [BlockType.TEXT, BlockType.CHOICE, BlockType.DATABASE, BlockType.FLOW, BlockType.PAGE]"
-            class="rounded-2xl border border-gray-200 px-2 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
+            class="rounded-2xl border border-gray-200 py-0.5 px-2 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
             @click="() => createAndFocusBlock({ type: blockType }, 'inside', page!)"
           >
             <IconInline v-bind="ICON_BY_BLOCK_TYPE[blockType]" class="mr-1.5 w-5 text-center text-gray-700" />

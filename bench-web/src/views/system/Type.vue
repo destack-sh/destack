@@ -9,6 +9,7 @@ import {
   FieldType,
   NodeType,
   Orientation,
+  Variant,
   ViewData,
   ViewType,
   type FieldData,
@@ -142,21 +143,27 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="relative flex gap-x-2 gap-y-1 rounded"
     :class="[
       orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
-      activeDropZone != null ? 'outline outline-2 outline-primary-700' : '',
+      variant == Variant.STEALTH ? 'px-0.5 py-1' : '',
+      activeDropZone != null ? 'outline outline-2 outline-gray-400' : '',
     ]"
   >
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
         (since it's not a move, but a sort of 'copy', and that's how we signal it elsewhere) -->
     <!-- Drop indicator -->
-    <div v-if="activeDropZone" class="absolute right-1 top-1 text-primary-700">
+    <div v-if="activeDropZone" class="absolute right-1 top-1 text-gray-400">
       {{ toCamelName(FieldType, props.fieldType) }}
     </div>
     <!-- Field wrapper -->
-    <li v-for="field in fields" :key="field.id" class="relative w-fit max-w-[200px]">
+    <li
+      v-for="field in fields"
+      :key="field.id"
+      class="relative w-fit"
+      :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
+    >
       <!-- Drop indicator -->
       <div
         v-if="activeDropZone?.targetId == field.id"
-        class="absolute z-10 rounded bg-primary-700"
+        class="absolute z-10 rounded bg-gray-400"
         :class="[
           orientation == Orientation.HORIZONTAL ? 'h-full w-1' : 'h-1 w-full',
           activeDropZone?.anchor == 'start'
@@ -179,36 +186,47 @@ defineExpose<ViewExposed>({ self, id, actions });
             items: menuActionsLike(FIELD_CONTEXT_ACTIONS, { context: { ...context, triggerNode: field } }),
           })
         "
-        class="max-w-[200px] truncate data-[dragging=true]:opacity-50"
+        class="cursor-pointer truncate data-[dragging=true]:opacity-50"
+        :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
         :prepared-connection="preparedConnection"
         :node-ptr="toNodeRefOneOf(field)"
+        :variant="variant"
         :draggable="true"
         @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, field)"
       />
     </li>
     <!-- Add button -->
     <button
-      class="h-[28px] px-1 text-gray-400 hover:text-gray-700"
+      class="h-[28px] px-1 text-left text-gray-400 hover:text-gray-400"
+      :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
       @click="
         (e) => {
-          const button = (e.target as HTMLElement).closest('button')!;
-          pushPopover({
-            trigger: button,
-            reference: button,
-            info: {
-              component: ViewType.PICKER,
-              placement: 'bottom-left',
-              offset: 'referenceWidth',
-              props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-              onApply: (typeInfo: TypeIdentity) => {
-                createField(pkgConnection.tx, pkgGraph, {
-                  anchor: 'inside',
-                  target: block!,
-                  field: { ...typeInfo, type: fieldType },
-                });
+          if (fieldType == FieldType.OPTION) {
+            createField(pkgConnection.tx, pkgGraph, {
+              anchor: 'inside',
+              target: block!,
+              field: { type: fieldType },
+            });
+          } else {
+            const button = (e.target as HTMLElement).closest('button')!;
+            pushPopover({
+              trigger: button,
+              reference: button,
+              info: {
+                component: ViewType.PICKER,
+                placement: 'bottom-left',
+                offset: 'referenceWidth',
+                props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+                onApply: (typeInfo: TypeIdentity) => {
+                  createField(pkgConnection.tx, pkgGraph, {
+                    anchor: 'inside',
+                    target: block!,
+                    field: { ...typeInfo, type: fieldType },
+                  });
+                },
               },
-            },
-          });
+            });
+          }
         }
       "
     >

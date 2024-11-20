@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.20.1"
+VERSION = "2024.11.20.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1089,6 +1089,7 @@ PIPE_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("source_id", PrimitiveType.UUID),
         Column("source_ck", PrimitiveType.UUID),
         Column("source_bench_id", PrimitiveType.UUID),

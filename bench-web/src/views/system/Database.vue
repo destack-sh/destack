@@ -51,7 +51,7 @@ import {
   collapseSelection,
   expandSelection,
   focusInElement,
-  getViewForValueType,
+  getView,
   VIEW_DEFAULT_BAR_HEADER_HEIGHT,
   VIEW_DEFAULT_HEADER_HEIGHT,
 } from "@/ui/view";
@@ -295,7 +295,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
     > &
       ColumnContent,
   ) {
-    const view = getViewForValueType(columnIn.type);
+    const view = getView(columnIn.type);
     const padding = getColumnPadding(columnIn.type, view?.type);
     const column: ColumnView = {
       ...columnIn,
@@ -820,7 +820,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             "
           >
             <i class="fas fa-plus mr-1.5 text-center" />
-            <span>Field</span>
+            <span>Member</span>
           </button>
           <!-- Add record -->
           <button
@@ -942,7 +942,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Drop indicator -->
             <div
               v-if="column.kind == 'field' && activeHeaderDropZone?.targetId == column.field.id"
-              class="absolute z-10 h-full w-1 rounded bg-primary-700"
+              class="absolute z-10 h-full w-1 rounded bg-gray-700"
               :class="[activeHeaderDropZone?.anchor == 'start' ? (x == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
             />
             <!-- Icon/Name -->
