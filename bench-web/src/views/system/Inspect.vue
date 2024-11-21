@@ -4,7 +4,7 @@ import { useSubnodeProperty } from "@/language/node";
 import { NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
-import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
+import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { InspectSection, makeInspectLayout } from "@/ui/inspect";
 import { computedValue } from "@/utils/ref";
@@ -27,7 +27,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
+const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
 const layout = computed(() =>
   node.value != null ? makeInspectLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx) : null,

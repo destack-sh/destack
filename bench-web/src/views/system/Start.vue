@@ -10,7 +10,6 @@ import {
   NodeType,
   ObjectType,
   Orientation,
-  RectangleData,
   RunProperty,
   StepType,
   TypeKind,
@@ -40,8 +39,6 @@ import CustomObject from "@/views/system/CustomObject.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const MIN_WIDTH = 320;
-const MAX_WIDTH = 1200;
 
 const props = defineProps<
   {
@@ -104,37 +101,26 @@ const feedState = computed((): FeedViewData => {
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 
 // current runnable / inputs
-// NOTE: we 'sticky' the last runnable node (so even if we currently don't have one, we keep the last one)
-const currentRunnableNode: Ref<RunnableNode | null | undefined> = computed(() =>
-  ancestors.value.find((node) => isRunnable(node)),
-);
-const lastRunnableNode: Ref<RunnableNode | null> = ref(null);
-watch(currentRunnableNode, (newNode) => {
-  if (newNode != null) lastRunnableNode.value = newNode;
-});
-const runnablePtr = computed(() => (lastRunnableNode.value != null ? toPlainNodeRef(lastRunnableNode.value) : null));
-const baseTypePtr = computed(() => {
-  if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.ACTION) {
-    return unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, lastRunnableNode.value.subnodePacked, "delegatePtr");
-  } else {
-    return runnablePtr.value ?? undefined;
-  }
-});
-const inputsPacked: Ref<Record<string, any>> = ref({}); // nocheckin
+const node = pkgGraph.getRef(nodePtr);
+const runnablePtr = computed(() => (node.value != null ? toPlainNodeRef(node.value) : null));
+const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.START, toRef(props, "subnodePacked"), "inputsPacked");
 const inputType = computed(() =>
   runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldType: FieldType.INPUT })
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldType: FieldType.INPUT })
     : undefined,
 );
 const outputType = computed(() =>
   runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldType: FieldType.OUTPUT })
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldType: FieldType.OUTPUT })
     : undefined,
 );
 
+const inputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
+const outputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
+
 function createRun() {
-  if (lastRunnableNode.value == null) return;
-  const run = runtime.createRun(lastRunnableNode.value, { inputsPacked: inputsPacked.value });
+  if (node.value == null || !isRunnable(node.value)) return;
+  const run = runtime.createRun(node.value, { inputsPacked: inputsPacked.value as any });
   runPtr.value = toNodeRef(run);
 }
 
@@ -142,68 +128,52 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="lastRunnableNode" class="h-full w-full">
-    <!-- Body -->
-    <component
-      :is="size == null ? 'div' : Scroll"
-      id="scroll"
-      :size="{ width: size?.width, height: (size?.height ?? 0) - HEADER_HEIGHT }"
-      :orientation="Orientation.VERTICAL"
-      :track-width="ScrollbarWidth.md"
-      track-is-overlay
-    >
-      <div
-        class="mx-auto flex flex-col gap-y-2 px-5 pb-5"
-        :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
-      >
-        <!-- Inputs -->
-        <div class="flex-1">
-          <h4 class="font-semibold">Inputs</h4>
-          <CustomObject
-            id="inputs"
-            class="w-full py-1"
-            :value-type="inputType"
-            is-inline
-            is-input
-            :variant="Variant.STEALTH"
-            :model-value="inputsPacked"
-            @update:model-value="(value) => (inputsPacked = value)"
-          />
-        </div>
-        <!-- Outputs (last run) -->
-        <div v-if="run?.outputsPacked != null" class="flex-1">
-          <h4 class="font-semibold">Outputs</h4>
-          <CustomObject
-            id="outputs"
-            class="w-full py-1"
-            :value-type="outputType"
-            is-inline
-            :variant="Variant.STEALTH"
-            :model-value="run.outputsPacked"
-          />
-        </div>
-        <!-- Error (last run) -->
-        <div v-else-if="run?.error != null" class="flex-1">
-          <h4 class="font-semibold">Error</h4>
-          <RunError class="mt-2" :run="run" :error="run.error" />
-        </div>
-        <div v-else class="flex-1 text-center">
-          <!-- Placeholder -->
-        </div>
-        <!-- Timeline -->
-        <div v-if="runPtr && run != null">
-          <h4 class="font-semibold">Timeline</h4>
-          <RunTimeline :node-ptr="runPtr" class="mt-2" />
-        </div>
-      </div>
-    </component>
+  <div v-if="node" class="flex h-full w-full flex-col gap-y-1.5 px-5">
+    <!-- nocheckin: proper Run controls -->
+    <button @click="createRun">start</button>
+    <!-- Inputs -->
+    <div class="flex-1">
+      <h4 class="font-semibold">Inputs</h4>
+      <CustomObject
+        id="inputs"
+        ref="inputsRef"
+        class="w-full py-1"
+        :value-type="inputType"
+        is-inline
+        is-input
+        :variant="Variant.STEALTH"
+        :model-value="inputsPacked"
+        @update:model-value="(value) => (inputsPacked = value)"
+      />
+    </div>
+    <!-- Outputs (last run) -->
+    <div v-if="run?.outputsPacked != null" class="flex-1">
+      <h4 class="font-semibold">Outputs</h4>
+      <CustomObject
+        id="outputs"
+        ref="outputsRef"
+        class="w-full py-1"
+        :value-type="outputType"
+        is-inline
+        :variant="Variant.STEALTH"
+        :model-value="run.outputsPacked"
+      />
+    </div>
+    <!-- Error (last run) -->
+    <div v-else-if="run?.error != null" class="flex-1">
+      <h4 class="font-semibold">Error</h4>
+      <RunError class="mt-2" :run="run" :error="run.error" />
+    </div>
+    <div v-else class="flex-1 text-center">
+      <!-- Placeholder -->
+    </div>
+    <!-- Timeline -->
+    <div v-if="runPtr && run != null">
+      <h4 class="font-semibold">Timeline</h4>
+      <RunTimeline :node-ptr="runPtr" class="mt-2" />
+    </div>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center text-center">
-    <!-- NOTE :UX: display possible nodes to start in context & all runs if nothing runnable selected -->
     <!-- Empty state -->
-    <span>
-      <i class="fas fa-empty-set text-gray-500" />
-      <span class="ml-1.5 text-gray-600">Select Node to Run</span>
-    </span>
   </div>
 </template>

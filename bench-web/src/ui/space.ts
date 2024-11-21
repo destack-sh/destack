@@ -598,14 +598,18 @@ export class SpaceCanvas {
     // state (on demand)
     //
 
-    function getState(viewId?: string): Partial<Record<string, any> | undefined> {
+    function getState(viewId?: string, override?: ViewProps): Partial<Record<string, any> | undefined> {
       const subviewPacked = (baseViewRef?.value?.subviewsPacked as any)?.[viewId ?? componentId];
       if (subviewPacked == null) return undefined;
-      return unpackBuiltinObject(subviewPacked, ObjectType.VIEW);
+      const view = unpackBuiltinObject(subviewPacked, ObjectType.VIEW);
+      if (override != null) {
+        Object.assign(view, override);
+      }
+      return view;
     }
 
-    function getChildState(viewId: string): Partial<Record<string, any> | undefined> {
-      return getState(componentId + "." + viewId);
+    function getChildState(viewId: string, override?: ViewProps): Partial<Record<string, any> | undefined> {
+      return getState(componentId + "." + viewId, override);
     }
 
     function update(update: Partial<NodeIn<any>>, options?: TransactionOptions) {
