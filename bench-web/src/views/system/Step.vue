@@ -147,7 +147,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-if="step.type != StepType.TEXT"
       ref="headerRef"
-      class="flex w-full flex-row items-center transition-colors duration-150"
+      class="flex w-full px-1 flex-row items-center transition-colors duration-150"
       :style="{
         height: STEP_HEADER_HEIGHT + 'px',
       }"

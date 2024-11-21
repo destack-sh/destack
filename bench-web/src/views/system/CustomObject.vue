@@ -25,6 +25,7 @@ import { packValue, unpackValue } from "@/language/value";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
+const ROW_HEIGHT_MIN = 28;
 
 const props = defineProps<
   {
@@ -228,7 +229,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       </div>
       <!-- Fields (for current value) -->
       <ul
-        class="flex flex-col gap-y-2.5"
+        class="flex flex-col gap-y-1.5"
         :class="variant != Variant.STEALTH ? 'py-3' : ''"
         :style="{ width: width != null ? width + 'px' : '100%' }"
       >
@@ -240,7 +241,7 @@ defineExpose<ViewExposed>({ self, id, focus });
             fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row items-center gap-x-[10%]',
             variant != Variant.STEALTH ? 'px-4' : '',
           ]"
-          :style="{ minWidth: MIN_WIDTH + 'px' }"
+          :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
         >
           <!-- Field -->
           <span class="w-[100px]">

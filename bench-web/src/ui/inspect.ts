@@ -13,6 +13,7 @@ import {
   ActionBlockData,
   ActionBlockProperty,
   ActionMode,
+  ActionStepData,
   AnyNodeData,
   BenchType,
   BlockData,
@@ -96,7 +97,7 @@ export function makeInspectLayout(
   const subpropertyEnum = subtype != null ? PROPERTY_ENUM_BY_SUBTYPE[metatype]?.[subtype] : undefined;
   const subpropertyInfos = PROPERTY_INFOS_BY_SUBTYPE[metatype]?.[subtype];
   const subnode =
-    subtype != null && node.subnodePacked != null
+    (node.subnodePacked as any)?.[subtype?.toString()] != null
       ? (unpackSubnode(metatype, subtype as never, node.subnodePacked) as any)
       : null;
 
@@ -172,9 +173,17 @@ export function makeInspectLayout(
       read: () => {
         let val;
         if (path.length == 1) {
-          val = (node as any)[rootPropKey];
+          if (!isSubnode) {
+            val = (node as any)[rootPropKey];
+          } else {
+            val = (subnode as any)?.[rootPropKey];
+          }
         } else if (path.length == 2) {
-          val = (node as any)[rootPropKey]?.[propKeys[1]];
+          if (!isSubnode) {
+            val = (node as any)[rootPropKey]?.[propKeys[1]];
+          } else {
+            val = (subnode as any)[rootPropKey]?.[propKeys[1]];
+          }
         } else {
           assertNever(path);
         }
@@ -255,7 +264,7 @@ export function makeInspectLayout(
   }
 
   function sectionAction() {
-    const mode: ActionMode = (subnode as ActionBlockData)?.mode ?? ActionMode.ADAPTIVE;
+    const mode: ActionMode = (subnode as ActionStepData | ActionBlockData)?.mode ?? ActionMode.ADAPTIVE;
     const rows: InspectRow[] = [rowProperty(ActionBlockProperty.mode)];
     if (mode == ActionMode.STRICT) {
       rows.push(rowProperty(ActionBlockProperty.delegatePtr));
@@ -375,14 +384,15 @@ export function makeInspectLayout(
         },
         isFullWidth: true,
         read: () => node.valuePacked,
-        write: (value) => {},
+        write: (value) => {
+          
+        },
       },
     ]);
   }
 
-  return {
-    sections,
-  };
+  const layout: InspectLayout = { sections };
+  return layout;
 }
 
 /** Handle an 'add Field' button (either directly or by spawning a Popover) */

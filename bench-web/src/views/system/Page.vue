@@ -246,26 +246,23 @@ function createAndFocusBlock(
 }
 
 // focus
+// NOTE :UX: focus in Page should scroll into view but that sometimes pushes the root window out of frame somehow..
 function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
   let blockEl: InstanceType<typeof Block> | undefined;
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
       blockEl = blockRefs.value[blocks.value[0].id!];
-      blockEl?.$el?.scrollIntoView({ block: "start", behavior: "instant" });
     } else {
       blockEl = blockRefs.value[blocks.value[blocks.value.length - 1].id!];
-      blockEl?.$el?.scrollIntoView({ block: "end", behavior: "instant" });
     }
   } else {
     if (anchor.id == nodePtr.value?.id) {
       // just focus first
       if (blocks.value.length > 0) {
         blockEl = blockRefs.value[blocks.value[0].id!];
-        blockEl.$el?.scrollIntoView({ block: "nearest", behavior: "instant" });
       }
     } else {
       blockEl = blockRefs.value[anchor.id!];
-      blockEl?.$el?.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }
 

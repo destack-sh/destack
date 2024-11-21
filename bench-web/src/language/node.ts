@@ -66,12 +66,12 @@ export function generateNodeName(node: Partial<AnyNodeData>, siblings: AnyNodeDa
       ...siblings.filter((n) => (n as any).type == (node as any).type).map((n) => extractNameId((n as any).name) ?? 0),
       0,
     );
-    return `${subtypeName}${maxId + 1}`;
+    return `${subtypeName}${maxId == 0 ? "" : maxId + 1}`;
   } else {
     // node type
     const typeName = toCamelName(NodeType, node.metatype);
     const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
-    return `${typeName}${maxId + 1}`;
+    return `${typeName}${maxId == 0 ? "" : maxId + 1}`;
   }
 }
 

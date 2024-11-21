@@ -876,26 +876,11 @@ const localConnection = new LocalGetConnection(
 const _connections: Ref<ConnectionBase<any, any>[]> = shallowRef([localConnection]);
 export const connections = pretendReadonly(_connections);
 export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
-
-export const supergraph = new NodeSuperGraph();
-const connectionWatcherByConnection = new Map<any, () => void>();
+export const supergraph = new NodeSuperGraph(connections);
 
 /** Adds a new connection to the connection set */
 function _addConnection(connection: ConnectionBase<any, any>): void {
   _connections.value = [..._connections.value, connection];
-  const sub = watch(
-    connection.result,
-    (newResult, oldResult) => {
-      if (oldResult != null && "graph" in oldResult) {
-        supergraph.removeGraph(oldResult.graph);
-      }
-      if (newResult != null && "graph" in newResult) {
-        supergraph.addGraph(newResult.graph);
-      }
-    },
-    { immediate: true },
-  );
-  connectionWatcherByConnection.set(connection, sub);
 }
 
 /** Removes a connection from the connection set */
@@ -904,8 +889,6 @@ async function _removeConnection(connection: ConnectionBase<any, any>): Promise<
   const connectionIdx = _connections.value.indexOf(connection);
   if (connectionIdx >= 0) _connections.value.splice(connectionIdx, 1);
   triggerRef(_connections);
-  const sub = connectionWatcherByConnection.get(connection);
-  if (sub) sub();
 }
 
 /** GC inactive (non-local) connections that have been idle for some time */

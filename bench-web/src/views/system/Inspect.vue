@@ -3,15 +3,15 @@ import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
 import { NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph, useExistingConnection } from "@/system/connection";
-import { canvas, inspectionPtr } from "@/system/space";
+import { supergraph } from "@/system/connection";
+import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { InspectSection, makeInspectLayout } from "@/ui/inspect";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import Type from "@/views/system/Type.vue";
-import { computed, ref, toRef } from "vue";
+import { computed, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
 const ROW_HEIGHT_MIN = 28;
@@ -28,10 +28,9 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
-const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(nodePtr);
-const node = supergraph.getRef(nodePtr);
+const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
 const layout = computed(() =>
-  node.value != null ? makeInspectLayout(node.value, pkgGraph, () => pkgConnection.tx) : null,
+  node.value != null ? makeInspectLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx) : null,
 );
 
 const expandedSections = useSubnodeProperty(
