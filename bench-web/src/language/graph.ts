@@ -7,7 +7,7 @@ import {
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   type AnyNodeData,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -19,9 +19,11 @@ import {
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
+import { ConnectionBase } from "@/system/connection";
 import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import {
+  computed,
   isRef,
   shallowRef,
   toRef,
@@ -1345,43 +1347,27 @@ export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent
 }
 
 /**
- * A supergraph composed of multiple subgraphs.
+ * A supergraph composed of multiple subgraphs from different connections.
  * Used for global resolution of nodes across multiple graphs.
  * Graphs are searched in order, first match wins. We assume that that there are no meaningful overlaps.
  */
 export class NodeSuperGraph {
-  graphs: Ref<ReadNodeGraph[]>;
+  connections: Ref<ConnectionBase<any, any>[]>;
 
-  constructor(graphs: ReadNodeGraph[] = []) {
-    this.graphs = shallowRef(graphs);
-  }
-
-  /**
-   * Adds a graph to the supergraph.
-   */
-  addGraph(graph: ReadNodeGraph) {
-    this.graphs.value.push(graph);
-    triggerRef(this.graphs);
-  }
-
-  /**
-   * Removes a graph from the supergraph.
-   */
-  removeGraph(graph: ReadNodeGraph) {
-    const idx = this.graphs.value.indexOf(graph);
-    if (idx >= 0) {
-      this.graphs.value.splice(idx, 1);
-      triggerRef(this.graphs);
-    }
+  constructor(connections: Ref<ConnectionBase<any, any>[]>) {
+    this.connections = connections;
   }
 
   /**
    * Gets a node from the supergraph.
    */
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
-    for (const graph of this.graphs.value) {
-      const node = graph.get(key);
-      if (node != null) return node;
+    for (const connection of this.connections.value) {
+      if ("graph" in connection.result.value) {
+        const graph = connection.result.value.graph as ReadNodeGraph;
+        const node = graph.get(key);
+        if (node != null) return node;
+      }
     }
     return null;
   }
@@ -1392,6 +1378,26 @@ export class NodeSuperGraph {
   getMaybe<T extends NodeType>(key: NodeKey<T> | null): NodeTypeMapping[T] | null {
     if (key == null) return null;
     else return this.get(key);
+  }
+
+  /**
+   * Gets the source from the supergraph.
+   */
+  getLink<T extends NodeType>(
+    key: NodeKey<T>,
+  ): {
+    node: NodeTypeMapping[T];
+    graph: ReadNodeGraph;
+    connection: ConnectionBase<any, any>;
+  } | null {
+    for (const connection of this.connections.value) {
+      if (connection.result.value != null && "graph" in connection.result.value) {
+        const graph = connection.result.value.graph as ReadNodeGraph;
+        const node = graph.get(key);
+        if (node != null) return { node, graph, connection };
+      }
+    }
+    return null;
   }
 
   /**
@@ -1407,20 +1413,28 @@ export class NodeSuperGraph {
     const update = () => {
       unsub();
       let found = false;
-      for (const graph of this.graphs.value) {
-        const node = graph.get(key);
-        if (node != null) {
-          subs.push(graph.subscribe(key, callback));
-          found = true;
-          break;
+      for (const connection of this.connections.value) {
+        if (connection.result.value != null && "graph" in connection.result.value) {
+          const graph = connection.result.value.graph as ReadNodeGraph;
+          const node = graph.get(key);
+          if (node != null) {
+            subs.push(graph.subscribe(key, callback));
+            found = true;
+            break;
+          }
         }
       }
       if (!found) {
         // subscribe to all graphs and graphs list
-        for (const graph of this.graphs.value) {
-          subs.push(graph.subscribe(key, () => (callback(), update())));
+        // NOTE :Performance: subscribe to relevant subset of graphs in supergraph
+        for (const connection of this.connections.value) {
+          if (connection.result.value != null && "graph" in connection.result.value) {
+            const graph = connection.result.value.graph as ReadNodeGraph;
+            subs.push(graph.subscribe(key, () => (callback(), update())));
+          }
+          subs.push(watch(connection.result, () => (callback(), update()), { flush: "sync" }));
         }
-        subs.push(watch(this.graphs, () => (callback(), update()), { flush: "sync" }));
+        subs.push(watch(this.connections, () => (callback(), update()), { flush: "sync" }));
       }
     };
     update();
@@ -1445,5 +1459,35 @@ export class NodeSuperGraph {
     update();
     tryOnBeforeUnmount(unsub);
     return ref;
+  }
+
+  /**
+   * Gets a reactive reference to the source for a node with that key
+   */
+  getLinkRef<T extends NodeType>(
+    key: MaybeRef<NodeKey<T> | null | undefined>,
+  ): {
+    node: Ref<NodeTypeMapping[T] | null>;
+    graph: Ref<ReadNodeGraph | null>;
+    connection: Ref<ConnectionBase<any, any> | null>;
+  } {
+    const keyRef = toRef(key) as Ref<NodeKey<T>>;
+    let sub: (() => void) | null = null;
+    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
+    const get = () => (keyRef.value != null ? this.getLink(keyRef.value) : null);
+    const update = () => {
+      unsub();
+      if (keyRef.value != null) sub = this.subscribe(keyRef.value, trigger);
+    };
+
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watch(keyRef, () => (update(), trigger()));
+    update();
+    tryOnBeforeUnmount(unsub);
+    return {
+      node: computed(() => ref.value?.node ?? null),
+      graph: computed(() => ref.value?.graph ?? null),
+      connection: computed(() => ref.value?.connection ?? null),
+    };
   }
 }

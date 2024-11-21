@@ -135,7 +135,7 @@ defineExpose<ViewExposed>({ self });
     <!-- Bench Header -->
     <div
       v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
-      class="mx-2 my-1.5 flex cursor-pointer flex-row items-center rounded pl-2.5 pr-1 transition-colors duration-75 hover:bg-gray-100"
+      class="mx-2 my-1.5 flex flex-shrink-0 cursor-pointer flex-row items-center rounded pl-2.5 pr-1 transition-colors duration-75 hover:bg-gray-100"
       :style="{
         height: `${BAR_HEADER_HEIGHT - 12}px`,
       }"
@@ -149,7 +149,7 @@ defineExpose<ViewExposed>({ self });
 
     <!-- Header -->
     <div
-      class="mx-3 my-1.5 flex flex-row items-center gap-x-2"
+      class="mx-3 my-1.5 flex flex-shrink-0 flex-row items-center gap-x-2"
       :class="[visibleAspectsOverflow ? 'justify-between' : '']"
       :style="{
         height: `${HEADER_HEIGHT - 12}px`,

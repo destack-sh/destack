@@ -1000,7 +1000,7 @@ export function pathToSvgSpline(points: Vector2[], tension: number = 0.05): stri
 
 /** Gets the view width for a Step. */
 export function getStepWidth(step: StepData): number {
-  return FLOW_GRID_STEP * 18;
+  return FLOW_GRID_STEP * 16;
 }
 
 /** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */

@@ -130,7 +130,7 @@ defineExpose<ViewExposed & { select: () => void }>({
             ? 'bg-white text-gray-900'
             : 'text-gray-900',
         variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline' : '',
-        validationError != null ? 'outline-danger-600' : 'outline-primary-700',
+        validationError != null ? 'outline-danger-600' : 'outline-gray-400',
       ]"
     >
       <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S600" class="mr-0.5 w-5" />
@@ -209,7 +209,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     <!-- Read-only -->
     <div
       v-else
-      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-primary-700 focus-within:outline hover:border-gray-200"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-gray-400 focus-within:outline hover:border-gray-200"
       :class="[variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-1' : '']"
     >
       <template v-if="!valueType?.isList">

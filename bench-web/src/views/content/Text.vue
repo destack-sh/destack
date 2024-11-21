@@ -439,7 +439,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       class="text relative rounded hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
-          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-700 not-focus-within:hover:border-gray-200'
+          ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
       ]"
@@ -497,7 +497,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   @apply my-2 border-l-4 border-gray-400 py-[1px] pl-2;
 }
 .text div.callout {
-  @apply my-2 rounded bg-primary-100 px-2 py-2.5;
+  @apply my-2 rounded bg-gray-100 px-2 py-2.5;
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
 .text div.callout::before {
@@ -512,13 +512,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   @apply rounded px-1 py-0;
 }
 .text span.mention:hover {
-  @apply bg-primary-100 text-primary-700;
+  @apply bg-gray-100;
 }
 .text span.mention .icon {
   @apply mr-1.5 text-gray-700;
 }
 .text span.mention:hover .icon {
-  @apply text-primary-700;
+  @apply text-gray-700;
 }
 .text span.mention .name {
   @apply underline decoration-gray-300 underline-offset-3;

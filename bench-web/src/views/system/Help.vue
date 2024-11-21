@@ -1,19 +1,19 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ViewType, HelpAspect, Orientation } from "@/proto/wire";
-import { viewEmits, type ViewExposed } from "@/views/common";
-import { canvas, inspectionPtr, pkgConnection, pkgGraph } from "@/system/space";
-import { computed, toRef } from "vue";
-import { TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
-import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
+import { isRunnable } from "@/language/session";
+import { HelpAspect, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
+import { supergraph } from "@/system/connection";
+import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
+import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { toCamelName } from "@/language/const";
-import Inspect from "@/views/system/Inspect.vue";
-import { isRunnable } from "@/language/session";
-import Start from "@/views/system/Start.vue";
+import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import Inspect from "@/views/system/Inspect.vue";
+import Start from "@/views/system/Start.vue";
+import { computed, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -30,10 +30,8 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
-const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
-const node = pkgGraph.getRef(nodePtr);
+const { node } = supergraph.getLinkRef(nodePtr);
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "subnodePacked"), "aspect");
 const visibleAspects = computed(() => {
   const visibleAspects: HelpAspect[] = [HelpAspect.INSPECT];
@@ -51,7 +49,7 @@ defineExpose<ViewExposed>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 my-1.5 flex cursor-pointer flex-row items-center rounded pl-2.5 pr-1"
+      class="mx-2 my-1.5 flex flex-shrink-0 cursor-pointer flex-row items-center rounded pl-2.5 pr-1"
       :style="{
         height: `${BAR_HEADER_HEIGHT - 12}px`,
       }"
@@ -84,7 +82,6 @@ defineExpose<ViewExposed>({ self });
     </div>
 
     <!-- Content -->
-    <!-- nocheckin: Help content -->
     <div v-if="aspect == HelpAspect.INSPECT">
       <Scroll
         id="scroll"

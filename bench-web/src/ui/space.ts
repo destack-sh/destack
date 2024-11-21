@@ -214,7 +214,7 @@ export class SpaceCanvas {
   getNodeAt(el: HTMLElement | SVGElement): SomeNodeReferenceData | null {
     // traverse upwards until we find some node ptr or a component that gives us a node ptr
     while (el != null) {
-      if (el.dataset["nodeId"] != null) {
+      if (el.dataset?.["nodeId"] != null) {
         // annotated element
         const nodePtr = {
           metatype: ObjectType.NODE_REFERENCE,
@@ -267,11 +267,7 @@ export class SpaceCanvas {
     // update root/inspection/base
     const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
     const baseView = this.graph.getMaybe(getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]));
-    let nodePtr: SomeNodeReferenceData | null = null;
-    for (const viewComponent of viewComponents) {
-      nodePtr = this.getViewNodePtr(viewComponent, element as HTMLElement);
-      if (nodePtr != null) break;
-    }
+    const nodePtr = this.getNodeAt(element as HTMLElement);
     const keepInspectionInBase =
       getElement(element)?.closest?.("[data-keep-inspection-in-base-view]") != null &&
       inspectionBasePtr.value != null &&

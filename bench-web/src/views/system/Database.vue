@@ -400,7 +400,7 @@ function writeColumnValue(
 
 //
 // Selection
-// nocheckin: use (shared) containing view selection state for Database
+// TODO :UX: use (shared) containing view selection state for Database
 //
 
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
@@ -931,7 +931,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             @dragstart.stop="
               (e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, pkgGraph, column.field)
             "
-            @click="
+            @mousedown="
               (e) => {
                 if (column.kind == 'field') {
                   canvas.inspect({ node: column.field, view: e.target as HTMLElement });
@@ -1046,7 +1046,6 @@ defineExpose<ViewExposed>({ self, id, actions });
           :data-node-id="record.id"
           :data-node-ck="record.id"
           :data-node-type="record.metatype"
-          @click="() => canvas.inspect({ node: record, view: containerRef })"
         >
           <!-- Row actions -->
           <div
