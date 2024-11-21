@@ -10,6 +10,7 @@ import {
   Variant,
   ViewData,
   ViewType,
+  FieldData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -104,7 +105,7 @@ function clear() {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, focus });
+defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fields });
 </script>
 <template>
   <ViewContentWrapper :type="ViewType.OBJECT" v-bind="props">

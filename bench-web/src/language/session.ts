@@ -8,7 +8,9 @@ import {
   FieldType,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   RunKind,
+  RunOptionsData,
   RunStatus,
   StructType,
   TextData,
@@ -17,7 +19,7 @@ import {
   type RunData,
   type StepData,
 } from "@/proto/wire";
-import { describeNode, isNode, isStruct, toPlainNodeRef } from "@/proto/wiring";
+import { describeNode, isNode, isStruct, makeDefaultObject, toPlainNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 import { durationToMs, timestampToMs } from "@/utils/time";
 
@@ -78,11 +80,15 @@ export function getRunDurationMs(run: RunData, nowMs: number): number {
   return Math.max(0, durationMs);
 }
 
+export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
+  return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;
+}
+
 /** Make a new Run for some runnable node */
 export function makeRun(
   graph: ReadNodeGraph,
   runnable: RunnableObject,
-  options?: { inputsPacked?: Record<string, any>; packagePtr?: NodeReferenceData },
+  options?: { inputsPacked?: Record<string, any>; packagePtr?: NodeReferenceData; options?: RunOptionsData },
 ): RunData {
   let packagePtr: NodeReferenceData | undefined = undefined;
   let block: BlockData | undefined = undefined;
@@ -109,6 +115,7 @@ export function makeRun(
     blockPtr: block != null ? toPlainNodeRef(block) : undefined,
     stepPtr: isNode(runnable, NodeType.STEP) ? toPlainNodeRef(runnable) : undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
+    options: makeRunOptions(options?.options),
   });
   return run;
 }

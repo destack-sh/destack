@@ -3,7 +3,7 @@ import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
 import { isRunnable } from "@/language/session";
 import { HelpAspect, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
+import { toNodeRefOneOf, TypedNodeReferenceData, unwrapProtoOneOf, wrapProtoOneOf } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -13,7 +13,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inspect from "@/views/system/Inspect.vue";
 import Start from "@/views/system/Start.vue";
-import { computed, toRef } from "vue";
+import { computed, Ref, toRef, watchEffect } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -31,6 +31,9 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
+const nodePtrOneOf: Ref<ViewData["nodePtr"]> = computedValue(() =>
+  nodePtr.value != null ? toNodeRefOneOf(nodePtr.value) : { oneofKind: undefined },
+);
 const { node } = supergraph.getLinkRef(nodePtr);
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "subnodePacked"), "aspect");
 const visibleAspects = computed(() => {
@@ -41,6 +44,12 @@ const visibleAspects = computed(() => {
     }
   }
   return visibleAspects;
+});
+watchEffect(() => {
+  // ensure aspect is visible
+  if (!visibleAspects.value.includes(aspect.value)) {
+    state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect: visibleAspects.value[0] } });
+  }
 });
 
 defineExpose<ViewExposed>({ self });
@@ -90,11 +99,15 @@ defineExpose<ViewExposed>({ self });
         size-is-dynamic
         :size="{ width: size?.width, height: (size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT }"
       >
-        <Inspect id="inspect" :node-ptr="props.nodePtr" v-bind="state.getChildState('scroll.inspect')" />
+        <Inspect
+          id="inspect"
+          :node-ptr="nodePtrOneOf"
+          v-bind="state.getChildState('scroll.inspect', { nodePtr: nodePtrOneOf })"
+        />
       </Scroll>
     </div>
     <div v-else-if="aspect == HelpAspect.RUN">
-      <Start id="start" :node-ptr="props.nodePtr" />
+      <Start id="start" :node-ptr="nodePtrOneOf" />
     </div>
     <div v-else class="mx-5">
       <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>
