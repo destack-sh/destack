@@ -122,7 +122,8 @@ export type GetConnectionParams<T extends NodeType> = {
 };
 export type GetConnectionResult<T extends NodeType> = {
   graphRaw: ReadNodeGraph; // graph without overlay (if different)
-  graphOverlay: ReadNodeGraph | null;
+  graphOverlay: ReadNodeGraph | null; // graph overlay (only)
+  graphComposite: ReadNodeGraph; // composite graph (raw + overlay)
   graph: ReadNodeGraph;
   roots: Ref<NodeTypeMapping[T][]>;
   epoch: Ref<bigint>;
@@ -145,7 +146,8 @@ export type SearchConnectionParams<T extends NodeType> = {
 };
 export type SearchConnectionResult<T extends NodeType> = {
   graphRaw: ReadNodeGraph; // graph without overlay (if different)
-  graphOverlay: ReadNodeGraph | null;
+  graphOverlay: ReadNodeGraph | null; // graph overlay (only)
+  graphComposite: ReadNodeGraph; // composite graph (raw + overlay)
   graph: ReadNodeGraph;
   rootsPtr: Ref<TypedNodeReferenceData<T>[]>;
   page: Ref<PageInfo>;
@@ -641,7 +643,16 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
 
     const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
     subs.push(sub);
-    return { graph, graphRaw: graph, graphOverlay: overlay, roots: graph.getManyRef(params.roots), epoch, subs };
+    const graphComposite = new LayerNodeGraph({ layers: [graph, overlay], filter: DEFAULT_NODE_FILTER });
+    return {
+      graph,
+      graphComposite,
+      graphRaw: graph,
+      graphOverlay: overlay,
+      roots: graph.getManyRef(params.roots),
+      epoch,
+      subs,
+    };
   }
 }
 
@@ -713,9 +724,10 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
     }
 
-    const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
+    const { graph: graphOverlay, sub } = makeConnectionOverlayGraph(graph, this);
     subs.push(sub);
-    return { graph, graphRaw: graph, graphOverlay: overlay, rootsPtr, page, subs, epoch };
+    const graphComposite = new LayerNodeGraph({ layers: [graph, graphOverlay], filter: DEFAULT_NODE_FILTER });
+    return { graph, graphComposite, graphRaw: graph, graphOverlay: graphOverlay, rootsPtr, page, subs, epoch };
   }
 }
 
@@ -740,6 +752,7 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
       graph: this.graph,
       graphRaw: this.graph,
       graphOverlay: null,
+      graphComposite: this.graph,
       roots: this.graph.getManyRef(params.roots),
       epoch: ref(-1n),
     };
@@ -758,6 +771,7 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
     return {
       graph: this.graph,
       graphRaw: this.graph,
+      graphComposite: this.graph,
       graphOverlay: null,
       roots: this.graph.getManyRef(params.roots),
       epoch: ref(-1n),
@@ -1066,6 +1080,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 function useConnectionGraphWithOverlay<T extends NodeType>(
   connection: Ref<ConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
+  // NOTE :Cleanup: the distinction between graphRaw/graphOverlay/graphComposite and this thing here is confusing?
   const graph = new LayerNodeGraph({ filter: DEFAULT_NODE_FILTER });
   watch(
     () => connection.value?.result.value,
@@ -1202,6 +1217,7 @@ export function useGetConnection<T extends NodeType>(
     graph,
     graphRaw: graphRaw,
     graphOverlay: null,
+    graphComposite: graph,
     connection: new ProxyConnection(connection),
     roots,
     epoch: computed(() => connection.value?.epoch ?? -1n),
@@ -1283,6 +1299,7 @@ export function useSearchConnection<T extends NodeType>(
     graph,
     graphRaw: graphRaw,
     graphOverlay: null,
+    graphComposite: graph,
     connection: new ProxyConnection(connection),
     rootsPtr,
     roots,

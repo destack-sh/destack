@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.ACTION_MODE)
 class ActionMode(IdEnum):
-    STRICT = 1  # always run as specified
+    STATIC = 1  # always run as specified
     ADAPTIVE = 2  # run as specified by default but adapt if out of date or error
     DYNAMIC = 3  # dynamically adapt to inputs every time
 

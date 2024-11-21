@@ -1363,8 +1363,8 @@ export class NodeSuperGraph {
    */
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     for (const connection of this.connections.value) {
-      if ("graph" in connection.result.value) {
-        const graph = connection.result.value.graph as ReadNodeGraph;
+      if ("graphComposite" in connection.result.value) {
+        const graph = connection.result.value.graphComposite as ReadNodeGraph;
         const node = graph.get(key);
         if (node != null) return node;
       }
@@ -1391,8 +1391,8 @@ export class NodeSuperGraph {
     connection: ConnectionBase<any, any>;
   } | null {
     for (const connection of this.connections.value) {
-      if (connection.result.value != null && "graph" in connection.result.value) {
-        const graph = connection.result.value.graph as ReadNodeGraph;
+      if (connection.result.value != null && "graphComposite" in connection.result.value) {
+        const graph = connection.result.value.graphComposite as ReadNodeGraph;
         const node = graph.get(key);
         if (node != null) return { node, graph, connection };
       }
@@ -1414,8 +1414,8 @@ export class NodeSuperGraph {
       unsub();
       let found = false;
       for (const connection of this.connections.value) {
-        if (connection.result.value != null && "graph" in connection.result.value) {
-          const graph = connection.result.value.graph as ReadNodeGraph;
+        if (connection.result.value != null && "graphComposite" in connection.result.value) {
+          const graph = connection.result.value.graphComposite as ReadNodeGraph;
           const node = graph.get(key);
           if (node != null) {
             subs.push(graph.subscribe(key, callback));
@@ -1428,8 +1428,8 @@ export class NodeSuperGraph {
         // subscribe to all graphs and graphs list
         // NOTE :Performance: subscribe to relevant subset of graphs in supergraph
         for (const connection of this.connections.value) {
-          if (connection.result.value != null && "graph" in connection.result.value) {
-            const graph = connection.result.value.graph as ReadNodeGraph;
+          if (connection.result.value != null && "graphComposite" in connection.result.value) {
+            const graph = connection.result.value.graphComposite as ReadNodeGraph;
             subs.push(graph.subscribe(key, () => (callback(), update())));
           }
           subs.push(watch(connection.result, () => (callback(), update()), { flush: "sync" }));

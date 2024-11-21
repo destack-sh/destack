@@ -284,10 +284,13 @@ defineExpose<ViewExposed>({ self, id, focus });
                       });
                 const newObject = { ...focusedValue, [fieldView.storageKey]: valuePacked };
                 if (!valueType?.isList) {
-                  emit('update:modelValue', newObject);
+                  emit('update:modelValue', newObject, { field: fieldView.field, path: [fieldView.storageKey] });
                 } else {
                   const newValues = (props.modelValue as any[]).map((v, i) => (i == focusedValueIdx ? newObject : v));
-                  emit('update:modelValue', newValues);
+                  emit('update:modelValue', newValues, {
+                    field: fieldView.field,
+                    path: [focusedValueIdx, fieldView.storageKey],
+                  });
                 }
               }
             "

@@ -9,6 +9,7 @@ import { createField, getPropertyType, makeTypeInfo, TypeIdentity, updateFieldTy
 import { ReadNodeGraph } from "@/language/graph";
 import { unpackSubnode } from "@/language/node";
 import { makeEdit, makeEditFromSubnode, Transaction, TransactionOptions } from "@/language/transaction";
+import { packValue } from "@/language/value";
 import {
   ActionBlockData,
   ActionBlockProperty,
@@ -19,6 +20,8 @@ import {
   BlockData,
   BlockProperty,
   BlockType,
+  EditOperationData,
+  EditOperationType,
   FieldData,
   FieldProperty,
   FieldType,
@@ -31,6 +34,7 @@ import {
   PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
+  RecordProperty,
   RunOptionsProperty,
   StepProperty,
   StepType,
@@ -75,7 +79,7 @@ export type InspectViewRow = InspectRowBase & {
   viewType: ViewType;
   viewProps: ViewProps;
   read: () => any;
-  write: (value: any) => void;
+  write: (value: any, path?: any) => void;
 };
 export type InspectIconRow = InspectRowBase & {
   type: "icon";
@@ -189,17 +193,17 @@ export function makeInspectLayout(
         }
         return val ?? options?.default ?? prop.default;
       },
-      write: (value) => {
+      write: (newValue) => {
         const tx = txFactory();
         const options: TransactionOptions = { debounce: "short" };
         if (path.length == 1) {
           if (!isSubnode) {
-            tx.update(node, { [rootPropKey]: value }, options);
+            tx.update(node, { [rootPropKey]: newValue }, options);
           } else {
             tx.update(
               node,
               // @ts-expect-error this is fine, metatype/subtype can't be typed properly here
-              makeEditFromSubnode(node, { metatype, type: subtype, subnode: { [rootPropKey]: value } }),
+              makeEditFromSubnode(node, { metatype, type: subtype, subnode: { [rootPropKey]: newValue } }),
               options,
             );
           }
@@ -208,7 +212,7 @@ export function makeInspectLayout(
             const newRootValue = makeStruct({
               metatype: rootProp.referenceStruct,
               ...(node as any)[rootPropKey],
-              [propKeys[1]]: value,
+              [propKeys[1]]: newValue,
             });
             tx.update(node, { [rootPropKey]: newRootValue }, options);
           } else {
@@ -266,7 +270,7 @@ export function makeInspectLayout(
   function sectionAction() {
     const mode: ActionMode = (subnode as ActionStepData | ActionBlockData)?.mode ?? ActionMode.ADAPTIVE;
     const rows: InspectRow[] = [rowProperty(ActionBlockProperty.mode)];
-    if (mode == ActionMode.STRICT) {
+    if (mode == ActionMode.STATIC) {
       rows.push(rowProperty(ActionBlockProperty.delegatePtr));
       rows.push(rowProperty(ActionBlockProperty.code, { isFullWidth: true }));
     } else {
@@ -384,8 +388,22 @@ export function makeInspectLayout(
         },
         isFullWidth: true,
         read: () => node.valuePacked,
-        write: (value) => {
-          
+        write: (newValue, options) => {
+          const tx = txFactory();
+          if (options == null) {
+            tx.update(node, { valuePacked: newValue });
+          } else {
+            const operations: EditOperationData[] = [
+              {
+                metatype: ObjectType.EDIT_OPERATION,
+                type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
+                path: [RecordProperty.valuePacked.toString(), ...options.path],
+                newValuePacked: (newValue as any)?.[options.path[0]],
+                oldValuePacked: (node.valuePacked as any)?.[options.path[0]],
+              },
+            ];
+            tx.update(node, operations, { debounce: "short" });
+          }
         },
       },
     ]);

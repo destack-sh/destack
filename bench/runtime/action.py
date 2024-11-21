@@ -62,7 +62,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         attempt = self.current_attempt
         assert attempt is not None, f"no current attempt for {self!r}"
         action = cast(Action, self.node)
-        if action.mode == ActionMode.STRICT:
+        if action.mode == ActionMode.STATIC:
             # run directly
             if action.code is not None:
                 # run implementation directly
