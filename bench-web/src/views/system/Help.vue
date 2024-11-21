@@ -93,7 +93,7 @@ defineExpose<ViewExposed>({ self });
         size-is-dynamic
         :size="{ width: size?.width, height: (size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT }"
       >
-        <Inspect id="inspect" :node-ptr="props.nodePtr" />
+        <Inspect id="inspect" :node-ptr="props.nodePtr" v-bind="state.getChildState('scroll.inspect')" />
       </Scroll>
     </div>
     <div v-else-if="aspect == HelpAspect.RUN">

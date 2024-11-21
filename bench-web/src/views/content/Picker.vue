@@ -312,11 +312,11 @@ defineExpose<ViewExposed>({
         v-tooltip="{ icon: item.icon, title: item.title, small: true, group: 'picker' }"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
-        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-100 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
+        class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
         @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
       >
         <IconInline v-if="variant == Variant.STEALTH && item.icon" v-bind="item.icon" class="w-5" />
-        <template v-else>{{ item.title }}</template>
+        <span v-else class="truncate">{{ item.title }}</span>
       </button>
       <div v-if="results.length == 0" class="mx-auto">
         <i class="fas fa-empty-set mr-1.5 text-gray-600" />

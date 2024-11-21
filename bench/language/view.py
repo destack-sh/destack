@@ -622,6 +622,12 @@ class HelpView(View):
     aspect: HelpAspect = p_regular(100)
 
 
+@node_subtype_(ViewType.INSPECT)
+class InspectView(View):
+    expanded_sections: list[str] = p_regular(100, array=True)
+    collapsed_sections: list[str] = p_regular(101, array=True)
+
+
 @enum_(EnumType.USER_WIZARD_STAGE)
 class UserWizardViewStage(IdEnum):
     """The stage of a User view."""

@@ -255,7 +255,7 @@ export function getView(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>
       return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType!]!, valueType: makeTypeInfo(type) };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
-      if (!type.isList && getEnumOptions(type.benchType).length <= 5 && ICONS_BY_ENUM_TYPE[type.benchType] != null) {
+      if (!type.isList && getEnumOptions(type.benchType).length <= 5) {
         // prefer inline picker for small scalar enums
         const variant = ICONS_BY_ENUM_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return { type: ViewType.PICKER, valueType: makeTypeInfo(type), variant, isInline: true };

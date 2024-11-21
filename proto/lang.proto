@@ -3228,6 +3228,12 @@ message HelpViewData {
 }
 
 // A view of a user interface in a Bench.
+message InspectViewData {
+  repeated string expanded_sections = 100;
+  repeated string collapsed_sections = 101;
+}
+
+// A view of a user interface in a Bench.
 message UserWizardViewData {
   optional UserWizardViewStage stage = 100;
 }

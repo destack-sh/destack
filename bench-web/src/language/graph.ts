@@ -1430,7 +1430,7 @@ export class NodeSuperGraph {
   /**
    * Gets a reactive reference to the current node with that key
    */
-  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): Ref<NodeTypeMapping[T] | null> {
+  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null | undefined>): Ref<NodeTypeMapping[T] | null> {
     const keyRef = toRef(key) as Ref<NodeKey<T>>;
     let sub: (() => void) | null = null;
     const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
