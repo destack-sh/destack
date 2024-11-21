@@ -160,7 +160,7 @@ defineExpose<ViewExposed>({ self, id });
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
             :model-value="row.read()"
-            @update:model-value="(value: any) => row.write(value)"
+            @update:model-value="(value: any, path?: any) => row.write(value, path)"
           />
           <!-- Icon -->
           <div v-else-if="row.type == 'icon'" class="w-full text-center">

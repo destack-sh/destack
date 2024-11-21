@@ -882,7 +882,7 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ActionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ACTION_MODE_UNSPECIFIED: _ClassVar[ActionMode]
-    ACTION_MODE_STRICT: _ClassVar[ActionMode]
+    ACTION_MODE_STATIC: _ClassVar[ActionMode]
     ACTION_MODE_ADAPTIVE: _ClassVar[ActionMode]
     ACTION_MODE_DYNAMIC: _ClassVar[ActionMode]
 
@@ -2355,7 +2355,7 @@ BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_ROLE: BlockType
 BLOCK_TYPE_IDENTITY: BlockType
 ACTION_MODE_UNSPECIFIED: ActionMode
-ACTION_MODE_STRICT: ActionMode
+ACTION_MODE_STATIC: ActionMode
 ACTION_MODE_ADAPTIVE: ActionMode
 ACTION_MODE_DYNAMIC: ActionMode
 SCHEDULE_TYPE_UNSPECIFIED: ScheduleType

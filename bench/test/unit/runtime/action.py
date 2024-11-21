@@ -23,7 +23,7 @@ async def test_run_action_empty_strict(hosted_runtime: RuntimeHandle):
     ActionBlock1 = Block.new(
         ActionBlock,
         "Action1",
-        mode=ActionMode.STRICT,
+        mode=ActionMode.STATIC,
     )
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()

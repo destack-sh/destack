@@ -9427,9 +9427,9 @@ export enum ActionMode {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_MODE_STRICT = 1;
+     * @generated from protobuf enum value: ACTION_MODE_STATIC = 1;
      */
-    STRICT = 1,
+    STATIC = 1,
     /**
      * @generated from protobuf enum value: ACTION_MODE_ADAPTIVE = 2;
      */
