@@ -19,6 +19,7 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
+import { onAddFieldAction } from "@/ui/inspect";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
@@ -197,38 +198,10 @@ defineExpose<ViewExposed>({ self, id, actions });
     </li>
     <!-- Add button -->
     <button
-      class="h-[28px] px-1 text-left text-gray-400 hover:text-gray-400"
+      v-if="variant != Variant.STEALTH || fields.length == 0"
+      class="h-[26px] rounded px-1 text-left text-gray-400 hover:bg-gray-100 hover:text-gray-700"
       :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
-      @click="
-        (e) => {
-          if (fieldType == FieldType.OPTION) {
-            createField(pkgConnection.tx, pkgGraph, {
-              anchor: 'inside',
-              target: block!,
-              field: { type: fieldType },
-            });
-          } else {
-            const button = (e.target as HTMLElement).closest('button')!;
-            pushPopover({
-              trigger: button,
-              reference: button,
-              info: {
-                component: ViewType.PICKER,
-                placement: 'bottom-left',
-                offset: 'referenceWidth',
-                props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-                onApply: (typeInfo: TypeIdentity) => {
-                  createField(pkgConnection.tx, pkgGraph, {
-                    anchor: 'inside',
-                    target: block!,
-                    field: { ...typeInfo, type: fieldType },
-                  });
-                },
-              },
-            });
-          }
-        }
-      "
+      @click="(e) => onAddFieldAction(e, fieldType, block!, pkgGraph, () => pkgConnection.tx)"
     >
       <i class="fas fa-plus mr-1.5" />
       <span> {{ toCamelName(FieldType, props.fieldType) }} </span>

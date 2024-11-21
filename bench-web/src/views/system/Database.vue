@@ -914,10 +914,10 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent bg-white px-2 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
-              column.isInspected ? 'bg-gray-100' : column.isHighlighted ? 'bg-gray-50' : 'hover:bg-gray-100',
+              column.isInspected || column.isHighlighted ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
             ]"
             :style="{
               paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,

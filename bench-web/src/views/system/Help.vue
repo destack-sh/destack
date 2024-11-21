@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ViewType, HelpAspect } from "@/proto/wire";
+import { ViewData, NodeType, ViewType, HelpAspect, Orientation } from "@/proto/wire";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr, pkgConnection, pkgGraph } from "@/system/space";
 import { computed, toRef } from "vue";
@@ -13,13 +13,16 @@ import { toCamelName } from "@/language/const";
 import Inspect from "@/views/system/Inspect.vue";
 import { isRunnable } from "@/language/session";
 import Start from "@/views/system/Start.vue";
+import Scroll from "@/views/containers/Scroll.vue";
 
+const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const FOOTER_HEIGHT = 0;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
     ViewData,
-    "name" | "title" | "icon" | "nodePtr" | "subnodePacked"
+    "name" | "title" | "icon" | "nodePtr" | "size" | "subnodePacked"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -50,7 +53,7 @@ defineExpose<ViewExposed>({ self });
     <div
       class="mx-2 my-1.5 flex cursor-pointer flex-row items-center rounded pl-2.5 pr-1"
       :style="{
-        height: `${VIEW_DEFAULT_BAR_HEADER_HEIGHT - 12}px`,
+        height: `${BAR_HEADER_HEIGHT - 12}px`,
       }"
     >
       <!-- Node -->
@@ -83,7 +86,15 @@ defineExpose<ViewExposed>({ self });
     <!-- Content -->
     <!-- nocheckin: Help content -->
     <div v-if="aspect == HelpAspect.INSPECT">
-      <Inspect id="inspect" :node-ptr="props.nodePtr" />
+      <Scroll
+        id="scroll"
+        ref="scrollRef"
+        :orientation="Orientation.VERTICAL"
+        size-is-dynamic
+        :size="{ width: size?.width, height: (size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT }"
+      >
+        <Inspect id="inspect" :node-ptr="props.nodePtr" />
+      </Scroll>
     </div>
     <div v-else-if="aspect == HelpAspect.RUN">
       <Start id="start" :node-ptr="props.nodePtr" />
