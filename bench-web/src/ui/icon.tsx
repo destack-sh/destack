@@ -509,7 +509,7 @@ export const ICON_BY_FILE_FORMAT: Partial<Record<FileFormat, IconData>> = _makeI
   [FileFormat.PPT]: "fas fa-file-powerpoint",
 });
 
-export const ICON_BY_FIELD_ZONE: Partial<Record<FieldType, IconData>> = _makeIcons({
+export const ICON_BY_FIELD_TYPE: Partial<Record<FieldType, IconData>> = _makeIcons({
   [FieldType.VARIABLE]: "fas fa-sliders",
   [FieldType.MEMBER]: "fas fa-objects-column",
   [FieldType.INPUT]: "fas fa-arrow-down-right",
@@ -623,19 +623,20 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.TYPE_FORMAT]: ICON_BY_TYPE_FORMAT,
   [EnumType.FILE_TYPE]: ICON_BY_FILE_TYPE,
   [EnumType.FILE_FORMAT]: ICON_BY_FILE_FORMAT,
-  [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
+  [EnumType.FIELD_ZONE]: ICON_BY_FIELD_TYPE,
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
   [EnumType.REGION_AREA]: ICON_BY_REGION_AREA,
   [EnumType.REGION]: ICON_BY_REGION,
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
   [EnumType.CACHE_MODE]: ICON_BY_CACHE_MODE,
+  [EnumType.ACTION_MODE]: ICON_BY_ACTION_MODE,
 };
 
 /** Resolves the icon for a type :FieldIcon */
 export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData | undefined {
   if ((node as FieldData).type == FieldType.OPTION) {
-    return ICON_BY_FIELD_ZONE[FieldType.OPTION];
+    return ICON_BY_FIELD_TYPE[FieldType.OPTION];
   } else if (node.primitiveType != null) {
     if (node.format != null) {
       const icon = ICON_BY_TYPE_FORMAT[node.format];

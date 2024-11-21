@@ -4,12 +4,13 @@ import { NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
-import { makeInspectLayout } from "@/ui/inspect";
+import { IconInline } from "@/ui/icon";
+import { InspectSection, makeInspectLayout } from "@/ui/inspect";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import Type from "@/views/system/Type.vue";
-import { computed, toRef } from "vue";
+import { computed, ref, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
 
@@ -27,24 +28,74 @@ const state = canvas.registerView(self, id);
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(nodePtr);
 const node = pkgGraph.getRef(nodePtr);
-const layout = computed(() => (node.value != null ? makeInspectLayout(node.value) : null));
+const layout = computed(() =>
+  node.value != null ? makeInspectLayout(node.value, pkgGraph, () => pkgConnection.tx) : null,
+);
+
+const expandedSections = ref<string[]>([]);
+const collapsedSections = ref<string[]>([]);
+function isSectionExpanded(section: InspectSection) {
+  if (section.title == null) return true;
+  if (section.isDefaultCollapsed) return expandedSections.value.includes(section.title);
+  else return !collapsedSections.value.includes(section.title);
+}
+function toggleSection(section: InspectSection) {
+  if (section.title == null) throw new Error("cannot toggle a section without a title");
+  if (section.isDefaultCollapsed) {
+    if (isSectionExpanded(section)) {
+      expandedSections.value = expandedSections.value.filter((title) => title != section.title);
+    } else {
+      expandedSections.value = [...expandedSections.value, section.title];
+    }
+  } else {
+    if (isSectionExpanded(section)) {
+      collapsedSections.value = [...collapsedSections.value, section.title];
+    } else {
+      collapsedSections.value = collapsedSections.value.filter((title) => title != section.title);
+    }
+  }
+}
 
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="node && layout" class="flex flex-col gap-y-4">
+  <div v-if="node && layout" class="flex flex-col gap-y-1">
     <!-- Sections -->
-    <div v-for="(section, i) in layout.sections" :key="section.title ?? i">
+    <div v-for="(section, i) in layout.sections" :key="section.title ?? i" class="group/section">
       <!-- Section header -->
       <div
         v-if="section.title"
-        class="mx-4 flex flex-row items-center"
+        class="group/section-header relative mx-1 flex flex-row items-center rounded px-3"
         :style="{ height: `${SECTION_HEADER_HEIGHT}px` }"
+        @click="toggleSection(section)"
       >
+        <!-- Expand/collapse indicator -->
+        <i
+          class="fas fa-chevron-right absolute left-0 text-xs text-gray-400 opacity-0 transition-all duration-75 group-hover/section-header:text-gray-700 group-hover/section:opacity-100"
+          :class="isSectionExpanded(section) ? 'rotate-90' : 'rotate-0'"
+        />
+        <!-- Title -->
         <span class="font-medium">{{ section.title }}</span>
+        <!-- Meta -->
+        <div class="ml-auto flex flex-row items-center gap-x-1">
+          <!-- Summary -->
+          <span v-if="!isSectionExpanded(section) && section.summary != null" class="text-gray-400">
+            {{ section.summary }}
+          </span>
+          <!-- Actions -->
+          <button
+            v-for="action in section.actions"
+            :key="action.title"
+            v-tooltip="{ title: action.title, small: true, group: 'section.header' }"
+            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
+            @click.stop="(e) => action.action(e)"
+          >
+            <IconInline v-bind="action.icon" />
+          </button>
+        </div>
       </div>
       <!-- Section content -->
-      <div class="flex flex-col gap-y-1.5 py-1">
+      <div v-if="section.rows.length > 0 && isSectionExpanded(section)" class="flex flex-col gap-y-1.5 py-1">
         <!-- Row -->
         <div
           v-for="(row, i) in section.rows"
@@ -74,14 +125,21 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Property -->
           <component
             :is="getViewComponent(row.viewType)"
-            v-if="row.type == 'property' && hasViewComponent(row.viewType)"
+            v-else-if="row.type == 'property' && hasViewComponent(row.viewType)"
             :id="i + '.value'"
             :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="{ ...row.viewProps, isInput: row.isInput }"
             :model-value="row.read()"
-            @update:model-value="(value: any) => row.write(pkgConnection.tx, pkgGraph, value)"
+            @update:model-value="(value: any) => row.write(value)"
           />
+          <!-- Icon -->
+          <div v-else-if="row.type == 'icon'" class="w-full text-center">
+            <IconInline class="text-gray-400" v-bind="row.icon" />
+          </div>
+          <div v-else>
+            <span class="text-danger-600">???</span>
+          </div>
         </div>
       </div>
     </div>

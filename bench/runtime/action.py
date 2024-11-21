@@ -778,7 +778,7 @@ openai_client = openai.AsyncClient(
     api_key=get_from_env("OPENAI_API_KEY", description="OpenAI API key")
 )
 OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
-    ModelType.OPENAI_GPT4_0: "gpt-4o-2024-08-06",
+    ModelType.OPENAI_GPT4_0: "gpt-4o-2024-11-20",
     ModelType.OPENAI_GPT4_O_MINI: "gpt-4o-mini-2024-07-18",
     ModelType.OPENAI_O1_MINI: "o1-mini-2024-09-12",
     ModelType.OPENAI_O1_PREVIEW: "o1-preview-09-12",
