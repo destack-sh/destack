@@ -294,13 +294,6 @@ export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons
   [PipeType.STREAM]: "fas fa-signal-stream",
 });
 
-export const ICON_BY_ACTION_MODE: Record<ActionMode, IconData> = _makeIcons<ActionMode>({
-  [ActionMode.UNSPECIFIED]: "fas fa-question",
-  [ActionMode.STRICT]: "fas fa-dice-d4",
-  [ActionMode.ADAPTIVE]: "fas fa-dice-d6",
-  [ActionMode.DYNAMIC]: "fas fa-dice-d8",
-})
-
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
   //
   // Intrinsics
@@ -630,7 +623,6 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.REGION]: ICON_BY_REGION,
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
   [EnumType.CACHE_MODE]: ICON_BY_CACHE_MODE,
-  [EnumType.ACTION_MODE]: ICON_BY_ACTION_MODE,
 };
 
 /** Resolves the icon for a type :FieldIcon */

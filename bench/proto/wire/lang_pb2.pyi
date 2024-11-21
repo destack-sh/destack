@@ -5876,6 +5876,14 @@ class HelpViewData(_message.Message):
     aspect: HelpAspect
     def __init__(self, aspect: _Optional[_Union[HelpAspect, str]] = ...) -> None: ...
 
+class InspectViewData(_message.Message):
+    __slots__ = ("expanded_sections", "collapsed_sections")
+    EXPANDED_SECTIONS_FIELD_NUMBER: _ClassVar[int]
+    COLLAPSED_SECTIONS_FIELD_NUMBER: _ClassVar[int]
+    expanded_sections: _containers.RepeatedScalarFieldContainer[str]
+    collapsed_sections: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, expanded_sections: _Optional[_Iterable[str]] = ..., collapsed_sections: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class UserWizardViewData(_message.Message):
     __slots__ = ("stage",)
     STAGE_FIELD_NUMBER: _ClassVar[int]

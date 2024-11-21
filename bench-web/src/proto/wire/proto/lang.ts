@@ -5714,6 +5714,21 @@ export interface HelpViewData {
 /**
  * A view of a user interface in a Bench.
  *
+ * @generated from protobuf message symbolx.bench.InspectViewData
+ */
+export interface InspectViewData {
+    /**
+     * @generated from protobuf field: repeated string expanded_sections = 100;
+     */
+    expandedSections: string[];
+    /**
+     * @generated from protobuf field: repeated string collapsed_sections = 101;
+     */
+    collapsedSections: string[];
+}
+/**
+ * A view of a user interface in a Bench.
+ *
  * @generated from protobuf message symbolx.bench.UserWizardViewData
  */
 export interface UserWizardViewData {
@@ -25798,6 +25813,61 @@ class HelpViewData$Type extends MessageType$<HelpViewData> {
  */
 export const HelpViewData = new HelpViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class InspectViewData$Type extends MessageType$<InspectViewData> {
+    constructor() {
+        super("symbolx.bench.InspectViewData", [
+            { no: 100, name: "expanded_sections", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 101, name: "collapsed_sections", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<InspectViewData>): InspectViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.expandedSections = [];
+        message.collapsedSections = [];
+        if (value !== undefined)
+            reflectionMergePartial<InspectViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: InspectViewData): InspectViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated string expanded_sections */ 100:
+                    message.expandedSections.push(reader.string());
+                    break;
+                case /* repeated string collapsed_sections */ 101:
+                    message.collapsedSections.push(reader.string());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: InspectViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated string expanded_sections = 100; */
+        for (let i = 0; i < message.expandedSections.length; i++)
+            writer.tag(100, WireType.LengthDelimited).string(message.expandedSections[i]);
+        /* repeated string collapsed_sections = 101; */
+        for (let i = 0; i < message.collapsedSections.length; i++)
+            writer.tag(101, WireType.LengthDelimited).string(message.collapsedSections[i]);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.InspectViewData
+ */
+export const InspectViewData = new InspectViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
     constructor() {
         super("symbolx.bench.UserWizardViewData", [
@@ -27289,13 +27359,14 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | HubViewData | HelpViewData | UserWizardViewData | IconViewData;
+export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | HubViewData | HelpViewData | InspectViewData | UserWizardViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.TREE]: TreeViewData,
   [ViewType.START]: StartViewData,
   [ViewType.FEED]: FeedViewData,
   [ViewType.HUB]: HubViewData,
   [ViewType.HELP]: HelpViewData,
+  [ViewType.INSPECT]: InspectViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.ICON]: IconViewData,
 }
@@ -28524,6 +28595,11 @@ export enum HelpViewProperty {
   aspect = 100,
 }
 
+export enum InspectViewProperty {
+  expandedSections = 100,
+  collapsedSections = 101,
+}
+
 export enum UserWizardViewProperty {
   stage = 100,
 }
@@ -29425,6 +29501,7 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.FEED]: FeedViewProperty,
   [ViewType.HUB]: HubViewProperty,
   [ViewType.HELP]: HelpViewProperty,
+  [ViewType.INSPECT]: InspectViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.ICON]: IconViewProperty,
 }
@@ -29622,7 +29699,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.20.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29649,7 +29726,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.20.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29673,7 +29750,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.20.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30448,6 +30525,10 @@ export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
 export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
   [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const InspectViewDataInfo: Record<InspectViewProperty, PropertyInfo> = {
+  [InspectViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [InspectViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
@@ -31157,6 +31238,7 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.FEED]: FeedViewDataInfo,
   [ViewType.HUB]: HubViewDataInfo,
   [ViewType.HELP]: HelpViewDataInfo,
+  [ViewType.INSPECT]: InspectViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.ICON]: IconViewDataInfo,
 }

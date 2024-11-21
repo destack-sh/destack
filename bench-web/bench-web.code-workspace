@@ -12,6 +12,7 @@
         "prettier.vueIndentScriptAndStyle": false,
         "github.copilot.chat.temporalContext.enabled": true,
         "github.copilot.chat.search.semanticTextResults": true,
+        "window.zoomLevel": -0.5,
     },
     "launch": {
         "configurations": [

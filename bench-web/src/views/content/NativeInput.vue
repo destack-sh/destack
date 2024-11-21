@@ -129,7 +129,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           : variant != Variant.STEALTH
             ? 'bg-white text-gray-900'
             : 'text-gray-900',
-        variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-1 outline-1 focus-within:outline' : '',
+        variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline' : '',
         validationError != null ? 'outline-danger-600' : 'outline-primary-700',
       ]"
     >

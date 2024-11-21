@@ -144,7 +144,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="relative flex gap-x-2 gap-y-1 rounded"
     :class="[
       orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
-      variant == Variant.STEALTH ? 'px-0.5 py-1' : '',
+      variant == Variant.STEALTH ? 'px-0.5 py-0.5' : '',
       activeDropZone != null ? 'outline outline-2 outline-gray-400' : '',
     ]"
   >
@@ -199,7 +199,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Add button -->
     <button
       v-if="variant != Variant.STEALTH || fields.length == 0"
-      class="h-[26px] rounded px-1 text-left text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+      class="h-[26px] rounded px-1 text-left text-gray-400 hover:text-gray-700"
       :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
       @click="(e) => onAddFieldAction(e, fieldType, block!, pkgGraph, () => pkgConnection.tx)"
     >

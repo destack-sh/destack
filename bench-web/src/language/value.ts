@@ -76,17 +76,15 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
     if (!isNodeRef(value)) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    } else {
-      return packBuiltinObject(value as NodeReferenceData);
     }
+    return packBuiltinObject(value as NodeReferenceData);
   } else if (type.kind == TypeKind.ENUM) {
     return value as JsonPrimitive;
   } else if (type.kind == TypeKind.STRUCT) {
     if (!isStruct(value)) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    } else {
-      return packBuiltinObject(value);
     }
+    return packBuiltinObject(value);
   } else {
     throw new Error(`cannot pack value of type ${describeTypeIdentity(type)}`);
   }

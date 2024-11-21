@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
+import { useSubnodeProperty } from "@/language/node";
+import { NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
+import { supergraph, useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { IconInline } from "@/ui/icon";
 import { InspectSection, makeInspectLayout } from "@/ui/inspect";
@@ -13,12 +14,13 @@ import Type from "@/views/system/Type.vue";
 import { computed, ref, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
+const ROW_HEIGHT_MIN = 28;
 
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-  } & Pick<ViewData, "icon" | "size" | "nodePtr">
+  } & Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -27,39 +29,67 @@ const state = canvas.registerView(self, id);
 
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(nodePtr);
-const node = pkgGraph.getRef(nodePtr);
+const node = supergraph.getRef(nodePtr);
 const layout = computed(() =>
   node.value != null ? makeInspectLayout(node.value, pkgGraph, () => pkgConnection.tx) : null,
 );
 
-const expandedSections = ref<string[]>([]);
-const collapsedSections = ref<string[]>([]);
+const expandedSections = useSubnodeProperty(
+  NodeType.VIEW,
+  ViewType.INSPECT,
+  toRef(props, "subnodePacked"),
+  "expandedSections",
+);
+const collapsedSections = useSubnodeProperty(
+  NodeType.VIEW,
+  ViewType.INSPECT,
+  toRef(props, "subnodePacked"),
+  "collapsedSections",
+);
 function isSectionExpanded(section: InspectSection) {
   if (section.title == null) return true;
-  if (section.isDefaultCollapsed) return expandedSections.value.includes(section.title);
-  else return !collapsedSections.value.includes(section.title);
+  if (section.isDefaultCollapsed) return expandedSections.value?.includes(section.title);
+  else return !collapsedSections.value?.includes(section.title);
 }
 function toggleSection(section: InspectSection) {
   if (section.title == null) throw new Error("cannot toggle a section without a title");
   if (section.isDefaultCollapsed) {
+    let newExpandedSections;
     if (isSectionExpanded(section)) {
-      expandedSections.value = expandedSections.value.filter((title) => title != section.title);
+      newExpandedSections = expandedSections.value.filter((title) => title != section.title);
     } else {
-      expandedSections.value = [...expandedSections.value, section.title];
+      newExpandedSections = [...(expandedSections.value ?? []), section.title];
     }
+    state.update(
+      {
+        metatype: NodeType.VIEW,
+        type: ViewType.INSPECT,
+        subnode: { expandedSections: newExpandedSections },
+      },
+      { debounce: "long" },
+    );
   } else {
+    let newCollapsedSections;
     if (isSectionExpanded(section)) {
-      collapsedSections.value = [...collapsedSections.value, section.title];
+      newCollapsedSections = [...(collapsedSections.value ?? []), section.title];
     } else {
-      collapsedSections.value = collapsedSections.value.filter((title) => title != section.title);
+      newCollapsedSections = collapsedSections.value.filter((title) => title != section.title);
     }
+    state.update(
+      {
+        metatype: NodeType.VIEW,
+        type: ViewType.INSPECT,
+        subnode: { collapsedSections: newCollapsedSections },
+      },
+      { debounce: "long" },
+    );
   }
 }
 
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="node && layout" class="flex flex-col gap-y-1">
+  <div v-if="node && layout" class="flex flex-col gap-y-2">
     <!-- Sections -->
     <div v-for="(section, i) in layout.sections" :key="section.title ?? i" class="group/section">
       <!-- Section header -->
@@ -77,7 +107,7 @@ defineExpose<ViewExposed>({ self, id });
         <!-- Title -->
         <span class="font-medium">{{ section.title }}</span>
         <!-- Meta -->
-        <div class="ml-auto flex flex-row items-center gap-x-1">
+        <div class="ml-auto flex flex-row items-center gap-x-1 pr-1">
           <!-- Summary -->
           <span v-if="!isSectionExpanded(section) && section.summary != null" class="text-gray-400">
             {{ section.summary }}
@@ -102,7 +132,7 @@ defineExpose<ViewExposed>({ self, id });
           :key="row.title ?? i"
           class="mx-4"
           :class="[
-            row.type == 'property'
+            row.type == 'view'
               ? row.isFullWidth
                 ? 'flex flex-col gap-y-0.5'
                 : 'flex flex-row flex-wrap items-center gap-x-[10%]'
@@ -122,14 +152,14 @@ defineExpose<ViewExposed>({ self, id });
               :variant="Variant.STEALTH"
             />
           </div>
-          <!-- Property -->
+          <!-- View -->
           <component
             :is="getViewComponent(row.viewType)"
-            v-else-if="row.type == 'property' && hasViewComponent(row.viewType)"
+            v-else-if="row.type == 'view' && hasViewComponent(row.viewType)"
             :id="i + '.value'"
             :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
-            :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
-            v-bind="{ ...row.viewProps, isInput: row.isInput }"
+            :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
+            v-bind="row.viewProps"
             :model-value="row.read()"
             @update:model-value="(value: any) => row.write(value)"
           />
