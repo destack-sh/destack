@@ -223,4 +223,4 @@ def test_render_simple_choice_option_ref(shared_session: Session, shared_package
     rendered_option = render_expr(
         Choice.fields.Option2, options=RenderOptions(scope=Function), as_ref=True
     )
-    assert rendered_option == "Choice.Option2"
+    assert rendered_option == "Choice.fields.Option2"

@@ -297,7 +297,6 @@ def make_run_from_node(
     *,
     inputs: Any | None = None,
     parent: "Run | None" = None,
-    **kwargs,
 ) -> "Run":
     """Creates a Run from a runnable Node."""
     from bench.language import Block, Step
@@ -330,15 +329,12 @@ def make_run_from_node(
         step=step,
         pipe=pipe,
         options=options,
-        **kwargs,
     )
     if inputs is None:
         inputs = {}
     if run.input_type is not None:
         inputs = coerce_custom_object(ObjectKind.INPUT, run.input_type, inputs)
         run.inputs = inputs
-        if kwargs:
-            inputs.update(kwargs)
     return run
 
 

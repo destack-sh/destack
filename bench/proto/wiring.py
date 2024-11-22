@@ -73,6 +73,34 @@ def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> Enum
 #
 
 
+def pack_subnode(node_cls: type[Node], subnode: dict):
+    subnode_packed: dict[str, dict[str, JsonValue]] = {}
+    for subnode_key in subnode:
+        subtype_cls = node_cls.__subclass_by_subtype__[int(subnode_key)]  # type: ignore
+        subnode_packed[subnode_key] = {}
+        for p in subtype_cls.__subtype_extra_properties__.values():
+            if p.key in subnode[subnode_key] and p._type_info is not None:
+                subnode_packed[subnode_key][p.key] = pack_value(
+                    subnode[subnode_key][p.key], p._type_info, wrap_scalar=False
+                )
+    return subnode_packed
+
+
+def unpack_subnode(node_cls: type[Node], subnode_packed: dict) -> dict[str, Any]:
+    subnode_unpacked: dict[str, Any] = {}
+    for subnode_key in subnode_packed:
+        subnode_cls = node_cls.__subclass_by_subtype__[int(subnode_key)]  # type: ignore
+        subnode_unpacked[subnode_key] = {}
+        for p_key, prop_value_packed in cast(dict, subnode_packed[subnode_key]).items():
+            p = subnode_cls.__properties_by_id__.get(int(p_key))
+            assert (
+                p is not None and p._type_info is not None
+            ), f"bad {p_key} for {node_cls.subnode_packed!r}"
+            prop_value = unpack_value(prop_value_packed, p._type_info, wrap_scalar=False)
+            subnode_unpacked[subnode_key][p.key] = prop_value
+    return subnode_unpacked
+
+
 def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> Any:
     if value is None:
         return None
@@ -107,15 +135,7 @@ def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> A
         return pack_proto_json(value_packed)
     elif prop.is_subnode_packed:
         assert isinstance(obj, Node) and obj.__has_subtypes__, f"no subtypes for {obj!r}"
-        subnode_packed: dict[str, dict[str, JsonValue]] = {}
-        for subnode_key in value:
-            subtype_cls = obj.__subclass_by_subtype__[int(subnode_key)]  # type: ignore
-            subnode_packed[subnode_key] = {}
-            for p in subtype_cls.__subtype_extra_properties__.values():
-                if p.key in value[subnode_key] and p._type_info is not None:
-                    subnode_packed[subnode_key][p.key] = pack_value(
-                        value[subnode_key][p.key], p._type_info, wrap_scalar=False
-                    )
+        subnode_packed = pack_subnode(obj.__class__, value)
         return pack_proto_json(cast(JsonValue, subnode_packed))
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
@@ -155,16 +175,7 @@ def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSup
             assert issubclass(node_cls, Node) and node_cls.__has_subtypes__, f"no subtypes {prop!r}"
             subnode_packed = unpack_proto_json(value)
             assert type(subnode_packed) is dict, f"unexpected {subnode_packed!r} for {prop!r}"
-            subnode_unpacked = {}
-            for subnode_key in subnode_packed:
-                subnode_cls = node_cls.__subclass_by_subtype__[int(subnode_key)]  # type: ignore
-                subnode_unpacked[subnode_key] = {}
-                for p_key, prop_value_packed in cast(dict, subnode_packed[subnode_key]).items():
-                    p = subnode_cls.__properties_by_id__.get(int(p_key))
-                    assert p is not None and p._type_info is not None, f"bad {p_key} for {prop!r}"
-                    prop_value = unpack_value(prop_value_packed, p._type_info, wrap_scalar=False)
-                    subnode_unpacked[subnode_key][p.key] = prop_value
-            return subnode_unpacked
+            return unpack_subnode(node_cls, subnode_packed)
         elif prop.primitive_type == PrimitiveType.UUID:
             return UUID(value)  # uuids are wired as strings
         elif prop.primitive_type == PrimitiveType.JSON:

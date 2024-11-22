@@ -731,7 +731,6 @@ def _object_node_ref(prop: Property) -> property:
 
         def _get_node_many(self: BuiltinObject) -> Sequence["Node | SomeNodeReference"]:
             value_ptrs: Collection[NodeReferenceBase] = getattr(self, wired_prop.name)
-            assert type(value_ptrs) is list, f"invalid {prop}: {value_ptrs!r}"
             if len(value_ptrs) == 0:
                 return ()
             values = []
@@ -1139,8 +1138,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             # apply identity map
             if prop.is_node_reference:
                 if prop.is_list:
-                    self_value = [identity_map.get(v.ck, v) for v in self_value]
-                    other_value = [identity_map.get(v.ck, v) for v in other_value]
+                    self_value = (
+                        [identity_map.get(v.ck, v) for v in self_value] if self_value else ()
+                    )
+                    other_value = (
+                        [identity_map.get(v.ck, v) for v in other_value] if other_value else ()
+                    )
                 else:
                     self_value = identity_map.get(self_value.ck, self_value) if self_value else None
                     other_value = (
@@ -1616,7 +1619,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_type: NodeType | None = None
 
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
-    subnode_packed: dict[str, dict[str, Any]] = p_subnode_packed(NODE_SUBTYPE_PACKED_ID)
+    subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(NODE_SUBTYPE_PACKED_ID)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -1709,9 +1712,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         super()._init_extra_kwargs(kwargs)
         if self.__has_subtypes__:
             cls = self._get_effective_cls()
+            subtype_key = str(self.__dict__["type"])
+            if self.subnode_packed is None:
+                subnode_packed = EMPTY_DICT
+            else:
+                subnode_packed = self.subnode_packed.get(subtype_key) or EMPTY_DICT
             for prop in cls.__subtype_extra_properties__.values():
                 prop_value = kwargs.get(prop.name, UNSET)
                 if prop_value is UNSET:
+                    if prop.key in subnode_packed:
+                        continue  # already set directly
                     if prop.default_factory is not None:
                         prop_value = prop.default_factory()
                     elif prop.default is not UNSET:
@@ -1723,8 +1733,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             prop_value = []
                         else:
                             continue  # skip optional None
-                    elif "subnode_packed" not in kwargs:
-                        raise ValueError(f"missing required value for {prop!r}")
                 self._do_set(prop.name, prop_value, track=False, validate=False)
 
     @final
@@ -1842,8 +1850,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                         subnode_packed = subnode_packed.get(subtype_key)
                         if subnode_packed is not None:
                             subnode_value = subnode_packed.get(prop.key)
-                            return subnode_value
-                    if prop.is_list and not prop.is_optional:
+                            if subnode_value is not None:
+                                return subnode_value
+                    if prop.is_list:
                         return ()
                     else:
                         return None

@@ -211,6 +211,10 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
     const propValue = unpackBuiltinObjectProperty(propValuePacked, prop);
     if (propValue != null) {
       (value as any)[propName] = propValue;
+    } else if (prop.default != null) {
+      (value as any)[propName] = prop;
+    } else if (prop.isList) {
+      (value as any)[propName] = [];
     }
   }
   value.metatype = objectType;

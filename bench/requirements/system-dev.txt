@@ -395,7 +395,7 @@ pyyaml==6.0.2
     #   pre-commit
     #   tach
 redis==4.5.4
-    # via -r bench/requirements/system.in
+    # via -r bench/requirements/base.in
 regex==2024.11.6
     # via -r bench/requirements/base.in
 requests==2.32.3

@@ -41,7 +41,7 @@ def test_project_pages(shared_session: Session, shared_package: Package):
     )
 
     # project
-    projection = project(JudgeWriting, options=ProjectOptions())
+    projection = project(JudgeWriting, options=ProjectOptions(inline_pages=True))
     assert Style in projection
     assert Mood in projection
     assert SomeInstruction in projection

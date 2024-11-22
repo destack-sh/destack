@@ -57,12 +57,12 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     ]
 
     # subtype set
-    ActionStep1.text = None
+    ActionStep1.delegate = None
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,
         str(StepType.ACTION),
-        ActionStep.get_property("text").key,
+        ActionStep.get_property("delegate").key,
     ]
 
     # nested scalar subtype set

@@ -8,7 +8,7 @@ from bench.utils.utils import get_from_env, get_from_env_maybe
 
 LOCAL_CACHE_HOST = get_from_env("LOCAL_CACHE_HOST", description="Redis URL")
 LOCAL_CACHE_USERNAME = get_from_env_maybe("LOCAL_CACHE_USERNAME", description="Redis username")
-LOCAL_CACHE_PASSWORD = get_from_env("LOCAL_CACHE_PASSWORD", description="Redis password")
+LOCAL_CACHE_PASSWORD = get_from_env_maybe("LOCAL_CACHE_PASSWORD", description="Redis password")
 
 redis_client = redis.Redis(
     host=LOCAL_CACHE_HOST, username=LOCAL_CACHE_USERNAME, password=LOCAL_CACHE_PASSWORD

@@ -163,13 +163,15 @@ class Aliasing:
             alias = getattr(obj, "code_name")
             if not regex.match(r"^[a-zA-Z_]\w+$", alias):  # ensure it's a valid python identifier
                 alias = f"{obj.metatype.bench_name}_{alias}"
+            has_given_name = True
         else:
             alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
-        if alias in self._node_by_alias:
+            has_given_name = False
+        if alias in self._node_by_alias or not has_given_name:
             # bump digit at end to make alias unique
             count = regex.search(r"\d+$", alias)
             if count is None:
-                alias = f"{alias}2"
+                alias = f"{alias}1"
                 count = 1
             else:
                 count = int(count.group())

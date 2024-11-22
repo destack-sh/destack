@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @object_()
-class TextOptions(BuiltinObject):
+class TextOptionsBase(BuiltinObject):
     # color?
     color: Optional["ColorType"] = p_regular(50, default=None)
     # flags
@@ -65,7 +65,7 @@ class TextLineType(IdEnum):
 
 
 @struct_(StructType.TEXT_SPAN)
-class TextSpan(TextOptions, Struct):
+class TextSpan(TextOptionsBase, Struct):
     """A span of text with optional formatting."""
 
     content: Optional[str] = p_regular(33, default=None)
@@ -126,7 +126,7 @@ class TextSpan(TextOptions, Struct):
 
 
 @struct_(StructType.TEXT_LINE)
-class TextLine(TextOptions, Struct):
+class TextLine(TextOptionsBase, Struct):
     """
     A single line of Text with formatting, composed of spans.
     A line may contain hard breaks, so it's effectively a paragraph.
@@ -281,7 +281,7 @@ def _mention_to_url(node: Node) -> str:
         return f"bench://node?{'&'.join(url_parts)}"
 
 
-def _md_wrap_text_options(content: str, options: TextOptions) -> str:
+def _md_wrap_text_options(content: str, options: TextOptionsBase) -> str:
     if options.is_bold:
         content = f"**{content}**"
     if options.is_italic:

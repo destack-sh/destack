@@ -49,6 +49,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const focusPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
@@ -124,7 +125,6 @@ function createRun() {
   runPtr.value = toNodeRef(run);
 }
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
@@ -143,7 +143,14 @@ defineExpose<ViewExposed>({ self, id });
         is-input
         :variant="Variant.STEALTH"
         :model-value="inputsPacked"
-        @update:model-value="(value) => (inputsPacked = value)"
+        @update:model-value="
+          (value) => {
+            state.update(
+              { metatype: NodeType.VIEW, type: ViewType.START, subnode: { inputsPacked: value } },
+              { debounce: 'short' },
+            )
+          }
+        "
       />
     </div>
     <!-- Outputs (last run) -->
