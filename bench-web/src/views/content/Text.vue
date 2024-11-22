@@ -444,7 +444,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       data-suppress-drag="true"
     >
       <!-- Placeholder -->
-      <div v-if="placeholder && isTextEmpty(modelValue)" class="pointer-events-none absolute left-0 top-[1px]">
+      <div v-if="placeholder && isTextEmpty(modelValue)" class="pointer-events-none absolute left-2 top-1">
         <div class="text-sm text-gray-400">{{ placeholder }}</div>
       </div>
     </div>

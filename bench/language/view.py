@@ -61,11 +61,9 @@ class ViewType(IdEnum):
     VIEW = 205
     FLOW = 206
     STEP = 207
-    TYPE = 208
+    PIPE = 208
+    TYPE = 209
     OBJECT = 210
-    RUN = 211
-    LOG = 212
-    PIPE = 213
     # helpers
     TREE = 400
     INSPECT = 403
@@ -584,7 +582,6 @@ class TreeView(View):
 @node_subtype_(ViewType.START)
 class StartView(View):
     inputs_packed: Any = p_value_packed(100)
-    run: "Run | None" = p_regular(101, default=None, require=False, references=NodeType.RUN)
 
 
 @node_subtype_(ViewType.FEED)

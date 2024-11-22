@@ -1228,7 +1228,8 @@ enum InterruptKind {
 enum InterruptStatus {
   INTERRUPT_STATUS_UNSPECIFIED = 0;
   INTERRUPT_STATUS_OPEN = 1;
-  INTERRUPT_STATUS_CLOSED = 2;
+  INTERRUPT_STATUS_CANCELLED = 7;
+  INTERRUPT_STATUS_COMPLETED = 10;
 }
 
 // How to handle caching.
@@ -1321,11 +1322,9 @@ enum ViewType {
   VIEW_TYPE_VIEW = 205;
   VIEW_TYPE_FLOW = 206;
   VIEW_TYPE_STEP = 207;
-  VIEW_TYPE_TYPE = 208;
+  VIEW_TYPE_PIPE = 208;
+  VIEW_TYPE_TYPE = 209;
   VIEW_TYPE_OBJECT = 210;
-  VIEW_TYPE_RUN = 211;
-  VIEW_TYPE_LOG = 212;
-  VIEW_TYPE_PIPE = 213;
   VIEW_TYPE_TREE = 400;
   VIEW_TYPE_INSPECT = 403;
   VIEW_TYPE_CREATE = 404;
@@ -3208,7 +3207,6 @@ message TreeViewData {
 // A view of a user interface in a Bench.
 message StartViewData {
   optional google.protobuf.Value inputs_packed = 100;
-  optional NodeReferenceData run_ptr = 101;
 }
 
 // A view of a user interface in a Bench.

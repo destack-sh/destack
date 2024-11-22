@@ -117,7 +117,12 @@ defineExpose<ViewExposed>({ self, id });
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'section.header' }"
             class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
-            @click.stop="(e) => action.action(e)"
+            @click.stop="
+              (e) => {
+                action.action(e);
+                if (!isSectionExpanded(section)) toggleSection(section);
+              }
+            "
           >
             <IconInline v-bind="action.icon" />
           </button>

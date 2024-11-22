@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { getRunDurationMs, isRunActive, isRunTerminal } from "@/language/session";
+import { getRunDurationMs, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
   IconData,
@@ -11,7 +11,7 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { describeNode, isNode, SomeNodeReferenceData, TypedNodeReferenceData } from "@/proto/wiring";
-import { runtime, RunTree } from "@/system/runtime";
+import { RunTree } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
@@ -31,7 +31,7 @@ const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.R
 
 const containerRef = ref<HTMLElement | null>(null);
 const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
-const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH - 16);
+const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH);
 
 //
 // Run
@@ -150,66 +150,63 @@ watchEffect(() => {
 });
 </script>
 <template>
-  <div class="w-full">
-    <!-- Timeline -->
-    <!-- Spans -->
-    <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
-    <div ref="containerRef" class="flex flex-1 flex-col">
-      <!-- Span -->
+  <!-- Spans -->
+  <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
+  <div ref="containerRef" class="flex w-full flex-1 flex-col">
+    <!-- Span -->
+    <div
+      v-for="span in timeline.spans"
+      :key="span.id"
+      class="group/span relative flex w-full flex-row items-center rounded hover:bg-gray-100"
+      :style="{
+        height: ROW_HEIGHT + 'px',
+      }"
+    >
+      <!-- Tree  -->
       <div
-        v-for="span in timeline.spans"
-        :key="span.id"
-        class="group/span relative flex w-full flex-row items-center rounded hover:bg-gray-100"
+        class="flex flex-shrink-0 flex-row items-center pr-2"
         :style="{
-          height: ROW_HEIGHT + 'px',
+          paddingLeft: span.depth * DEPTH_OFFSET + 'px',
+          width: TREE_WIDTH + 'px',
         }"
       >
-        <!-- Tree  -->
-        <div
-          class="flex flex-shrink-0 flex-row items-center pr-2"
-          :style="{
-            paddingLeft: 8 + span.depth * DEPTH_OFFSET + 'px',
-            width: TREE_WIDTH + 'px',
-          }"
-        >
-          <!-- Node -->
-          <button
-            class="group/node truncate hover:cursor-pointer"
-            @click.stop="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
-          >
-            <IconInline
-              v-bind="span.icon ?? ICON_BY_NODE_TYPE[NodeType.RUN]"
-              class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
-            />
-            <span class="truncate underline-offset-3 group-hover/node:underline">{{ span.title }}</span>
-          </button>
-          <!-- Meta -->
-          <div class="ml-auto flex-shrink-0 pl-1.5">
-            <!-- Duration -->
-            <span class="ml-auto mr-1.5 text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
-            <!-- Status -->
-            <IconInline
-              v-if="isNode(span.content)"
-              class="ml-auto w-5 text-center"
-              :class="[span.content.status == RunStatus.RUNNING ? 'animate-spin' : '']"
-              :style="{ color: span.color }"
-              v-bind="ICON_BY_RUN_STATUS[span.content.status]"
-            />
-          </div>
-        </div>
-        <!-- Timeline -->
-        <div
-          class="absolute transform rounded transition-all duration-100"
-          :style="{
-            height: ROW_HEIGHT - 2 * BAR_PADDING + 'px',
-            top: BAR_PADDING + 'px',
-            width: Math.max(MIN_SPAN_WIDTH, span.widthRelative * spanContainerWidth) + 'px',
-            left: TREE_WIDTH + 8 + span.offsetRelative * spanContainerWidth + 'px',
-            backgroundColor: span.color,
-          }"
+        <!-- Node -->
+        <button
+          class="group/node truncate hover:cursor-pointer"
           @click.stop="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
-        ></div>
+        >
+          <IconInline
+            v-bind="span.icon ?? ICON_BY_NODE_TYPE[NodeType.RUN]"
+            class="mr-1.5 w-5 text-center text-gray-700 transition-colors duration-75"
+          />
+          <span class="truncate underline-offset-3 group-hover/node:underline">{{ span.title }}</span>
+        </button>
+        <!-- Meta -->
+        <div class="ml-auto flex-shrink-0 pl-1.5">
+          <!-- Duration -->
+          <span class="ml-auto mr-1.5 text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
+          <!-- Status -->
+          <IconInline
+            v-if="isNode(span.content)"
+            class="ml-auto w-5 text-center"
+            :class="[span.content.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+            :style="{ color: span.color }"
+            v-bind="ICON_BY_RUN_STATUS[span.content.status]"
+          />
+        </div>
       </div>
+      <!-- Timeline -->
+      <div
+        class="absolute transform rounded transition-all duration-100"
+        :style="{
+          height: ROW_HEIGHT - 2 * BAR_PADDING + 'px',
+          top: BAR_PADDING + 'px',
+          width: Math.max(MIN_SPAN_WIDTH, span.widthRelative * spanContainerWidth) + 'px',
+          left: TREE_WIDTH + span.offsetRelative * spanContainerWidth + 'px',
+          backgroundColor: span.color,
+        }"
+        @click.stop="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
+      ></div>
     </div>
   </div>
 </template>

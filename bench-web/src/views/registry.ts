@@ -27,11 +27,9 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.DATABASE]: () => import("@/views/system/Database.vue"),
   [ViewType.FLOW]: () => import("@/views/system/Flow.vue"),
   [ViewType.STEP]: () => import("@/views/system/Step.vue"),
+  [ViewType.PIPE]: () => import("@/views/system/Pipe.vue"),
   [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/system/CustomObject.vue"),
-  [ViewType.RUN]: () => import("@/views/system/Run.vue"),
-  [ViewType.LOG]: () => import("@/views/system/Log.vue"),
-  [ViewType.PIPE]: () => import("@/views/system/Pipe.vue"),
 
   // helpers
   [ViewType.TREE]: () => import("@/views/system/Tree.vue"),

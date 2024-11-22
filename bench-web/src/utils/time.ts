@@ -74,7 +74,7 @@ const DIGITS_PER_UNIT: Partial<Record<TimeUnit, number>> = {
   s: 2,
 };
 
-type FormatDurationOptions = {
+export type FormatDurationOptions = {
   minUnit?: TimeUnit;
   minValue?: number;
   tooSmall?: string;

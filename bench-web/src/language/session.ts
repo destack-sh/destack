@@ -6,6 +6,7 @@ import {
   CodeData,
   FieldData,
   FieldType,
+  IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -20,8 +21,16 @@ import {
   type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, makeDefaultObject, toPlainNodeRef } from "@/proto/wiring";
+import { makeIcon } from "@/ui/icon";
 import { assertNever } from "@/utils/functools";
-import { durationToMs, timestampToMs } from "@/utils/time";
+import {
+  durationToMs,
+  formatDuration,
+  FormatDurationOptions,
+  getNow,
+  timestampToMs,
+  TimeUpdateInterval,
+} from "@/utils/time";
 
 export type RunnableNode = BlockData | StepData;
 export type RunnableObject = RunnableNode | TextData | CodeData;
@@ -78,6 +87,46 @@ export function getRunDurationMs(run: RunData, nowMs: number): number {
     durationMs = currentMs - startedAtMs;
   }
   return Math.max(0, durationMs);
+}
+
+/** Gets the Run duration as a formatted string */
+export function getRunDurationString(run: RunData, options?: FormatDurationOptions): string | null {
+  const now = getNow(TimeUpdateInterval.MILLISECOND).value;
+  const nowMs = timestampToMs(now);
+  const durationMs = getRunDurationMs(run, nowMs);
+  if (durationMs == 0) return null;
+  return formatDuration(durationMs, options);
+}
+
+/** Gets the available actions for a Run */
+export function getRunActions(run: RunData) {
+  const actions: { title: string; icon: IconData; action: () => void }[] = [];
+  if (isRunActive(run)) {
+    actions.push({
+      title: "Pause",
+      icon: makeIcon("fas fa-pause"),
+      action: () => {
+        console.log("pause run", run);
+      },
+    });
+    actions.push({
+      title: "Stop",
+      icon: makeIcon("fas fa-stop"),
+      action: () => {
+        console.log("stop run", run);
+      },
+    });
+  }
+  if (isRunTerminal(run)) {
+    actions.push({
+      title: "Restart",
+      icon: makeIcon("fas fa-redo"),
+      action: () => {
+        console.log("restart run", run);
+      },
+    });
+  }
+  return actions;
 }
 
 export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
