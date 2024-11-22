@@ -1,7 +1,6 @@
-import { SOURCE_STEP_TYPES, INVISIBLE_STEP_TYPES, SINK_STEP_TYPES } from "@/language/const";
+import { INVISIBLE_STEP_TYPES, SINK_STEP_TYPES, SOURCE_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
-import { estimateTextHeight } from "@/language/text";
 import type { Transaction, TransactionOptions } from "@/language/transaction";
 import {
   BlockData,
@@ -52,12 +51,12 @@ export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
 
 export const FLOW_CANVAS_DOT_SIZE = 2;
-export const FLOW_SCALE_MIN = 0.6;
-export const FLOW_SCALE_MAX = 1.0;
+export const FLOW_SCALE_MIN = 0.7;
+export const FLOW_SCALE_MAX = 1.3;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
-export const STEP_SIZE = { width: FLOW_GRID_STEP * 16, height: FLOW_GRID_STEP * 3 };
+export const STEP_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
 export function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
@@ -364,72 +363,77 @@ export class FlowContext {
 
   /** Computes the Pipe path */
   computePath(source: BoundingBox, target: BoundingBox): PipePath {
-    // define the midpoints of the edges for source and target
-    const sideOffset = 0 / 2;
-    const sourcePoints = [
-      { x: source.x1 + source.width / 2 - sideOffset, y: source.y1 }, // top middle
-      { x: source.x2, y: source.y1 + source.height / 2 - sideOffset }, // right middle
-      { x: source.x1 + source.width / 2 + sideOffset, y: source.y2 }, // bottom middle
-      { x: source.x1, y: source.y1 + source.height / 2 + sideOffset }, // left middle
-    ];
-    const targetPoints = [
-      { x: target.x1 + target.width / 2 + sideOffset, y: target.y1 }, // top middle
-      { x: target.x2, y: target.y1 + target.height / 2 + sideOffset }, // right middle
-      { x: target.x1 + target.width / 2 - sideOffset, y: target.y2 }, // bottom middle
-      { x: target.x1, y: target.y1 + target.height / 2 - sideOffset }, // left middle
-    ];
+    const sides: Array<"top" | "right" | "bottom" | "left"> = ["top", "right", "bottom", "left"];
+    const ANGLE_FACTOR = 1; // penalty for angle deviations
+    const CONTROL_DISTANCE_FACTOR = 0.3; // control point distance factor
+    const OFFSET_DISTANCE = FLOW_GRID_STEP / 2; // offset for opposing paths
 
-    // check if the path overlaps an edge of a bounding box
-    function overlapsEdge(box: BoundingBox, start: Vector2, end: Vector2): boolean {
-      // check vertical overlap
-      if (start.x === end.x && start.x >= box.x1 && start.x <= box.x2) {
-        if ((start.y <= box.y2 && end.y >= box.y1) || (end.y <= box.y2 && start.y >= box.y1)) {
-          return true;
-        }
+    // get midpoint of a side
+    function getMidpoint(box: BoundingBox, side: "top" | "right" | "bottom" | "left"): Vector2 {
+      switch (side) {
+        case "top":
+          return { x: box.x1 + box.width / 2, y: box.y1 };
+        case "right":
+          return { x: box.x2, y: box.y1 + box.height / 2 };
+        case "bottom":
+          return { x: box.x1 + box.width / 2, y: box.y2 };
+        case "left":
+          return { x: box.x1, y: box.y1 + box.height / 2 };
       }
-      // check horizontal overlap
-      if (start.y === end.y && start.y >= box.y1 && start.y <= box.y2) {
-        if ((start.x <= box.x2 && end.x >= box.x1) || (end.x <= box.x2 && start.x >= box.x1)) {
-          return true;
-        }
-      }
-      return false;
     }
 
-    // check if a line segment intersects a bounding box
+    // get ideal direction vector for a side
+    function getIdealDirection(side: "top" | "right" | "bottom" | "left"): Vector2 {
+      switch (side) {
+        case "top":
+          return { x: 0, y: -1 };
+        case "right":
+          return { x: 1, y: 0 };
+        case "bottom":
+          return { x: 0, y: 1 };
+        case "left":
+          return { x: -1, y: 0 };
+      }
+    }
+
+    // calculate angle deviation from orthogonal
+    function calculateAngleDeviation(side: "top" | "right" | "bottom" | "left", path: Vector2): number {
+      const ideal = getIdealDirection(side);
+      const length = Math.hypot(path.x, path.y);
+      if (length === 0) return 90;
+      const dot = (path.x * ideal.x + path.y * ideal.y) / length;
+      const clampedDot = Math.max(-1, Math.min(1, dot));
+      const angle = Math.acos(clampedDot) * (180 / Math.PI);
+      return Math.abs(angle);
+    }
+
+    // check if path intersects box
     function intersects(box: BoundingBox, start: Vector2, end: Vector2): boolean {
-      const boxEdges = [
-        // top edge
+      const boxEdges: Array<[Vector2, Vector2]> = [
         [
           { x: box.x1, y: box.y1 },
           { x: box.x2, y: box.y1 },
         ],
-        // right edge
         [
           { x: box.x2, y: box.y1 },
           { x: box.x2, y: box.y2 },
         ],
-        // bottom edge
         [
           { x: box.x2, y: box.y2 },
           { x: box.x1, y: box.y2 },
         ],
-        // left edge
         [
           { x: box.x1, y: box.y2 },
           { x: box.x1, y: box.y1 },
         ],
       ];
-
       for (const [p1, p2] of boxEdges) {
-        if (lineSegmentsIntersect(p1, p2, start, end)) {
-          return true;
-        }
+        if (lineSegmentsIntersect(p1, p2, start, end)) return true;
       }
       return false;
     }
 
-    // check if two line segments intersect
+    // check line segments intersection
     function lineSegmentsIntersect(p1: Vector2, p2: Vector2, q1: Vector2, q2: Vector2): boolean {
       function ccw(a: Vector2, b: Vector2, c: Vector2): boolean {
         return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
@@ -437,62 +441,108 @@ export class FlowContext {
       return ccw(p1, q1, q2) !== ccw(p2, q1, q2) && ccw(p1, p2, q1) !== ccw(p1, p2, q2);
     }
 
-    // check all combinations of edges
-    let shortestDistance = Infinity;
-    let bestSource: Vector2 = sourcePoints[0];
-    let bestTarget: Vector2 = targetPoints[0];
+    let bestSource: Vector2 = getMidpoint(source, "top");
+    let bestTarget: Vector2 = getMidpoint(target, "top");
+    let bestCost = Infinity;
     let hasValidPath = false;
-    for (const se of sourcePoints) {
-      for (const te of targetPoints) {
-        const distance = Math.hypot(se.x - te.x, se.y - te.y);
-        const sourceOverlaps = overlapsEdge(source, se, te);
-        const targetOverlaps = overlapsEdge(target, se, te);
-        const sourceIntersects = intersects(source, se, te);
-        const targetIntersects = intersects(target, se, te);
 
-        // exclude overlapping or intersecting paths
-        if (!sourceOverlaps && !targetOverlaps && !sourceIntersects && !targetIntersects) {
-          // prefer valid paths (non-overlapping, non-intersecting)
-          if (distance < shortestDistance || !hasValidPath) {
-            hasValidPath = true;
-            shortestDistance = distance;
-            bestSource = se;
-            bestTarget = te;
-          }
-        } else if (!hasValidPath && distance < shortestDistance) {
-          // if no valid path exists, pick the closest
-          shortestDistance = distance;
+    for (const sourceSide of sides) {
+      const se = getMidpoint(source, sourceSide);
+      for (const targetSide of sides) {
+        const te = getMidpoint(target, targetSide);
+        const pathVector = { x: te.x - se.x, y: te.y - se.y };
+        const distance = Math.hypot(pathVector.x, pathVector.y);
+        // skip if path intersects source or target
+        if (intersects(source, se, te) || intersects(target, se, te)) continue;
+        const angleDevSource = calculateAngleDeviation(sourceSide, pathVector);
+        const angleDevTarget = calculateAngleDeviation(targetSide, { x: -pathVector.x, y: -pathVector.y });
+        // calculate cost with squared angle deviations
+        const cost = distance + ANGLE_FACTOR * (angleDevSource ** 2 + angleDevTarget ** 2);
+        if (cost < bestCost) {
+          bestCost = cost;
           bestSource = se;
           bestTarget = te;
+          hasValidPath = true;
         }
       }
     }
 
-    // do the bezier
-    const dx = bestTarget.x - bestSource.x;
-    const dy = bestTarget.y - bestSource.y;
-    const pathLength = Math.sqrt(dx * dx + dy * dy);
-    const offset = Math.max(10, pathLength * 0.25);
-    const orthogonal = { x: -dy / pathLength, y: dx / pathLength }; // perpendicular vector to (dx, dy)
+    // fallback to closest path if no valid path found
+    if (!hasValidPath) {
+      let shortestDistance = Infinity;
+      let fallbackSource: Vector2 = getMidpoint(source, "top");
+      let fallbackTarget: Vector2 = getMidpoint(target, "top");
+      for (const sourceSide of sides) {
+        const se = getMidpoint(source, sourceSide);
+        for (const targetSide of sides) {
+          const te = getMidpoint(target, targetSide);
+          const distance = Math.hypot(se.x - te.x, se.y - te.y);
+          if (distance < shortestDistance) {
+            shortestDistance = distance;
+            fallbackSource = se;
+            fallbackTarget = te;
+          }
+        }
+      }
+      bestSource = fallbackSource;
+      bestTarget = fallbackTarget;
+    }
 
-    // control points with orthogonal bias
-    const spinBias = offset; // separation of opposite paths
-    const controlOffset = { x: orthogonal.x * spinBias, y: orthogonal.y * spinBias };
+    // calculate control points with offset for opposing paths
+    const pathVectorFinal = { x: bestTarget.x - bestSource.x, y: bestTarget.y - bestSource.y };
+    const distanceFinal = Math.hypot(pathVectorFinal.x, pathVectorFinal.y);
+    const controlDistance = distanceFinal * CONTROL_DISTANCE_FACTOR;
+
+    // determine chosen sides
+    const sourceSideChosen = sides.find(
+      (side) => getMidpoint(source, side).x === bestSource.x && getMidpoint(source, side).y === bestSource.y,
+    ) as "top" | "right" | "bottom" | "left";
+    const targetSideChosen = sides.find(
+      (side) => getMidpoint(target, side).x === bestTarget.x && getMidpoint(target, side).y === bestTarget.y,
+    ) as "top" | "right" | "bottom" | "left";
+
+    const idealSource = getIdealDirection(sourceSideChosen);
+    const idealTarget = getIdealDirection(targetSideChosen);
+
+    // determine offset direction based on side combinations
+    const offset: Vector2 = { x: 0, y: 0 };
+    if (
+      (sourceSideChosen === "top" && targetSideChosen === "bottom") ||
+      (sourceSideChosen === "bottom" && targetSideChosen === "top")
+    ) {
+      // offset along x-axis
+      offset.x = sourceSideChosen === "top" ? OFFSET_DISTANCE : -OFFSET_DISTANCE;
+    } else if (
+      (sourceSideChosen === "left" && targetSideChosen === "right") ||
+      (sourceSideChosen === "right" && targetSideChosen === "left")
+    ) {
+      // offset along y-axis
+      offset.y = sourceSideChosen === "left" ? OFFSET_DISTANCE : -OFFSET_DISTANCE;
+    }
+
+    // apply offset to source and target
+    const bestSourceOffset = { x: bestSource.x + offset.x, y: bestSource.y + offset.y };
+    const bestTargetOffset = { x: bestTarget.x + offset.x, y: bestTarget.y + offset.y };
+
+    // calculate control points
     const control1: Vector2 = {
-      x: bestSource.x + (dx > 0 ? offset : -offset) + controlOffset.x,
-      y: bestSource.y + (dy > 0 ? offset : -offset) + controlOffset.y,
+      x: bestSourceOffset.x + idealSource.x * controlDistance,
+      y: bestSourceOffset.y + idealSource.y * controlDistance,
     };
     const control2: Vector2 = {
-      x: bestTarget.x + (dx > 0 ? -offset : offset) + controlOffset.x,
-      y: bestTarget.y + (dy > 0 ? -offset : offset) + controlOffset.y,
+      x: bestTargetOffset.x + idealTarget.x * controlDistance,
+      y: bestTargetOffset.y + idealTarget.y * controlDistance,
     };
 
+    // calculate Bezier midpoint
     const midpoint: Vector2 = {
-      x: (bestSource.x + control1.x + control2.x + bestTarget.x) / 4,
-      y: (bestSource.y + control1.y + control2.y + bestTarget.y) / 4,
+      x: 0.125 * bestSourceOffset.x + 0.375 * control1.x + 0.375 * control2.x + 0.125 * bestTargetOffset.x,
+      y: 0.125 * bestSourceOffset.y + 0.375 * control1.y + 0.375 * control2.y + 0.125 * bestTargetOffset.y,
     };
-    return { start: bestSource, control1, control2, end: bestTarget, midpoint };
+
+    return { start: bestSourceOffset, end: bestTargetOffset, midpoint, control1, control2 };
   }
+
   /** Gets the bounding box for a thing (in world coordinates). */
   getBoundingBox(thing: FlowThing): BoundingBox | null {
     if (thing.kind == "canvas") {
@@ -767,7 +817,7 @@ export class FlowContext {
           log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = createPipe(this.tx, this.graph, {
             parent: this.flow.value,
-            pipe: { type: PipeType.PASS },
+            pipe: { type: PipeType.PASS, isNameHidden: true },
             source: sourcePort,
             target: targetPort,
           });

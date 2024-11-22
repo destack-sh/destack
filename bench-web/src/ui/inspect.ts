@@ -370,6 +370,7 @@ export function makeInspectLayout(
       rowProperty(PipeProperty.text),
       rowProperty(PipeProperty.type),
       rowProperty(PipeProperty.color),
+      rowProperty(PipeProperty.isNameHidden),
     ]);
     sectionRun(PipeProperty.runOptions);
   }
