@@ -428,10 +428,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           isEnabled: props.isInput,
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(
-            ['text.*', 'common.edit.morph', 'common.edit.copy', 'common.edit.cut', 'common.edit.paste'],
-            { context },
-          ),
+          items: menuActionsLike(['text.*', 'common.edit.copy', 'common.edit.cut', 'common.edit.paste'], { context }),
           context,
           dontFocus: true, // keep focus on the editor
         })

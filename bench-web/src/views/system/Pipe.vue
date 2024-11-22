@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
-import { pathToSvgSpline, PIPE_WIDTH, useFlowContext } from "@/language/flow";
+import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName, makeNodeName } from "@/language/node";
-import { Alignment, ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
@@ -25,7 +25,6 @@ const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeRefer
 const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;
-const pathSvg = computed(() => (path.value != null ? pathToSvgSpline(path.value.points) : undefined));
 const pathColorHex = computed(() => {
   const color = pipe.value?.color?.type ?? ColorType.GRAY;
   if (color == ColorType.GRAY) {
@@ -78,8 +77,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         :marker-end="'url(#arrowhead-main-' + pipe.id + ')'"
         class="transition-colors duration-150"
         :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
-        :d="pathSvg"
-      />
+        :d="pathToSvg(path)"
+        />
     </svg>
 
     <!-- Midpoint meta -->

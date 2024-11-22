@@ -1,29 +1,22 @@
 <script lang="ts" setup>
-import { createField } from "@/language/field";
-import {
-  FLOW_GRID_STEP,
-  FLOW_PORT_SIZE,
-  getStepSides,
-  STEP_CONTEXT_ACTIONS,
-  STEP_HEADER_HEIGHT,
-  useFlowContext,
-} from "@/language/flow";
-import { cloneNode, unpackSubnodeProperty } from "@/language/node";
-import { makeEdit } from "@/language/transaction";
-import { FieldData, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
+import { SINK_STEP_TYPES } from "@/language/const";
+import { createField, NAME_TYPE } from "@/language/field";
+import { FLOW_PORT_SIZE, getStepSides, STEP_CONTEXT_ACTIONS, STEP_SIZE, useFlowContext } from "@/language/flow";
+import { cloneNode } from "@/language/node";
+import { ColorShade, FieldData, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { IS_CHROMIUM } from "@/system/client";
 import { runtime } from "@/system/runtime";
-import { canvas } from "@/system/space";
+import { canvas, pkgConnection } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { menuActionsLike, type PopoverInfo } from "@/ui/popover";
-import { COLOR_BY_RUN_STATUS } from "@/ui/style";
+import { getNodeIcon, IconInline } from "@/ui/icon";
+import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
+import { COLOR_BY_RUN_STATUS, getNodeColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
-import IconName from "@/views/builtins/IconName.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
+import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Text from "@/views/content/Text.vue";
-import { useElementSize } from "@vueuse/core";
+import { MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -45,10 +38,6 @@ const sides = computed(() => (step.value != null ? getStepSides(step.value) : []
 
 const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
-const bodyRef: Ref<HTMLElement | null> = ref(null);
-const headerRef: Ref<HTMLElement | null> = ref(null);
-const bodySize = useElementSize(bodyRef, undefined, { box: "border-box" });
-const paddingHeight = computed(() => FLOW_GRID_STEP - ((bodySize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP));
 
 // run
 const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: stepPtr.value?.ck }));
@@ -60,9 +49,6 @@ const lastRunStatusColor = computed(() =>
 //
 // Interaction
 //
-
-const incomingZoneRef: Ref<HTMLElement | null> = ref(null);
-const outgoingZoneRef: Ref<HTMLElement | null> = ref(null);
 
 // actions (some of these actions also only work for field ports)
 const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData | null } => {
@@ -76,7 +62,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   "common.edit.rename": {
     isEnabled: () => step.value?.type != StepType.TEXT,
     action: () => {
-      nextTick(() => focusInElement(nameRef.value!));
+      nextTick(() => focusInElement(nameRef.value as MaybeElement));
     },
   },
   "common.create.above": (action, ctx) => {
@@ -114,69 +100,103 @@ defineExpose<ViewExposed>({ self, id, actions });
   >
     <!-- Ports -->
     <div
-      v-for="side in sides"
-      class="absolute left-1/2 -translate-x-1/2"
+      v-for="side in ['top', 'bottom', 'left', 'right']"
+      v-if="!SINK_STEP_TYPES.includes(step.type)"
+      class="absolute"
       :class="[
-        side == PortSide.INCOMING ? 'top-0 -translate-y-1/2' : 'bottom-0 translate-y-1/2',
-        IS_CHROMIUM ? '' : '-mt-1 mb-1', // NOTE :Cleanup: why do we need this Step port offset for non-chromium?
+        side == 'top' ? '-top-2.5 left-1/2 -translate-x-1/2' : '',
+        side == 'bottom' ? '-bottom-2.5 left-1/2 -translate-x-1/2' : '',
+        side == 'left' ? '-left-1.5 top-1/2 -translate-y-1/2' : '',
+        side == 'right' ? '-right-1.5 top-1/2 -translate-y-1/2' : '',
       ]"
     >
       <button
-        class="relative cursor-crosshair rounded-2xl border outline-none transition-colors duration-150"
-        :class="[
-          flowCtx.isDraggingPort || isInspected || isHighlighted ? '' : 'opacity-0 group-hover/step:opacity-100',
-          flowCtx.isDraggingPortAt(step, side) ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
-          isInspected ||
-          isHighlighted ||
-          (flowCtx.draggable?.kind == 'step-port' &&
-            flowCtx.draggable?.step?.ck == step.ck &&
-            flowCtx.draggable.side == side)
-            ? 'border-gray-400'
-            : 'border-gray-200 hover:border-gray-400',
-        ]"
+        class="relative cursor-crosshair rounded-2xl border bg-white opacity-0 outline-none transition-colors duration-150 hover:bg-gray-100 group-hover/step:opacity-100"
+        :class="[isInspected || isHighlighted ? 'border-gray-400' : 'border-gray-200']"
         :style="{
-          width: FLOW_PORT_SIZE + 'px',
-          height: FLOW_PORT_SIZE + 'px',
+          width: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE * 2 : FLOW_PORT_SIZE) + 'px',
+          height: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE : FLOW_PORT_SIZE * 2) + 'px',
         }"
-        @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, side })"
-        @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step-port', step: step!, side })"
+        @mousedown="(e) => flowCtx.startDragging(e, { kind: 'port', step: step!, side: PortSide.OUTGOING })"
+        @mouseup="(e) => flowCtx.endDragging(e, { kind: 'port', step: step!, side: PortSide.INCOMING })"
       />
     </div>
 
-    <!-- Header (:StepHeight) -->
+    <!-- Regular step -->
     <div
       v-if="step.type != StepType.TEXT"
-      ref="headerRef"
-      class="flex w-full px-1 flex-row items-center transition-colors duration-150"
+      ref="bodyRef"
+      class="mx-1 flex w-full flex-row items-center gap-x-2.5 py-1"
       :style="{
-        height: STEP_HEADER_HEIGHT + 'px',
+        height: STEP_SIZE.height + 'px',
       }"
     >
       <!-- Icon -->
-      <IconName class="px-1" :tx="() => flowCtx.tx" size="regular" is-input :node="step" />
-      <!-- Controls/Meta -->
       <div
-        class="ml-auto flex flex-row pl-2 pr-1.5 opacity-0 transition-colors duration-150 group-hover/step:opacity-100"
+        v-menu="
+          (): PopoverInfoIn => ({
+            component: Icon,
+            placement: 'bottom-right',
+            offset: '-referenceWidth',
+            props: { modelValue: step?.icon, isInput: true },
+            isEnabled: true,
+            onApply: (newIcon) => pkgConnection.tx.update(step!, { icon: newIcon }),
+          })
+        "
+        v-tooltip="{ small: true, text: `Change icon` }"
+        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded"
+        :style="{
+          backgroundColor: getNodeColorHex(step, ColorShade.S200),
+        }"
       >
-        <!-- Menu -->
-        <button
-          v-menu="
-            (): PopoverInfo => ({
-              kind: 'menu',
-              placement: 'bottom-left',
-              offset: 'referenceWidth',
-              items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
-            })
-          "
-          class="rounded text-gray-400 hover:text-gray-700 data-[popover=true]:text-gray-700"
-        >
-          <i class="fas fa-ellipsis-v w-5 text-center" />
-        </button>
+        <IconInline ref="iconRef" v-bind="getNodeIcon(step)" class="rounded text-center text-lg text-gray-700" />
+      </div>
+      <!-- Main -->
+      <div class="flex flex-1 flex-col">
+        <!-- Header -->
+        <div class="flex flex-row">
+          <NativeInput
+            id="name"
+            ref="nameRef"
+            class="flex-shrink-0 font-medium transition-colors duration-150"
+            placeholder="Step"
+            is-input
+            :value-type="NAME_TYPE"
+            :variant="Variant.STEALTH"
+            :model-value="step.name"
+            @update:model-value="
+              (newValue) => pkgConnection.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
+            "
+          />
+          <!-- Controls/Meta -->
+          <div
+            class="ml-auto flex flex-row pl-2 pr-1.5 opacity-0 transition-colors duration-150 group-hover/step:opacity-100"
+          >
+            <!-- Menu -->
+            <button
+              v-menu="
+                (): PopoverInfo => ({
+                  kind: 'menu',
+                  placement: 'bottom-left',
+                  offset: 'referenceWidth',
+                  items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
+                })
+              "
+              class="rounded text-gray-400 hover:text-gray-700 data-[popover=true]:text-gray-700"
+            >
+              <i class="fas fa-ellipsis-v w-5 text-center" />
+            </button>
+          </div>
+        </div>
+        <!-- Body -->
+        <div class="text-gray-700">
+          <!-- nocheckin: Step body -->
+          body
+        </div>
       </div>
     </div>
-
-    <!-- Body -->
-    <div v-if="step.type == StepType.TEXT" ref="bodyRef" class="relative px-3 py-1">
+    <!-- Text -->
+    <div v-else ref="bodyRef" class="relative px-3 py-1">
       <!-- Content (:StepHeight) -->
       <Text
         id="text"

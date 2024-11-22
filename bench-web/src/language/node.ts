@@ -78,7 +78,7 @@ export function generateNodeName(node: Partial<AnyNodeData>, siblings: AnyNodeDa
 /** Checks whether the node name was likely generated */
 export function isGeneratedNodeName(metatype: NodeType | ObjectType, name: string): boolean {
   // match name as <type><id> (groups)
-  const match = name.match(/([a-zA-Z]+)(\d+)/);
+  const match = name.match(/([a-zA-Z]+)(\d+)?/);
   if (match == null) return false;
   const typeParts = toCasing(match[1], Casing.ALL_CAPS).split("_");
   const typeName = typeParts.at(0);
@@ -420,7 +420,7 @@ export function cloneNode<T extends AnyNodeData>(
   }
   if (isNode(clone, NodeType.STEP)) {
     // update position
-    clone.position = addVector2(clone.position, { x: 0, y: FLOW_GRID_STEP * 3 });
+    clone.position = addVector2(clone.position, { x: 0, y: FLOW_GRID_STEP * 4 });
   }
 
   // actually create node

@@ -1,18 +1,18 @@
 <script lang="ts" setup>
-import { SINK_STEP_TYPES, SOURCE_STEP_TYPES, toCamelName } from "@/language/const";
+import { SOURCE_STEP_TYPES, toCamelName } from "@/language/const";
 import {
+  BoundingBox,
   createStep,
   FLOW_CANVAS_DOT_SIZE,
   FLOW_CONTEXT_KEY,
   FLOW_GRID_STEP,
   FlowContext,
-  getOtherSide,
-  getStepWidth,
   pathToSvg,
-  pathToSvgSpline,
   PIPE_CONTEXT_ACTIONS,
   PIPE_WIDTH,
+  PipePath,
   STEP_CONTEXT_ACTIONS,
+  STEP_SIZE,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
 import {
@@ -21,7 +21,6 @@ import {
   NodeReferenceData,
   NodeType,
   PipeData,
-  PortSide,
   StepData,
   StepType,
   Variant,
@@ -39,7 +38,7 @@ import {
 } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
-import { Vector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import IconName from "@/views/builtins/IconName.vue";
@@ -51,7 +50,7 @@ import Type from "@/views/system/Type.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
 
-const BACKGROUND_STYLE: "checker" | "dots" = "checker";
+const BACKGROUND_STYLE: "checker" | "dots" = "dots";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const GUTTER_WIDTH = 60;
 
@@ -98,43 +97,28 @@ const pipes = flowCtx.pipes;
 const fields = flowCtx.fields;
 const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
-const pendingPath = computed(() => {
-  if (flowCtx.draggable?.kind != "step-port") return null;
+const pendingPath: Ref<PipePath | null> = computed(() => {
+  if (flowCtx.draggable?.kind != "port") return null;
   // preview path between current dragged port and step (or point in canvas if nothing)
-  let sourceStep: StepData | null = flowCtx.draggable.step;
-  let sourcePos = flowCtx.getPortPosition(sourceStep, flowCtx.draggable.side)!;
-  let targetStep: StepData | null = flowCtx.getStepAt(flowCtx.cursorWorldPos.value);
-  let targetPos: Vector2;
-  if (targetStep != null) {
-    targetPos =
-      flowCtx.getPortPosition(targetStep, getOtherSide(flowCtx.draggable.side)) ?? flowCtx.cursorWorldPos.value;
+  const source = flowCtx.getStepBoundingBox(flowCtx.draggable.step);
+  if (source == null) return null;
+  const cursor = flowCtx.cursorWorldPos.value;
+  const targetStep = flowCtx.getStepAt(cursor);
+  if (targetStep != null && !SOURCE_STEP_TYPES.includes(targetStep.type)) {
+    const target = flowCtx.getStepBoundingBox(targetStep);
+    if (target == null) return null;
+    return flowCtx.computePath(source, target);
   } else {
-    targetPos = flowCtx.cursorWorldPos.value;
+    const target: BoundingBox = {
+      x1: cursor.x,
+      x2: cursor.x,
+      y1: cursor.y,
+      y2: cursor.y,
+      width: 0,
+      height: 0,
+    };
+    return flowCtx.computePath(source, target);
   }
-  if (flowCtx.draggable.side == PortSide.INCOMING) {
-    [sourcePos, targetPos] = [targetPos, sourcePos];
-    [sourceStep, targetStep] = [targetStep, sourceStep];
-  }
-
-  // reject if source is sink or target is source
-  if (
-    (sourceStep != null && SINK_STEP_TYPES.includes(sourceStep.type)) ||
-    (targetStep != null && SOURCE_STEP_TYPES.includes(targetStep?.type))
-  ) {
-    return null;
-  }
-
-  const margin = { x: FLOW_GRID_STEP, y: 0 };
-  let path = flowCtx.computePath("manhattan", sourcePos, targetPos, {
-    margin,
-    sourceIsFree: flowCtx.draggable.side == PortSide.INCOMING,
-    targetIsFree: flowCtx.draggable.side == PortSide.OUTGOING,
-  });
-  if (path == null) {
-    // fallback to direct path
-    path = flowCtx.computePath("direct", sourcePos, targetPos, { margin })!;
-  }
-  return path;
 });
 
 //
@@ -295,10 +279,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(
-            ['common.create.step', 'common.create.pipe', 'common.edit.paste', 'message.chat.message'],
-            { context: { ...context, triggerNode: flow! } },
-          ),
+          items: menuActionsLike(['common.create.step', 'common.create.pipe', 'common.edit.paste', 'flow.pipe.begin'], {
+            context: { ...context, triggerNode: flow! },
+          }),
         })
       "
       class="group/flow relative w-full select-none"
@@ -321,7 +304,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Background grid (infinitely repeated) -->
       <div class="absolute h-full w-full overflow-hidden" :style="{}">
         <svg
-          v-if="BACKGROUND_STYLE == 'checker'"
+          v-if="BACKGROUND_STYLE == 'dots'"
           xmlns="http://www.w3.org/2000/svg"
           class="h-full w-full text-gray-200"
           :style="{
@@ -352,7 +335,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <rect width="100%" height="100%" fill="url(#dot-pattern)" />
         </svg>
         <svg
-          v-else-if="BACKGROUND_STYLE == 'dots'"
+          v-else-if="BACKGROUND_STYLE == 'checker'"
           xmlns="http://www.w3.org/2000/svg"
           class="h-full w-full text-gray-200"
           :style="{
@@ -425,10 +408,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             class="absolute"
           />
           <!-- Pending Pipe (above Steps for clarity)-->
-          <div
-            v-if="flowCtx.draggable?.kind == 'step-port'"
-            class="pointer-events-none absolute text-gray-700 opacity-50"
-          >
+          <div v-if="flowCtx.draggable?.kind == 'port'" class="pointer-events-none absolute text-gray-700 opacity-50">
             <svg v-if="pendingPath" class="overflow-visible">
               <path
                 :stroke-width="PIPE_WIDTH * 2"
@@ -436,7 +416,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 stroke-linejoin="bevel"
                 stroke="currentColor"
                 fill="none"
-                :d="pathToSvgSpline(pendingPath.points)"
+                :d="pathToSvg(pendingPath)"
               />
             </svg>
           </div>
@@ -456,7 +436,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             class="absolute"
             :class="[flowCtx?.isDragging(step) ? 'cursor-grabbing' : 'cursor-grab']"
             :style="{
-              width: getStepWidth(step) + 'px',
+              width: STEP_SIZE.width + 'px',
               left: (step.position?.x ?? 0) + 'px',
               top: (step.position?.y ?? 0) + 'px',
             }"

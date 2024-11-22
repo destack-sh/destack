@@ -267,7 +267,7 @@ export function makeInspectLayout(
     );
   }
 
-  function sectionAction() {
+  function actionRows(): InspectRow[] {
     const mode: ActionMode = (subnode as ActionStepData | ActionBlockData)?.mode ?? ActionMode.ADAPTIVE;
     const rows: InspectRow[] = [rowProperty(ActionBlockProperty.mode)];
     if (mode == ActionMode.STATIC) {
@@ -276,9 +276,12 @@ export function makeInspectLayout(
     } else {
       rows.push(rowProperty(ActionBlockProperty.toolsPtr, { isFullWidth: true }));
     }
-    section("Action", rows, {
-      summary: toCamelName(ActionMode, mode),
-    });
+    return rows;
+  }
+
+  function sectionAction() {
+    const summary = undefined; // ???
+    section("Action", actionRows(), { summary });
   }
 
   function sectionRun(runOptionsProperty: number) {
@@ -299,8 +302,10 @@ export function makeInspectLayout(
   //
 
   if (isNode(node, NodeType.BLOCK)) {
+    const commonRows: InspectRow[] = [];
+    section(undefined, commonRows);
     if (node.type != BlockType.TEXT) {
-      section(undefined, [rowProperty(BlockProperty.text)]);
+      commonRows.push(rowProperty(BlockProperty.text));
     }
 
     if (node.type == BlockType.CHOICE) {
@@ -346,7 +351,8 @@ export function makeInspectLayout(
   // Steps
   //
   else if (isNode(node, NodeType.STEP)) {
-    section(undefined, [rowProperty(StepProperty.text)]);
+    const comonRows: InspectRow[] = [rowProperty(StepProperty.text)];
+    section(undefined, comonRows);
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
       sectionSchema();
     }

@@ -28,8 +28,6 @@ export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.duplicate",
   "common.edit.delete",
   "common.navigate.open",
-  "session.run.start",
-  "message.chat.message",
 ];
 
 /** Actions to smoothly move up/down/left/right inside a node tree */
