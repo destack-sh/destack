@@ -289,7 +289,6 @@ export function makeInspectLayout(
       "Run",
       [
         rowProperty([runOptionsProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" }),
-        rowProperty([runOptionsProperty, RunOptionsProperty.maxRuns], { title: "Runs" }),
         rowProperty([runOptionsProperty, RunOptionsProperty.suppressAbort]),
         rowProperty([runOptionsProperty, RunOptionsProperty.suppressFail]),
       ],
