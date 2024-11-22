@@ -105,19 +105,15 @@ const pendingPath: Ref<PipePath | null> = computed(() => {
   const cursor = flowCtx.cursorWorldPos.value;
   const targetStep = flowCtx.getStepAt(cursor);
   if (targetStep != null && !SOURCE_STEP_TYPES.includes(targetStep.type)) {
+    // real path preview
     const target = flowCtx.getStepBoundingBox(targetStep);
     if (target == null) return null;
     return flowCtx.computePath(source, target);
   } else {
-    const target: BoundingBox = {
-      x1: cursor.x,
-      x2: cursor.x,
-      y1: cursor.y,
-      y2: cursor.y,
-      width: 0,
-      height: 0,
-    };
-    return flowCtx.computePath(source, target);
+    // just direct path
+    const sourceMidpoint = { x: source.x1 + source.width / 2, y: source.y1 + source.height / 2 };
+    const midpoint = { x: (sourceMidpoint.x + cursor.x) / 2, y: (sourceMidpoint.y + cursor.y) / 2 };
+    return { start: sourceMidpoint, end: cursor, midpoint };
   }
 });
 
@@ -183,8 +179,8 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   "common.navigate.right": () => flowCtx.pan({ x: FLOW_GRID_STEP, y: 0 }),
   "common.navigate.up": () => flowCtx.pan({ x: 0, y: -FLOW_GRID_STEP }),
   "common.navigate.down": () => flowCtx.pan({ x: 0, y: FLOW_GRID_STEP }),
-  "common.navigate.zoomIn": () => flowCtx.zoom("in", "center", 15),
-  "common.navigate.zoomOut": () => flowCtx.zoom("out", "center", 15),
+  "common.navigate.zoomIn": () => flowCtx.zoom("in", "center", 10),
+  "common.navigate.zoomOut": () => flowCtx.zoom("out", "center", 10),
   "common.navigate.reset": () => flowCtx.resetViewport(),
 };
 

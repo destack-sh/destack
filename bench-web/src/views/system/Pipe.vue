@@ -53,8 +53,9 @@ defineExpose<ViewExposed>({ self, id, actions });
 <template>
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
     <!-- Path -->
-    <svg class="absolute cursor-pointer overflow-visible" :style="{ color: pathColorHex }">
+    <svg class="group relative cursor-pointer overflow-visible" :style="{ color: pathColorHex }">
       <defs>
+        <!-- Main Arrowhead Marker -->
         <marker
           :id="'arrowhead-main-' + pipe.id"
           markerWidth="10"
@@ -66,8 +67,34 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <path d="M0,0 L10,3.5 L0,7 L2,3.5 Z" fill="currentColor" />
         </marker>
+
+        <!-- Background Arrowhead Marker (Larger) -->
+        <marker
+          :id="'arrowhead-background-' + pipe.id"
+          markerWidth="14"
+          markerHeight="10"
+          refX="12"
+          refY="5"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
+        >
+          <path d="M0,0 L14,5 L0,10 L3,5 Z" fill="currentColor" />
+        </marker>
       </defs>
-      <!-- Main path -->
+
+      <!-- Background Path for Hover and Hit Target -->
+      <path
+        :stroke-width="PIPE_WIDTH * 2"
+        stroke-linecap="round"
+        stroke-linejoin="bevel"
+        fill="none"
+        :marker-end="'url(#arrowhead-background-' + pipe.id + ')'"
+        :d="pathToSvg(path)"
+        class="transition-all duration-150"
+        :class="isInspected || isHighlighted ? 'stroke-current' : 'stroke-transparent group-hover:stroke-current'"
+      />
+
+      <!-- Main Path -->
       <path
         :stroke-width="PIPE_WIDTH"
         stroke-linecap="round"
@@ -78,20 +105,21 @@ defineExpose<ViewExposed>({ self, id, actions });
         class="transition-colors duration-150"
         :stroke-dasharray="pipe.type === PipeType.STREAM ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 3}` : undefined"
         :d="pathToSvg(path)"
-        />
+      />
     </svg>
 
     <!-- Midpoint meta -->
     <div
-      class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded-2xl border px-2 py-0.5 transition-colors duration-150"
+      class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded-2xl border transition-colors duration-150"
       :class="[
         showPipeMeta
           ? [isInspected || isHighlighted ? 'border-gray-300 bg-gray-100' : 'border-gray-200 bg-white']
           : 'border-transparent bg-transparent',
+        pipe.isNameHidden ? 'px-0.5' : 'px-2',
       ]"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
     >
-      <!-- Type-->
+      <!-- Type -->
       <IconInline
         v-if="pipe.type != PipeType.PASS"
         v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
@@ -103,13 +131,13 @@ defineExpose<ViewExposed>({ self, id, actions });
       />
       <!-- Name -->
       <NativeInput
-        v-if="!isGeneratedName || isInspected || isHighlighted"
+        v-if="!pipe.isNameHidden"
         id="name"
         ref="nameRef"
         class="ml-1.5 mr-1.5 flex-shrink-0 transition-colors duration-150"
         :class="[
-          isGeneratedName && !isInspected && !isHighlighted ? 'opacity-0' : 'opacity-100',
-          isInspected || isHighlighted || !isGeneratedName ? 'text-gray-700' : 'text-gray-400',
+          pipe.isNameHidden && !isInspected && !isHighlighted ? 'opacity-0' : 'opacity-100',
+          isInspected || isHighlighted || !pipe.isNameHidden ? 'text-gray-700' : 'text-gray-400',
         ]"
         is-input
         placeholder="Name..."
@@ -118,14 +146,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         :model-value="pipe.name"
         @update:model-value="(newValue) => flowCtx.tx.update(pipe!, { name: newValue as string }, { debounce: 'long' })"
       />
-      <button
-        v-if="!isGeneratedName"
-        class="text-gray-400 hover:text-gray-700 group-hover/meta:opacity-100"
-        :class="isInspected || isHighlighted ? '' : 'opacity-0'"
-        @click="flowCtx.tx.update(pipe!, { name: makeNodeName(flowCtx.graph, pipe!) })"
-      >
-        <i class="fas fa-xmark" />
-      </button>
     </div>
   </div>
   <div v-else>

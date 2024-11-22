@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.21.1"
+VERSION = "2024.11.22.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1105,6 +1105,7 @@ PIPE_TABLE = Table(
         Column("delay", PrimitiveType.INTERVAL, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_name_hidden", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 

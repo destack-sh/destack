@@ -2966,6 +2966,7 @@ message PipeData {
   optional google.protobuf.Duration delay = 80;
   optional ColorData color = 91;
   bool is_hidden = 92;
+  bool is_name_hidden = 93;
 }
 
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).
