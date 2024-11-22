@@ -107,7 +107,7 @@ defineExpose<ViewExposed>({ self });
       </Scroll>
     </div>
     <div v-else-if="aspect == HelpAspect.RUN">
-      <Start id="start" :node-ptr="nodePtrOneOf" />
+      <Start id="start" :node-ptr="nodePtrOneOf" v-bind="state.getChildState('start', { nodePtr: nodePtrOneOf })" />
     </div>
     <div v-else class="mx-5">
       <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>

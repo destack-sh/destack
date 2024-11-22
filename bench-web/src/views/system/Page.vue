@@ -434,8 +434,15 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Add blocks -->
           <button
-            v-for="blockType in [BlockType.TEXT, BlockType.CHOICE, BlockType.DATABASE, BlockType.FLOW, BlockType.PAGE]"
-            class="rounded-2xl border border-gray-200 py-0.5 px-2 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
+            v-for="blockType in [
+              BlockType.TEXT,
+              BlockType.CHOICE,
+              BlockType.DATABASE,
+              BlockType.ACTION,
+              BlockType.FLOW,
+              BlockType.PAGE,
+            ]"
+            class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
             @click="() => createAndFocusBlock({ type: blockType }, 'inside', page!)"
           >
             <IconInline v-bind="ICON_BY_BLOCK_TYPE[blockType]" class="mr-1.5 w-5 text-center text-gray-700" />

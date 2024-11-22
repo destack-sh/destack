@@ -104,7 +104,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         logger.info("thread.start", process=self, bench=self._bench)
 
     async def _do_process_run(self, run_data: RunData) -> None:
-        # TODO :Robustness Run.created_epoch may be ahead of our own epoch if the sync takes longer to
+        # TODO :Robustness: Run.created_epoch may be ahead of our own epoch if the sync takes longer to
         #  arrive than the request from the scheduler (both from our Host). This means the caller/user
         #  may expect a different current state than we actually have (so we may be behind).
         assert self._session is not None, f"no session for {self!r}"

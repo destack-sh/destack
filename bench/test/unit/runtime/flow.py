@@ -457,7 +457,7 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
 
 
-@pytest.mark.skip("nocheckin: pause/resume Runs")
+@pytest.mark.skip("TODO :Incomplete: pause/resume Runs")
 async def test_run_flow_pause(local_runtime: RuntimeHandle):
     """Run a long async Flow and pause it, then resume it."""
     pass

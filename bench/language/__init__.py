@@ -113,7 +113,9 @@ from .query import (
 )
 from .render import render, render_expr, render_stmt
 from .run import (
+    AudioOptions,
     Context,
+    ImageOptions,
     Run,
     RunAttempt,
     RunError,
@@ -124,6 +126,8 @@ from .run import (
     RunOptions,
     RunSpan,
     RunStatus,
+    TextOptions,
+    VideoOptions,
 )
 from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
@@ -185,6 +189,7 @@ __all__ = [
     "Alignment",
     "Anchor",
     "AnonymousResourceNode",
+    "AudioOptions",
     "Badge",
     "Bench",
     "BenchError",
@@ -251,6 +256,7 @@ __all__ = [
     "HasNodeBase",
     "Icon",
     "IconKind",
+    "ImageOptions",
     "Interrupt",
     "InterruptKind",
     "Line",
@@ -338,6 +344,7 @@ __all__ = [
     "StructType",
     "Subject",
     "Text",
+    "TextOptions",
     "TextSpan",
     "Transaction",
     "Trigger",
@@ -355,6 +362,7 @@ __all__ = [
     "Vector2",
     "Vector3",
     "Vector4",
+    "VideoOptions",
     "View",
     "ViewType",
     "WatchAggregateUpdate",

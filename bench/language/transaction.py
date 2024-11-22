@@ -616,7 +616,15 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 # builtin object property
                 value_type = cast(BuiltinObject, obj).__properties__[key].type_info
                 new_value_packed = unpack_proto_json(op.new_value_packed)
-                new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
+                if prop.is_subnode_packed and new_value_packed:
+                    from bench.proto.wiring import unpack_subnode
+
+                    assert (
+                        type(new_value_packed) is dict
+                    ), f"unexpected {new_value_packed!r} for {prop!r}"
+                    new_value = unpack_subnode(type(node), new_value_packed)
+                else:
+                    new_value = unpack_value(new_value_packed, value_type, wrap_scalar=False)
                 cast(BuiltinObject, obj)._do_set(
                     prop.name, new_value, track=False, validate=validate
                 )

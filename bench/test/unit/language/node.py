@@ -78,7 +78,9 @@ def test_node_subtype_property_access(session: "Session"):
     # subtype -> node ref property
     BlockStep1 = Step.new(ActionStep, "BlockStep1", tools=[Text1])
     assert BlockStep1.tools == [Text1]
-    assert BlockStep1.tools_ptr == (Text1.to_ref(),)
+    assert BlockStep1.tools_ptr == [
+        Text1.to_ref(),
+    ]
 
     # subtype -> value packed property
     Value1 = Block.new(ValueBlock, "Value1", value_type=to_type(int), value=42)
@@ -156,7 +158,7 @@ def test_node_pointers_consistency(session: "Session"):
     block_a_1.roles = [block_a_2]
 
     # based pointers
-    message_a = Message(parent=package_a, block=block_a_1)
+    message_a = Message(parent=package_a, origin=block_a_1, block=block_a_1)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -180,7 +182,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert block_b.bench_id == bench_b.id
     assert block_b.roles
     assert block_b.roles[0].bench_id == bench_a.id
-    message_b = Message(parent=package_b, block=block_a_1)
+    message_b = Message(parent=package_b, origin=block_a_1, block=block_a_1)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(

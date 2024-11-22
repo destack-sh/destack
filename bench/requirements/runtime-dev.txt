@@ -192,6 +192,8 @@ h2==4.1.0
     # via
     #   grpclib
     #   httpx
+hiredis==3.0.0
+    # via redis
 hpack==4.0.0
     # via h2
 httpcore==1.0.6
@@ -502,6 +504,8 @@ pyyaml==6.0.2
     # via
     #   pre-commit
     #   tach
+redis==4.5.4
+    # via -r bench/requirements/base.in
 regex==2024.11.6
     # via
     #   -r bench/requirements/base.in
