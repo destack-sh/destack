@@ -1888,10 +1888,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             subtype = self.__dict__["type"]
             subtype_cls = self.__subclass_by_subtype__.get(subtype)
             if subtype_cls is not None:
-                # short-circuit to subclass 'property' if it exists
                 subtype_prop = getattr(subtype_cls, key, None)
-                if type(subtype_prop) is property and subtype_prop.fset is not None:
-                    return subtype_prop.fset(self, new_value)
 
                 # set regular subtype property
                 prop = subtype_cls.__properties__.get(key)
@@ -1909,8 +1906,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             check_value(new_value, prop._type_info, invalid=on_invalid_raise)
 
                     # set
+                    # short-circuit to subclass 'property' if it exists
                     subtype_key = str(subtype)
-                    if self.subnode_packed is None:
+                    if type(subtype_prop) is property and subtype_prop.fset is not None:
+                        assert subtype_prop.fget is not None
+                        if prop.is_value_runtime:
+                            old_value = getattr(self, prop.value_packed_ptr.name)  # type: ignore
+                        else:
+                            old_value = subtype_prop.fget(self)
+                        subtype_prop.fset(self, new_value)
+                    elif self.subnode_packed is None:
                         old_value = None
                         # set directly
                         self.__dict__["subnode_packed"] = {subtype_key: {prop.key: new_value}}
@@ -1918,10 +1923,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                         old_value = None
                         self.subnode_packed[subtype_key] = {prop.key: new_value}
                     else:
-                        if prop.is_value_runtime:
-                            old_value = getattr(self, prop.value_packed_ptr.name)  # type: ignore
-                        else:
-                            old_value = getattr(self, key)
+                        old_value = getattr(self, key)
                         self.subnode_packed[subtype_key][prop.key] = new_value
 
                     # track
