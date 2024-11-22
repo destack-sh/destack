@@ -70,7 +70,6 @@ export const ACTION_BUILTIN_IDS = [
   "common.history.redo",
   "common.edit.rename",
   "common.edit.move",
-  "common.edit.morph",
   "common.edit.copy",
   "common.edit.cut",
   "common.edit.paste",
@@ -124,12 +123,9 @@ export const ACTION_BUILTIN_IDS = [
   "database.column.filter",
   "database.column.wrap",
   "database.column.hide",
-  // step
-  // ...
-  // pipe
-  // ...
+  // flow
+  "flow.pipe.begin",
   // message
-  "message.chat.message",
   "message.chat.reply",
   "message.edit.edit",
   "message.edit.pin",
@@ -506,12 +502,6 @@ declareActionMap<"common">({
     title: "Move",
     text: "Move this item",
   },
-  "common.edit.morph": {
-    icon: "fas fa-shuffle",
-    title: "Turn Into",
-    text: "Change the type of this item",
-    shortcuts: ["mod+m"],
-  },
   "common.edit.copy": {
     icon: "fas fa-copy",
     title: "Copy",
@@ -840,17 +830,22 @@ declareActionMap<"database">({
   },
 });
 
+// flow
+declareActionMap<"flow">({
+  // pipe
+  "flow.pipe.begin": {
+    icon: "fas fa-arrow-right",
+    title: "Pipe From Here",
+    text: "Begin a Pipe at this Step",
+  },
+});
+
 // pipe
 declareActionMap<"pipe">({});
 
 // message
 declareActionMap<"message">({
   // handle
-  "message.chat.message": {
-    icon: "fas fa-message",
-    title: "Message",
-    text: "Add to the message thread",
-  },
   "message.chat.reply": {
     icon: "fas fa-reply",
     title: "Reply",

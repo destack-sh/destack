@@ -39,15 +39,11 @@ import { computed, inject, ref, shallowRef, triggerRef, watch, type Ref } from "
 
 export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
-  "common.edit.morph",
   "common.edit.duplicate",
   "common.edit.delete",
-  "session.run.start",
-  "message.chat.message",
 ];
 export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
-  "common.edit.morph",
   "common.edit.duplicate",
   "common.edit.delete",
 ];
@@ -61,7 +57,7 @@ export const FLOW_SCALE_MAX = 1.0;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
-export const STEP_HEADER_HEIGHT = FLOW_GRID_STEP * 2;
+export const STEP_SIZE = { width: FLOW_GRID_STEP * 16, height: FLOW_GRID_STEP * 3 };
 
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
 export function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
@@ -83,9 +79,11 @@ export function portEquals(a: Port, b: Port): boolean {
   return a.parent?.id == b.parent?.id && a.side == b.side;
 }
 export type PipePath = {
-  points: Vector2[];
+  start: Vector2;
+  control1?: Vector2;
+  control2?: Vector2;
+  end: Vector2;
   midpoint: Vector2;
-  isMidpointHorizontal: boolean;
 };
 
 export type BoundingBox = { x1: number; y1: number; x2: number; y2: number; width: number; height: number };
@@ -94,7 +92,7 @@ export type FlowThing =
   | { kind: "canvas" }
   | { kind: "step"; step: StepData }
   | { kind: "pipe"; pipe: PipeData }
-  | { kind: "step-port"; step: StepData; side: PortSide };
+  | { kind: "port"; step: StepData; side: PortSide };
 
 /** Step state in a Flow. */
 export class StepState {
@@ -163,15 +161,10 @@ export class PipeState {
     // layout
     this.path = computed(() => {
       if (this.source.value == null || this.target.value == null) return null;
-      const sourcePortPosition = this.flow.getPortPosition(this.source.value!, PortSide.OUTGOING);
-      const targetPortPosition = this.flow.getPortPosition(this.target.value!, PortSide.INCOMING);
-      if (sourcePortPosition == null || targetPortPosition == null) return null;
-      const margin = { x: FLOW_GRID_STEP * (2 + (this.pipe.value?.name.length ?? 0) / 4), y: 0 };
-      let path = this.flow.computePath("manhattan", sourcePortPosition, targetPortPosition, { margin });
-      if (path == null) {
-        // fallback to direct path
-        path = this.flow.computePath("direct", sourcePortPosition, targetPortPosition, { margin })!;
-      }
+      const sourceBounding = this.flow.getStepBoundingBox(this.source.value);
+      const targetBounding = this.flow.getStepBoundingBox(this.target.value);
+      if (sourceBounding == null || targetBounding == null) return null;
+      const path = this.flow.computePath(sourceBounding, targetBounding);
       return path;
     });
     this.boundingBox = computedValue(() => {
@@ -290,12 +283,12 @@ export class FlowContext {
   }
 
   get isDraggingPort(): boolean {
-    return this.dragging.value?.thing.kind == "step-port";
+    return this.dragging.value?.thing.kind == "port";
   }
 
   isDraggingPortAt(step: StepData, side?: PortSide): boolean {
     return (
-      this.dragging.value?.thing.kind == "step-port" &&
+      this.dragging.value?.thing.kind == "port" &&
       this.dragging.value?.thing.step.id == step.id &&
       (!side || this.dragging.value?.thing.side == side)
     );
@@ -314,11 +307,10 @@ export class FlowContext {
   getStepBoundingBox(step: StepData): BoundingBox | null {
     const stepState = this.stepsStates.value[step.id!];
     if (stepState == null) return null;
-    const size = getStepSize(step);
     const x1 = step.position?.x ?? 0;
     const y1 = step.position?.y ?? 0;
-    const x2 = x1 + size.width;
-    const y2 = y1 + size.height;
+    const x2 = x1 + STEP_SIZE.width;
+    const y2 = y1 + STEP_SIZE.height;
     return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
@@ -362,31 +354,157 @@ export class FlowContext {
       if (INVISIBLE_STEP_TYPES.includes(step.type!)) continue;
       const state = this.stepsStates.value[step.id!];
       if (state == null) continue;
-      const size = getStepSize(step);
       x1 = Math.min(x1, step.position?.x ?? 0);
       y1 = Math.min(y1, step.position?.y ?? 0);
-      x2 = Math.max(x2, (step.position?.x ?? 0) + size.width);
-      y2 = Math.max(y2, (step.position?.y ?? 0) + size.height);
+      x2 = Math.max(x2, (step.position?.x ?? 0) + STEP_SIZE.width);
+      y2 = Math.max(y2, (step.position?.y ?? 0) + STEP_SIZE.height);
     }
     return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
+  /** Computes the Pipe path */
+  computePath(source: BoundingBox, target: BoundingBox): PipePath {
+    // define the midpoints of the edges for source and target
+    const sideOffset = 0 / 2;
+    const sourcePoints = [
+      { x: source.x1 + source.width / 2 - sideOffset, y: source.y1 }, // top middle
+      { x: source.x2, y: source.y1 + source.height / 2 - sideOffset }, // right middle
+      { x: source.x1 + source.width / 2 + sideOffset, y: source.y2 }, // bottom middle
+      { x: source.x1, y: source.y1 + source.height / 2 + sideOffset }, // left middle
+    ];
+    const targetPoints = [
+      { x: target.x1 + target.width / 2 + sideOffset, y: target.y1 }, // top middle
+      { x: target.x2, y: target.y1 + target.height / 2 + sideOffset }, // right middle
+      { x: target.x1 + target.width / 2 - sideOffset, y: target.y2 }, // bottom middle
+      { x: target.x1, y: target.y1 + target.height / 2 - sideOffset }, // left middle
+    ];
+
+    // check if the path overlaps an edge of a bounding box
+    function overlapsEdge(box: BoundingBox, start: Vector2, end: Vector2): boolean {
+      // check vertical overlap
+      if (start.x === end.x && start.x >= box.x1 && start.x <= box.x2) {
+        if ((start.y <= box.y2 && end.y >= box.y1) || (end.y <= box.y2 && start.y >= box.y1)) {
+          return true;
+        }
+      }
+      // check horizontal overlap
+      if (start.y === end.y && start.y >= box.y1 && start.y <= box.y2) {
+        if ((start.x <= box.x2 && end.x >= box.x1) || (end.x <= box.x2 && start.x >= box.x1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // check if a line segment intersects a bounding box
+    function intersects(box: BoundingBox, start: Vector2, end: Vector2): boolean {
+      const boxEdges = [
+        // top edge
+        [
+          { x: box.x1, y: box.y1 },
+          { x: box.x2, y: box.y1 },
+        ],
+        // right edge
+        [
+          { x: box.x2, y: box.y1 },
+          { x: box.x2, y: box.y2 },
+        ],
+        // bottom edge
+        [
+          { x: box.x2, y: box.y2 },
+          { x: box.x1, y: box.y2 },
+        ],
+        // left edge
+        [
+          { x: box.x1, y: box.y2 },
+          { x: box.x1, y: box.y1 },
+        ],
+      ];
+
+      for (const [p1, p2] of boxEdges) {
+        if (lineSegmentsIntersect(p1, p2, start, end)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // check if two line segments intersect
+    function lineSegmentsIntersect(p1: Vector2, p2: Vector2, q1: Vector2, q2: Vector2): boolean {
+      function ccw(a: Vector2, b: Vector2, c: Vector2): boolean {
+        return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
+      }
+      return ccw(p1, q1, q2) !== ccw(p2, q1, q2) && ccw(p1, p2, q1) !== ccw(p1, p2, q2);
+    }
+
+    // check all combinations of edges
+    let shortestDistance = Infinity;
+    let bestSource: Vector2 = sourcePoints[0];
+    let bestTarget: Vector2 = targetPoints[0];
+    let hasValidPath = false;
+    for (const se of sourcePoints) {
+      for (const te of targetPoints) {
+        const distance = Math.hypot(se.x - te.x, se.y - te.y);
+        const sourceOverlaps = overlapsEdge(source, se, te);
+        const targetOverlaps = overlapsEdge(target, se, te);
+        const sourceIntersects = intersects(source, se, te);
+        const targetIntersects = intersects(target, se, te);
+
+        // exclude overlapping or intersecting paths
+        if (!sourceOverlaps && !targetOverlaps && !sourceIntersects && !targetIntersects) {
+          // prefer valid paths (non-overlapping, non-intersecting)
+          if (distance < shortestDistance || !hasValidPath) {
+            hasValidPath = true;
+            shortestDistance = distance;
+            bestSource = se;
+            bestTarget = te;
+          }
+        } else if (!hasValidPath && distance < shortestDistance) {
+          // if no valid path exists, pick the closest
+          shortestDistance = distance;
+          bestSource = se;
+          bestTarget = te;
+        }
+      }
+    }
+
+    // do the bezier
+    const dx = bestTarget.x - bestSource.x;
+    const dy = bestTarget.y - bestSource.y;
+    const pathLength = Math.sqrt(dx * dx + dy * dy);
+    const offset = Math.max(10, pathLength * 0.25);
+    const orthogonal = { x: -dy / pathLength, y: dx / pathLength }; // perpendicular vector to (dx, dy)
+
+    // control points with orthogonal bias
+    const spinBias = offset; // separation of opposite paths
+    const controlOffset = { x: orthogonal.x * spinBias, y: orthogonal.y * spinBias };
+    const control1: Vector2 = {
+      x: bestSource.x + (dx > 0 ? offset : -offset) + controlOffset.x,
+      y: bestSource.y + (dy > 0 ? offset : -offset) + controlOffset.y,
+    };
+    const control2: Vector2 = {
+      x: bestTarget.x + (dx > 0 ? -offset : offset) + controlOffset.x,
+      y: bestTarget.y + (dy > 0 ? -offset : offset) + controlOffset.y,
+    };
+
+    const midpoint: Vector2 = {
+      x: (bestSource.x + control1.x + control2.x + bestTarget.x) / 4,
+      y: (bestSource.y + control1.y + control2.y + bestTarget.y) / 4,
+    };
+    return { start: bestSource, control1, control2, end: bestTarget, midpoint };
+  }
   /** Gets the bounding box for a thing (in world coordinates). */
   getBoundingBox(thing: FlowThing): BoundingBox | null {
     if (thing.kind == "canvas") {
       return this.contentBoundingBox.value;
     } else if (thing.kind == "step") {
       return this.stepsStates.value[thing.step.id!]?.boundingBox.value;
-    } else if (thing.kind == "step-port") {
-      const position = this.getPortPosition(thing.step, thing.side);
-      if (position == null) return null;
-      return this.getPortBoundingBox(position);
     } else if (thing.kind == "pipe") {
       const pipeState = this.pipesStates.value[thing.pipe.id!];
       if (pipeState == null) return null;
       return pipeState.boundingBox.value;
     } else {
-      assertNever(thing);
+      throw new Error(`no bounding box for ${thing.kind}`);
     }
   }
 
@@ -575,7 +693,7 @@ export class FlowContext {
         thing,
         viewOffsetToThing: { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y },
       };
-    } else if (thing.kind == "step-port") {
+    } else if (thing.kind == "port") {
       // create pending pipe
       this.dragging.value = { thing: thing, viewOffsetToThing: { x: 0, y: 0 } };
     } else if (thing.kind == "pipe") {
@@ -608,7 +726,7 @@ export class FlowContext {
         { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
         { debounce: "long" },
       );
-    } else if (thing.kind == "step-port") {
+    } else if (thing.kind == "port") {
       // nothing to do
     } else if (thing.kind == "pipe") {
       throw new Error("cannot drag pipe");
@@ -631,10 +749,10 @@ export class FlowContext {
 
     // (re-)connect pipes
     try {
-      if (this.draggable?.kind == "step-port") {
+      if (this.draggable?.kind == "port") {
         const sourcePort = { parent: this.draggable.step, side: this.draggable.side };
         let targetPort: Port | null = null;
-        if (at.kind == "step-port") {
+        if (at.kind == "port") {
           targetPort = { parent: at.step, side: at.side };
         } else if (at.kind == "step") {
           targetPort = { parent: at.step, side: getOtherSide(sourcePort.side) };
@@ -669,32 +787,6 @@ export class FlowContext {
     this.dragging.value = null;
   }
 
-  /** Get the snapped position of a port (in world coordinates). */
-  getPortPosition(step: StepData, side: PortSide): Vector2 | null {
-    // step position
-    const basePosition = step.position != null ? { ...step.position } : { x: 0, y: 0 };
-    const stepSize = getStepSize(step);
-    // center horizontally
-    basePosition.x += stepSize.width / 2;
-    // move to bottom
-    if (side == PortSide.OUTGOING) {
-      basePosition.y += stepSize.height;
-    }
-    return basePosition;
-  }
-
-  /** Gets the bounding box for a port (in world coordinates). */
-  getPortBoundingBox(position: Vector2): BoundingBox | null {
-    return {
-      x1: position.x - FLOW_PORT_SIZE / 2,
-      y1: position.y - FLOW_PORT_SIZE / 2,
-      x2: position.x + FLOW_PORT_SIZE / 2,
-      y2: position.y + FLOW_PORT_SIZE / 2,
-      width: FLOW_PORT_SIZE,
-      height: FLOW_PORT_SIZE,
-    };
-  }
-
   /** Gets the (first) Step at the given position */
   getStepAt(position: Vector2, filter?: (step: StepData) => boolean): StepData | null {
     let steps = this.steps.value;
@@ -714,97 +806,22 @@ export class FlowContext {
     return hit ?? null;
   }
 
-  /**
-   * Computes a path for a pipe a pipe (in world coordinates, without considering other pipes).
-   *
-   * Direct paths just ignore Step bounding boxes and connect ports with a straight line.
-   * Manhatten pathfinding has a few key objectives:
-   *  0. We start at the source port and want to reach the target port (if we can't, return null).
-   *  1. Pipes are always exactly on the grid; ports are always connected horizontally.
-   *  2. Unless directly at a port, we must stay at least one step away from any step.
-   *  3. Pipes must be straight and should look reasonably clean, so try to break at halfway points.
-   *  4. Path computation must be very fast (we're doing it on every mouse move and state change).
-   * NOTE :UX: improve pipe paths (better pathfinding, coordinate pipe paths, ...)
-   * */
-  computePath(
-    pathType: "direct" | "manhattan",
-    source: Vector2,
-    target: Vector2,
-    options: { margin: { x: number; y: number }; sourceIsFree?: boolean; targetIsFree?: boolean },
-  ): PipePath | null {
-    if (pathType == "direct") {
-      // direct path
-      const path: PipePath = {
-        points: [source, target],
-        midpoint: { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 },
-        isMidpointHorizontal: true,
-      };
-      return path;
-    } else if (pathType == "manhattan") {
-      // manhattan path
-
-      // 'collision' detection
-      const stepBoundingBoxes: BoundingBox[] = Object.values(this.stepsStates.value)
-        .filter((s) => !INVISIBLE_STEP_TYPES.includes(s.step.value?.type!))
-        .map((s) => s.boundingBox.value)
-        .filter((s) => s != null) as BoundingBox[];
-      function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
-        for (const box of stepBoundingBoxes) {
-          if (
-            vec.x >= box.x1 - options.margin.x &&
-            vec.x <= box.x2 + options.margin.x &&
-            vec.y >= box.y1 - options.margin.y &&
-            vec.y <= box.y2 + options.margin.y
-          ) {
-            return box;
-          }
-        }
-        return undefined;
-      }
-
-      // pathfind between point right next to port
-      source = snapVec(source);
-      target = snapVec(target);
-      const innerPoints = pathfind(
-        { x: source.x, y: source.y + (options.sourceIsFree ? 0 : FLOW_GRID_STEP) },
-        { x: target.x, y: target.y - (options.targetIsFree ? 0 : FLOW_GRID_STEP) },
-        { step: FLOW_GRID_STEP, maxIterations: 1000, hit: hitStep },
-      );
-      if (innerPoints == null) return null; // no path found
-      const points = [source, ...innerPoints, target]; // add source/target port back in
-      if (points.length % 2 == 1) {
-        const midpointIdx = Math.floor(points.length / 2);
-        const midpoint = points[midpointIdx];
-        const isHorizontal =
-          points[midpointIdx - 1].y == points[midpointIdx].y && points[midpointIdx + 1].y == points[midpointIdx].y;
-        return { points, midpoint, isMidpointHorizontal: isHorizontal };
-      } else {
-        const premidPoint = points[points.length / 2 - 1];
-        const postmidPoint = points[points.length / 2];
-        const midpoint = { x: (premidPoint.x + postmidPoint.x) / 2, y: (premidPoint.y + postmidPoint.y) / 2 };
-        const isHorizontal = premidPoint.y == postmidPoint.y;
-        return { points, midpoint, isMidpointHorizontal: isHorizontal };
-      }
-    } else {
-      assertNever(pathType);
-    }
-  }
-
   /** Gets the bounding box for a pipe path (in world coordinates). */
   computePathBoundingBox(path: PipePath): BoundingBox | null {
-    const points = path.points;
-    let x1 = points[0].x;
-    let y1 = points[0].y;
-    let x2 = points[0].x;
-    let y2 = points[0].y;
-    for (let i = 1; i < points.length; i++) {
-      const p = points[i];
-      if (p.x < x1) x1 = p.x;
-      else if (p.x > x2) x2 = p.x;
-      if (p.y < y1) y1 = p.y;
-      else if (p.y > y2) y2 = p.y;
+    // (taking bezier control points into account)
+    if (path.control1 == null || path.control2 == null) {
+      const x1 = Math.min(path.start.x, path.end.x);
+      const y1 = Math.min(path.start.y, path.end.y);
+      const x2 = Math.max(path.start.x, path.end.x);
+      const y2 = Math.max(path.start.y, path.end.y);
+      return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
+    } else {
+      const x1 = Math.min(path.start.x, path.control1.x, path.control2.x, path.end.x);
+      const y1 = Math.min(path.start.y, path.control1.y, path.control2.y, path.end.y);
+      const x2 = Math.max(path.start.x, path.control1.x, path.control2.x, path.end.x);
+      const y2 = Math.max(path.start.y, path.control1.y, path.control2.y, path.end.y);
+      return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
     }
-    return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
   /** Gets the pipes connected to the given port. */
@@ -958,54 +975,12 @@ export function interpolatePath(points: Vector2[], factor: number = 2): Vector2[
   return interpolated;
 }
 
-/** Computes the pipe path SVG path string. */
-export function pathToSvg(path: Vector2[]): string {
-  const pathParts: string[] = [];
-  for (let i = 0; i < path.length; i++) {
-    const p = path[i];
-    pathParts.push(`L${p.x},${p.y}`);
+export function pathToSvg(path: PipePath): string {
+  if (path.control1 == null || path.control2 == null) {
+    return `M ${path.start.x} ${path.start.y} L ${path.end.x} ${path.end.y}`;
+  } else {
+    return `M ${path.start.x} ${path.start.y} C ${path.control1.x} ${path.control1.y}, ${path.control2.x} ${path.control2.y}, ${path.end.x} ${path.end.y}`;
   }
-  return `M${path[0].x},${path[0].y} ${pathParts.join(" ")}`;
-}
-
-/**
- * Converts an array of Vector2 points into a smooth SVG path string using Catmull-Rom splines.
- * NOTE :UI: improve path splining
- */
-export function pathToSvgSpline(points: Vector2[], tension: number = 0.05): string {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M${points[0].x},${points[0].y}`;
-
-  const pathParts: string[] = [`M${points[0].x},${points[0].y}`];
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i - 1] || points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || p2;
-
-    // Calculate control points with tension adjustment
-    const cp1x = p1.x + (p2.x - p0.x) * tension;
-    const cp1y = p1.y + (p2.y - p0.y) * tension;
-
-    const cp2x = p2.x - (p3.x - p1.x) * tension;
-    const cp2y = p2.y - (p3.y - p1.y) * tension;
-
-    // Append the cubic Bézier curve command
-    pathParts.push(`C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`);
-  }
-
-  return pathParts.join(" ");
-}
-
-/** Gets the view width for a Step. */
-export function getStepWidth(step: StepData): number {
-  return FLOW_GRID_STEP * 16;
-}
-
-/** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */
-export function getStepSize(step: StepData): { width: number; height: number } {
-  return { width: getStepWidth(step), height: STEP_HEADER_HEIGHT };
 }
 
 export function createStep(

@@ -317,10 +317,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(
-            ['common.create.above', 'common.create.below', 'common.edit.paste', 'message.chat.message'],
-            { context: { ...context, triggerNode: page } },
-          ),
+          items: menuActionsLike(['common.create.above', 'common.create.below', 'common.edit.paste'], {
+            context: { ...context, triggerNode: page },
+          }),
         })
       "
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"

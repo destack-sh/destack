@@ -145,6 +145,7 @@ export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
   [StepType.COMPLETE]: ColorType.YELLOW,
   [StepType.TRIGGER]: ColorType.YELLOW,
   [StepType.ACTION]: ColorType.ORANGE,
+  [StepType.YIELD]: ColorType.YELLOW,
   [StepType.FAIL]: ColorType.DANGER,
   [StepType.TEXT]: ColorType.GRAY,
   [StepType.LOOP]: ColorType.YELLOW,
