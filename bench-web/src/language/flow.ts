@@ -366,7 +366,7 @@ export class FlowContext {
     const sides: Array<"top" | "right" | "bottom" | "left"> = ["top", "right", "bottom", "left"];
     const ANGLE_FACTOR = 1; // penalty for angle deviations
     const CONTROL_DISTANCE_FACTOR = 0.3; // control point distance factor
-    const OFFSET_DISTANCE = FLOW_GRID_STEP / 2; // offset for opposing paths
+    const OPPOSITE_OFFSET = FLOW_GRID_STEP / 2; // offset for opposing paths
 
     // get midpoint of a side
     function getMidpoint(box: BoundingBox, side: "top" | "right" | "bottom" | "left"): Vector2 {
@@ -441,8 +441,25 @@ export class FlowContext {
       return ccw(p1, q1, q2) !== ccw(p2, q1, q2) && ccw(p1, p2, q1) !== ccw(p1, p2, q2);
     }
 
-    let bestSource: Vector2 = getMidpoint(source, "top");
-    let bestTarget: Vector2 = getMidpoint(target, "top");
+    // special case: self-loop
+    if (source.x1 == target.x1 && source.y1 == target.y1) {
+      const sourcePos = getMidpoint(source, "right");
+      const targetPos = getMidpoint(source, "bottom");
+      sourcePos.y -= FLOW_GRID_STEP / 2;
+      targetPos.x += FLOW_GRID_STEP / 2;
+      const control1 = { x: sourcePos.x + FLOW_GRID_STEP * 5, y: sourcePos.y + FLOW_GRID_STEP * 4 };
+      const control2 = { x: targetPos.x + FLOW_GRID_STEP * 1, y: targetPos.y + FLOW_GRID_STEP * 4 };
+      const midpoint: Vector2 = {
+        x: 0.125 * sourcePos.x + 0.375 * control1.x + 0.375 * control2.x + 0.125 * targetPos.x,
+        y: 0.125 * sourcePos.y + 0.375 * control1.y + 0.375 * control2.y + 0.125 * targetPos.y,
+      };
+      return { start: sourcePos, end: targetPos, midpoint, control1, control2 };
+    }
+
+    let bestSourceSide: "top" | "right" | "bottom" | "left" = "top";
+    let bestSource: Vector2 = getMidpoint(source, bestSourceSide);
+    let bestTargetSide: "top" | "right" | "bottom" | "left" = "top";
+    let bestTarget: Vector2 = getMidpoint(target, bestTargetSide);
     let bestCost = Infinity;
     let hasValidPath = false;
 
@@ -460,7 +477,9 @@ export class FlowContext {
         const cost = distance + ANGLE_FACTOR * (angleDevSource ** 2 + angleDevTarget ** 2);
         if (cost < bestCost) {
           bestCost = cost;
+          bestSourceSide = sourceSide;
           bestSource = se;
+          bestTargetSide = targetSide;
           bestTarget = te;
           hasValidPath = true;
         }
@@ -480,7 +499,9 @@ export class FlowContext {
           if (distance < shortestDistance) {
             shortestDistance = distance;
             fallbackSource = se;
+            bestSourceSide = sourceSide;
             fallbackTarget = te;
+            bestTargetSide = targetSide;
           }
         }
       }
@@ -494,53 +515,59 @@ export class FlowContext {
     const controlDistance = distanceFinal * CONTROL_DISTANCE_FACTOR;
 
     // determine chosen sides
-    const sourceSideChosen = sides.find(
-      (side) => getMidpoint(source, side).x === bestSource.x && getMidpoint(source, side).y === bestSource.y,
-    ) as "top" | "right" | "bottom" | "left";
-    const targetSideChosen = sides.find(
-      (side) => getMidpoint(target, side).x === bestTarget.x && getMidpoint(target, side).y === bestTarget.y,
-    ) as "top" | "right" | "bottom" | "left";
-
-    const idealSource = getIdealDirection(sourceSideChosen);
-    const idealTarget = getIdealDirection(targetSideChosen);
+    const idealSource = getIdealDirection(bestSourceSide);
+    const idealTarget = getIdealDirection(bestTargetSide);
 
     // determine offset direction based on side combinations
-    const offset: Vector2 = { x: 0, y: 0 };
+    const sourcePos = { x: bestSource.x, y: bestSource.y };
+    const targetPos = { x: bestTarget.x, y: bestTarget.y };
     if (
-      (sourceSideChosen === "top" && targetSideChosen === "bottom") ||
-      (sourceSideChosen === "bottom" && targetSideChosen === "top")
+      (bestSourceSide === "top" && bestTargetSide === "bottom") ||
+      (bestSourceSide === "bottom" && bestTargetSide === "top")
     ) {
-      // offset along x-axis
-      offset.x = sourceSideChosen === "top" ? OFFSET_DISTANCE : -OFFSET_DISTANCE;
+      // offset both the same way along x-axis
+      const offsetX = bestSourceSide === "top" ? OPPOSITE_OFFSET : -OPPOSITE_OFFSET;
+      sourcePos.x += offsetX;
+      targetPos.x += offsetX;
     } else if (
-      (sourceSideChosen === "left" && targetSideChosen === "right") ||
-      (sourceSideChosen === "right" && targetSideChosen === "left")
+      (bestSourceSide === "left" && bestTargetSide === "right") ||
+      (bestSourceSide === "right" && bestTargetSide === "left")
     ) {
-      // offset along y-axis
-      offset.y = sourceSideChosen === "left" ? OFFSET_DISTANCE : -OFFSET_DISTANCE;
+      // offset both the same way along y-axis
+      const offsetY = bestSourceSide === "left" ? OPPOSITE_OFFSET : -OPPOSITE_OFFSET;
+      sourcePos.y += offsetY;
+      targetPos.y += offsetY;
+    } else {
+      // offset individually (no parallel line possible)
+      if (bestSourceSide == "left" || bestSourceSide == "right") {
+        sourcePos.y += OPPOSITE_OFFSET;
+      } else {
+        sourcePos.x += OPPOSITE_OFFSET;
+      }
+      if (bestTargetSide == "left" || bestTargetSide == "right") {
+        targetPos.y -= OPPOSITE_OFFSET;
+      } else {
+        targetPos.x -= OPPOSITE_OFFSET;
+      }
     }
-
-    // apply offset to source and target
-    const bestSourceOffset = { x: bestSource.x + offset.x, y: bestSource.y + offset.y };
-    const bestTargetOffset = { x: bestTarget.x + offset.x, y: bestTarget.y + offset.y };
 
     // calculate control points
     const control1: Vector2 = {
-      x: bestSourceOffset.x + idealSource.x * controlDistance,
-      y: bestSourceOffset.y + idealSource.y * controlDistance,
+      x: sourcePos.x + idealSource.x * controlDistance,
+      y: sourcePos.y + idealSource.y * controlDistance,
     };
     const control2: Vector2 = {
-      x: bestTargetOffset.x + idealTarget.x * controlDistance,
-      y: bestTargetOffset.y + idealTarget.y * controlDistance,
+      x: targetPos.x + idealTarget.x * controlDistance,
+      y: targetPos.y + idealTarget.y * controlDistance,
     };
 
     // calculate Bezier midpoint
     const midpoint: Vector2 = {
-      x: 0.125 * bestSourceOffset.x + 0.375 * control1.x + 0.375 * control2.x + 0.125 * bestTargetOffset.x,
-      y: 0.125 * bestSourceOffset.y + 0.375 * control1.y + 0.375 * control2.y + 0.125 * bestTargetOffset.y,
+      x: 0.125 * sourcePos.x + 0.375 * control1.x + 0.375 * control2.x + 0.125 * targetPos.x,
+      y: 0.125 * sourcePos.y + 0.375 * control1.y + 0.375 * control2.y + 0.125 * targetPos.y,
     };
 
-    return { start: bestSourceOffset, end: bestTargetOffset, midpoint, control1, control2 };
+    return { start: sourcePos, end: targetPos, midpoint, control1, control2 };
   }
 
   /** Gets the bounding box for a thing (in world coordinates). */

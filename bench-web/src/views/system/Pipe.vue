@@ -38,7 +38,7 @@ const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
 const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName(pipe.value.metatype, pipe.value.name));
-const showPipeMeta = computed(() => !isGeneratedName.value || pipe.value?.type != PipeType.PASS);
+const showPipeMeta = computed(() => !pipe.value?.isNameHidden || pipe.value?.type != PipeType.PASS);
 
 //
 // Interaction
@@ -90,7 +90,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         fill="none"
         :marker-end="'url(#arrowhead-background-' + pipe.id + ')'"
         :d="pathToSvg(path)"
-        class="transition-all duration-150"
+        class="transition-colors duration-150"
         :class="isInspected || isHighlighted ? 'stroke-current' : 'stroke-transparent group-hover:stroke-current'"
       />
 
