@@ -5669,10 +5669,6 @@ export interface StartViewData {
      * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 100;
      */
     inputsPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 101;
-     */
-    runPtr?: NodeReferenceData;
 }
 /**
  * A view of a user interface in a Bench.
@@ -10565,9 +10561,13 @@ export enum InterruptStatus {
      */
     OPEN = 1,
     /**
-     * @generated from protobuf enum value: INTERRUPT_STATUS_CLOSED = 2;
+     * @generated from protobuf enum value: INTERRUPT_STATUS_CANCELLED = 7;
      */
-    CLOSED = 2
+    CANCELLED = 7,
+    /**
+     * @generated from protobuf enum value: INTERRUPT_STATUS_COMPLETED = 10;
+     */
+    COMPLETED = 10
 }
 /**
  * How to handle caching.
@@ -10858,25 +10858,17 @@ export enum ViewType {
      */
     STEP = 207,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TYPE = 208;
+     * @generated from protobuf enum value: VIEW_TYPE_PIPE = 208;
      */
-    TYPE = 208,
+    PIPE = 208,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_TYPE = 209;
+     */
+    TYPE = 209,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_OBJECT = 210;
      */
     OBJECT = 210,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_RUN = 211;
-     */
-    RUN = 211,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_LOG = 212;
-     */
-    LOG = 212,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_PIPE = 213;
-     */
-    PIPE = 213,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TREE = 400;
      */
@@ -25620,8 +25612,7 @@ export const TreeViewData = new TreeViewData$Type();
 class StartViewData$Type extends MessageType$<StartViewData> {
     constructor() {
         super("symbolx.bench.StartViewData", [
-            { no: 100, name: "inputs_packed", kind: "message", T: () => Value },
-            { no: 101, name: "run_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 100, name: "inputs_packed", kind: "message", T: () => Value }
         ]);
     }
     create(value?: PartialMessage<StartViewData>): StartViewData {
@@ -25638,9 +25629,6 @@ class StartViewData$Type extends MessageType$<StartViewData> {
                 case /* optional google.protobuf.Value inputs_packed */ 100:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 101:
-                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -25656,9 +25644,6 @@ class StartViewData$Type extends MessageType$<StartViewData> {
         /* optional google.protobuf.Value inputs_packed = 100; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData run_ptr = 101; */
-        if (message.runPtr)
-            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28591,7 +28576,6 @@ export enum TreeViewProperty {
 
 export enum StartViewProperty {
   inputsPacked = 100,
-  runPtr = 101,
 }
 
 export enum FeedViewProperty {
@@ -29712,7 +29696,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29739,7 +29723,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29763,7 +29747,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30526,7 +30510,6 @@ export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
 }
 export const StartViewDataInfo: Record<StartViewProperty, PropertyInfo> = {
   [StartViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StartViewProperty.runPtr]: { id: 101, name: 'run_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
   [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },

@@ -142,7 +142,13 @@ export function makeInspectLayout(
   /** Editable property, subproperty or nested property row */
   function rowProperty(
     path: number | [number] | [number, number],
-    options?: { title?: string; isFullWidth?: boolean; isDisabled?: boolean; default?: any },
+    options?: {
+      title?: string | false;
+      isFullWidth?: boolean;
+      isDisabled?: boolean;
+      default?: any;
+      props?: Partial<ViewProps>;
+    },
   ): InspectViewRow {
     if (typeof path == "number") path = [path];
 
@@ -170,10 +176,10 @@ export function makeInspectLayout(
     if (view == null) throw new Error(`no view for property type: ${title}`);
     const row: InspectViewRow = {
       type: "view",
-      title,
+      title: title === false ? undefined : title,
       isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
-      viewProps: { ...view, isInput: !options?.isDisabled },
+      viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
       read: () => {
         let val;
         if (path.length == 1) {
@@ -304,7 +310,7 @@ export function makeInspectLayout(
     const commonRows: InspectRow[] = [];
     section(undefined, commonRows);
     if (node.type != BlockType.TEXT) {
-      commonRows.push(rowProperty(BlockProperty.text));
+      commonRows.push(rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
     }
 
     if (node.type == BlockType.CHOICE) {
@@ -333,7 +339,9 @@ export function makeInspectLayout(
   // Fields
   //
   else if (isNode(node, NodeType.FIELD)) {
-    const commonRows: InspectRow[] = [rowProperty(FieldProperty.text)];
+    const commonRows: InspectRow[] = [
+      rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
+    ];
     if (node.type == FieldType.OPTION) {
       // commonRows.push() // color?
     } else {
@@ -350,7 +358,9 @@ export function makeInspectLayout(
   // Steps
   //
   else if (isNode(node, NodeType.STEP)) {
-    const comonRows: InspectRow[] = [rowProperty(StepProperty.text)];
+    const comonRows: InspectRow[] = [
+      rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }),
+    ];
     section(undefined, comonRows);
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
       sectionSchema();
@@ -366,10 +376,10 @@ export function makeInspectLayout(
   //
   else if (isNode(node, NodeType.PIPE)) {
     section(undefined, [
-      rowProperty(PipeProperty.text),
+      rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
       rowProperty(PipeProperty.type),
       rowProperty(PipeProperty.color),
-      rowProperty(PipeProperty.isNameHidden),
+      rowProperty(PipeProperty.isNameHidden, { title: "Hide Name" }),
     ]);
     sectionRun(PipeProperty.runOptions);
   }

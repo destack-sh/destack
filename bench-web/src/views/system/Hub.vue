@@ -2,6 +2,7 @@
 import { createBlock } from "@/language/block";
 import { ACTIVE_RUN_STATUSES, toCamelName } from "@/language/const";
 import { packSubnode, useSubnodeProperty } from "@/language/node";
+import { getRunActions, getRunDurationString } from "@/language/session";
 import {
   BlockType,
   HubAspect,
@@ -15,7 +16,7 @@ import {
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
-import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph } from "@/system/space";
+import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
 import { MenuItem, PopoverInfoIn, menuActionsLike, menuItemFromAction } from "@/ui/popover";
@@ -268,7 +269,6 @@ defineExpose<ViewExposed>({ self });
         v-if="runtime.focusedRun != null"
         class="mx-2 flex cursor-pointer flex-row items-center gap-x-1 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
       >
-        <!-- nocheckin: focused Run controls -->
         <IconName v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>
         <!-- Status -->
@@ -278,13 +278,25 @@ defineExpose<ViewExposed>({ self });
           :style="{ color: getRunColorHex(runtime.focusedRun.status) }"
           :class="runtime.focusedRun.status == RunStatus.RUNNING ? 'animate-spin' : ''"
         />
+        <span class="ml-2 text-gray-400">{{ getRunDurationString(runtime.focusedRun, { minUnit: "s" }) }}</span>
         <!-- Controls -->
-        <button class="ml-auto px-1">
-          <i class="fas fa-pause ml-auto text-gray-400 hover:text-gray-700" />
-        </button>
-        <button class="px-1">
-          <i class="fas fa-stop ml-auto text-gray-400 hover:text-gray-700" />
-        </button>
+        <div class="ml-auto flex flex-row gap-x-1">
+          <button
+            v-for="action in getRunActions(runtime.focusedRun)"
+            :key="action.title"
+            class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="action.action()"
+          >
+            <IconInline v-bind="action.icon" />
+          </button>
+          <!-- Clear -->
+          <button
+            class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="spaceConnection.tx.update(space!, { runPtr: undefined }, { debounce: 'short' })"
+          >
+            <i class="fas fa-eye-slash" />
+          </button>
+        </div>
       </div>
       <!-- User -->
       <button

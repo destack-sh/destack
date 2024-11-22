@@ -1,44 +1,39 @@
 <script lang="ts" setup>
 import { makeExpression } from "@/language/expression";
 import { makeTypeInfo } from "@/language/field";
-import { unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
-import { isRunnable, type RunnableNode } from "@/language/session";
+import { useSubnodeProperty } from "@/language/node";
+import { isRunnable } from "@/language/session";
 import {
   ExpressionType,
   FeedViewData,
   FieldType,
   NodeType,
   ObjectType,
-  Orientation,
   RunProperty,
-  StepType,
   TypeKind,
   Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
 import {
-  isNode,
   propertyReference,
   toNodeRef,
   toPlainNodeRef,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { useExistingConnection, useNode } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
-import { canvas, inspectionPtr } from "@/system/space";
-import { ScrollbarWidth } from "@/ui/layout";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { canvas, inspectionPtr, pkgGraph, space, spaceConnection } from "@/system/space";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import Scroll from "@/views/containers/Scroll.vue";
 import CustomObject from "@/views/system/CustomObject.vue";
-import { computed, ref, toRef, watch, type Ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 
-const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const HEADER_HEIGHT = 32;
+const SECTION_HEADER_HEIGHT = 32;
 
 const props = defineProps<
   {
@@ -52,28 +47,16 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
-const focusPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
-const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
 
-const runPtr = useSubnodeProperty(
-  NodeType.VIEW,
-  ViewType.START,
-  toRef(props, "subnodePacked"),
-  "runPtr",
-) as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
-const { node: someRun, connection: runConnection } = useNode({
-  name: "start.run",
-  live: true,
-  nodePtr: runPtr,
-  isOptional: true,
-  isEnabled: computed(() => runPtr.value != null),
-});
+// run is the focused
 const run = computed(() => {
-  if (runPtr.value == null || runPtr.value.baseCk != runnablePtr.value?.ck) return null;
-  else return someRun.value;
+  if (runtime.focusedRun != null && runtime.focusedRunBase?.ck == nodePtr.value?.ck) {
+    return runtime.focusedRun;
+  } else {
+    return null;
+  }
 });
-const feedState = computed((): FeedViewData => {
+const feed = computed((): FeedViewData => {
   const runNodeProperty = runnablePtr.value?.nodeType == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
   const clauses = [
     makeExpression({
@@ -91,15 +74,13 @@ const feedState = computed((): FeedViewData => {
       }),
     );
   }
-  const feedState: FeedViewData = {
+  return {
     // pre-filter to only runs of this node
     queryNodeType: NodeType.RUN,
     filter: makeExpression({ type: ExpressionType.AND, clauses }),
     filterPills: [],
   };
-  return feedState;
 });
-const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 
 // current runnable / inputs
 const node = pkgGraph.getRef(nodePtr);
@@ -122,62 +103,124 @@ const outputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
 function createRun() {
   if (node.value == null || !isRunnable(node.value)) return;
   const run = runtime.createRun(node.value, { inputsPacked: inputsPacked.value as any });
-  runPtr.value = toNodeRef(run);
+  spaceConnection.tx.update(space.value!, { runPtr: toNodeRef(run) });
 }
 
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div v-if="node" class="flex h-full w-full flex-col gap-y-1.5 px-5">
-    <!-- nocheckin: proper Run controls -->
-    <button @click="createRun">start</button>
-    <!-- Inputs -->
-    <div class="flex-1">
-      <h4 class="font-semibold">Inputs</h4>
-      <CustomObject
-        id="inputs"
-        ref="inputsRef"
-        class="w-full py-1"
-        :value-type="inputType"
-        is-inline
-        is-input
-        :variant="Variant.STEALTH"
-        :model-value="inputsPacked"
-        @update:model-value="
-          (value) => {
-            state.update(
-              { metatype: NodeType.VIEW, type: ViewType.START, subnode: { inputsPacked: value } },
-              { debounce: 'short' },
-            )
-          }
-        "
-      />
+  <div v-if="node" class="h-full w-full">
+    <!-- Controls -->
+    <div
+      class="mx-5 flex flex-row items-center"
+      :style="{
+        height: `${HEADER_HEIGHT}px`,
+      }"
+    >
+      <button @click="createRun">start</button>
+      <button @click="() => spaceConnection.tx.update(space!, { runPtr: undefined })">clear</button>
     </div>
-    <!-- Outputs (last run) -->
-    <div v-if="run?.outputsPacked != null" class="flex-1">
-      <h4 class="font-semibold">Outputs</h4>
-      <CustomObject
-        id="outputs"
-        ref="outputsRef"
-        class="w-full py-1"
-        :value-type="outputType"
-        is-inline
-        :variant="Variant.STEALTH"
-        :model-value="run.outputsPacked"
-      />
+    <!-- New Run -->
+    <div v-if="run == null" class="flex flex-col gap-y-2">
+      <!-- Inputs -->
+      <div class="px-5">
+        <h4
+          class="flex flex-row items-center font-semibold"
+          :style="{
+            height: `${SECTION_HEADER_HEIGHT}px`,
+          }"
+        >
+          <span>Inputs</span>
+        </h4>
+        <CustomObject
+          id="inputs"
+          ref="inputsRef"
+          class="w-full"
+          :value-type="inputType"
+          is-inline
+          is-input
+          :variant="Variant.STEALTH"
+          :model-value="inputsPacked"
+          @update:model-value="
+            (value) => {
+              state.update(
+                { metatype: NodeType.VIEW, type: ViewType.START, subnode: { inputsPacked: value } },
+                { debounce: 'short' },
+              );
+            }
+          "
+        />
+        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">No inputs</span>
+      </div>
     </div>
-    <!-- Error (last run) -->
-    <div v-else-if="run?.error != null" class="flex-1">
-      <h4 class="font-semibold">Error</h4>
-      <RunError class="mt-2" :run="run" :error="run.error" />
-    </div>
-    <div v-else class="flex-1 text-center">
-      <!-- Placeholder -->
-    </div>
-    <!-- Timeline -->
-    <div v-if="runPtr && run != null">
-      <h4 class="font-semibold">Timeline</h4>
-      <RunTimeline :node-ptr="runPtr" class="mt-2" />
+    <!-- Existing Run -->
+    <div v-else class="flex flex-col gap-y-2">
+      <!-- Ancestor runs? -->
+      <div class="px-5">
+        <div
+          class="flex flex-row items-center"
+          :style="{
+            height: `${SECTION_HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-semibold">Inputs</span>
+        </div>
+        <CustomObject
+          id="inputs"
+          ref="inputsRef"
+          class="w-full"
+          :value-type="outputType"
+          is-inline
+          :variant="Variant.STEALTH"
+          :model-value="run.inputsPacked"
+        />
+        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">No inputs</span>
+      </div>
+      <!-- Outputs (last run) -->
+      <div v-if="run?.outputsPacked != null" class="px-5">
+        <div
+          class="flex flex-row items-center"
+          :style="{
+            height: `${SECTION_HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-semibold">Outputs</span>
+        </div>
+        <CustomObject
+          id="outputs"
+          ref="outputsRef"
+          class="w-full"
+          :value-type="outputType"
+          is-inline
+          :variant="Variant.STEALTH"
+          :model-value="run.outputsPacked"
+        />
+        <span v-if="outputsRef?.fields.length == 0" class="text-gray-400">No outputs</span>
+      </div>
+      <!-- Error -->
+      <div v-if="run?.error != null" class="px-5">
+        <div
+          class="flex flex-row items-center"
+          :style="{
+            height: `${SECTION_HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-semibold">Error</span>
+        </div>
+        <RunError class="" :run="run" :error="run.error" />
+      </div>
+      <!-- Timeline -->
+      <div v-if="run != null" class="px-5">
+        <div
+          class="flex flex-row items-center"
+          :style="{
+            height: `${SECTION_HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-semibold">Timeline</span>
+        </div>
+        <RunTimeline :node-ptr="toPlainNodeRef(run)" class="" />
+      </div>
     </div>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center text-center">

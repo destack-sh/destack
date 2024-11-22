@@ -114,7 +114,12 @@ INTERRUPT_KIND_BY_RUN_STATUS: dict[RunStatus, InterruptKind] = {
 @enum_(EnumType.INTERRUPT_STATUS)
 class InterruptStatus(IdEnum):
     OPEN = 1
-    CLOSED = 2
+    CANCELLED = 7
+    COMPLETED = 10
+
+    @property
+    def is_closed(self) -> bool:
+        return self > 7
 
 
 @timed_node_(NodeType.INTERRUPT)
@@ -166,17 +171,24 @@ class Interrupt(RuntimeNode, HasSessionContext):
 
     @property
     def is_closed(self) -> bool:
-        return self.status == InterruptStatus.CLOSED
+        return self.status == InterruptStatus.COMPLETED
 
     def close(self, outputs: CustomObject | None = None) -> None:
         """Mark this Interrupt as closed."""
-        if self.status == InterruptStatus.CLOSED:
-            return
+        assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
-        self.status = InterruptStatus.CLOSED
+        self.status = InterruptStatus.COMPLETED
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
         self.outputs = outputs
+
+    def cancel(self) -> None:
+        """Mark this Interrupt as cancelled."""
+        assert not self.is_closed, f"{self!r} is already closed"
+        assert self._session is not None, f"{self!r} has no session"
+        self.status = InterruptStatus.CANCELLED
+        self.closed_at = self._session._oracle.utc()
+        self.duration = self.closed_at - self.created_at
 
     @staticmethod
     def from_run(

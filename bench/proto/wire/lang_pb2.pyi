@@ -1221,7 +1221,8 @@ class InterruptStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     INTERRUPT_STATUS_UNSPECIFIED: _ClassVar[InterruptStatus]
     INTERRUPT_STATUS_OPEN: _ClassVar[InterruptStatus]
-    INTERRUPT_STATUS_CLOSED: _ClassVar[InterruptStatus]
+    INTERRUPT_STATUS_CANCELLED: _ClassVar[InterruptStatus]
+    INTERRUPT_STATUS_COMPLETED: _ClassVar[InterruptStatus]
 
 class CacheMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1310,11 +1311,9 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_VIEW: _ClassVar[ViewType]
     VIEW_TYPE_FLOW: _ClassVar[ViewType]
     VIEW_TYPE_STEP: _ClassVar[ViewType]
+    VIEW_TYPE_PIPE: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
-    VIEW_TYPE_RUN: _ClassVar[ViewType]
-    VIEW_TYPE_LOG: _ClassVar[ViewType]
-    VIEW_TYPE_PIPE: _ClassVar[ViewType]
     VIEW_TYPE_TREE: _ClassVar[ViewType]
     VIEW_TYPE_INSPECT: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
@@ -2598,7 +2597,8 @@ INTERRUPT_KIND_YIELD: InterruptKind
 INTERRUPT_KIND_WAIT: InterruptKind
 INTERRUPT_STATUS_UNSPECIFIED: InterruptStatus
 INTERRUPT_STATUS_OPEN: InterruptStatus
-INTERRUPT_STATUS_CLOSED: InterruptStatus
+INTERRUPT_STATUS_CANCELLED: InterruptStatus
+INTERRUPT_STATUS_COMPLETED: InterruptStatus
 CACHE_MODE_UNSPECIFIED: CacheMode
 CACHE_MODE_NEVER: CacheMode
 CACHE_MODE_ALWAYS: CacheMode
@@ -2657,11 +2657,9 @@ VIEW_TYPE_DATABASE: ViewType
 VIEW_TYPE_VIEW: ViewType
 VIEW_TYPE_FLOW: ViewType
 VIEW_TYPE_STEP: ViewType
+VIEW_TYPE_PIPE: ViewType
 VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_OBJECT: ViewType
-VIEW_TYPE_RUN: ViewType
-VIEW_TYPE_LOG: ViewType
-VIEW_TYPE_PIPE: ViewType
 VIEW_TYPE_TREE: ViewType
 VIEW_TYPE_INSPECT: ViewType
 VIEW_TYPE_CREATE: ViewType
@@ -5849,12 +5847,10 @@ class TreeViewData(_message.Message):
     def __init__(self, node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., filter_is_page: bool = ..., is_default_expanded: bool = ..., expanded_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., collapsed_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., preset: _Optional[_Union[TreeViewPreset, str]] = ...) -> None: ...
 
 class StartViewData(_message.Message):
-    __slots__ = ("inputs_packed", "run_ptr")
+    __slots__ = ("inputs_packed",)
     INPUTS_PACKED_FIELD_NUMBER: _ClassVar[int]
-    RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     inputs_packed: _struct_pb2.Value
-    run_ptr: NodeReferenceData
-    def __init__(self, inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class FeedViewData(_message.Message):
     __slots__ = ("query_node_type", "filter", "filter_pills")
