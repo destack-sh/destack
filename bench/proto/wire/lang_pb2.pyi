@@ -26,16 +26,16 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_NODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_OBJECT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_BENCH_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
-    ENUM_TYPE_QUEYR_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_USE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CHANGE_CATEGORY: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_OPERATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
+    ENUM_TYPE_BENCH_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CLOUD: _ClassVar[EnumType]
     ENUM_TYPE_REGION: _ClassVar[EnumType]
     ENUM_TYPE_REGION_ZONE: _ClassVar[EnumType]
@@ -46,6 +46,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_FILE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FILE_FORMAT: _ClassVar[EnumType]
     ENUM_TYPE_CLIENT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PRIMITIVE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_ZONE: _ClassVar[EnumType]
     ENUM_TYPE_TYPE_KIND: _ClassVar[EnumType]
@@ -122,13 +123,14 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_CLIENT: _ClassVar[NodeType]
     NODE_TYPE_SERVER: _ClassVar[NodeType]
     NODE_TYPE_STORE: _ClassVar[NodeType]
-    NODE_TYPE_MACHINE: _ClassVar[NodeType]
     NODE_TYPE_DRIVE: _ClassVar[NodeType]
     NODE_TYPE_VAULT: _ClassVar[NodeType]
     NODE_TYPE_CACHE: _ClassVar[NodeType]
-    NODE_TYPE_FILE: _ClassVar[NodeType]
-    NODE_TYPE_SECRET: _ClassVar[NodeType]
+    NODE_TYPE_MACHINE: _ClassVar[NodeType]
     NODE_TYPE_BROWSER: _ClassVar[NodeType]
+    NODE_TYPE_FILE: _ClassVar[NodeType]
+    NODE_TYPE_STREAM: _ClassVar[NodeType]
+    NODE_TYPE_SECRET: _ClassVar[NodeType]
     NODE_TYPE_MEMBERSHIP: _ClassVar[NodeType]
     NODE_TYPE_INVITE: _ClassVar[NodeType]
     NODE_TYPE_BRANCH: _ClassVar[NodeType]
@@ -165,17 +167,13 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_CLIENT_ORIGIN: _ClassVar[StructType]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructType]
-    STRUCT_TYPE_PATH: _ClassVar[StructType]
-    STRUCT_TYPE_PATH_TOKEN: _ClassVar[StructType]
     STRUCT_TYPE_POLICY: _ClassVar[StructType]
     STRUCT_TYPE_POLICY_RULE: _ClassVar[StructType]
     STRUCT_TYPE_SUBJECT: _ClassVar[StructType]
     STRUCT_TYPE_ACCESS_ZONE: _ClassVar[StructType]
     STRUCT_TYPE_ACCESS_MATRIX: _ClassVar[StructType]
     STRUCT_TYPE_ACCESS: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
+    STRUCT_TYPE_MACHINE_IMAGE: _ClassVar[StructType]
     STRUCT_TYPE_TYPE_INFO: _ClassVar[StructType]
     STRUCT_TYPE_TYPE_CONSTRAINT: _ClassVar[StructType]
     STRUCT_TYPE_VARIABLE_OBJECT: _ClassVar[StructType]
@@ -187,6 +185,13 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_FILE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_ICON: _ClassVar[StructType]
     STRUCT_TYPE_SECRET_REFERENCE: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
+    STRUCT_TYPE_CODE: _ClassVar[StructType]
+    STRUCT_TYPE_CODE_LINE: _ClassVar[StructType]
+    STRUCT_TYPE_PATH: _ClassVar[StructType]
+    STRUCT_TYPE_PATH_TOKEN: _ClassVar[StructType]
     STRUCT_TYPE_EXPRESSION: _ClassVar[StructType]
     STRUCT_TYPE_AGGREGATION_RESULT: _ClassVar[StructType]
     STRUCT_TYPE_SELECTION: _ClassVar[StructType]
@@ -195,8 +200,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_COMPUTED_VALUE: _ClassVar[StructType]
     STRUCT_TYPE_OBJECT_MAPPING: _ClassVar[StructType]
     STRUCT_TYPE_FIELD_MAPPING: _ClassVar[StructType]
-    STRUCT_TYPE_CODE: _ClassVar[StructType]
-    STRUCT_TYPE_CODE_LINE: _ClassVar[StructType]
     STRUCT_TYPE_RUN_ERROR: _ClassVar[StructType]
     STRUCT_TYPE_RUN_OPTIONS: _ClassVar[StructType]
     STRUCT_TYPE_RUN_ATTEMPT: _ClassVar[StructType]
@@ -234,13 +237,14 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_CLIENT: _ClassVar[ObjectType]
     OBJECT_TYPE_SERVER: _ClassVar[ObjectType]
     OBJECT_TYPE_STORE: _ClassVar[ObjectType]
-    OBJECT_TYPE_MACHINE: _ClassVar[ObjectType]
     OBJECT_TYPE_DRIVE: _ClassVar[ObjectType]
     OBJECT_TYPE_VAULT: _ClassVar[ObjectType]
     OBJECT_TYPE_CACHE: _ClassVar[ObjectType]
-    OBJECT_TYPE_FILE: _ClassVar[ObjectType]
-    OBJECT_TYPE_SECRET: _ClassVar[ObjectType]
+    OBJECT_TYPE_MACHINE: _ClassVar[ObjectType]
     OBJECT_TYPE_BROWSER: _ClassVar[ObjectType]
+    OBJECT_TYPE_FILE: _ClassVar[ObjectType]
+    OBJECT_TYPE_STREAM: _ClassVar[ObjectType]
+    OBJECT_TYPE_SECRET: _ClassVar[ObjectType]
     OBJECT_TYPE_MEMBERSHIP: _ClassVar[ObjectType]
     OBJECT_TYPE_INVITE: _ClassVar[ObjectType]
     OBJECT_TYPE_BRANCH: _ClassVar[ObjectType]
@@ -273,17 +277,13 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_CLIENT_ORIGIN: _ClassVar[ObjectType]
     OBJECT_TYPE_NODE_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_PROPERTY_REFERENCE: _ClassVar[ObjectType]
-    OBJECT_TYPE_PATH: _ClassVar[ObjectType]
-    OBJECT_TYPE_PATH_TOKEN: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY_RULE: _ClassVar[ObjectType]
     OBJECT_TYPE_SUBJECT: _ClassVar[ObjectType]
     OBJECT_TYPE_ACCESS_ZONE: _ClassVar[ObjectType]
     OBJECT_TYPE_ACCESS_MATRIX: _ClassVar[ObjectType]
     OBJECT_TYPE_ACCESS: _ClassVar[ObjectType]
-    OBJECT_TYPE_TEXT: _ClassVar[ObjectType]
-    OBJECT_TYPE_TEXT_LINE: _ClassVar[ObjectType]
-    OBJECT_TYPE_TEXT_SPAN: _ClassVar[ObjectType]
+    OBJECT_TYPE_MACHINE_IMAGE: _ClassVar[ObjectType]
     OBJECT_TYPE_TYPE_INFO: _ClassVar[ObjectType]
     OBJECT_TYPE_TYPE_CONSTRAINT: _ClassVar[ObjectType]
     OBJECT_TYPE_VARIABLE_OBJECT: _ClassVar[ObjectType]
@@ -295,6 +295,13 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_FILE_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_ICON: _ClassVar[ObjectType]
     OBJECT_TYPE_SECRET_REFERENCE: _ClassVar[ObjectType]
+    OBJECT_TYPE_TEXT: _ClassVar[ObjectType]
+    OBJECT_TYPE_TEXT_LINE: _ClassVar[ObjectType]
+    OBJECT_TYPE_TEXT_SPAN: _ClassVar[ObjectType]
+    OBJECT_TYPE_CODE: _ClassVar[ObjectType]
+    OBJECT_TYPE_CODE_LINE: _ClassVar[ObjectType]
+    OBJECT_TYPE_PATH: _ClassVar[ObjectType]
+    OBJECT_TYPE_PATH_TOKEN: _ClassVar[ObjectType]
     OBJECT_TYPE_EXPRESSION: _ClassVar[ObjectType]
     OBJECT_TYPE_AGGREGATION_RESULT: _ClassVar[ObjectType]
     OBJECT_TYPE_SELECTION: _ClassVar[ObjectType]
@@ -303,8 +310,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_COMPUTED_VALUE: _ClassVar[ObjectType]
     OBJECT_TYPE_OBJECT_MAPPING: _ClassVar[ObjectType]
     OBJECT_TYPE_FIELD_MAPPING: _ClassVar[ObjectType]
-    OBJECT_TYPE_CODE: _ClassVar[ObjectType]
-    OBJECT_TYPE_CODE_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_ERROR: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_OPTIONS: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_ATTEMPT: _ClassVar[ObjectType]
@@ -331,203 +336,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_VECTOR4: _ClassVar[ObjectType]
     OBJECT_TYPE_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[ObjectType]
-
-class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    BENCH_TYPE_UNSPECIFIED: _ClassVar[BenchType]
-    BENCH_TYPE_BENCH: _ClassVar[BenchType]
-    BENCH_TYPE_USER: _ClassVar[BenchType]
-    BENCH_TYPE_ORGANIZATION: _ClassVar[BenchType]
-    BENCH_TYPE_HANDLE: _ClassVar[BenchType]
-    BENCH_TYPE_CLIENT: _ClassVar[BenchType]
-    BENCH_TYPE_SERVER: _ClassVar[BenchType]
-    BENCH_TYPE_STORE: _ClassVar[BenchType]
-    BENCH_TYPE_MACHINE: _ClassVar[BenchType]
-    BENCH_TYPE_DRIVE: _ClassVar[BenchType]
-    BENCH_TYPE_VAULT: _ClassVar[BenchType]
-    BENCH_TYPE_CACHE: _ClassVar[BenchType]
-    BENCH_TYPE_FILE: _ClassVar[BenchType]
-    BENCH_TYPE_SECRET: _ClassVar[BenchType]
-    BENCH_TYPE_BROWSER: _ClassVar[BenchType]
-    BENCH_TYPE_MEMBERSHIP: _ClassVar[BenchType]
-    BENCH_TYPE_INVITE: _ClassVar[BenchType]
-    BENCH_TYPE_BRANCH: _ClassVar[BenchType]
-    BENCH_TYPE_PACKAGE: _ClassVar[BenchType]
-    BENCH_TYPE_DEPENDENCY: _ClassVar[BenchType]
-    BENCH_TYPE_SPACE: _ClassVar[BenchType]
-    BENCH_TYPE_BLOCK: _ClassVar[BenchType]
-    BENCH_TYPE_TRIGGER: _ClassVar[BenchType]
-    BENCH_TYPE_FIELD: _ClassVar[BenchType]
-    BENCH_TYPE_QUERY: _ClassVar[BenchType]
-    BENCH_TYPE_VIEW: _ClassVar[BenchType]
-    BENCH_TYPE_STEP: _ClassVar[BenchType]
-    BENCH_TYPE_PIPE: _ClassVar[BenchType]
-    BENCH_TYPE_BADGE: _ClassVar[BenchType]
-    BENCH_TYPE_MESSAGE: _ClassVar[BenchType]
-    BENCH_TYPE_RECORD: _ClassVar[BenchType]
-    BENCH_TYPE_SESSION: _ClassVar[BenchType]
-    BENCH_TYPE_RUN: _ClassVar[BenchType]
-    BENCH_TYPE_INTERRUPT: _ClassVar[BenchType]
-    BENCH_TYPE_LOG: _ClassVar[BenchType]
-    BENCH_TYPE_SKIP: _ClassVar[BenchType]
-    BENCH_TYPE_SESSION_CONTEXT: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT_CONTEXT: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT_INFO: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT_OPERATION: _ClassVar[BenchType]
-    BENCH_TYPE_CHANGE: _ClassVar[BenchType]
-    BENCH_TYPE_CHANGE_VIGNETTE: _ClassVar[BenchType]
-    BENCH_TYPE_GRAPH_SCOPE: _ClassVar[BenchType]
-    BENCH_TYPE_CLIENT_ORIGIN: _ClassVar[BenchType]
-    BENCH_TYPE_NODE_REFERENCE: _ClassVar[BenchType]
-    BENCH_TYPE_PROPERTY_REFERENCE: _ClassVar[BenchType]
-    BENCH_TYPE_PATH: _ClassVar[BenchType]
-    BENCH_TYPE_PATH_TOKEN: _ClassVar[BenchType]
-    BENCH_TYPE_POLICY: _ClassVar[BenchType]
-    BENCH_TYPE_POLICY_RULE: _ClassVar[BenchType]
-    BENCH_TYPE_SUBJECT: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_ZONE: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_MATRIX: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT_LINE: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT_SPAN: _ClassVar[BenchType]
-    BENCH_TYPE_TYPE_INFO: _ClassVar[BenchType]
-    BENCH_TYPE_TYPE_CONSTRAINT: _ClassVar[BenchType]
-    BENCH_TYPE_VARIABLE_OBJECT: _ClassVar[BenchType]
-    BENCH_TYPE_MEMBER_OBJECT: _ClassVar[BenchType]
-    BENCH_TYPE_INPUT_OBJECT: _ClassVar[BenchType]
-    BENCH_TYPE_OUTPUT_OBJECT: _ClassVar[BenchType]
-    BENCH_TYPE_SCHEDULE: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_INFO: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_REFERENCE: _ClassVar[BenchType]
-    BENCH_TYPE_ICON: _ClassVar[BenchType]
-    BENCH_TYPE_SECRET_REFERENCE: _ClassVar[BenchType]
-    BENCH_TYPE_EXPRESSION: _ClassVar[BenchType]
-    BENCH_TYPE_AGGREGATION_RESULT: _ClassVar[BenchType]
-    BENCH_TYPE_SELECTION: _ClassVar[BenchType]
-    BENCH_TYPE_SELECT_OPTIONS: _ClassVar[BenchType]
-    BENCH_TYPE_VALUE: _ClassVar[BenchType]
-    BENCH_TYPE_COMPUTED_VALUE: _ClassVar[BenchType]
-    BENCH_TYPE_OBJECT_MAPPING: _ClassVar[BenchType]
-    BENCH_TYPE_FIELD_MAPPING: _ClassVar[BenchType]
-    BENCH_TYPE_CODE: _ClassVar[BenchType]
-    BENCH_TYPE_CODE_LINE: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_ERROR: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_OPTIONS: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_ATTEMPT: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_TRACE: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_FRAME: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_SPAN: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_EVENT: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT_OPTIONS: _ClassVar[BenchType]
-    BENCH_TYPE_AUDIO_OPTIONS: _ClassVar[BenchType]
-    BENCH_TYPE_IMAGE_OPTIONS: _ClassVar[BenchType]
-    BENCH_TYPE_VIDEO_OPTIONS: _ClassVar[BenchType]
-    BENCH_TYPE_CONTINUE: _ClassVar[BenchType]
-    BENCH_TYPE_CALL: _ClassVar[BenchType]
-    BENCH_TYPE_CONTEXT: _ClassVar[BenchType]
-    BENCH_TYPE_BREAKPOINT: _ClassVar[BenchType]
-    BENCH_TYPE_LOG_INFO: _ClassVar[BenchType]
-    BENCH_TYPE_COLOR: _ClassVar[BenchType]
-    BENCH_TYPE_FONT: _ClassVar[BenchType]
-    BENCH_TYPE_RECTANGLE: _ClassVar[BenchType]
-    BENCH_TYPE_OFFSET: _ClassVar[BenchType]
-    BENCH_TYPE_TRANSFORM: _ClassVar[BenchType]
-    BENCH_TYPE_VECTOR2: _ClassVar[BenchType]
-    BENCH_TYPE_VECTOR3: _ClassVar[BenchType]
-    BENCH_TYPE_VECTOR4: _ClassVar[BenchType]
-    BENCH_TYPE_LINE: _ClassVar[BenchType]
-    BENCH_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[BenchType]
-    BENCH_TYPE_ENUM_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_OBJECT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_BENCH_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_QUEYR_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_ACCESS_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_CHANGE_CATEGORY: _ClassVar[BenchType]
-    BENCH_TYPE_EDIT_OPERATION_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
-    BENCH_TYPE_CLOUD: _ClassVar[BenchType]
-    BENCH_TYPE_REGION: _ClassVar[BenchType]
-    BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
-    BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
-    BENCH_TYPE_RESOURCE_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_RETENTION_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_FORMAT: _ClassVar[BenchType]
-    BENCH_TYPE_CLIENT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PRIMITIVE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
-    BENCH_TYPE_TYPE_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_TYPE_FORMAT: _ClassVar[BenchType]
-    BENCH_TYPE_OBJECT_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_BLOCK_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_ACTION_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
-    BENCH_TYPE_DAY: _ClassVar[BenchType]
-    BENCH_TYPE_MONTH: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT_LINE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_ICON_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_MESSAGE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_MESSAGE_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_EXPRESSION_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_EXPRESSION_OP: _ClassVar[BenchType]
-    BENCH_TYPE_LITERAL_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_FUNCTIONAL_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_CONDITIONAL_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_AGGREGATION_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_SORT_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_SORT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PATH_TOKEN_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_LOG_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_ERROR_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_ERROR_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_SPAN_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_RUN_EVENT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_SESSION_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_TRIGGER_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_BREAKPOINT_SITE: _ClassVar[BenchType]
-    BENCH_TYPE_BREAKPOINT_ACTION: _ClassVar[BenchType]
-    BENCH_TYPE_BREAKPOINT_TARGET: _ClassVar[BenchType]
-    BENCH_TYPE_INTERRUPT_KIND: _ClassVar[BenchType]
-    BENCH_TYPE_INTERRUPT_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_CACHE_MODE: _ClassVar[BenchType]
-    BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
-    BENCH_TYPE_MODEL_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_STEP_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
-    BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_NOTIFICATION_LEVEL: _ClassVar[BenchType]
-    BENCH_TYPE_SPACE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_VIEW_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_VARIANT: _ClassVar[BenchType]
-    BENCH_TYPE_COLOR_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_COLOR_SHADE: _ClassVar[BenchType]
-    BENCH_TYPE_FONT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_FONT_WEIGHT: _ClassVar[BenchType]
-    BENCH_TYPE_FONT_SIZE: _ClassVar[BenchType]
-    BENCH_TYPE_SPACING: _ClassVar[BenchType]
-    BENCH_TYPE_ANCHOR: _ClassVar[BenchType]
-    BENCH_TYPE_ORIENTATION: _ClassVar[BenchType]
-    BENCH_TYPE_ALIGNMENT: _ClassVar[BenchType]
-    BENCH_TYPE_USER_WIZARD_STAGE: _ClassVar[BenchType]
-    BENCH_TYPE_TREE_VIEW_PRESET: _ClassVar[BenchType]
-    BENCH_TYPE_HUB_ASPECT: _ClassVar[BenchType]
-    BENCH_TYPE_HELP_ASPECT: _ClassVar[BenchType]
-    BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_ORGANIZATION_STATUS: _ClassVar[BenchType]
 
 class AccessMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -609,6 +417,206 @@ class PolicyEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     POLICY_EFFECT_UNSPECIFIED: _ClassVar[PolicyEffect]
     POLICY_EFFECT_ALLOW: _ClassVar[PolicyEffect]
     POLICY_EFFECT_DENY: _ClassVar[PolicyEffect]
+
+class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    BENCH_TYPE_UNSPECIFIED: _ClassVar[BenchType]
+    BENCH_TYPE_BENCH: _ClassVar[BenchType]
+    BENCH_TYPE_USER: _ClassVar[BenchType]
+    BENCH_TYPE_ORGANIZATION: _ClassVar[BenchType]
+    BENCH_TYPE_HANDLE: _ClassVar[BenchType]
+    BENCH_TYPE_CLIENT: _ClassVar[BenchType]
+    BENCH_TYPE_SERVER: _ClassVar[BenchType]
+    BENCH_TYPE_STORE: _ClassVar[BenchType]
+    BENCH_TYPE_DRIVE: _ClassVar[BenchType]
+    BENCH_TYPE_VAULT: _ClassVar[BenchType]
+    BENCH_TYPE_CACHE: _ClassVar[BenchType]
+    BENCH_TYPE_MACHINE: _ClassVar[BenchType]
+    BENCH_TYPE_BROWSER: _ClassVar[BenchType]
+    BENCH_TYPE_FILE: _ClassVar[BenchType]
+    BENCH_TYPE_STREAM: _ClassVar[BenchType]
+    BENCH_TYPE_SECRET: _ClassVar[BenchType]
+    BENCH_TYPE_MEMBERSHIP: _ClassVar[BenchType]
+    BENCH_TYPE_INVITE: _ClassVar[BenchType]
+    BENCH_TYPE_BRANCH: _ClassVar[BenchType]
+    BENCH_TYPE_PACKAGE: _ClassVar[BenchType]
+    BENCH_TYPE_DEPENDENCY: _ClassVar[BenchType]
+    BENCH_TYPE_SPACE: _ClassVar[BenchType]
+    BENCH_TYPE_BLOCK: _ClassVar[BenchType]
+    BENCH_TYPE_TRIGGER: _ClassVar[BenchType]
+    BENCH_TYPE_FIELD: _ClassVar[BenchType]
+    BENCH_TYPE_QUERY: _ClassVar[BenchType]
+    BENCH_TYPE_VIEW: _ClassVar[BenchType]
+    BENCH_TYPE_STEP: _ClassVar[BenchType]
+    BENCH_TYPE_PIPE: _ClassVar[BenchType]
+    BENCH_TYPE_BADGE: _ClassVar[BenchType]
+    BENCH_TYPE_MESSAGE: _ClassVar[BenchType]
+    BENCH_TYPE_RECORD: _ClassVar[BenchType]
+    BENCH_TYPE_SESSION: _ClassVar[BenchType]
+    BENCH_TYPE_RUN: _ClassVar[BenchType]
+    BENCH_TYPE_INTERRUPT: _ClassVar[BenchType]
+    BENCH_TYPE_LOG: _ClassVar[BenchType]
+    BENCH_TYPE_SKIP: _ClassVar[BenchType]
+    BENCH_TYPE_SESSION_CONTEXT: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_CONTEXT: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_INFO: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_OPERATION: _ClassVar[BenchType]
+    BENCH_TYPE_CHANGE: _ClassVar[BenchType]
+    BENCH_TYPE_CHANGE_VIGNETTE: _ClassVar[BenchType]
+    BENCH_TYPE_GRAPH_SCOPE: _ClassVar[BenchType]
+    BENCH_TYPE_CLIENT_ORIGIN: _ClassVar[BenchType]
+    BENCH_TYPE_NODE_REFERENCE: _ClassVar[BenchType]
+    BENCH_TYPE_PROPERTY_REFERENCE: _ClassVar[BenchType]
+    BENCH_TYPE_POLICY: _ClassVar[BenchType]
+    BENCH_TYPE_POLICY_RULE: _ClassVar[BenchType]
+    BENCH_TYPE_SUBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_ZONE: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_MATRIX: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS: _ClassVar[BenchType]
+    BENCH_TYPE_MACHINE_IMAGE: _ClassVar[BenchType]
+    BENCH_TYPE_TYPE_INFO: _ClassVar[BenchType]
+    BENCH_TYPE_TYPE_CONSTRAINT: _ClassVar[BenchType]
+    BENCH_TYPE_VARIABLE_OBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_MEMBER_OBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_INPUT_OBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_OUTPUT_OBJECT: _ClassVar[BenchType]
+    BENCH_TYPE_SCHEDULE: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_INFO: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_REFERENCE: _ClassVar[BenchType]
+    BENCH_TYPE_ICON: _ClassVar[BenchType]
+    BENCH_TYPE_SECRET_REFERENCE: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_LINE: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_SPAN: _ClassVar[BenchType]
+    BENCH_TYPE_CODE: _ClassVar[BenchType]
+    BENCH_TYPE_CODE_LINE: _ClassVar[BenchType]
+    BENCH_TYPE_PATH: _ClassVar[BenchType]
+    BENCH_TYPE_PATH_TOKEN: _ClassVar[BenchType]
+    BENCH_TYPE_EXPRESSION: _ClassVar[BenchType]
+    BENCH_TYPE_AGGREGATION_RESULT: _ClassVar[BenchType]
+    BENCH_TYPE_SELECTION: _ClassVar[BenchType]
+    BENCH_TYPE_SELECT_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_VALUE: _ClassVar[BenchType]
+    BENCH_TYPE_COMPUTED_VALUE: _ClassVar[BenchType]
+    BENCH_TYPE_OBJECT_MAPPING: _ClassVar[BenchType]
+    BENCH_TYPE_FIELD_MAPPING: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_ERROR: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_ATTEMPT: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_TRACE: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_FRAME: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_SPAN: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_EVENT: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_AUDIO_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_IMAGE_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_VIDEO_OPTIONS: _ClassVar[BenchType]
+    BENCH_TYPE_CONTINUE: _ClassVar[BenchType]
+    BENCH_TYPE_CALL: _ClassVar[BenchType]
+    BENCH_TYPE_CONTEXT: _ClassVar[BenchType]
+    BENCH_TYPE_BREAKPOINT: _ClassVar[BenchType]
+    BENCH_TYPE_LOG_INFO: _ClassVar[BenchType]
+    BENCH_TYPE_COLOR: _ClassVar[BenchType]
+    BENCH_TYPE_FONT: _ClassVar[BenchType]
+    BENCH_TYPE_RECTANGLE: _ClassVar[BenchType]
+    BENCH_TYPE_OFFSET: _ClassVar[BenchType]
+    BENCH_TYPE_TRANSFORM: _ClassVar[BenchType]
+    BENCH_TYPE_VECTOR2: _ClassVar[BenchType]
+    BENCH_TYPE_VECTOR3: _ClassVar[BenchType]
+    BENCH_TYPE_VECTOR4: _ClassVar[BenchType]
+    BENCH_TYPE_LINE: _ClassVar[BenchType]
+    BENCH_TYPE_RECTANGLE_CONSTRAINT: _ClassVar[BenchType]
+    BENCH_TYPE_ENUM_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_NODE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_STRUCT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_OBJECT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_QUERY_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_ACCESS_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CHANGE_CATEGORY: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_OPERATION_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
+    BENCH_TYPE_BENCH_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CLOUD: _ClassVar[BenchType]
+    BENCH_TYPE_REGION: _ClassVar[BenchType]
+    BENCH_TYPE_REGION_ZONE: _ClassVar[BenchType]
+    BENCH_TYPE_REGION_AREA: _ClassVar[BenchType]
+    BENCH_TYPE_RESOURCE_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_RETENTION_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FILE_FORMAT: _ClassVar[BenchType]
+    BENCH_TYPE_CLIENT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_MACHINE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_PRIMITIVE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FIELD_ZONE: _ClassVar[BenchType]
+    BENCH_TYPE_TYPE_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_TYPE_FORMAT: _ClassVar[BenchType]
+    BENCH_TYPE_OBJECT_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_BLOCK_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_ACTION_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
+    BENCH_TYPE_DAY: _ClassVar[BenchType]
+    BENCH_TYPE_MONTH: _ClassVar[BenchType]
+    BENCH_TYPE_TEXT_LINE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_ICON_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_MESSAGE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_MESSAGE_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_EXPRESSION_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_EXPRESSION_OP: _ClassVar[BenchType]
+    BENCH_TYPE_LITERAL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FUNCTIONAL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_CONDITIONAL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_AGGREGATION_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_SORT_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_SORT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_PATH_TOKEN_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_LOG_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_LOG_LEVEL: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_ERROR_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_ERROR_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_SPAN_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_RUN_EVENT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_SESSION_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_TRIGGER_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_BREAKPOINT_SITE: _ClassVar[BenchType]
+    BENCH_TYPE_BREAKPOINT_ACTION: _ClassVar[BenchType]
+    BENCH_TYPE_BREAKPOINT_TARGET: _ClassVar[BenchType]
+    BENCH_TYPE_INTERRUPT_KIND: _ClassVar[BenchType]
+    BENCH_TYPE_INTERRUPT_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_CACHE_MODE: _ClassVar[BenchType]
+    BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
+    BENCH_TYPE_MODEL_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_STEP_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
+    BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_NOTIFICATION_LEVEL: _ClassVar[BenchType]
+    BENCH_TYPE_SPACE_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_VIEW_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_VARIANT: _ClassVar[BenchType]
+    BENCH_TYPE_COLOR_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_COLOR_SHADE: _ClassVar[BenchType]
+    BENCH_TYPE_FONT_TYPE: _ClassVar[BenchType]
+    BENCH_TYPE_FONT_WEIGHT: _ClassVar[BenchType]
+    BENCH_TYPE_FONT_SIZE: _ClassVar[BenchType]
+    BENCH_TYPE_SPACING: _ClassVar[BenchType]
+    BENCH_TYPE_ANCHOR: _ClassVar[BenchType]
+    BENCH_TYPE_ORIENTATION: _ClassVar[BenchType]
+    BENCH_TYPE_ALIGNMENT: _ClassVar[BenchType]
+    BENCH_TYPE_USER_WIZARD_STAGE: _ClassVar[BenchType]
+    BENCH_TYPE_TREE_VIEW_PRESET: _ClassVar[BenchType]
+    BENCH_TYPE_HUB_ASPECT: _ClassVar[BenchType]
+    BENCH_TYPE_HELP_ASPECT: _ClassVar[BenchType]
+    BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
+    BENCH_TYPE_ORGANIZATION_STATUS: _ClassVar[BenchType]
 
 class Cloud(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -802,6 +810,11 @@ class ClientType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CLIENT_TYPE_BENCH_DESKTOP: _ClassVar[ClientType]
     CLIENT_TYPE_BENCH_MOBILE: _ClassVar[ClientType]
     CLIENT_TYPE_BENCH_MACHINE: _ClassVar[ClientType]
+
+class MachineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MACHINE_TYPE_UNSPECIFIED: _ClassVar[MachineType]
+    MACHINE_TYPE_RUNTIME: _ClassVar[MachineType]
 
 class PrimitiveType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1588,16 +1601,16 @@ ENUM_TYPE_ENUM_TYPE: EnumType
 ENUM_TYPE_NODE_TYPE: EnumType
 ENUM_TYPE_STRUCT_TYPE: EnumType
 ENUM_TYPE_OBJECT_TYPE: EnumType
-ENUM_TYPE_BENCH_TYPE: EnumType
 ENUM_TYPE_ACCESS_MODE: EnumType
 ENUM_TYPE_ACCESS_KIND: EnumType
-ENUM_TYPE_QUEYR_TYPE: EnumType
+ENUM_TYPE_QUERY_TYPE: EnumType
 ENUM_TYPE_EDIT_TYPE: EnumType
 ENUM_TYPE_USE_TYPE: EnumType
 ENUM_TYPE_ACCESS_TYPE: EnumType
 ENUM_TYPE_CHANGE_CATEGORY: EnumType
 ENUM_TYPE_EDIT_OPERATION_TYPE: EnumType
 ENUM_TYPE_POLICY_EFFECT: EnumType
+ENUM_TYPE_BENCH_TYPE: EnumType
 ENUM_TYPE_CLOUD: EnumType
 ENUM_TYPE_REGION: EnumType
 ENUM_TYPE_REGION_ZONE: EnumType
@@ -1608,6 +1621,7 @@ ENUM_TYPE_FILE_KIND: EnumType
 ENUM_TYPE_FILE_TYPE: EnumType
 ENUM_TYPE_FILE_FORMAT: EnumType
 ENUM_TYPE_CLIENT_TYPE: EnumType
+ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_PRIMITIVE_TYPE: EnumType
 ENUM_TYPE_FIELD_ZONE: EnumType
 ENUM_TYPE_TYPE_KIND: EnumType
@@ -1681,13 +1695,14 @@ NODE_TYPE_HANDLE: NodeType
 NODE_TYPE_CLIENT: NodeType
 NODE_TYPE_SERVER: NodeType
 NODE_TYPE_STORE: NodeType
-NODE_TYPE_MACHINE: NodeType
 NODE_TYPE_DRIVE: NodeType
 NODE_TYPE_VAULT: NodeType
 NODE_TYPE_CACHE: NodeType
-NODE_TYPE_FILE: NodeType
-NODE_TYPE_SECRET: NodeType
+NODE_TYPE_MACHINE: NodeType
 NODE_TYPE_BROWSER: NodeType
+NODE_TYPE_FILE: NodeType
+NODE_TYPE_STREAM: NodeType
+NODE_TYPE_SECRET: NodeType
 NODE_TYPE_MEMBERSHIP: NodeType
 NODE_TYPE_INVITE: NodeType
 NODE_TYPE_BRANCH: NodeType
@@ -1721,17 +1736,13 @@ STRUCT_TYPE_GRAPH_SCOPE: StructType
 STRUCT_TYPE_CLIENT_ORIGIN: StructType
 STRUCT_TYPE_NODE_REFERENCE: StructType
 STRUCT_TYPE_PROPERTY_REFERENCE: StructType
-STRUCT_TYPE_PATH: StructType
-STRUCT_TYPE_PATH_TOKEN: StructType
 STRUCT_TYPE_POLICY: StructType
 STRUCT_TYPE_POLICY_RULE: StructType
 STRUCT_TYPE_SUBJECT: StructType
 STRUCT_TYPE_ACCESS_ZONE: StructType
 STRUCT_TYPE_ACCESS_MATRIX: StructType
 STRUCT_TYPE_ACCESS: StructType
-STRUCT_TYPE_TEXT: StructType
-STRUCT_TYPE_TEXT_LINE: StructType
-STRUCT_TYPE_TEXT_SPAN: StructType
+STRUCT_TYPE_MACHINE_IMAGE: StructType
 STRUCT_TYPE_TYPE_INFO: StructType
 STRUCT_TYPE_TYPE_CONSTRAINT: StructType
 STRUCT_TYPE_VARIABLE_OBJECT: StructType
@@ -1743,6 +1754,13 @@ STRUCT_TYPE_FILE_INFO: StructType
 STRUCT_TYPE_FILE_REFERENCE: StructType
 STRUCT_TYPE_ICON: StructType
 STRUCT_TYPE_SECRET_REFERENCE: StructType
+STRUCT_TYPE_TEXT: StructType
+STRUCT_TYPE_TEXT_LINE: StructType
+STRUCT_TYPE_TEXT_SPAN: StructType
+STRUCT_TYPE_CODE: StructType
+STRUCT_TYPE_CODE_LINE: StructType
+STRUCT_TYPE_PATH: StructType
+STRUCT_TYPE_PATH_TOKEN: StructType
 STRUCT_TYPE_EXPRESSION: StructType
 STRUCT_TYPE_AGGREGATION_RESULT: StructType
 STRUCT_TYPE_SELECTION: StructType
@@ -1751,8 +1769,6 @@ STRUCT_TYPE_VALUE: StructType
 STRUCT_TYPE_COMPUTED_VALUE: StructType
 STRUCT_TYPE_OBJECT_MAPPING: StructType
 STRUCT_TYPE_FIELD_MAPPING: StructType
-STRUCT_TYPE_CODE: StructType
-STRUCT_TYPE_CODE_LINE: StructType
 STRUCT_TYPE_RUN_ERROR: StructType
 STRUCT_TYPE_RUN_OPTIONS: StructType
 STRUCT_TYPE_RUN_ATTEMPT: StructType
@@ -1787,13 +1803,14 @@ OBJECT_TYPE_HANDLE: ObjectType
 OBJECT_TYPE_CLIENT: ObjectType
 OBJECT_TYPE_SERVER: ObjectType
 OBJECT_TYPE_STORE: ObjectType
-OBJECT_TYPE_MACHINE: ObjectType
 OBJECT_TYPE_DRIVE: ObjectType
 OBJECT_TYPE_VAULT: ObjectType
 OBJECT_TYPE_CACHE: ObjectType
-OBJECT_TYPE_FILE: ObjectType
-OBJECT_TYPE_SECRET: ObjectType
+OBJECT_TYPE_MACHINE: ObjectType
 OBJECT_TYPE_BROWSER: ObjectType
+OBJECT_TYPE_FILE: ObjectType
+OBJECT_TYPE_STREAM: ObjectType
+OBJECT_TYPE_SECRET: ObjectType
 OBJECT_TYPE_MEMBERSHIP: ObjectType
 OBJECT_TYPE_INVITE: ObjectType
 OBJECT_TYPE_BRANCH: ObjectType
@@ -1826,17 +1843,13 @@ OBJECT_TYPE_GRAPH_SCOPE: ObjectType
 OBJECT_TYPE_CLIENT_ORIGIN: ObjectType
 OBJECT_TYPE_NODE_REFERENCE: ObjectType
 OBJECT_TYPE_PROPERTY_REFERENCE: ObjectType
-OBJECT_TYPE_PATH: ObjectType
-OBJECT_TYPE_PATH_TOKEN: ObjectType
 OBJECT_TYPE_POLICY: ObjectType
 OBJECT_TYPE_POLICY_RULE: ObjectType
 OBJECT_TYPE_SUBJECT: ObjectType
 OBJECT_TYPE_ACCESS_ZONE: ObjectType
 OBJECT_TYPE_ACCESS_MATRIX: ObjectType
 OBJECT_TYPE_ACCESS: ObjectType
-OBJECT_TYPE_TEXT: ObjectType
-OBJECT_TYPE_TEXT_LINE: ObjectType
-OBJECT_TYPE_TEXT_SPAN: ObjectType
+OBJECT_TYPE_MACHINE_IMAGE: ObjectType
 OBJECT_TYPE_TYPE_INFO: ObjectType
 OBJECT_TYPE_TYPE_CONSTRAINT: ObjectType
 OBJECT_TYPE_VARIABLE_OBJECT: ObjectType
@@ -1848,6 +1861,13 @@ OBJECT_TYPE_FILE_INFO: ObjectType
 OBJECT_TYPE_FILE_REFERENCE: ObjectType
 OBJECT_TYPE_ICON: ObjectType
 OBJECT_TYPE_SECRET_REFERENCE: ObjectType
+OBJECT_TYPE_TEXT: ObjectType
+OBJECT_TYPE_TEXT_LINE: ObjectType
+OBJECT_TYPE_TEXT_SPAN: ObjectType
+OBJECT_TYPE_CODE: ObjectType
+OBJECT_TYPE_CODE_LINE: ObjectType
+OBJECT_TYPE_PATH: ObjectType
+OBJECT_TYPE_PATH_TOKEN: ObjectType
 OBJECT_TYPE_EXPRESSION: ObjectType
 OBJECT_TYPE_AGGREGATION_RESULT: ObjectType
 OBJECT_TYPE_SELECTION: ObjectType
@@ -1856,8 +1876,6 @@ OBJECT_TYPE_VALUE: ObjectType
 OBJECT_TYPE_COMPUTED_VALUE: ObjectType
 OBJECT_TYPE_OBJECT_MAPPING: ObjectType
 OBJECT_TYPE_FIELD_MAPPING: ObjectType
-OBJECT_TYPE_CODE: ObjectType
-OBJECT_TYPE_CODE_LINE: ObjectType
 OBJECT_TYPE_RUN_ERROR: ObjectType
 OBJECT_TYPE_RUN_OPTIONS: ObjectType
 OBJECT_TYPE_RUN_ATTEMPT: ObjectType
@@ -1884,6 +1902,60 @@ OBJECT_TYPE_VECTOR3: ObjectType
 OBJECT_TYPE_VECTOR4: ObjectType
 OBJECT_TYPE_LINE: ObjectType
 OBJECT_TYPE_RECTANGLE_CONSTRAINT: ObjectType
+ACCESS_MODE_UNSPECIFIED: AccessMode
+ACCESS_MODE_ADAPTIVE: AccessMode
+ACCESS_MODE_ATOMIC: AccessMode
+ACCESS_KIND_UNSPECIFIED: AccessKind
+ACCESS_KIND_READ: AccessKind
+ACCESS_KIND_EDIT: AccessKind
+ACCESS_KIND_USE: AccessKind
+QUERY_TYPE_UNSPECIFIED: QueryType
+QUERY_TYPE_GET: QueryType
+QUERY_TYPE_SEARCH: QueryType
+QUERY_TYPE_AGGREGATE: QueryType
+EDIT_TYPE_UNSPECIFIED: EditType
+EDIT_TYPE_CREATE: EditType
+EDIT_TYPE_UPSERT: EditType
+EDIT_TYPE_UPDATE: EditType
+EDIT_TYPE_MOVE: EditType
+EDIT_TYPE_DELETE: EditType
+EDIT_TYPE_RESTORE: EditType
+EDIT_TYPE_ERASE: EditType
+USE_TYPE_UNSPECIFIED: UseType
+USE_TYPE_START: UseType
+USE_TYPE_PAUSE: UseType
+USE_TYPE_RESUME: UseType
+USE_TYPE_STOP: UseType
+USE_TYPE_KILL: UseType
+USE_TYPE_SEND: UseType
+USE_TYPE_RECEIVE: UseType
+ACCESS_TYPE_UNSPECIFIED: AccessType
+ACCESS_TYPE_GET: AccessType
+ACCESS_TYPE_SEARCH: AccessType
+ACCESS_TYPE_AGGREGATE: AccessType
+ACCESS_TYPE_CREATE: AccessType
+ACCESS_TYPE_UPSERT: AccessType
+ACCESS_TYPE_UPDATE: AccessType
+ACCESS_TYPE_MOVE: AccessType
+ACCESS_TYPE_DELETE: AccessType
+ACCESS_TYPE_RESTORE: AccessType
+ACCESS_TYPE_ERASE: AccessType
+ACCESS_TYPE_START: AccessType
+ACCESS_TYPE_PAUSE: AccessType
+ACCESS_TYPE_RESUME: AccessType
+ACCESS_TYPE_STOP: AccessType
+ACCESS_TYPE_KILL: AccessType
+ACCESS_TYPE_SEND: AccessType
+ACCESS_TYPE_RECEIVE: AccessType
+CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
+CHANGE_CATEGORY_SPACE: ChangeCategory
+CHANGE_CATEGORY_SESSION: ChangeCategory
+EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
+EDIT_OPERATION_TYPE_SET: EditOperationType
+EDIT_OPERATION_TYPE_CLEAR: EditOperationType
+POLICY_EFFECT_UNSPECIFIED: PolicyEffect
+POLICY_EFFECT_ALLOW: PolicyEffect
+POLICY_EFFECT_DENY: PolicyEffect
 BENCH_TYPE_UNSPECIFIED: BenchType
 BENCH_TYPE_BENCH: BenchType
 BENCH_TYPE_USER: BenchType
@@ -1892,13 +1964,14 @@ BENCH_TYPE_HANDLE: BenchType
 BENCH_TYPE_CLIENT: BenchType
 BENCH_TYPE_SERVER: BenchType
 BENCH_TYPE_STORE: BenchType
-BENCH_TYPE_MACHINE: BenchType
 BENCH_TYPE_DRIVE: BenchType
 BENCH_TYPE_VAULT: BenchType
 BENCH_TYPE_CACHE: BenchType
-BENCH_TYPE_FILE: BenchType
-BENCH_TYPE_SECRET: BenchType
+BENCH_TYPE_MACHINE: BenchType
 BENCH_TYPE_BROWSER: BenchType
+BENCH_TYPE_FILE: BenchType
+BENCH_TYPE_STREAM: BenchType
+BENCH_TYPE_SECRET: BenchType
 BENCH_TYPE_MEMBERSHIP: BenchType
 BENCH_TYPE_INVITE: BenchType
 BENCH_TYPE_BRANCH: BenchType
@@ -1931,17 +2004,13 @@ BENCH_TYPE_GRAPH_SCOPE: BenchType
 BENCH_TYPE_CLIENT_ORIGIN: BenchType
 BENCH_TYPE_NODE_REFERENCE: BenchType
 BENCH_TYPE_PROPERTY_REFERENCE: BenchType
-BENCH_TYPE_PATH: BenchType
-BENCH_TYPE_PATH_TOKEN: BenchType
 BENCH_TYPE_POLICY: BenchType
 BENCH_TYPE_POLICY_RULE: BenchType
 BENCH_TYPE_SUBJECT: BenchType
 BENCH_TYPE_ACCESS_ZONE: BenchType
 BENCH_TYPE_ACCESS_MATRIX: BenchType
 BENCH_TYPE_ACCESS: BenchType
-BENCH_TYPE_TEXT: BenchType
-BENCH_TYPE_TEXT_LINE: BenchType
-BENCH_TYPE_TEXT_SPAN: BenchType
+BENCH_TYPE_MACHINE_IMAGE: BenchType
 BENCH_TYPE_TYPE_INFO: BenchType
 BENCH_TYPE_TYPE_CONSTRAINT: BenchType
 BENCH_TYPE_VARIABLE_OBJECT: BenchType
@@ -1953,6 +2022,13 @@ BENCH_TYPE_FILE_INFO: BenchType
 BENCH_TYPE_FILE_REFERENCE: BenchType
 BENCH_TYPE_ICON: BenchType
 BENCH_TYPE_SECRET_REFERENCE: BenchType
+BENCH_TYPE_TEXT: BenchType
+BENCH_TYPE_TEXT_LINE: BenchType
+BENCH_TYPE_TEXT_SPAN: BenchType
+BENCH_TYPE_CODE: BenchType
+BENCH_TYPE_CODE_LINE: BenchType
+BENCH_TYPE_PATH: BenchType
+BENCH_TYPE_PATH_TOKEN: BenchType
 BENCH_TYPE_EXPRESSION: BenchType
 BENCH_TYPE_AGGREGATION_RESULT: BenchType
 BENCH_TYPE_SELECTION: BenchType
@@ -1961,8 +2037,6 @@ BENCH_TYPE_VALUE: BenchType
 BENCH_TYPE_COMPUTED_VALUE: BenchType
 BENCH_TYPE_OBJECT_MAPPING: BenchType
 BENCH_TYPE_FIELD_MAPPING: BenchType
-BENCH_TYPE_CODE: BenchType
-BENCH_TYPE_CODE_LINE: BenchType
 BENCH_TYPE_RUN_ERROR: BenchType
 BENCH_TYPE_RUN_OPTIONS: BenchType
 BENCH_TYPE_RUN_ATTEMPT: BenchType
@@ -1993,16 +2067,16 @@ BENCH_TYPE_ENUM_TYPE: BenchType
 BENCH_TYPE_NODE_TYPE: BenchType
 BENCH_TYPE_STRUCT_TYPE: BenchType
 BENCH_TYPE_OBJECT_TYPE: BenchType
-BENCH_TYPE_BENCH_TYPE: BenchType
 BENCH_TYPE_ACCESS_MODE: BenchType
 BENCH_TYPE_ACCESS_KIND: BenchType
-BENCH_TYPE_QUEYR_TYPE: BenchType
+BENCH_TYPE_QUERY_TYPE: BenchType
 BENCH_TYPE_EDIT_TYPE: BenchType
 BENCH_TYPE_USE_TYPE: BenchType
 BENCH_TYPE_ACCESS_TYPE: BenchType
 BENCH_TYPE_CHANGE_CATEGORY: BenchType
 BENCH_TYPE_EDIT_OPERATION_TYPE: BenchType
 BENCH_TYPE_POLICY_EFFECT: BenchType
+BENCH_TYPE_BENCH_TYPE: BenchType
 BENCH_TYPE_CLOUD: BenchType
 BENCH_TYPE_REGION: BenchType
 BENCH_TYPE_REGION_ZONE: BenchType
@@ -2013,6 +2087,7 @@ BENCH_TYPE_FILE_KIND: BenchType
 BENCH_TYPE_FILE_TYPE: BenchType
 BENCH_TYPE_FILE_FORMAT: BenchType
 BENCH_TYPE_CLIENT_TYPE: BenchType
+BENCH_TYPE_MACHINE_TYPE: BenchType
 BENCH_TYPE_PRIMITIVE_TYPE: BenchType
 BENCH_TYPE_FIELD_ZONE: BenchType
 BENCH_TYPE_TYPE_KIND: BenchType
@@ -2078,60 +2153,6 @@ BENCH_TYPE_HUB_ASPECT: BenchType
 BENCH_TYPE_HELP_ASPECT: BenchType
 BENCH_TYPE_USER_STATUS: BenchType
 BENCH_TYPE_ORGANIZATION_STATUS: BenchType
-ACCESS_MODE_UNSPECIFIED: AccessMode
-ACCESS_MODE_ADAPTIVE: AccessMode
-ACCESS_MODE_ATOMIC: AccessMode
-ACCESS_KIND_UNSPECIFIED: AccessKind
-ACCESS_KIND_READ: AccessKind
-ACCESS_KIND_EDIT: AccessKind
-ACCESS_KIND_USE: AccessKind
-QUERY_TYPE_UNSPECIFIED: QueryType
-QUERY_TYPE_GET: QueryType
-QUERY_TYPE_SEARCH: QueryType
-QUERY_TYPE_AGGREGATE: QueryType
-EDIT_TYPE_UNSPECIFIED: EditType
-EDIT_TYPE_CREATE: EditType
-EDIT_TYPE_UPSERT: EditType
-EDIT_TYPE_UPDATE: EditType
-EDIT_TYPE_MOVE: EditType
-EDIT_TYPE_DELETE: EditType
-EDIT_TYPE_RESTORE: EditType
-EDIT_TYPE_ERASE: EditType
-USE_TYPE_UNSPECIFIED: UseType
-USE_TYPE_START: UseType
-USE_TYPE_PAUSE: UseType
-USE_TYPE_RESUME: UseType
-USE_TYPE_STOP: UseType
-USE_TYPE_KILL: UseType
-USE_TYPE_SEND: UseType
-USE_TYPE_RECEIVE: UseType
-ACCESS_TYPE_UNSPECIFIED: AccessType
-ACCESS_TYPE_GET: AccessType
-ACCESS_TYPE_SEARCH: AccessType
-ACCESS_TYPE_AGGREGATE: AccessType
-ACCESS_TYPE_CREATE: AccessType
-ACCESS_TYPE_UPSERT: AccessType
-ACCESS_TYPE_UPDATE: AccessType
-ACCESS_TYPE_MOVE: AccessType
-ACCESS_TYPE_DELETE: AccessType
-ACCESS_TYPE_RESTORE: AccessType
-ACCESS_TYPE_ERASE: AccessType
-ACCESS_TYPE_START: AccessType
-ACCESS_TYPE_PAUSE: AccessType
-ACCESS_TYPE_RESUME: AccessType
-ACCESS_TYPE_STOP: AccessType
-ACCESS_TYPE_KILL: AccessType
-ACCESS_TYPE_SEND: AccessType
-ACCESS_TYPE_RECEIVE: AccessType
-CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
-CHANGE_CATEGORY_SPACE: ChangeCategory
-CHANGE_CATEGORY_SESSION: ChangeCategory
-EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
-EDIT_OPERATION_TYPE_SET: EditOperationType
-EDIT_OPERATION_TYPE_CLEAR: EditOperationType
-POLICY_EFFECT_UNSPECIFIED: PolicyEffect
-POLICY_EFFECT_ALLOW: PolicyEffect
-POLICY_EFFECT_DENY: PolicyEffect
 CLOUD_UNSPECIFIED: Cloud
 CLOUD_AWS: Cloud
 CLOUD_AZURE: Cloud
@@ -2295,6 +2316,8 @@ CLIENT_TYPE_BENCH_BROWSER_PLUGIN: ClientType
 CLIENT_TYPE_BENCH_DESKTOP: ClientType
 CLIENT_TYPE_BENCH_MOBILE: ClientType
 CLIENT_TYPE_BENCH_MACHINE: ClientType
+MACHINE_TYPE_UNSPECIFIED: MachineType
+MACHINE_TYPE_RUNTIME: MachineType
 PRIMITIVE_TYPE_UNSPECIFIED: PrimitiveType
 PRIMITIVE_TYPE_BOOLEAN: PrimitiveType
 PRIMITIVE_TYPE_INT16: PrimitiveType
@@ -3814,6 +3837,12 @@ class LogInfoData(_message.Message):
     value_packed: _struct_pb2.Value
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., level: _Optional[_Union[LogLevel, str]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., text_plain: _Optional[str] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
+class MachineImageData(_message.Message):
+    __slots__ = ("metatype",)
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+
 class ColorData(_message.Message):
     __slots__ = ("metatype", "type", "shade", "hex")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4364,72 +4393,6 @@ class ServerData(_message.Message):
     bumped_at: _timestamp_pb2.Timestamp
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ..., version: _Optional[str] = ..., current_version: _Optional[str] = ..., min_cpu: _Optional[float] = ..., max_cpu: _Optional[float] = ..., min_ram: _Optional[float] = ..., max_ram: _Optional[float] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., bumped_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
-class MachineData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "name", "text", "region", "status", "current_status", "version", "current_version", "external_name", "external_id", "connection_uri", "client_ptr", "cpu", "current_cpu", "ram", "current_ram", "started_at", "terminated_at", "active_at", "restarted_at")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    REGION_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_STATUS_FIELD_NUMBER: _ClassVar[int]
-    VERSION_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_VERSION_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_NAME_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_URI_FIELD_NUMBER: _ClassVar[int]
-    CLIENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    CPU_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_CPU_FIELD_NUMBER: _ClassVar[int]
-    RAM_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_RAM_FIELD_NUMBER: _ClassVar[int]
-    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
-    TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
-    ACTIVE_AT_FIELD_NUMBER: _ClassVar[int]
-    RESTARTED_AT_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
-    parent_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    created_epoch: int
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    updated_epoch: int
-    deleted_at: _timestamp_pb2.Timestamp
-    subnode_packed: _struct_pb2.Value
-    name: str
-    text: TextData
-    region: Region
-    status: ResourceStatus
-    current_status: ResourceStatus
-    version: str
-    current_version: str
-    external_name: str
-    external_id: str
-    connection_uri: str
-    client_ptr: NodeReferenceData
-    cpu: float
-    current_cpu: float
-    ram: float
-    current_ram: float
-    started_at: _timestamp_pb2.Timestamp
-    terminated_at: _timestamp_pb2.Timestamp
-    active_at: _timestamp_pb2.Timestamp
-    restarted_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ..., version: _Optional[str] = ..., current_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cpu: _Optional[float] = ..., current_cpu: _Optional[float] = ..., ram: _Optional[float] = ..., current_ram: _Optional[float] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., restarted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
 class StoreData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "name", "text", "region", "status", "current_status", "version", "current_version", "external_name", "external_id", "connection_uri")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4593,7 +4556,7 @@ class CacheData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ...) -> None: ...
 
 class ClientData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "place_id", "access_token", "seen_at", "logged_in_at", "space_ptr", "machine_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "title", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "place_id", "access_token", "seen_at", "logged_in_at", "space_ptr", "machine_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4607,7 +4570,7 @@ class ClientData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
     DEVICE_TYPE_FIELD_NUMBER: _ClassVar[int]
     DEVICE_NAME_FIELD_NUMBER: _ClassVar[int]
     OPERATING_SYSTEM_FIELD_NUMBER: _ClassVar[int]
@@ -4632,7 +4595,7 @@ class ClientData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     subnode_packed: _struct_pb2.Value
     type: ClientType
-    name: str
+    title: str
     device_type: str
     device_name: str
     operating_system: str
@@ -4644,7 +4607,7 @@ class ClientData(_message.Message):
     logged_in_at: _timestamp_pb2.Timestamp
     space_ptr: NodeReferenceData
     machine_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ClientType, str]] = ..., name: _Optional[str] = ..., device_type: _Optional[str] = ..., device_name: _Optional[str] = ..., operating_system: _Optional[str] = ..., browser_name: _Optional[str] = ..., browser_version: _Optional[str] = ..., place_id: _Optional[str] = ..., access_token: _Optional[str] = ..., seen_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ClientType, str]] = ..., title: _Optional[str] = ..., device_type: _Optional[str] = ..., device_name: _Optional[str] = ..., operating_system: _Optional[str] = ..., browser_name: _Optional[str] = ..., browser_version: _Optional[str] = ..., place_id: _Optional[str] = ..., access_token: _Optional[str] = ..., seen_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class HandleData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "slug")
@@ -5043,42 +5006,6 @@ class QueryBlockData(_message.Message):
     QUERY_PTR_FIELD_NUMBER: _ClassVar[int]
     query_ptr: NodeReferenceData
     def __init__(self, query_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
-
-class BrowserData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "text", "region", "status", "current_status")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    REGION_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    CURRENT_STATUS_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
-    parent_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    created_epoch: int
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    updated_epoch: int
-    deleted_at: _timestamp_pb2.Timestamp
-    subnode_packed: _struct_pb2.Value
-    text: TextData
-    region: Region
-    status: ResourceStatus
-    current_status: ResourceStatus
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ...) -> None: ...
 
 class RecordData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "package_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "order_key", "block_ptr", "value_packed")
@@ -5688,6 +5615,112 @@ class LogData(_message.Message):
     identity_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., kind: _Optional[_Union[LogKind, str]] = ..., level: _Optional[_Union[LogLevel, str]] = ..., change_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., undo_of_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[AccessType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_data: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., operations: _Optional[_Iterable[_Union[EditOperationData, _Mapping]]] = ..., category: _Optional[_Union[ChangeCategory, str]] = ..., vignette: _Optional[_Union[ChangeVignetteData, _Mapping]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., server_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
+class MachineData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "title", "text", "region", "status", "current_status", "version", "current_version", "external_name", "external_id", "connection_uri", "client_ptr", "cpu", "current_cpu", "ram", "current_ram", "started_at", "killed_at", "terminated_at", "active_at", "restarted_at")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    REGION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
+    CONNECTION_URI_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    CPU_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_CPU_FIELD_NUMBER: _ClassVar[int]
+    RAM_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_RAM_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    KILLED_AT_FIELD_NUMBER: _ClassVar[int]
+    TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_AT_FIELD_NUMBER: _ClassVar[int]
+    RESTARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    parent_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    created_epoch: int
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    updated_epoch: int
+    deleted_at: _timestamp_pb2.Timestamp
+    subnode_packed: _struct_pb2.Value
+    type: MachineType
+    title: str
+    text: TextData
+    region: Region
+    status: ResourceStatus
+    current_status: ResourceStatus
+    version: str
+    current_version: str
+    external_name: str
+    external_id: str
+    connection_uri: str
+    client_ptr: NodeReferenceData
+    cpu: float
+    current_cpu: float
+    ram: float
+    current_ram: float
+    started_at: _timestamp_pb2.Timestamp
+    killed_at: _timestamp_pb2.Timestamp
+    terminated_at: _timestamp_pb2.Timestamp
+    active_at: _timestamp_pb2.Timestamp
+    restarted_at: _timestamp_pb2.Timestamp
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[MachineType, str]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ..., version: _Optional[str] = ..., current_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cpu: _Optional[float] = ..., current_cpu: _Optional[float] = ..., ram: _Optional[float] = ..., current_ram: _Optional[float] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., killed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., restarted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class BrowserData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "text", "region", "status", "current_status")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    REGION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    parent_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    created_epoch: int
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    updated_epoch: int
+    deleted_at: _timestamp_pb2.Timestamp
+    subnode_packed: _struct_pb2.Value
+    text: TextData
+    region: Region
+    status: ResourceStatus
+    current_status: ResourceStatus
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ...) -> None: ...
+
 class MessageData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "package_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "status", "origin_ptr", "block_ptr", "reply_to_ptr", "title", "text", "value_packed", "expires_at", "read_at", "is_pinned")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5990,8 +6023,44 @@ class SecretData(_message.Message):
     value_packed: _struct_pb2.Value
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ..., value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
+class StreamData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "text", "region", "status", "current_status")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    REGION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    parent_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    created_epoch: int
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    updated_epoch: int
+    deleted_at: _timestamp_pb2.Timestamp
+    subnode_packed: _struct_pb2.Value
+    text: TextData
+    region: Region
+    status: ResourceStatus
+    current_status: ResourceStatus
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ...) -> None: ...
+
 class SomeNodeData(_message.Message):
-    __slots__ = ("bench", "user", "organization", "handle", "client", "server", "store", "machine", "drive", "vault", "cache", "file", "secret", "browser", "membership", "invite", "branch", "package", "dependency", "space", "block", "trigger", "field", "query", "view", "step", "pipe", "badge", "message", "record", "session", "run", "interrupt", "log", "skip")
+    __slots__ = ("bench", "user", "organization", "handle", "client", "server", "store", "drive", "vault", "cache", "machine", "browser", "file", "stream", "secret", "membership", "invite", "branch", "package", "dependency", "space", "block", "trigger", "field", "query", "view", "step", "pipe", "badge", "message", "record", "session", "run", "interrupt", "log", "skip")
     BENCH_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
     ORGANIZATION_FIELD_NUMBER: _ClassVar[int]
@@ -5999,13 +6068,14 @@ class SomeNodeData(_message.Message):
     CLIENT_FIELD_NUMBER: _ClassVar[int]
     SERVER_FIELD_NUMBER: _ClassVar[int]
     STORE_FIELD_NUMBER: _ClassVar[int]
-    MACHINE_FIELD_NUMBER: _ClassVar[int]
     DRIVE_FIELD_NUMBER: _ClassVar[int]
     VAULT_FIELD_NUMBER: _ClassVar[int]
     CACHE_FIELD_NUMBER: _ClassVar[int]
-    FILE_FIELD_NUMBER: _ClassVar[int]
-    SECRET_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_FIELD_NUMBER: _ClassVar[int]
     BROWSER_FIELD_NUMBER: _ClassVar[int]
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    STREAM_FIELD_NUMBER: _ClassVar[int]
+    SECRET_FIELD_NUMBER: _ClassVar[int]
     MEMBERSHIP_FIELD_NUMBER: _ClassVar[int]
     INVITE_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
@@ -6034,13 +6104,14 @@ class SomeNodeData(_message.Message):
     client: ClientData
     server: ServerData
     store: StoreData
-    machine: MachineData
     drive: DriveData
     vault: VaultData
     cache: CacheData
-    file: FileData
-    secret: SecretData
+    machine: MachineData
     browser: BrowserData
+    file: FileData
+    stream: StreamData
+    secret: SecretData
     membership: MembershipData
     invite: InviteData
     branch: BranchData
@@ -6062,4 +6133,4 @@ class SomeNodeData(_message.Message):
     interrupt: InterruptData
     log: LogData
     skip: SkipData
-    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., server: _Optional[_Union[ServerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., drive: _Optional[_Union[DriveData, _Mapping]] = ..., vault: _Optional[_Union[VaultData, _Mapping]] = ..., cache: _Optional[_Union[CacheData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., branch: _Optional[_Union[BranchData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., query: _Optional[_Union[QueryData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., step: _Optional[_Union[StepData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., badge: _Optional[_Union[BadgeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interrupt: _Optional[_Union[InterruptData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...
+    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., server: _Optional[_Union[ServerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., drive: _Optional[_Union[DriveData, _Mapping]] = ..., vault: _Optional[_Union[VaultData, _Mapping]] = ..., cache: _Optional[_Union[CacheData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., stream: _Optional[_Union[StreamData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., branch: _Optional[_Union[BranchData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., query: _Optional[_Union[QueryData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., step: _Optional[_Union[StepData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., badge: _Optional[_Union[BadgeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interrupt: _Optional[_Union[InterruptData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...

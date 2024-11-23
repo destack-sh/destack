@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.22.1"
+VERSION = "2024.11.23.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -238,7 +238,7 @@ CLIENT_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
-        Column("name", PrimitiveType.STRING),
+        Column("title", PrimitiveType.STRING),
         Column("device_type", PrimitiveType.STRING, is_nullable=True),
         Column("device_name", PrimitiveType.STRING, is_nullable=True),
         Column("operating_system", PrimitiveType.STRING, is_nullable=True),
@@ -336,53 +336,6 @@ STORE_TABLE = Table(
     ),
 )
 
-MACHINE_TABLE = Table(
-    "bench_machine",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16),
-        Column("current_status", PrimitiveType.INT16),
-        Column("version", PrimitiveType.STRING),
-        Column("current_version", PrimitiveType.STRING, is_nullable=True),
-        Column("external_name", PrimitiveType.STRING, is_nullable=True),
-        Column("external_id", PrimitiveType.STRING, is_nullable=True),
-        Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column(
-            "client_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_client",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column("cpu", PrimitiveType.FLOAT32),
-        Column("current_cpu", PrimitiveType.FLOAT32, is_nullable=True),
-        Column("ram", PrimitiveType.FLOAT32),
-        Column("current_ram", PrimitiveType.FLOAT32, is_nullable=True),
-        Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("restarted_at", PrimitiveType.DATETIME, is_nullable=True),
-    ),
-)
-
 DRIVE_TABLE = Table(
     "bench_drive",
     (
@@ -461,6 +414,80 @@ CACHE_TABLE = Table(
     ),
 )
 
+MACHINE_TABLE = Table(
+    "bench_machine",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("type", PrimitiveType.INT16, default="1"),
+        Column("title", PrimitiveType.STRING),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("region", PrimitiveType.INT16),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
+        Column("version", PrimitiveType.STRING),
+        Column("current_version", PrimitiveType.STRING, is_nullable=True),
+        Column("external_name", PrimitiveType.STRING, is_nullable=True),
+        Column("external_id", PrimitiveType.STRING, is_nullable=True),
+        Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column(
+            "client_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_client",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("cpu", PrimitiveType.FLOAT32),
+        Column("current_cpu", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("ram", PrimitiveType.FLOAT32),
+        Column("current_ram", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("killed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("restarted_at", PrimitiveType.DATETIME, is_nullable=True),
+    ),
+)
+
+BROWSER_TABLE = Table(
+    "bench_browser",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("region", PrimitiveType.INT16),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
+    ),
+)
+
 FILE_TABLE = Table(
     "bench_file",
     (
@@ -505,6 +532,31 @@ FILE_TABLE = Table(
     ),
 )
 
+STREAM_TABLE = Table(
+    "bench_stream",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("region", PrimitiveType.INT16),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
+    ),
+)
+
 SECRET_TABLE = Table(
     "bench_secret",
     (
@@ -530,31 +582,6 @@ SECRET_TABLE = Table(
         Column("current_status", PrimitiveType.INT16),
         Column("value_type", PrimitiveType.JSON),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-    ),
-)
-
-BROWSER_TABLE = Table(
-    "bench_browser",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16),
-        Column("current_status", PrimitiveType.INT16),
     ),
 )
 

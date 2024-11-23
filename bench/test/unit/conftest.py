@@ -255,7 +255,7 @@ async def local_runtime_async(global_store: Store):
         await session.flush(optimistic=True)
         client = Client(
             parent=user,
-            name="test",
+            title="test",
             type=ClientType.BENCH_MACHINE,
             seen_at=REAL_ORACLE.utc(),
         )
@@ -335,7 +335,7 @@ async def hosted_bench(global_store: Store):
         await session.flush(optimistic=True)
         client = Client(
             parent=user,
-            name="Test",
+            title="Test",
             type=ClientType.BENCH_WEB,
             seen_at=REAL_ORACLE.utc(),
             access_token="test",

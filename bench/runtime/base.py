@@ -10,7 +10,7 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language.bench import Bench, Branch, Client, Machine, Package, Server
+from bench.language.bench import Bench, Branch, Client, Package, Server
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
@@ -22,6 +22,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.graph import NodeSuperGraph
+from bench.language.machine import Machine
 from bench.language.node import EMPTY_SCOPE, GraphScope, NodeReference
 from bench.language.session import Session
 from bench.language.user import User
@@ -188,12 +189,12 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             assert main_branch.main_package_id, f"{main_branch!r} has no main package"
             main_server = self._bench.main_server
             assert main_server, f"{self._bench!r} has no main server"
-            self._client = main_server.clients.get(self._client_id)
+            self._client = await Client.get(id=self._client_id)
             assert self._client, f"{main_server!r} has no client {self._client_id}"
             if self._server_id:
                 self._server = self._bench.servers.get(self._server_id)
             if self._machine_id:
-                self._machine = main_server.machines.get(self._machine_id)
+                self._machine = await Machine.get(id=self._machine_id)
 
             # get package
             self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)

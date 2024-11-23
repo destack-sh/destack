@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Self, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -34,7 +34,7 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT
+from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT, TITLE_CONSTRAINT
 from bench.proto.wire import (
     AnyNodeData,
     BenchData,
@@ -42,7 +42,6 @@ from bench.proto.wire import (
     ClientData,
     DependencyData,
     DriveData,
-    MachineData,
     PackageData,
     ServerData,
     StoreData,
@@ -56,6 +55,7 @@ if TYPE_CHECKING:
         Drive,
         Handle,
         Icon,
+        Machine,
         NodeReference,
         Organization,
         Policy,
@@ -148,15 +148,6 @@ class Bench(BenchNode[BenchData]):
         main_package = main_branch.main_package
         assert main_package is not None, f"{self!r} has no main package"
         return main_package
-
-    @property
-    def resources(self) -> Iterable["ResourceNode"]:
-        return chain(
-            self.servers,
-            chain.from_iterable(server.machines for server in self.servers),
-            self.stores,
-            self.drives,
-        )
 
 
 @local_node_(NodeType.BRANCH, unique=(("bench_id", "slug"),))
@@ -371,9 +362,9 @@ class AnonymousResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
 
 CPU_CONSTRAINT = TypeConstraint(
     min_value=0.1,
-    max_value=4.0,
+    max_value=16.0,
 )
-RAM_CONSTRAINT = TypeConstraint(min_value=0.1, max_value=16.0)
+RAM_CONSTRAINT = TypeConstraint(min_value=0.1, max_value=256.0)
 
 
 @node_(NodeType.SERVER)
@@ -401,40 +392,6 @@ class Server(NamedResourceNode[ServerData]):
 
     active_at: Optional[datetime] = p_internal(60, default=None)
     bumped_at: Optional[datetime] = p_internal(61, default=None)
-
-    clients: LocalNodeList["Client"] = p_node_children(NodeType.CLIENT)
-    machines: LocalNodeList["Machine"] = p_node_children(NodeType.MACHINE)
-
-
-@node_(NodeType.MACHINE)
-class Machine(NamedResourceNode[MachineData]):
-    """
-    A Machine provides physical compute.
-    Machines are usually tied to a Server, but may also be manually provisioned.
-    """
-
-    parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
-
-    version: str = p_system(40, default=VERSION, default_sql=None)
-    current_version: Optional[str] = p_system(41, default=None)
-    external_name: Optional[str] = p_kernel(42, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
-    connection_uri: Optional[str] = p_kernel(
-        44, require=False, default=None, encrypt=True, defer=True, sensitive=True
-    )
-    client: Optional["Client"] = p_system(
-        45, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
-    )
-
-    cpu: float = p_regular(50, description="vCPU count", constraint=CPU_CONSTRAINT)
-    current_cpu: Optional[float] = p_system(51, default=None, description="vCPU count")
-    ram: float = p_regular(52, description="GB", constraint=RAM_CONSTRAINT)
-    current_ram: Optional[float] = p_system(53, default=None, description="GB")
-
-    started_at: Optional[datetime] = p_system(60, default=None)
-    terminated_at: Optional[datetime] = p_system(61, default=None)
-    active_at: Optional[datetime] = p_system(62, default=None)
-    restarted_at: Optional[datetime] = p_internal(63, default=None)
 
 
 @node_(NodeType.STORE)
@@ -478,7 +435,7 @@ class Client(BenchNode[ClientData]):
 
     parent: Union["User", "Server", None] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
     type: ClientType = p_regular(30)
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     device_type: Optional[str] = p_regular(40, default=None)
     device_name: Optional[str] = p_regular(41, default=None)
@@ -496,7 +453,7 @@ class Client(BenchNode[ClientData]):
     space: Optional["Space"] = p_system(
         60, array=False, require=False, references=NodeType.SPACE, fk=True
     )
-    machine: Optional[Machine] = p_system(
+    machine: Optional["Machine"] = p_system(
         61, array=False, require=False, references=NodeType.MACHINE, fk=True
     )
 

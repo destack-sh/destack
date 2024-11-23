@@ -8,6 +8,7 @@ from rich import print
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, User
+from bench.language.bench import Client
 from bench.language.const import (
     CLOUD,
     REGION,
@@ -16,6 +17,7 @@ from bench.language.const import (
     Region,
     UserStatus,
 )
+from bench.language.machine import Machine
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
@@ -70,7 +72,7 @@ async def bootstrap(region: Region):
 
 @app.command(name="make-machine-client", help="gets or creates a Machine Client for a Bench")
 @async_to_sync_blocking
-async def make_machine_client(bench_slug: str, name: str = "Localhost"):
+async def make_machine_client(bench_slug: str, title: str = "Localhost"):
     from bench.system.utils.access import ACCESS_TOKEN_LENGTH
     from bench.system.utils.session import (
         global_session,
@@ -88,15 +90,23 @@ async def make_machine_client(bench_slug: str, name: str = "Localhost"):
         )
         assert len(bench.servers) == 1, f"{bench!r} has unexpected servers: {bench.servers!r}"
         server = bench.servers[0]
-        client = first((c for c in server.clients if c.type == ClientType.BENCH_MACHINE), None)
+        # client = first((c for c in server.clients if c.type == ClientType.BENCH_MACHINE), None)
+        clients = await Client.where(
+            Client.get_property("parent").eq(server)
+            & Client.get_property("type").eq(ClientType.BENCH_MACHINE)
+        ).tolist()
+        client = first(clients, None)
         if client is None:
-            client = server.clients.create(
+            client = Client(
+                parent=server,
                 type=ClientType.BENCH_MACHINE,
-                name=name,
+                title=title,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 seen_at=REAL_ORACLE.utc(),
             )
-        machine = first(server.machines, None)
+            session._create(client)
+        machines = await Machine.where(Machine.get_property("parent").eq(server)).tolist()
+        machine = first(machines, None)
         if machine is None:
             raise ValueError(f"{server!r} has no machines")
 
