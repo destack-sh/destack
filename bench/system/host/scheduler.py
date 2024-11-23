@@ -10,6 +10,7 @@ from opentelemetry import trace
 
 from bench.language.bench import Bench, ResourceStatus
 from bench.language.const import NodeType, RunStatus
+from bench.language.machine import Machine, MachineType
 from bench.language.message import Message
 from bench.language.run import Run, RunError, RunErrorKind, RunErrorType
 from bench.language.session import Session
@@ -101,9 +102,12 @@ class RunPlugin(HostPlugin[Run]):
         log = logger.bind(host=self, run=run, server=self.bench.main_server, retry=op.retry)
 
         # select machines to process run on
-        available_machines = [
-            m for m in self.bench.main_server.machines if m.current_status == ResourceStatus.UP
-        ]
+        # NOTE :Performance: maybe not re-fetch available Machines in RunPlugin every time?
+        available_machines = await Machine.where(
+            Machine.get_property("parent").eq(self.bench.main_server)
+            & Machine.get_property("status").eq(ResourceStatus.UP)
+            & Machine.get_property("type").eq(MachineType.RUNTIME)
+        ).tolist()
         if op.op == RunOperation.START:
             # start on any available machine
             candidate_machines = available_machines
@@ -175,7 +179,8 @@ class RunPlugin(HostPlugin[Run]):
                 run.error = error
             log.error(
                 f"scheduler.{op_name}.failed",
-                machines=self.bench.main_server.machines,
+                server=self.bench.main_server,
+                machines=available_machines,
                 error=error,
                 span="current",
             )
@@ -189,7 +194,8 @@ class RunPlugin(HostPlugin[Run]):
             )
             log.trace(
                 f"scheduler.{op_name}.retry",
-                machines=self.bench.main_server.machines,
+                server=self.bench.main_server,
+                machines=available_machines,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,
                 span="current",

@@ -27,7 +27,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     provision_types = bittuple(NodeType.SERVER)
 
     async def _reconcile(self, server: Server):
-        machines = server.machines.tolist()
+        machines = await Machine.where(Machine.get_property("parent").eq(server)).tolist()
 
         # "rescale server" (just ensure a single machine exists for now)
         # TODO :Incomplete!: scale ElasticServerProvisioner properly (up/down/sleep/...)
@@ -36,13 +36,12 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 client = Client(
                     parent=server,
                     type=ClientType.BENCH_MACHINE,
-                    name="Machine1",
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 )
                 session._create(client)
                 await session.flush(optimistic=True)
-                machine = Machine(name="Machine1", cpu=0.25, ram=0.5, client=client)
-                server.machines.append(machine)
+                machine = Machine(parent=server, title="Machine1", cpu=0.25, ram=0.5, client=client)
+                session._create(machine)
                 client.machine = machine
 
         # update server status to reflect machines (if needed)

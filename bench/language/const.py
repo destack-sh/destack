@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.22.1"
+VERSION = "2024.11.23.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -67,113 +67,113 @@ def enum_(enum_type: "EnumType"):
 
 
 class EnumType(IdEnum):
-    # intrinsic
+    # intrinsic (20000-20499)
     ENUM_TYPE = 20001  # so meta
     NODE_TYPE = 20002
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004  # NodeType | StructType
-    BENCH_TYPE = 20005  # NodeType | StructType | EnumType
 
-    # access
-    ACCESS_MODE = 20030
-    ACCESS_KIND = 20031
-    QUEYR_TYPE = 20032
-    EDIT_TYPE = 20033
-    USE_TYPE = 20034
-    ACCESS_TYPE = 20035  # ReadType | EditType | UseType
-    CHANGE_CATEGORY = 20036
-    EDIT_OPERATION_TYPE = 20037
-    POLICY_EFFECT = 20040
+    # access (20500-20999)
+    ACCESS_MODE = 20501
+    ACCESS_KIND = 20502
+    QUERY_TYPE = 20503
+    EDIT_TYPE = 20504
+    USE_TYPE = 20505
+    ACCESS_TYPE = 20506  # ReadType | EditType | UseType
+    CHANGE_CATEGORY = 20507
+    EDIT_OPERATION_TYPE = 20508
+    POLICY_EFFECT = 20509
 
-    # bench
-    CLOUD = 20050
-    REGION = 20051
-    REGION_ZONE = 20052
-    REGION_AREA = 20053
-    RESOURCE_STATUS = 20054
-    FILE_RETENTION_MODE = 2060
-    FILE_KIND = 2061
-    FILE_TYPE = 2062
-    FILE_FORMAT = 2063
-    CLIENT_TYPE = 20070
+    # bench (21000-21499)
+    BENCH_TYPE = 21001
+    CLOUD = 21002
+    REGION = 21003
+    REGION_ZONE = 21004
+    REGION_AREA = 21005
+    RESOURCE_STATUS = 21006
+    FILE_RETENTION_MODE = 21007
+    FILE_KIND = 21008
+    FILE_TYPE = 21009
+    FILE_FORMAT = 21010
+    CLIENT_TYPE = 21011
+    MACHINE_TYPE = 21012
 
-    # type
-    PRIMITIVE_TYPE = 20080
-    FIELD_ZONE = 20082
-    TYPE_KIND = 20083
-    TYPE_FORMAT = 20384
-    OBJECT_KIND = 20385
-    BLOCK_TYPE = 20390
-    ACTION_MODE = 20400
+    # type (21500-21999)
+    PRIMITIVE_TYPE = 21501
+    FIELD_ZONE = 21502
+    TYPE_KIND = 21503
+    TYPE_FORMAT = 21504
+    OBJECT_KIND = 21505
+    BLOCK_TYPE = 21506
+    ACTION_MODE = 21507
 
-    # basic
-    SCHEDULE_TYPE = 20100
-    TIME_INTERVAL = 20101
-    DAY = 20102
-    MONTH = 20103
-    TEXT_LINE_TYPE = 20110
-    ICON_KIND = 20111
-    MESSAGE_TYPE = 20120
-    MESSAGE_STATUS = 20121
+    # basic (22000-22499)
+    SCHEDULE_TYPE = 22001
+    TIME_INTERVAL = 22002
+    DAY = 22003
+    MONTH = 22004
+    TEXT_LINE_TYPE = 22005
+    ICON_KIND = 22006
+    MESSAGE_TYPE = 22007
+    MESSAGE_STATUS = 22008
 
-    # expression
-    EXPRESSION_KIND = 20200
-    EXPRESSION_OP = 20201
-    LITERAL_TYPE = 20202
-    FUNCTIONAL_TYPE = 20203
-    CONDITIONAL_TYPE = 20204
-    AGGREGATION_TYPE = 20205
-    SORT_MODE = 20206
-    SORT_TYPE = 20207
-    PATH_TOKEN_TYPE = 20210
+    # expression (22500-22999)
+    EXPRESSION_KIND = 22501
+    EXPRESSION_OP = 22502
+    LITERAL_TYPE = 22503
+    FUNCTIONAL_TYPE = 22504
+    CONDITIONAL_TYPE = 22505
+    AGGREGATION_TYPE = 22506
+    SORT_MODE = 22507
+    SORT_TYPE = 22508
+    PATH_TOKEN_TYPE = 22509
 
-    # run
-    LOG_KIND = 20500
-    LOG_LEVEL = 20501
-    RUN_STATUS = 20510
-    RUN_KIND = 20511
-    RUN_ERROR_KIND = 20512
-    RUN_ERROR_TYPE = 20513
-    RUN_SPAN_TYPE = 20514
-    RUN_EVENT_TYPE = 20515
-    SESSION_STATUS = 20516
-    TRIGGER_TYPE = 20520
-    BREAKPOINT_SITE = 20530
-    BREAKPOINT_ACTION = 20531
-    BREAKPOINT_TARGET = 20532
-    INTERRUPT_KIND = 20533
-    INTERRUPT_STATUS = 20534
-    CACHE_MODE = 20540
-    CODE_TYPE = 20560
-    MODEL_PROVIDER = 20570
-    MODEL_TYPE = 20571
-    STEP_TYPE = 20600
-    PORT_SIDE = 20602
-    PIPE_TYPE = 20605
-    NOTIFICATION_LEVEL = 20650
+    # run (23000-23499)
+    LOG_KIND = 23001
+    LOG_LEVEL = 23002
+    RUN_STATUS = 23003
+    RUN_KIND = 23004
+    RUN_ERROR_KIND = 23005
+    RUN_ERROR_TYPE = 23006
+    RUN_SPAN_TYPE = 23007
+    RUN_EVENT_TYPE = 23008
+    SESSION_STATUS = 23009
+    TRIGGER_TYPE = 23010
+    BREAKPOINT_SITE = 23011
+    BREAKPOINT_ACTION = 23012
+    BREAKPOINT_TARGET = 23013
+    INTERRUPT_KIND = 23014
+    INTERRUPT_STATUS = 23015
+    CACHE_MODE = 23016
+    CODE_TYPE = 23017
+    MODEL_PROVIDER = 23018
+    MODEL_TYPE = 23019
+    STEP_TYPE = 23020
+    PORT_SIDE = 23021
+    PIPE_TYPE = 23022
+    NOTIFICATION_LEVEL = 23023
 
-    # view
-    SPACE_TYPE = 21000
-    VIEW_TYPE = 21001
-    VARIANT = 21002
-    COLOR_TYPE = 21003
-    COLOR_SHADE = 21004
-    FONT_TYPE = 21005
-    FONT_WEIGHT = 21006
-    FONT_SIZE = 21007
-    SPACING = 21008
-    ANCHOR = 21009
-    ORIENTATION = 21010
-    ALIGNMENT = 21011
-    # view states
-    USER_WIZARD_STAGE = 21200
-    TREE_VIEW_PRESET = 21201
-    HUB_ASPECT = 21202
-    HELP_ASPECT = 21203
+    # view (23500-23999)
+    SPACE_TYPE = 23501
+    VIEW_TYPE = 23502
+    VARIANT = 23503
+    COLOR_TYPE = 23504
+    COLOR_SHADE = 23505
+    FONT_TYPE = 23506
+    FONT_WEIGHT = 23507
+    FONT_SIZE = 23508
+    SPACING = 23509
+    ANCHOR = 23510
+    ORIENTATION = 23511
+    ALIGNMENT = 23512
+    USER_WIZARD_STAGE = 23513
+    TREE_VIEW_PRESET = 23514
+    HUB_ASPECT = 23515
+    HELP_ASPECT = 23516
 
-    # user
-    USER_STATUS = 29000
-    ORGANIZATION_STATUS = 29001
+    # user (24000-24499)
+    USER_STATUS = 24001
+    ORGANIZATION_STATUS = 24002
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -203,17 +203,18 @@ class NodeType(IdEnum):
     #
 
     # resource (named)
-    SERVER = 500  # infinite compute
-    STORE = 501  # trusty ol' postgres
-    MACHINE = 502  # actual machine providing compute
-    DRIVE = 503  # object store like S3/MinIO, maybe block storage later
-    VAULT = 504  # secret storage
-    CACHE = 505  # ephemeral key-value store
-    # BROWSER, DOMAIN, EMAIL, PHONE, ...
+    SERVER = 200  # infinite compute
+    STORE = 201  # real database
+    DRIVE = 203  # object store like S3/MinIO, maybe block storage later
+    VAULT = 204  # secret storage
+    CACHE = 205  # ephemeral key-value store
     # resource (anonymous)
-    FILE = 550
-    SECRET = 551
-    BROWSER = 552
+    MACHINE = 250  # actual machine providing compute
+    BROWSER = 251
+    FILE = 260
+    STREAM = 261
+    SECRET = 262
+    # DOMAIN, EMAIL, PHONE, ...
 
     # auth
     MEMBERSHIP = 600
@@ -265,23 +266,7 @@ class NodeType(IdEnum):
 
     @property
     def is_global(self) -> bool:
-        return self.id < 500
-
-    @property
-    def is_resource(self) -> bool:
-        return self.id >= 500 and self.id < 600
-
-    @property
-    def is_named_resource(self) -> bool:
-        return self.id >= 500 and self.id < 550
-
-    @property
-    def is_anonymous_resource(self) -> bool:
-        return self.id >= 550 and self.id < 600
-
-    @property
-    def is_local(self) -> bool:
-        return self.id >= 1000 and self.id < 2000
+        return self.id < 200
 
     @property
     def is_source(self) -> bool:
@@ -301,8 +286,10 @@ NODE_TYPES = bittuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 1000))
-RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 600))
-ANONYMOUS_RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in RESOURCE_NODE_TYPES if nt.id >= 550))
+RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200 and nt.id < 300))
+ANONYMOUS_RESOURCE_NODE_TYPES = bittuple(
+    *tuple(nt for nt in NODE_TYPES if nt.id >= 250 and nt.id < 300)
+)
 LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000))
 SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000 and nt.id < 1100))
 STATE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1100 and nt.id < 1200))
@@ -318,7 +305,7 @@ IN_PACKAGE_NODE_TYPES = bittuple(
 SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in IN_PACKAGE_NODE_TYPES if nt.id > 1001))
 IN_BENCH_NODE_TYPES = bittuple(
     *(
-        *tuple(nt for nt in NODE_TYPES if nt.id >= 500),
+        *tuple(nt for nt in NODE_TYPES if nt.id >= 200),
         NodeType.BENCH,
         NodeType.CLIENT,
         NodeType.HANDLE,
@@ -334,7 +321,7 @@ BENCH_NODE_TYPES = bittuple(
     NodeType.PACKAGE,
     NodeType.HANDLE,
     NodeType.CLIENT,
-    *(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 700),
+    *(nt for nt in NODE_TYPES if nt.id >= 200 and nt.id < 1000),
 )
 LOADED_BENCH_NODE_TYPES = bittuple(
     *(
@@ -354,94 +341,93 @@ USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT
 
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(IdEnum):
-    # transaction
+    # intrinsic (10000-10499)
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
-    EDIT = 10005
-    EDIT_INFO = 10006
-    EDIT_OPERATION = 10007
-    CHANGE = 10010
-    CHANGE_VIGNETTE = 10011
+    EDIT = 10003
+    EDIT_INFO = 10004
+    EDIT_OPERATION = 10005
+    CHANGE = 10006
+    CHANGE_VIGNETTE = 10007
+    GRAPH_SCOPE = 10008
+    CLIENT_ORIGIN = 10009
+    NODE_REFERENCE = 10010
+    PROPERTY_REFERENCE = 10011
 
-    # utility
-    GRAPH_SCOPE = 10050
-    CLIENT_ORIGIN = 10051
-    NODE_REFERENCE = 10052
-    PROPERTY_REFERENCE = 10053
-    PATH = 10060
-    PATH_TOKEN = 10061
+    # access (10500-10999)
+    POLICY = 10500
+    POLICY_RULE = 10501
+    SUBJECT = 10502
+    ACCESS_ZONE = 10503
+    ACCESS_MATRIX = 10504
+    ACCESS = 10505
 
-    # access
-    POLICY = 10100
-    POLICY_RULE = 10101
-    SUBJECT = 10102
-    ACCESS_ZONE = 10104
-    ACCESS_MATRIX = 10105
-    ACCESS = 10107
-    ...
+    # bench (11000-11499)
+    MACHINE_IMAGE = 11000
 
-    # text
-    TEXT = 10150
-    TEXT_LINE = 10151
-    TEXT_SPAN = 10152
+    # type (11500-11999)
+    TYPE_INFO = 11500
+    TYPE_CONSTRAINT = 11501
+    VARIABLE_OBJECT = 11502
+    MEMBER_OBJECT = 11503
+    INPUT_OBJECT = 11504
+    OUTPUT_OBJECT = 11505
+    SCHEDULE = 11506
+    FILE_INFO = 11507
+    FILE_REFERENCE = 11508
+    ICON = 11509
+    SECRET_REFERENCE = 11510
 
-    # type
-    TYPE_INFO = 10200
-    TYPE_CONSTRAINT = 10201
-    VARIABLE_OBJECT = 10210
-    MEMBER_OBJECT = 10211
-    INPUT_OBJECT = 10212
-    OUTPUT_OBJECT = 10213
+    # text (12000-12099)
+    TEXT = 12000
+    TEXT_LINE = 12001
+    TEXT_SPAN = 12002
 
-    SCHEDULE = 10220
-    FILE_INFO = 10221
-    FILE_REFERENCE = 10222
-    ICON = 10223
-    SECRET_REFERENCE = 10224
+    # code (12100-12199)
+    CODE = 12100
+    CODE_LINE = 12101
 
-    # expressions
-    EXPRESSION = 10300
-    AGGREGATION_RESULT = 10301
-    SELECTION = 10302
-    SELECT_OPTIONS = 10304
-    VALUE = 10305
-    COMPUTED_VALUE = 10306
-    OBJECT_MAPPING = 10310
-    FIELD_MAPPING = 10311
+    # expression (12200-12699)
+    PATH = 12200
+    PATH_TOKEN = 12201
+    EXPRESSION = 12202
+    AGGREGATION_RESULT = 12203
+    SELECTION = 12204
+    SELECT_OPTIONS = 12205
+    VALUE = 12206
+    COMPUTED_VALUE = 12207
+    OBJECT_MAPPING = 12208
+    FIELD_MAPPING = 12209
 
-    # run
-    CODE = 10400
-    CODE_LINE = 10401
-    RUN_ERROR = 10500
-    RUN_OPTIONS = 10501
-    RUN_ATTEMPT = 10502
-    RUN_TRACE = 10503
-    RUN_FRAME = 10504
-    RUN_SPAN = 10505
-    RUN_EVENT = 10506
-    TEXT_OPTIONS = 10510
-    AUDIO_OPTIONS = 10511
-    IMAGE_OPTIONS = 10512
-    VIDEO_OPTIONS = 10513
-    CONTINUE = 10530
-    CALL = 10531
-    CONTEXT = 10532
-    # RETRIEVE?
-    BREAKPOINT = 10540
-    LOG_INFO = 10550
+    # run (12700-13199)
+    RUN_ERROR = 12700
+    RUN_OPTIONS = 12701
+    RUN_ATTEMPT = 12702
+    RUN_TRACE = 12703
+    RUN_FRAME = 12704
+    RUN_SPAN = 12705
+    RUN_EVENT = 12706
+    TEXT_OPTIONS = 12707
+    AUDIO_OPTIONS = 12708
+    IMAGE_OPTIONS = 12709
+    VIDEO_OPTIONS = 12710
+    CONTINUE = 12711
+    CALL = 12712
+    CONTEXT = 12713
+    BREAKPOINT = 12714
+    LOG_INFO = 12715
 
-    # space/views
-    COLOR = 11000
-    FONT = 11001
-    RECTANGLE = 11002
-    OFFSET = 11003
-    TRANSFORM = 11004
-    VECTOR2 = 11020
-    VECTOR3 = 11021
-    VECTOR4 = 11022
-    LINE = 11035
-    RECTANGLE_CONSTRAINT = 11040
-    ...
+    # space/views (13200-13699)
+    COLOR = 13200
+    FONT = 13201
+    RECTANGLE = 13202
+    OFFSET = 13203
+    TRANSFORM = 13204
+    VECTOR2 = 13205
+    VECTOR3 = 13206
+    VECTOR4 = 13207
+    LINE = 13208
+    RECTANGLE_CONSTRAINT = 13209
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
@@ -736,7 +722,7 @@ class ReferenceKind(IdEnum):
 #
 
 
-@enum_(EnumType.QUEYR_TYPE)
+@enum_(EnumType.QUERY_TYPE)
 class QueryType(IdEnum):
     """Ways to read nodes."""
 

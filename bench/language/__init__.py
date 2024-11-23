@@ -15,7 +15,6 @@ from .bench import (
     Client,
     Dependency,
     Drive,
-    Machine,
     NamedResourceNode,
     Package,
     ResourceNode,
@@ -25,7 +24,6 @@ from .bench import (
     Vault,
 )
 from .block import Block
-from .browser import Browser
 from .code import Code, CodeLine, CodeType, code
 from .connection import (
     AggregateConnection,
@@ -84,6 +82,7 @@ from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .interrupt import Breakpoint, BreakpointAction, BreakpointSite, Interrupt, InterruptKind
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
+from .machine import Browser, Machine
 from .message import Message
 from .node import (
     BenchNode,
@@ -132,6 +131,7 @@ from .run import (
 from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
+from .stream import Stream
 from .text import Text, TextSpan, md, text
 from .transaction import (
     Change,
@@ -339,6 +339,7 @@ __all__ = [
     "Step",
     "StepType",
     "Store",
+    "Stream",
     "Struct",
     "Struct",
     "StructType",

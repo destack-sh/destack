@@ -145,7 +145,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     @override
     async def _do_start(self) -> None:
         servers = self.bench.servers.tolist()
-        machines = [m for s in servers for m in s.machines]
+        machines = await Machine.where(Machine.get_property("parent").in_(servers)).tolist()
         containers: list[docker.models.containers.Container] = self._docker_client.containers.list(
             all=True
         )
@@ -223,13 +223,12 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         )
         return external_name
 
-    def _get_machine_by_external_name(self, external_name: str) -> Machine | None:
+    async def _get_machine_by_external_name(self, external_name: str) -> Machine | None:
         """Gets the Machine with the given external name."""
-        for server in self.bench.servers:
-            for machine in server.machines:
-                if machine.external_name == external_name:
-                    return machine
-        return None
+        machines = await Machine.where(
+            Machine.get_property("external_name").eq(external_name)
+        ).tolist()
+        return machines[0] if machines else None
 
     def _get_pod_resources_requests(self, machine: Machine) -> dict[str, str]:
         """Gets the resource requests for the given Machine."""
@@ -356,7 +355,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         ):
             async with self._lock:
                 assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
-                machine = self._get_machine_by_external_name(pod.metadata.name)
+                machine = await self._get_machine_by_external_name(pod.metadata.name)
                 if machine is None:
                     continue  # ignore
                 if event_type == "ADDED" or event_type == "MODIFIED":
@@ -373,7 +372,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     @override
     async def _do_start(self) -> None:
         servers = self.bench.servers.tolist()
-        machines = [m for s in servers for m in s.machines]
+        machines = await Machine.where(Machine.get_property("parent").in_(servers)).tolist()
         machines_by_external_name: dict[str, Machine] = {
             m.external_name or self._get_external_name(m): m for m in machines
         }

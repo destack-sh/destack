@@ -17,7 +17,6 @@ from bench.language.const import (
     OrganizationStatus,
     Region,
 )
-from bench.language.graph import generate_node_name
 from bench.language.node import GraphScope
 from bench.language.session import Session
 from bench.language.user import Handle, Organization, UserStatus
@@ -146,13 +145,11 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     async def _make_client(self, user: User, client_data: ClientDataIn) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
         client_id = self._get_client_id(user, client_data)
-        name = client_data.name
-        if not name:
-            name = generate_node_name(NodeType.CLIENT, type=None, siblings=user.clients)
+        title = client_data.name
         client = Client(
             id=client_id or uuid4(),
             parent=user,
-            name=name,
+            title=title,
             type=cast(ClientType, client_data.type),
             seen_at=self.oracle.utc(),
             _is_new=True,  # force create

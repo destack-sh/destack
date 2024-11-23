@@ -1739,6 +1739,15 @@ export interface LogInfoData {
     valuePacked?: JsonValue;
 }
 /**
+ * @generated from protobuf message symbolx.bench.MachineImageData
+ */
+export interface MachineImageData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+}
+/**
  * @generated from protobuf message symbolx.bench.ColorData
  */
 export interface ColorData {
@@ -2773,135 +2782,6 @@ export interface ServerData {
     bumpedAt?: Timestamp;
 }
 /**
- * @generated from protobuf message symbolx.bench.MachineData
- */
-export interface MachineData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int64 created_epoch = 12;
-     */
-    createdEpoch: bigint;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 14;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int64 updated_epoch = 15;
-     */
-    updatedEpoch: bigint;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 29;
-     */
-    subnodePacked?: JsonValue;
-    /**
-     * @generated from protobuf field: string name = 32;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: symbolx.bench.Region region = 35;
-     */
-    region: Region;
-    /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
-     */
-    status: ResourceStatus;
-    /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
-     */
-    currentStatus: ResourceStatus;
-    /**
-     * @generated from protobuf field: string version = 40;
-     */
-    version: string;
-    /**
-     * @generated from protobuf field: optional string current_version = 41;
-     */
-    currentVersion?: string;
-    /**
-     * @generated from protobuf field: optional string external_name = 42;
-     */
-    externalName?: string;
-    /**
-     * @generated from protobuf field: optional string external_id = 43;
-     */
-    externalId?: string;
-    /**
-     * @generated from protobuf field: optional string connection_uri = 44;
-     */
-    connectionUri?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 45;
-     */
-    clientPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: float cpu = 50;
-     */
-    cpu: number;
-    /**
-     * @generated from protobuf field: optional float current_cpu = 51;
-     */
-    currentCpu?: number;
-    /**
-     * @generated from protobuf field: float ram = 52;
-     */
-    ram: number;
-    /**
-     * @generated from protobuf field: optional float current_ram = 53;
-     */
-    currentRam?: number;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 60;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 61;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 62;
-     */
-    activeAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp restarted_at = 63;
-     */
-    restartedAt?: Timestamp;
-}
-/**
  * @generated from protobuf message symbolx.bench.StoreData
  */
 export interface StoreData {
@@ -3270,9 +3150,9 @@ export interface ClientData {
      */
     type: ClientType;
     /**
-     * @generated from protobuf field: string name = 32;
+     * @generated from protobuf field: string title = 32;
      */
-    name: string;
+    title: string;
     /**
      * @generated from protobuf field: optional string device_type = 40;
      */
@@ -4083,75 +3963,6 @@ export interface QueryBlockData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData query_ptr = 100;
      */
     queryPtr?: NodeReferenceData;
-}
-/**
- * @generated from protobuf message symbolx.bench.BrowserData
- */
-export interface BrowserData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int64 created_epoch = 12;
-     */
-    createdEpoch: bigint;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 14;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: int64 updated_epoch = 15;
-     */
-    updatedEpoch: bigint;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 29;
-     */
-    subnodePacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: symbolx.bench.Region region = 35;
-     */
-    region: Region;
-    /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
-     */
-    status: ResourceStatus;
-    /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
-     */
-    currentStatus: ResourceStatus;
 }
 /**
  * @generated from protobuf message symbolx.bench.RecordData
@@ -5339,6 +5150,212 @@ export interface LogData {
     identityPtr?: NodeReferenceData;
 }
 /**
+ * @generated from protobuf message symbolx.bench.MachineData
+ */
+export interface MachineData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 12;
+     */
+    createdEpoch: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 14;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 updated_epoch = 15;
+     */
+    updatedEpoch: bigint;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 29;
+     */
+    subnodePacked?: JsonValue;
+    /**
+     * @generated from protobuf field: symbolx.bench.MachineType type = 30;
+     */
+    type: MachineType;
+    /**
+     * @generated from protobuf field: string title = 32;
+     */
+    title: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: symbolx.bench.Region region = 35;
+     */
+    region: Region;
+    /**
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
+     */
+    status: ResourceStatus;
+    /**
+     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus: ResourceStatus;
+    /**
+     * @generated from protobuf field: string version = 40;
+     */
+    version: string;
+    /**
+     * @generated from protobuf field: optional string current_version = 41;
+     */
+    currentVersion?: string;
+    /**
+     * @generated from protobuf field: optional string external_name = 42;
+     */
+    externalName?: string;
+    /**
+     * @generated from protobuf field: optional string external_id = 43;
+     */
+    externalId?: string;
+    /**
+     * @generated from protobuf field: optional string connection_uri = 44;
+     */
+    connectionUri?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 45;
+     */
+    clientPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: float cpu = 50;
+     */
+    cpu: number;
+    /**
+     * @generated from protobuf field: optional float current_cpu = 51;
+     */
+    currentCpu?: number;
+    /**
+     * @generated from protobuf field: float ram = 52;
+     */
+    ram: number;
+    /**
+     * @generated from protobuf field: optional float current_ram = 53;
+     */
+    currentRam?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 60;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp killed_at = 61;
+     */
+    killedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 62;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 63;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp restarted_at = 64;
+     */
+    restartedAt?: Timestamp;
+}
+/**
+ * @generated from protobuf message symbolx.bench.BrowserData
+ */
+export interface BrowserData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 12;
+     */
+    createdEpoch: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 14;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 updated_epoch = 15;
+     */
+    updatedEpoch: bigint;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 29;
+     */
+    subnodePacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: symbolx.bench.Region region = 35;
+     */
+    region: Region;
+    /**
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
+     */
+    status: ResourceStatus;
+    /**
+     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus: ResourceStatus;
+}
+/**
  * @generated from protobuf message symbolx.bench.MessageData
  */
 export interface MessageData {
@@ -5935,6 +5952,75 @@ export interface SecretData {
     valuePacked?: JsonValue;
 }
 /**
+ * @generated from protobuf message symbolx.bench.StreamData
+ */
+export interface StreamData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 12;
+     */
+    createdEpoch: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 14;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: int64 updated_epoch = 15;
+     */
+    updatedEpoch: bigint;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 16;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value subnode_packed = 29;
+     */
+    subnodePacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: symbolx.bench.Region region = 35;
+     */
+    region: Region;
+    /**
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 36;
+     */
+    status: ResourceStatus;
+    /**
+     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
+     */
+    currentStatus: ResourceStatus;
+}
+/**
  * @generated from protobuf message symbolx.bench.SomeNodeData
  */
 export interface SomeNodeData {
@@ -5984,171 +6070,177 @@ export interface SomeNodeData {
          */
         store: StoreData;
     } | {
-        oneofKind: "machine";
-        /**
-         * @generated from protobuf field: symbolx.bench.MachineData machine = 8;
-         */
-        machine: MachineData;
-    } | {
         oneofKind: "drive";
         /**
-         * @generated from protobuf field: symbolx.bench.DriveData drive = 9;
+         * @generated from protobuf field: symbolx.bench.DriveData drive = 8;
          */
         drive: DriveData;
     } | {
         oneofKind: "vault";
         /**
-         * @generated from protobuf field: symbolx.bench.VaultData vault = 10;
+         * @generated from protobuf field: symbolx.bench.VaultData vault = 9;
          */
         vault: VaultData;
     } | {
         oneofKind: "cache";
         /**
-         * @generated from protobuf field: symbolx.bench.CacheData cache = 11;
+         * @generated from protobuf field: symbolx.bench.CacheData cache = 10;
          */
         cache: CacheData;
     } | {
-        oneofKind: "file";
+        oneofKind: "machine";
         /**
-         * @generated from protobuf field: symbolx.bench.FileData file = 12;
+         * @generated from protobuf field: symbolx.bench.MachineData machine = 11;
          */
-        file: FileData;
-    } | {
-        oneofKind: "secret";
-        /**
-         * @generated from protobuf field: symbolx.bench.SecretData secret = 13;
-         */
-        secret: SecretData;
+        machine: MachineData;
     } | {
         oneofKind: "browser";
         /**
-         * @generated from protobuf field: symbolx.bench.BrowserData browser = 14;
+         * @generated from protobuf field: symbolx.bench.BrowserData browser = 12;
          */
         browser: BrowserData;
     } | {
+        oneofKind: "file";
+        /**
+         * @generated from protobuf field: symbolx.bench.FileData file = 13;
+         */
+        file: FileData;
+    } | {
+        oneofKind: "stream";
+        /**
+         * @generated from protobuf field: symbolx.bench.StreamData stream = 14;
+         */
+        stream: StreamData;
+    } | {
+        oneofKind: "secret";
+        /**
+         * @generated from protobuf field: symbolx.bench.SecretData secret = 15;
+         */
+        secret: SecretData;
+    } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbolx.bench.MembershipData membership = 15;
+         * @generated from protobuf field: symbolx.bench.MembershipData membership = 16;
          */
         membership: MembershipData;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbolx.bench.InviteData invite = 16;
+         * @generated from protobuf field: symbolx.bench.InviteData invite = 17;
          */
         invite: InviteData;
     } | {
         oneofKind: "branch";
         /**
-         * @generated from protobuf field: symbolx.bench.BranchData branch = 17;
+         * @generated from protobuf field: symbolx.bench.BranchData branch = 18;
          */
         branch: BranchData;
     } | {
         oneofKind: "package";
         /**
-         * @generated from protobuf field: symbolx.bench.PackageData package = 18;
+         * @generated from protobuf field: symbolx.bench.PackageData package = 19;
          */
         package: PackageData;
     } | {
         oneofKind: "dependency";
         /**
-         * @generated from protobuf field: symbolx.bench.DependencyData dependency = 19;
+         * @generated from protobuf field: symbolx.bench.DependencyData dependency = 20;
          */
         dependency: DependencyData;
     } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbolx.bench.SpaceData space = 20;
+         * @generated from protobuf field: symbolx.bench.SpaceData space = 21;
          */
         space: SpaceData;
     } | {
         oneofKind: "block";
         /**
-         * @generated from protobuf field: symbolx.bench.BlockData block = 21;
+         * @generated from protobuf field: symbolx.bench.BlockData block = 22;
          */
         block: BlockData;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbolx.bench.TriggerData trigger = 22;
+         * @generated from protobuf field: symbolx.bench.TriggerData trigger = 23;
          */
         trigger: TriggerData;
     } | {
         oneofKind: "field";
         /**
-         * @generated from protobuf field: symbolx.bench.FieldData field = 23;
+         * @generated from protobuf field: symbolx.bench.FieldData field = 24;
          */
         field: FieldData;
     } | {
         oneofKind: "query";
         /**
-         * @generated from protobuf field: symbolx.bench.QueryData query = 24;
+         * @generated from protobuf field: symbolx.bench.QueryData query = 25;
          */
         query: QueryData;
     } | {
         oneofKind: "view";
         /**
-         * @generated from protobuf field: symbolx.bench.ViewData view = 25;
+         * @generated from protobuf field: symbolx.bench.ViewData view = 26;
          */
         view: ViewData;
     } | {
         oneofKind: "step";
         /**
-         * @generated from protobuf field: symbolx.bench.StepData step = 26;
+         * @generated from protobuf field: symbolx.bench.StepData step = 27;
          */
         step: StepData;
     } | {
         oneofKind: "pipe";
         /**
-         * @generated from protobuf field: symbolx.bench.PipeData pipe = 27;
+         * @generated from protobuf field: symbolx.bench.PipeData pipe = 28;
          */
         pipe: PipeData;
     } | {
         oneofKind: "badge";
         /**
-         * @generated from protobuf field: symbolx.bench.BadgeData badge = 28;
+         * @generated from protobuf field: symbolx.bench.BadgeData badge = 29;
          */
         badge: BadgeData;
     } | {
         oneofKind: "message";
         /**
-         * @generated from protobuf field: symbolx.bench.MessageData message = 29;
+         * @generated from protobuf field: symbolx.bench.MessageData message = 30;
          */
         message: MessageData;
     } | {
         oneofKind: "record";
         /**
-         * @generated from protobuf field: symbolx.bench.RecordData record = 30;
+         * @generated from protobuf field: symbolx.bench.RecordData record = 31;
          */
         record: RecordData;
     } | {
         oneofKind: "session";
         /**
-         * @generated from protobuf field: symbolx.bench.SessionData session = 31;
+         * @generated from protobuf field: symbolx.bench.SessionData session = 32;
          */
         session: SessionData;
     } | {
         oneofKind: "run";
         /**
-         * @generated from protobuf field: symbolx.bench.RunData run = 32;
+         * @generated from protobuf field: symbolx.bench.RunData run = 33;
          */
         run: RunData;
     } | {
         oneofKind: "interrupt";
         /**
-         * @generated from protobuf field: symbolx.bench.InterruptData interrupt = 33;
+         * @generated from protobuf field: symbolx.bench.InterruptData interrupt = 34;
          */
         interrupt: InterruptData;
     } | {
         oneofKind: "log";
         /**
-         * @generated from protobuf field: symbolx.bench.LogData log = 34;
+         * @generated from protobuf field: symbolx.bench.LogData log = 35;
          */
         log: LogData;
     } | {
         oneofKind: "skip";
         /**
-         * @generated from protobuf field: symbolx.bench.SkipData skip = 35;
+         * @generated from protobuf field: symbolx.bench.SkipData skip = 36;
          */
         skip: SkipData;
     } | {
@@ -6180,345 +6272,349 @@ export enum EnumType {
      */
     OBJECT_TYPE = 20004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 20005;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20501;
      */
-    BENCH_TYPE = 20005,
+    ACCESS_MODE = 20501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20030;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 20502;
      */
-    ACCESS_MODE = 20030,
+    ACCESS_KIND = 20502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 20031;
+     * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 20503;
      */
-    ACCESS_KIND = 20031,
+    QUERY_TYPE = 20503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_QUEYR_TYPE = 20032;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20504;
      */
-    QUEYR_TYPE = 20032,
+    EDIT_TYPE = 20504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20033;
+     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 20505;
      */
-    EDIT_TYPE = 20033,
+    USE_TYPE = 20505,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 20034;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 20506;
      */
-    USE_TYPE = 20034,
+    ACCESS_TYPE = 20506,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 20035;
+     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 20507;
      */
-    ACCESS_TYPE = 20035,
+    CHANGE_CATEGORY = 20507,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 20036;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION_TYPE = 20508;
      */
-    CHANGE_CATEGORY = 20036,
+    EDIT_OPERATION_TYPE = 20508,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION_TYPE = 20037;
+     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 20509;
      */
-    EDIT_OPERATION_TYPE = 20037,
+    POLICY_EFFECT = 20509,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 20040;
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 21001;
      */
-    POLICY_EFFECT = 20040,
+    BENCH_TYPE = 21001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 20050;
+     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 21002;
      */
-    CLOUD = 20050,
+    CLOUD = 21002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION = 20051;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 21003;
      */
-    REGION = 20051,
+    REGION = 21003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_ZONE = 20052;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_ZONE = 21004;
      */
-    REGION_ZONE = 20052,
+    REGION_ZONE = 21004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 20053;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 21005;
      */
-    REGION_AREA = 20053,
+    REGION_AREA = 21005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 20054;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 21006;
      */
-    RESOURCE_STATUS = 20054,
+    RESOURCE_STATUS = 21006,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2060;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 21007;
      */
-    FILE_RETENTION_MODE = 2060,
+    FILE_RETENTION_MODE = 21007,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_KIND = 2061;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_KIND = 21008;
      */
-    FILE_KIND = 2061,
+    FILE_KIND = 21008,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 2062;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 21009;
      */
-    FILE_TYPE = 2062,
+    FILE_TYPE = 21009,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 2063;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 21010;
      */
-    FILE_FORMAT = 2063,
+    FILE_FORMAT = 21010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 20070;
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 21011;
      */
-    CLIENT_TYPE = 20070,
+    CLIENT_TYPE = 21011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 20080;
+     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 21012;
      */
-    PRIMITIVE_TYPE = 20080,
+    MACHINE_TYPE = 21012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 20082;
+     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 21501;
      */
-    FIELD_ZONE = 20082,
+    PRIMITIVE_TYPE = 21501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 20083;
+     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 21502;
      */
-    TYPE_KIND = 20083,
+    FIELD_ZONE = 21502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_FORMAT = 20384;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 21503;
      */
-    TYPE_FORMAT = 20384,
+    TYPE_KIND = 21503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_OBJECT_KIND = 20385;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_FORMAT = 21504;
      */
-    OBJECT_KIND = 20385,
+    TYPE_FORMAT = 21504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 20390;
+     * @generated from protobuf enum value: ENUM_TYPE_OBJECT_KIND = 21505;
      */
-    BLOCK_TYPE = 20390,
+    OBJECT_KIND = 21505,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_MODE = 20400;
+     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 21506;
      */
-    ACTION_MODE = 20400,
+    BLOCK_TYPE = 21506,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 20100;
+     * @generated from protobuf enum value: ENUM_TYPE_ACTION_MODE = 21507;
      */
-    SCHEDULE_TYPE = 20100,
+    ACTION_MODE = 21507,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 20101;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 22001;
      */
-    TIME_INTERVAL = 20101,
+    SCHEDULE_TYPE = 22001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY = 20102;
+     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 22002;
      */
-    DAY = 20102,
+    TIME_INTERVAL = 22002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 20103;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY = 22003;
      */
-    MONTH = 20103,
+    DAY = 22003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 20110;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 22004;
      */
-    TEXT_LINE_TYPE = 20110,
+    MONTH = 22004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 20111;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 22005;
      */
-    ICON_KIND = 20111,
+    TEXT_LINE_TYPE = 22005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 20120;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 22006;
      */
-    MESSAGE_TYPE = 20120,
+    ICON_KIND = 22006,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_STATUS = 20121;
+     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_TYPE = 22007;
      */
-    MESSAGE_STATUS = 20121,
+    MESSAGE_TYPE = 22007,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 20200;
+     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_STATUS = 22008;
      */
-    EXPRESSION_KIND = 20200,
+    MESSAGE_STATUS = 22008,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 20201;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 22501;
      */
-    EXPRESSION_OP = 20201,
+    EXPRESSION_KIND = 22501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_TYPE = 20202;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 22502;
      */
-    LITERAL_TYPE = 20202,
+    EXPRESSION_OP = 22502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_TYPE = 20203;
+     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_TYPE = 22503;
      */
-    FUNCTIONAL_TYPE = 20203,
+    LITERAL_TYPE = 22503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 20204;
+     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_TYPE = 22504;
      */
-    CONDITIONAL_TYPE = 20204,
+    FUNCTIONAL_TYPE = 22504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_TYPE = 20205;
+     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_TYPE = 22505;
      */
-    AGGREGATION_TYPE = 20205,
+    CONDITIONAL_TYPE = 22505,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 20206;
+     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_TYPE = 22506;
      */
-    SORT_MODE = 20206,
+    AGGREGATION_TYPE = 22506,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_TYPE = 20207;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 22507;
      */
-    SORT_TYPE = 20207,
+    SORT_MODE = 22507,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 20210;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_TYPE = 22508;
      */
-    PATH_TOKEN_TYPE = 20210,
+    SORT_TYPE = 22508,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 20500;
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 22509;
      */
-    LOG_KIND = 20500,
+    PATH_TOKEN_TYPE = 22509,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 20501;
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 23001;
      */
-    LOG_LEVEL = 20501,
+    LOG_KIND = 23001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 20510;
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 23002;
      */
-    RUN_STATUS = 20510,
+    LOG_LEVEL = 23002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 20511;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 23003;
      */
-    RUN_KIND = 20511,
+    RUN_STATUS = 23003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 20512;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 23004;
      */
-    RUN_ERROR_KIND = 20512,
+    RUN_KIND = 23004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 20513;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 23005;
      */
-    RUN_ERROR_TYPE = 20513,
+    RUN_ERROR_KIND = 23005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_SPAN_TYPE = 20514;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 23006;
      */
-    RUN_SPAN_TYPE = 20514,
+    RUN_ERROR_TYPE = 23006,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_EVENT_TYPE = 20515;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_SPAN_TYPE = 23007;
      */
-    RUN_EVENT_TYPE = 20515,
+    RUN_SPAN_TYPE = 23007,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 20516;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_EVENT_TYPE = 23008;
      */
-    SESSION_STATUS = 20516,
+    RUN_EVENT_TYPE = 23008,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 20520;
+     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 23009;
      */
-    TRIGGER_TYPE = 20520,
+    SESSION_STATUS = 23009,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_SITE = 20530;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 23010;
      */
-    BREAKPOINT_SITE = 20530,
+    TRIGGER_TYPE = 23010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_ACTION = 20531;
+     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_SITE = 23011;
      */
-    BREAKPOINT_ACTION = 20531,
+    BREAKPOINT_SITE = 23011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_TARGET = 20532;
+     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_ACTION = 23012;
      */
-    BREAKPOINT_TARGET = 20532,
+    BREAKPOINT_ACTION = 23012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPT_KIND = 20533;
+     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_TARGET = 23013;
      */
-    INTERRUPT_KIND = 20533,
+    BREAKPOINT_TARGET = 23013,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPT_STATUS = 20534;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPT_KIND = 23014;
      */
-    INTERRUPT_STATUS = 20534,
+    INTERRUPT_KIND = 23014,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CACHE_MODE = 20540;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPT_STATUS = 23015;
      */
-    CACHE_MODE = 20540,
+    INTERRUPT_STATUS = 23015,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 20560;
+     * @generated from protobuf enum value: ENUM_TYPE_CACHE_MODE = 23016;
      */
-    CODE_TYPE = 20560,
+    CACHE_MODE = 23016,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 20570;
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 23017;
      */
-    MODEL_PROVIDER = 20570,
+    CODE_TYPE = 23017,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_TYPE = 20571;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 23018;
      */
-    MODEL_TYPE = 20571,
+    MODEL_PROVIDER = 23018,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 20600;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_TYPE = 23019;
      */
-    STEP_TYPE = 20600,
+    MODEL_TYPE = 23019,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 20602;
+     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 23020;
      */
-    PORT_SIDE = 20602,
+    STEP_TYPE = 23020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20605;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 23021;
      */
-    PIPE_TYPE = 20605,
+    PORT_SIDE = 23021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 20650;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 23022;
      */
-    NOTIFICATION_LEVEL = 20650,
+    PIPE_TYPE = 23022,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 21000;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 23023;
      */
-    SPACE_TYPE = 21000,
+    NOTIFICATION_LEVEL = 23023,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 21001;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 23501;
      */
-    VIEW_TYPE = 21001,
+    SPACE_TYPE = 23501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 21002;
+     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 23502;
      */
-    VARIANT = 21002,
+    VIEW_TYPE = 23502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 21003;
+     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 23503;
      */
-    COLOR_TYPE = 21003,
+    VARIANT = 23503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 21004;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 23504;
      */
-    COLOR_SHADE = 21004,
+    COLOR_TYPE = 23504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 21005;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 23505;
      */
-    FONT_TYPE = 21005,
+    COLOR_SHADE = 23505,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 21006;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 23506;
      */
-    FONT_WEIGHT = 21006,
+    FONT_TYPE = 23506,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 21007;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 23507;
      */
-    FONT_SIZE = 21007,
+    FONT_WEIGHT = 23507,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 21008;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 23508;
      */
-    SPACING = 21008,
+    FONT_SIZE = 23508,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 21009;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 23509;
      */
-    ANCHOR = 21009,
+    SPACING = 23509,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 21010;
+     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 23510;
      */
-    ORIENTATION = 21010,
+    ANCHOR = 23510,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 21011;
+     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 23511;
      */
-    ALIGNMENT = 21011,
+    ORIENTATION = 23511,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 21200;
+     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 23512;
      */
-    USER_WIZARD_STAGE = 21200,
+    ALIGNMENT = 23512,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 21201;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 23513;
      */
-    TREE_VIEW_PRESET = 21201,
+    USER_WIZARD_STAGE = 23513,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_HUB_ASPECT = 21202;
+     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 23514;
      */
-    HUB_ASPECT = 21202,
+    TREE_VIEW_PRESET = 23514,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_HELP_ASPECT = 21203;
+     * @generated from protobuf enum value: ENUM_TYPE_HUB_ASPECT = 23515;
      */
-    HELP_ASPECT = 21203,
+    HUB_ASPECT = 23515,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 29000;
+     * @generated from protobuf enum value: ENUM_TYPE_HELP_ASPECT = 23516;
      */
-    USER_STATUS = 29000,
+    HELP_ASPECT = 23516,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 29001;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 24001;
      */
-    ORGANIZATION_STATUS = 29001
+    USER_STATUS = 24001,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 24002;
+     */
+    ORGANIZATION_STATUS = 24002
 }
 /**
  * @generated from protobuf enum symbolx.bench.NodeType
@@ -6549,41 +6645,45 @@ export enum NodeType {
      */
     CLIENT = 5,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SERVER = 500;
+     * @generated from protobuf enum value: NODE_TYPE_SERVER = 200;
      */
-    SERVER = 500,
+    SERVER = 200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STORE = 501;
+     * @generated from protobuf enum value: NODE_TYPE_STORE = 201;
      */
-    STORE = 501,
+    STORE = 201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 502;
+     * @generated from protobuf enum value: NODE_TYPE_DRIVE = 203;
      */
-    MACHINE = 502,
+    DRIVE = 203,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DRIVE = 503;
+     * @generated from protobuf enum value: NODE_TYPE_VAULT = 204;
      */
-    DRIVE = 503,
+    VAULT = 204,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VAULT = 504;
+     * @generated from protobuf enum value: NODE_TYPE_CACHE = 205;
      */
-    VAULT = 504,
+    CACHE = 205,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CACHE = 505;
+     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 250;
      */
-    CACHE = 505,
+    MACHINE = 250,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILE = 550;
+     * @generated from protobuf enum value: NODE_TYPE_BROWSER = 251;
      */
-    FILE = 550,
+    BROWSER = 251,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SECRET = 551;
+     * @generated from protobuf enum value: NODE_TYPE_FILE = 260;
      */
-    SECRET = 551,
+    FILE = 260,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BROWSER = 552;
+     * @generated from protobuf enum value: NODE_TYPE_STREAM = 261;
      */
-    BROWSER = 552,
+    STREAM = 261,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_SECRET = 262;
+     */
+    SECRET = 262,
     /**
      * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP = 600;
      */
@@ -6686,273 +6786,277 @@ export enum StructType {
      */
     EDIT_CONTEXT = 10002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 10005;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 10003;
      */
-    EDIT = 10005,
+    EDIT = 10003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_INFO = 10006;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_INFO = 10004;
      */
-    EDIT_INFO = 10006,
+    EDIT_INFO = 10004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_OPERATION = 10007;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_OPERATION = 10005;
      */
-    EDIT_OPERATION = 10007,
+    EDIT_OPERATION = 10005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 10010;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 10006;
      */
-    CHANGE = 10010,
+    CHANGE = 10006,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_VIGNETTE = 10011;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_VIGNETTE = 10007;
      */
-    CHANGE_VIGNETTE = 10011,
+    CHANGE_VIGNETTE = 10007,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRAPH_SCOPE = 10050;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRAPH_SCOPE = 10008;
      */
-    GRAPH_SCOPE = 10050,
+    GRAPH_SCOPE = 10008,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CLIENT_ORIGIN = 10051;
+     * @generated from protobuf enum value: STRUCT_TYPE_CLIENT_ORIGIN = 10009;
      */
-    CLIENT_ORIGIN = 10051,
+    CLIENT_ORIGIN = 10009,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 10052;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 10010;
      */
-    NODE_REFERENCE = 10052,
+    NODE_REFERENCE = 10010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 10053;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 10011;
      */
-    PROPERTY_REFERENCE = 10053,
+    PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH = 10060;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 10500;
      */
-    PATH = 10060,
+    POLICY = 10500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 10061;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 10501;
      */
-    PATH_TOKEN = 10061,
+    POLICY_RULE = 10501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 10100;
+     * @generated from protobuf enum value: STRUCT_TYPE_SUBJECT = 10502;
      */
-    POLICY = 10100,
+    SUBJECT = 10502,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 10101;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 10503;
      */
-    POLICY_RULE = 10101,
+    ACCESS_ZONE = 10503,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SUBJECT = 10102;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 10504;
      */
-    SUBJECT = 10102,
+    ACCESS_MATRIX = 10504,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 10104;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 10505;
      */
-    ACCESS_ZONE = 10104,
+    ACCESS = 10505,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 10105;
+     * @generated from protobuf enum value: STRUCT_TYPE_MACHINE_IMAGE = 11000;
      */
-    ACCESS_MATRIX = 10105,
+    MACHINE_IMAGE = 11000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 10107;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 11500;
      */
-    ACCESS = 10107,
+    TYPE_INFO = 11500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 10150;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 11501;
      */
-    TEXT = 10150,
+    TYPE_CONSTRAINT = 11501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 10151;
+     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_OBJECT = 11502;
      */
-    TEXT_LINE = 10151,
+    VARIABLE_OBJECT = 11502,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 10152;
+     * @generated from protobuf enum value: STRUCT_TYPE_MEMBER_OBJECT = 11503;
      */
-    TEXT_SPAN = 10152,
+    MEMBER_OBJECT = 11503,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 10200;
+     * @generated from protobuf enum value: STRUCT_TYPE_INPUT_OBJECT = 11504;
      */
-    TYPE_INFO = 10200,
+    INPUT_OBJECT = 11504,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 10201;
+     * @generated from protobuf enum value: STRUCT_TYPE_OUTPUT_OBJECT = 11505;
      */
-    TYPE_CONSTRAINT = 10201,
+    OUTPUT_OBJECT = 11505,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VARIABLE_OBJECT = 10210;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 11506;
      */
-    VARIABLE_OBJECT = 10210,
+    SCHEDULE = 11506,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_MEMBER_OBJECT = 10211;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE_INFO = 11507;
      */
-    MEMBER_OBJECT = 10211,
+    FILE_INFO = 11507,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_INPUT_OBJECT = 10212;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE_REFERENCE = 11508;
      */
-    INPUT_OBJECT = 10212,
+    FILE_REFERENCE = 11508,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_OUTPUT_OBJECT = 10213;
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 11509;
      */
-    OUTPUT_OBJECT = 10213,
+    ICON = 11509,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 10220;
+     * @generated from protobuf enum value: STRUCT_TYPE_SECRET_REFERENCE = 11510;
      */
-    SCHEDULE = 10220,
+    SECRET_REFERENCE = 11510,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILE_INFO = 10221;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 12000;
      */
-    FILE_INFO = 10221,
+    TEXT = 12000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILE_REFERENCE = 10222;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 12001;
      */
-    FILE_REFERENCE = 10222,
+    TEXT_LINE = 12001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 10223;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 12002;
      */
-    ICON = 10223,
+    TEXT_SPAN = 12002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SECRET_REFERENCE = 10224;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 12100;
      */
-    SECRET_REFERENCE = 10224,
+    CODE = 12100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 10300;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE_LINE = 12101;
      */
-    EXPRESSION = 10300,
+    CODE_LINE = 12101,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_RESULT = 10301;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH = 12200;
      */
-    AGGREGATION_RESULT = 10301,
+    PATH = 12200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 10302;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 12201;
      */
-    SELECTION = 10302,
+    PATH_TOKEN = 12201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECT_OPTIONS = 10304;
+     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 12202;
      */
-    SELECT_OPTIONS = 10304,
+    EXPRESSION = 12202,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 10305;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION_RESULT = 12203;
      */
-    VALUE = 10305,
+    AGGREGATION_RESULT = 12203,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COMPUTED_VALUE = 10306;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 12204;
      */
-    COMPUTED_VALUE = 10306,
+    SELECTION = 12204,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_OBJECT_MAPPING = 10310;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECT_OPTIONS = 12205;
      */
-    OBJECT_MAPPING = 10310,
+    SELECT_OPTIONS = 12205,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FIELD_MAPPING = 10311;
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 12206;
      */
-    FIELD_MAPPING = 10311,
+    VALUE = 12206,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 10400;
+     * @generated from protobuf enum value: STRUCT_TYPE_COMPUTED_VALUE = 12207;
      */
-    CODE = 10400,
+    COMPUTED_VALUE = 12207,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE_LINE = 10401;
+     * @generated from protobuf enum value: STRUCT_TYPE_OBJECT_MAPPING = 12208;
      */
-    CODE_LINE = 10401,
+    OBJECT_MAPPING = 12208,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 10500;
+     * @generated from protobuf enum value: STRUCT_TYPE_FIELD_MAPPING = 12209;
      */
-    RUN_ERROR = 10500,
+    FIELD_MAPPING = 12209,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_OPTIONS = 10501;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 12700;
      */
-    RUN_OPTIONS = 10501,
+    RUN_ERROR = 12700,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ATTEMPT = 10502;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_OPTIONS = 12701;
      */
-    RUN_ATTEMPT = 10502,
+    RUN_OPTIONS = 12701,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_TRACE = 10503;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ATTEMPT = 12702;
      */
-    RUN_TRACE = 10503,
+    RUN_ATTEMPT = 12702,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_FRAME = 10504;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_TRACE = 12703;
      */
-    RUN_FRAME = 10504,
+    RUN_TRACE = 12703,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_SPAN = 10505;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_FRAME = 12704;
      */
-    RUN_SPAN = 10505,
+    RUN_FRAME = 12704,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_EVENT = 10506;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_SPAN = 12705;
      */
-    RUN_EVENT = 10506,
+    RUN_SPAN = 12705,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_OPTIONS = 10510;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_EVENT = 12706;
      */
-    TEXT_OPTIONS = 10510,
+    RUN_EVENT = 12706,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AUDIO_OPTIONS = 10511;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_OPTIONS = 12707;
      */
-    AUDIO_OPTIONS = 10511,
+    TEXT_OPTIONS = 12707,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_IMAGE_OPTIONS = 10512;
+     * @generated from protobuf enum value: STRUCT_TYPE_AUDIO_OPTIONS = 12708;
      */
-    IMAGE_OPTIONS = 10512,
+    AUDIO_OPTIONS = 12708,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VIDEO_OPTIONS = 10513;
+     * @generated from protobuf enum value: STRUCT_TYPE_IMAGE_OPTIONS = 12709;
      */
-    VIDEO_OPTIONS = 10513,
+    IMAGE_OPTIONS = 12709,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONTINUE = 10530;
+     * @generated from protobuf enum value: STRUCT_TYPE_VIDEO_OPTIONS = 12710;
      */
-    CONTINUE = 10530,
+    VIDEO_OPTIONS = 12710,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CALL = 10531;
+     * @generated from protobuf enum value: STRUCT_TYPE_CONTINUE = 12711;
      */
-    CALL = 10531,
+    CONTINUE = 12711,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 10532;
+     * @generated from protobuf enum value: STRUCT_TYPE_CALL = 12712;
      */
-    CONTEXT = 10532,
+    CALL = 12712,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BREAKPOINT = 10540;
+     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 12713;
      */
-    BREAKPOINT = 10540,
+    CONTEXT = 12713,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LOG_INFO = 10550;
+     * @generated from protobuf enum value: STRUCT_TYPE_BREAKPOINT = 12714;
      */
-    LOG_INFO = 10550,
+    BREAKPOINT = 12714,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 11000;
+     * @generated from protobuf enum value: STRUCT_TYPE_LOG_INFO = 12715;
      */
-    COLOR = 11000,
+    LOG_INFO = 12715,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 11001;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 13200;
      */
-    FONT = 11001,
+    COLOR = 13200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RECTANGLE = 11002;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 13201;
      */
-    RECTANGLE = 11002,
+    FONT = 13201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 11003;
+     * @generated from protobuf enum value: STRUCT_TYPE_RECTANGLE = 13202;
      */
-    OFFSET = 11003,
+    RECTANGLE = 13202,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSFORM = 11004;
+     * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 13203;
      */
-    TRANSFORM = 11004,
+    OFFSET = 13203,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 11020;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSFORM = 13204;
      */
-    VECTOR2 = 11020,
+    TRANSFORM = 13204,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 11021;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 13205;
      */
-    VECTOR3 = 11021,
+    VECTOR2 = 13205,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 11022;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 13206;
      */
-    VECTOR4 = 11022,
+    VECTOR3 = 13206,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LINE = 11035;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 13207;
      */
-    LINE = 11035,
+    VECTOR4 = 13207,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RECTANGLE_CONSTRAINT = 11040;
+     * @generated from protobuf enum value: STRUCT_TYPE_LINE = 13208;
      */
-    RECTANGLE_CONSTRAINT = 11040
+    LINE = 13208,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_RECTANGLE_CONSTRAINT = 13209;
+     */
+    RECTANGLE_CONSTRAINT = 13209
 }
 /**
  * @generated from protobuf enum symbolx.bench.ObjectType
@@ -6983,41 +7087,45 @@ export enum ObjectType {
      */
     CLIENT = 5,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SERVER = 500;
+     * @generated from protobuf enum value: OBJECT_TYPE_SERVER = 200;
      */
-    SERVER = 500,
+    SERVER = 200,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_STORE = 501;
+     * @generated from protobuf enum value: OBJECT_TYPE_STORE = 201;
      */
-    STORE = 501,
+    STORE = 201,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_MACHINE = 502;
+     * @generated from protobuf enum value: OBJECT_TYPE_DRIVE = 203;
      */
-    MACHINE = 502,
+    DRIVE = 203,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DRIVE = 503;
+     * @generated from protobuf enum value: OBJECT_TYPE_VAULT = 204;
      */
-    DRIVE = 503,
+    VAULT = 204,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VAULT = 504;
+     * @generated from protobuf enum value: OBJECT_TYPE_CACHE = 205;
      */
-    VAULT = 504,
+    CACHE = 205,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CACHE = 505;
+     * @generated from protobuf enum value: OBJECT_TYPE_MACHINE = 250;
      */
-    CACHE = 505,
+    MACHINE = 250,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 550;
+     * @generated from protobuf enum value: OBJECT_TYPE_BROWSER = 251;
      */
-    FILE = 550,
+    BROWSER = 251,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SECRET = 551;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 260;
      */
-    SECRET = 551,
+    FILE = 260,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BROWSER = 552;
+     * @generated from protobuf enum value: OBJECT_TYPE_STREAM = 261;
      */
-    BROWSER = 552,
+    STREAM = 261,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_SECRET = 262;
+     */
+    SECRET = 262,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_MEMBERSHIP = 600;
      */
@@ -7111,1054 +7219,277 @@ export enum ObjectType {
      */
     EDIT_CONTEXT = 10002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EDIT = 10005;
+     * @generated from protobuf enum value: OBJECT_TYPE_EDIT = 10003;
      */
-    EDIT = 10005,
+    EDIT = 10003,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_INFO = 10006;
+     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_INFO = 10004;
      */
-    EDIT_INFO = 10006,
+    EDIT_INFO = 10004,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_OPERATION = 10007;
+     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_OPERATION = 10005;
      */
-    EDIT_OPERATION = 10007,
+    EDIT_OPERATION = 10005,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE = 10010;
+     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE = 10006;
      */
-    CHANGE = 10010,
+    CHANGE = 10006,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE_VIGNETTE = 10011;
+     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE_VIGNETTE = 10007;
      */
-    CHANGE_VIGNETTE = 10011,
+    CHANGE_VIGNETTE = 10007,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRAPH_SCOPE = 10050;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRAPH_SCOPE = 10008;
      */
-    GRAPH_SCOPE = 10050,
+    GRAPH_SCOPE = 10008,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CLIENT_ORIGIN = 10051;
+     * @generated from protobuf enum value: OBJECT_TYPE_CLIENT_ORIGIN = 10009;
      */
-    CLIENT_ORIGIN = 10051,
+    CLIENT_ORIGIN = 10009,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NODE_REFERENCE = 10052;
+     * @generated from protobuf enum value: OBJECT_TYPE_NODE_REFERENCE = 10010;
      */
-    NODE_REFERENCE = 10052,
+    NODE_REFERENCE = 10010,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PROPERTY_REFERENCE = 10053;
+     * @generated from protobuf enum value: OBJECT_TYPE_PROPERTY_REFERENCE = 10011;
      */
-    PROPERTY_REFERENCE = 10053,
+    PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PATH = 10060;
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 10500;
      */
-    PATH = 10060,
+    POLICY = 10500,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PATH_TOKEN = 10061;
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_RULE = 10501;
      */
-    PATH_TOKEN = 10061,
+    POLICY_RULE = 10501,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 10100;
+     * @generated from protobuf enum value: OBJECT_TYPE_SUBJECT = 10502;
      */
-    POLICY = 10100,
+    SUBJECT = 10502,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_RULE = 10101;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_ZONE = 10503;
      */
-    POLICY_RULE = 10101,
+    ACCESS_ZONE = 10503,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SUBJECT = 10102;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_MATRIX = 10504;
      */
-    SUBJECT = 10102,
+    ACCESS_MATRIX = 10504,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_ZONE = 10104;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS = 10505;
      */
-    ACCESS_ZONE = 10104,
+    ACCESS = 10505,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_MATRIX = 10105;
+     * @generated from protobuf enum value: OBJECT_TYPE_MACHINE_IMAGE = 11000;
      */
-    ACCESS_MATRIX = 10105,
+    MACHINE_IMAGE = 11000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS = 10107;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_INFO = 11500;
      */
-    ACCESS = 10107,
+    TYPE_INFO = 11500,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 10150;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 11501;
      */
-    TEXT = 10150,
+    TYPE_CONSTRAINT = 11501,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 10151;
+     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_OBJECT = 11502;
      */
-    TEXT_LINE = 10151,
+    VARIABLE_OBJECT = 11502,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 10152;
+     * @generated from protobuf enum value: OBJECT_TYPE_MEMBER_OBJECT = 11503;
      */
-    TEXT_SPAN = 10152,
+    MEMBER_OBJECT = 11503,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_INFO = 10200;
+     * @generated from protobuf enum value: OBJECT_TYPE_INPUT_OBJECT = 11504;
      */
-    TYPE_INFO = 10200,
+    INPUT_OBJECT = 11504,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 10201;
+     * @generated from protobuf enum value: OBJECT_TYPE_OUTPUT_OBJECT = 11505;
      */
-    TYPE_CONSTRAINT = 10201,
+    OUTPUT_OBJECT = 11505,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VARIABLE_OBJECT = 10210;
+     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 11506;
      */
-    VARIABLE_OBJECT = 10210,
+    SCHEDULE = 11506,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_MEMBER_OBJECT = 10211;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE_INFO = 11507;
      */
-    MEMBER_OBJECT = 10211,
+    FILE_INFO = 11507,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_INPUT_OBJECT = 10212;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE_REFERENCE = 11508;
      */
-    INPUT_OBJECT = 10212,
+    FILE_REFERENCE = 11508,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_OUTPUT_OBJECT = 10213;
+     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 11509;
      */
-    OUTPUT_OBJECT = 10213,
+    ICON = 11509,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 10220;
+     * @generated from protobuf enum value: OBJECT_TYPE_SECRET_REFERENCE = 11510;
      */
-    SCHEDULE = 10220,
+    SECRET_REFERENCE = 11510,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE_INFO = 10221;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 12000;
      */
-    FILE_INFO = 10221,
+    TEXT = 12000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE_REFERENCE = 10222;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 12001;
      */
-    FILE_REFERENCE = 10222,
+    TEXT_LINE = 12001,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 10223;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 12002;
      */
-    ICON = 10223,
+    TEXT_SPAN = 12002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SECRET_REFERENCE = 10224;
+     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 12100;
      */
-    SECRET_REFERENCE = 10224,
+    CODE = 12100,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 10300;
+     * @generated from protobuf enum value: OBJECT_TYPE_CODE_LINE = 12101;
      */
-    EXPRESSION = 10300,
+    CODE_LINE = 12101,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION_RESULT = 10301;
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH = 12200;
      */
-    AGGREGATION_RESULT = 10301,
+    PATH = 12200,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 10302;
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH_TOKEN = 12201;
      */
-    SELECTION = 10302,
+    PATH_TOKEN = 12201,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SELECT_OPTIONS = 10304;
+     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 12202;
      */
-    SELECT_OPTIONS = 10304,
+    EXPRESSION = 12202,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VALUE = 10305;
+     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION_RESULT = 12203;
      */
-    VALUE = 10305,
+    AGGREGATION_RESULT = 12203,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COMPUTED_VALUE = 10306;
+     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 12204;
      */
-    COMPUTED_VALUE = 10306,
+    SELECTION = 12204,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_OBJECT_MAPPING = 10310;
+     * @generated from protobuf enum value: OBJECT_TYPE_SELECT_OPTIONS = 12205;
      */
-    OBJECT_MAPPING = 10310,
+    SELECT_OPTIONS = 12205,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FIELD_MAPPING = 10311;
+     * @generated from protobuf enum value: OBJECT_TYPE_VALUE = 12206;
      */
-    FIELD_MAPPING = 10311,
+    VALUE = 12206,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 10400;
+     * @generated from protobuf enum value: OBJECT_TYPE_COMPUTED_VALUE = 12207;
      */
-    CODE = 10400,
+    COMPUTED_VALUE = 12207,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CODE_LINE = 10401;
+     * @generated from protobuf enum value: OBJECT_TYPE_OBJECT_MAPPING = 12208;
      */
-    CODE_LINE = 10401,
+    OBJECT_MAPPING = 12208,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 10500;
+     * @generated from protobuf enum value: OBJECT_TYPE_FIELD_MAPPING = 12209;
      */
-    RUN_ERROR = 10500,
+    FIELD_MAPPING = 12209,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_OPTIONS = 10501;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 12700;
      */
-    RUN_OPTIONS = 10501,
+    RUN_ERROR = 12700,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ATTEMPT = 10502;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_OPTIONS = 12701;
      */
-    RUN_ATTEMPT = 10502,
+    RUN_OPTIONS = 12701,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_TRACE = 10503;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ATTEMPT = 12702;
      */
-    RUN_TRACE = 10503,
+    RUN_ATTEMPT = 12702,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_FRAME = 10504;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_TRACE = 12703;
      */
-    RUN_FRAME = 10504,
+    RUN_TRACE = 12703,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_SPAN = 10505;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_FRAME = 12704;
      */
-    RUN_SPAN = 10505,
+    RUN_FRAME = 12704,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_EVENT = 10506;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_SPAN = 12705;
      */
-    RUN_EVENT = 10506,
+    RUN_SPAN = 12705,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_OPTIONS = 10510;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_EVENT = 12706;
      */
-    TEXT_OPTIONS = 10510,
+    RUN_EVENT = 12706,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AUDIO_OPTIONS = 10511;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_OPTIONS = 12707;
      */
-    AUDIO_OPTIONS = 10511,
+    TEXT_OPTIONS = 12707,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_IMAGE_OPTIONS = 10512;
+     * @generated from protobuf enum value: OBJECT_TYPE_AUDIO_OPTIONS = 12708;
      */
-    IMAGE_OPTIONS = 10512,
+    AUDIO_OPTIONS = 12708,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VIDEO_OPTIONS = 10513;
+     * @generated from protobuf enum value: OBJECT_TYPE_IMAGE_OPTIONS = 12709;
      */
-    VIDEO_OPTIONS = 10513,
+    IMAGE_OPTIONS = 12709,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CONTINUE = 10530;
+     * @generated from protobuf enum value: OBJECT_TYPE_VIDEO_OPTIONS = 12710;
      */
-    CONTINUE = 10530,
+    VIDEO_OPTIONS = 12710,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CALL = 10531;
+     * @generated from protobuf enum value: OBJECT_TYPE_CONTINUE = 12711;
      */
-    CALL = 10531,
+    CONTINUE = 12711,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 10532;
+     * @generated from protobuf enum value: OBJECT_TYPE_CALL = 12712;
      */
-    CONTEXT = 10532,
+    CALL = 12712,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BREAKPOINT = 10540;
+     * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 12713;
      */
-    BREAKPOINT = 10540,
+    CONTEXT = 12713,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LOG_INFO = 10550;
+     * @generated from protobuf enum value: OBJECT_TYPE_BREAKPOINT = 12714;
      */
-    LOG_INFO = 10550,
+    BREAKPOINT = 12714,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 11000;
+     * @generated from protobuf enum value: OBJECT_TYPE_LOG_INFO = 12715;
      */
-    COLOR = 11000,
+    LOG_INFO = 12715,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 11001;
+     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 13200;
      */
-    FONT = 11001,
+    COLOR = 13200,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RECTANGLE = 11002;
+     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 13201;
      */
-    RECTANGLE = 11002,
+    FONT = 13201,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_OFFSET = 11003;
+     * @generated from protobuf enum value: OBJECT_TYPE_RECTANGLE = 13202;
      */
-    OFFSET = 11003,
+    RECTANGLE = 13202,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRANSFORM = 11004;
+     * @generated from protobuf enum value: OBJECT_TYPE_OFFSET = 13203;
      */
-    TRANSFORM = 11004,
+    OFFSET = 13203,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 11020;
+     * @generated from protobuf enum value: OBJECT_TYPE_TRANSFORM = 13204;
      */
-    VECTOR2 = 11020,
+    TRANSFORM = 13204,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 11021;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 13205;
      */
-    VECTOR3 = 11021,
+    VECTOR2 = 13205,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 11022;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 13206;
      */
-    VECTOR4 = 11022,
+    VECTOR3 = 13206,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LINE = 11035;
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 13207;
      */
-    LINE = 11035,
+    VECTOR4 = 13207,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RECTANGLE_CONSTRAINT = 11040;
+     * @generated from protobuf enum value: OBJECT_TYPE_LINE = 13208;
      */
-    RECTANGLE_CONSTRAINT = 11040
-}
-/**
- * @generated from protobuf enum symbolx.bench.BenchType
- */
-export enum BenchType {
+    LINE = 13208,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: OBJECT_TYPE_RECTANGLE_CONSTRAINT = 13209;
      */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH = 1;
-     */
-    BENCH = 1,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER = 2;
-     */
-    USER = 2,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION = 3;
-     */
-    ORGANIZATION = 3,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_HANDLE = 4;
-     */
-    HANDLE = 4,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT = 5;
-     */
-    CLIENT = 5,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SERVER = 500;
-     */
-    SERVER = 500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_STORE = 501;
-     */
-    STORE = 501,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MACHINE = 502;
-     */
-    MACHINE = 502,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DRIVE = 503;
-     */
-    DRIVE = 503,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VAULT = 504;
-     */
-    VAULT = 504,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CACHE = 505;
-     */
-    CACHE = 505,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE = 550;
-     */
-    FILE = 550,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SECRET = 551;
-     */
-    SECRET = 551,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BROWSER = 552;
-     */
-    BROWSER = 552,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MEMBERSHIP = 600;
-     */
-    MEMBERSHIP = 600,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INVITE = 601;
-     */
-    INVITE = 601,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BRANCH = 1000;
-     */
-    BRANCH = 1000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE = 1001;
-     */
-    PACKAGE = 1001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DEPENDENCY = 1002;
-     */
-    DEPENDENCY = 1002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE = 1003;
-     */
-    SPACE = 1003,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 1010;
-     */
-    BLOCK = 1010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER = 1011;
-     */
-    TRIGGER = 1011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD = 1012;
-     */
-    FIELD = 1012,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_QUERY = 1013;
-     */
-    QUERY = 1013,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 1020;
-     */
-    VIEW = 1020,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP = 1030;
-     */
-    STEP = 1030,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 1031;
-     */
-    PIPE = 1031,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BADGE = 1040;
-     */
-    BADGE = 1040,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE = 1100;
-     */
-    MESSAGE = 1100,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RECORD = 1101;
-     */
-    RECORD = 1101,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION = 1900;
-     */
-    SESSION = 1900,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN = 1901;
-     */
-    RUN = 1901,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT = 1902;
-     */
-    INTERRUPT = 1902,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG = 1903;
-     */
-    LOG = 1903,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SKIP = 9000;
-     */
-    SKIP = 9000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION_CONTEXT = 10001;
-     */
-    SESSION_CONTEXT = 10001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_CONTEXT = 10002;
-     */
-    EDIT_CONTEXT = 10002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT = 10005;
-     */
-    EDIT = 10005,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_INFO = 10006;
-     */
-    EDIT_INFO = 10006,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION = 10007;
-     */
-    EDIT_OPERATION = 10007,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE = 10010;
-     */
-    CHANGE = 10010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_VIGNETTE = 10011;
-     */
-    CHANGE_VIGNETTE = 10011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRAPH_SCOPE = 10050;
-     */
-    GRAPH_SCOPE = 10050,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_ORIGIN = 10051;
-     */
-    CLIENT_ORIGIN = 10051,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_REFERENCE = 10052;
-     */
-    NODE_REFERENCE = 10052,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE = 10053;
-     */
-    PROPERTY_REFERENCE = 10053,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH = 10060;
-     */
-    PATH = 10060,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 10061;
-     */
-    PATH_TOKEN = 10061,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 10100;
-     */
-    POLICY = 10100,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 10101;
-     */
-    POLICY_RULE = 10101,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SUBJECT = 10102;
-     */
-    SUBJECT = 10102,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 10104;
-     */
-    ACCESS_ZONE = 10104,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 10105;
-     */
-    ACCESS_MATRIX = 10105,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 10107;
-     */
-    ACCESS = 10107,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 10150;
-     */
-    TEXT = 10150,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 10151;
-     */
-    TEXT_LINE = 10151,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 10152;
-     */
-    TEXT_SPAN = 10152,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 10200;
-     */
-    TYPE_INFO = 10200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 10201;
-     */
-    TYPE_CONSTRAINT = 10201,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_OBJECT = 10210;
-     */
-    VARIABLE_OBJECT = 10210,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MEMBER_OBJECT = 10211;
-     */
-    MEMBER_OBJECT = 10211,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INPUT_OBJECT = 10212;
-     */
-    INPUT_OBJECT = 10212,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OUTPUT_OBJECT = 10213;
-     */
-    OUTPUT_OBJECT = 10213,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 10220;
-     */
-    SCHEDULE = 10220,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_INFO = 10221;
-     */
-    FILE_INFO = 10221,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_REFERENCE = 10222;
-     */
-    FILE_REFERENCE = 10222,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON = 10223;
-     */
-    ICON = 10223,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SECRET_REFERENCE = 10224;
-     */
-    SECRET_REFERENCE = 10224,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 10300;
-     */
-    EXPRESSION = 10300,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_RESULT = 10301;
-     */
-    AGGREGATION_RESULT = 10301,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 10302;
-     */
-    SELECTION = 10302,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECT_OPTIONS = 10304;
-     */
-    SELECT_OPTIONS = 10304,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VALUE = 10305;
-     */
-    VALUE = 10305,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE = 10306;
-     */
-    COMPUTED_VALUE = 10306,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_MAPPING = 10310;
-     */
-    OBJECT_MAPPING = 10310,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_MAPPING = 10311;
-     */
-    FIELD_MAPPING = 10311,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE = 10400;
-     */
-    CODE = 10400,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_LINE = 10401;
-     */
-    CODE_LINE = 10401,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 10500;
-     */
-    RUN_ERROR = 10500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_OPTIONS = 10501;
-     */
-    RUN_OPTIONS = 10501,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ATTEMPT = 10502;
-     */
-    RUN_ATTEMPT = 10502,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_TRACE = 10503;
-     */
-    RUN_TRACE = 10503,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_FRAME = 10504;
-     */
-    RUN_FRAME = 10504,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_SPAN = 10505;
-     */
-    RUN_SPAN = 10505,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_EVENT = 10506;
-     */
-    RUN_EVENT = 10506,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_OPTIONS = 10510;
-     */
-    TEXT_OPTIONS = 10510,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AUDIO_OPTIONS = 10511;
-     */
-    AUDIO_OPTIONS = 10511,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_IMAGE_OPTIONS = 10512;
-     */
-    IMAGE_OPTIONS = 10512,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIDEO_OPTIONS = 10513;
-     */
-    VIDEO_OPTIONS = 10513,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONTINUE = 10530;
-     */
-    CONTINUE = 10530,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CALL = 10531;
-     */
-    CALL = 10531,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 10532;
-     */
-    CONTEXT = 10532,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT = 10540;
-     */
-    BREAKPOINT = 10540,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG_INFO = 10550;
-     */
-    LOG_INFO = 10550,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 11000;
-     */
-    COLOR = 11000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT = 11001;
-     */
-    FONT = 11001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RECTANGLE = 11002;
-     */
-    RECTANGLE = 11002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 11003;
-     */
-    OFFSET = 11003,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSFORM = 11004;
-     */
-    TRANSFORM = 11004,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 11020;
-     */
-    VECTOR2 = 11020,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 11021;
-     */
-    VECTOR3 = 11021,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 11022;
-     */
-    VECTOR4 = 11022,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LINE = 11035;
-     */
-    LINE = 11035,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RECTANGLE_CONSTRAINT = 11040;
-     */
-    RECTANGLE_CONSTRAINT = 11040,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20001;
-     */
-    ENUM_TYPE = 20001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_TYPE = 20002;
-     */
-    NODE_TYPE = 20002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_STRUCT_TYPE = 20003;
-     */
-    STRUCT_TYPE = 20003,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_TYPE = 20004;
-     */
-    OBJECT_TYPE = 20004,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 20005;
-     */
-    BENCH_TYPE = 20005,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20030;
-     */
-    ACCESS_MODE = 20030,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 20031;
-     */
-    ACCESS_KIND = 20031,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_QUEYR_TYPE = 20032;
-     */
-    QUEYR_TYPE = 20032,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20033;
-     */
-    EDIT_TYPE = 20033,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 20034;
-     */
-    USE_TYPE = 20034,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 20035;
-     */
-    ACCESS_TYPE = 20035,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 20036;
-     */
-    CHANGE_CATEGORY = 20036,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION_TYPE = 20037;
-     */
-    EDIT_OPERATION_TYPE = 20037,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 20040;
-     */
-    POLICY_EFFECT = 20040,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 20050;
-     */
-    CLOUD = 20050,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION = 20051;
-     */
-    REGION = 20051,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION_ZONE = 20052;
-     */
-    REGION_ZONE = 20052,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION_AREA = 20053;
-     */
-    REGION_AREA = 20053,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 20054;
-     */
-    RESOURCE_STATUS = 20054,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 2060;
-     */
-    FILE_RETENTION_MODE = 2060,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_KIND = 2061;
-     */
-    FILE_KIND = 2061,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 2062;
-     */
-    FILE_TYPE = 2062,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 2063;
-     */
-    FILE_FORMAT = 2063,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 20070;
-     */
-    CLIENT_TYPE = 20070,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 20080;
-     */
-    PRIMITIVE_TYPE = 20080,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 20082;
-     */
-    FIELD_ZONE = 20082,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 20083;
-     */
-    TYPE_KIND = 20083,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_FORMAT = 20384;
-     */
-    TYPE_FORMAT = 20384,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_KIND = 20385;
-     */
-    OBJECT_KIND = 20385,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 20390;
-     */
-    BLOCK_TYPE = 20390,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION_MODE = 20400;
-     */
-    ACTION_MODE = 20400,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 20100;
-     */
-    SCHEDULE_TYPE = 20100,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 20101;
-     */
-    TIME_INTERVAL = 20101,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DAY = 20102;
-     */
-    DAY = 20102,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 20103;
-     */
-    MONTH = 20103,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 20110;
-     */
-    TEXT_LINE_TYPE = 20110,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 20111;
-     */
-    ICON_KIND = 20111,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 20120;
-     */
-    MESSAGE_TYPE = 20120,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_STATUS = 20121;
-     */
-    MESSAGE_STATUS = 20121,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 20200;
-     */
-    EXPRESSION_KIND = 20200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 20201;
-     */
-    EXPRESSION_OP = 20201,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_TYPE = 20202;
-     */
-    LITERAL_TYPE = 20202,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_TYPE = 20203;
-     */
-    FUNCTIONAL_TYPE = 20203,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 20204;
-     */
-    CONDITIONAL_TYPE = 20204,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 20205;
-     */
-    AGGREGATION_TYPE = 20205,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 20206;
-     */
-    SORT_MODE = 20206,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 20207;
-     */
-    SORT_TYPE = 20207,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 20210;
-     */
-    PATH_TOKEN_TYPE = 20210,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 20500;
-     */
-    LOG_KIND = 20500,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG_LEVEL = 20501;
-     */
-    LOG_LEVEL = 20501,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 20510;
-     */
-    RUN_STATUS = 20510,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 20511;
-     */
-    RUN_KIND = 20511,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 20512;
-     */
-    RUN_ERROR_KIND = 20512,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 20513;
-     */
-    RUN_ERROR_TYPE = 20513,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_SPAN_TYPE = 20514;
-     */
-    RUN_SPAN_TYPE = 20514,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_EVENT_TYPE = 20515;
-     */
-    RUN_EVENT_TYPE = 20515,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 20516;
-     */
-    SESSION_STATUS = 20516,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 20520;
-     */
-    TRIGGER_TYPE = 20520,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_SITE = 20530;
-     */
-    BREAKPOINT_SITE = 20530,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_ACTION = 20531;
-     */
-    BREAKPOINT_ACTION = 20531,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_TARGET = 20532;
-     */
-    BREAKPOINT_TARGET = 20532,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT_KIND = 20533;
-     */
-    INTERRUPT_KIND = 20533,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT_STATUS = 20534;
-     */
-    INTERRUPT_STATUS = 20534,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CACHE_MODE = 20540;
-     */
-    CACHE_MODE = 20540,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 20560;
-     */
-    CODE_TYPE = 20560,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 20570;
-     */
-    MODEL_PROVIDER = 20570,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_TYPE = 20571;
-     */
-    MODEL_TYPE = 20571,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 20600;
-     */
-    STEP_TYPE = 20600,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 20602;
-     */
-    PORT_SIDE = 20602,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20605;
-     */
-    PIPE_TYPE = 20605,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 20650;
-     */
-    NOTIFICATION_LEVEL = 20650,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 21000;
-     */
-    SPACE_TYPE = 21000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 21001;
-     */
-    VIEW_TYPE = 21001,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 21002;
-     */
-    VARIANT = 21002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 21003;
-     */
-    COLOR_TYPE = 21003,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 21004;
-     */
-    COLOR_SHADE = 21004,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 21005;
-     */
-    FONT_TYPE = 21005,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 21006;
-     */
-    FONT_WEIGHT = 21006,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 21007;
-     */
-    FONT_SIZE = 21007,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 21008;
-     */
-    SPACING = 21008,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 21009;
-     */
-    ANCHOR = 21009,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 21010;
-     */
-    ORIENTATION = 21010,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 21011;
-     */
-    ALIGNMENT = 21011,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 21200;
-     */
-    USER_WIZARD_STAGE = 21200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 21201;
-     */
-    TREE_VIEW_PRESET = 21201,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_HUB_ASPECT = 21202;
-     */
-    HUB_ASPECT = 21202,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_HELP_ASPECT = 21203;
-     */
-    HELP_ASPECT = 21203,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 29000;
-     */
-    USER_STATUS = 29000,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 29001;
-     */
-    ORGANIZATION_STATUS = 29001
+    RECTANGLE_CONSTRAINT = 13209
 }
 /**
  * @generated from protobuf enum symbolx.bench.AccessMode
@@ -8430,6 +7761,799 @@ export enum PolicyEffect {
      * @generated from protobuf enum value: POLICY_EFFECT_DENY = 2;
      */
     DENY = 2
+}
+/**
+ * @generated from protobuf enum symbolx.bench.BenchType
+ */
+export enum BenchType {
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BENCH = 1;
+     */
+    BENCH = 1,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_USER = 2;
+     */
+    USER = 2,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION = 3;
+     */
+    ORGANIZATION = 3,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_HANDLE = 4;
+     */
+    HANDLE = 4,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT = 5;
+     */
+    CLIENT = 5,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SERVER = 200;
+     */
+    SERVER = 200,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STORE = 201;
+     */
+    STORE = 201,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_DRIVE = 203;
+     */
+    DRIVE = 203,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VAULT = 204;
+     */
+    VAULT = 204,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CACHE = 205;
+     */
+    CACHE = 205,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MACHINE = 250;
+     */
+    MACHINE = 250,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BROWSER = 251;
+     */
+    BROWSER = 251,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE = 260;
+     */
+    FILE = 260,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STREAM = 261;
+     */
+    STREAM = 261,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SECRET = 262;
+     */
+    SECRET = 262,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MEMBERSHIP = 600;
+     */
+    MEMBERSHIP = 600,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_INVITE = 601;
+     */
+    INVITE = 601,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BRANCH = 1000;
+     */
+    BRANCH = 1000,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PACKAGE = 1001;
+     */
+    PACKAGE = 1001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_DEPENDENCY = 1002;
+     */
+    DEPENDENCY = 1002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE = 1003;
+     */
+    SPACE = 1003,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK = 1010;
+     */
+    BLOCK = 1010,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER = 1011;
+     */
+    TRIGGER = 1011,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD = 1012;
+     */
+    FIELD = 1012,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_QUERY = 1013;
+     */
+    QUERY = 1013,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 1020;
+     */
+    VIEW = 1020,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STEP = 1030;
+     */
+    STEP = 1030,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 1031;
+     */
+    PIPE = 1031,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BADGE = 1040;
+     */
+    BADGE = 1040,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE = 1100;
+     */
+    MESSAGE = 1100,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RECORD = 1101;
+     */
+    RECORD = 1101,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION = 1900;
+     */
+    SESSION = 1900,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN = 1901;
+     */
+    RUN = 1901,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT = 1902;
+     */
+    INTERRUPT = 1902,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LOG = 1903;
+     */
+    LOG = 1903,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SKIP = 9000;
+     */
+    SKIP = 9000,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION_CONTEXT = 10001;
+     */
+    SESSION_CONTEXT = 10001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_CONTEXT = 10002;
+     */
+    EDIT_CONTEXT = 10002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT = 10003;
+     */
+    EDIT = 10003,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_INFO = 10004;
+     */
+    EDIT_INFO = 10004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION = 10005;
+     */
+    EDIT_OPERATION = 10005,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE = 10006;
+     */
+    CHANGE = 10006,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_VIGNETTE = 10007;
+     */
+    CHANGE_VIGNETTE = 10007,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_GRAPH_SCOPE = 10008;
+     */
+    GRAPH_SCOPE = 10008,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_ORIGIN = 10009;
+     */
+    CLIENT_ORIGIN = 10009,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_REFERENCE = 10010;
+     */
+    NODE_REFERENCE = 10010,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE = 10011;
+     */
+    PROPERTY_REFERENCE = 10011,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 10500;
+     */
+    POLICY = 10500,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 10501;
+     */
+    POLICY_RULE = 10501,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SUBJECT = 10502;
+     */
+    SUBJECT = 10502,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 10503;
+     */
+    ACCESS_ZONE = 10503,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 10504;
+     */
+    ACCESS_MATRIX = 10504,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 10505;
+     */
+    ACCESS = 10505,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_IMAGE = 11000;
+     */
+    MACHINE_IMAGE = 11000,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 11500;
+     */
+    TYPE_INFO = 11500,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 11501;
+     */
+    TYPE_CONSTRAINT = 11501,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIABLE_OBJECT = 11502;
+     */
+    VARIABLE_OBJECT = 11502,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MEMBER_OBJECT = 11503;
+     */
+    MEMBER_OBJECT = 11503,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_INPUT_OBJECT = 11504;
+     */
+    INPUT_OBJECT = 11504,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OUTPUT_OBJECT = 11505;
+     */
+    OUTPUT_OBJECT = 11505,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 11506;
+     */
+    SCHEDULE = 11506,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_INFO = 11507;
+     */
+    FILE_INFO = 11507,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_REFERENCE = 11508;
+     */
+    FILE_REFERENCE = 11508,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ICON = 11509;
+     */
+    ICON = 11509,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SECRET_REFERENCE = 11510;
+     */
+    SECRET_REFERENCE = 11510,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 12000;
+     */
+    TEXT = 12000,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 12001;
+     */
+    TEXT_LINE = 12001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 12002;
+     */
+    TEXT_SPAN = 12002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CODE = 12100;
+     */
+    CODE = 12100,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_LINE = 12101;
+     */
+    CODE_LINE = 12101,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PATH = 12200;
+     */
+    PATH = 12200,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 12201;
+     */
+    PATH_TOKEN = 12201,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 12202;
+     */
+    EXPRESSION = 12202,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_RESULT = 12203;
+     */
+    AGGREGATION_RESULT = 12203,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 12204;
+     */
+    SELECTION = 12204,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SELECT_OPTIONS = 12205;
+     */
+    SELECT_OPTIONS = 12205,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VALUE = 12206;
+     */
+    VALUE = 12206,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE = 12207;
+     */
+    COMPUTED_VALUE = 12207,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_MAPPING = 12208;
+     */
+    OBJECT_MAPPING = 12208,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD_MAPPING = 12209;
+     */
+    FIELD_MAPPING = 12209,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 12700;
+     */
+    RUN_ERROR = 12700,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_OPTIONS = 12701;
+     */
+    RUN_OPTIONS = 12701,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ATTEMPT = 12702;
+     */
+    RUN_ATTEMPT = 12702,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_TRACE = 12703;
+     */
+    RUN_TRACE = 12703,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_FRAME = 12704;
+     */
+    RUN_FRAME = 12704,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_SPAN = 12705;
+     */
+    RUN_SPAN = 12705,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_EVENT = 12706;
+     */
+    RUN_EVENT = 12706,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_OPTIONS = 12707;
+     */
+    TEXT_OPTIONS = 12707,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_AUDIO_OPTIONS = 12708;
+     */
+    AUDIO_OPTIONS = 12708,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_IMAGE_OPTIONS = 12709;
+     */
+    IMAGE_OPTIONS = 12709,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VIDEO_OPTIONS = 12710;
+     */
+    VIDEO_OPTIONS = 12710,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CONTINUE = 12711;
+     */
+    CONTINUE = 12711,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CALL = 12712;
+     */
+    CALL = 12712,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 12713;
+     */
+    CONTEXT = 12713,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT = 12714;
+     */
+    BREAKPOINT = 12714,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_INFO = 12715;
+     */
+    LOG_INFO = 12715,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 13200;
+     */
+    COLOR = 13200,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FONT = 13201;
+     */
+    FONT = 13201,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RECTANGLE = 13202;
+     */
+    RECTANGLE = 13202,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 13203;
+     */
+    OFFSET = 13203,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSFORM = 13204;
+     */
+    TRANSFORM = 13204,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 13205;
+     */
+    VECTOR2 = 13205,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 13206;
+     */
+    VECTOR3 = 13206,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 13207;
+     */
+    VECTOR4 = 13207,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LINE = 13208;
+     */
+    LINE = 13208,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RECTANGLE_CONSTRAINT = 13209;
+     */
+    RECTANGLE_CONSTRAINT = 13209,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20001;
+     */
+    ENUM_TYPE = 20001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_TYPE = 20002;
+     */
+    NODE_TYPE = 20002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STRUCT_TYPE = 20003;
+     */
+    STRUCT_TYPE = 20003,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_TYPE = 20004;
+     */
+    OBJECT_TYPE = 20004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20501;
+     */
+    ACCESS_MODE = 20501,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 20502;
+     */
+    ACCESS_KIND = 20502,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_QUERY_TYPE = 20503;
+     */
+    QUERY_TYPE = 20503,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20504;
+     */
+    EDIT_TYPE = 20504,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 20505;
+     */
+    USE_TYPE = 20505,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 20506;
+     */
+    ACCESS_TYPE = 20506,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 20507;
+     */
+    CHANGE_CATEGORY = 20507,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION_TYPE = 20508;
+     */
+    EDIT_OPERATION_TYPE = 20508,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 20509;
+     */
+    POLICY_EFFECT = 20509,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 21001;
+     */
+    BENCH_TYPE = 21001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 21002;
+     */
+    CLOUD = 21002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REGION = 21003;
+     */
+    REGION = 21003,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REGION_ZONE = 21004;
+     */
+    REGION_ZONE = 21004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REGION_AREA = 21005;
+     */
+    REGION_AREA = 21005,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 21006;
+     */
+    RESOURCE_STATUS = 21006,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 21007;
+     */
+    FILE_RETENTION_MODE = 21007,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_KIND = 21008;
+     */
+    FILE_KIND = 21008,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 21009;
+     */
+    FILE_TYPE = 21009,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 21010;
+     */
+    FILE_FORMAT = 21010,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 21011;
+     */
+    CLIENT_TYPE = 21011,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_TYPE = 21012;
+     */
+    MACHINE_TYPE = 21012,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 21501;
+     */
+    PRIMITIVE_TYPE = 21501,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 21502;
+     */
+    FIELD_ZONE = 21502,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 21503;
+     */
+    TYPE_KIND = 21503,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_FORMAT = 21504;
+     */
+    TYPE_FORMAT = 21504,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_KIND = 21505;
+     */
+    OBJECT_KIND = 21505,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 21506;
+     */
+    BLOCK_TYPE = 21506,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ACTION_MODE = 21507;
+     */
+    ACTION_MODE = 21507,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 22001;
+     */
+    SCHEDULE_TYPE = 22001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 22002;
+     */
+    TIME_INTERVAL = 22002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_DAY = 22003;
+     */
+    DAY = 22003,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 22004;
+     */
+    MONTH = 22004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 22005;
+     */
+    TEXT_LINE_TYPE = 22005,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 22006;
+     */
+    ICON_KIND = 22006,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 22007;
+     */
+    MESSAGE_TYPE = 22007,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_STATUS = 22008;
+     */
+    MESSAGE_STATUS = 22008,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 22501;
+     */
+    EXPRESSION_KIND = 22501,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 22502;
+     */
+    EXPRESSION_OP = 22502,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_TYPE = 22503;
+     */
+    LITERAL_TYPE = 22503,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_TYPE = 22504;
+     */
+    FUNCTIONAL_TYPE = 22504,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_TYPE = 22505;
+     */
+    CONDITIONAL_TYPE = 22505,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_TYPE = 22506;
+     */
+    AGGREGATION_TYPE = 22506,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 22507;
+     */
+    SORT_MODE = 22507,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_TYPE = 22508;
+     */
+    SORT_TYPE = 22508,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 22509;
+     */
+    PATH_TOKEN_TYPE = 22509,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 23001;
+     */
+    LOG_KIND = 23001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_LEVEL = 23002;
+     */
+    LOG_LEVEL = 23002,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 23003;
+     */
+    RUN_STATUS = 23003,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 23004;
+     */
+    RUN_KIND = 23004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 23005;
+     */
+    RUN_ERROR_KIND = 23005,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 23006;
+     */
+    RUN_ERROR_TYPE = 23006,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_SPAN_TYPE = 23007;
+     */
+    RUN_SPAN_TYPE = 23007,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_EVENT_TYPE = 23008;
+     */
+    RUN_EVENT_TYPE = 23008,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 23009;
+     */
+    SESSION_STATUS = 23009,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 23010;
+     */
+    TRIGGER_TYPE = 23010,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_SITE = 23011;
+     */
+    BREAKPOINT_SITE = 23011,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_ACTION = 23012;
+     */
+    BREAKPOINT_ACTION = 23012,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_TARGET = 23013;
+     */
+    BREAKPOINT_TARGET = 23013,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT_KIND = 23014;
+     */
+    INTERRUPT_KIND = 23014,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT_STATUS = 23015;
+     */
+    INTERRUPT_STATUS = 23015,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CACHE_MODE = 23016;
+     */
+    CACHE_MODE = 23016,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 23017;
+     */
+    CODE_TYPE = 23017,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 23018;
+     */
+    MODEL_PROVIDER = 23018,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_TYPE = 23019;
+     */
+    MODEL_TYPE = 23019,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 23020;
+     */
+    STEP_TYPE = 23020,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 23021;
+     */
+    PORT_SIDE = 23021,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 23022;
+     */
+    PIPE_TYPE = 23022,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 23023;
+     */
+    NOTIFICATION_LEVEL = 23023,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 23501;
+     */
+    SPACE_TYPE = 23501,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 23502;
+     */
+    VIEW_TYPE = 23502,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 23503;
+     */
+    VARIANT = 23503,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 23504;
+     */
+    COLOR_TYPE = 23504,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 23505;
+     */
+    COLOR_SHADE = 23505,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 23506;
+     */
+    FONT_TYPE = 23506,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 23507;
+     */
+    FONT_WEIGHT = 23507,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 23508;
+     */
+    FONT_SIZE = 23508,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 23509;
+     */
+    SPACING = 23509,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 23510;
+     */
+    ANCHOR = 23510,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 23511;
+     */
+    ORIENTATION = 23511,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 23512;
+     */
+    ALIGNMENT = 23512,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 23513;
+     */
+    USER_WIZARD_STAGE = 23513,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 23514;
+     */
+    TREE_VIEW_PRESET = 23514,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_HUB_ASPECT = 23515;
+     */
+    HUB_ASPECT = 23515,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_HELP_ASPECT = 23516;
+     */
+    HELP_ASPECT = 23516,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 24001;
+     */
+    USER_STATUS = 24001,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 24002;
+     */
+    ORGANIZATION_STATUS = 24002
 }
 /**
  * The cloud provider.
@@ -9144,6 +9268,19 @@ export enum ClientType {
      * @generated from protobuf enum value: CLIENT_TYPE_BENCH_MACHINE = 10;
      */
     BENCH_MACHINE = 10
+}
+/**
+ * @generated from protobuf enum symbolx.bench.MachineType
+ */
+export enum MachineType {
+    /**
+     * @generated from protobuf enum value: MACHINE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: MACHINE_TYPE_RUNTIME = 1;
+     */
+    RUNTIME = 1
 }
 /**
  * Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -16734,6 +16871,53 @@ class LogInfoData$Type extends MessageType$<LogInfoData> {
  */
 export const LogInfoData = new LogInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class MachineImageData$Type extends MessageType$<MachineImageData> {
+    constructor() {
+        super("symbolx.bench.MachineImageData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<MachineImageData>): MachineImageData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<MachineImageData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MachineImageData): MachineImageData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: MachineImageData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.MachineImageData
+ */
+export const MachineImageData = new MachineImageData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class ColorData$Type extends MessageType$<ColorData> {
     constructor() {
         super("symbolx.bench.ColorData", [
@@ -19292,273 +19476,6 @@ class ServerData$Type extends MessageType$<ServerData> {
  */
 export const ServerData = new ServerData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class MachineData$Type extends MessageType$<MachineData> {
-    constructor() {
-        super("symbolx.bench.MachineData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 45, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 51, name: "current_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 52, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 53, name: "current_ram", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 60, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 61, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 62, name: "active_at", kind: "message", T: () => Timestamp },
-            { no: 63, name: "restarted_at", kind: "message", T: () => Timestamp }
-        ]);
-    }
-    create(value?: PartialMessage<MachineData>): MachineData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.createdEpoch = 0n;
-        message.updatedEpoch = 0n;
-        message.name = "";
-        message.region = 0;
-        message.status = 0;
-        message.currentStatus = 0;
-        message.version = "";
-        message.cpu = 0;
-        message.ram = 0;
-        if (value !== undefined)
-            reflectionMergePartial<MachineData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MachineData): MachineData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* int64 created_epoch */ 12:
-                    message.createdEpoch = reader.int64().toBigInt();
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 13:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 14:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* int64 updated_epoch */ 15:
-                    message.updatedEpoch = reader.int64().toBigInt();
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 16:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional google.protobuf.Value subnode_packed */ 29:
-                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* string name */ 32:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbolx.bench.TextData text */ 34:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* symbolx.bench.Region region */ 35:
-                    message.region = reader.int32();
-                    break;
-                case /* symbolx.bench.ResourceStatus status */ 36:
-                    message.status = reader.int32();
-                    break;
-                case /* symbolx.bench.ResourceStatus current_status */ 37:
-                    message.currentStatus = reader.int32();
-                    break;
-                case /* string version */ 40:
-                    message.version = reader.string();
-                    break;
-                case /* optional string current_version */ 41:
-                    message.currentVersion = reader.string();
-                    break;
-                case /* optional string external_name */ 42:
-                    message.externalName = reader.string();
-                    break;
-                case /* optional string external_id */ 43:
-                    message.externalId = reader.string();
-                    break;
-                case /* optional string connection_uri */ 44:
-                    message.connectionUri = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 45:
-                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
-                    break;
-                case /* float cpu */ 50:
-                    message.cpu = reader.float();
-                    break;
-                case /* optional float current_cpu */ 51:
-                    message.currentCpu = reader.float();
-                    break;
-                case /* float ram */ 52:
-                    message.ram = reader.float();
-                    break;
-                case /* optional float current_ram */ 53:
-                    message.currentRam = reader.float();
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 60:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 61:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp active_at */ 62:
-                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
-                    break;
-                case /* optional google.protobuf.Timestamp restarted_at */ 63:
-                    message.restartedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.restartedAt);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: MachineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* int64 created_epoch = 12; */
-        if (message.createdEpoch !== 0n)
-            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
-        /* google.protobuf.Timestamp updated_at = 13; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 14; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* int64 updated_epoch = 15; */
-        if (message.updatedEpoch !== 0n)
-            writer.tag(15, WireType.Varint).int64(message.updatedEpoch);
-        /* optional google.protobuf.Timestamp deleted_at = 16; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value subnode_packed = 29; */
-        if (message.subnodePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* string name = 32; */
-        if (message.name !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.TextData text = 34; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 35; */
-        if (message.region !== 0)
-            writer.tag(35, WireType.Varint).int32(message.region);
-        /* symbolx.bench.ResourceStatus status = 36; */
-        if (message.status !== 0)
-            writer.tag(36, WireType.Varint).int32(message.status);
-        /* symbolx.bench.ResourceStatus current_status = 37; */
-        if (message.currentStatus !== 0)
-            writer.tag(37, WireType.Varint).int32(message.currentStatus);
-        /* string version = 40; */
-        if (message.version !== "")
-            writer.tag(40, WireType.LengthDelimited).string(message.version);
-        /* optional string current_version = 41; */
-        if (message.currentVersion !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.currentVersion);
-        /* optional string external_name = 42; */
-        if (message.externalName !== undefined)
-            writer.tag(42, WireType.LengthDelimited).string(message.externalName);
-        /* optional string external_id = 43; */
-        if (message.externalId !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.externalId);
-        /* optional string connection_uri = 44; */
-        if (message.connectionUri !== undefined)
-            writer.tag(44, WireType.LengthDelimited).string(message.connectionUri);
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 45; */
-        if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* float cpu = 50; */
-        if (message.cpu !== 0)
-            writer.tag(50, WireType.Bit32).float(message.cpu);
-        /* optional float current_cpu = 51; */
-        if (message.currentCpu !== undefined)
-            writer.tag(51, WireType.Bit32).float(message.currentCpu);
-        /* float ram = 52; */
-        if (message.ram !== 0)
-            writer.tag(52, WireType.Bit32).float(message.ram);
-        /* optional float current_ram = 53; */
-        if (message.currentRam !== undefined)
-            writer.tag(53, WireType.Bit32).float(message.currentRam);
-        /* optional google.protobuf.Timestamp started_at = 60; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 61; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 62; */
-        if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp restarted_at = 63; */
-        if (message.restartedAt)
-            Timestamp.internalBinaryWrite(message.restartedAt, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.MachineData
- */
-export const MachineData = new MachineData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class StoreData$Type extends MessageType$<StoreData> {
     constructor() {
         super("symbolx.bench.StoreData", [
@@ -20275,7 +20192,7 @@ class ClientData$Type extends MessageType$<ClientData> {
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -20296,7 +20213,7 @@ class ClientData$Type extends MessageType$<ClientData> {
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
         message.type = 0;
-        message.name = "";
+        message.title = "";
         if (value !== undefined)
             reflectionMergePartial<ClientData>(this, message, value);
         return message;
@@ -20345,8 +20262,8 @@ class ClientData$Type extends MessageType$<ClientData> {
                 case /* symbolx.bench.ClientType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* string name */ 32:
-                    message.name = reader.string();
+                case /* string title */ 32:
+                    message.title = reader.string();
                     break;
                 case /* optional string device_type */ 40:
                     message.deviceType = reader.string();
@@ -20432,9 +20349,9 @@ class ClientData$Type extends MessageType$<ClientData> {
         /* symbolx.bench.ClientType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* string name = 32; */
-        if (message.name !== "")
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* string title = 32; */
+        if (message.title !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.title);
         /* optional string device_type = 40; */
         if (message.deviceType !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.deviceType);
@@ -22270,164 +22187,6 @@ class QueryBlockData$Type extends MessageType$<QueryBlockData> {
  * @generated MessageType for protobuf message symbolx.bench.QueryBlockData
  */
 export const QueryBlockData = new QueryBlockData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class BrowserData$Type extends MessageType$<BrowserData> {
-    constructor() {
-        super("symbolx.bench.BrowserData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
-        ]);
-    }
-    create(value?: PartialMessage<BrowserData>): BrowserData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.createdEpoch = 0n;
-        message.updatedEpoch = 0n;
-        message.region = 0;
-        message.status = 0;
-        message.currentStatus = 0;
-        if (value !== undefined)
-            reflectionMergePartial<BrowserData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BrowserData): BrowserData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* int64 created_epoch */ 12:
-                    message.createdEpoch = reader.int64().toBigInt();
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 13:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 14:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* int64 updated_epoch */ 15:
-                    message.updatedEpoch = reader.int64().toBigInt();
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 16:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* optional google.protobuf.Value subnode_packed */ 29:
-                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional symbolx.bench.TextData text */ 34:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* symbolx.bench.Region region */ 35:
-                    message.region = reader.int32();
-                    break;
-                case /* symbolx.bench.ResourceStatus status */ 36:
-                    message.status = reader.int32();
-                    break;
-                case /* symbolx.bench.ResourceStatus current_status */ 37:
-                    message.currentStatus = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: BrowserData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* int64 created_epoch = 12; */
-        if (message.createdEpoch !== 0n)
-            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
-        /* google.protobuf.Timestamp updated_at = 13; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 14; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* int64 updated_epoch = 15; */
-        if (message.updatedEpoch !== 0n)
-            writer.tag(15, WireType.Varint).int64(message.updatedEpoch);
-        /* optional google.protobuf.Timestamp deleted_at = 16; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value subnode_packed = 29; */
-        if (message.subnodePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 34; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 35; */
-        if (message.region !== 0)
-            writer.tag(35, WireType.Varint).int32(message.region);
-        /* symbolx.bench.ResourceStatus status = 36; */
-        if (message.status !== 0)
-            writer.tag(36, WireType.Varint).int32(message.status);
-        /* symbolx.bench.ResourceStatus current_status = 37; */
-        if (message.currentStatus !== 0)
-            writer.tag(37, WireType.Varint).int32(message.currentStatus);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.BrowserData
- */
-export const BrowserData = new BrowserData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RecordData$Type extends MessageType$<RecordData> {
     constructor() {
@@ -24940,6 +24699,446 @@ class LogData$Type extends MessageType$<LogData> {
  */
 export const LogData = new LogData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class MachineData$Type extends MessageType$<MachineData> {
+    constructor() {
+        super("symbolx.bench.MachineData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.MachineType", MachineType, "MACHINE_TYPE_"] },
+            { no: 32, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "text", kind: "message", T: () => TextData },
+            { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 40, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 42, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 44, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 45, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "current_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "current_ram", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 60, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 61, name: "killed_at", kind: "message", T: () => Timestamp },
+            { no: 62, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 63, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 64, name: "restarted_at", kind: "message", T: () => Timestamp }
+        ]);
+    }
+    create(value?: PartialMessage<MachineData>): MachineData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.createdEpoch = 0n;
+        message.updatedEpoch = 0n;
+        message.type = 0;
+        message.title = "";
+        message.region = 0;
+        message.status = 0;
+        message.currentStatus = 0;
+        message.version = "";
+        message.cpu = 0;
+        message.ram = 0;
+        if (value !== undefined)
+            reflectionMergePartial<MachineData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MachineData): MachineData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* int64 created_epoch */ 12:
+                    message.createdEpoch = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 13:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 14:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* int64 updated_epoch */ 15:
+                    message.updatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 16:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 29:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* symbolx.bench.MachineType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string title */ 32:
+                    message.title = reader.string();
+                    break;
+                case /* optional symbolx.bench.TextData text */ 34:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* symbolx.bench.Region region */ 35:
+                    message.region = reader.int32();
+                    break;
+                case /* symbolx.bench.ResourceStatus status */ 36:
+                    message.status = reader.int32();
+                    break;
+                case /* symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
+                    break;
+                case /* string version */ 40:
+                    message.version = reader.string();
+                    break;
+                case /* optional string current_version */ 41:
+                    message.currentVersion = reader.string();
+                    break;
+                case /* optional string external_name */ 42:
+                    message.externalName = reader.string();
+                    break;
+                case /* optional string external_id */ 43:
+                    message.externalId = reader.string();
+                    break;
+                case /* optional string connection_uri */ 44:
+                    message.connectionUri = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 45:
+                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* float cpu */ 50:
+                    message.cpu = reader.float();
+                    break;
+                case /* optional float current_cpu */ 51:
+                    message.currentCpu = reader.float();
+                    break;
+                case /* float ram */ 52:
+                    message.ram = reader.float();
+                    break;
+                case /* optional float current_ram */ 53:
+                    message.currentRam = reader.float();
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 60:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp killed_at */ 61:
+                    message.killedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.killedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 62:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 63:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp restarted_at */ 64:
+                    message.restartedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.restartedAt);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: MachineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 12; */
+        if (message.createdEpoch !== 0n)
+            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
+        /* google.protobuf.Timestamp updated_at = 13; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 14; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* int64 updated_epoch = 15; */
+        if (message.updatedEpoch !== 0n)
+            writer.tag(15, WireType.Varint).int64(message.updatedEpoch);
+        /* optional google.protobuf.Timestamp deleted_at = 16; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 29; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MachineType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string title = 32; */
+        if (message.title !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TextData text = 34; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.Region region = 35; */
+        if (message.region !== 0)
+            writer.tag(35, WireType.Varint).int32(message.region);
+        /* symbolx.bench.ResourceStatus status = 36; */
+        if (message.status !== 0)
+            writer.tag(36, WireType.Varint).int32(message.status);
+        /* symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== 0)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
+        /* string version = 40; */
+        if (message.version !== "")
+            writer.tag(40, WireType.LengthDelimited).string(message.version);
+        /* optional string current_version = 41; */
+        if (message.currentVersion !== undefined)
+            writer.tag(41, WireType.LengthDelimited).string(message.currentVersion);
+        /* optional string external_name = 42; */
+        if (message.externalName !== undefined)
+            writer.tag(42, WireType.LengthDelimited).string(message.externalName);
+        /* optional string external_id = 43; */
+        if (message.externalId !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.externalId);
+        /* optional string connection_uri = 44; */
+        if (message.connectionUri !== undefined)
+            writer.tag(44, WireType.LengthDelimited).string(message.connectionUri);
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 45; */
+        if (message.clientPtr)
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* float cpu = 50; */
+        if (message.cpu !== 0)
+            writer.tag(50, WireType.Bit32).float(message.cpu);
+        /* optional float current_cpu = 51; */
+        if (message.currentCpu !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.currentCpu);
+        /* float ram = 52; */
+        if (message.ram !== 0)
+            writer.tag(52, WireType.Bit32).float(message.ram);
+        /* optional float current_ram = 53; */
+        if (message.currentRam !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.currentRam);
+        /* optional google.protobuf.Timestamp started_at = 60; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp killed_at = 61; */
+        if (message.killedAt)
+            Timestamp.internalBinaryWrite(message.killedAt, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 62; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 63; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp restarted_at = 64; */
+        if (message.restartedAt)
+            Timestamp.internalBinaryWrite(message.restartedAt, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.MachineData
+ */
+export const MachineData = new MachineData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class BrowserData$Type extends MessageType$<BrowserData> {
+    constructor() {
+        super("symbolx.bench.BrowserData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 34, name: "text", kind: "message", T: () => TextData },
+            { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
+        ]);
+    }
+    create(value?: PartialMessage<BrowserData>): BrowserData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.createdEpoch = 0n;
+        message.updatedEpoch = 0n;
+        message.region = 0;
+        message.status = 0;
+        message.currentStatus = 0;
+        if (value !== undefined)
+            reflectionMergePartial<BrowserData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BrowserData): BrowserData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* int64 created_epoch */ 12:
+                    message.createdEpoch = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 13:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 14:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* int64 updated_epoch */ 15:
+                    message.updatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 16:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 29:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional symbolx.bench.TextData text */ 34:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* symbolx.bench.Region region */ 35:
+                    message.region = reader.int32();
+                    break;
+                case /* symbolx.bench.ResourceStatus status */ 36:
+                    message.status = reader.int32();
+                    break;
+                case /* symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: BrowserData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 12; */
+        if (message.createdEpoch !== 0n)
+            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
+        /* google.protobuf.Timestamp updated_at = 13; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 14; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* int64 updated_epoch = 15; */
+        if (message.updatedEpoch !== 0n)
+            writer.tag(15, WireType.Varint).int64(message.updatedEpoch);
+        /* optional google.protobuf.Timestamp deleted_at = 16; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 29; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData text = 34; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.Region region = 35; */
+        if (message.region !== 0)
+            writer.tag(35, WireType.Varint).int32(message.region);
+        /* symbolx.bench.ResourceStatus status = 36; */
+        if (message.status !== 0)
+            writer.tag(36, WireType.Varint).int32(message.status);
+        /* symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== 0)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.BrowserData
+ */
+export const BrowserData = new BrowserData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class MessageData$Type extends MessageType$<MessageData> {
     constructor() {
         super("symbolx.bench.MessageData", [
@@ -26361,6 +26560,164 @@ class SecretData$Type extends MessageType$<SecretData> {
  */
 export const SecretData = new SecretData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class StreamData$Type extends MessageType$<StreamData> {
+    constructor() {
+        super("symbolx.bench.StreamData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 14, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 34, name: "text", kind: "message", T: () => TextData },
+            { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
+        ]);
+    }
+    create(value?: PartialMessage<StreamData>): StreamData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.createdEpoch = 0n;
+        message.updatedEpoch = 0n;
+        message.region = 0;
+        message.status = 0;
+        message.currentStatus = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StreamData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StreamData): StreamData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* int64 created_epoch */ 12:
+                    message.createdEpoch = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 13:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 14:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* int64 updated_epoch */ 15:
+                    message.updatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 16:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Value subnode_packed */ 29:
+                    message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional symbolx.bench.TextData text */ 34:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* symbolx.bench.Region region */ 35:
+                    message.region = reader.int32();
+                    break;
+                case /* symbolx.bench.ResourceStatus status */ 36:
+                    message.status = reader.int32();
+                    break;
+                case /* symbolx.bench.ResourceStatus current_status */ 37:
+                    message.currentStatus = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StreamData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 12; */
+        if (message.createdEpoch !== 0n)
+            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
+        /* google.protobuf.Timestamp updated_at = 13; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 14; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* int64 updated_epoch = 15; */
+        if (message.updatedEpoch !== 0n)
+            writer.tag(15, WireType.Varint).int64(message.updatedEpoch);
+        /* optional google.protobuf.Timestamp deleted_at = 16; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value subnode_packed = 29; */
+        if (message.subnodePacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData text = 34; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.Region region = 35; */
+        if (message.region !== 0)
+            writer.tag(35, WireType.Varint).int32(message.region);
+        /* symbolx.bench.ResourceStatus status = 36; */
+        if (message.status !== 0)
+            writer.tag(36, WireType.Varint).int32(message.status);
+        /* symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== 0)
+            writer.tag(37, WireType.Varint).int32(message.currentStatus);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.StreamData
+ */
+export const StreamData = new StreamData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class SomeNodeData$Type extends MessageType$<SomeNodeData> {
     constructor() {
         super("symbolx.bench.SomeNodeData", [
@@ -26371,34 +26728,35 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 5, name: "client", kind: "message", oneof: "node", T: () => ClientData },
             { no: 6, name: "server", kind: "message", oneof: "node", T: () => ServerData },
             { no: 7, name: "store", kind: "message", oneof: "node", T: () => StoreData },
-            { no: 8, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
-            { no: 9, name: "drive", kind: "message", oneof: "node", T: () => DriveData },
-            { no: 10, name: "vault", kind: "message", oneof: "node", T: () => VaultData },
-            { no: 11, name: "cache", kind: "message", oneof: "node", T: () => CacheData },
-            { no: 12, name: "file", kind: "message", oneof: "node", T: () => FileData },
-            { no: 13, name: "secret", kind: "message", oneof: "node", T: () => SecretData },
-            { no: 14, name: "browser", kind: "message", oneof: "node", T: () => BrowserData },
-            { no: 15, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
-            { no: 16, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
-            { no: 17, name: "branch", kind: "message", oneof: "node", T: () => BranchData },
-            { no: 18, name: "package", kind: "message", oneof: "node", T: () => PackageData },
-            { no: 19, name: "dependency", kind: "message", oneof: "node", T: () => DependencyData },
-            { no: 20, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
-            { no: 21, name: "block", kind: "message", oneof: "node", T: () => BlockData },
-            { no: 22, name: "trigger", kind: "message", oneof: "node", T: () => TriggerData },
-            { no: 23, name: "field", kind: "message", oneof: "node", T: () => FieldData },
-            { no: 24, name: "query", kind: "message", oneof: "node", T: () => QueryData },
-            { no: 25, name: "view", kind: "message", oneof: "node", T: () => ViewData },
-            { no: 26, name: "step", kind: "message", oneof: "node", T: () => StepData },
-            { no: 27, name: "pipe", kind: "message", oneof: "node", T: () => PipeData },
-            { no: 28, name: "badge", kind: "message", oneof: "node", T: () => BadgeData },
-            { no: 29, name: "message", kind: "message", oneof: "node", T: () => MessageData },
-            { no: 30, name: "record", kind: "message", oneof: "node", T: () => RecordData },
-            { no: 31, name: "session", kind: "message", oneof: "node", T: () => SessionData },
-            { no: 32, name: "run", kind: "message", oneof: "node", T: () => RunData },
-            { no: 33, name: "interrupt", kind: "message", oneof: "node", T: () => InterruptData },
-            { no: 34, name: "log", kind: "message", oneof: "node", T: () => LogData },
-            { no: 35, name: "skip", kind: "message", oneof: "node", T: () => SkipData }
+            { no: 8, name: "drive", kind: "message", oneof: "node", T: () => DriveData },
+            { no: 9, name: "vault", kind: "message", oneof: "node", T: () => VaultData },
+            { no: 10, name: "cache", kind: "message", oneof: "node", T: () => CacheData },
+            { no: 11, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
+            { no: 12, name: "browser", kind: "message", oneof: "node", T: () => BrowserData },
+            { no: 13, name: "file", kind: "message", oneof: "node", T: () => FileData },
+            { no: 14, name: "stream", kind: "message", oneof: "node", T: () => StreamData },
+            { no: 15, name: "secret", kind: "message", oneof: "node", T: () => SecretData },
+            { no: 16, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
+            { no: 17, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
+            { no: 18, name: "branch", kind: "message", oneof: "node", T: () => BranchData },
+            { no: 19, name: "package", kind: "message", oneof: "node", T: () => PackageData },
+            { no: 20, name: "dependency", kind: "message", oneof: "node", T: () => DependencyData },
+            { no: 21, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
+            { no: 22, name: "block", kind: "message", oneof: "node", T: () => BlockData },
+            { no: 23, name: "trigger", kind: "message", oneof: "node", T: () => TriggerData },
+            { no: 24, name: "field", kind: "message", oneof: "node", T: () => FieldData },
+            { no: 25, name: "query", kind: "message", oneof: "node", T: () => QueryData },
+            { no: 26, name: "view", kind: "message", oneof: "node", T: () => ViewData },
+            { no: 27, name: "step", kind: "message", oneof: "node", T: () => StepData },
+            { no: 28, name: "pipe", kind: "message", oneof: "node", T: () => PipeData },
+            { no: 29, name: "badge", kind: "message", oneof: "node", T: () => BadgeData },
+            { no: 30, name: "message", kind: "message", oneof: "node", T: () => MessageData },
+            { no: 31, name: "record", kind: "message", oneof: "node", T: () => RecordData },
+            { no: 32, name: "session", kind: "message", oneof: "node", T: () => SessionData },
+            { no: 33, name: "run", kind: "message", oneof: "node", T: () => RunData },
+            { no: 34, name: "interrupt", kind: "message", oneof: "node", T: () => InterruptData },
+            { no: 35, name: "log", kind: "message", oneof: "node", T: () => LogData },
+            { no: 36, name: "skip", kind: "message", oneof: "node", T: () => SkipData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -26455,169 +26813,175 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         store: StoreData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).store)
                     };
                     break;
-                case /* symbolx.bench.MachineData machine */ 8:
-                    message.node = {
-                        oneofKind: "machine",
-                        machine: MachineData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
-                    };
-                    break;
-                case /* symbolx.bench.DriveData drive */ 9:
+                case /* symbolx.bench.DriveData drive */ 8:
                     message.node = {
                         oneofKind: "drive",
                         drive: DriveData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).drive)
                     };
                     break;
-                case /* symbolx.bench.VaultData vault */ 10:
+                case /* symbolx.bench.VaultData vault */ 9:
                     message.node = {
                         oneofKind: "vault",
                         vault: VaultData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).vault)
                     };
                     break;
-                case /* symbolx.bench.CacheData cache */ 11:
+                case /* symbolx.bench.CacheData cache */ 10:
                     message.node = {
                         oneofKind: "cache",
                         cache: CacheData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cache)
                     };
                     break;
-                case /* symbolx.bench.FileData file */ 12:
+                case /* symbolx.bench.MachineData machine */ 11:
                     message.node = {
-                        oneofKind: "file",
-                        file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
+                        oneofKind: "machine",
+                        machine: MachineData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
                     };
                     break;
-                case /* symbolx.bench.SecretData secret */ 13:
-                    message.node = {
-                        oneofKind: "secret",
-                        secret: SecretData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).secret)
-                    };
-                    break;
-                case /* symbolx.bench.BrowserData browser */ 14:
+                case /* symbolx.bench.BrowserData browser */ 12:
                     message.node = {
                         oneofKind: "browser",
                         browser: BrowserData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).browser)
                     };
                     break;
-                case /* symbolx.bench.MembershipData membership */ 15:
+                case /* symbolx.bench.FileData file */ 13:
+                    message.node = {
+                        oneofKind: "file",
+                        file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
+                    };
+                    break;
+                case /* symbolx.bench.StreamData stream */ 14:
+                    message.node = {
+                        oneofKind: "stream",
+                        stream: StreamData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).stream)
+                    };
+                    break;
+                case /* symbolx.bench.SecretData secret */ 15:
+                    message.node = {
+                        oneofKind: "secret",
+                        secret: SecretData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).secret)
+                    };
+                    break;
+                case /* symbolx.bench.MembershipData membership */ 16:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbolx.bench.InviteData invite */ 16:
+                case /* symbolx.bench.InviteData invite */ 17:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbolx.bench.BranchData branch */ 17:
+                case /* symbolx.bench.BranchData branch */ 18:
                     message.node = {
                         oneofKind: "branch",
                         branch: BranchData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).branch)
                     };
                     break;
-                case /* symbolx.bench.PackageData package */ 18:
+                case /* symbolx.bench.PackageData package */ 19:
                     message.node = {
                         oneofKind: "package",
                         package: PackageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).package)
                     };
                     break;
-                case /* symbolx.bench.DependencyData dependency */ 19:
+                case /* symbolx.bench.DependencyData dependency */ 20:
                     message.node = {
                         oneofKind: "dependency",
                         dependency: DependencyData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dependency)
                     };
                     break;
-                case /* symbolx.bench.SpaceData space */ 20:
+                case /* symbolx.bench.SpaceData space */ 21:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbolx.bench.BlockData block */ 21:
+                case /* symbolx.bench.BlockData block */ 22:
                     message.node = {
                         oneofKind: "block",
                         block: BlockData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).block)
                     };
                     break;
-                case /* symbolx.bench.TriggerData trigger */ 22:
+                case /* symbolx.bench.TriggerData trigger */ 23:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
                     };
                     break;
-                case /* symbolx.bench.FieldData field */ 23:
+                case /* symbolx.bench.FieldData field */ 24:
                     message.node = {
                         oneofKind: "field",
                         field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
                     };
                     break;
-                case /* symbolx.bench.QueryData query */ 24:
+                case /* symbolx.bench.QueryData query */ 25:
                     message.node = {
                         oneofKind: "query",
                         query: QueryData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).query)
                     };
                     break;
-                case /* symbolx.bench.ViewData view */ 25:
+                case /* symbolx.bench.ViewData view */ 26:
                     message.node = {
                         oneofKind: "view",
                         view: ViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).view)
                     };
                     break;
-                case /* symbolx.bench.StepData step */ 26:
+                case /* symbolx.bench.StepData step */ 27:
                     message.node = {
                         oneofKind: "step",
                         step: StepData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).step)
                     };
                     break;
-                case /* symbolx.bench.PipeData pipe */ 27:
+                case /* symbolx.bench.PipeData pipe */ 28:
                     message.node = {
                         oneofKind: "pipe",
                         pipe: PipeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pipe)
                     };
                     break;
-                case /* symbolx.bench.BadgeData badge */ 28:
+                case /* symbolx.bench.BadgeData badge */ 29:
                     message.node = {
                         oneofKind: "badge",
                         badge: BadgeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).badge)
                     };
                     break;
-                case /* symbolx.bench.MessageData message */ 29:
+                case /* symbolx.bench.MessageData message */ 30:
                     message.node = {
                         oneofKind: "message",
                         message: MessageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).message)
                     };
                     break;
-                case /* symbolx.bench.RecordData record */ 30:
+                case /* symbolx.bench.RecordData record */ 31:
                     message.node = {
                         oneofKind: "record",
                         record: RecordData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).record)
                     };
                     break;
-                case /* symbolx.bench.SessionData session */ 31:
+                case /* symbolx.bench.SessionData session */ 32:
                     message.node = {
                         oneofKind: "session",
                         session: SessionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).session)
                     };
                     break;
-                case /* symbolx.bench.RunData run */ 32:
+                case /* symbolx.bench.RunData run */ 33:
                     message.node = {
                         oneofKind: "run",
                         run: RunData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
                     };
                     break;
-                case /* symbolx.bench.InterruptData interrupt */ 33:
+                case /* symbolx.bench.InterruptData interrupt */ 34:
                     message.node = {
                         oneofKind: "interrupt",
                         interrupt: InterruptData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interrupt)
                     };
                     break;
-                case /* symbolx.bench.LogData log */ 34:
+                case /* symbolx.bench.LogData log */ 35:
                     message.node = {
                         oneofKind: "log",
                         log: LogData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).log)
                     };
                     break;
-                case /* symbolx.bench.SkipData skip */ 35:
+                case /* symbolx.bench.SkipData skip */ 36:
                     message.node = {
                         oneofKind: "skip",
                         skip: SkipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).skip)
@@ -26656,90 +27020,93 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbolx.bench.StoreData store = 7; */
         if (message.node.oneofKind === "store")
             StoreData.internalBinaryWrite(message.node.store, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MachineData machine = 8; */
-        if (message.node.oneofKind === "machine")
-            MachineData.internalBinaryWrite(message.node.machine, writer.tag(8, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.DriveData drive = 9; */
+        /* symbolx.bench.DriveData drive = 8; */
         if (message.node.oneofKind === "drive")
-            DriveData.internalBinaryWrite(message.node.drive, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.VaultData vault = 10; */
+            DriveData.internalBinaryWrite(message.node.drive, writer.tag(8, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.VaultData vault = 9; */
         if (message.node.oneofKind === "vault")
-            VaultData.internalBinaryWrite(message.node.vault, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.CacheData cache = 11; */
+            VaultData.internalBinaryWrite(message.node.vault, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.CacheData cache = 10; */
         if (message.node.oneofKind === "cache")
-            CacheData.internalBinaryWrite(message.node.cache, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FileData file = 12; */
-        if (message.node.oneofKind === "file")
-            FileData.internalBinaryWrite(message.node.file, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SecretData secret = 13; */
-        if (message.node.oneofKind === "secret")
-            SecretData.internalBinaryWrite(message.node.secret, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BrowserData browser = 14; */
+            CacheData.internalBinaryWrite(message.node.cache, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MachineData machine = 11; */
+        if (message.node.oneofKind === "machine")
+            MachineData.internalBinaryWrite(message.node.machine, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.BrowserData browser = 12; */
         if (message.node.oneofKind === "browser")
-            BrowserData.internalBinaryWrite(message.node.browser, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MembershipData membership = 15; */
+            BrowserData.internalBinaryWrite(message.node.browser, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.FileData file = 13; */
+        if (message.node.oneofKind === "file")
+            FileData.internalBinaryWrite(message.node.file, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.StreamData stream = 14; */
+        if (message.node.oneofKind === "stream")
+            StreamData.internalBinaryWrite(message.node.stream, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SecretData secret = 15; */
+        if (message.node.oneofKind === "secret")
+            SecretData.internalBinaryWrite(message.node.secret, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MembershipData membership = 16; */
         if (message.node.oneofKind === "membership")
-            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.InviteData invite = 16; */
+            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.InviteData invite = 17; */
         if (message.node.oneofKind === "invite")
-            InviteData.internalBinaryWrite(message.node.invite, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BranchData branch = 17; */
+            InviteData.internalBinaryWrite(message.node.invite, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.BranchData branch = 18; */
         if (message.node.oneofKind === "branch")
-            BranchData.internalBinaryWrite(message.node.branch, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PackageData package = 18; */
+            BranchData.internalBinaryWrite(message.node.branch, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PackageData package = 19; */
         if (message.node.oneofKind === "package")
-            PackageData.internalBinaryWrite(message.node.package, writer.tag(18, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.DependencyData dependency = 19; */
+            PackageData.internalBinaryWrite(message.node.package, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.DependencyData dependency = 20; */
         if (message.node.oneofKind === "dependency")
-            DependencyData.internalBinaryWrite(message.node.dependency, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SpaceData space = 20; */
+            DependencyData.internalBinaryWrite(message.node.dependency, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SpaceData space = 21; */
         if (message.node.oneofKind === "space")
-            SpaceData.internalBinaryWrite(message.node.space, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BlockData block = 21; */
+            SpaceData.internalBinaryWrite(message.node.space, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.BlockData block = 22; */
         if (message.node.oneofKind === "block")
-            BlockData.internalBinaryWrite(message.node.block, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.TriggerData trigger = 22; */
+            BlockData.internalBinaryWrite(message.node.block, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.TriggerData trigger = 23; */
         if (message.node.oneofKind === "trigger")
-            TriggerData.internalBinaryWrite(message.node.trigger, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FieldData field = 23; */
+            TriggerData.internalBinaryWrite(message.node.trigger, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.FieldData field = 24; */
         if (message.node.oneofKind === "field")
-            FieldData.internalBinaryWrite(message.node.field, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.QueryData query = 24; */
+            FieldData.internalBinaryWrite(message.node.field, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.QueryData query = 25; */
         if (message.node.oneofKind === "query")
-            QueryData.internalBinaryWrite(message.node.query, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ViewData view = 25; */
+            QueryData.internalBinaryWrite(message.node.query, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ViewData view = 26; */
         if (message.node.oneofKind === "view")
-            ViewData.internalBinaryWrite(message.node.view, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.StepData step = 26; */
+            ViewData.internalBinaryWrite(message.node.view, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.StepData step = 27; */
         if (message.node.oneofKind === "step")
-            StepData.internalBinaryWrite(message.node.step, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PipeData pipe = 27; */
+            StepData.internalBinaryWrite(message.node.step, writer.tag(27, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PipeData pipe = 28; */
         if (message.node.oneofKind === "pipe")
-            PipeData.internalBinaryWrite(message.node.pipe, writer.tag(27, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BadgeData badge = 28; */
+            PipeData.internalBinaryWrite(message.node.pipe, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.BadgeData badge = 29; */
         if (message.node.oneofKind === "badge")
-            BadgeData.internalBinaryWrite(message.node.badge, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MessageData message = 29; */
+            BadgeData.internalBinaryWrite(message.node.badge, writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MessageData message = 30; */
         if (message.node.oneofKind === "message")
-            MessageData.internalBinaryWrite(message.node.message, writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RecordData record = 30; */
+            MessageData.internalBinaryWrite(message.node.message, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.RecordData record = 31; */
         if (message.node.oneofKind === "record")
-            RecordData.internalBinaryWrite(message.node.record, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SessionData session = 31; */
+            RecordData.internalBinaryWrite(message.node.record, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SessionData session = 32; */
         if (message.node.oneofKind === "session")
-            SessionData.internalBinaryWrite(message.node.session, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunData run = 32; */
+            SessionData.internalBinaryWrite(message.node.session, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.RunData run = 33; */
         if (message.node.oneofKind === "run")
-            RunData.internalBinaryWrite(message.node.run, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.InterruptData interrupt = 33; */
+            RunData.internalBinaryWrite(message.node.run, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.InterruptData interrupt = 34; */
         if (message.node.oneofKind === "interrupt")
-            InterruptData.internalBinaryWrite(message.node.interrupt, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.LogData log = 34; */
+            InterruptData.internalBinaryWrite(message.node.interrupt, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.LogData log = 35; */
         if (message.node.oneofKind === "log")
-            LogData.internalBinaryWrite(message.node.log, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SkipData skip = 35; */
+            LogData.internalBinaryWrite(message.node.log, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SkipData skip = 36; */
         if (message.node.oneofKind === "skip")
-            SkipData.internalBinaryWrite(message.node.skip, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+            SkipData.internalBinaryWrite(message.node.skip, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26762,11 +27129,11 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | VaultData | CacheData | FileData | SecretData | BrowserData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | InterruptData | LogData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ObjectMappingData | FieldMappingData | CodeData | CodeLineData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | DriveData | VaultData | CacheData | MachineData | BrowserData | FileData | StreamData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | InterruptData | LogData | SkipData
+export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathTokenData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ObjectMappingData | FieldMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
-export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof VaultData | typeof CacheData | typeof FileData | typeof SecretData | typeof BrowserData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptData | typeof LogData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof CodeData | typeof CodeLineData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof DriveData | typeof VaultData | typeof CacheData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptData | typeof LogData | typeof SkipData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathTokenData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -26775,16 +27142,17 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.USER]: [],
   [NodeType.ORGANIZATION]: [],
   [NodeType.HANDLE]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION],
-  [NodeType.CLIENT]: [NodeType.USER, NodeType.SERVER],
+  [NodeType.CLIENT]: [NodeType.SERVER, NodeType.USER],
   [NodeType.SERVER]: [NodeType.BENCH],
   [NodeType.STORE]: [NodeType.BENCH],
-  [NodeType.MACHINE]: [NodeType.BENCH, NodeType.SERVER],
   [NodeType.DRIVE]: [NodeType.BENCH],
   [NodeType.VAULT]: [NodeType.BENCH],
   [NodeType.CACHE]: [NodeType.BENCH],
-  [NodeType.FILE]: [NodeType.DRIVE],
-  [NodeType.SECRET]: [NodeType.VAULT],
+  [NodeType.MACHINE]: [NodeType.SERVER, NodeType.BENCH],
   [NodeType.BROWSER]: [NodeType.BENCH],
+  [NodeType.FILE]: [NodeType.DRIVE],
+  [NodeType.STREAM]: [NodeType.DRIVE],
+  [NodeType.SECRET]: [NodeType.VAULT],
   [NodeType.MEMBERSHIP]: [NodeType.BENCH],
   [NodeType.INVITE]: [NodeType.BENCH],
   [NodeType.BRANCH]: [NodeType.BENCH],
@@ -26805,25 +27173,26 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.PACKAGE, NodeType.RUN],
   [NodeType.INTERRUPT]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.PACKAGE],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.SKIP, NodeType.MESSAGE, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.BLOCK, NodeType.TRIGGER, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.SKIP, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MESSAGE, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.MACHINE, NodeType.BROWSER, NodeType.VIEW],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.SKIP, NodeType.BRANCH, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.SKIP, NodeType.BRANCH, NodeType.STORE, NodeType.DRIVE, NodeType.SERVER, NodeType.VAULT, NodeType.CACHE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.MACHINE, NodeType.BROWSER],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT],
   [NodeType.ORGANIZATION]: [NodeType.SKIP, NodeType.HANDLE],
   [NodeType.HANDLE]: [NodeType.SKIP],
   [NodeType.CLIENT]: [NodeType.SKIP],
-  [NodeType.SERVER]: [NodeType.SKIP, NodeType.CLIENT, NodeType.MACHINE],
+  [NodeType.SERVER]: [NodeType.SKIP, NodeType.MACHINE, NodeType.CLIENT],
   [NodeType.STORE]: [NodeType.SKIP],
-  [NodeType.MACHINE]: [NodeType.SKIP],
-  [NodeType.DRIVE]: [NodeType.SKIP, NodeType.FILE],
+  [NodeType.DRIVE]: [NodeType.SKIP, NodeType.FILE, NodeType.STREAM],
   [NodeType.VAULT]: [NodeType.SKIP, NodeType.SECRET],
   [NodeType.CACHE]: [NodeType.SKIP],
-  [NodeType.FILE]: [NodeType.SKIP],
-  [NodeType.SECRET]: [NodeType.SKIP],
+  [NodeType.MACHINE]: [NodeType.SKIP],
   [NodeType.BROWSER]: [NodeType.SKIP],
+  [NodeType.FILE]: [NodeType.SKIP],
+  [NodeType.STREAM]: [NodeType.SKIP],
+  [NodeType.SECRET]: [NodeType.SKIP],
   [NodeType.MEMBERSHIP]: [NodeType.SKIP],
   [NodeType.INVITE]: [NodeType.SKIP],
   [NodeType.BRANCH]: [NodeType.SKIP, NodeType.PACKAGE],
@@ -26853,16 +27222,17 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.USER]: [],
   [NodeType.ORGANIZATION]: [],
   [NodeType.HANDLE]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION],
-  [NodeType.CLIENT]: [NodeType.BENCH, NodeType.USER, NodeType.SERVER],
+  [NodeType.CLIENT]: [NodeType.SERVER, NodeType.BENCH, NodeType.USER],
   [NodeType.SERVER]: [NodeType.BENCH],
   [NodeType.STORE]: [NodeType.BENCH],
-  [NodeType.MACHINE]: [NodeType.BENCH, NodeType.SERVER],
   [NodeType.DRIVE]: [NodeType.BENCH],
   [NodeType.VAULT]: [NodeType.BENCH],
   [NodeType.CACHE]: [NodeType.BENCH],
-  [NodeType.FILE]: [NodeType.BENCH, NodeType.DRIVE],
-  [NodeType.SECRET]: [NodeType.VAULT, NodeType.BENCH],
+  [NodeType.MACHINE]: [NodeType.SERVER, NodeType.BENCH],
   [NodeType.BROWSER]: [NodeType.BENCH],
+  [NodeType.FILE]: [NodeType.BENCH, NodeType.DRIVE],
+  [NodeType.STREAM]: [NodeType.BENCH, NodeType.DRIVE],
+  [NodeType.SECRET]: [NodeType.BENCH, NodeType.VAULT],
   [NodeType.MEMBERSHIP]: [NodeType.BENCH],
   [NodeType.INVITE]: [NodeType.BENCH],
   [NodeType.BRANCH]: [NodeType.BENCH],
@@ -26883,25 +27253,26 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.RUN],
   [NodeType.INTERRUPT]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.RUN],
   [NodeType.LOG]: [NodeType.BRANCH, NodeType.PACKAGE, NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.SKIP, NodeType.BROWSER, NodeType.MESSAGE, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.SERVER, NodeType.STORE, NodeType.VIEW],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.STREAM, NodeType.STEP, NodeType.PIPE, NodeType.SECRET, NodeType.CLIENT, NodeType.FILE, NodeType.BADGE, NodeType.SKIP, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.MESSAGE, NodeType.RECORD, NodeType.CACHE, NodeType.VAULT, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.MACHINE, NodeType.BROWSER, NodeType.VIEW],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.SKIP, NodeType.BROWSER, NodeType.MESSAGE, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.BLOCK, NodeType.TRIGGER, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.QUERY, NodeType.FIELD, NodeType.VIEW],
+  [NodeType.BENCH]: [NodeType.FILE, NodeType.CLIENT, NodeType.SECRET, NodeType.STREAM, NodeType.PIPE, NodeType.STEP, NodeType.HANDLE, NodeType.BADGE, NodeType.SKIP, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MESSAGE, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.MACHINE, NodeType.BROWSER, NodeType.VIEW],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT],
   [NodeType.ORGANIZATION]: [NodeType.SKIP, NodeType.HANDLE],
   [NodeType.HANDLE]: [NodeType.SKIP],
   [NodeType.CLIENT]: [NodeType.SKIP],
-  [NodeType.SERVER]: [NodeType.SKIP, NodeType.CLIENT, NodeType.MACHINE],
+  [NodeType.SERVER]: [NodeType.SKIP, NodeType.MACHINE, NodeType.CLIENT],
   [NodeType.STORE]: [NodeType.SKIP],
-  [NodeType.MACHINE]: [NodeType.SKIP],
-  [NodeType.DRIVE]: [NodeType.SKIP, NodeType.FILE],
+  [NodeType.DRIVE]: [NodeType.SKIP, NodeType.FILE, NodeType.STREAM],
   [NodeType.VAULT]: [NodeType.SKIP, NodeType.SECRET],
   [NodeType.CACHE]: [NodeType.SKIP],
-  [NodeType.FILE]: [NodeType.SKIP],
-  [NodeType.SECRET]: [NodeType.SKIP],
+  [NodeType.MACHINE]: [NodeType.SKIP],
   [NodeType.BROWSER]: [NodeType.SKIP],
+  [NodeType.FILE]: [NodeType.SKIP],
+  [NodeType.STREAM]: [NodeType.SKIP],
+  [NodeType.SECRET]: [NodeType.SKIP],
   [NodeType.MEMBERSHIP]: [NodeType.SKIP],
   [NodeType.INVITE]: [NodeType.SKIP],
   [NodeType.BRANCH]: [NodeType.STEP, NodeType.PIPE, NodeType.SKIP, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.MESSAGE, NodeType.RECORD, NodeType.RUN, NodeType.LOG, NodeType.BADGE, NodeType.INTERRUPT, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.SESSION, NodeType.VIEW],
@@ -26935,13 +27306,14 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.CLIENT]: ClientData,
   [ObjectType.SERVER]: ServerData,
   [ObjectType.STORE]: StoreData,
-  [ObjectType.MACHINE]: MachineData,
   [ObjectType.DRIVE]: DriveData,
   [ObjectType.VAULT]: VaultData,
   [ObjectType.CACHE]: CacheData,
-  [ObjectType.FILE]: FileData,
-  [ObjectType.SECRET]: SecretData,
+  [ObjectType.MACHINE]: MachineData,
   [ObjectType.BROWSER]: BrowserData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.STREAM]: StreamData,
+  [ObjectType.SECRET]: SecretData,
   [ObjectType.MEMBERSHIP]: MembershipData,
   [ObjectType.INVITE]: InviteData,
   [ObjectType.BRANCH]: BranchData,
@@ -26974,17 +27346,13 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.PATH]: PathData,
-  [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
   [ObjectType.ACCESS_ZONE]: AccessZoneData,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
-  [ObjectType.TEXT]: TextData,
-  [ObjectType.TEXT_LINE]: TextLineData,
-  [ObjectType.TEXT_SPAN]: TextSpanData,
+  [ObjectType.MACHINE_IMAGE]: MachineImageData,
   [ObjectType.TYPE_INFO]: TypeInfoData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.VARIABLE_OBJECT]: VariableObjectData,
@@ -26996,6 +27364,13 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.FILE_REFERENCE]: FileReferenceData,
   [ObjectType.ICON]: IconData,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceData,
+  [ObjectType.TEXT]: TextData,
+  [ObjectType.TEXT_LINE]: TextLineData,
+  [ObjectType.TEXT_SPAN]: TextSpanData,
+  [ObjectType.CODE]: CodeData,
+  [ObjectType.CODE_LINE]: CodeLineData,
+  [ObjectType.PATH]: PathData,
+  [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultData,
   [ObjectType.SELECTION]: SelectionData,
@@ -27004,8 +27379,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingData,
   [ObjectType.FIELD_MAPPING]: FieldMappingData,
-  [ObjectType.CODE]: CodeData,
-  [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RUN_ATTEMPT]: RunAttemptData,
@@ -27042,13 +27415,14 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ClientData"]: ObjectType.CLIENT,
   ["symbolx.bench.ServerData"]: ObjectType.SERVER,
   ["symbolx.bench.StoreData"]: ObjectType.STORE,
-  ["symbolx.bench.MachineData"]: ObjectType.MACHINE,
   ["symbolx.bench.DriveData"]: ObjectType.DRIVE,
   ["symbolx.bench.VaultData"]: ObjectType.VAULT,
   ["symbolx.bench.CacheData"]: ObjectType.CACHE,
-  ["symbolx.bench.FileData"]: ObjectType.FILE,
-  ["symbolx.bench.SecretData"]: ObjectType.SECRET,
+  ["symbolx.bench.MachineData"]: ObjectType.MACHINE,
   ["symbolx.bench.BrowserData"]: ObjectType.BROWSER,
+  ["symbolx.bench.FileData"]: ObjectType.FILE,
+  ["symbolx.bench.StreamData"]: ObjectType.STREAM,
+  ["symbolx.bench.SecretData"]: ObjectType.SECRET,
   ["symbolx.bench.MembershipData"]: ObjectType.MEMBERSHIP,
   ["symbolx.bench.InviteData"]: ObjectType.INVITE,
   ["symbolx.bench.BranchData"]: ObjectType.BRANCH,
@@ -27081,17 +27455,13 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ClientOriginData"]: ObjectType.CLIENT_ORIGIN,
   ["symbolx.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
   ["symbolx.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
-  ["symbolx.bench.PathData"]: ObjectType.PATH,
-  ["symbolx.bench.PathTokenData"]: ObjectType.PATH_TOKEN,
   ["symbolx.bench.PolicyData"]: ObjectType.POLICY,
   ["symbolx.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
   ["symbolx.bench.SubjectData"]: ObjectType.SUBJECT,
   ["symbolx.bench.AccessZoneData"]: ObjectType.ACCESS_ZONE,
   ["symbolx.bench.AccessMatrixData"]: ObjectType.ACCESS_MATRIX,
   ["symbolx.bench.AccessData"]: ObjectType.ACCESS,
-  ["symbolx.bench.TextData"]: ObjectType.TEXT,
-  ["symbolx.bench.TextLineData"]: ObjectType.TEXT_LINE,
-  ["symbolx.bench.TextSpanData"]: ObjectType.TEXT_SPAN,
+  ["symbolx.bench.MachineImageData"]: ObjectType.MACHINE_IMAGE,
   ["symbolx.bench.TypeInfoData"]: ObjectType.TYPE_INFO,
   ["symbolx.bench.TypeConstraintData"]: ObjectType.TYPE_CONSTRAINT,
   ["symbolx.bench.VariableObjectData"]: ObjectType.VARIABLE_OBJECT,
@@ -27103,6 +27473,13 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.FileReferenceData"]: ObjectType.FILE_REFERENCE,
   ["symbolx.bench.IconData"]: ObjectType.ICON,
   ["symbolx.bench.SecretReferenceData"]: ObjectType.SECRET_REFERENCE,
+  ["symbolx.bench.TextData"]: ObjectType.TEXT,
+  ["symbolx.bench.TextLineData"]: ObjectType.TEXT_LINE,
+  ["symbolx.bench.TextSpanData"]: ObjectType.TEXT_SPAN,
+  ["symbolx.bench.CodeData"]: ObjectType.CODE,
+  ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
+  ["symbolx.bench.PathData"]: ObjectType.PATH,
+  ["symbolx.bench.PathTokenData"]: ObjectType.PATH_TOKEN,
   ["symbolx.bench.ExpressionData"]: ObjectType.EXPRESSION,
   ["symbolx.bench.AggregationResultData"]: ObjectType.AGGREGATION_RESULT,
   ["symbolx.bench.SelectionData"]: ObjectType.SELECTION,
@@ -27111,8 +27488,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ComputedValueData"]: ObjectType.COMPUTED_VALUE,
   ["symbolx.bench.ObjectMappingData"]: ObjectType.OBJECT_MAPPING,
   ["symbolx.bench.FieldMappingData"]: ObjectType.FIELD_MAPPING,
-  ["symbolx.bench.CodeData"]: ObjectType.CODE,
-  ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
   ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
   ["symbolx.bench.RunOptionsData"]: ObjectType.RUN_OPTIONS,
   ["symbolx.bench.RunAttemptData"]: ObjectType.RUN_ATTEMPT,
@@ -27147,16 +27522,16 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.NODE_TYPE]: NodeType,
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
-  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.QUEYR_TYPE]: QueryType,
+  [EnumType.QUERY_TYPE]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
@@ -27167,6 +27542,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.CLIENT_TYPE]: ClientType,
+  [EnumType.MACHINE_TYPE]: MachineType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
@@ -27248,17 +27624,13 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.CLIENT_ORIGIN]: ClientOriginData,
   [StructType.NODE_REFERENCE]: NodeReferenceData,
   [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [StructType.PATH]: PathData,
-  [StructType.PATH_TOKEN]: PathTokenData,
   [StructType.POLICY]: PolicyData,
   [StructType.POLICY_RULE]: PolicyRuleData,
   [StructType.SUBJECT]: SubjectData,
   [StructType.ACCESS_ZONE]: AccessZoneData,
   [StructType.ACCESS_MATRIX]: AccessMatrixData,
   [StructType.ACCESS]: AccessData,
-  [StructType.TEXT]: TextData,
-  [StructType.TEXT_LINE]: TextLineData,
-  [StructType.TEXT_SPAN]: TextSpanData,
+  [StructType.MACHINE_IMAGE]: MachineImageData,
   [StructType.TYPE_INFO]: TypeInfoData,
   [StructType.TYPE_CONSTRAINT]: TypeConstraintData,
   [StructType.VARIABLE_OBJECT]: VariableObjectData,
@@ -27270,6 +27642,13 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.FILE_REFERENCE]: FileReferenceData,
   [StructType.ICON]: IconData,
   [StructType.SECRET_REFERENCE]: SecretReferenceData,
+  [StructType.TEXT]: TextData,
+  [StructType.TEXT_LINE]: TextLineData,
+  [StructType.TEXT_SPAN]: TextSpanData,
+  [StructType.CODE]: CodeData,
+  [StructType.CODE_LINE]: CodeLineData,
+  [StructType.PATH]: PathData,
+  [StructType.PATH_TOKEN]: PathTokenData,
   [StructType.EXPRESSION]: ExpressionData,
   [StructType.AGGREGATION_RESULT]: AggregationResultData,
   [StructType.SELECTION]: SelectionData,
@@ -27278,8 +27657,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.COMPUTED_VALUE]: ComputedValueData,
   [StructType.OBJECT_MAPPING]: ObjectMappingData,
   [StructType.FIELD_MAPPING]: FieldMappingData,
-  [StructType.CODE]: CodeData,
-  [StructType.CODE_LINE]: CodeLineData,
   [StructType.RUN_ERROR]: RunErrorData,
   [StructType.RUN_OPTIONS]: RunOptionsData,
   [StructType.RUN_ATTEMPT]: RunAttemptData,
@@ -27316,13 +27693,14 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.CLIENT]: ClientData,
   [NodeType.SERVER]: ServerData,
   [NodeType.STORE]: StoreData,
-  [NodeType.MACHINE]: MachineData,
   [NodeType.DRIVE]: DriveData,
   [NodeType.VAULT]: VaultData,
   [NodeType.CACHE]: CacheData,
-  [NodeType.FILE]: FileData,
-  [NodeType.SECRET]: SecretData,
+  [NodeType.MACHINE]: MachineData,
   [NodeType.BROWSER]: BrowserData,
+  [NodeType.FILE]: FileData,
+  [NodeType.STREAM]: StreamData,
+  [NodeType.SECRET]: SecretData,
   [NodeType.MEMBERSHIP]: MembershipData,
   [NodeType.INVITE]: InviteData,
   [NodeType.BRANCH]: BranchData,
@@ -27396,13 +27774,14 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.CLIENT]: ClientData,
   [ObjectType.SERVER]: ServerData,
   [ObjectType.STORE]: StoreData,
-  [ObjectType.MACHINE]: MachineData,
   [ObjectType.DRIVE]: DriveData,
   [ObjectType.VAULT]: VaultData,
   [ObjectType.CACHE]: CacheData,
-  [ObjectType.FILE]: FileData,
-  [ObjectType.SECRET]: SecretData,
+  [ObjectType.MACHINE]: MachineData,
   [ObjectType.BROWSER]: BrowserData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.STREAM]: StreamData,
+  [ObjectType.SECRET]: SecretData,
   [ObjectType.MEMBERSHIP]: MembershipData,
   [ObjectType.INVITE]: InviteData,
   [ObjectType.BRANCH]: BranchData,
@@ -27435,17 +27814,13 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.PATH]: PathData,
-  [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
   [ObjectType.ACCESS_ZONE]: AccessZoneData,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixData,
   [ObjectType.ACCESS]: AccessData,
-  [ObjectType.TEXT]: TextData,
-  [ObjectType.TEXT_LINE]: TextLineData,
-  [ObjectType.TEXT_SPAN]: TextSpanData,
+  [ObjectType.MACHINE_IMAGE]: MachineImageData,
   [ObjectType.TYPE_INFO]: TypeInfoData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.VARIABLE_OBJECT]: VariableObjectData,
@@ -27457,6 +27832,13 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.FILE_REFERENCE]: FileReferenceData,
   [ObjectType.ICON]: IconData,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceData,
+  [ObjectType.TEXT]: TextData,
+  [ObjectType.TEXT_LINE]: TextLineData,
+  [ObjectType.TEXT_SPAN]: TextSpanData,
+  [ObjectType.CODE]: CodeData,
+  [ObjectType.CODE_LINE]: CodeLineData,
+  [ObjectType.PATH]: PathData,
+  [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultData,
   [ObjectType.SELECTION]: SelectionData,
@@ -27465,8 +27847,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingData,
   [ObjectType.FIELD_MAPPING]: FieldMappingData,
-  [ObjectType.CODE]: CodeData,
-  [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RUN_ATTEMPT]: RunAttemptData,
@@ -27501,16 +27881,16 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.NODE_TYPE]: NodeType,
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
-  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
-  [EnumType.QUEYR_TYPE]: QueryType,
+  [EnumType.QUERY_TYPE]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
+  [EnumType.BENCH_TYPE]: BenchType,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
@@ -27521,6 +27901,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.CLIENT_TYPE]: ClientType,
+  [EnumType.MACHINE_TYPE]: MachineType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldType,
   [EnumType.TYPE_KIND]: TypeKind,
@@ -27693,7 +28074,7 @@ export enum ClientProperty {
   deletedAt = 16,
   subnodePacked = 29,
   type = 30,
-  name = 32,
+  title = 32,
   deviceType = 40,
   deviceName = 41,
   operatingSystem = 42,
@@ -27760,40 +28141,6 @@ export enum StoreProperty {
   connectionUri = 52,
 }
 
-export enum MachineProperty {
-  metatype = 1,
-  id = 2,
-  parentPtr = 4,
-  benchPtr = 6,
-  createdAt = 10,
-  createdByPtr = 11,
-  createdEpoch = 12,
-  updatedAt = 13,
-  updatedByPtr = 14,
-  updatedEpoch = 15,
-  deletedAt = 16,
-  subnodePacked = 29,
-  name = 32,
-  text = 34,
-  region = 35,
-  status = 36,
-  currentStatus = 37,
-  version = 40,
-  currentVersion = 41,
-  externalName = 42,
-  externalId = 43,
-  connectionUri = 44,
-  clientPtr = 45,
-  cpu = 50,
-  currentCpu = 51,
-  ram = 52,
-  currentRam = 53,
-  startedAt = 60,
-  terminatedAt = 61,
-  activeAt = 62,
-  restartedAt = 63,
-}
-
 export enum DriveProperty {
   metatype = 1,
   id = 2,
@@ -27854,6 +28201,61 @@ export enum CacheProperty {
   currentStatus = 37,
 }
 
+export enum MachineProperty {
+  metatype = 1,
+  id = 2,
+  parentPtr = 4,
+  benchPtr = 6,
+  createdAt = 10,
+  createdByPtr = 11,
+  createdEpoch = 12,
+  updatedAt = 13,
+  updatedByPtr = 14,
+  updatedEpoch = 15,
+  deletedAt = 16,
+  subnodePacked = 29,
+  type = 30,
+  title = 32,
+  text = 34,
+  region = 35,
+  status = 36,
+  currentStatus = 37,
+  version = 40,
+  currentVersion = 41,
+  externalName = 42,
+  externalId = 43,
+  connectionUri = 44,
+  clientPtr = 45,
+  cpu = 50,
+  currentCpu = 51,
+  ram = 52,
+  currentRam = 53,
+  startedAt = 60,
+  killedAt = 61,
+  terminatedAt = 62,
+  activeAt = 63,
+  restartedAt = 64,
+}
+
+export enum BrowserProperty {
+  metatype = 1,
+  id = 2,
+  parentPtr = 4,
+  benchPtr = 6,
+  createdAt = 10,
+  createdByPtr = 11,
+  createdEpoch = 12,
+  updatedAt = 13,
+  updatedByPtr = 14,
+  updatedEpoch = 15,
+  deletedAt = 16,
+  subnodePacked = 29,
+  text = 34,
+  region = 35,
+  status = 36,
+  currentStatus = 37,
+}
+
 export enum FileProperty {
   metatype = 1,
   id = 2,
@@ -27892,6 +28294,25 @@ export enum FileProperty {
   expiresAt = 71,
 }
 
+export enum StreamProperty {
+  metatype = 1,
+  id = 2,
+  parentPtr = 4,
+  benchPtr = 6,
+  createdAt = 10,
+  createdByPtr = 11,
+  createdEpoch = 12,
+  updatedAt = 13,
+  updatedByPtr = 14,
+  updatedEpoch = 15,
+  deletedAt = 16,
+  subnodePacked = 29,
+  text = 34,
+  region = 35,
+  status = 36,
+  currentStatus = 37,
+}
+
 export enum SecretProperty {
   metatype = 1,
   id = 2,
@@ -27912,25 +28333,6 @@ export enum SecretProperty {
   currentStatus = 37,
   valueType = 40,
   valuePacked = 41,
-}
-
-export enum BrowserProperty {
-  metatype = 1,
-  id = 2,
-  parentPtr = 4,
-  benchPtr = 6,
-  createdAt = 10,
-  createdByPtr = 11,
-  createdEpoch = 12,
-  updatedAt = 13,
-  updatedByPtr = 14,
-  updatedEpoch = 15,
-  deletedAt = 16,
-  subnodePacked = 29,
-  text = 34,
-  region = 35,
-  status = 36,
-  currentStatus = 37,
 }
 
 export enum MembershipProperty {
@@ -28737,17 +29139,6 @@ export enum PropertyReferenceProperty {
   referencesMeta = 33,
 }
 
-export enum PathProperty {
-  metatype = 1,
-  tokens = 31,
-}
-
-export enum PathTokenProperty {
-  metatype = 1,
-  type = 31,
-  name = 32,
-}
-
 export enum PolicyProperty {
   metatype = 1,
   name = 30,
@@ -28817,33 +29208,8 @@ export enum AccessProperty {
   allowedPropertiesPtr = 34,
 }
 
-export enum TextProperty {
+export enum MachineImageProperty {
   metatype = 1,
-  lines = 32,
-}
-
-export enum TextLineProperty {
-  metatype = 1,
-  type = 30,
-  spans = 33,
-  color = 50,
-  isBold = 60,
-  isItalic = 61,
-  isStrikethrough = 62,
-  isUnderline = 63,
-  isCode = 64,
-}
-
-export enum TextSpanProperty {
-  metatype = 1,
-  content = 33,
-  nodePtr = 34,
-  color = 50,
-  isBold = 60,
-  isItalic = 61,
-  isStrikethrough = 62,
-  isUnderline = 63,
-  isCode = 64,
 }
 
 export enum TypeInfoProperty {
@@ -28978,6 +29344,56 @@ export enum SecretReferenceProperty {
   title = 43,
 }
 
+export enum TextProperty {
+  metatype = 1,
+  lines = 32,
+}
+
+export enum TextLineProperty {
+  metatype = 1,
+  type = 30,
+  spans = 33,
+  color = 50,
+  isBold = 60,
+  isItalic = 61,
+  isStrikethrough = 62,
+  isUnderline = 63,
+  isCode = 64,
+}
+
+export enum TextSpanProperty {
+  metatype = 1,
+  content = 33,
+  nodePtr = 34,
+  color = 50,
+  isBold = 60,
+  isItalic = 61,
+  isStrikethrough = 62,
+  isUnderline = 63,
+  isCode = 64,
+}
+
+export enum CodeProperty {
+  metatype = 1,
+  lines = 30,
+}
+
+export enum CodeLineProperty {
+  metatype = 1,
+  content = 32,
+}
+
+export enum PathProperty {
+  metatype = 1,
+  tokens = 31,
+}
+
+export enum PathTokenProperty {
+  metatype = 1,
+  type = 31,
+  name = 32,
+}
+
 export enum ExpressionProperty {
   metatype = 1,
   type = 30,
@@ -29036,16 +29452,6 @@ export enum FieldMappingProperty {
   metatype = 1,
   sourcePtr = 35,
   targetPtr = 36,
-}
-
-export enum CodeProperty {
-  metatype = 1,
-  lines = 30,
-}
-
-export enum CodeLineProperty {
-  metatype = 1,
-  content = 32,
 }
 
 export enum RunErrorProperty {
@@ -29260,12 +29666,12 @@ export enum RectangleConstraintProperty {
   maxHeight = 53,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof BrowserProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof BrowserProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof BrowserProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof CodeProperty | typeof CodeLineProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -29274,13 +29680,14 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.CLIENT]: ClientProperty,
   [ObjectType.SERVER]: ServerProperty,
   [ObjectType.STORE]: StoreProperty,
-  [ObjectType.MACHINE]: MachineProperty,
   [ObjectType.DRIVE]: DriveProperty,
   [ObjectType.VAULT]: VaultProperty,
   [ObjectType.CACHE]: CacheProperty,
-  [ObjectType.FILE]: FileProperty,
-  [ObjectType.SECRET]: SecretProperty,
+  [ObjectType.MACHINE]: MachineProperty,
   [ObjectType.BROWSER]: BrowserProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.STREAM]: StreamProperty,
+  [ObjectType.SECRET]: SecretProperty,
   [ObjectType.MEMBERSHIP]: MembershipProperty,
   [ObjectType.INVITE]: InviteProperty,
   [ObjectType.BRANCH]: BranchProperty,
@@ -29316,17 +29723,13 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.PATH]: PathProperty,
-  [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
   [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
-  [ObjectType.TEXT]: TextProperty,
-  [ObjectType.TEXT_LINE]: TextLineProperty,
-  [ObjectType.TEXT_SPAN]: TextSpanProperty,
+  [ObjectType.MACHINE_IMAGE]: MachineImageProperty,
   [ObjectType.TYPE_INFO]: TypeInfoProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.VARIABLE_OBJECT]: VariableObjectProperty,
@@ -29338,6 +29741,13 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.FILE_REFERENCE]: FileReferenceProperty,
   [ObjectType.ICON]: IconProperty,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceProperty,
+  [ObjectType.TEXT]: TextProperty,
+  [ObjectType.TEXT_LINE]: TextLineProperty,
+  [ObjectType.TEXT_SPAN]: TextSpanProperty,
+  [ObjectType.CODE]: CodeProperty,
+  [ObjectType.CODE_LINE]: CodeLineProperty,
+  [ObjectType.PATH]: PathProperty,
+  [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultProperty,
   [ObjectType.SELECTION]: SelectionProperty,
@@ -29346,8 +29756,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingProperty,
   [ObjectType.FIELD_MAPPING]: FieldMappingProperty,
-  [ObjectType.CODE]: CodeProperty,
-  [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RUN_ATTEMPT]: RunAttemptProperty,
@@ -29384,13 +29792,14 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.CLIENT]: ClientProperty,
   [ObjectType.SERVER]: ServerProperty,
   [ObjectType.STORE]: StoreProperty,
-  [ObjectType.MACHINE]: MachineProperty,
   [ObjectType.DRIVE]: DriveProperty,
   [ObjectType.VAULT]: VaultProperty,
   [ObjectType.CACHE]: CacheProperty,
-  [ObjectType.FILE]: FileProperty,
-  [ObjectType.SECRET]: SecretProperty,
+  [ObjectType.MACHINE]: MachineProperty,
   [ObjectType.BROWSER]: BrowserProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.STREAM]: StreamProperty,
+  [ObjectType.SECRET]: SecretProperty,
   [ObjectType.MEMBERSHIP]: MembershipProperty,
   [ObjectType.INVITE]: InviteProperty,
   [ObjectType.BRANCH]: BranchProperty,
@@ -29423,17 +29832,13 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.PATH]: PathProperty,
-  [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
   [ObjectType.ACCESS_ZONE]: AccessZoneProperty,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixProperty,
   [ObjectType.ACCESS]: AccessProperty,
-  [ObjectType.TEXT]: TextProperty,
-  [ObjectType.TEXT_LINE]: TextLineProperty,
-  [ObjectType.TEXT_SPAN]: TextSpanProperty,
+  [ObjectType.MACHINE_IMAGE]: MachineImageProperty,
   [ObjectType.TYPE_INFO]: TypeInfoProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.VARIABLE_OBJECT]: VariableObjectProperty,
@@ -29445,6 +29850,13 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.FILE_REFERENCE]: FileReferenceProperty,
   [ObjectType.ICON]: IconProperty,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceProperty,
+  [ObjectType.TEXT]: TextProperty,
+  [ObjectType.TEXT_LINE]: TextLineProperty,
+  [ObjectType.TEXT_SPAN]: TextSpanProperty,
+  [ObjectType.CODE]: CodeProperty,
+  [ObjectType.CODE_LINE]: CodeLineProperty,
+  [ObjectType.PATH]: PathProperty,
+  [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultProperty,
   [ObjectType.SELECTION]: SelectionProperty,
@@ -29453,8 +29865,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingProperty,
   [ObjectType.FIELD_MAPPING]: FieldMappingProperty,
-  [ObjectType.CODE]: CodeProperty,
-  [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RUN_ATTEMPT]: RunAttemptProperty,
@@ -29665,7 +30075,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ClientProperty.type]: { id: 30, name: 'type', component: ObjectType.CLIENT, enumType: EnumType.CLIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.title]: { id: 32, name: 'title', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceType]: { id: 40, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceName]: { id: 41, name: 'device_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.operatingSystem]: { id: 42, name: 'operating_system', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -29696,12 +30106,12 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.minRam]: { id: 52, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.maxRam]: { id: 53, name: 'max_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.minRam]: { id: 52, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.maxRam]: { id: 53, name: 'max_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 60, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.bumpedAt]: { id: 61, name: 'bumped_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -29723,44 +30133,11 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 52, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-}
-export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
-  [MachineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MACHINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [MachineProperty.id]: { id: 2, name: 'id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SERVER, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [MachineProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [MachineProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MachineProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MachineProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [MachineProperty.connectionUri]: { id: 44, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [MachineProperty.clientPtr]: { id: 45, name: 'client_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [MachineProperty.cpu]: { id: 50, name: 'cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.currentCpu]: { id: 51, name: 'current_cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.ram]: { id: 52, name: 'ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.currentRam]: { id: 53, name: 'current_ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.startedAt]: { id: 60, name: 'started_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.terminatedAt]: { id: 61, name: 'terminated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.activeAt]: { id: 62, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.restartedAt]: { id: 63, name: 'restarted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DRIVE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29819,6 +30196,59 @@ export const CacheDataInfo: Record<CacheProperty, PropertyInfo> = {
   [CacheProperty.status]: { id: 36, name: 'status', component: ObjectType.CACHE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [CacheProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.CACHE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
+  [MachineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MACHINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [MachineProperty.id]: { id: 2, name: 'id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SERVER, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [MachineProperty.type]: { id: 30, name: 'type', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.title]: { id: 32, name: 'title', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [MachineProperty.connectionUri]: { id: 44, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [MachineProperty.clientPtr]: { id: 45, name: 'client_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.cpu]: { id: 50, name: 'cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentCpu]: { id: 51, name: 'current_cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.ram]: { id: 52, name: 'ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentRam]: { id: 53, name: 'current_ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.startedAt]: { id: 60, name: 'started_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.killedAt]: { id: 61, name: 'killed_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.terminatedAt]: { id: 62, name: 'terminated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.activeAt]: { id: 63, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.restartedAt]: { id: 64, name: 'restarted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
+  [BrowserProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BROWSER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [BrowserProperty.id]: { id: 2, name: 'id', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BROWSER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BROWSER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [BrowserProperty.text]: { id: 34, name: 'text', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.status]: { id: 36, name: 'status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+}
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FileProperty.id]: { id: 2, name: 'id', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29856,6 +30286,24 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.retention]: { id: 70, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 71, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
+  [StreamProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STREAM, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [StreamProperty.id]: { id: 2, name: 'id', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STREAM, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.STREAM, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.STREAM, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.STREAM, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [StreamProperty.text]: { id: 34, name: 'text', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [StreamProperty.region]: { id: 35, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.status]: { id: 36, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+}
 export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SECRET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SecretProperty.id]: { id: 2, name: 'id', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29876,24 +30324,6 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [SecretProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-}
-export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
-  [BrowserProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BROWSER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BrowserProperty.id]: { id: 2, name: 'id', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BROWSER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BrowserProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BROWSER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BrowserProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BrowserProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BrowserProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [BrowserProperty.text]: { id: 34, name: 'text', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.status]: { id: 36, name: 'status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MEMBERSHIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30015,8 +30445,8 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.policies]: { id: 34, name: 'policies', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.runPtr]: { id: 77, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
@@ -30128,12 +30558,12 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [QueryProperty.type]: { id: 30, name: 'type', component: ObjectType.QUERY, enumType: EnumType.QUEYR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.type]: { id: 30, name: 'type', component: ObjectType.QUERY, enumType: EnumType.QUERY_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.name]: { id: 31, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.blockPtr]: { id: 42, name: 'block_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.rootsPtr]: { id: 43, name: 'roots_ptr', component: ObjectType.QUERY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.rootsPtr]: { id: 43, name: 'roots_ptr', component: ObjectType.QUERY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.filter]: { id: 44, name: 'filter', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [QueryProperty.sort]: { id: 45, name: 'sort', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [QueryProperty.aggregation]: { id: 46, name: 'aggregation', component: ObjectType.QUERY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -30168,7 +30598,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ViewProperty.subviewsPacked]: { id: 39, name: 'subviews_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
+  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
   [ViewProperty.variant]: { id: 50, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.font]: { id: 51, name: 'font', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },
   [ViewProperty.position]: { id: 60, name: 'position', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
@@ -30290,7 +30720,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [MessageProperty.type]: { id: 30, name: 'type', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.status]: { id: 31, name: 'status', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 4, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.originPtr]: { id: 35, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.originPtr]: { id: 35, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.MESSAGE, kind: 'reference', constraint: { nodeTypes: [1010], blockTypes: [12], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.replyToPtr]: { id: 37, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.title]: { id: 40, name: 'title', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
@@ -30451,7 +30881,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.changePtr]: { id: 32, name: 'change_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.undoOfPtr]: { id: 33, name: 'undo_of_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.type]: { id: 40, name: 'type', component: ObjectType.LOG, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.nodeData]: { id: 43, name: 'node_data', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.operations]: { id: 44, name: 'operations', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_OPERATION },
   [LogProperty.category]: { id: 48, name: 'category', component: ObjectType.LOG, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30468,14 +30898,14 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
 export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SKIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SkipProperty.id]: { id: 2, name: 'id', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.updatedByPtr]: { id: 14, name: 'updated_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ValueBlockDataInfo: Record<ValueBlockProperty, PropertyInfo> = {
@@ -30504,8 +30934,8 @@ export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
   [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const StartViewDataInfo: Record<StartViewProperty, PropertyInfo> = {
@@ -30574,7 +31004,7 @@ export const EditDataInfo: Record<EditProperty, PropertyInfo> = {
   [EditProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EditProperty.id]: { id: 2, name: 'id', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.type]: { id: 30, name: 'type', component: ObjectType.EDIT, enumType: EnumType.EDIT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [EditProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [EditProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [EditProperty.editedAt]: { id: 33, name: 'edited_at', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.oldEditedAt]: { id: 34, name: 'old_edited_at', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30593,7 +31023,7 @@ export const EditInfoDataInfo: Record<EditInfoProperty, PropertyInfo> = {
   [EditInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EditInfoProperty.id]: { id: 2, name: 'id', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditInfoProperty.type]: { id: 30, name: 'type', component: ObjectType.EDIT_INFO, enumType: EnumType.EDIT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditInfoProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT_INFO, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [EditInfoProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT_INFO, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [EditInfoProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [EditInfoProperty.editedAt]: { id: 33, name: 'edited_at', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditInfoProperty.oldEditedAt]: { id: 34, name: 'old_edited_at', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30610,7 +31040,7 @@ export const EditOperationDataInfo: Record<EditOperationProperty, PropertyInfo> 
 export const ChangeDataInfo: Record<ChangeProperty, PropertyInfo> = {
   [ChangeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ChangeProperty.key]: { id: 30, name: 'key', component: ObjectType.CHANGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ChangeProperty.scopePtr]: { id: 32, name: 'scope_ptr', component: ObjectType.CHANGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [ChangeProperty.scopePtr]: { id: 32, name: 'scope_ptr', component: ObjectType.CHANGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [ChangeProperty.code]: { id: 33, name: 'code', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ChangeProperty.edits]: { id: 34, name: 'edits', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT },
 }
@@ -30647,15 +31077,6 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
   [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.referencesNode]: { id: 32, name: 'references_node', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.referencesMeta]: { id: 33, name: 'references_meta', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
-  [PathProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathProperty.tokens]: { id: 31, name: 'tokens', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH_TOKEN },
-}
-export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
-  [PathTokenProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_TOKEN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathTokenProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_TOKEN, enumType: EnumType.PATH_TOKEN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PathTokenProperty.name]: { id: 32, name: 'name', component: ObjectType.PATH_TOKEN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30720,31 +31141,8 @@ export const AccessDataInfo: Record<AccessProperty, PropertyInfo> = {
   [AccessProperty.nodeType]: { id: 33, name: 'node_type', component: ObjectType.ACCESS, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [AccessProperty.allowedPropertiesPtr]: { id: 34, name: 'allowed_properties_ptr', component: ObjectType.ACCESS, kind: 'primitive', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
 }
-export const TextDataInfo: Record<TextProperty, PropertyInfo> = {
-  [TextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextProperty.lines]: { id: 32, name: 'lines', component: ObjectType.TEXT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-}
-export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
-  [TextLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextLineProperty.type]: { id: 30, name: 'type', component: ObjectType.TEXT_LINE, enumType: EnumType.TEXT_LINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.spans]: { id: 33, name: 'spans', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_SPAN },
-  [TextLineProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_LINE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-}
-export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
-  [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextSpanProperty.content]: { id: 33, name: 'content', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
-  [TextSpanProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_SPAN, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+export const MachineImageDataInfo: Record<MachineImageProperty, PropertyInfo> = {
+  [MachineImageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MACHINE_IMAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
 }
 export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30867,6 +31265,49 @@ export const SecretReferenceDataInfo: Record<SecretReferenceProperty, PropertyIn
   [SecretReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const TextDataInfo: Record<TextProperty, PropertyInfo> = {
+  [TextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TextProperty.lines]: { id: 32, name: 'lines', component: ObjectType.TEXT, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
+}
+export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
+  [TextLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TextLineProperty.type]: { id: 30, name: 'type', component: ObjectType.TEXT_LINE, enumType: EnumType.TEXT_LINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.spans]: { id: 33, name: 'spans', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_SPAN },
+  [TextLineProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_LINE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+}
+export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
+  [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TextSpanProperty.content]: { id: 33, name: 'content', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
+  [TextSpanProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_SPAN, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+}
+export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
+  [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [CodeProperty.lines]: { id: 30, name: 'lines', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE_LINE },
+}
+export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
+  [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+}
+export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
+  [PathProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PathProperty.tokens]: { id: 31, name: 'tokens', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH_TOKEN },
+}
+export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
+  [PathTokenProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_TOKEN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PathTokenProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_TOKEN, enumType: EnumType.PATH_TOKEN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PathTokenProperty.name]: { id: 32, name: 'name', component: ObjectType.PATH_TOKEN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+}
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ExpressionProperty.type]: { id: 30, name: 'type', component: ObjectType.EXPRESSION, enumType: EnumType.EXPRESSION_OP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -30887,7 +31328,7 @@ export const AggregationResultDataInfo: Record<AggregationResultProperty, Proper
 }
 export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
   [SelectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SELECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SelectionProperty.nodesPtr]: { id: 40, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.BROWSER, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.nodesPtr]: { id: 40, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [SelectionProperty.fieldsPtr]: { id: 41, name: 'fields_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SelectOptionsDataInfo: Record<SelectOptionsProperty, PropertyInfo> = {
@@ -30918,14 +31359,6 @@ export const FieldMappingDataInfo: Record<FieldMappingProperty, PropertyInfo> = 
   [FieldMappingProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FIELD_MAPPING, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FieldMappingProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.FIELD_MAPPING, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [FieldMappingProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.FIELD_MAPPING, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
-  [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeProperty.lines]: { id: 30, name: 'lines', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE_LINE },
-}
-export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
-  [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31122,13 +31555,14 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.CLIENT]: ClientDataInfo,
   [ObjectType.SERVER]: ServerDataInfo,
   [ObjectType.STORE]: StoreDataInfo,
-  [ObjectType.MACHINE]: MachineDataInfo,
   [ObjectType.DRIVE]: DriveDataInfo,
   [ObjectType.VAULT]: VaultDataInfo,
   [ObjectType.CACHE]: CacheDataInfo,
-  [ObjectType.FILE]: FileDataInfo,
-  [ObjectType.SECRET]: SecretDataInfo,
+  [ObjectType.MACHINE]: MachineDataInfo,
   [ObjectType.BROWSER]: BrowserDataInfo,
+  [ObjectType.FILE]: FileDataInfo,
+  [ObjectType.STREAM]: StreamDataInfo,
+  [ObjectType.SECRET]: SecretDataInfo,
   [ObjectType.MEMBERSHIP]: MembershipDataInfo,
   [ObjectType.INVITE]: InviteDataInfo,
   [ObjectType.BRANCH]: BranchDataInfo,
@@ -31161,17 +31595,13 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginDataInfo,
   [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
-  [ObjectType.PATH]: PathDataInfo,
-  [ObjectType.PATH_TOKEN]: PathTokenDataInfo,
   [ObjectType.POLICY]: PolicyDataInfo,
   [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,
   [ObjectType.SUBJECT]: SubjectDataInfo,
   [ObjectType.ACCESS_ZONE]: AccessZoneDataInfo,
   [ObjectType.ACCESS_MATRIX]: AccessMatrixDataInfo,
   [ObjectType.ACCESS]: AccessDataInfo,
-  [ObjectType.TEXT]: TextDataInfo,
-  [ObjectType.TEXT_LINE]: TextLineDataInfo,
-  [ObjectType.TEXT_SPAN]: TextSpanDataInfo,
+  [ObjectType.MACHINE_IMAGE]: MachineImageDataInfo,
   [ObjectType.TYPE_INFO]: TypeInfoDataInfo,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintDataInfo,
   [ObjectType.VARIABLE_OBJECT]: VariableObjectDataInfo,
@@ -31183,6 +31613,13 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.FILE_REFERENCE]: FileReferenceDataInfo,
   [ObjectType.ICON]: IconDataInfo,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceDataInfo,
+  [ObjectType.TEXT]: TextDataInfo,
+  [ObjectType.TEXT_LINE]: TextLineDataInfo,
+  [ObjectType.TEXT_SPAN]: TextSpanDataInfo,
+  [ObjectType.CODE]: CodeDataInfo,
+  [ObjectType.CODE_LINE]: CodeLineDataInfo,
+  [ObjectType.PATH]: PathDataInfo,
+  [ObjectType.PATH_TOKEN]: PathTokenDataInfo,
   [ObjectType.EXPRESSION]: ExpressionDataInfo,
   [ObjectType.AGGREGATION_RESULT]: AggregationResultDataInfo,
   [ObjectType.SELECTION]: SelectionDataInfo,
@@ -31191,8 +31628,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.COMPUTED_VALUE]: ComputedValueDataInfo,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingDataInfo,
   [ObjectType.FIELD_MAPPING]: FieldMappingDataInfo,
-  [ObjectType.CODE]: CodeDataInfo,
-  [ObjectType.CODE_LINE]: CodeLineDataInfo,
   [ObjectType.RUN_ERROR]: RunErrorDataInfo,
   [ObjectType.RUN_OPTIONS]: RunOptionsDataInfo,
   [ObjectType.RUN_ATTEMPT]: RunAttemptDataInfo,

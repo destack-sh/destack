@@ -448,7 +448,7 @@ export class FlowContext {
       sourcePos.y -= FLOW_GRID_STEP / 2;
       targetPos.x += FLOW_GRID_STEP / 2;
       const control1 = { x: sourcePos.x + FLOW_GRID_STEP * 5, y: sourcePos.y + FLOW_GRID_STEP * 4 };
-      const control2 = { x: targetPos.x + FLOW_GRID_STEP * 1, y: targetPos.y + FLOW_GRID_STEP * 4 };
+      const control2 = { x: targetPos.x + FLOW_GRID_STEP * 1, y: targetPos.y + FLOW_GRID_STEP * 2 };
       const midpoint: Vector2 = {
         x: 0.125 * sourcePos.x + 0.375 * control1.x + 0.375 * control2.x + 0.125 * targetPos.x,
         y: 0.125 * sourcePos.y + 0.375 * control1.y + 0.375 * control2.y + 0.125 * targetPos.y,

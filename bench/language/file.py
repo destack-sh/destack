@@ -783,7 +783,7 @@ class FileInfo(Struct[FileInfoData], FileBase):
 @node_(NodeType.FILE)
 class File(AnonymousResourceNode[FileData], FileBase):
     """
-    A file stored somewhere (like in a Drive, or externally).
+    A File stored somewhere (like in a Drive, or externally).
     """
 
     parent: Union["Drive", None] = p_node_parent(4, NodeType.DRIVE, is_system=True)

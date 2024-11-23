@@ -154,9 +154,9 @@ def test_render_variable_block(shared_session: Session, shared_package: Package)
 @_render_as_stmt
 def test_render_view_block(shared_session: Session, shared_package: Package):
     View_1 = Block.new(BlockType.VIEW, "View 1")
-    Logs1 = View.new(ViewType.LOG, "Logs1", node=View_1)
-    View_1.views.append(Logs1)
-    return {"View_1": View_1, "Logs1": Logs1}
+    Button1 = View.new(ViewType.BUTTON, "Button1", node=View_1)
+    View_1.views.append(Button1)
+    return {"View_1": View_1, "Button1": Button1}
 
 
 @_render_as_stmt
