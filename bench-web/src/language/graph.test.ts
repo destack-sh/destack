@@ -286,14 +286,14 @@ describe("layered node graph", () => {
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA, clientB]);
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
     // update client
-    clientA = { ...clientA, name: "clientABase" } as ClientData;
+    clientA = { ...clientA, title: "clientABase" } as ClientData;
     base.update(clientA);
     expect(graph.get({ id: clientA.id })).toEqual(clientA);
     expect(clientARef.value).toEqual(clientA);
     clientA = {
       ...clientA,
-      name: "clientAOverlay",
-      setPaths: [[ClientProperty.name.toString()]],
+      title: "clientAOverlay",
+      setPaths: [[ClientProperty.title.toString()]],
     } as ClientData;
     // NOTE: deviceName in overlay should be ignored because it's not in setPaths.
     //  This shouldn't really happen, but it's good to have this invariant.

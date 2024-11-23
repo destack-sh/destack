@@ -849,15 +849,8 @@ export class SpaceCanvas {
       );
       this.inspect({ node: nodePtr, view });
     } else if (isNode(node, NodeType.RUN)) {
-      const view = this.addView(
-        {
-          type: ViewType.RUN,
-          nodePtr: toNodeRefOneOf(node),
-          title: `Run ${node.id!.replace(/[^\w]/g, "").slice(20)}`,
-          ...options?.props,
-        },
-        { ifPresent: "upsertAndFocus", ...options },
-      );
+      // focus on source node, set as Space.run_ptr and open Run view in Help
+      throw new Error(`nocheckin: focus on run node: ${describeNode(node)}`);
     } else {
       throw new Error(`cannot go to node: ${describeNode(node)}`);
     }
