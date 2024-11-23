@@ -18,6 +18,7 @@ import { useExistingConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
+import { fireActionById } from "@/ui/action";
 import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
 import { MenuItem, PopoverInfoIn, menuActionsLike, menuItemFromAction } from "@/ui/popover";
 import { getRunColorHex } from "@/ui/style";
@@ -300,8 +301,16 @@ defineExpose<ViewExposed>({ self });
       </div>
       <!-- User -->
       <button
-        v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: USER_MENU_ITEMS, placement: 'top-left' })"
+        v-menu="
+          (): PopoverInfoIn => ({
+            kind: 'menu',
+            items: USER_MENU_ITEMS,
+            isEnabled: user != null,
+            placement: 'top-left',
+          })
+        "
         class="mx-2 rounded py-1 pl-2.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
+        @click="user == null && fireActionById('user.auth.login')"
       >
         <IconInline class="text-gray-700" v-bind="user?.icon ?? makeIcon('fa fa-user-circle')" />
         <span v-if="user" class="ml-2">{{ user.name }}</span>

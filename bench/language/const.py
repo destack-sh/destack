@@ -325,9 +325,8 @@ BENCH_NODE_TYPES = bittuple(
 )
 LOADED_BENCH_NODE_TYPES = bittuple(
     *(
-        nt
-        for nt in BENCH_NODE_TYPES
-        if nt not in STATE_NODE_TYPES and nt not in ANONYMOUS_RESOURCE_NODE_TYPES
+        set(BENCH_NODE_TYPES)
+        - (set(STATE_NODE_TYPES) | set(ANONYMOUS_RESOURCE_NODE_TYPES) | {NodeType.CLIENT})
     )
 )
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)

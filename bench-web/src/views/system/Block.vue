@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { HEAVY_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
+import { CANVAS_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
 import { unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
@@ -42,7 +42,7 @@ const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
-const isHeavy = computed(() => HEAVY_BLOCK_TYPES.includes(block.value?.type!));
+const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(block.value?.type!));
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 
@@ -124,7 +124,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     :class="[
       isInspected ? 'border-primary-700' : 'border-gray-200',
       isPage ? 'cursor-pointer hover:bg-gray-100' : '',
-      isHeavy ? 'mb-2' : '',
+      hasCanvas ? 'mb-2' : '',
     ]"
     @click="() => isPage && canvas.goToNode(block!)"
   >
@@ -132,7 +132,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div v-if="block.type != BlockType.TEXT && block.type" class="flex flex-row items-center rounded-t px-1 py-1">
       <IconName
         ref="iconNameRef"
-        :size="isHeavy ? 'large' : 'regular'"
+        :size="hasCanvas ? 'large' : 'regular'"
         :underline="block.type == BlockType.PAGE"
         :node="block"
         :is-input="block.type != BlockType.PAGE"
@@ -140,7 +140,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       />
       <!-- Open in its own page -->
       <button
-        v-if="isHeavy"
+        v-if="hasCanvas"
         class="ml-1.5 rounded px-1 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
         @click="() => canvas.goToNode(block!)"
       >

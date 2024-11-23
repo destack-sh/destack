@@ -146,6 +146,7 @@ export function collectViewComponentsUp(
  * Walks the DOM descendants until the first layer of child components.
  * */
 export function getViewComponentChildren(instance: ComponentInstance<any>): ViewComponent[] {
+  if (instance.subTree == null) return [];
   const elements = [instance.subTree.el];
   const components = [];
 

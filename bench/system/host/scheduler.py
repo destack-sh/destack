@@ -103,11 +103,15 @@ class RunPlugin(HostPlugin[Run]):
 
         # select machines to process run on
         # NOTE :Performance: maybe not re-fetch available Machines in RunPlugin every time?
-        available_machines = await Machine.where(
-            Machine.get_property("parent").eq(self.bench.main_server)
-            & Machine.get_property("status").eq(ResourceStatus.UP)
-            & Machine.get_property("type").eq(MachineType.RUNTIME)
-        ).tolist()
+        available_machines = (
+            await Machine.where(
+                Machine.get_property("parent").eq(self.bench.main_server)
+                & Machine.get_property("status").eq(ResourceStatus.UP)
+                & Machine.get_property("type").eq(MachineType.RUNTIME)
+            )
+            .select_all()
+            .tolist()
+        )
         if op.op == RunOperation.START:
             # start on any available machine
             candidate_machines = available_machines
@@ -128,9 +132,9 @@ class RunPlugin(HostPlugin[Run]):
 
         # contact machines
         for machine in candidate_machines:
-            assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
-            runtime = RuntimeClient(get_channel(machine.connection_uri))
             try:
+                assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
+                runtime = RuntimeClient(get_channel(machine.connection_uri))
                 if op.op == RunOperation.START or op.op == RunOperation.RESUME:
                     request = ProcessRunRequest(run=run._to_data(), is_blocking=False)
                     response = await runtime.process_run(request)
@@ -169,7 +173,7 @@ class RunPlugin(HostPlugin[Run]):
                 kind=RunErrorKind.RUNTIME,
                 type=RunErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to queue run",
-                text=Text.from_markdown("Could not reach any currently available machine."),
+                text=Text.from_markdown("Could not reach any applicable Machine."),
             )
             async with self.host.session(commit=True):  # :StaleNodes
                 run.status = RunStatus.ABORTED if op.op == RunOperation.KILL else RunStatus.FAILED

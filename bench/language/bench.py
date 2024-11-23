@@ -299,7 +299,7 @@ class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default=REGION, default_sql=None)
     status: ResourceStatus = p_system(36, default=ResourceStatus.UP, default_sql=None)
-    current_status: ResourceStatus = p_system(37, default=ResourceStatus.GONE, default_sql=None)
+    current_status: ResourceStatus = p_system(37, default=ResourceStatus.DECLARED, default_sql=None)
 
     def __content_str__(self):
         value_strs: list[str] = []

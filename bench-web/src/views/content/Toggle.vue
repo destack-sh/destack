@@ -32,22 +32,23 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value, interact: () 
       v-if="variant == null || variant == Variant.PRIMARY"
       role="switch"
       :disabled="isDisabled || !isInput"
-      class="relative inline-flex h-[20px] w-12 flex-shrink-0 cursor-pointer rounded border border-gray-200 transition-colors duration-75 ease-in-out focus:outline-none"
+      class="relative inline-flex h-5 w-12 flex-shrink-0 cursor-pointer rounded border border-gray-200 transition-colors duration-75 ease-in-out focus:outline-none"
       :class="modelValue ? 'bg-gray-700' : 'bg-gray-100'"
       @click="toggle"
     >
       <span
-        class="inline-block h-[18px] w-5 transform rounded border border-gray-200 bg-white transition duration-75 ease-in-out"
+        class="inline-block h-[18px] w-5 transform rounded-sm border border-gray-200 bg-white transition duration-75 ease-in-out"
         :class="modelValue ? 'translate-x-[26px]' : 'translate-x-0'"
       />
     </button>
     <!-- Checkbox -->
-    <input
+    <button
       v-else
-      type="checkbox"
-      class="h-4 w-4 rounded border-gray-200 focus:ring-0"
-      :checked="modelValue"
-      @input="(e) => apply((e.target as HTMLInputElement).checked)"
-    />
+      class="h-5 w-5 p-[1px] rounded border border-gray-200 bg-white transition-colors duration-75"
+      :disabled="isDisabled || !isInput"
+      @click="toggle"
+    >
+      <span class="inline-block rounded w-full h-full transition-colors duration-75" :class="modelValue ? 'bg-gray-700' : ''" />
+    </button>
   </ViewContentWrapper>
 </template>
