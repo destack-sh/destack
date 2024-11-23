@@ -64,7 +64,7 @@ const absoluteStyle = computed(() => {
 <template>
   <TransitionGroup
     tag="ul"
-    class="fixed z-50 flex gap-y-2 p-2"
+    class="fixed z-50 flex gap-y-1 p-2"
     data-outside-view="true"
     :class="[isInverted ? 'flex-col-reverse' : 'flex-col']"
     :style="absoluteStyle"
@@ -84,7 +84,7 @@ const absoluteStyle = computed(() => {
         width: TOAST_WIDTH + 'px',
         borderLeftColor: getToastColorHex(toast, ColorShade.S600),
       }"
-      class="group/toast relative rounded border-l-4 bg-white px-3.5 py-2"
+      class="group/toast relative border rounded border-l-4 bg-white px-3.5 py-2"
     >
       <!-- Header -->
       <div class="flex flex-row">

@@ -1,11 +1,13 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { isRunnable } from "@/language/session";
+import { CLEAR_RUN_ACTION, getRunActions, getRunDurationString, isRunActive, isRunnable } from "@/language/session";
 import { HelpAspect, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toNodeRefOneOf, TypedNodeReferenceData, unwrapProtoOneOf, wrapProtoOneOf } from "@/proto/wiring";
+import { toNodeRefOneOf, TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
+import { IconInline, makeIcon } from "@/ui/icon";
+import { getRunColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -13,7 +15,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inspect from "@/views/system/Inspect.vue";
 import Start from "@/views/system/Start.vue";
-import { computed, Ref, toRef, watchEffect } from "vue";
+import { computed, ref, Ref, toRef, watchEffect } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -35,13 +37,12 @@ const nodePtrOneOf: Ref<ViewData["nodePtr"]> = computedValue(() =>
   nodePtr.value != null ? toNodeRefOneOf(nodePtr.value) : { oneofKind: undefined },
 );
 const { node } = supergraph.getLinkRef(nodePtr);
+const isNodeRunnable = computed(() => node.value != null && isRunnable(node.value));
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "subnodePacked"), "aspect");
 const visibleAspects = computed(() => {
   const visibleAspects: HelpAspect[] = [HelpAspect.INSPECT];
-  if (node.value != null) {
-    if (isRunnable(node.value)) {
-      visibleAspects.push(HelpAspect.RUN);
-    }
+  if (isNodeRunnable.value) {
+    visibleAspects.push(HelpAspect.RUN);
   }
   return visibleAspects;
 });
@@ -52,13 +53,15 @@ watchEffect(() => {
   }
 });
 
+const startRef: Ref<InstanceType<typeof Start> | null> = ref(null);
+
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 my-1.5 flex flex-shrink-0 cursor-pointer flex-row items-center rounded pl-2.5 pr-1"
+      class="mx-2 my-1.5 flex flex-shrink-0 flex-row items-center gap-x-1 rounded pl-2.5 pr-2.5"
       :style="{
         height: `${BAR_HEADER_HEIGHT - 12}px`,
       }"
@@ -66,6 +69,43 @@ defineExpose<ViewExposed>({ self });
       <!-- Node -->
       <NodeReference v-if="node" :node="node" :connection="pkgConnection" is-input />
       <span v-else class="text-gray-400">Nothing</span>
+      <!-- Run status -->
+      <div v-if="startRef?.run != null">
+        <span
+          class="fas fa-circle-small w-5 text-center"
+          :class="[isRunActive(startRef.run) ? 'animate-pulse' : '']"
+          :style="{
+            color: getRunColorHex(startRef.run.status),
+          }"
+        />
+        <span class="ml-1.5 text-gray-400">{{ getRunDurationString(startRef?.run, { minUnit: "s" }) }}</span>
+      </div>
+
+      <!-- Meta/Controls -->
+      <div class="ml-auto flex flex-row items-center">
+        <!-- Controls -->
+        <div
+          class="flex flex-row items-center gap-x-1"
+          :style="{
+            height: `${HEADER_HEIGHT}px`,
+          }"
+        >
+          <!-- Run controls -->
+          <button
+            v-for="action in startRef?.run != null
+              ? [...getRunActions(startRef?.run), CLEAR_RUN_ACTION]
+              : [{ title: 'Start', isPrimary: true, icon: makeIcon('fas fa-play'), action: () => startRef?.start() }]"
+            v-if="aspect == HelpAspect.RUN"
+            :key="action.title"
+            v-tooltip="{ title: action.title, small: true, group: 'run' }"
+            class="rounded px-1 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
+            @click.stop="action.action()"
+          >
+            <span v-if="action.isPrimary" class="mr-1">{{ action.title }}</span>
+            <IconInline class="w-5 text-center" v-bind="action.icon" />
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Header -->
@@ -107,7 +147,12 @@ defineExpose<ViewExposed>({ self });
       </Scroll>
     </div>
     <div v-else-if="aspect == HelpAspect.RUN">
-      <Start id="start" :node-ptr="nodePtrOneOf" v-bind="state.getChildState('start', { nodePtr: nodePtrOneOf })" />
+      <Start
+        id="start"
+        ref="startRef"
+        :node-ptr="nodePtrOneOf"
+        v-bind="state.getChildState('start', { nodePtr: nodePtrOneOf })"
+      />
     </div>
     <div v-else class="mx-5">
       <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>

@@ -21,6 +21,7 @@ import {
   type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, makeDefaultObject, toPlainNodeRef } from "@/proto/wiring";
+import { space, spaceConnection } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { assertNever } from "@/utils/functools";
 import {
@@ -56,6 +57,10 @@ export function isRunHalted(run: RunData): boolean {
 
 export function isRunTerminal(run: RunData): boolean {
   return TERMINAL_RUN_STATUSES.includes(run.status);
+}
+
+export function getRunBase(run: RunData): NodeReferenceData | null {
+  return run.pipePtr ?? run.stepPtr ?? run.blockPtr ?? null;
 }
 
 /** Determine the type of run for some runnable object */
@@ -99,8 +104,9 @@ export function getRunDurationString(run: RunData, options?: FormatDurationOptio
 }
 
 /** Gets the available actions for a Run */
+type RunAction = { title: string; isPrimary?: boolean; icon: IconData; action: () => void };
 export function getRunActions(run: RunData) {
-  const actions: { title: string; icon: IconData; action: () => void }[] = [];
+  const actions: RunAction[] = [];
   if (isRunActive(run)) {
     actions.push({
       title: "Pause",
@@ -128,6 +134,14 @@ export function getRunActions(run: RunData) {
   }
   return actions;
 }
+export const CLEAR_RUN_ACTION: RunAction = {
+  title: "Clear",
+  icon: makeIcon("fas fa-broom"),
+  action: () => {
+    if (space.value == null) throw new Error("no current space");
+    spaceConnection.tx.update(space.value, { runPtr: undefined });
+  },
+};
 
 export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
   return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;

@@ -9,6 +9,7 @@ import {
   FieldType,
   NodeType,
   ObjectType,
+  RunData,
   RunProperty,
   TypeKind,
   Variant,
@@ -100,26 +101,16 @@ const outputType = computed(() =>
 const inputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
 const outputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
 
-function createRun() {
+function start() {
   if (node.value == null || !isRunnable(node.value)) return;
   const run = runtime.createRun(node.value, { inputsPacked: inputsPacked.value as any });
   spaceConnection.tx.update(space.value!, { runPtr: toNodeRef(run) });
 }
 
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ self, id, start, run });
 </script>
 <template>
   <div v-if="node" class="h-full w-full">
-    <!-- Controls -->
-    <div
-      class="mx-5 flex flex-row items-center"
-      :style="{
-        height: `${HEADER_HEIGHT}px`,
-      }"
-    >
-      <button @click="createRun">start</button>
-      <button @click="() => spaceConnection.tx.update(space!, { runPtr: undefined })">clear</button>
-    </div>
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-2">
       <!-- Inputs -->
@@ -174,7 +165,7 @@ defineExpose<ViewExposed>({ self, id });
           :variant="Variant.STEALTH"
           :model-value="run.inputsPacked"
         />
-        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">No inputs</span>
+        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">Nothing</span>
       </div>
       <!-- Outputs (last run) -->
       <div v-if="run?.outputsPacked != null" class="px-5">
@@ -195,7 +186,7 @@ defineExpose<ViewExposed>({ self, id });
           :variant="Variant.STEALTH"
           :model-value="run.outputsPacked"
         />
-        <span v-if="outputsRef?.fields.length == 0" class="text-gray-400">No outputs</span>
+        <span v-if="outputsRef?.fields.length == 0" class="text-gray-400">Nothing</span>
       </div>
       <!-- Error -->
       <div v-if="run?.error != null" class="px-5">

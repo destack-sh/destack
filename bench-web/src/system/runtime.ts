@@ -2,7 +2,7 @@ import { ACTIVE_RUN_STATUSES } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
 import { timesortNode } from "@/language/order";
-import { makeRun, type RunnableObject } from "@/language/session";
+import { getRunBase as getRunBasePtr, makeRun, type RunnableObject } from "@/language/session";
 import { CONNECTION_IGNORE, type Transaction } from "@/language/transaction";
 import {
   BlockData,
@@ -61,7 +61,7 @@ export class RunTree {
     this.runsByBaseCk = computed(() => {
       const runByBaseCk: Record<string, RunData[]> = {};
       for (const run of this.runsRef.value) {
-        const base = run.stepPtr ?? run.blockPtr;
+        const base = getRunBasePtr(run);
         if (base?.ck != null) {
           if (runByBaseCk[base.ck] == null) {
             runByBaseCk[base.ck] = [];
