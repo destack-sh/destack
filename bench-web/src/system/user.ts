@@ -68,6 +68,7 @@ function makeCurrentClient(): ClientData {
       placeId: persistentInfo.value!.placeId,
       benchPtr: undefined,
       ...local.clientMeta.value,
+      title: local.clientMeta.value.deviceType,
     },
     { omit: ["id"] },
   );
@@ -107,14 +108,7 @@ export async function signUp(
   if (isAuthenticated.value) throw new Error("already logged in");
   const {
     response: { user, client, accessToken },
-  } = await supervisor.signupUser(
-    {
-      ...userIn,
-      password,
-      client: makeCurrentClient(),
-    },
-    options,
-  );
+  } = await supervisor.signupUser({ ...userIn, password, client: makeCurrentClient() }, options);
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.info({ icon: "fas fa-right-from-bracket", title: "Signed Up", text: `Welcome, ${user.slug}.` });
@@ -193,14 +187,18 @@ contributeActionMap<"user">({
     title: "Sign Up",
     text: "Create a new account.",
     isEnabled: isUnauthenticated,
-    action: () => canvas.upsertView(userWizardView({ title: "Sign Up" })),
+    action: () => {
+      canvas.addView(userWizardView({ title: "Sign Up" }), { ifPresent: "upsertAndFocus" });
+    },
   },
   "user.auth.login": {
     icon: "fas fa-right-from-bracket",
     title: "Log In",
     text: "Log in to an existing account.",
     isEnabled: isUnauthenticated,
-    action: () => canvas.upsertView(userWizardView({ title: "Log In" })),
+    action: () => {
+      canvas.addView(userWizardView({ title: "Log In" }), { ifPresent: "upsertAndFocus" });
+    },
   },
   "user.auth.logout": {
     icon: "fas fa-right-to-bracket",
@@ -221,12 +219,12 @@ contributeActionMap<"user">({
     isEnabled: computed(() => isAuthenticated.value && !isActivated.value && !isWaitlisted.value),
     title: "Activate Bench",
     text: "Activate your account by creating your Bench.",
-    action: () =>
-      canvas.upsertView({
-        type: ViewType.BENCH_WIZARD,
-        icon: makeIcon("fas fa-rocket-launch"),
-        title: "Activate Bench",
-      }),
+    action: () => {
+      canvas.addView(
+        { type: ViewType.BENCH_WIZARD, icon: makeIcon("fas fa-rocket-launch"), title: "Activate Bench" },
+        { ifPresent: "upsertAndFocus" },
+      );
+    },
   },
   "user.misc.goToHome": {
     icon: "fas fa-home",

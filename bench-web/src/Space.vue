@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES } from "@/language/const";
-import { NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
+import { NodeReferenceData, NodeType, Orientation, UserStatus, Variant, ViewType } from "@/proto/wire";
 import { toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { assignSpaceInPackage, bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
@@ -116,11 +116,11 @@ watch(
         </span>
         <Button
           v-if="user"
-          id="user"
+          id="createspace"
           class="mt-2"
-          name="MakeSpace"
+          name="CreateSpace"
           :icon="makeIcon('fas fa-plus')"
-          title="Make Space"
+          title="Create Space"
           @click="() => assignSpaceInPackage()"
         />
         <Button
@@ -167,7 +167,7 @@ watch(
         />
       </div>
       <div v-else class="flex flex-col gap-y-2 self-center">
-        <!-- Not logged in, not on a space (general landing page should go here) -->
+        <!-- Not logged in, not on a space  -->
         <h2 class="mb-1.5 text-2xl font-bold">Bench</h2>
         <Button
           id="login"

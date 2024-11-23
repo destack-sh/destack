@@ -36,7 +36,7 @@ const visibleToasts = computed(() => {
 
 const COLOR_BY_TOAST_LEVEL: Record<ToastLevel, ColorType> = {
   [ToastLevel.DEBUG]: ColorType.GRAY,
-  [ToastLevel.INFO]: ColorType.FUCHSIA,
+  [ToastLevel.INFO]: ColorType.GRAY,
   [ToastLevel.SUCCESS]: ColorType.SUCCESS,
   [ToastLevel.WARNING]: ColorType.WARNING,
   [ToastLevel.ERROR]: ColorType.DANGER,
@@ -83,31 +83,15 @@ const absoluteStyle = computed(() => {
       :style="{
         width: TOAST_WIDTH + 'px',
         borderLeftColor: getToastColorHex(toast, ColorShade.S600),
-        backgroundColor:
-          toast.level == ToastLevel.DEBUG
-            ? getColorHex(ColorType.GRAY, ColorShade.S100)
-            : getToastColorHex(toast, ColorShade.S50),
       }"
-      class="group/toast relative rounded border-l-4 px-3.5 py-2"
+      class="group/toast relative rounded border-l-4 bg-white px-3.5 py-2"
     >
       <!-- Header -->
       <div class="flex flex-row">
-        <span
-          class="font-medium"
-          :style="{
-            color: getToastColorHex(toast, ColorShade.S800),
-          }"
-          >{{ toast.title }}</span
-        >
+        <span class="font-medium text-gray-900">{{ toast.title }}</span>
       </div>
       <!-- Content -->
-      <p
-        v-if="toast.text"
-        class="mt-0.5 line-clamp-2"
-        :style="{
-          color: getToastColorHex(toast, ColorShade.S700),
-        }"
-      >
+      <p v-if="toast.text" class="mt-0.5 line-clamp-2 text-gray-700">
         {{ toast.text }}
       </p>
       <!-- Actions -->
@@ -115,17 +99,11 @@ const absoluteStyle = computed(() => {
         <button
           v-for="(action, j) in toast.actions"
           :key="j"
-          class="group/action max-w-20 truncate font-medium"
+          class="group/action max-w-20 truncate font-medium text-gray-400 group-hover/action:text-gray-700"
           @click="action.action(), toaster.dismiss(toast)"
         >
           <IconInline v-if="action.icon" v-bind="action.icon" class="mr-1" />
-          <span
-            class="group-hover/action:text-primary-700"
-            :style="{
-              color: getToastColorHex(toast, ColorShade.S700),
-            }"
-            >{{ action.title }}</span
-          >
+          <span class="">{{ action.title }}</span>
         </button>
       </div>
       <!-- Dismiss -->

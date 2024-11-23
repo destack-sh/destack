@@ -164,6 +164,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         <button
           v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"
           class="ml-auto pl-1 text-gray-400 opacity-0 outline-none hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
+          tabindex="-1"
           @click.stop="clear"
         >
           <i class="fas fa-xmark" />

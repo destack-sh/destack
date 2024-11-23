@@ -90,11 +90,14 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
         )
         assert len(bench.servers) == 1, f"{bench!r} has unexpected servers: {bench.servers!r}"
         server = bench.servers[0]
-        # client = first((c for c in server.clients if c.type == ClientType.BENCH_MACHINE), None)
-        clients = await Client.where(
-            Client.get_property("parent").eq(server)
-            & Client.get_property("type").eq(ClientType.BENCH_MACHINE)
-        ).tolist()
+        clients = (
+            await Client.where(
+                Client.get_property("parent").eq(server)
+                & Client.get_property("type").eq(ClientType.BENCH_MACHINE)
+            )
+            .select_all()
+            .tolist()
+        )
         client = first(clients, None)
         if client is None:
             client = Client(

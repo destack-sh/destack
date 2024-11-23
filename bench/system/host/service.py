@@ -13,7 +13,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Drive, NodeReference, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
-from bench.language.bench import Branch, Client
+from bench.language.bench import Branch
 from bench.language.block import Block
 from bench.language.connection import GraphEngine, MemoryEngine
 from bench.language.const import (
@@ -38,7 +38,6 @@ from bench.language.session import Session, SessionContext
 from bench.language.transaction import edit_data_graph, edit_graph
 from bench.language.user import User
 from bench.language.value import pack_value_scalar
-from bench.proto import wire
 from bench.proto.wire import (
     DownloadFilesRequest,
     DownloadFilesResponse,
@@ -72,7 +71,7 @@ from bench.system.utils.session import (
     pg_engine_from_store,
 )
 from bench.utils.env import ENV
-from bench.utils.func import to_uuid
+from bench.utils.func import bittuple, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
@@ -227,33 +226,28 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             if not metadata.client_type:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
             client_id = UUID(metadata.client_id)
-            if metadata.client_type != wire.ClientType.CLIENT_TYPE_BENCH_MACHINE:
-                # user client
-                if CLIENT_CACHE_ENABLED and self._client_cache.has(client_id):
-                    client = await self._client_cache.get(client_id, metadata.client_access_token)
-                else:
-                    async with self.global_session():
-                        if CLIENT_CACHE_ENABLED:
-                            client = await self._client_cache.get(
-                                client_id, metadata.client_access_token
-                            )
-                        else:
-                            client = await get_client(client_id, metadata.client_access_token)
-                assert isinstance(client.parent, User), f"unexpected client: {client!r}"
+            if CLIENT_CACHE_ENABLED and self._client_cache.has(client_id):
+                client = await self._client_cache.get(client_id, metadata.client_access_token)
+            else:
+                async with self.global_session():
+                    if CLIENT_CACHE_ENABLED:
+                        client = await self._client_cache.get(
+                            client_id, metadata.client_access_token
+                        )
+                    else:
+                        client = await get_client(client_id, metadata.client_access_token)
+            if isinstance(client.parent, User):
                 if client.parent.main_bench_id == self._bench.id:
                     owned = [client.parent, self._bench]
                 else:
                     owned = [client.parent]
                 is_staff = client.parent.is_staff
                 user = client.parent
-            else:
-                # server client (must be in bench graph)
-                client = self._bench._graph.get(client_id)
-                if not isinstance(client, Client):
-                    raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client id")
-                assert isinstance(client.parent, Server)
+            elif isinstance(client.parent, Server):
                 server = client.parent
-                owned = [self._bench]  # servers own the bench for now
+                owned = [self._bench]  # NOTE :Robustness: Machines own their Benches for now
+            else:
+                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client parent")
         else:
             client = None
 
@@ -333,7 +327,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             store=self.global_store,
             bench=self._bench,
             scope=self._scope,
-            node_types=IN_BENCH_GLOBAL_NODE_TYPES,
+            node_types=IN_BENCH_GLOBAL_NODE_TYPES | bittuple(NodeType.USER),
             context=database_plugin.context,
         )
         self._local_pg_engine = PostgresEngine(

@@ -706,10 +706,15 @@ export class SpaceCanvas {
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find root
-      const parent =
+      let parent =
         this.views.find((v) => v.type == ViewType.TAB || v.type == ViewType.HISTORY) ??
-        this.views.find((v) => v.type == ViewType.WINDOW || v.type == ViewType.SPLIT) ??
-        this.space.value!;
+        this.views.find((v) => v.type == ViewType.WINDOW || v.type == ViewType.SPLIT);
+      if (parent == null) {
+        // empty space, create default
+        const { primary } = createDesktopEmptySpace(tx, this.space.value!);
+        parent = primary;
+      }
+
       log.debug("canvas.addView.create", view, { existing, options, parent });
       let siblings = this.graph.getChildren(parent, NodeType.VIEW);
       const change = this.tx().with({ change: { key: newChangeId() } });
@@ -756,11 +761,6 @@ export class SpaceCanvas {
     } else {
       assertNever(options?.ifPresent);
     }
-  }
-
-  /** Upserts a view in the canvas (addView with upsertAndFocus). */
-  upsertView(view: ViewIn) {
-    this.addView(view, { ifPresent: "upsertAndFocus" });
   }
 
   /**
@@ -1097,5 +1097,19 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       subnode: { aspect: HelpAspect.INSPECT },
     },
   ]);
-  return { primary: layout.viewsByName["Primary"] };
+  return { primary: layout.viewsByName["Main"] };
+}
+
+/** Creates an empty desktop space */
+export function createDesktopEmptySpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
+  const window = makeMainWindow(space, tx);
+  const layout = makeLayout(tx, window, [
+    {
+      type: ViewType.HISTORY,
+      name: "Main",
+      size: makeStruct({ metatype: StructType.RECTANGLE, widthRelative: 1000 }),
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600 }),
+    },
+  ]);
+  return { primary: layout.viewsByName["Main"] };
 }

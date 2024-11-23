@@ -79,7 +79,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
 defineExpose({ self, focus });
 </script>
 <template>
-  <div class="mx-auto mt-24 min-w-80 max-w-96 rounded border border-gray-200 bg-white px-9 py-7 text-gray-900">
+  <div class="mx-auto mt-24 min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">Create your Bench</h2>
@@ -110,7 +110,7 @@ defineExpose({ self, focus });
         name="Region"
         title="Region"
         is-input
-        :value-type="makeTypeInfo({ benchType: BenchType.REGION, isList: false })"
+        :value-type="makeTypeInfo({ benchType: BenchType.REGION, isList: false, isRequired: true })"
         :custom-index="
           enumIndex({
             id: 'geolocation',

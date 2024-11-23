@@ -49,8 +49,8 @@ const humanizedError = computed(() => {
         <div v-else class="flex flex-col items-center">
           <!-- Couldn't connect -->
           <i class="fas fa-cloud-slash text-warning-600" />
-          <span class="mt-1.5 text-gray-700">Unable to connect.</span>
-          <p class="text-gray-400">
+          <span class="mt-1.5 font-medium text-gray-900">Unable to connect.</span>
+          <p class="text-gray-700">
             (We'll try again. Check the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
           </p>
         </div>
@@ -65,7 +65,7 @@ const humanizedError = computed(() => {
             <span class="font-semibold">{{ humanizedError.title }}</span>
           </span>
         </p>
-        <p class="max-w-80 text-gray-900">{{ humanizedError.text }}</p>
+        <p class="max-w-80 text-gray-700">{{ humanizedError.text }}</p>
         <p class="text-gray-400">
           (We'll try again. Check the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
         </p>

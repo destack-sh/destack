@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { BLOCK_CONTEXT_ACTIONS, createBlock, useFlatNodeMoveActions } from "@/language/block";
-import { HEAVY_BLOCK_TYPES, toCamelName } from "@/language/const";
+import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
@@ -345,14 +345,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :key="block.id"
           class="group/block-line relative flex min-w-fit flex-row"
           :style="{
-            paddingTop: HEAVY_BLOCK_TYPES.includes(block.type) ? '10px' : undefined,
+            paddingTop: CANVAS_BLOCK_TYPES.includes(block.type) ? '10px' : undefined,
             marginTop: BLOCK_GAP_Y + 'px',
           }"
         >
           <!-- Left gutter -->
           <div
             class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-1 px-1 text-right opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100"
-            :class="HEAVY_BLOCK_TYPES.includes(block.type) ? 'pt-2' : 'pt-1'"
+            :class="CANVAS_BLOCK_TYPES.includes(block.type) ? 'pt-2' : 'pt-1'"
             :style="{ width: widths.gutter + 'px' }"
           >
             <!-- Create above / below -->

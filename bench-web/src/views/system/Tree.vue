@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { createBlock, useHierarchicalNodeMoveActions } from "@/language/block";
-import { HEAVY_BLOCK_TYPES, toCamelName } from "@/language/const";
+import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
 import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
@@ -139,7 +139,7 @@ function toggleExpanded(node: AnyNodeData | SomeNodeReferenceData) {
 function isIncludedSelf(node: AnyNodeData) {
   if (filterIsPage.value) {
     if (isNode(node, NodeType.BLOCK)) {
-      return node.type == BlockType.PAGE || HEAVY_BLOCK_TYPES.includes(node.type);
+      return node.type == BlockType.PAGE || CANVAS_BLOCK_TYPES.includes(node.type);
     } else {
       return true;
     }

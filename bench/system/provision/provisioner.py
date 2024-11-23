@@ -51,10 +51,14 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
             )
         else:
             provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.resource_type])
-            resources = await provision_cls.where(
-                provision_cls.get_property("bench").eq(self.bench)
-                & provision_cls.get_property("current_status").neq(ResourceStatus.GONE)
-            ).tolist()
+            resources = (
+                await provision_cls.where(
+                    provision_cls.get_property("bench").eq(self.bench)
+                    & provision_cls.get_property("current_status").neq(ResourceStatus.GONE)
+                )
+                .select_all()
+                .tolist()
+            )
 
         for resource in resources:
             # auto migrate resources to current version

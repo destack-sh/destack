@@ -7,7 +7,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>, id: string } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "variant" | "isDisabled" | "isLoading">
   >
 >();
@@ -19,33 +19,27 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => ({
   // prominent filled button
   [Variant.PRIMARY]: [
-    "rounded border border-gray-900",
+    "rounded border border-gray-200",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
-      ? "text-gray-600 bg-gray-200 hover:cursor-not-allowed"
-      : "text-gray-900 bg-primary-300 hover:border-primary-700 hover:text-primary-700 hover:outline outline-1 outline-primary-700",
+      ? "text-gray-400 bg-gray-200 hover:cursor-not-allowed"
+      : "text-gray-900 bg-white hover:border-gray-400 hover:bg-gray-100",
   ],
   // outline button
   [Variant.SECONDARY]: [
-    "rounded border border-gray-200 bg-white",
+    "rounded",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
-    props.isDisabled
-      ? "text-gray-700 bg-gray-50 hover:cursor-not-allowed"
-      : "text-gray-900 hover:border-gray-200 hover:bg-gray-100 focus:border-primary-700",
+    props.isDisabled ? "text-gray-400 bg-gray-50 hover:cursor-not-allowed" : "text-gray-700 bg-white hover:bg-gray-100",
   ],
   // 'link' button
   [Variant.COMPACT]: [
-    "rounded underline decoration-2 underline-offset-3",
-    props.isDisabled
-      ? "text-gray-500 decoration-gray-200 hover:cursor-not-allowed"
-      : "text-gray-900 decoration-gray-300 hover:text-primary-700 hover:decoration-primary-700 focus:decoration-primary-700",
+    "rounded",
+    props.isDisabled ? "text-gray-400 hover:cursor-not-allowed" : "text-gray-700 hover:text-gray-900",
   ],
   // 'stealth' button
   [Variant.STEALTH]: [
     "rounded",
-    props.isDisabled
-      ? "text-gray-500 hover:cursor-not-allowed"
-      : "text-gray-900 hover:text-primary-700 focus:underline decoration-2 underline-offset-3 focus:decoration-primary-700",
+    props.isDisabled ? "text-gray-400 hover:cursor-not-allowed" : "text-gray-700 hover:text-gray-900",
   ],
 }));
 

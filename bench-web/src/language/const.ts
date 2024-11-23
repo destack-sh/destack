@@ -78,7 +78,7 @@ export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 200 && nt < 3
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
-export const HEAVY_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
+export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.MESSAGE, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.ACTION, BlockType.FLOW];
 export const CLASSY_BLOCK_TYPES = [
