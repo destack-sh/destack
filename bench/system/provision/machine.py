@@ -110,7 +110,7 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines by short-circuiting to localhost."""
 
     watch_types = bittuple(NodeType.MACHINE)
-    provision_types = bittuple(NodeType.MACHINE)
+    resource_type = NodeType.MACHINE
 
     def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
@@ -136,7 +136,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     # NOTE :DevX: use async docker api (instead of blocking sync)?
 
     watch_types = bittuple(NodeType.MACHINE)
-    provision_types = bittuple(NodeType.MACHINE)
+    resource_type = NodeType.MACHINE
 
     def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
@@ -202,7 +202,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as Pods on Kubernetes."""
 
     watch_types = bittuple(NodeType.MACHINE)
-    provision_types = bittuple(NodeType.MACHINE)
+    resource_type = NodeType.MACHINE
 
     def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)

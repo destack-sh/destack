@@ -145,7 +145,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     async def _make_client(self, user: User, client_data: ClientDataIn) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
         client_id = self._get_client_id(user, client_data)
-        title = client_data.name
+        title = client_data.title
         client = Client(
             id=client_id or uuid4(),
             parent=user,

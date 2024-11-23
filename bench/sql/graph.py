@@ -416,7 +416,7 @@ def _pg_compile_conditional(
         return sqlstr("FALSE")
     elif cond.type == LiteralType.NONE:
         return sqlstr("NULL")
-    elif cond.type in ExpressionTypes.COND_COMPOUND and cond.type in PG_CONDITIONAL_OP_BY_BENCH:
+    elif cond.type in ExpressionTypes.COMPOUND and cond.type in PG_CONDITIONAL_OP_BY_BENCH:
         clauses = [
             _pg_compile_conditional(node_type, node_cls, node_table, block, c)
             for c in cond.clauses or ()
@@ -427,7 +427,10 @@ def _pg_compile_conditional(
         clause = SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.type], operands=clauses)
         return clause
     elif (
-        cond.type in ExpressionTypes.COND_COMPARISON or cond.type in ExpressionTypes.COND_STRING
+        cond.type in ExpressionTypes.COMPOUND
+        or cond.type in ExpressionTypes.EXACT
+        or cond.type in ExpressionTypes.RANGE
+        or cond.type in ExpressionTypes.STRING
     ) and cond.type in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_expression_ref(node_type, node_cls, node_table, block, cond)
 
@@ -463,7 +466,7 @@ def _pg_compile_conditional(
             clause = SqlCompound(op=PostgresConditionalOp.OR, operands=[clause, null_clause])
 
         return clause
-    elif cond.type in ExpressionTypes.COND_EXISTENCE:
+    elif cond.type in ExpressionTypes.EXISTENCE:
         clause = SqlUnary(
             left=_compile_expression_ref(node_type, node_cls, node_table, block, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.type],

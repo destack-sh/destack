@@ -1,16 +1,17 @@
 import abc
 import asyncio
 import enum
-from typing import TYPE_CHECKING, ClassVar, Collection, assert_never, cast, final
+from typing import TYPE_CHECKING, Collection, assert_never, cast, final
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, ResourceNode
-from bench.language.const import VERSION, NodeType
+from bench.language.bench import ResourceStatus
+from bench.language.const import LOADED_BENCH_NODE_TYPES, VERSION, NodeType
+from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.system.host.core import Commit, DeferredHostPlugin, Host
 from bench.utils.env import ENV, Env
-from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env_maybe
 
 if TYPE_CHECKING:
@@ -27,11 +28,15 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     """
 
     """The nodes this Provisioner can handle (separate from node types to watch in HostPlugin.)"""
-    provision_types: ClassVar[bittuple[NodeType]]
+    resource_type: NodeType
 
     def __init__(self, host: Host, bench: Bench):
         super().__init__(host, bench)
         self._lock = asyncio.Lock()
+
+    @property
+    def slug(self) -> str:
+        return self.resource_type.bench_name.lower()
 
     @final
     async def start(self) -> None:
@@ -39,9 +44,18 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
         await self._do_start()
 
         # check resources / provision declared resources
-        resources = tuple(
-            cast(PT, r) for r in self.bench.resources if r.metatype in self.provision_types
-        )
+        if self.resource_type in LOADED_BENCH_NODE_TYPES:
+            resources = cast(
+                list[PT],
+                self.bench._graph.get_descendants(self.bench, self.resource_type, recursive=True),
+            )
+        else:
+            provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.resource_type])
+            resources = await provision_cls.where(
+                provision_cls.get_property("bench").eq(self.bench)
+                & provision_cls.get_property("current_status").neq(ResourceStatus.GONE)
+            ).tolist()
+
         for resource in resources:
             # auto migrate resources to current version
             # NOTE :Robustness: unsure when to migrate which resources
@@ -58,8 +72,8 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 await self.decommission(resource)
 
         # then start watching in host plugin
-        #  (Starting watch after above is important because there is no lock between this and on_commit_deferred,
-        #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .start).
+        #  (starting watch after above is important because there is no lock between this and on_commit_deferred,
+        #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .start)
         await super().start()
 
     async def _do_start(self) -> None:
@@ -70,8 +84,8 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
         trace.get_current_span().set_attribute("plugin", self.name)
         # handle edit by updating resource
-        if commit.has(self.provision_types):
-            subcommit = cast(Commit[PT], commit.trim_to(self.provision_types))
+        if commit.has(self.resource_type):
+            subcommit = cast(Commit[PT], commit.trim_to(self.resource_type))
             for resource in subcommit.added:
                 if resource.status.is_extant and not resource.current_status.is_extant:
                     await self.provision(resource)
@@ -93,19 +107,22 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
 
     @final
     async def provision(self, resource: PT):
-        """Provision the resource."""
+        """Provision the Resource."""
         try:
             async with self._lock:
                 with tracer.start_as_current_span(
-                    "resource.provision", attributes={"resource": str(resource)}
+                    f"{self.slug}.provision", attributes={"resource": str(resource)}
                 ):
                     await self._do_provision(resource)
                     logger.debug(
-                        "resource.provision", provisioner=self, resource=resource, span="current"
+                        f"{self.slug}.provision",
+                        provisioner=self,
+                        resource=resource,
+                        span="current",
                     )
         except Exception as e:
             logger.error(
-                "resource.provision.error",
+                f"{self.slug}.provision.error",
                 provisioner=self,
                 resource=resource,
                 error=e,
@@ -119,19 +136,19 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
 
     @final
     async def update(self, resource: PT):
-        """Update the resource properties."""
+        """Update the Resource properties."""
         try:
             async with self._lock:
                 with tracer.start_as_current_span(
-                    "resource.update", attributes={"resource": str(resource)}
+                    f"{self.slug}.update", attributes={"resource": str(resource)}
                 ):
                     await self._do_update(resource)
                     logger.debug(
-                        "resource.update", provisioner=self, resource=resource, span="current"
+                        f"{self.slug}.update", provisioner=self, resource=resource, span="current"
                     )
         except Exception as e:
             logger.error(
-                "resource.update.error",
+                f"{self.slug}.update.error",
                 provisioner=self,
                 resource=resource,
                 error=e,
@@ -145,19 +162,22 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
 
     @final
     async def decommission(self, resource: PT):
-        """Decommission the resource."""
+        """Decommission the Resource."""
         try:
             async with self._lock:
                 with tracer.start_as_current_span(
-                    "resource.decommission", attributes={"resource": str(resource)}
+                    f"{self.slug}.decommission", attributes={"resource": str(resource)}
                 ):
                     await self._do_decommission(resource)
                     logger.debug(
-                        "resource.decommission", provisioner=self, resource=resource, span="current"
+                        f"{self.slug}.decommission",
+                        provisioner=self,
+                        resource=resource,
+                        span="current",
                     )
         except Exception as e:
             logger.error(
-                "resource.decommission.error",
+                f"{self.slug}.decommission.error",
                 provisioner=self,
                 resource=resource,
                 error=e,
@@ -239,7 +259,7 @@ async def provision(host: Host, bench: Bench, resources: Collection[ResourceNode
     provisioners = get_provisioners_for(host, bench)
     for resource in resources:
         for provisioner in provisioners:
-            if resource.metatype in provisioner.provision_types:
+            if resource.metatype == provisioner.resource_type:
                 await provisioner.provision(resource)
                 break
         else:
@@ -251,7 +271,7 @@ async def decommission(host: Host, bench: Bench, resources: Collection[ResourceN
     provisioners = get_provisioners_for(host, bench)
     for resource in resources:
         for provisioner in provisioners:
-            if resource.metatype in provisioner.provision_types:
+            if resource.metatype == provisioner.resource_type:
                 await provisioner.decommission(resource)
                 break
         else:
