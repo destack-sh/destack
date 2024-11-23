@@ -34,7 +34,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
     """Base for provisioning Stores."""
 
     watch_types = bittuple(NodeType.STORE)
-    provision_types = bittuple(NodeType.STORE)
+    resource_type = NodeType.STORE
 
     async def _do_migrate(self, resource: Store):
         """Migrate the store to its indicated 'version'."""
@@ -125,7 +125,7 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
     """Provision Drives with an S3-compatible API."""
 
     watch_types = bittuple(NodeType.DRIVE)
-    provision_types = bittuple(NodeType.DRIVE)
+    resource_type = NodeType.DRIVE
 
     # NOTE: don't actually need to do anything since we share drives between Benches (per region)
 

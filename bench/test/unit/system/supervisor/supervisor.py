@@ -51,14 +51,14 @@ async def test_user_registration(supervisor: SupervisorClient):
     user_slug = "bjoern"
     user_name = "Björn Güneş"
     user_email = "bjoern@guenes.com"
-    client_name = "pytest"
+    client_title = "pytest"
     client_device_name = "pytest"
 
     user_in = UserData(slug=user_slug, name=user_name, email=user_email)
     client_in = ClientDataIn(
         id=str(uuid4()),
         type=wire.ClientType.CLIENT_TYPE_BENCH_WEB,
-        name=client_name,
+        title=client_title,
         device_name=client_device_name,
     )
 

@@ -74,7 +74,7 @@ export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1000 && nt < 11
 export const STATE_NODE_TYPES = SOURCE_NODE_TYPES.filter((nt) => nt >= 1100 && nt < 1200);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1200 && nt < 1300);
 export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE];
-export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 500 && nt < 600);
+export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 200 && nt < 300);
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];

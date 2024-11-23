@@ -421,9 +421,10 @@ async def pg_select(
         params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": ctx.get_crypto_key(table)}
     try:
         await _pg_execute(cur, statement, params)
+        rows = await cur.fetchall()
+        return cast(Sequence[RowOut], rows)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
-    return cast(Sequence[RowOut], await cur.fetchall())
 
 
 @_trace_pg_span

@@ -24,10 +24,13 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     """Provision Servers by creating/deleting/scaling Machines (and their Clients) on-demand."""
 
     watch_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
-    provision_types = bittuple(NodeType.SERVER)
+    resource_type = NodeType.SERVER
 
     async def _reconcile(self, server: Server):
-        machines = await Machine.where(Machine.get_property("parent").eq(server)).tolist()
+        machines = await Machine.where(
+            Machine.get_property("parent").eq(server)
+            & Machine.get_property("current_status").neq(ResourceStatus.GONE)
+        ).tolist()
 
         # "rescale server" (just ensure a single machine exists for now)
         # TODO :Incomplete!: scale ElasticServerProvisioner properly (up/down/sleep/...)
@@ -36,6 +39,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 client = Client(
                     parent=server,
                     type=ClientType.BENCH_MACHINE,
+                    title="Machine1",
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 )
                 session._create(client)

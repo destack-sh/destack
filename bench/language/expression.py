@@ -22,7 +22,6 @@ from bench.language.const import (
     SortMode,
     SortType,
     StructType,
-    TypeKind,
 )
 from bench.language.node import (
     Node,
@@ -128,13 +127,13 @@ class Expression(Struct):
     tolerance: Optional[float] = p_regular(49, default=None)
 
     def __content_str__(self):
-        if self.type in ExpressionTypes.COND_COMPOUND:
+        if self.type in ExpressionTypes.COMPOUND:
             inner = f" {_CONDITIONAL_OP_SIGN[self.type]} ".join(str(q) for q in self.clauses or ())
             return f"({inner})"
         elif (
-            self.type in ExpressionTypes.COND_EXACT
-            or self.type in ExpressionTypes.COND_RANGE
-            or self.type in ExpressionTypes.COND_STRING
+            self.type in ExpressionTypes.EXACT
+            or self.type in ExpressionTypes.RANGE
+            or self.type in ExpressionTypes.STRING
         ):
             code_name = self.target.code_name if self.target is not None else "???"
             try:
@@ -144,7 +143,7 @@ class Expression(Struct):
             if len(value_str) > 60:
                 value_str = f"{value_str[:48]}...{value_str[-12:]}"
             return f"{code_name}{_CONDITIONAL_OP_SIGN[self.type]}{value_str}"
-        elif self.type in ExpressionTypes.COND_EXISTENCE:
+        elif self.type in ExpressionTypes.EXISTENCE:
             code_name = self.target.code_name if self.target is not None else "???"
             return f"{code_name}{_CONDITIONAL_OP_SIGN[self.type]}"
         elif self.type in ExpressionTypes.SORT:
@@ -253,32 +252,27 @@ class Expression(Struct):
 
 class ExpressionTypes:  # :ExpressionOps
     # conditionals
-    COND_COMPOUND = {ConditionalType.NOT, ConditionalType.AND, ConditionalType.OR}
-    COND_EXACT = {
+    COMPOUND = {ConditionalType.NOT, ConditionalType.AND, ConditionalType.OR}
+    EXACT = {
         ConditionalType.EQUALS,
         ConditionalType.NOT_EQUALS,
         ConditionalType.IN,
         ConditionalType.NOT_IN,
     }
-    COND_RANGE = {
+    RANGE = {
         ConditionalType.GREATER_THAN,
         ConditionalType.GREATER_THAN_OR_EQUALS,
         ConditionalType.LESS_THAN,
         ConditionalType.LESS_THAN_OR_EQUALS,
     }
-    COND_COMPARISON = {*COND_EXACT, *COND_RANGE}
-    COND_SET = {ConditionalType.CONTAINS, ConditionalType.NOT_CONTAINS}
-    COND_EXISTENCE = {ConditionalType.EXISTS, ConditionalType.NOT_EXISTS}
-    COND_VECTOR = {ConditionalType.NEAR}
-    COND_STRING = {
-        ConditionalType.MATCHES_REGEX,
-        ConditionalType.STARTS_WITH,
-        ConditionalType.ENDS_WITH,
-    }
-    COND_SCORED = {ConditionalType.NEAR, *COND_STRING}
+    SET = {ConditionalType.CONTAINS, ConditionalType.NOT_CONTAINS}
+    EXISTENCE = {ConditionalType.EXISTS, ConditionalType.NOT_EXISTS}
+    VECTOR = {ConditionalType.NEAR}
+    STRING = {ConditionalType.MATCHES_REGEX, ConditionalType.STARTS_WITH, ConditionalType.ENDS_WITH}
+    SCORED = {ConditionalType.NEAR, *STRING}
     # aggregations
-    AGG_BOOLEAN = {AggregationType.EXISTS}
-    AGG_SCALAR = {
+    BOOLEAN = {AggregationType.EXISTS}
+    SCALAR = {
         AggregationType.COUNT,
         AggregationType.SUM,
         AggregationType.AVERAGE,
@@ -286,7 +280,7 @@ class ExpressionTypes:  # :ExpressionOps
         AggregationType.MAX,
         AggregationType.MEDIAN,
     }
-    AGG_BUCKET = {AggregationType.HISTOGRAM}
+    BUCKET = {AggregationType.HISTOGRAM}
     # sorts
     SORT = {SortType.ASCENDING, SortType.DESCENDING}
 
@@ -518,7 +512,7 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     """Evaluates the conditional expression on a Node / packed node data."""
     assert cond.kind == ExpressionKind.CONDITIONAL, f"expected Conditional, got {cond!r}"
     # logical
-    if cond.type in ExpressionTypes.COND_COMPOUND:
+    if cond.type in ExpressionTypes.COMPOUND:
         if not cond.clauses:
             return True  # empty compound is True :EmptyCompoundConditional
         if cond.type == ConditionalType.NOT:
@@ -650,50 +644,40 @@ class UnsupportedExpressionError(ValueError):
         super().__init__(f"{type!r} does not support {thing!r}")
 
 
-def _check_type_supports(typ: "TypeBase", op: ExpressionType):
-    """Asserts that the field supports the given expression operator."""
-    if op in SortType:
+def type_supports_expression(typ: "TypeBase", op: ExpressionType) -> bool:
+    """Checks if the given type supports the given expression operator."""
+    if op.kind == ExpressionKind.SORT:
         if typ.primitive_type is not None and (
             typ.primitive_type.is_numeric
             or typ.primitive_type
             in (PrimitiveType.STRING, PrimitiveType.DATETIME, PrimitiveType.INTERVAL)
         ):
-            return
-    else:
+            return True
+    elif op.kind == ExpressionKind.CONDITIONAL:
         if (
-            op in _ExprOps.COND_EXISTENCE
-            or (
-                typ.primitive_type is not None
-                and op in SUPPORTED_PRIMITIVE_OPS.get(typ.primitive_type, _EMPTY_SET)
-            )
-            or (
-                (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE)
-                and op in SUPPORTED_NODE_OPS
-            )
+            op in ExpressionTypes.COMPOUND
+            or op in ExpressionTypes.EXISTENCE
+            or op in ExpressionTypes.EXACT
+            or op in ExpressionTypes.SET
         ):
-            return
-    raise UnsupportedExpressionError(typ, op)
+            return True
+        if typ.primitive_type is not None:
+            if typ.primitive_type.is_numeric and op in ExpressionTypes.RANGE:
+                return True
+            if typ.primitive_type == PrimitiveType.STRING and (
+                op in ExpressionTypes.STRING or op in ExpressionTypes.RANGE
+            ):
+                return True
+    elif op.kind == ExpressionKind.AGGREGATION:
+        return True  # ???
+    return False
 
 
-# should probably also have expression support per query engine?
-_ExprOps = ExpressionTypes  # alias
-SUPPORTED_PRIMITIVE_OPS: dict[PrimitiveType, set[ConditionalType]] = {
-    # cumulative supported query ops by type
-    PrimitiveType.UUID: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.INT16: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.INT32: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.INT64: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.DECIMAL: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.FLOAT32: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.FLOAT64: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.BOOLEAN: _ExprOps.COND_EXACT,
-    PrimitiveType.DATETIME: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.INTERVAL: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
-    PrimitiveType.VECTOR: _ExprOps.COND_VECTOR,
-    PrimitiveType.STRING: _ExprOps.COND_EXACT | _ExprOps.COND_RANGE | _ExprOps.COND_STRING,
-}
-SUPPORTED_NODE_OPS = _ExprOps.COND_RANGE | _ExprOps.COND_EXACT
-_EMPTY_SET = set()
+def _check_type_supports(typ: "TypeBase", op: ExpressionType):
+    """Asserts that the field supports the given expression operator."""
+    if not type_supports_expression(typ, op):
+        raise UnsupportedExpressionError(typ, op)
+
 
 NodeT = TypeVar("NodeT", bound="Node")
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)

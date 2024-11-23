@@ -164,9 +164,13 @@ class Runtime:
         runner.status = RunStatus.RUNNING
         retry = runner.options.to_retry().new(self.oracle, attempt=len(runner.attempts))
         last_attempt = runner.current_attempt
-        if last_attempt is not None and last_attempt.status.is_interrupted:
-            # resume interrupted attempt
-            retry.attempt -= 1  # don't count interrupted attempt (see above)
+        for attempt in runner.attempts:  # 'restore' errors
+            if attempt.error is not None:
+                retry.on_error(attempt.error)
+        if last_attempt is not None:
+            if last_attempt.status.is_interrupted:
+                # resume interrupted attempt
+                retry.attempt -= 1  # don't count interrupted attempt (see above)
 
         # breakpoint before
         runner._trap_pause()
@@ -178,8 +182,9 @@ class Runtime:
         try:
             # make new attempts if we can/should
             while retry.should_retry and not (
-                last_attempt is not None and last_attempt.status.is_terminal
+                last_attempt is not None and last_attempt.status == RunStatus.COMPLETED
             ):
+                retry.on_attempt()
                 if last_attempt is not None and last_attempt.status.is_interrupted:
                     current_attempt = last_attempt
                 else:
@@ -191,9 +196,11 @@ class Runtime:
                     runner.attempts.append(current_attempt)
                 last_attempt = current_attempt
                 await self._do_attempt(runner=runner, retry=retry, attempt=current_attempt)
+                if last_attempt.error is not None:
+                    retry.on_error(last_attempt.error)
 
             # give up if retry exhausted
-            if last_attempt is not None and not last_attempt.status.is_terminal:
+            if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
                 if last_attempt.error:
                     # re-raise last error
                     raise RetryableError(message=last_attempt.error.title, error=last_attempt.error)

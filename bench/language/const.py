@@ -203,7 +203,7 @@ class NodeType(IdEnum):
     #
 
     # resource (named)
-    SERVER = 200  # infinite compute
+    SERVER = 200  # elastic compute
     STORE = 201  # real database
     DRIVE = 203  # object store like S3/MinIO, maybe block storage later
     VAULT = 204  # secret storage
@@ -214,7 +214,7 @@ class NodeType(IdEnum):
     FILE = 260
     STREAM = 261
     SECRET = 262
-    # DOMAIN, EMAIL, PHONE, ...
+    # ACCOUNT, DOMAIN, EMAIL, PHONE, ...
 
     # auth
     MEMBERSHIP = 600
