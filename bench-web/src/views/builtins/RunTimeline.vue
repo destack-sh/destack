@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { getRunDurationMs, isRunTerminal } from "@/language/session";
+import { getRunBase as getRunBasePtr, getRunDurationMs, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
   IconData,
@@ -92,12 +92,8 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     const durationMs = getRunDurationMs(run, nowMs);
 
     // context
-    let baseNode: AnyNodeData | null = null;
-    if (run.stepPtr != null) {
-      baseNode = pkgGraph.get(run.stepPtr);
-    } else if (run.blockPtr != null) {
-      baseNode = pkgGraph.get(run.blockPtr);
-    }
+    const basePtr = getRunBasePtr(run);
+    const baseNode = basePtr != null ? pkgGraph.get(basePtr) : null;
     const color = getColorHex(COLOR_BY_RUN_STATUS[run.status])!;
 
     // span
@@ -161,6 +157,9 @@ watchEffect(() => {
       :style="{
         height: ROW_HEIGHT + 'px',
       }"
+      :data-node-type="span.baseNode?.metatype"
+      :data-node-id="span.baseNode?.id"
+      :data-node-ck="(span.baseNode as any)?.ck"
     >
       <!-- Tree  -->
       <div

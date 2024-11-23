@@ -7,6 +7,7 @@ import {
   LogLevel,
   NodeType,
   ObjectType,
+  ResourceStatus,
   RunStatus,
   StepType,
 } from "@/proto/wire";
@@ -51,9 +52,9 @@ export const COLOR_HEX_BY_TYPE: Partial<Record<ColorType, string[]>> = {
   [ColorType.ROSE]: ["#fff1f2", "#ffe4e6", "#fecdd3", "#fda4af", "#fb7185", "#f43f5e", "#e11d48", "#be123c", "#9f1239", "#881337", "#4c0519"],
 };
 // semantic
-COLOR_HEX_BY_TYPE[ColorType.SUCCESS] = COLOR_HEX_BY_TYPE[ColorType.EMERALD];
+COLOR_HEX_BY_TYPE[ColorType.SUCCESS] = COLOR_HEX_BY_TYPE[ColorType.GREEN];
 COLOR_HEX_BY_TYPE[ColorType.HINT] = COLOR_HEX_BY_TYPE[ColorType.GRAY];
-COLOR_HEX_BY_TYPE[ColorType.WARNING] = COLOR_HEX_BY_TYPE[ColorType.AMBER];
+COLOR_HEX_BY_TYPE[ColorType.WARNING] = COLOR_HEX_BY_TYPE[ColorType.ORANGE];
 COLOR_HEX_BY_TYPE[ColorType.DANGER] = COLOR_HEX_BY_TYPE[ColorType.RED];
 // surface
 COLOR_HEX_BY_TYPE[ColorType.PRIMARY] = COLOR_HEX_BY_TYPE[ColorType.BLUE];
@@ -156,23 +157,33 @@ export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
   [LogLevel.TRACE]: ColorType.GRAY,
   [LogLevel.DEBUG]: ColorType.GRAY,
   [LogLevel.INFO]: ColorType.GRAY,
-  [LogLevel.WARNING]: ColorType.WARNING,
-  [LogLevel.ERROR]: ColorType.DANGER,
-  [LogLevel.CRITICAL]: ColorType.DANGER,
+  [LogLevel.WARNING]: ColorType.ORANGE,
+  [LogLevel.ERROR]: ColorType.RED,
+  [LogLevel.CRITICAL]: ColorType.RED,
 };
 
 export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {
   [RunStatus.UNSPECIFIED]: ColorType.GRAY,
   [RunStatus.SCHEDULED]: ColorType.GRAY,
   [RunStatus.QUEUED]: ColorType.GRAY,
-  [RunStatus.RUNNING]: ColorType.GRAY,
+  [RunStatus.RUNNING]: ColorType.GREEN,
   [RunStatus.PAUSED]: ColorType.YELLOW,
   [RunStatus.YIELDED]: ColorType.YELLOW,
   [RunStatus.WAITING]: ColorType.YELLOW,
-  [RunStatus.COMPLETED]: ColorType.SUCCESS,
-  [RunStatus.CANCELLED]: ColorType.WARNING,
-  [RunStatus.ABORTED]: ColorType.WARNING,
-  [RunStatus.FAILED]: ColorType.DANGER,
+  [RunStatus.COMPLETED]: ColorType.GREEN,
+  [RunStatus.CANCELLED]: ColorType.RED,
+  [RunStatus.ABORTED]: ColorType.RED,
+  [RunStatus.FAILED]: ColorType.RED,
+};
+
+export const COLOR_BY_RESOURCE_STATUS: Record<ResourceStatus, ColorType> = {
+  [ResourceStatus.UNSPECIFIED]: ColorType.GRAY,
+  [ResourceStatus.DECLARED]: ColorType.GRAY,
+  [ResourceStatus.UP]: ColorType.GREEN,
+  [ResourceStatus.DOWN]: ColorType.RED,
+  [ResourceStatus.SLEEPING]: ColorType.YELLOW,
+  [ResourceStatus.DEGRADED]: ColorType.ORANGE,
+  [ResourceStatus.GONE]: ColorType.GRAY,
 };
 
 export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | undefined {

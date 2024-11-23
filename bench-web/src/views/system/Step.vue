@@ -3,6 +3,7 @@ import { SINK_STEP_TYPES } from "@/language/const";
 import { createField, NAME_TYPE } from "@/language/field";
 import { FLOW_PORT_SIZE, getStepSides, STEP_CONTEXT_ACTIONS, STEP_SIZE, useFlowContext } from "@/language/flow";
 import { cloneNode } from "@/language/node";
+import { getRunDurationString, isRunActive } from "@/language/session";
 import { ColorShade, FieldData, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
@@ -10,7 +11,7 @@ import { canvas, pkgConnection } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
-import { COLOR_BY_RUN_STATUS, getNodeColorHex } from "@/ui/style";
+import { COLOR_BY_RUN_STATUS, getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
@@ -42,9 +43,6 @@ const containerRef: Ref<HTMLElement | null> = ref(null);
 // run
 const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: stepPtr.value?.ck }));
 const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: stepPtr.value?.ck }));
-const lastRunStatusColor = computed(() =>
-  lastRun.value?.status != null ? COLOR_BY_RUN_STATUS[lastRun.value.status] : null,
-);
 
 //
 // Interaction
@@ -96,6 +94,9 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded border transition-colors duration-150"
     :class="[isInspected || isHighlighted ? 'border-gray-400 bg-gray-100' : 'border-gray-200 bg-white']"
+    :style="{
+      borderColor: lastRun != null ? getRunColorHex(lastRun.status) : '',
+    }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Ports -->
@@ -154,7 +155,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Main -->
       <div class="flex flex-1 flex-col">
         <!-- Header -->
-        <div class="flex flex-row">
+        <div class="flex flex-row gap-x-1.5">
+          <!-- Name -->
           <NativeInput
             id="name"
             ref="nameRef"
@@ -168,6 +170,17 @@ defineExpose<ViewExposed>({ self, id, actions });
               (newValue) => pkgConnection.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
             "
           />
+          <!-- Run status -->
+          <div v-if="lastRun != null">
+            <span
+              class="fas fa-circle-small w-5 text-center"
+              :class="[isRunActive(lastRun) ? 'animate-pulse' : '']"
+              :style="{
+                color: getRunColorHex(lastRun.status),
+              }"
+            />
+            <span class="ml-1.5 text-gray-400">{{ getRunDurationString(lastRun, { minUnit: "s" }) }}</span>
+          </div>
           <!-- Controls/Meta -->
           <div
             class="ml-auto flex flex-row pl-2 pr-1.5 opacity-0 transition-colors duration-150 group-hover/step:opacity-100"

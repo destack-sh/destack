@@ -2,12 +2,14 @@
 import { NAME_TYPE } from "@/language/field";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { isGeneratedNodeName, makeNodeName } from "@/language/node";
+import { isRunActive } from "@/language/session";
 import { ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";
-import { getColorHex } from "@/ui/style";
+import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, toRef } from "vue";
@@ -34,6 +36,9 @@ const pathColorHex = computed(() => {
   }
 });
 
+const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: pipePtr.value?.ck }));
+const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: pipePtr.value?.ck }));
+
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
@@ -53,7 +58,11 @@ defineExpose<ViewExposed>({ self, id, actions });
 <template>
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
     <!-- Path -->
-    <svg class="group relative cursor-pointer overflow-visible" :style="{ color: pathColorHex }">
+    <svg
+      class="group relative cursor-pointer overflow-visible"
+      :class="lastRun != null && isRunActive(lastRun) ? 'animate-pulse' : ''"
+      :style="{ color: lastRun != null ? getRunColorHex(lastRun.status) : pathColorHex }"
+    >
       <defs>
         <!-- Main Arrowhead Marker -->
         <marker

@@ -2,7 +2,7 @@
 import { createBlock } from "@/language/block";
 import { ACTIVE_RUN_STATUSES, toCamelName } from "@/language/const";
 import { packSubnode, useSubnodeProperty } from "@/language/node";
-import { getRunActions, getRunDurationString } from "@/language/session";
+import { CLEAR_RUN_ACTION, getRunActions, getRunDurationString } from "@/language/session";
 import {
   BlockType,
   HubAspect,
@@ -273,29 +273,22 @@ defineExpose<ViewExposed>({ self });
         <IconName v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>
         <!-- Status -->
-        <IconInline
-          class="ml-2"
-          v-bind="ICON_BY_RUN_STATUS[runtime.focusedRun.status]"
+        <i
+          class="fas fa-circle-small ml-2 transition-colors duration-75"
           :style="{ color: getRunColorHex(runtime.focusedRun.status) }"
-          :class="runtime.focusedRun.status == RunStatus.RUNNING ? 'animate-spin' : ''"
+          :class="runtime.focusedRun.status == RunStatus.RUNNING ? 'animate-pulse' : ''"
         />
         <span class="ml-2 text-gray-400">{{ getRunDurationString(runtime.focusedRun, { minUnit: "s" }) }}</span>
         <!-- Controls -->
         <div class="ml-auto flex flex-row gap-x-1">
           <button
-            v-for="action in getRunActions(runtime.focusedRun)"
+            v-for="action in [...getRunActions(runtime.focusedRun), CLEAR_RUN_ACTION]"
             :key="action.title"
+            v-tooltip="{ title: action.title, small: true, group: 'run' }"
             class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="action.action()"
           >
             <IconInline v-bind="action.icon" />
-          </button>
-          <!-- Clear -->
-          <button
-            class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="spaceConnection.tx.update(space!, { runPtr: undefined }, { debounce: 'short' })"
-          >
-            <i class="fas fa-eye-slash" />
           </button>
         </div>
       </div>
