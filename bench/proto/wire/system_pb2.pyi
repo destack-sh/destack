@@ -220,10 +220,10 @@ class CommitTransactionResponse(_message.Message):
     def __init__(self, cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
 class ClientDataIn(_message.Message):
-    __slots__ = ("id", "type", "name", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "place_id", "access_token", "space_ptr")
+    __slots__ = ("id", "type", "title", "device_type", "device_name", "operating_system", "browser_name", "browser_version", "place_id", "access_token", "space_ptr")
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
     DEVICE_TYPE_FIELD_NUMBER: _ClassVar[int]
     DEVICE_NAME_FIELD_NUMBER: _ClassVar[int]
     OPERATING_SYSTEM_FIELD_NUMBER: _ClassVar[int]
@@ -234,7 +234,7 @@ class ClientDataIn(_message.Message):
     SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
     id: str
     type: _lang_pb2.ClientType
-    name: str
+    title: str
     device_type: str
     device_name: str
     operating_system: str
@@ -243,7 +243,7 @@ class ClientDataIn(_message.Message):
     place_id: str
     access_token: str
     space_ptr: _lang_pb2.NodeReferenceData
-    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_lang_pb2.ClientType, str]] = ..., name: _Optional[str] = ..., device_type: _Optional[str] = ..., device_name: _Optional[str] = ..., operating_system: _Optional[str] = ..., browser_name: _Optional[str] = ..., browser_version: _Optional[str] = ..., place_id: _Optional[str] = ..., access_token: _Optional[str] = ..., space_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_lang_pb2.ClientType, str]] = ..., title: _Optional[str] = ..., device_type: _Optional[str] = ..., device_name: _Optional[str] = ..., operating_system: _Optional[str] = ..., browser_name: _Optional[str] = ..., browser_version: _Optional[str] = ..., place_id: _Optional[str] = ..., access_token: _Optional[str] = ..., space_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SignupUserRequest(_message.Message):
     __slots__ = ("id", "slug", "name", "email", "password", "client")

@@ -18,7 +18,7 @@ TEST_TYPE_IDENTITIES: tuple[tuple[TypeInfo, str], ...] = (
     (TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=PrimitiveType.DATETIME), "pe"),
     (TypeInfo(kind=TypeKind.NODE, bench_type=NodeType.USER, is_list=True), "N"),
     (TypeInfo(kind=TypeKind.BASED_NODE, bench_type=NodeType.FIELD, is_list=True), "N"),
-    (TypeInfo(kind=TypeKind.STRUCT, bench_type=StructType.TEXT), "smeC"),
+    (TypeInfo(kind=TypeKind.STRUCT, bench_type=StructType.TEXT), "sg7C"),
     (TypeInfo(kind=TypeKind.ENUM, bench_type=EnumType.OBJECT_TYPE, is_secret=True), "!ek4E"),
     (
         TypeInfo(

@@ -16,7 +16,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind; identityK
   },
   { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "N" },
   { kind: TypeKind.BASED_NODE, benchType: BenchType.FIELD, isSecret: false, isList: true, identityKey: "N" },
-  { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "smeC" },
+  { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sg7C" },
   { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!ek4E" },
   {
     kind: TypeKind.OBJECT,

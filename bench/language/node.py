@@ -2365,7 +2365,10 @@ class ClientOrigin(Struct[ClientOriginData]):
 class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: AnyStructData](
     BuiltinObject
 ):
-    """A base for node references for extension in richer references (Files, Secrets, ...)"""
+    """
+    A base for node references for extension in richer references (Files, Secrets, ...).
+    NOTE :Architecture: not sure if :RichReferences are worth it anymore
+    """
 
     node_type: NodeType = p_internal(30, require=True)
     id: Optional[UUID] = p_internal(31, default=None)
