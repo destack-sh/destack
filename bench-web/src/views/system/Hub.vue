@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { createBlock } from "@/language/block";
-import { ACTIVE_RUN_STATUSES, toCamelName } from "@/language/const";
+import { toCamelName } from "@/language/const";
 import { packSubnode, useSubnodeProperty } from "@/language/node";
-import { CLEAR_RUN_ACTION, getRunActions, getRunDurationString } from "@/language/session";
+import { getRunDurationString } from "@/language/session";
 import {
   BlockType,
   HubAspect,
@@ -15,12 +15,12 @@ import {
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { runtime } from "@/system/runtime";
-import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
+import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
+import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import { fireActionById } from "@/ui/action";
-import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
-import { MenuItem, PopoverInfoIn, menuActionsLike, menuItemFromAction } from "@/ui/popover";
+import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
+import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { getRunColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { isDeveloperMode } from "@/utils/globals";
@@ -32,7 +32,7 @@ import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const FOOTER_HEIGHT = computed(() => (runtime.focusedRun != null ? 68 : VIEW_DEFAULT_HEADER_HEIGHT));
+const FOOTER_HEIGHT = computed(() => (runtime.focusedRun != null ? 70 : 38));
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
@@ -268,7 +268,9 @@ defineExpose<ViewExposed>({ self });
       <!-- Focused Run -->
       <div
         v-if="runtime.focusedRun != null"
+        role="button"
         class="mx-2 flex cursor-pointer flex-row items-center gap-x-1 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
+        @click="canvas.goToNode(runtime.focusedRun)"
       >
         <IconName v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>

@@ -2,22 +2,34 @@ import { ACTIVE_RUN_STATUSES } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
 import { timesortNode } from "@/language/order";
-import { getRunBase as getRunBasePtr, makeRun, type RunnableObject } from "@/language/session";
+import {
+  getRunBasePtr as getRunBasePtr,
+  isRunActive,
+  isRunnable,
+  isRunTerminal,
+  makeRun,
+  type RunnableObject,
+} from "@/language/session";
 import { CONNECTION_IGNORE, type Transaction } from "@/language/transaction";
 import {
   BlockData,
   ChangeCategory,
   ExpressionType,
+  IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
+  RunOptionsData,
   RunProperty,
   StepData,
+  Timestamp,
   type RunData,
 } from "@/proto/wire";
-import { propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
-import { canvas, pkgConnection, pkgGraph, space } from "@/system/space";
+import { describeNode, propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
+import { pkgConnection, pkgGraph, space, spaceConnection } from "@/system/space";
+import { makeIcon } from "@/ui/icon";
+import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
 import { computed, type Ref } from "vue";
 
@@ -92,6 +104,10 @@ export class RunTree {
     return this.runBaseRef.value;
   }
 
+  hasBase(base: { ck?: string }) {
+    return this.runsByBaseCk.value[base.ck!] != null;
+  }
+
   /** Gets the last (active) Runs for the given base node. */
   getLastActiveRuns(base: { ck?: string }): RunData[] {
     return this.runsByBaseCk.value[base.ck!] ?? [];
@@ -144,7 +160,7 @@ export class Runtime {
   }
 
   get tx() {
-    return this.txFactory();
+    return this.txFactory().with({ connectionId: CONNECTION_IGNORE, category: ChangeCategory.SESSION });
   }
 
   /** The current Run. */
@@ -162,19 +178,87 @@ export class Runtime {
     return this.activeRootRuns.value;
   }
 
-  /** Creates a new Run and makes it the current active Run in the Space. */
-  createRun(
+  /** Creates a new Run. */
+  start(
     runnable: RunnableObject,
-    options?: { inputsPacked?: Record<string, any>; packagePtr?: NodeReferenceData },
+    options?: {
+      focus?: boolean;
+      options?: RunOptionsData;
+      inputsPacked?: Record<string, any>;
+      packagePtr?: NodeReferenceData;
+    },
   ): RunData {
     const run = makeRun(this.graph, runnable, options);
-    this.txFactory().with({ connectionId: CONNECTION_IGNORE, category: ChangeCategory.SESSION }).create(run);
-    if (canvas.space.value != null) {
-      canvas.tx().update(canvas.space.value, { runPtr: toNodeRef(run) }, { debounce: "short" });
+    this.tx.create(run);
+    if (options?.focus) {
+      spaceConnection.tx.update(space.value!, { runPtr: toNodeRef(run) });
     }
+    log.trace("runtime.start", run);
     return run;
+  }
+
+  /** Pause a Run. */
+  pause(run: RunData) {
+    log.trace("runtime.pause", run);
+    this.tx.update(run, { pausedAt: Timestamp.now() });
+  }
+
+  /** Resume a Run. */
+  resume(run: RunData) {
+    log.trace("runtime.resume", run);
+    this.tx.update(run, { resumedAt: Timestamp.now() });
+  }
+
+  /** Stop a Run. */
+  kill(run: RunData) {
+    log.trace("runtime.kill", run);
+    this.tx.update(run, { killedAt: Timestamp.now() });
   }
 }
 
 const runPtr = computedValue(() => space.value?.runPtr ?? null);
 export const runtime = new Runtime(pkgGraph, () => pkgConnection.tx, runPtr);
+
+/** Gets the available actions for a Run */
+type RunAction = { title: string; isPrimary?: boolean; icon: IconData; action: () => void };
+export function getRunActions(run: RunData) {
+  const actions: RunAction[] = [];
+  if (isRunActive(run)) {
+    actions.push({
+      title: "Pause",
+      icon: makeIcon("fas fa-pause"),
+      action: () => {
+        runtime.pause(run);
+      },
+    });
+    actions.push({
+      title: "Stop",
+      icon: makeIcon("fas fa-stop"),
+      action: () => {
+        runtime.kill(run);
+      },
+    });
+  }
+  if (isRunTerminal(run)) {
+    actions.push({
+      title: "Restart",
+      icon: makeIcon("fas fa-redo"),
+      action: () => {
+        const basePtr = getRunBasePtr(run);
+        if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
+        const node = supergraph.get(basePtr);
+        if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
+        runtime.start(node, { focus: true, packagePtr: run.packagePtr, options: run.options });
+      },
+    });
+  }
+  return actions;
+}
+export const CLEAR_RUN_ACTION: RunAction = {
+  title: "Clear",
+  icon: makeIcon("fas fa-xmark"),
+  action: () => {
+    if (space.value == null) throw new Error("no current space");
+    spaceConnection.tx.update(space.value, { runPtr: undefined });
+  },
+};

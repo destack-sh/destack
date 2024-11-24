@@ -231,7 +231,7 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   "session.run.start": (action, context) => {
     const { block } = getBlockFromContext(context);
     if (block == null) return false;
-    runtime.createRun(block);
+    runtime.start(block);
   },
 };
 function createAndFocusBlock(

@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { CLEAR_RUN_ACTION, getRunActions, getRunDurationString, isRunActive, isRunnable } from "@/language/session";
+import { getRunBasePtr, getRunDurationString, isRunActive, isRunnable } from "@/language/session";
 import { HelpAspect, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
+import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
 import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
@@ -32,10 +33,33 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
+// node
 const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
 const { node } = supergraph.getLinkRef(nodePtr);
 const isNodeRunnable = computed(() => node.value != null && isRunnable(node.value));
+
+// run
+const run = computed(() => {
+  if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
+    return runtime.focusedRun;
+  } else {
+    return null;
+  }
+});
+const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) : nodePtr.value));
+function start() {
+  if (startRef.value != null) {
+    startRef.value.start();
+  } else {
+    setAspect(HelpAspect.RUN);
+  }
+}
+
+// view
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "subnodePacked"), "aspect");
+function setAspect(aspect: HelpAspect) {
+  state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
+}
 const visibleAspects = computed(() => {
   const visibleAspects: HelpAspect[] = [HelpAspect.INSPECT];
   if (isNodeRunnable.value) {
@@ -46,7 +70,7 @@ const visibleAspects = computed(() => {
 watchEffect(() => {
   // ensure aspect is visible
   if (!visibleAspects.value.includes(aspect.value)) {
-    state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect: visibleAspects.value[0] } });
+    setAspect(visibleAspects.value[0]);
   }
 });
 
@@ -67,15 +91,13 @@ defineExpose<ViewExposed>({ self });
       <NodeReference v-if="node" :node="node" :connection="pkgConnection" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->
-      <div v-if="startRef?.run != null">
+      <div v-if="run != null">
         <span
           class="fas fa-circle-small w-5 text-center"
-          :class="[isRunActive(startRef.run) ? 'animate-pulse' : '']"
-          :style="{
-            color: getRunColorHex(startRef.run.status),
-          }"
+          :class="[isRunActive(run) ? 'animate-pulse' : '']"
+          :style="{ color: getRunColorHex(run.status) }"
         />
-        <span class="ml-1.5 text-gray-400">{{ getRunDurationString(startRef?.run, { minUnit: "s" }) }}</span>
+        <span class="ml-1.5 text-gray-400">{{ getRunDurationString(run, { minUnit: "s" }) }}</span>
       </div>
 
       <!-- Meta/Controls -->
@@ -89,10 +111,10 @@ defineExpose<ViewExposed>({ self });
         >
           <!-- Run controls -->
           <button
-            v-for="action in startRef?.run != null
-              ? [...getRunActions(startRef?.run), CLEAR_RUN_ACTION]
-              : [{ title: 'Start', isPrimary: true, icon: makeIcon('fas fa-play'), action: () => startRef?.start() }]"
-            v-if="aspect == HelpAspect.RUN"
+            v-for="action in run != null
+              ? [...getRunActions(run), CLEAR_RUN_ACTION]
+              : [{ title: 'Start', isPrimary: true, icon: makeIcon('fas fa-play'), action: () => start() }]"
+            v-if="isNodeRunnable"
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'run' }"
             class="rounded px-1 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
@@ -136,20 +158,11 @@ defineExpose<ViewExposed>({ self });
         size-is-dynamic
         :size="{ width: size?.width, height: (size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT }"
       >
-        <Inspect
-          id="inspect"
-          :node-ptr="nodePtr"
-          v-bind="state.getChildState('scroll.inspect', { nodePtr })"
-        />
+        <Inspect id="inspect" :node-ptr="nodePtr" v-bind="state.getChildState('scroll.inspect', { nodePtr })" />
       </Scroll>
     </div>
     <div v-else-if="aspect == HelpAspect.RUN">
-      <Start
-        id="start"
-        ref="startRef"
-        :node-ptr="nodePtr"
-        v-bind="state.getChildState('start', { nodePtr })"
-      />
+      <Start id="start" ref="startRef" :node-ptr="nodePtr" v-bind="state.getChildState('start', { nodePtr })" />
     </div>
     <div v-else class="mx-5">
       <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>
