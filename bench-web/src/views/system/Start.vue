@@ -1,28 +1,11 @@
 <script lang="ts" setup>
-import { makeExpression } from "@/language/expression";
 import { makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import { isRunnable } from "@/language/session";
-import {
-  ExpressionType,
-  FeedViewData,
-  FieldType,
-  NodeType,
-  ObjectType,
-  RunData,
-  RunProperty,
-  TypeKind,
-  Variant,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
-import {
-  propertyReference,
-  toNodeRef,
-  type TypedNodeReferenceData
-} from "@/proto/wiring";
+import { getRunBasePtr, isRunnable } from "@/language/session";
+import { FieldType, NodeType, RunData, TypeKind, Variant, ViewData, ViewType } from "@/proto/wire";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
-import { canvas, pkgGraph, space, spaceConnection } from "@/system/space";
+import { canvas, pkgGraph } from "@/system/space";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -44,54 +27,30 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
+// node
 const nodePtr = computedValue(() => props.nodePtr);
+const node = pkgGraph.getRef(nodePtr);
 
-// run is the focused
+// run is the focused run if it contains this runnable
 const run = computed(() => {
-  if (runtime.focusedRun != null && runtime.focusedRunBase?.ck == nodePtr.value?.ck) {
+  if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
     return runtime.focusedRun;
   } else {
     return null;
   }
 });
-const feed = computed((): FeedViewData => {
-  const runNodeProperty = runnablePtr.value?.nodeType == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
-  const clauses = [
-    makeExpression({
-      type: ExpressionType.EQUALS,
-      propertyPtr: propertyReference(ObjectType.RUN, runNodeProperty),
-      value: runnablePtr.value,
-    }),
-  ];
-  if (runnablePtr.value?.nodeType == NodeType.BLOCK) {
-    clauses.push(
-      makeExpression({
-        type: ExpressionType.NOT_EXISTS,
-        propertyPtr: propertyReference(ObjectType.RUN, RunProperty.stepPtr),
-        value: runnablePtr.value,
-      }),
-    );
-  }
-  return {
-    // pre-filter to only runs of this node
-    queryNodeType: NodeType.RUN,
-    filter: makeExpression({ type: ExpressionType.AND, clauses }),
-    filterPills: [],
-  };
-});
+const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) : nodePtr.value));
 
-// current runnable / inputs
-const node = pkgGraph.getRef(nodePtr);
-const runnablePtr = computed(() => (node.value != null ? toNodeRef(node.value) : null));
+// run
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.START, toRef(props, "subnodePacked"), "inputsPacked");
 const inputType = computed(() =>
-  runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldType: FieldType.INPUT })
+  runBasePtr.value != null
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.INPUT })
     : undefined,
 );
 const outputType = computed(() =>
-  runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldType: FieldType.OUTPUT })
+  runBasePtr.value != null
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.OUTPUT })
     : undefined,
 );
 
@@ -100,8 +59,7 @@ const outputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
 
 function start() {
   if (node.value == null || !isRunnable(node.value)) return;
-  const run = runtime.createRun(node.value, { inputsPacked: inputsPacked.value as any });
-  spaceConnection.tx.update(space.value!, { runPtr: toNodeRef(run) });
+  const run = runtime.start(node.value, { inputsPacked: inputsPacked.value as any, focus: true });
 }
 
 defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ self, id, start, run });

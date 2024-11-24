@@ -3,7 +3,14 @@ import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { cloneNode, generateNodeName, makeNode, NodeIn, unpackSubnode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
-import { makeEdit, newChangeId, TransactionOptions, type Transaction } from "@/language/transaction";
+import { getRunBasePtr } from "@/language/session";
+import {
+  makeEdit,
+  makeEditFromSubnode,
+  newChangeId,
+  TransactionOptions,
+  type Transaction,
+} from "@/language/transaction";
 import { unpackBuiltinObject } from "@/language/value";
 import {
   BlockType,
@@ -32,7 +39,7 @@ import {
   makeStruct,
   propertyInfo,
   toNodeRef,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { SplitAnchor } from "@/ui/drag";
@@ -674,7 +681,7 @@ export class SpaceCanvas {
   /** Finds a view with properties exactly like the criteria */
   findView(like: {
     type: ViewType;
-    nodePtr: NodeReferenceData | undefined;
+    nodePtr?: NodeReferenceData | undefined;
     predicate?: (view: ViewData) => boolean;
   }): ViewData | null {
     if (Object.keys(like).length == 0) return null;
@@ -844,7 +851,22 @@ export class SpaceCanvas {
       this.inspect({ node: nodePtr, view });
     } else if (isNode(node, NodeType.RUN)) {
       // focus on source node, set as Space.run_ptr and open Run view in Help
-      throw new Error(`nocheckin: focus on run node: ${describeNode(node)}`);
+      const basePtr = getRunBasePtr(node);
+      const base = basePtr != null ? graph.get(basePtr) : null;
+      if (base == null) throw new Error(`cannot go to node: ${describeNode(node)}`);
+      this.goToNode(base, options);
+      this.tx().update(this.space.value!, { runPtr: toNodeRef(node) }, { debounce: "tick" });
+      const helpView = this.findView({ type: ViewType.HELP });
+      if (helpView != null) {
+        this.tx().update(
+          helpView,
+          makeEditFromSubnode(helpView, {
+            metatype: NodeType.VIEW,
+            type: ViewType.HELP,
+            subnode: { aspect: HelpAspect.RUN },
+          }),
+        );
+      }
     } else {
       throw new Error(`cannot go to node: ${describeNode(node)}`);
     }

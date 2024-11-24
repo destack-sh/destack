@@ -4,9 +4,6 @@ import { makeNode } from "@/language/node";
 import {
   BlockType,
   CodeData,
-  FieldData,
-  FieldType,
-  IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -18,11 +15,9 @@ import {
   type AnyNodeData,
   type BlockData,
   type RunData,
-  type StepData,
+  type StepData
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, makeDefaultObject, toNodeRef } from "@/proto/wiring";
-import { space, spaceConnection } from "@/system/space";
-import { makeIcon } from "@/ui/icon";
 import { assertNever } from "@/utils/functools";
 import {
   durationToMs,
@@ -37,7 +32,7 @@ export type RunnableNode = BlockData | StepData;
 export type RunnableObject = RunnableNode | TextData | CodeData;
 
 /** Whether the given node is runnable */
-export function isRunnable(node: AnyNodeData): node is RunnableNode {
+export function isRunnable(node: any | null | undefined): node is RunnableNode {
   if (isNode(node, NodeType.STEP)) {
     return true;
   } else if (isNode(node, NodeType.BLOCK)) {
@@ -59,7 +54,7 @@ export function isRunTerminal(run: RunData): boolean {
   return TERMINAL_RUN_STATUSES.includes(run.status);
 }
 
-export function getRunBase(run: RunData): NodeReferenceData | null {
+export function getRunBasePtr(run: RunData): NodeReferenceData | null {
   return run.pipePtr ?? run.stepPtr ?? run.blockPtr ?? null;
 }
 
@@ -102,46 +97,6 @@ export function getRunDurationString(run: RunData, options?: FormatDurationOptio
   if (durationMs == 0) return null;
   return formatDuration(durationMs, options);
 }
-
-/** Gets the available actions for a Run */
-type RunAction = { title: string; isPrimary?: boolean; icon: IconData; action: () => void };
-export function getRunActions(run: RunData) {
-  const actions: RunAction[] = [];
-  if (isRunActive(run)) {
-    actions.push({
-      title: "Pause",
-      icon: makeIcon("fas fa-pause"),
-      action: () => {
-        console.log("pause run", run);
-      },
-    });
-    actions.push({
-      title: "Stop",
-      icon: makeIcon("fas fa-stop"),
-      action: () => {
-        console.log("stop run", run);
-      },
-    });
-  }
-  if (isRunTerminal(run)) {
-    actions.push({
-      title: "Restart",
-      icon: makeIcon("fas fa-redo"),
-      action: () => {
-        console.log("restart run", run);
-      },
-    });
-  }
-  return actions;
-}
-export const CLEAR_RUN_ACTION: RunAction = {
-  title: "Clear",
-  icon: makeIcon("fas fa-broom"),
-  action: () => {
-    if (space.value == null) throw new Error("no current space");
-    spaceConnection.tx.update(space.value, { runPtr: undefined });
-  },
-};
 
 export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
   return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;

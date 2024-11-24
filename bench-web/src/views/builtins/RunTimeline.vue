@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { getRunBase as getRunBasePtr, getRunDurationMs, isRunTerminal } from "@/language/session";
+import { getRunBasePtr as getRunBasePtr, getRunDurationMs, isRunActive, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
   IconData,
@@ -98,8 +98,19 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     const color = getColorHex(COLOR_BY_RUN_STATUS[run.status])!;
 
     // span
-    const offsetRelative = Math.max(0, Math.min(1, (startedAtMs - rootStartedAtMs) / rootDurationMs));
-    const widthRelative = Math.max(0, Math.min(1 - offsetRelative, durationMs / rootDurationMs));
+    let offsetRelative: number;
+    let widthRelative: number;
+    if (rootDurationMs != 0) {
+      offsetRelative = Math.max(0, Math.min(1, (startedAtMs - rootStartedAtMs) / rootDurationMs));
+      if (durationMs != 0) {
+        widthRelative = Math.max(0, Math.min(1 - offsetRelative, durationMs / rootDurationMs));
+      } else {
+        widthRelative = 0;
+      }
+    } else {
+      offsetRelative = 0;
+      widthRelative = 1;
+    }
     const span: TimelineSpan = {
       id: run.id,
       parent: parent,
@@ -154,7 +165,8 @@ watchEffect(() => {
     <div
       v-for="span in timeline.spans"
       :key="span.id"
-      class="group/span relative flex w-full flex-row items-center rounded hover:bg-gray-100"
+      class="group/span relative flex w-full flex-row items-center rounded transition-colors duration-75"
+      :class="[canvas.isHighlighted(span.baseNode) ? 'bg-gray-100' : 'bg-white hover:bg-gray-100']"
       :style="{
         height: ROW_HEIGHT + 'px',
       }"
@@ -186,12 +198,11 @@ watchEffect(() => {
           <!-- Duration -->
           <span class="ml-auto mr-1.5 text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
           <!-- Status -->
-          <IconInline
-            v-if="isNode(span.content)"
-            class="ml-auto w-5 text-center"
-            :class="[span.content.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+          <i
+            v-if="isNode(span.content, NodeType.RUN)"
+            class="fas fa-circle-small ml-auto w-5 text-center"
+            :class="[isRunActive(span.content) ? 'animate-pulse' : '']"
             :style="{ color: span.color }"
-            v-bind="ICON_BY_RUN_STATUS[span.content.status]"
           />
         </div>
       </div>

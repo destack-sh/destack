@@ -170,34 +170,18 @@ defineExpose<ViewExposed>({ self, id, actions });
               (newValue) => pkgConnection.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
             "
           />
-          <!-- Run status -->
-          <div v-if="lastRun != null">
-            <span
-              class="fas fa-circle-small w-5 text-center"
-              :class="[isRunActive(lastRun) ? 'animate-pulse' : '']"
-              :style="{
-                color: getRunColorHex(lastRun.status),
-              }"
-            />
-            <span class="ml-1.5 text-gray-400">{{ getRunDurationString(lastRun, { minUnit: "s" }) }}</span>
-          </div>
           <!-- Controls/Meta -->
-          <div
-            class="ml-auto flex flex-row pl-2 pr-1.5 opacity-0 transition-colors duration-150 group-hover/step:opacity-100"
-          >
-            <!-- Menu -->
-            <button
-              v-menu="
-                (): PopoverInfo => ({
-                  kind: 'menu',
-                  placement: 'bottom-left',
-                  offset: 'referenceWidth',
-                  items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
-                })
-              "
-              class="rounded text-gray-400 hover:text-gray-700 data-[popover=true]:text-gray-700"
-            >
-              <i class="fas fa-ellipsis-v w-5 text-center" />
+          <div class="ml-auto flex flex-row pl-2 pr-1.5">
+            <!-- Run status -->
+            <button v-if="lastRun != null" class="rounded px-1 hover:bg-gray-100">
+              <span class="ml-1.5 text-gray-400">{{ getRunDurationString(lastRun, { minUnit: "s" }) }}</span>
+              <span
+                class="fas fa-circle-small ml-0.5 w-5 text-center"
+                :class="[isRunActive(lastRun) ? 'animate-pulse' : '']"
+                :style="{
+                  color: getRunColorHex(lastRun.status),
+                }"
+              />
             </button>
           </div>
         </div>
@@ -220,23 +204,23 @@ defineExpose<ViewExposed>({ self, id, actions });
         :model-value="step.text"
         @update:model-value="(newText) => flowCtx.tx.update(step!, { text: newText }, { debounce: 'long' })"
       />
-      <!-- Floating meta -->
-      <div class="absolute right-0 top-0 px-1.5 py-1.5">
-        <!-- Menu -->
-        <button
-          v-menu="
-            (): PopoverInfo => ({
-              kind: 'menu',
-              placement: 'bottom-left',
-              offset: 'referenceWidth',
-              items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
-            })
-          "
-          class="rounded text-gray-400 hover:text-gray-700"
-        >
-          <i class="fas fa-ellipsis-v w-5 text-center" />
-        </button>
-      </div>
+    </div>
+
+    <!-- Floating Menu -->
+    <div class="absolute -left-5 top-0 flex -translate-x-1 flex-row gap-x-1.5">
+      <button
+        v-menu="
+          (): PopoverInfo => ({
+            kind: 'menu',
+            placement: 'bottom-left',
+            offset: 'referenceWidth',
+            items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
+          })
+        "
+        class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/step:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
+      >
+        <i class="fas fa-grip-vertical w-5 text-center" />
+      </button>
     </div>
 
     <!-- NOTE :UX: show last step output/error here? -->
