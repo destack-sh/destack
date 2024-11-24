@@ -35,7 +35,7 @@ const blockRef = ref<HTMLElement | null>(null);
 const iconNameRef: Ref<InstanceType<typeof IconName> | null> = ref(null);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
-const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
+const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });

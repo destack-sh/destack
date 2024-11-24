@@ -5,29 +5,21 @@ import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
 import {
   BenchType,
   ColorShade,
-  FileReferenceData,
   NodeReferenceData,
   NodeType,
   ObjectType,
-  SecretReferenceData,
-  StructType,
   TextData,
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import {
-  NODE_REFERENCE_TYPES_BY_NODE_TYPE,
-  describeNode,
   isNodeRef,
-  isStruct,
   toNodeRef,
-  unwrapProtoOneOf,
-  type SomeNodeReferenceData,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
-import { bench, canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
+import { bench, canvas, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
@@ -82,11 +74,11 @@ let view: EditorView | null = null;
 let lastAppliedModelValue: TextData | null = null;
 const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
 
-const mentionPtrs: Ref<SomeNodeReferenceData[]> = computed(() => {
-  const mentionPtrs: SomeNodeReferenceData[] = [];
+const mentionPtrs: Ref<NodeReferenceData[]> = computed(() => {
+  const mentionPtrs: NodeReferenceData[] = [];
   for (const line of props.modelValue?.lines ?? []) {
     for (const span of line.spans ?? []) {
-      if (span.nodePtr?.oneofKind != null) mentionPtrs.push(unwrapProtoOneOf(span.nodePtr)!);
+      if (span.nodePtr != null) mentionPtrs.push(span.nodePtr);
     }
   }
   return mentionPtrs;
@@ -94,17 +86,12 @@ const mentionPtrs: Ref<SomeNodeReferenceData[]> = computed(() => {
 // TODO :Incomplete: some mentioned nodes may not be in package graph for Text
 //  (use supergraph? but when to load missing nodes?)
 const mentions = pkgGraph.getManyRef(mentionPtrs);
-function resolveMention(mention: {
-  id: string;
-  ck: string;
-  nodeType: NodeType;
-}): AnyNodeData | FileReferenceData | SecretReferenceData | null {
+function resolveMention(mention: { id: string; ck: string; nodeType: NodeType }): AnyNodeData | null {
   const node = pkgGraph.get(mention);
   if (node != null) return node;
-  if (NODE_REFERENCE_TYPES_BY_NODE_TYPE[mention.nodeType] == null) return null; // not a rich reference
   // find rich reference
   const ref = mentionPtrs.value.find((r) => r.id == mention.id || r.ck == mention.ck) ?? null;
-  return ref as FileReferenceData | SecretReferenceData | null;
+  return ref as AnyNodeData | null;
 }
 
 function makeEditorState(text?: TextData, options?: { restoreSelection?: boolean }): EditorState {
@@ -214,9 +201,6 @@ class MentionView implements PmNodeView {
         canvas.goToNode(pmNode.attrs.nodePtr);
       } else if (pmNode.attrs.nodePtr.nodeType == NodeType.FILE) {
         // open file on click
-        if (!isStruct(pmNode.attrs.nodePtr, StructType.FILE_REFERENCE)) {
-          throw new Error(`unexpected file type: ${describeNode(pmNode.attrs.nodePtr)}`);
-        }
         const download = downloadFile(pmNode.attrs.nodePtr);
         try {
           await download.completion.wait();
@@ -275,7 +259,7 @@ class MentionView implements PmNodeView {
     if (node != null) this.updateNode(node);
   }
 
-  updateNode(node: AnyNodeData | FileReferenceData | SecretReferenceData) {
+  updateNode(node: AnyNodeData) {
     // content
     const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
     this.nameDom.textContent = (node as any).name ?? (node as any).title ?? "???";

@@ -8,7 +8,7 @@ from opentelemetry import trace
 from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
 from bench.language.field import TypeBase
-from bench.language.node import BuiltinObject, Node, SomeNodeReference, SourceNode, Struct
+from bench.language.node import BuiltinObject, Node, NodeReference, SourceNode, Struct
 from bench.language.value import CustomObject, SomeValue, _do_get_value_runtime
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ class Projection:
     def __init__(self, options: ProjectOptions):
         self.options: ProjectOptions = options
         self._nodes_by_id: dict[UUID, Node] = {}
-        self._remote_nodes_by_id: dict[UUID, SomeNodeReference] = {}
+        self._remote_nodes_by_id: dict[UUID, NodeReference] = {}
         self._depth_by_node_id: dict[UUID, int] = {}
         self._nodes_by_depth: dict[int, list[Node]] = {}
         self._nodes_to_collect: list[Node] = []
@@ -62,7 +62,7 @@ class Projection:
 
     has = __contains__
 
-    def has_remote(self, node: Node | SomeNodeReference) -> bool:
+    def has_remote(self, node: Node | NodeReference) -> bool:
         return node.id in self._remote_nodes_by_id
 
     def _visit_node(self, node: Node) -> bool:
@@ -74,7 +74,7 @@ class Projection:
         else:
             return False
 
-    def _visit_node_ref(self, node: SomeNodeReference) -> bool:
+    def _visit_node_ref(self, node: NodeReference) -> bool:
         """Adds a node reference to the remote set."""
         assert node.id is not None, f"missing id for {node!r}"
         if node.id not in self._remote_nodes_by_id and node.node_type in self.options.node_types:
@@ -182,11 +182,11 @@ class Projection:
                     else:
                         self._visit_node_ref(wired_ptr)
             else:
-                field_value = typ._supergraph.get(cast(SomeNodeReference, value))
+                field_value = typ._supergraph.get(cast(NodeReference, value))
                 if field_value is not None:
                     self._visit_node(cast(Node, field_value))
                 else:
-                    self._visit_node_ref(cast(SomeNodeReference, value))
+                    self._visit_node_ref(cast(NodeReference, value))
 
     def _do_project(self, depth: int, max_depth: int):
         """Projects the current nodes to the given depth (or until we run out)."""
@@ -255,11 +255,11 @@ class Projection:
         """Gets the pages containing the collected source nodes."""
         return find_containing_pages(*self._nodes_by_id.values())
 
-    def get_remote_nodes(self) -> list[SomeNodeReference]:
+    def get_remote_nodes(self) -> list[NodeReference]:
         """Gets the nodes that were referenced but not found."""
         return list(self._remote_nodes_by_id.values())
 
-    def get_nodes_like[T: Node | SomeNodeReference](self, *node_classes: type[T]) -> list[T]:
+    def get_nodes_like[T: Node | NodeReference](self, *node_classes: type[T]) -> list[T]:
         """Gets the nodes of the given type (including missing nodes)."""
         nodes = [n for n in self._nodes_by_id.values() if isinstance(n, node_classes)] + [
             n for n in self._remote_nodes_by_id.values() if isinstance(n, node_classes)

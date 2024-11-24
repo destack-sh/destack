@@ -182,9 +182,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_OUTPUT_OBJECT: _ClassVar[StructType]
     STRUCT_TYPE_SCHEDULE: _ClassVar[StructType]
     STRUCT_TYPE_FILE_INFO: _ClassVar[StructType]
-    STRUCT_TYPE_FILE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_ICON: _ClassVar[StructType]
-    STRUCT_TYPE_SECRET_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_TEXT: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
@@ -292,9 +290,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_OUTPUT_OBJECT: _ClassVar[ObjectType]
     OBJECT_TYPE_SCHEDULE: _ClassVar[ObjectType]
     OBJECT_TYPE_FILE_INFO: _ClassVar[ObjectType]
-    OBJECT_TYPE_FILE_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_ICON: _ClassVar[ObjectType]
-    OBJECT_TYPE_SECRET_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_SPAN: _ClassVar[ObjectType]
@@ -483,9 +479,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_OUTPUT_OBJECT: _ClassVar[BenchType]
     BENCH_TYPE_SCHEDULE: _ClassVar[BenchType]
     BENCH_TYPE_FILE_INFO: _ClassVar[BenchType]
-    BENCH_TYPE_FILE_REFERENCE: _ClassVar[BenchType]
     BENCH_TYPE_ICON: _ClassVar[BenchType]
-    BENCH_TYPE_SECRET_REFERENCE: _ClassVar[BenchType]
     BENCH_TYPE_TEXT: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_LINE: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_SPAN: _ClassVar[BenchType]
@@ -1751,9 +1745,7 @@ STRUCT_TYPE_INPUT_OBJECT: StructType
 STRUCT_TYPE_OUTPUT_OBJECT: StructType
 STRUCT_TYPE_SCHEDULE: StructType
 STRUCT_TYPE_FILE_INFO: StructType
-STRUCT_TYPE_FILE_REFERENCE: StructType
 STRUCT_TYPE_ICON: StructType
-STRUCT_TYPE_SECRET_REFERENCE: StructType
 STRUCT_TYPE_TEXT: StructType
 STRUCT_TYPE_TEXT_LINE: StructType
 STRUCT_TYPE_TEXT_SPAN: StructType
@@ -1858,9 +1850,7 @@ OBJECT_TYPE_INPUT_OBJECT: ObjectType
 OBJECT_TYPE_OUTPUT_OBJECT: ObjectType
 OBJECT_TYPE_SCHEDULE: ObjectType
 OBJECT_TYPE_FILE_INFO: ObjectType
-OBJECT_TYPE_FILE_REFERENCE: ObjectType
 OBJECT_TYPE_ICON: ObjectType
-OBJECT_TYPE_SECRET_REFERENCE: ObjectType
 OBJECT_TYPE_TEXT: ObjectType
 OBJECT_TYPE_TEXT_LINE: ObjectType
 OBJECT_TYPE_TEXT_SPAN: ObjectType
@@ -2019,9 +2009,7 @@ BENCH_TYPE_INPUT_OBJECT: BenchType
 BENCH_TYPE_OUTPUT_OBJECT: BenchType
 BENCH_TYPE_SCHEDULE: BenchType
 BENCH_TYPE_FILE_INFO: BenchType
-BENCH_TYPE_FILE_REFERENCE: BenchType
 BENCH_TYPE_ICON: BenchType
-BENCH_TYPE_SECRET_REFERENCE: BenchType
 BENCH_TYPE_TEXT: BenchType
 BENCH_TYPE_TEXT_LINE: BenchType
 BENCH_TYPE_TEXT_SPAN: BenchType
@@ -3120,12 +3108,10 @@ class TypeInfoData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_type: _Optional[_Union[FieldType, str]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ...) -> None: ...
 
 class TextSpanData(_message.Message):
-    __slots__ = ("metatype", "content", "node_ptr_node", "node_ptr_file", "node_ptr_secret", "color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
+    __slots__ = ("metatype", "content", "node_ptr", "color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_NODE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FILE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_SECRET_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_BOLD_FIELD_NUMBER: _ClassVar[int]
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
@@ -3134,16 +3120,14 @@ class TextSpanData(_message.Message):
     IS_CODE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     content: str
-    node_ptr_node: NodeReferenceData
-    node_ptr_file: FileReferenceData
-    node_ptr_secret: SecretReferenceData
+    node_ptr: NodeReferenceData
     color: ColorType
     is_bold: bool
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
     is_code: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., content: _Optional[str] = ..., node_ptr_node: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_ptr_file: _Optional[_Union[FileReferenceData, _Mapping]] = ..., node_ptr_secret: _Optional[_Union[SecretReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextLineData(_message.Message):
     __slots__ = ("metatype", "type", "spans", "color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
@@ -3400,58 +3384,6 @@ class FileInfoData(_message.Message):
     channels: int
     sample_rate: int
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[FileKind, str]] = ..., title: _Optional[str] = ..., external_url: _Optional[str] = ..., inline_content: _Optional[bytes] = ..., type: _Optional[_Union[FileType, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., bitrate: _Optional[int] = ..., channels: _Optional[int] = ..., sample_rate: _Optional[int] = ...) -> None: ...
-
-class FileReferenceData(_message.Message):
-    __slots__ = ("metatype", "node_type", "id", "ck", "bench_id", "base_ck", "base_bench_id", "kind", "title", "external_url", "inline_content", "type", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "bitrate", "channels", "sample_rate")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    CK_FIELD_NUMBER: _ClassVar[int]
-    BENCH_ID_FIELD_NUMBER: _ClassVar[int]
-    BASE_CK_FIELD_NUMBER: _ClassVar[int]
-    BASE_BENCH_ID_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    TITLE_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_URL_FIELD_NUMBER: _ClassVar[int]
-    INLINE_CONTENT_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FORMAT_FIELD_NUMBER: _ClassVar[int]
-    SIZE_FIELD_NUMBER: _ClassVar[int]
-    SHA256_FIELD_NUMBER: _ClassVar[int]
-    WIDTH_FIELD_NUMBER: _ClassVar[int]
-    HEIGHT_FIELD_NUMBER: _ClassVar[int]
-    ASPECT_RATIO_FIELD_NUMBER: _ClassVar[int]
-    CODEC_FIELD_NUMBER: _ClassVar[int]
-    DURATION_FIELD_NUMBER: _ClassVar[int]
-    BITRATE_FIELD_NUMBER: _ClassVar[int]
-    CHANNELS_FIELD_NUMBER: _ClassVar[int]
-    SAMPLE_RATE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    node_type: NodeType
-    id: str
-    ck: str
-    bench_id: str
-    base_ck: str
-    base_bench_id: str
-    kind: FileKind
-    title: str
-    external_url: str
-    inline_content: bytes
-    type: FileType
-    mime_type: str
-    format: FileFormat
-    size: int
-    sha256: str
-    width: int
-    height: int
-    aspect_ratio: float
-    codec: str
-    duration: _duration_pb2.Duration
-    bitrate: int
-    channels: int
-    sample_rate: int
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., base_ck: _Optional[str] = ..., base_bench_id: _Optional[str] = ..., kind: _Optional[_Union[FileKind, str]] = ..., title: _Optional[str] = ..., external_url: _Optional[str] = ..., inline_content: _Optional[bytes] = ..., type: _Optional[_Union[FileType, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., bitrate: _Optional[int] = ..., channels: _Optional[int] = ..., sample_rate: _Optional[int] = ...) -> None: ...
 
 class ChangeVignetteData(_message.Message):
     __slots__ = ("metatype", "name", "title", "subtype", "icon")
@@ -4014,26 +3946,6 @@ class PathData(_message.Message):
     metatype: ObjectType
     tokens: _containers.RepeatedCompositeFieldContainer[PathTokenData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., tokens: _Optional[_Iterable[_Union[PathTokenData, _Mapping]]] = ...) -> None: ...
-
-class SecretReferenceData(_message.Message):
-    __slots__ = ("metatype", "node_type", "id", "ck", "bench_id", "base_ck", "base_bench_id", "title")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    CK_FIELD_NUMBER: _ClassVar[int]
-    BENCH_ID_FIELD_NUMBER: _ClassVar[int]
-    BASE_CK_FIELD_NUMBER: _ClassVar[int]
-    BASE_BENCH_ID_FIELD_NUMBER: _ClassVar[int]
-    TITLE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    node_type: NodeType
-    id: str
-    ck: str
-    bench_id: str
-    base_ck: str
-    base_bench_id: str
-    title: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., base_ck: _Optional[str] = ..., base_bench_id: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
 
 class BaseNodeData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed")
@@ -5774,7 +5686,7 @@ class MessageData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[MessageType, str]] = ..., status: _Optional[_Union[MessageStatus, str]] = ..., origin_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., read_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., is_pinned: bool = ...) -> None: ...
 
 class ViewData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "title", "order_key", "icon", "subviews_packed", "value_type", "node_ptr_node", "node_ptr_file", "node_ptr_secret", "variant", "font", "position", "size", "margin", "padding", "orientation", "alignment", "transform", "constraint", "selection", "focus", "is_hidden", "is_disabled", "is_input", "is_inline", "is_loading")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "title", "order_key", "icon", "subviews_packed", "value_type", "node_ptr", "variant", "font", "position", "size", "margin", "padding", "orientation", "alignment", "transform", "constraint", "selection", "focus", "is_hidden", "is_disabled", "is_input", "is_inline", "is_loading")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5798,9 +5710,7 @@ class ViewData(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     SUBVIEWS_PACKED_FIELD_NUMBER: _ClassVar[int]
     VALUE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_NODE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FILE_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_SECRET_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     VARIANT_FIELD_NUMBER: _ClassVar[int]
     FONT_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
@@ -5841,9 +5751,7 @@ class ViewData(_message.Message):
     icon: IconData
     subviews_packed: _struct_pb2.Value
     value_type: TypeInfoData
-    node_ptr_node: NodeReferenceData
-    node_ptr_file: FileReferenceData
-    node_ptr_secret: SecretReferenceData
+    node_ptr: NodeReferenceData
     variant: Variant
     font: FontData
     position: OffsetData
@@ -5861,7 +5769,7 @@ class ViewData(_message.Message):
     is_input: bool
     is_inline: bool
     is_loading: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ViewType, str]] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., subviews_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., node_ptr_node: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_ptr_file: _Optional[_Union[FileReferenceData, _Mapping]] = ..., node_ptr_secret: _Optional[_Union[SecretReferenceData, _Mapping]] = ..., variant: _Optional[_Union[Variant, str]] = ..., font: _Optional[_Union[FontData, _Mapping]] = ..., position: _Optional[_Union[OffsetData, _Mapping]] = ..., size: _Optional[_Union[RectangleData, _Mapping]] = ..., margin: _Optional[_Union[OffsetData, _Mapping]] = ..., padding: _Optional[_Union[OffsetData, _Mapping]] = ..., orientation: _Optional[_Union[Orientation, str]] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., transform: _Optional[_Union[TransformData, _Mapping]] = ..., constraint: _Optional[_Union[RectangleConstraintData, _Mapping]] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., is_hidden: bool = ..., is_disabled: bool = ..., is_input: bool = ..., is_inline: bool = ..., is_loading: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ViewType, str]] = ..., name: _Optional[str] = ..., title: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., subviews_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., variant: _Optional[_Union[Variant, str]] = ..., font: _Optional[_Union[FontData, _Mapping]] = ..., position: _Optional[_Union[OffsetData, _Mapping]] = ..., size: _Optional[_Union[RectangleData, _Mapping]] = ..., margin: _Optional[_Union[OffsetData, _Mapping]] = ..., padding: _Optional[_Union[OffsetData, _Mapping]] = ..., orientation: _Optional[_Union[Orientation, str]] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., transform: _Optional[_Union[TransformData, _Mapping]] = ..., constraint: _Optional[_Union[RectangleConstraintData, _Mapping]] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., is_hidden: bool = ..., is_disabled: bool = ..., is_input: bool = ..., is_inline: bool = ..., is_loading: bool = ...) -> None: ...
 
 class TreeViewData(_message.Message):
     __slots__ = ("node_types", "filter_is_page", "is_default_expanded", "expanded_nodes_ptr", "collapsed_nodes_ptr", "preset")

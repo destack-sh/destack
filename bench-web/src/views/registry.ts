@@ -1,5 +1,5 @@
 import { RectangleData, ViewData, ViewType } from "@/proto/wire";
-import { toPlainNodeRef } from "@/proto/wiring";
+import { toNodeRef } from "@/proto/wiring";
 import { getVueComponentType } from "@/ui/view";
 import type { ViewComponent } from "@/views/common";
 
@@ -136,7 +136,7 @@ export function getViewBinding(view: ViewData, size: Pick<RectangleData, "width"
   const filteredProps = {};
   for (const propName in component.props) {
     if (propName == "size") (filteredProps as any)[propName] = size;
-    else if (propName == "self") (filteredProps as any)[propName] = toPlainNodeRef(view);
+    else if (propName == "self") (filteredProps as any)[propName] = toNodeRef(view);
     else if (propName == "id") (filteredProps as any)[propName] = view.id;
     else if (propName in view) (filteredProps as any)[propName] = (view as any)[propName];
   }

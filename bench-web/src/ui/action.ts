@@ -1,14 +1,6 @@
 import { getEditStack } from "@/language/edit";
 import { getAllTransactionBuffers } from "@/language/transaction";
-import {
-  TreeViewPreset,
-  ViewType,
-  type AnyNodeData,
-  type IconData,
-  type NodeReferenceData,
-  type TextData,
-} from "@/proto/wire";
-import { type AnyNodeReferenceData } from "@/proto/wiring";
+import { NodeReferenceData, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
@@ -181,7 +173,7 @@ export type ActionBuiltinId = (typeof ACTION_BUILTIN_IDS)[number];
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "block"; block: NodeReferenceData };
 export type ActionContext = {
-  triggerNode?: AnyNodeData | AnyNodeReferenceData;
+  triggerNode?: AnyNodeData | NodeReferenceData;
 };
 export type ActionCallable = (
   action: Action,

@@ -17,7 +17,7 @@ import {
   ValueBlockData,
   type NodeTypeMapping,
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { pkgGraph } from "@/system/space";
 import type { ActionBuiltinId, ActionContext, ActionMapImplementation } from "@/ui/action";
 import { generateOrderKey } from "@/utils/fractional";
@@ -200,14 +200,14 @@ export function createBlock(
   },
 ): BlockData {
   const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
-  const packagePtr = isNode(target, NodeType.PACKAGE) ? toPlainNodeRef(target) : target.packagePtr;
+  const packagePtr = isNode(target, NodeType.PACKAGE) ? toNodeRef(target) : target.packagePtr;
 
   // position in graph
   let parentPtr: NodeReferenceData;
   let orderKey: string;
   let siblings: BlockData[];
   if (options.anchor == "inside") {
-    parentPtr = toPlainNodeRef(target);
+    parentPtr = toNodeRef(target);
     siblings = graph.getChildren(target, NodeType.BLOCK);
     orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
   } else {

@@ -12,7 +12,6 @@ import {
   FileData,
   FileFormat,
   FileKind,
-  FileReferenceData,
   FileRetentionMode,
   FileType,
   IconData,
@@ -21,11 +20,10 @@ import {
   NodeType,
   ResourceStatus,
   Struct,
-  StructType,
   TypeConstraintData,
-  UploadFilesResponse_UploadHandle,
+  UploadFilesResponse_UploadHandle
 } from "@/proto/wire";
-import { isNode, isNodeOrRef, isStruct, makeScope, newNodeId, nodeReference, toPlainNodeRef } from "@/proto/wiring";
+import { isNode, isNodeOrRef, makeScope, newNodeId, nodeReference, toNodeRef } from "@/proto/wiring";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/ui/icon";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -59,7 +57,6 @@ export type FileDownload = {
   status: Ref<FileStatus>;
   isActive: Ref<boolean>;
   nodePtr: NodeReferenceData;
-  filePtr: FileReferenceData | null;
   file: Ref<FileData | null>;
   content: Ref<File | null>;
   getUrl: Ref<string | null>;
@@ -108,8 +105,8 @@ export async function extractFile(
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
-    parentPtr: parent ? toPlainNodeRef(parent) : undefined,
-    benchPtr: toPlainNodeRef(bench),
+    parentPtr: parent ? toNodeRef(parent) : undefined,
+    benchPtr: toNodeRef(bench),
     region: bench.region,
     status: ResourceStatus.UP,
     currentStatus: ResourceStatus.DOWN,
@@ -345,7 +342,6 @@ function uploadAsDownload(upload: FileUpload): FileDownload {
     }),
     isActive: upload.isActive,
     nodePtr: upload.nodePtr,
-    filePtr: null, // :RichReferences
     file: upload.file,
     content: shallowRef(upload.content),
     getUrl: upload.getUrl,
@@ -377,8 +373,8 @@ setInterval(() => {
  * All pending downloads are batched and execute at some point in the future in parallel.
  */
 export function downloadFiles(
-  files: (FileReferenceData | NodeReferenceData | FileData)[],
-  options?: { includeContent?: boolean | ((file: FileData | NodeReferenceData | FileReferenceData) => boolean) },
+  files: (NodeReferenceData | FileData)[],
+  options?: { includeContent?: boolean | ((file: FileData | NodeReferenceData) => boolean) },
 ): FileDownload[] {
   const downloads = files.map((file) => {
     const download: FileDownload = {
@@ -386,8 +382,7 @@ export function downloadFiles(
       isActive: computed(
         () => download.status.value != FileStatus.COMPLETED && download.status.value != FileStatus.FAILED,
       ),
-      nodePtr: isNode(file, NodeType.FILE) ? toPlainNodeRef(file) : toPlainNodeRef(file),
-      filePtr: isStruct(file, StructType.FILE_REFERENCE) ? file : null, // :RichReferences
+      nodePtr: isNode(file, NodeType.FILE) ? toNodeRef(file) : toNodeRef(file),
       file: shallowRef(isNode(file, NodeType.FILE) ? file : null),
       content: shallowRef(null),
       getUrl: shallowRef(null),
@@ -407,7 +402,7 @@ export function downloadFiles(
 
 /** Download a single file from the Host. Returns as soon as the download starts. */
 export function downloadFile(
-  file: FileReferenceData | NodeReferenceData | FileData,
+  file: NodeReferenceData | FileData,
   options?: { includeContent?: boolean },
 ): FileDownload {
   const download = downloadFiles([file], options)[0];
@@ -476,7 +471,7 @@ async function doDownloadFile(getUrl: string, file: FileData): Promise<File> {
   return new File([content], file.title, { type: file.mimeType });
 }
 
-type SomeFile = FileData | FileReferenceData | NodeReferenceData;
+type SomeFile = FileData | NodeReferenceData;
 
 /** Gets the existing download for the given file. */
 export function getCachedFileDownload(file: SomeFile): FileDownload | null {
@@ -514,7 +509,7 @@ export function useFileDownload(
 const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT];
 
 /** Prefetch the given files (incl. content where it makes sense). */
-export async function prefetchFiles(files: (FileData | FileReferenceData)[]): Promise<void> {
+export async function prefetchFiles(files: FileData[]): Promise<void> {
   downloadFiles(files, {
     includeContent: (file) => {
       if (!isNodeOrRef(file, NodeType.FILE)) return false;
@@ -525,7 +520,7 @@ export async function prefetchFiles(files: (FileData | FileReferenceData)[]): Pr
 }
 
 /** Prefetch the given file. */
-export async function prefetchFile(file: FileData | FileReferenceData): Promise<void> {
+export async function prefetchFile(file: FileData): Promise<void> {
   await prefetchFiles([file]);
 }
 
@@ -543,7 +538,7 @@ async function sha256(content: File): Promise<string> {
 }
 
 /** Gets the icon for the given file. */
-export function getFileIcon(file: FileData | FileReferenceData): IconData | null {
+export function getFileIcon(file: FileData): IconData | null {
   if (file.format != null && ICON_BY_FILE_FORMAT[file.format] != null) return ICON_BY_FILE_FORMAT[file.format]!;
   else if (file.type != null && ICON_BY_FILE_TYPE[file.type] != null)
     return ICON_BY_FILE_TYPE[file.type]!;
@@ -551,7 +546,7 @@ export function getFileIcon(file: FileData | FileReferenceData): IconData | null
 }
 
 /** Gets the icon for the given file, if any. */
-export function getFileIconMaybe(file: FileData | FileReferenceData | null): IconData | null {
+export function getFileIconMaybe(file: FileData | null): IconData | null {
   if (file == null) return null;
   else return getFileIcon(file);
 }

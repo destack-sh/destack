@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
 import { NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
-import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -27,7 +27,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
+const nodePtr = computedValue(() => props.nodePtr);
 const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
 const layout = computed(() =>
   node.value != null ? makeInspectLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx) : null,
@@ -116,7 +116,7 @@ defineExpose<ViewExposed>({ self, id });
             v-for="action in section.actions"
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'section.header' }"
-            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
+            class="mt-1 rounded px-1 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
             @click.stop="
               (e) => {
                 action.action(e);
@@ -151,7 +151,7 @@ defineExpose<ViewExposed>({ self, id });
             <Type
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
-              :node-ptr="toNodeRefOneOf(nodePtr!)"
+              :node-ptr="nodePtr"
               :field-type="row.fieldType"
               :variant="Variant.STEALTH"
             />

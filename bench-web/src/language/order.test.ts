@@ -1,5 +1,5 @@
 import { NodeType, ObjectType, ViewData } from "@/proto/wire";
-import { EMPTY_SCOPE, toPlainNodeRef } from "@/proto/wiring";
+import { EMPTY_SCOPE, toNodeRef } from "@/proto/wiring";
 import { NodeGraph } from "@/language/graph";
 import { fabricate } from "@/language/graph.test";
 import { TransactionBuilder, TransactionState, editGraph } from "@/language/transaction";
@@ -17,7 +17,7 @@ describe("order keys", () => {
 
     // 'fix' order keys with minimal edits
     const tx = new TransactionBuilder({
-      subject: toPlainNodeRef(fabricate(ObjectType.USER)),
+      subject: toNodeRef(fabricate(ObjectType.USER)),
       state: new TransactionState(uuidt(), EMPTY_SCOPE),
     });
     fixOrderKeys(tx, badNodes);

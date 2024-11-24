@@ -21,7 +21,7 @@ import {
   type AnyNodeData,
   type StepData,
 } from "@/proto/wire";
-import { describeNode, isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
 import { isDraggingAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
@@ -108,7 +108,7 @@ export class StepState {
 
   constructor(flow: FlowContext, step: StepData) {
     this.flow = flow;
-    this.stepPtr = toPlainNodeRef(step);
+    this.stepPtr = toNodeRef(step);
     this.step = flow.graph.getRef(this.stepPtr, { ignoreAncestors: true });
     this.nodePtr = computedValue(() => {
       if (this.step.value?.type == StepType.ACTION) {
@@ -148,7 +148,7 @@ export class PipeState {
 
   constructor(flow: FlowContext, pipe: PipeData) {
     this.flow = flow;
-    this.pipePtr = toPlainNodeRef(pipe);
+    this.pipePtr = toNodeRef(pipe);
     this.pipe = flow.graph.getRef(this.pipePtr);
     this.source = flow.graph.getRef(
       computed(() => this.pipe.value?.sourcePtr as TypedNodeReferenceData<NodeType.STEP> | null),
@@ -1070,7 +1070,7 @@ export function createStep(
   },
 ): StepData {
   const parent = isNode(options.parent) ? options.parent : graph.getOrError(options.parent);
-  const parentPtr = toPlainNodeRef(parent);
+  const parentPtr = toNodeRef(parent);
   const packagePtr = parent.packagePtr;
   const flow = getContainingFlow(graph, parent);
   if (flow == null) throw new Error(`no flow for ${describeNode(parent)}`);
@@ -1110,7 +1110,7 @@ export function createPipe(
   },
 ) {
   const parent = isNode(options.parent) ? options.parent : graph.getOrError(options.parent);
-  const parentPtr = toPlainNodeRef(parent);
+  const parentPtr = toNodeRef(parent);
   const packagePtr = parent.packagePtr;
 
   // swap source/target if needed
@@ -1133,8 +1133,8 @@ export function createPipe(
     ...options.pipe,
     parentPtr,
     packagePtr,
-    sourcePtr: toPlainNodeRef(source.parent),
-    targetPtr: toPlainNodeRef(target.parent),
+    sourcePtr: toNodeRef(source.parent),
+    targetPtr: toNodeRef(target.parent),
   });
   return pipe;
 }

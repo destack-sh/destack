@@ -1,7 +1,7 @@
 import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
 import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
-import { cloneNode, generateNodeName, makeNode, NodeIn, packSubnode, unpackSubnode } from "@/language/node";
+import { cloneNode, generateNodeName, makeNode, NodeIn, unpackSubnode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { makeEdit, newChangeId, TransactionOptions, type Transaction } from "@/language/transaction";
 import { unpackBuiltinObject } from "@/language/value";
@@ -32,12 +32,7 @@ import {
   makeStruct,
   propertyInfo,
   toNodeRef,
-  toNodeRefOneOf,
-  toPlainNodeRef,
-  unwrapProtoOneOf,
-  type AnyNodeReferenceData,
-  type SomeNodeReferenceData,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { SplitAnchor } from "@/ui/drag";
@@ -111,7 +106,7 @@ export class SpaceCanvas {
   focusedViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
 
   // selection
-  highlightedPtr = ref<SomeNodeReferenceData | null>(null);
+  highlightedPtr = ref<NodeReferenceData | null>(null);
 
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
@@ -154,7 +149,7 @@ export class SpaceCanvas {
   }
 
   /** Whether the node is currently inspected. */
-  isInspected(node: AnyNodeData | SomeNodeReferenceData | null | undefined): boolean {
+  isInspected(node: AnyNodeData | NodeReferenceData | null | undefined): boolean {
     return (
       node != null &&
       inspectionPtr.value != null &&
@@ -163,7 +158,7 @@ export class SpaceCanvas {
   }
 
   /** Whether the node is currently highlighted. */
-  isHighlighted(node: AnyNodeData | SomeNodeReferenceData | null | undefined): boolean {
+  isHighlighted(node: AnyNodeData | NodeReferenceData | null | undefined): boolean {
     return (
       node != null &&
       this.highlightedPtr.value != null &&
@@ -185,13 +180,13 @@ export class SpaceCanvas {
   getViewNodePtr(
     view: ViewComponent,
     element?: HTMLElement | SVGElement | ViewComponent | null,
-  ): SomeNodeReferenceData | null {
+  ): NodeReferenceData | null {
     if (element != null) {
       const nodePtr = view?.exposed?.mapToNode?.(element);
       if (nodePtr != null) return nodePtr;
     }
     const nodePtr = this.graph.getMaybe(getViewComponentPtrMaybe(view))?.nodePtr ?? (view.props as ViewProps).nodePtr;
-    return unwrapProtoOneOf(nodePtr) ?? null;
+    return nodePtr ?? null;
   }
 
   /** Gets the view component for a certain view identity (self.id or anonymous id) */
@@ -211,7 +206,7 @@ export class SpaceCanvas {
   }
 
   /** Gets the node at the given element. */
-  getNodeAt(el: HTMLElement | SVGElement): SomeNodeReferenceData | null {
+  getNodeAt(el: HTMLElement | SVGElement): NodeReferenceData | null {
     // traverse upwards until we find some node ptr or a component that gives us a node ptr
     while (el != null) {
       if (el.dataset?.["nodeId"] != null) {
@@ -229,9 +224,8 @@ export class SpaceCanvas {
         if (component.exposed.mapToNode != null) {
           const nodePtr = component.exposed.mapToNode(el);
           if (nodePtr != null) return nodePtr;
-        } else if (component.props.nodePtr?.oneofKind != null) {
-          const nodePtr = unwrapProtoOneOf(component.props.nodePtr);
-          if (nodePtr != null) return nodePtr;
+        } else if (component.props.nodePtr != null) {
+          return component.props.nodePtr;
         }
       }
       // up we go
@@ -293,13 +287,13 @@ export class SpaceCanvas {
 
   /** Inspects the given node */
   inspect(inspect: {
-    node: AnyNodeData | AnyNodeReferenceData;
+    node: AnyNodeData | NodeReferenceData;
     view: SomeView | ViewComponent | ComponentInstance<any> | HTMLElement | SVGElement;
     focusInspector?: boolean;
   }): void {
     log.trace("canvas.inspect", inspect);
 
-    const nodePtr = toPlainNodeRef(inspect.node as AnyNodeData);
+    const nodePtr = toNodeRef(inspect.node as AnyNodeData);
     let view: SomeView | null;
     if (isNodeRef(inspect.view) || isNode(inspect.view)) {
       view = inspect.view as SomeView;
@@ -309,7 +303,7 @@ export class SpaceCanvas {
     if (view == null) throw new Error(`no view for ${inspect.view}`);
     const viewAncestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
     const rootViewIdx = viewAncestors.findIndex((v) => ROOT_VIEW_TYPES.has(v.type));
-    const baseNodePtr = unwrapProtoOneOf(viewAncestors[rootViewIdx - 1]?.nodePtr);
+    const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
       this.tx().update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "short" });
@@ -328,7 +322,7 @@ export class SpaceCanvas {
   focus(
     focus: (
       | { node: TypedNodeReferenceData<NodeType.VIEW> | ViewData }
-      | { node: AnyNodeReferenceData | AnyNodeData; view: SomeView }
+      | { node: NodeReferenceData | AnyNodeData; view: SomeView }
     ) & { anchor?: FocusAnchor | NodeReferenceData; ignoreInspection?: boolean },
   ) {
     log.trace("canvas.focus", focus);
@@ -366,7 +360,7 @@ export class SpaceCanvas {
       });
     } else if ("view" in focus) {
       // focus as a general node in the given view
-      const node = focus.node as AnyNodeReferenceData | AnyNodeData;
+      const node = focus.node as NodeReferenceData | AnyNodeData;
       // focus in graph & then in component
       this.focusInGraph({ view: focus.view, focus: makeSelection([node]) });
       if (!focus.ignoreInspection) {
@@ -680,7 +674,7 @@ export class SpaceCanvas {
   /** Finds a view with properties exactly like the criteria */
   findView(like: {
     type: ViewType;
-    nodePtr: AnyNodeReferenceData | undefined;
+    nodePtr: NodeReferenceData | undefined;
     predicate?: (view: ViewData) => boolean;
   }): ViewData | null {
     if (Object.keys(like).length == 0) return null;
@@ -688,7 +682,7 @@ export class SpaceCanvas {
     const views = this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
     const match = views.find((v) => {
       if (like.type != null && v.type != like.type) return false;
-      if (like.nodePtr != null && unwrapProtoOneOf(v.nodePtr)?.id != like.nodePtr?.id) return false;
+      if (like.nodePtr != null && v.nodePtr?.id != like.nodePtr?.id) return false;
       if (like.predicate != null && !like.predicate(v)) return false;
       return true;
     });
@@ -700,7 +694,7 @@ export class SpaceCanvas {
     const tx = this.tx();
     const existing = this.findView({
       type: view.type,
-      nodePtr: unwrapProtoOneOf(view.nodePtr),
+      nodePtr: view.nodePtr,
       predicate: options?.predicate,
     });
 
@@ -735,7 +729,7 @@ export class SpaceCanvas {
         metatype: NodeType.VIEW,
         packagePtr: parent.packagePtr,
         orderKey: generateOrderKey(siblings[-1]?.orderKey ?? null, null),
-        parentPtr: toPlainNodeRef(parent),
+        parentPtr: toNodeRef(parent),
         icon: toIconMaybe(view.icon),
       });
       if ((view.name ?? "").length == 0) {
@@ -797,7 +791,7 @@ export class SpaceCanvas {
       const view = this.addView(
         {
           type: ViewType.FLOW,
-          nodePtr: toNodeRefOneOf(containingFlow),
+          nodePtr: toNodeRef(containingFlow),
           focus: makeSelection([node]),
           ...options?.props,
         },
@@ -813,7 +807,7 @@ export class SpaceCanvas {
         view = this.addView(
           {
             type: ViewType.DATABASE,
-            nodePtr: toNodeRefOneOf(block),
+            nodePtr: toNodeRef(block),
             focus: makeSelection([node]),
             ...options?.props,
           },
@@ -821,7 +815,7 @@ export class SpaceCanvas {
         );
       } else {
         view = this.addView(
-          { type: ViewType.DATABASE, nodePtr: toNodeRefOneOf(node), ...options?.props },
+          { type: ViewType.DATABASE, nodePtr: toNodeRef(node), ...options?.props },
           { ifPresent: "upsertAndFocus", ...options },
         );
       }
@@ -829,7 +823,7 @@ export class SpaceCanvas {
     } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW) {
       // open as view
       this.addView(
-        { type: ViewType.VIEW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
+        { type: ViewType.VIEW, nodePtr: toNodeRef(nodePtr), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
     } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.nodeType)) {
@@ -841,7 +835,7 @@ export class SpaceCanvas {
       const view = this.addView(
         {
           type: ViewType.PAGE,
-          nodePtr: toNodeRefOneOf(containingPage),
+          nodePtr: toNodeRef(containingPage),
           focus: makeSelection(nodePtr),
           ...options?.props,
         },
@@ -904,7 +898,7 @@ export class SpaceCanvas {
       });
     }
     if (child.parentPtr?.id != self.id) {
-      tx.move(child, { parentPtr: toPlainNodeRef(self) }, { debounce: "tick" });
+      tx.move(child, { parentPtr: toNodeRef(self) }, { debounce: "tick" });
       this.cleanupRootViews(graph, graph.get(child.parentPtr!) as ViewData);
     }
   }
@@ -955,7 +949,7 @@ export class SpaceCanvas {
       });
       tx.create(split);
       tx.move(parent, {
-        parentPtr: toPlainNodeRef(split),
+        parentPtr: toNodeRef(split),
         size: undefined,
         orderKey: isOrderFlipped ? "a0" : "a1",
       });
@@ -964,14 +958,14 @@ export class SpaceCanvas {
       const childWrapper = makeNode({
         metatype: NodeType.VIEW,
         type: ViewType.TAB,
-        parentPtr: toPlainNodeRef(split),
+        parentPtr: toNodeRef(split),
         packagePtr: parent.packagePtr,
         name: `${parent.name}${toCasing(anchor.toUpperCase(), Casing.CAMEL)}`,
         orderKey: isOrderFlipped ? "a1" : "a0",
       });
       tx.create(childWrapper);
       tx.move(child, {
-        parentPtr: toPlainNodeRef(childWrapper),
+        parentPtr: toNodeRef(childWrapper),
         size: undefined,
         orderKey: "a0",
       });
@@ -992,7 +986,7 @@ export class SpaceCanvas {
         }),
       });
       tx.create(newSplitParent);
-      tx.move(child, { parentPtr: toPlainNodeRef(newSplitParent), size: undefined, orderKey: "a0" });
+      tx.move(child, { parentPtr: toNodeRef(newSplitParent), size: undefined, orderKey: "a0" });
       tx.update(parent, { size: halfSize });
     }
     this.cleanupRootViews(graph, graph.get(child.parentPtr!) as ViewData);
@@ -1003,7 +997,7 @@ function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {
   const main = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.WINDOW,
-    parentPtr: toPlainNodeRef(space),
+    parentPtr: toNodeRef(space),
     packagePtr: space.packagePtr,
     orderKey: "a0",
     name: "Main",
@@ -1044,7 +1038,7 @@ function makeLayout(
       title: viewIn.name ?? toCamelName(ViewType, viewIn.type),
       ...viewIn,
       name,
-      parentPtr: toPlainNodeRef(parent),
+      parentPtr: toNodeRef(parent),
       packagePtr: root.packagePtr,
     });
     if (viewsByName[view.name] != null) throw new Error(`duplicate view name: ${view.name}`);

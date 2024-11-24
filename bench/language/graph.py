@@ -21,7 +21,7 @@ from bench.utils.func import IdEnum, bittuple
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Node, NodeReference, NodeReferenceBase, SomeNodeReference
+    from bench.language import Node, NodeReference
     from bench.proto.wiring import NodeReferenceData
 
 logger = structlog.get_logger(__name__)
@@ -403,7 +403,7 @@ class NodeSuperGraph:
 
     __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr")
 
-    def __init__(self, root_ptr: "SomeNodeReference | None", base: "NodeSuperGraph | None" = None):
+    def __init__(self, root_ptr: "NodeReference | None", base: "NodeSuperGraph | None" = None):
         self._root_ptr = root_ptr
         self._graphs = ()
         self._graphs_by_node_type: dict[NodeType, tuple[NodeGraph, ...]] = {}
@@ -465,7 +465,7 @@ class NodeSuperGraph:
                 g for g in self._graphs_by_node_type[node_type] if g is not graph
             )
 
-    def get(self, ptr: "UUID | NodeReferenceBase") -> Optional["Node"]:
+    def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
         """Get a node by some key."""
         if isinstance(ptr, UUID):
             # check all graphs :c
@@ -483,7 +483,7 @@ class NodeSuperGraph:
                     return node
             return None
 
-    def get_or_fail(self, ptr: "UUID | NodeReferenceBase") -> "Node":
+    def get_or_fail(self, ptr: "UUID | NodeReference") -> "Node":
         """Get a node by some key (error if not exists)."""
         node = self.get(ptr)
         if node is None:
@@ -492,7 +492,7 @@ class NodeSuperGraph:
 
     __getitem__ = get_or_fail
 
-    def __contains__(self, ptr: "UUID | NodeReferenceBase") -> bool:
+    def __contains__(self, ptr: "UUID | NodeReference") -> bool:
         return self.get(ptr) is not None
 
 

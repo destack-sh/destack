@@ -9,6 +9,7 @@ import IconName from "@/views/builtins/IconName.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
+import { MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
@@ -24,7 +25,7 @@ const id = toRef(props, "id");
 const fieldRef = ref<HTMLElement | null>(null);
 const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
 
-const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.FIELD>);
+const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.FIELD>);
 const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
 const field = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
@@ -35,7 +36,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   // common
   "common.edit.rename": {
     action: () => {
-      nextTick(() => focusInElement(nameRef.value!));
+      nextTick(() => focusInElement(nameRef.value as MaybeElement));
     },
   },
   // type

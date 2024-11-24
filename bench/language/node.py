@@ -82,10 +82,8 @@ from bench.proto.wire import (
     AnyObjectData,
     AnyStructData,
     ClientOriginData,
-    FileReferenceData,
     GraphScopeData,
     NodeReferenceData,
-    SecretReferenceData,
     lang_pb2,
 )
 from bench.proto.wire.lang_pb2 import EditOperationData
@@ -103,7 +101,6 @@ if TYPE_CHECKING:
         CustomObject,
         Expression,
         Field,
-        FileReference,
         GetConnection,
         NodeReference,
         Package,
@@ -111,7 +108,6 @@ if TYPE_CHECKING:
         QueryBuilder,
         Run,
         SearchConnection,
-        SecretReference,
         Server,
         Session,
         Step,
@@ -701,7 +697,7 @@ def _object_node_ref(prop: Property) -> property:
 
     if not prop.is_list:
 
-        def _get_node_scalar(self: BuiltinObject) -> Optional["Node | SomeNodeReference"]:
+        def _get_node_scalar(self: BuiltinObject) -> Optional["Node | NodeReference"]:
             value_ptr: NodeReference | None = getattr(self, wired_prop.name)
             if value_ptr is None:
                 return None
@@ -711,8 +707,6 @@ def _object_node_ref(prop: Property) -> property:
                 value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
             if value is not None:
                 return value
-            elif value_ptr.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
-                return value_ptr  # :RichReferences
             else:
                 return None
 
@@ -729,8 +723,8 @@ def _object_node_ref(prop: Property) -> property:
 
     else:
 
-        def _get_node_many(self: BuiltinObject) -> Sequence["Node | SomeNodeReference"]:
-            value_ptrs: Collection[NodeReferenceBase] = getattr(self, wired_prop.name)
+        def _get_node_many(self: BuiltinObject) -> Sequence["Node | NodeReference"]:
+            value_ptrs: Collection[NodeReference] = getattr(self, wired_prop.name)
             if len(value_ptrs) == 0:
                 return ()
             values = []
@@ -741,8 +735,6 @@ def _object_node_ref(prop: Property) -> property:
                     value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
                 if value is not None:
                     values.append(value)
-                elif value_ptr.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
-                    values.append(value_ptr)  # :RichReferences
             return values
 
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
@@ -2077,11 +2069,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Gets a plain data reference to this node."""
         return NodeReference._ref_from_node(self)._to_data()
 
-    def to_ref(self) -> "SomeNodeReference":
+    def to_ref(self) -> "NodeReference":
         """Gets a reference to this node. May be rich in subclasses."""
         return NodeReference._ref_from_node(self)
 
-    def _to_ref_data(self) -> "SomeNodeReferenceData":
+    def _to_ref_data(self) -> "NodeReferenceData":
         """Gets a data reference to this node. May be rich in subclasses."""
         return NodeReference._ref_from_node(self)._to_data()
 
@@ -2183,21 +2175,19 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     async def get(
         cls,
-        filter: Optional["Expression | SomeNodeReference | None"] = None,
+        filter: Optional["Expression | NodeReference | None"] = None,
         live: bool = False,
         **kwargs,
     ) -> Self: ...
     @overload
     @classmethod
     async def get(
-        cls, filter: Sequence["SomeNodeReference"], live: bool = False, **kwargs
+        cls, filter: Sequence["NodeReference"], live: bool = False, **kwargs
     ) -> list[Self]: ...
     @classmethod
     async def get(
         cls,
-        filter: Optional[
-            "Expression | SomeNodeReference | Sequence[SomeNodeReference] | None"
-        ] = None,
+        filter: Optional["Expression | NodeReference | Sequence[NodeReference] | None"] = None,
         live: bool = False,
         **kwargs,
     ) -> Self | list[Self]:
@@ -2361,13 +2351,12 @@ class ClientOrigin(Struct[ClientOriginData]):
     nonce: Optional[UUID] = p_internal(32, default=None)
 
 
-@object_()
-class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: AnyStructData](
-    BuiltinObject
-):
+@struct_(StructType.NODE_REFERENCE)
+class NodeReference(Struct[NodeReferenceData]):
     """
-    A base for node references for extension in richer references (Files, Secrets, ...).
-    NOTE :Architecture: not sure if :RichReferences are worth it anymore
+    A plain reference to a Node.
+    We include the Bench and 'ck' where available.
+    Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
     """
 
     node_type: NodeType = p_internal(30, require=True)
@@ -2379,8 +2368,8 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
     base_bench_id: Optional[UUID] = p_internal(35, default=None)
 
     @staticmethod
-    def _clone_ref[T: NodeReferenceBase | Any](
-        ref_cls: Type[T], ref: "NodeReferenceBase | Any", **kwargs
+    def _clone_ref[T: NodeReference | Any](
+        ref_cls: Type[T], ref: "NodeReference | Any", **kwargs
     ) -> T:
         return ref_cls(
             id=ref.id,
@@ -2395,40 +2384,6 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
     def to_ref(self) -> "Self":
         """Gets the reference (noop for compatibility with Node.to_ref)."""
         return self
-
-    def _to_plain_ref(self) -> "NodeReference":
-        """Gets a plain reference from this reference."""
-        return NodeReference(
-            node_type=self.node_type,
-            id=self.id,
-            ck=self.ck,
-            bench_id=self.bench_id,
-            base_ck=self.base_ck,
-            base_bench_id=self.base_bench_id,
-        )
-
-    @staticmethod
-    @abc.abstractmethod
-    def _ref_from_node(node: NT) -> RT:
-        """Turn a node into a reference to that node."""
-        raise NotImplementedError
-
-    @staticmethod
-    @abc.abstractmethod
-    def _ref_data_from_node_data(node_data: ND) -> RD:
-        """Turn a data node into a data node reference to that node."""
-        raise NotImplementedError
-
-
-@struct_(StructType.NODE_REFERENCE)
-class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
-    """
-    A plain reference to a Node.
-    We include the Bench and 'ck' where available.
-    Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
-    """
-
-    # ...NodeReferenceBase[30-39]
 
     def __content_str__(self):
         content_parts = []
@@ -2453,11 +2408,6 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
     ) -> None:
         pass  # NOTE :Robustness: we used to require bench_id for sub-bench types here
 
-    @override
-    def _to_plain_ref(self) -> "NodeReference":
-        return self
-
-    @override
     @staticmethod
     def _ref_from_node(node: Node) -> "NodeReference":
         assert isinstance(node, Node), f"expected Node, got {node!r}"
@@ -2500,7 +2450,6 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
         )
         return reference
 
-    @override
     @staticmethod
     def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         from bench.proto import wire
@@ -2529,18 +2478,6 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
                     reference.base_bench_id = base.bench_id
 
         return reference
-
-
-# some node types have richer representations in references :RichReferences
-#  (we only store those in Values or when the property explicitly has reference_is_rich,
-#   since otherwise every single ptr to a potential rich type would carry a lot of metadata)
-RICH_REFERENCE_TYPES_BY_NODE_TYPE: dict[NodeType, StructType] = {
-    NodeType.FILE: StructType.FILE_REFERENCE,
-    NodeType.SECRET: StructType.SECRET_REFERENCE,
-}
-NODE_REFERENCE_TYPES = (StructType.NODE_REFERENCE, *RICH_REFERENCE_TYPES_BY_NODE_TYPE.values())
-SomeNodeReference = Union[NodeReference, "FileReference", "SecretReference"]
-SomeNodeReferenceData = Union[NodeReferenceData, FileReferenceData, SecretReferenceData]
 
 
 @struct_(StructType.PROPERTY_REFERENCE)

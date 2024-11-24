@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { cloneNode } from "@/language/node";
-import { RectangleData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
@@ -33,7 +33,7 @@ const id = toRef(props, "id");
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const tabsNodes = spaceGraph.getManyMaybeRef(
-  computed(() => tabs.value.map((t) => unwrapProtoOneOf(t.nodePtr) ?? null)),
+  computed(() => tabs.value.map((t) => t.nodePtr ?? null)),
 );
 const tabsTitles = computed(() => {
   // views with a nodePtr are titled by the node name :ViewNodeTitles
@@ -42,7 +42,7 @@ const tabsTitles = computed(() => {
     const tab = tabs.value[tabIdx];
     if (tab.title) {
       tabsTitles.push(tab.title);
-    } else if (tab.nodePtr?.oneofKind != null && (tabsNodes.value[tabIdx] as any)?.name != null) {
+    } else if (tab.nodePtr != null && (tabsNodes.value[tabIdx] as any)?.name != null) {
       tabsTitles.push((tabsNodes.value[tabIdx] as any)?.name ?? "???");
     } else {
       tabsTitles.push(tab.name);
@@ -289,7 +289,7 @@ defineExpose<ViewExposed>({ self, actions });
       <component
         :is="getViewComponent(tabs[focusedTabIdx].type)"
         v-if="focusedTabIdx != null && getViewComponent(tabs[focusedTabIdx].type) != null"
-        :self="toPlainNodeRef(tabs[focusedTabIdx])"
+        :self="toNodeRef(tabs[focusedTabIdx])"
         v-bind="getViewBinding(tabs[focusedTabIdx], innerSize)"
       />
       <div

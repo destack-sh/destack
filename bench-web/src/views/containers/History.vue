@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { NodeType, RectangleData, ViewData } from "@/proto/wire";
-import { toPlainNodeRef, TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
+import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, pkgGraph } from "@/system/space";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
@@ -49,7 +49,7 @@ const history: HistoryState = {
       viewIdx += Math.sign(delta);
       const view = views.value[viewIdx];
       if (view == null) return;
-      const viewNodePtr = unwrapProtoOneOf(view.nodePtr);
+      const viewNodePtr = view.nodePtr;
       if (viewNodePtr != null && !pkgGraph.has(viewNodePtr)) continue;
       delta -= Math.sign(delta);
     }
@@ -67,7 +67,7 @@ defineExpose<ViewExposed>({ self });
     <component
       :is="getViewComponent(focusedView.type)"
       v-if="focusedView != null && getViewComponent(focusedView.type) != null"
-      :self="toPlainNodeRef(focusedView)"
+      :self="toNodeRef(focusedView)"
       v-bind="getViewBinding(focusedView, size)"
     />
   </div>

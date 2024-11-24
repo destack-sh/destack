@@ -2,14 +2,14 @@ import type { ReadNodeGraph } from "@/language/graph";
 import {
   FileFormat,
   FileType,
+  NodeReferenceData,
   NodeType,
   Orientation,
   SelectionData,
   StructType,
   type AnyNodeData,
-  type NodeReferenceData,
 } from "@/proto/wire";
-import { isNodeRef, isStruct, SomeNodeReferenceData, toNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
+import { isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
@@ -50,7 +50,7 @@ const activeDropZone: Ref<DropZone | null> = ref(null);
 export const DRAG_DISALLOWED_ELEMENTS = new Set(["input", "textarea", "contenteditable"]);
 
 /** Checks whether the given node is currently being dragged */
-export function isDragging(node: AnyNodeData | SomeNodeReferenceData) {
+export function isDragging(node: AnyNodeData | NodeReferenceData) {
   return (
     (activeDragged.value?.kind == "node" && activeDragged.value.node.id == node.id) ||
     (activeDragged.value?.kind == "selection" && activeDragged.value.nodes.some((n) => n.id == node.id))
@@ -73,7 +73,7 @@ export function isDraggingAllowed(element: HTMLElement | SVGElement | null): boo
 export function startDraggingIfAllowed(
   event: DragEvent,
   graph: ReadNodeGraph,
-  data: AnyNodeData | AnyNodeReferenceData,
+  data: AnyNodeData | NodeReferenceData,
 ): boolean {
   const trigger = event.target as HTMLElement;
   if (!isDraggingAllowed(trigger)) {
@@ -88,7 +88,7 @@ export function startDraggingIfAllowed(
 export function startDragging(
   event: DragEvent,
   graph: ReadNodeGraph,
-  data: AnyNodeData | AnyNodeReferenceData | SelectionData | DraggedContent,
+  data: AnyNodeData | NodeReferenceData | SelectionData | DraggedContent,
 ): boolean {
   const trigger = event.target as HTMLElement;
   let dragged: Dragged;

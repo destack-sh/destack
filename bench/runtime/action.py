@@ -18,7 +18,7 @@ from bench.language.const import BlockType, ObjectKind
 from bench.language.field import Field, TypeBase
 from bench.language.file import FileBase
 from bench.language.flow import ActionStep, Pipe, Step, StepType
-from bench.language.node import Node, SomeNodeReference, SourceNode
+from bench.language.node import Node, NodeReference, SourceNode
 from bench.language.project import Projection, ProjectOptions
 from bench.language.query import Query
 from bench.language.render import RenderOptions, render_expr, render_stmt
@@ -333,7 +333,7 @@ class PromptRegion(PromptCompound):
 class PromptNode(PromptCompound):
     """A generic non-source node."""
 
-    node: Node | SomeNodeReference
+    node: Node | NodeReference
 
     @override
     async def expand(self, context: "CompilationContext") -> Sequence[PromptPart]:

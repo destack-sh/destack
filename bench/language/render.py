@@ -25,7 +25,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypeBase, TypeConstraint, reverse_type_scalar
 from bench.language.flow import Step
-from bench.language.node import BuiltinObject, Node, NodeReferenceBase, SomeNodeReference, Struct
+from bench.language.node import BuiltinObject, Node, NodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
@@ -146,7 +146,7 @@ class Aliasing:
 
     def __init__(self):
         self._alias_by_node_id: dict[UUID, str] = {}
-        self._node_by_alias: dict[str, Node | NodeReferenceBase] = {}
+        self._node_by_alias: dict[str, Node | NodeReference] = {}
 
     def __str__(self) -> str:
         return ", ".join(self._node_by_alias)
@@ -154,7 +154,7 @@ class Aliasing:
     def __repr__(self) -> str:
         return f"<Aliasing {self}>"
 
-    def add(self, obj: Node | NodeReferenceBase) -> str:
+    def add(self, obj: Node | NodeReference) -> str:
         """Adds the given nodes to the context of this renderer."""
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
@@ -182,25 +182,25 @@ class Aliasing:
         self._node_by_alias[alias] = obj
         return alias
 
-    def get(self, node: Node | NodeReferenceBase | UUID) -> str | None:
+    def get(self, node: Node | NodeReference | UUID) -> str | None:
         """Gets the alias for the given node."""
         if isinstance(node, Node):
             return self._alias_by_node_id.get(node.id)
-        elif isinstance(node, NodeReferenceBase):
+        elif isinstance(node, NodeReference):
             return self._alias_by_node_id.get(cast(UUID, node.id))
         elif isinstance(node, UUID):
             return self._alias_by_node_id.get(node)
         else:
             assert_never(node)
 
-    def get_or_error(self, node: Node | NodeReferenceBase | UUID) -> str:
+    def get_or_error(self, node: Node | NodeReference | UUID) -> str:
         """Gets the alias for the given node (error if not found)."""
         alias = self.get(node)
         if alias is None:
             raise LookupError(f"no alias for {node!r} in {self!r}")
         return alias
 
-    def get_or_add(self, obj: Node | SomeNodeReference) -> str:
+    def get_or_add(self, obj: Node | NodeReference) -> str:
         """Gets the alias for the given node (add if not found)."""
         alias = self.get(obj)
         if alias is None:
@@ -209,7 +209,7 @@ class Aliasing:
 
     __getitem__ = get_or_error
 
-    def __contains__(self, node: Node | NodeReferenceBase | UUID) -> bool:
+    def __contains__(self, node: Node | NodeReference | UUID) -> bool:
         return self.get(node) is not None
 
 
@@ -234,7 +234,7 @@ class Renderer:
     def aliasing(self) -> Aliasing:
         return self._aliasing
 
-    def render_node_ref(self, node: Node | NodeReferenceBase) -> str:
+    def render_node_ref(self, node: Node | NodeReference) -> str:
         """Renders a python-valid reference to the given node in this context."""
         if (
             isinstance(node, Node)
@@ -297,7 +297,7 @@ class Renderer:
                 return repr(value)
         elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
             assert isinstance(
-                value, (Node, NodeReferenceBase)
+                value, (Node, NodeReference)
             ), f"{value!r} is not a node or node reference, expected {typ!r}"
             return self.render_node_ref(value)
         elif typ.kind == TypeKind.ENUM:

@@ -193,13 +193,11 @@ class CustomObject(Mapping[str, Any]):
         value = self._value.get(key.key)
         if value is None:
             return key.default
-        elif isinstance(value, NodeReferenceBase):
+        elif isinstance(value, NodeReference):
             # auto resolve references
             resolved_value = self._type._supergraph.get(value)
             if resolved_value is not None:
                 return resolved_value
-            elif value.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
-                return value  # :RichReferences
             else:
                 return None  # couldn't resolve
         else:
@@ -408,13 +406,11 @@ def _object_value_runtime(prop: Property) -> property:
             and value_type.default_packed
         ):
             return value_type.default
-        elif isinstance(value, NodeReferenceBase):
+        elif isinstance(value, NodeReference):
             # auto resolve references
             resolved_value = self._supergraph.get(value)
             if resolved_value is not None:
                 return resolved_value
-            elif value.node_type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
-                return value  # :RichReferences
             else:
                 return None  # couldn't resolve
         else:
@@ -464,7 +460,7 @@ def _coerce_value_scalar(
             assert parent_key is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
             value = cast("Struct", value)._move_to(parent, parent_key)
         elif as_packed and (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE):
-            assert isinstance(value, (Node, NodeReferenceBase)), f"expected Node, got {value!r}"
+            assert isinstance(value, (Node, NodeReference)), f"expected Node, got {value!r}"
             value = value.to_ref()
         return value
     except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
@@ -646,7 +642,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeBase", invalid: "ValidationHa
         if max_value is not None and value > max_value:
             invalid(value, "too large", typ)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        from bench.language.node import Node, NodeReferenceBase
+        from bench.language.node import Node, NodeReference
 
         if typ.bench_type is not None:
             allowed_types = (typ.bench_type,)
@@ -658,7 +654,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeBase", invalid: "ValidationHa
         if isinstance(value, Node):
             if allowed_types and value.metatype not in allowed_types:
                 invalid(value, f"not of type, is {value.metatype}", typ)
-        elif isinstance(value, NodeReferenceBase):
+        elif isinstance(value, NodeReference):
             if allowed_types and value.node_type not in allowed_types:
                 invalid(value, f"not of type, is {value.node_type}", typ)
         else:
@@ -928,10 +924,10 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        if cast("Struct | AnyStructData", value).metatype not in NODE_REFERENCE_TYPES:
+        if cast("Struct | AnyStructData", value).metatype != StructType.NODE_REFERENCE:
             ref = cast("Node", value).to_ref()
         else:
-            ref = cast("SomeNodeReference | SomeNodeReferenceData", value)
+            ref = cast("NodeReference | NodeReferenceData", value)
         if isinstance(ref, BuiltinObject):
             ref = ref._to_data()
         return pack_builtin_object_data(ref)
@@ -1036,8 +1032,6 @@ def pack_builtin_object_data(
         prop_name = prop.name
         if prop.is_optional_scalar and not value.HasField(prop_name):
             continue
-        if prop.reference_is_rich:
-            prop_name = value.WhichOneof(prop_name)
         prop_value = getattr(value, prop_name)
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
             continue
@@ -1377,13 +1371,10 @@ def unpack_proto_json(value: ProtoValue) -> JsonValue:
 
 # import later to avoid circular imports (Object is used in node.py)
 from bench.language.node import (  # noqa: E402
-    NODE_REFERENCE_TYPES,
-    RICH_REFERENCE_TYPES_BY_NODE_TYPE,
     BuiltinObject,
     Node,
-    NodeReferenceBase,
-    SomeNodeReference,
-    SomeNodeReferenceData,
+    NodeReference,
+    NodeReferenceData,
     Struct,
     object_,
     struct_,

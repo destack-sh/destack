@@ -235,8 +235,6 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.OUTPUT_OBJECT,
     # references have special handling
     StructType.NODE_REFERENCE,
-    StructType.FILE_REFERENCE,
-    StructType.SECRET_REFERENCE,
     StructType.PROPERTY_REFERENCE,
     # contain required references
     StructType.OBJECT_MAPPING,

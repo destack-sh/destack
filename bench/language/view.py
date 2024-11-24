@@ -5,7 +5,7 @@ from bench.language.expression import Selection
 from bench.language.list import LocalNodeList
 from bench.language.node import (
     Node,
-    SomeNodeReference,
+    NodeReference,
     SourceNode,
     Struct,
     local_node_,
@@ -498,11 +498,11 @@ class View(SourceNode[ViewData]):
         40, default=None, require=False, struct=StructType.TYPE_INFO
     )
     node: Optional["Node"] = p_regular(
-        42, default=None, require=False, array=False, references=NODE_TYPES.tuple, rich=True
+        42, default=None, require=False, array=False, references=NODE_TYPES.tuple
     )
     if TYPE_CHECKING:
         node_type: Optional[NodeType] = None
-        node_ptr: Optional["SomeNodeReference"] = None
+        node_ptr: Optional["NodeReference"] = None
 
     # style
     variant: Optional[Variant] = p_regular(50, default=None, require=False)

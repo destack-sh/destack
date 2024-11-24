@@ -11,6 +11,7 @@ import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } fro
 import {
   ENUM_BY_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
+  NodeReferenceData,
   NodeSubtypeMapping,
   NodeType,
   ObjectType,
@@ -33,9 +34,7 @@ import {
   newNodeCk,
   newNodeId,
   nodeReference,
-  toPlainNodeRef,
-  type AnyNodeReferenceData,
-  type SomeNodeReferenceData,
+  toNodeRef,
 } from "@/proto/wiring";
 import { addVector2 } from "@/ui/view";
 import { Casing, toCasing } from "@/utils/string";
@@ -48,7 +47,7 @@ export function extractNameId(name: string): number | null {
   return match ? parseInt(match[0]) : null;
 }
 /** Gets the node type for a node or reference */
-export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType {
+export function getNodeType(node: AnyNodeData | NodeReferenceData): NodeType {
   if (isNodeRef(node)) return node.nodeType;
   else return node.metatype as unknown as NodeType;
 }
@@ -344,11 +343,7 @@ export function cloneStruct<T extends AnyStructData>(struct: T): T {
       if (prop.isList) {
         clone[propName] = propValue.map((v: any) => cloneStruct(v));
       } else if (propValue) {
-        if (prop.referenceIsRich) {
-          clone[propName] = propValue; // one of struct, and no need to clone anyway
-        } else {
-          clone[propName] = cloneStruct(propValue);
-        }
+        clone[propName] = cloneStruct(propValue);
       }
     } else {
       if (prop.isList) {
@@ -441,7 +436,7 @@ export function cloneNode<T extends AnyNodeData>(
 
   // clone all children (recursively)
   if (options?.includeChildren) {
-    const clonePtr = toPlainNodeRef(clone);
+    const clonePtr = toNodeRef(clone);
     const children = graph.getChildren(node);
     for (const child of children) {
       cloneNode(tx, graph, child, { includeChildren: true, now, set: { parentPtr: clonePtr }, _isNested: true });
@@ -459,10 +454,10 @@ export function cloneNode<T extends AnyNodeData>(
 export function moveNode(
   tx: Transaction,
   graph: ReadNodeGraph,
-  nodeOrRef: AnyNodeData | AnyNodeReferenceData,
+  nodeOrRef: AnyNodeData | NodeReferenceData,
   options: {
     anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down";
-    target?: AnyNodeData | AnyNodeReferenceData;
+    target?: AnyNodeData | NodeReferenceData;
   },
 ) {
   const { anchor } = options;
@@ -502,7 +497,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move(node, { parentPtr: toPlainNodeRef(target) }, { debounce: "tick" });
+    tx.move(node, { parentPtr: toNodeRef(target) }, { debounce: "tick" });
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }

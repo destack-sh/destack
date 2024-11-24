@@ -28,9 +28,9 @@ if TYPE_CHECKING:
         Expression,
         Field,
         Node,
+        NodeReference,
         Property,
         QueryBuilder,
-        SomeNodeReference,
         Struct,
     )
     from bench.proto.wire import AnyNodeData
@@ -317,19 +317,17 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     @overload
     async def get(
         self,
-        filter: Optional["Expression | SomeNodeReference | None"] = None,
+        filter: Optional["Expression | NodeReference | None"] = None,
         live: bool = False,
         **kwargs,
     ) -> V: ...
     @overload
     async def get(
-        self, filter: Sequence["SomeNodeReference"], live: bool = False, **kwargs
+        self, filter: Sequence["NodeReference"], live: bool = False, **kwargs
     ) -> list[V]: ...
     async def get(
         self,
-        filter: Optional[
-            "Expression | SomeNodeReference | Sequence[SomeNodeReference] | None"
-        ] = None,
+        filter: Optional["Expression | NodeReference | Sequence[NodeReference] | None"] = None,
         live: bool = False,
         **kwargs,
     ) -> V | list[V]:
