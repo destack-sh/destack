@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { SOURCE_STEP_TYPES, toCamelName } from "@/language/const";
 import {
-  BoundingBox,
   createStep,
   FLOW_CANVAS_DOT_SIZE,
   FLOW_CONTEXT_KEY,
@@ -12,7 +11,7 @@ import {
   PIPE_WIDTH,
   PipePath,
   STEP_CONTEXT_ACTIONS,
-  STEP_SIZE,
+  STEP_SIZE
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
 import {
@@ -26,7 +25,7 @@ import {
   Variant,
   ViewData,
 } from "@/proto/wire";
-import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import {
@@ -66,7 +65,7 @@ const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self, { isRequired: false });
 const selfView = spaceGraph.getRef(self);
-const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
+const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 
@@ -400,7 +399,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 items: menuActionsLike(PIPE_CONTEXT_ACTIONS, { context: { ...context, triggerNode: pipe } }),
               })
             "
-            :node-ptr="toNodeRefOneOf(pipe)"
+            :node-ptr="toNodeRef(pipe)"
             class="absolute"
           />
           <!-- Pending Pipe (above Steps for clarity)-->
@@ -436,7 +435,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               left: (step.position?.x ?? 0) + 'px',
               top: (step.position?.y ?? 0) + 'px',
             }"
-            :node-ptr="toNodeRefOneOf(step)"
+            :node-ptr="toNodeRef(step)"
             @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
           />
         </div>

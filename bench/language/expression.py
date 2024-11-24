@@ -26,7 +26,6 @@ from bench.language.const import (
 from bench.language.node import (
     Node,
     NodeReference,
-    NodeReferenceBase,
     Property,
     PropertyReference,
     Struct,
@@ -34,7 +33,7 @@ from bench.language.node import (
 )
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.value import unpack_proto_json
-from bench.proto.wire import AnyNodeData, FileReferenceData, NodeReferenceData, SecretReferenceData
+from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -460,9 +459,7 @@ def _lower_expression_value(typ: "TypeBase", value: Any) -> Any:
     # identity
     if isinstance(value, Node):
         value = value.ck or value.id
-    if isinstance(
-        value, (NodeReferenceBase, NodeReferenceData, FileReferenceData, SecretReferenceData)
-    ):
+    if isinstance(value, (NodeReference, NodeReferenceData)):
         value = value.ck or value.id
     if isinstance(value, UUID):
         value = str(value)

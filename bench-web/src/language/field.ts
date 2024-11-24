@@ -42,7 +42,7 @@ import {
   isStruct,
   makeDefaultObject,
   propertyInfo,
-  toPlainNodeRef,
+  toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
@@ -402,7 +402,7 @@ export function createField(
   if (isNode(target, NodeType.BLOCK)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
-    parentPtr = toPlainNodeRef(target);
+    parentPtr = toNodeRef(target);
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
     if (target.type == BlockType.CHOICE) {
@@ -418,7 +418,7 @@ export function createField(
   } else if (isNode(target, NodeType.STEP)) {
     if (fieldIn?.type == null) throw new Error(`missing zone for step field: ${describeNode(target)}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
-    parentPtr = toPlainNodeRef(target);
+    parentPtr = toNodeRef(target);
     if (anchor == "start") {
       orderKey = getOrderKey({ position: "before", reference: siblings[0], nodes: siblings });
     } else {

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES } from "@/language/const";
-import { NodeReferenceData, NodeType, Orientation, UserStatus, Variant, ViewType } from "@/proto/wire";
-import { toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
+import { NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
+import { toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { assignSpaceInPackage, bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
 import { user } from "@/system/user";
@@ -11,7 +11,6 @@ import { keytrap } from "@/ui/keymap";
 import { isDraggingGlobal } from "@/ui/layout";
 import { hasActivePopover } from "@/ui/popover";
 import { createDesktopDefaultSpace } from "@/ui/space";
-import { toaster } from "@/ui/toast";
 import { DISCORD_URL } from "@/utils/globals";
 import DragOverlay from "@/views/builtins/DragOverlay.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -43,7 +42,7 @@ const viewAncestors = canvas.graph.getAncestorsRef(canvas.focusedViewPtr, {
 const viewBase = computed(() =>
   viewAncestors.value.find((v) => NODE_VIEW_TYPES.has(v.type) || HELPER_VIEW_TYPES.has(v.type)),
 );
-const viewBaseNodePtr: Ref<NodeReferenceData | undefined> = computed(() => unwrapProtoOneOf(viewBase.value?.nodePtr));
+const viewBaseNodePtr: Ref<NodeReferenceData | undefined> = computed(() => viewBase.value?.nodePtr);
 const viewBaseNode = canvas.graph.getRef(viewBaseNodePtr);
 const browserTitle = useTitle();
 watch(
@@ -74,7 +73,7 @@ watch(
       id="window"
       class="absolute"
       :type="ViewType.WINDOW"
-      :self="toPlainNodeRef(window)"
+      :self="toNodeRef(window)"
       :focus="window.focus"
       :name="window.name"
       :size="mainBox"

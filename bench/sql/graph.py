@@ -82,10 +82,8 @@ from bench.proto.wire import (
     AnyNodeData,
     Date,
     EditData,
-    FileReferenceData,
     GraphScopeData,
     NodeReferenceData,
-    SecretReferenceData,
     TimeOfDay,
 )
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
@@ -641,12 +639,6 @@ def _pg_pack_node_reference_into_row(
     'Unravels' a wired pointer into (one or more) stored columns as needed :StoredPointers
     NOTE :Cleanup: pg_pack_node_reference/pg_unpack_node_reference are way too much code
     """
-    if prop.reference_is_rich:
-        # stored as struct (jsonb)
-        assert prop.reference_wired_ptr is not None, f"no wired/stored ptr for {prop!r}"
-        prop = prop.reference_wired_ptr
-        row[prop.name] = _pack_object_data_prop(prop, value)
-        return
     # unravel reference
     assert prop.reference_stored_ids is not None, f"no stored ids for {prop!r}"
     assert prop.reference_stored_ids_by_type is not None, f"no stored ids for {prop!r}"
@@ -690,17 +682,6 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
     """
     'Ravels' a wired pointer from (one or more) stored columns :StoredPointers
     """
-
-    if prop.reference_is_rich:
-        # stored as struct (jsonb)
-        assert prop.reference_wired_ptr is not None, f"no wired/stored ptr for {prop!r}"
-        prop = prop.reference_wired_ptr
-        value = row.get(prop.name)
-        if value is not None:
-            ptr = _unpack_object_data_prop_scalar(prop, value)
-            wired_name = wiring.get_rich_reference_prop_name(prop, ptr)
-            getattr(node, wired_name).CopyFrom(ptr)
-        return
 
     # get bench id
     bench_id = row.get("id") if node.metatype == NodeType.BENCH else row.get("bench_id")
@@ -804,8 +785,6 @@ def _pg_pack_node_data_row(
                 if prop.is_optional_scalar and not node.HasField(wired_name):
                     value = None
                 else:
-                    if prop.reference_is_rich:
-                        wired_name = node.WhichOneof(wired_name)
                     value = getattr(node, wired_name)
                 _pg_pack_node_reference_into_row(prop.reference_source, row, value)
 
@@ -1149,7 +1128,7 @@ async def pg_graph_get(
 
     # get roots
     root_nodes: list[AnyNodeData]
-    if isinstance(roots[0], (NodeReferenceData, FileReferenceData, SecretReferenceData)):
+    if isinstance(roots[0], NodeReferenceData):
         # select roots
         roots_ids = [node.id for node in roots]
         root_filter = C(ConditionalType.IN, property=Node.id, value=roots_ids)
@@ -1586,11 +1565,8 @@ async def _pg_edit_batch(
                     row[prop.name] = value
                 else:
                     # unravel stored node reference :StoredPointers
-                    wired_name = cast(Property, prop.reference_wired_ptr).name
                     if new_value_packed is None:
                         _pg_pack_node_reference_into_row(prop, row, None)
-                    elif prop.reference_is_rich:
-                        row[wired_name] = Jsonb(new_value_packed)
                     else:
                         new_value = unpack_value_data(
                             new_value_packed, prop.type_info, wrap_scalar=False

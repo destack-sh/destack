@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.23.0"
+VERSION = "2024.11.24.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -373,9 +373,7 @@ class StructType(IdEnum):
     OUTPUT_OBJECT = 11505
     SCHEDULE = 11506
     FILE_INFO = 11507
-    FILE_REFERENCE = 11508
     ICON = 11509
-    SECRET_REFERENCE = 11510
 
     # text (12000-12099)
     TEXT = 12000

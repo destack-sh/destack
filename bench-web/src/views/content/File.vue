@@ -9,12 +9,12 @@ import {
   type FileUpload,
 } from "@/language/file";
 import {
-  RectangleData,
   FileFormat,
-  FileReferenceData,
   FileType,
+  NodeReferenceData,
   NodeType,
   ObjectType,
+  RectangleData,
   Variant,
   ViewData,
   ViewType,
@@ -40,8 +40,8 @@ const INLINE_FILE_TYPES = [FileType.IMAGE];
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
-      id: string;
-    modelValue?: FileReferenceData;
+    id: string;
+    modelValue?: NodeReferenceData;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
   } & Partial<
     Pick<
@@ -112,7 +112,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 const upload: Ref<FileUpload | null> = ref(null);
 const download = useFileDownload(toRef(props, "modelValue"));
-const optimisticValue = computed(() => upload.value?.file.value ?? download.value?.file.value ?? props.modelValue);
+const optimisticValue = computed(() => upload.value?.file.value ?? download.value?.file.value);
 const loadFailed = computed(() => download.value?.status.value == FileStatus.FAILED);
 
 async function onFileSelected(files: File[]) {
@@ -195,9 +195,7 @@ defineExpose<ViewExposed>({
       :class="[
         variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
         variant == Variant.STEALTH && isInDropZone ? 'bg-gray-100' : '',
-        isInDropZone
-          ? 'border-gray-400 outline outline-1 outline-gray-400'
-          : 'border-gray-200 hover:border-gray-200',
+        isInDropZone ? 'border-gray-400 outline outline-1 outline-gray-400' : 'border-gray-200 hover:border-gray-200',
         variant == Variant.STEALTH && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
       ]"
       @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
@@ -292,7 +290,7 @@ defineExpose<ViewExposed>({
           :style="{
             maxWidth: size?.width != null ? `${size.width}px` : undefined,
             maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
-            aspectRatio: (download?.file.value ?? modelValue)?.aspectRatio ?? undefined,
+            aspectRatio: optimisticValue?.aspectRatio ?? undefined,
           }"
         />
       </div>
@@ -311,7 +309,7 @@ defineExpose<ViewExposed>({
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
           aspectRatio: INLINE_FILE_TYPES.includes(optimisticValue.type)
-            ? ((download?.file.value ?? modelValue)?.aspectRatio ?? undefined)
+            ? (download?.file.value?.aspectRatio ?? undefined)
             : undefined,
         }"
       >
@@ -346,10 +344,10 @@ defineExpose<ViewExposed>({
             v-else-if="download?.status.value == FileStatus.FAILED"
             class="fas fa-circle-exclamation text-danger-600"
           />
-          <template v-if="download?.filePtr">
-            <span class="ml-1.5">{{ download.filePtr.title ?? "???" }}</span>
-            <span v-if="download.filePtr.size != null" class="ml-1.5 text-xs text-gray-400">
-              {{ humanizeBytes(Number(download.filePtr.size)) }}
+          <template v-if="download?.file.value">
+            <span class="ml-1.5">{{ download.file.value.title ?? "???" }}</span>
+            <span v-if="download.file.value.size != null" class="ml-1.5 text-xs text-gray-400">
+              {{ humanizeBytes(Number(download.file.value.size)) }}
             </span>
           </template>
           <span v-else class="ml-1.5">{{ facetName }}</span>

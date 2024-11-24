@@ -30,7 +30,6 @@ from bench.language.value import (
 )
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
-from bench.proto.wire.lang_pb2 import FileReferenceData, SecretReferenceData
 from bench.utils.func import IdEnumOrUnion
 from bench.utils.string import Casing, to_casing
 
@@ -201,18 +200,6 @@ def unpack_object_prop(prop: Property, value: Any, *, supergraph: NodeSuperGraph
         return [unpack_object_prop_scalar(prop, v, supergraph=supergraph) for v in value]
 
 
-def get_rich_reference_prop_name(prop: Property, value: Any) -> str:
-    """Gets the name of the rich reference property for the given property. :RichReferences"""
-    if isinstance(value, FileReferenceData):
-        return f"{prop.name}_file"
-    elif isinstance(value, SecretReferenceData):
-        return f"{prop.name}_secret"
-    elif isinstance(value, NodeReferenceData):
-        return f"{prop.name}_node"
-    else:
-        raise ValueError(f"unexpected rich reference value {type(value).__name__}: {value!r}")
-
-
 def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> Any:
     """Gets the value of the given property from the given data object."""
     if prop.reference_wired_ptr is not None:
@@ -220,8 +207,6 @@ def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> An
     prop_name = prop.name
     if prop.is_optional_scalar and not obj_data.HasField(prop_name):
         return None
-    if prop.reference_is_rich:
-        prop_name = obj_data.WhichOneof(prop_name)
     return getattr(obj_data, prop_name)
 
 
@@ -232,11 +217,7 @@ def pack_and_set_object_prop(
     if not prop.is_list:  # scalar
         packed_value = pack_object_prop_scalar(obj, prop, value)
         if isinstance(packed_value, ProtoMessage):  # message field
-            if prop.reference_is_rich:  # one of field, set appropriate one
-                prop_name = get_rich_reference_prop_name(prop, packed_value)
-                getattr(obj_data, prop_name).CopyFrom(packed_value)
-            else:  # regular message field
-                getattr(obj_data, prop.name).CopyFrom(packed_value)
+            getattr(obj_data, prop.name).CopyFrom(packed_value)
         elif prop.is_struct:  # empty message field
             assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
             obj_data.ClearField(prop.name)
@@ -260,11 +241,7 @@ def set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value
     """Set the packed property on the given data object."""
     if not prop.is_list:  # scalar
         if isinstance(value, ProtoMessage):  # message field
-            if prop.reference_is_rich:  # one of field, set appropriate one
-                prop_name = get_rich_reference_prop_name(prop, value)
-                getattr(obj_data, prop_name).CopyFrom(value)
-            else:  # regular message field
-                getattr(obj_data, prop.name).CopyFrom(value)
+            getattr(obj_data, prop.name).CopyFrom(value)
         elif prop.is_struct:  # empty message field
             assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
             obj_data.ClearField(prop.name)
@@ -331,12 +308,7 @@ def unpack_object[T: BuiltinObject](
                 continue
             if prop.is_optional_scalar and not obj_data.HasField(prop.name):
                 continue
-            if prop.reference_is_rich:
-                oneof_name = obj_data.WhichOneof(prop.name)
-                assert oneof_name, f"missing oneof for {prop!r}"
-                value = getattr(obj_data, oneof_name)
-            else:
-                value = getattr(obj_data, prop.name)
+            value = getattr(obj_data, prop.name)
             object_kwargs[prop.name] = unpack_object_prop(prop, value, supergraph=supergraph)
         object_kwargs["_supergraph"] = supergraph
         if session is not None:

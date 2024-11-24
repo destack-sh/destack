@@ -2,7 +2,7 @@ import enum
 from typing import TYPE_CHECKING, Any, Collection, Sequence, Union, cast
 
 from bench.language.const import EnumType, PrimitiveType
-from bench.language.node import NODE_REFERENCE_TYPES, BuiltinObject, Node
+from bench.language.node import BuiltinObject, Node
 from bench.language.setup import (
     BENCH_CLASS_BY_TYPE,
     FINAL_BENCH_CLASSES,
@@ -46,29 +46,13 @@ def map_bench_property_to_proto(
     assert prop.id == 1 or not prop.is_ephemeral, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     if prop.is_node_reference:
-        if prop.reference_is_rich:
-            # union of reference types
-            sub_fields = [
-                Field(
-                    id=prop.id * 10 + i,
-                    name=f"{prop.name}_{st.name.split('_')[0].lower()}",
-                    type=cast(Any, map_object_type_to_proto(STRUCT_CLASS_BY_TYPE[st], cache)),
-                )
-                for i, st in enumerate(NODE_REFERENCE_TYPES)
-            ]
-            wrapper_field = Field(
-                id=prop.id, name=prop.name, type=FieldType.ONE_OF, sub_fields=sub_fields
-            )
-            return wrapper_field
-        else:
-            # plain reference
-            return Field(
-                id=prop.id,
-                name=prop.name,
-                type="NodeReferenceData",
-                optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
-                repeated=prop.is_list,
-            )
+        return Field(
+            id=prop.id,
+            name=prop.name,
+            type="NodeReferenceData",
+            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
+            repeated=prop.is_list,
+        )
     elif prop.is_struct or prop.is_enum:
         proto_t = map_object_type_to_proto(prop.py_type_stripped, cache)
         assert isinstance(proto_t, (Enum, Message)), f"unexpected property type: {proto_t!r}"

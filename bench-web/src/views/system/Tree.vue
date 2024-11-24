@@ -19,10 +19,8 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import {
-  SomeNodeReferenceData,
   isNode,
   toNodeRef,
-  toPlainNodeRef,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -35,14 +33,14 @@ import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
-import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, makeSelection } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, toRef, watch, watchEffect, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const DEPTH_OFFSET = 16;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -84,8 +82,8 @@ const inspectedNodeTypes = computed(() => {
   }
 });
 const rootPtr = computedValue(() => {
-  if (props.nodePtr?.oneofKind != null) {
-    return unwrapProtoOneOf(props.nodePtr);
+  if (props.nodePtr != null) {
+    return props.nodePtr;
   } else if (preset.value == TreeViewPreset.EXPLORE) {
     return packagePtr.value;
   } else if (preset.value == TreeViewPreset.OUTLINE) {
@@ -123,13 +121,13 @@ const expandedNodesPtr = useSubnodeProperty(
   toRef(props, "subnodePacked"),
   "expandedNodesPtr",
 );
-function isExpanded(node: AnyNodeData | SomeNodeReferenceData) {
+function isExpanded(node: AnyNodeData | NodeReferenceData) {
   return expandedNodesPtr.value?.some((ref) => ref.id == node.id);
 }
-function toggleExpanded(node: AnyNodeData | SomeNodeReferenceData) {
+function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
   const newExpandedNodesPtr = isExpanded(node)
     ? expandedNodesPtr.value?.filter((ref) => ref.id != node.id)
-    : [...(expandedNodesPtr.value ?? []), toPlainNodeRef(node as SomeNodeReferenceData)];
+    : [...(expandedNodesPtr.value ?? []), toNodeRef(node as NodeReferenceData)];
   state.update(
     { metatype: NodeType.VIEW, type: ViewType.TREE, subnode: { expandedNodesPtr: newExpandedNodesPtr } },
     { debounce: "long" },

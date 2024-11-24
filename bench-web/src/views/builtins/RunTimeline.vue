@@ -8,9 +8,10 @@ import {
   RunData,
   RunSpanData,
   RunStatus,
+  NodeReferenceData,
   ViewData,
 } from "@/proto/wire";
-import { describeNode, isNode, SomeNodeReferenceData, TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { RunTree } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
@@ -26,7 +27,7 @@ const ROW_HEIGHT = 28;
 const BAR_PADDING = 4;
 const MIN_SPAN_WIDTH = 2;
 
-const props = defineProps<{ nodePtr: SomeNodeReferenceData } & Pick<ViewData, "size">>();
+const props = defineProps<{ nodePtr: NodeReferenceData } & Pick<ViewData, "size">>();
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
 
 const containerRef = ref<HTMLElement | null>(null);

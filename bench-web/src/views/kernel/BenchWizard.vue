@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { BenchType, EnumType, NodeReferenceData, Region, UserStatus, Variant, ViewData } from "@/proto/wire/";
-import { toPlainNodeRef } from "@/proto/wiring";
+import { toNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/ui/icon";
 import { enumIndex } from "@/ui/search";
@@ -53,12 +53,12 @@ async function submit() {
   try {
     if (!user.value) throw new Error("no active user");
     const { bench } = await createBench({
-      owner: toPlainNodeRef(user.value),
+      owner: toNodeRef(user.value),
       slug: slug.value,
       region: region.value,
       isMain: true,
     });
-    await goToBench({ bench: toPlainNodeRef(bench) });
+    await goToBench({ bench: toNodeRef(bench) });
   } catch (e) {
     lastError.value = (e as Error).message ?? "Unknown error";
   } finally {

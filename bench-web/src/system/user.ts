@@ -15,7 +15,7 @@ import {
   EMPTY_SCOPE,
   nodeReference,
   propertyReference,
-  toPlainNodeRef,
+  toNodeRef,
   wrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -55,7 +55,7 @@ export const client = userGraph.getRef(
   ),
 );
 export const clients = userGraph.getChildrenRef(
-  computed(() => (user.value != null ? toPlainNodeRef(user.value) : null)),
+  computed(() => (user.value != null ? toNodeRef(user.value) : null)),
   NodeType.CLIENT,
 );
 export const isWaitlisted = computed(() => user.value?.status == UserStatus.WAITLISTED);

@@ -8,18 +8,18 @@ import {
   BlockData,
   ChangeCategory,
   ExpressionType,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   RunProperty,
   StepData,
-  type NodeReferenceData,
   type RunData,
 } from "@/proto/wire";
-import { propertyReference, toNodeRef, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
+import { propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { canvas, pkgConnection, pkgGraph, space } from "@/system/space";
 import { computedValue } from "@/utils/ref";
-import { computed, ref, type Ref } from "vue";
+import { computed, type Ref } from "vue";
 
 /** A reactive Run with all its descendants */
 let treeId = 0;
@@ -113,7 +113,7 @@ export class Runtime {
   focusedRunTree: RunTree;
   activeRootRuns: Ref<RunData[]>;
 
-  constructor(graph: ReadNodeGraph, txFactory: () => Transaction, runPtr: Ref<SomeNodeReferenceData | null>) {
+  constructor(graph: ReadNodeGraph, txFactory: () => Transaction, runPtr: Ref<NodeReferenceData | null>) {
     this.graph = graph;
     this.txFactory = txFactory;
 

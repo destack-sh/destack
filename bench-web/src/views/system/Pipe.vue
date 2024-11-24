@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
-import { isGeneratedNodeName, makeNodeName } from "@/language/node";
+import { isGeneratedNodeName } from "@/language/node";
 import { isRunActive } from "@/language/session";
 import { ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
-import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";
-import { COLOR_BY_RUN_STATUS, getColorHex, getRunColorHex } from "@/ui/style";
+import { getColorHex, getRunColorHex } from "@/ui/style";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, toRef } from "vue";
@@ -23,7 +23,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 
-const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.PIPE>);
+const pipePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.PIPE>);
 const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;

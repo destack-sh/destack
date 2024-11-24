@@ -76,7 +76,7 @@ from .field import (
     to_type,
     to_type_scalar,
 )
-from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
+from .file import File, FileFormat, FileKind, FileRetentionMode, FileType
 from .flow import FieldMapping, ObjectMapping, Pipe, PipeType, Step, StepType
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .interrupt import Breakpoint, BreakpointAction, BreakpointSite, Interrupt, InterruptKind
@@ -91,12 +91,9 @@ from .node import (
     HasNodeBase,
     Node,
     NodeReference,
-    NodeReferenceBase,
     NodeSubtypeStub,
     PackageNode,
     PropertyReference,
-    SomeNodeReference,
-    SomeNodeReferenceData,
     SourceNode,
     Struct,
 )
@@ -128,7 +125,7 @@ from .run import (
     TextOptions,
     VideoOptions,
 )
-from .secret import Secret, SecretReference
+from .secret import Secret
 from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .stream import Stream
@@ -240,7 +237,6 @@ __all__ = [
     "File",
     "FileFormat",
     "FileKind",
-    "FileReference",
     "FileRetentionMode",
     "FileType",
     "Font",
@@ -276,7 +272,7 @@ __all__ = [
     "NodeList",
     "NodeNotFoundError",
     "NodeReference",
-    "NodeReferenceBase",
+    "NodeReference",
     "NodeSubtypeStub",
     "NodeSuperGraph",
     "NodeType",
@@ -324,13 +320,10 @@ __all__ = [
     "SearchResult",
     "SearchResultData",
     "Secret",
-    "SecretReference",
     "SelectOptions",
     "Server",
     "Session",
     "SessionContext",
-    "SomeNodeReference",
-    "SomeNodeReferenceData",
     "SortMode",
     "SortType",
     "SourceNode",

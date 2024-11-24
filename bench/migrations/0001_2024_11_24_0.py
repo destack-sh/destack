@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.11.23. Edit as needed.
+# This migration was automatically generated on 2024.11.24. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.11.23.0"
+VERSION = "2024.11.24.0"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -14,8 +14,8 @@ HAS_LOCAL = True
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
 
     # bench_migration
     await cur.execute(
@@ -658,12 +658,12 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
 
     # bench_migration
     await cur.execute(
@@ -1058,7 +1058,12 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "subviews_packed" jsonb,
         "value_type" jsonb,
-        "node_ptr" jsonb,
+        "node_id" uuid,
+        "node_ck" uuid,
+        "node_type" smallint,
+        "node_bench_id" uuid,
+        "node_base_ck" uuid,
+        "node_base_bench_id" uuid,
         "variant" smallint,
         "font" jsonb,
         "position" jsonb,

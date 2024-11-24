@@ -15,19 +15,19 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
+  PropertyInfo,
+  Date as ProtoDate,
   TYPE_CONSTRAINT_BY_FORMAT,
   TimeOfDay,
   Timestamp,
-  Date as ProtoDate,
   TypeConstraintIn,
   TypeKind,
   type AnyNodeData,
   type AnyStructData,
   type AnyTypeMapping,
-  PropertyInfo,
 } from "@/proto/wire";
 import { Duration } from "@/proto/wire/google/protobuf/duration";
-import { isNodeRef, isStruct, toNodeRefOneOf, unwrapProtoOneOf, type SomeNodeReferenceData } from "@/proto/wiring";
+import { isNodeRef, isStruct } from "@/proto/wiring";
 import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@/utils/time";
 
 export type JsonPrimitive = string | number | boolean | null;
@@ -136,11 +136,6 @@ export function packBuiltinObjectProperty(propValue: any, prop: PropertyInfo) {
   } else if (prop.isList) {
     return propValue.map((v: any) => packValueScalar(v, propType));
   } else {
-    if (prop.referenceIsRich) {
-      // :RichReferences
-      propValue = unwrapProtoOneOf(propValue);
-      if (propValue == null) return undefined; // one-of fields are always nullable
-    }
     return packValueScalar(propValue, propType);
   }
 }
@@ -176,19 +171,13 @@ export function unpackBuiltinObjectProperty(propValuePacked: any, prop: Property
     }
   } else {
     if (propValuePacked == null) {
-      if (prop.referenceIsRich) {
-        propValue = { oneofKind: undefined };
-      } else if (!prop.isRequired) {
+      if (!prop.isRequired) {
         return undefined;
       } else {
         propValue = null;
       }
     } else {
       propValue = unpackValueScalar(propValuePacked, propType);
-      if (prop.referenceIsRich) {
-        // :RichReferences
-        propValue = toNodeRefOneOf(propValue as SomeNodeReferenceData);
-      }
     }
   }
   return propValue;

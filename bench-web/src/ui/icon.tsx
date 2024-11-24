@@ -1,5 +1,4 @@
 import {
-  ActionMode,
   Alignment,
   Anchor,
   BenchType,
@@ -36,7 +35,7 @@ import {
   TypeKind,
   ViewType,
   type AnyNodeData,
-  type IconData,
+  type IconData
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -45,7 +44,7 @@ import type { FunctionalComponent } from "vue";
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import type { TypeIdentity } from "@/language/field";
-import { isNode, type SomeNodeReferenceData } from "@/proto/wiring";
+import { isNode } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 
@@ -662,7 +661,7 @@ function getNodeSubtypeIcon(nodeType: NodeType, subtype: any): IconData | undefi
 
 /** Gets the icon for a node or node reference. */
 export function getNodeIcon(
-  node: ({ metatype: NodeType | ObjectType } & Partial<AnyNodeData | SomeNodeReferenceData>) | ChangeVignetteData,
+  node: ({ metatype: NodeType | ObjectType } & Partial<AnyNodeData | NodeReferenceData>) | ChangeVignetteData,
   options?: { nodeType?: NodeType; defaultToUndefined?: boolean },
 ): IconData | undefined {
   if ((node as any).icon != null) {

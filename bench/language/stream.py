@@ -1,13 +1,12 @@
-from typing import Any, Union
+from typing import Union
 
 from bench.language.bench import AnonymousResourceNode, Drive
 from bench.language.const import NodeType
 from bench.language.node import node_
 from bench.language.property import p_node_parent
+from bench.proto.wire.lang_pb2 import StreamData
 
 # pyright: reportIncompatibleVariableOverride=false
-
-StreamData = Any  # nocheckin
 
 
 @node_(NodeType.STREAM)

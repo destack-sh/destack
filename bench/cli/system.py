@@ -29,7 +29,7 @@ logger = structlog.get_logger(__name__)
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
-async def bootstrap(region: Region):
+async def bootstrap(region: Region = Region.ZURICH):
     from bench.system.supervisor.service import create_default_bench
     from bench.system.utils.session import (
         global_session,

@@ -3,6 +3,7 @@ import { defaultSortNode } from "@/language/order";
 import {
   CHILD_NODE_TYPES,
   GraphScopeData,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
@@ -16,7 +17,6 @@ import {
   isNodeRef,
   propertyInfo,
   toNodeRef,
-  type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { ConnectionBase } from "@/system/connection";
@@ -1215,7 +1215,7 @@ export function mergeNode<T extends NodeType>(base: PartialNode<T>, partial: Par
 }
 
 /** Resolve the node in the given graph if it's a reference */
-export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeReferenceData): AnyNodeData {
+export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | NodeReferenceData): AnyNodeData {
   return isNodeRef(node) ? graph.getOrError(node) : node;
 }
 

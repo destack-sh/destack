@@ -1,5 +1,5 @@
 import { blockToType } from "@/language/block";
-import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
+import { isStructType, TYPE_BLOCK_TYPES } from "@/language/const";
 import { EnumOption, getEnumOptions } from "@/language/enum";
 import { makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
@@ -11,15 +11,14 @@ import {
   EnumType,
   FileType,
   NodeType,
-  ObjectType,
   PrimitiveType,
   TypeFormat,
   TypeKind,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData,
+  type NodeReferenceData
 } from "@/proto/wire";
-import { isNode, toNodeRef, toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
+import { isNode, toNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import {
   AVAILABLE_FA_ICONS,
@@ -134,16 +133,16 @@ function walkGraph(options: {
     }
     const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
     const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR);
-    const ref = toPlainNodeRef(node);
+    const ref = toNodeRef(node);
 
     if (ref.id == null) throw new Error(`node has no id: ${node}`);
 
     // make item
     let title: string = (node as any).title ?? (node as any).name ?? "";
-    if (isNode(node, NodeType.VIEW) && node.nodePtr?.oneofKind != null) {
+    if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
       // take title from wrapped node for node views :ViewNodeTitles
       //  (NOTE :UX: maybe we should indicate the real name and index that too somehow?)
-      const referencedNode = options.graph.get(unwrapProtoOneOf(node.nodePtr)!);
+      const referencedNode = options.graph.get(node.nodePtr);
       if (referencedNode != null) {
         title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
       }
@@ -190,12 +189,12 @@ function itemFromNode(indexId: string, graph: ReadNodeGraph, value: NodeKey<any>
   const node = graph.getMaybe(value);
   if (node == null) return null;
   let title = (node as any).title ?? (node as any).name ?? "";
-  if (isNode(node, NodeType.VIEW) && node.nodePtr?.oneofKind != null) {
-    const referencedNode = graph.get(unwrapProtoOneOf(node.nodePtr)!); // :ViewNodeTitles
+  if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
+    const referencedNode = graph.get(node.nodePtr); // :ViewNodeTitles
     title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
   }
   const item: NodeItem = {
-    ...(toPlainNodeRef(node)! as NodeReferenceData & { id: string }),
+    ...(toNodeRef(node)! as NodeReferenceData & { id: string }),
     metatype: "node",
     itemId: `${indexId}-${value.id}`,
     node,

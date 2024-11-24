@@ -20,7 +20,7 @@ import {
   type RunData,
   type StepData,
 } from "@/proto/wire";
-import { describeNode, isNode, isStruct, makeDefaultObject, toPlainNodeRef } from "@/proto/wiring";
+import { describeNode, isNode, isStruct, makeDefaultObject, toNodeRef } from "@/proto/wiring";
 import { space, spaceConnection } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { assertNever } from "@/utils/functools";
@@ -175,8 +175,8 @@ export function makeRun(
     packagePtr: packagePtr,
     kind: getRunKind(runnable),
     status: RunStatus.SCHEDULED,
-    blockPtr: block != null ? toPlainNodeRef(block) : undefined,
-    stepPtr: isNode(runnable, NodeType.STEP) ? toPlainNodeRef(runnable) : undefined,
+    blockPtr: block != null ? toNodeRef(block) : undefined,
+    stepPtr: isNode(runnable, NodeType.STEP) ? toNodeRef(runnable) : undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),
   });

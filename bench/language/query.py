@@ -36,7 +36,7 @@ from bench.language.expression import C, Expression, coerce_conditional
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     Node,
-    SomeNodeReference,
+    NodeReference,
     SourceNode,
     Struct,
     local_node_,
@@ -518,20 +518,18 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     @overload
     async def get(
         self,
-        filter: Union["Expression", "SomeNodeReference", None] = None,
+        filter: Union["Expression", "NodeReference", None] = None,
         live: bool = False,
         **kwargs,
     ) -> NodeT: ...
     @overload
     async def get(
-        self, filter: Sequence["SomeNodeReference"], live: bool = False, **kwargs
+        self, filter: Sequence["NodeReference"], live: bool = False, **kwargs
     ) -> list[NodeT]: ...
     @tracer.start_as_current_span("query.get")
     async def get(
         self,
-        filter: Union[
-            "Expression", "SomeNodeReference", Sequence["SomeNodeReference"], None
-        ] = None,
+        filter: Union["Expression", "NodeReference", Sequence["NodeReference"], None] = None,
         live: bool = False,
         **kwargs,
     ) -> NodeT | list[NodeT]:
@@ -539,13 +537,13 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         Returns the unique result matching the query (one or multiple nodes, errors otherwise).
         NOTE: this is only a true get query with specific node pointers as roots, otherwise it's a search.
         """
-        from bench.language import GetOptions, NodeReferenceBase, coerce_conditional
+        from bench.language import GetOptions, NodeReference, coerce_conditional
 
-        if isinstance(filter, (NodeReferenceBase, Sequence)):
+        if isinstance(filter, (NodeReference, Sequence)):
             # true get request (with node pointers)
             assert self._filter is None, f"cannot combine filter and roots in {self!r}"
             query = self.clone()
-            query._roots = [filter] if isinstance(filter, NodeReferenceBase) else list(filter)
+            query._roots = [filter] if isinstance(filter, NodeReference) else list(filter)
             query._type = QueryType.GET
             channel = await query._get_read_channel()
             connection = await channel.get(query, GetOptions(unpack=True, live=live))
@@ -556,7 +554,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
                     raise NodeNotFoundError(query=query)
                 else:
                     raise MultipleNodesFoundError(query=query, result=connection.result.roots)
-            if isinstance(filter, NodeReferenceBase):  # keep single node
+            if isinstance(filter, NodeReference):  # keep single node
                 node = connection.result.roots[0]
                 return cast(NodeT, node)
             else:

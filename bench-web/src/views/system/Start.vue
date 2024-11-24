@@ -19,13 +19,10 @@ import {
 import {
   propertyReference,
   toNodeRef,
-  toPlainNodeRef,
-  unwrapProtoOneOf,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
-import { canvas, inspectionPtr, pkgGraph, space, spaceConnection } from "@/system/space";
+import { canvas, pkgGraph, space, spaceConnection } from "@/system/space";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -47,7 +44,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
+const nodePtr = computedValue(() => props.nodePtr);
 
 // run is the focused
 const run = computed(() => {
@@ -85,7 +82,7 @@ const feed = computed((): FeedViewData => {
 
 // current runnable / inputs
 const node = pkgGraph.getRef(nodePtr);
-const runnablePtr = computed(() => (node.value != null ? toPlainNodeRef(node.value) : null));
+const runnablePtr = computed(() => (node.value != null ? toNodeRef(node.value) : null));
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.START, toRef(props, "subnodePacked"), "inputsPacked");
 const inputType = computed(() =>
   runnablePtr.value != null
@@ -210,7 +207,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         >
           <span class="font-semibold">Timeline</span>
         </div>
-        <RunTimeline :node-ptr="toPlainNodeRef(run)" class="" />
+        <RunTimeline :node-ptr="toNodeRef(run)" class="" />
       </div>
     </div>
   </div>

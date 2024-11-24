@@ -5,18 +5,16 @@ import pytest
 from hypothesis import given
 
 from bench.language import Bench, Message, NodeReference, Property, Server
-from bench.language.bench import Client, Package
+from bench.language.bench import Client
 from bench.language.block import ActionBlock, Block, ValueBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field, to_type
-from bench.language.file import File, FileKind, FileReference, FileType
 from bench.language.flow import ActionStep, Step
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.text import md
-from bench.language.view import View, ViewType
 from bench.proto.wiring import unpack_object
 from bench.test.strategies import structs
 from bench.test.unit.conftest import RuntimeHandle
@@ -197,21 +195,6 @@ def test_node_pointers_consistency(session: "Session"):
     assert message_b.parent_ptr
     assert message_b.parent_ptr.bench_id == bench_b.id
 
-    # rich references
-    file1 = File(
-        kind=FileKind.DRIVE,
-        title="File1",
-        size=0,
-        type=FileType.TEXT,
-        mime_type="text/plain",
-    )
-    file1_ref = file1.to_ref()
-    assert isinstance(file1_ref, FileReference)
-    view_a_1_1 = block_a_1.views.append(View.new(ViewType.COLOR, "Color1"))
-    view_a_1_1.node = file1
-    assert isinstance(view_a_1_1.node_ptr, FileReference)
-    assert view_a_1_1.node == file1
-
 
 #
 # Trees
@@ -246,33 +229,6 @@ async def test_clone_subtree(local_runtime: RuntimeHandle):
     for field, field_clone in zip(choice.fields, choice_clone.fields):
         assert field_clone.equals(field)
     await local_runtime.commit()
-
-
-def test_roundtrip_rich_reference(shared_session: Session, shared_package: Package):
-    # plain reference
-    block = Block.new(BlockType.ACTION, "Text1", text=md("Hello, world!"))
-    view = View.new(ViewType.PAGE, "Page1", node=block)
-    view_data = view._to_data()
-    unpacked_view = unpack_object(
-        view_data, supergraph=shared_session._supergraph, session=shared_session
-    )
-    assert unpacked_view.equals(view)
-
-    # file reference (rich)
-    file = File(
-        parent=shared_package.bench.main_drive,
-        kind=FileKind.DRIVE,
-        title="myfile.txt",
-        type=FileType.TEXT,
-        mime_type="text/plain",
-        size=1024,
-    )
-    view.node = file
-    view_data = view._to_data()
-    unpacked_view = unpack_object(
-        view_data, supergraph=shared_session._supergraph, session=shared_session
-    )
-    assert unpacked_view.equals(view)
 
 
 @pytest.mark.skip("NOTE :Robustness: check circular node ancestry")

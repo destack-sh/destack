@@ -26,17 +26,16 @@ import {
 import {
   AggregationResultData,
   ExpressionData,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   SelectOptionsData,
   type GraphScopeData,
-  type NodeReferenceData,
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { HealthClient } from "@/proto/wire/proto/health.client";
 import {
   EMPTY_SCOPE,
-  SomeNodeReferenceData,
   deepContentEquals,
   describeNode,
   makeDefaultObject,
@@ -51,7 +50,7 @@ import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { tryOnBeforeUnmount, useInterval, useNetwork, whenever } from "@vueuse/core";
+import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
 import {
   computed,

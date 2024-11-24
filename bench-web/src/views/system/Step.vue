@@ -5,13 +5,13 @@ import { FLOW_PORT_SIZE, getStepSides, STEP_CONTEXT_ACTIONS, STEP_SIZE, useFlowC
 import { cloneNode } from "@/language/node";
 import { getRunDurationString, isRunActive } from "@/language/session";
 import { ColorShade, FieldData, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
-import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
 import { canvas, pkgConnection } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
-import { COLOR_BY_RUN_STATUS, getNodeColorHex, getRunColorHex } from "@/ui/style";
+import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
@@ -29,7 +29,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 
-const stepPtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.STEP>);
+const stepPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.STEP>);
 const flowCtx = useFlowContext();
 const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
 const { step, fields, nodePtr, node, nodeFields } = stepState;

@@ -23,9 +23,7 @@ import {
   describeNode,
   isNode,
   toNodeRef,
-  toNodeRefOneOf,
-  unwrapProtoOneOf,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
@@ -64,7 +62,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
+const nodePtr = computed(() => props.nodePtr);
 const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph } = useExistingConnection(self);
@@ -415,7 +413,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               "
               class="w-full"
               :class="isDragging(block) ? 'opacity-50' : ''"
-              :node-ptr="toNodeRefOneOf(block)"
+              :node-ptr="toNodeRef(block)"
               :prepared-connection="preparedPkgConnection"
               v-bind="state.getChildState(block.id)"
               :draggable="block.type == BlockType.PAGE"

@@ -3,7 +3,7 @@ import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
 import { CLEAR_RUN_ACTION, getRunActions, getRunDurationString, isRunActive, isRunnable } from "@/language/session";
 import { HelpAspect, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toNodeRefOneOf, TypedNodeReferenceData, unwrapProtoOneOf } from "@/proto/wiring";
+import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
@@ -32,10 +32,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
-const nodePtrOneOf: Ref<ViewData["nodePtr"]> = computedValue(() =>
-  nodePtr.value != null ? toNodeRefOneOf(nodePtr.value) : { oneofKind: undefined },
-);
+const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
 const { node } = supergraph.getLinkRef(nodePtr);
 const isNodeRunnable = computed(() => node.value != null && isRunnable(node.value));
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "subnodePacked"), "aspect");
@@ -141,8 +138,8 @@ defineExpose<ViewExposed>({ self });
       >
         <Inspect
           id="inspect"
-          :node-ptr="nodePtrOneOf"
-          v-bind="state.getChildState('scroll.inspect', { nodePtr: nodePtrOneOf })"
+          :node-ptr="nodePtr"
+          v-bind="state.getChildState('scroll.inspect', { nodePtr })"
         />
       </Scroll>
     </div>
@@ -150,8 +147,8 @@ defineExpose<ViewExposed>({ self });
       <Start
         id="start"
         ref="startRef"
-        :node-ptr="nodePtrOneOf"
-        v-bind="state.getChildState('start', { nodePtr: nodePtrOneOf })"
+        :node-ptr="nodePtr"
+        v-bind="state.getChildState('start', { nodePtr })"
       />
     </div>
     <div v-else class="mx-5">

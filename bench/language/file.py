@@ -13,7 +13,6 @@ from typing import (
     assert_never,
     cast,
     overload,
-    override,
 )
 from uuid import UUID
 
@@ -34,27 +33,24 @@ from bench.language.const import (
 from bench.language.node import (
     BuiltinObject,
     NodeReference,
-    NodeReferenceBase,
     Struct,
     node_,
     object_,
     struct_,
 )
 from bench.language.property import (
-    Property,
     p_internal,
     p_node_parent,
     p_regular,
     p_runtime,
     p_system,
 )
-from bench.language.validation import TITLE_CONSTRAINT, ValidationHandler, constraint
+from bench.language.validation import TITLE_CONSTRAINT, constraint
 from bench.proto.networking import MACHINE_ENVIRONMENT
 from bench.proto.wire import (
     DownloadFilesRequest,
     FileData,
     FileInfoData,
-    FileReferenceData,
     UploadFilesRequest,
 )
 from bench.utils.func import IdEnum, group_by
@@ -513,7 +509,7 @@ class FileBase(BuiltinObject):
     sample_rate: Optional[int] = p_internal(63, default=None)
 
     # cached content
-    _original: Optional["File | FileReference"] = p_runtime(default=None)  # if converted
+    _original: Optional["File"] = p_runtime(default=None)  # if converted
     _cached_get_url: Optional[str] = p_runtime(default=None)
     _cached_tmp_path: Optional[str] = p_runtime(default=None)
     _cached_content: Optional[bytes] = p_runtime(default=None)
@@ -534,17 +530,17 @@ class FileBase(BuiltinObject):
             content_parts.append(f"{duration_str}s")
         return ", ".join(content_parts)
 
-    def get_original(self) -> "File | FileReference | None":
+    def get_original(self) -> "File | None":
         """The original file (if converted or self)."""
         if self._original is not None:
             return self._original
-        elif isinstance(self, (File, FileReference)):
+        elif isinstance(self, File):
             return self
         else:
             return None
 
     @property
-    def original(self) -> "File | FileReference":
+    def original(self) -> "File":
         """The original file (if converted or self)."""
         original = self.get_original()
         assert original is not None, f"no original for {self!r}"
@@ -564,7 +560,7 @@ class FileBase(BuiltinObject):
     async def download(self, *, include_content: Literal[False] = False) -> str: ...
     async def download(self, *, include_content: bool = True) -> Union[bytes, str]:
         """Downloads the file from the source."""
-        assert isinstance(self, (File, FileReference)), f"cannot download {self!r}"
+        assert isinstance(self, File), f"cannot download {self!r}"
         if include_content:
             if self._cached_content is not None:
                 return self._cached_content
@@ -799,60 +795,6 @@ class File(AnonymousResourceNode[FileData], FileBase):
 
     __content_str__ = FileBase.__content_str__  # type: ignore
 
-    def to_ref(self) -> "FileReference":
-        """Gets a reference to this file."""
-        return FileReference._ref_from_node(self)
-
-    def _to_ref_data(self) -> FileReferenceData:
-        """Gets a data reference to this file."""
-        return FileReference._ref_from_node(self)._to_data()
-
-
-@struct_(StructType.FILE_REFERENCE)
-class FileReference(
-    Struct[FileReferenceData],
-    FileBase,
-    NodeReferenceBase[File, FileData, "FileReference", FileReferenceData],
-):
-    """
-    A reference to a File. Extends NodeReference with file-specific metadata.
-    """  # :RichReferences
-
-    # ...NodeReferenceBase[30-39]
-
-    # content/info
-    # ...FileInfoBase[40-69]
-
-    __content_str__ = FileBase.__content_str__  # type: ignore
-
-    def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
-        if self.node_type != NodeType.FILE:
-            invalid(
-                "type",
-                f"referenced node must be File, got {self.node_type}",
-                (FileReference.node_type,),
-            )
-
-    @override
-    @staticmethod
-    def _ref_from_node(node: File) -> "FileReference":
-        node_ref = NodeReference._ref_from_node(node)
-        kwargs = {}
-        for prop in FileBase.__declared_properties__.values():
-            if hasattr(node, prop.name):
-                kwargs[prop.name] = getattr(node, prop.name)
-        return FileReference._clone_ref(FileReference, node_ref, **kwargs)
-
-    @override
-    @staticmethod
-    def _ref_data_from_node_data(node_data: FileData) -> FileReferenceData:
-        node_ref = NodeReference._ref_data_from_node_data(node_data)
-        kwargs = {}
-        for prop in FileBase.__declared_properties__.values():
-            if hasattr(node_data, prop.name):
-                kwargs[prop.name] = getattr(node_data, prop.name)
-        return FileReference._clone_ref(FileReferenceData, node_ref, **kwargs)
-
 
 @tracer.start_as_current_span("file.upload_batch")
 async def upload_batch(
@@ -906,9 +848,9 @@ async def upload_batch(
 
 @tracer.start_as_current_span("file.download_batch")
 async def download_batch(
-    file_refs: Sequence[FileReference | File],
+    file_refs: Sequence[NodeReference | File],
     *,
-    include_content: bool | Collection[FileReference | File],
+    include_content: bool | Collection[NodeReference | File],
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
@@ -923,10 +865,7 @@ async def download_batch(
     with tracer.start_as_current_span("file.prepare_download"):
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
-            files=[
-                (f.to_plain_ref() if isinstance(f, File) else f._to_plain_ref())._to_data()
-                for f in file_refs
-            ],
+            files=[(f.to_plain_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
             environment=MACHINE_ENVIRONMENT,
         )
         download_rep = await session.host.download_files(
@@ -945,7 +884,6 @@ async def download_batch(
                 file = file_ref
             else:
                 file = unpack_object(handle.file, supergraph=session._supergraph, expect=File)
-                file_ref._cached_get_url = handle.get_url  # also update input ref
             files_by_id[file.id] = file
             file._cached_get_url = handle.get_url
 
@@ -968,7 +906,7 @@ async def download_batch(
                         file_content = await resp.read()
                     file_contents.append(file_content)
                     file._cached_content = file_content
-                    file_refs_by_id[file.id]._cached_content = file_content  # also update input ref
+                    file_ref = file_refs_by_id[file.id]
 
     return list(files_by_id.values())
 

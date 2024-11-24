@@ -35,9 +35,8 @@ import {
   isNode,
   propertyInfo,
   propertyReference,
-  toPlainNodeRef,
-  unwrapProtoOneOf,
-  type TypedNodeReferenceData,
+  toNodeRef,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
@@ -88,7 +87,7 @@ const state = canvas.registerView(self, id);
 
 // NOTE :UX: Database view should be factored out into Table/Feed/etc. query views (?)
 
-const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
+const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const preparedPkgConnection = useExistingConnection(nodePtr);
 const { graph: pkgGraph, graphRaw: pkgGraphRaw, connection: pkgConnection } = preparedPkgConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: true });
@@ -130,7 +129,7 @@ function addSort(column: ColumnView, type: ExpressionType) {
     }
   } else if (column.kind == "field") {
     const existing = sorts.value.find((sort) => sort.fieldPtr?.ck == column.field.ck);
-    const sort = makeExpression({ type, blockPtr: nodePtr.value, fieldPtr: toPlainNodeRef(column.field) });
+    const sort = makeExpression({ type, blockPtr: nodePtr.value, fieldPtr: toNodeRef(column.field) });
     if (existing != null) {
       sorts.value = [...sorts.value.filter((sort) => sort.fieldPtr?.ck != column.field.ck), sort];
     } else {
@@ -165,7 +164,7 @@ const {
       filter: makeAndConditional(filters.value),
       select: {
         metatype: ObjectType.SELECT_OPTIONS,
-        selectFieldsPtr: fieldsRaw.value.map(toPlainNodeRef),
+        selectFieldsPtr: fieldsRaw.value.map(toNodeRef),
       },
     }),
   ),
@@ -485,7 +484,7 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
 
 function selectAll() {
   state.update(
-    { selection: { metatype: ObjectType.SELECTION, nodesPtr: records.value.map(toPlainNodeRef), fieldsPtr: [] } },
+    { selection: { metatype: ObjectType.SELECTION, nodesPtr: records.value.map(toNodeRef), fieldsPtr: [] } },
     { debounce: "tick" },
   );
 }
@@ -519,11 +518,11 @@ function updateSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number
 
   const selection: SelectionData = {
     metatype: ObjectType.SELECTION,
-    nodesPtr: records.value.slice(region.y1, region.y2 + 1).map(toPlainNodeRef),
+    nodesPtr: records.value.slice(region.y1, region.y2 + 1).map(toNodeRef),
     fieldsPtr: columns.value
       .slice(region.x1, region.x2 + 1)
       .filter((column) => column.kind == "field")
-      .map((column) => toPlainNodeRef(column.field)),
+      .map((column) => toNodeRef(column.field)),
   };
   state.update({ selection }, { debounce: "long" });
 }

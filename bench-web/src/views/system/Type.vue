@@ -1,26 +1,24 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, TypeIdentity } from "@/language/field";
+import { createField, FIELD_CONTEXT_ACTIONS } from "@/language/field";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import {
-  BenchType,
   BlockType,
   FieldType,
   NodeType,
   Orientation,
   Variant,
   ViewData,
-  ViewType,
-  type FieldData,
+  type FieldData
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
 import { onAddFieldAction } from "@/ui/inspect";
-import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -41,7 +39,7 @@ const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
 const containerRef = ref<HTMLElement | null>(null);
 const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 
-const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
+const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const allFields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
@@ -190,7 +188,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         class="cursor-pointer truncate data-[dragging=true]:opacity-50"
         :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
         :prepared-connection="preparedConnection"
-        :node-ptr="toNodeRefOneOf(field)"
+        :node-ptr="toNodeRef(field)"
         :variant="variant"
         :draggable="true"
         @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, field)"

@@ -171,9 +171,7 @@ enum StructType {
   STRUCT_TYPE_OUTPUT_OBJECT = 11505;
   STRUCT_TYPE_SCHEDULE = 11506;
   STRUCT_TYPE_FILE_INFO = 11507;
-  STRUCT_TYPE_FILE_REFERENCE = 11508;
   STRUCT_TYPE_ICON = 11509;
-  STRUCT_TYPE_SECRET_REFERENCE = 11510;
   STRUCT_TYPE_TEXT = 12000;
   STRUCT_TYPE_TEXT_LINE = 12001;
   STRUCT_TYPE_TEXT_SPAN = 12002;
@@ -281,9 +279,7 @@ enum ObjectType {
   OBJECT_TYPE_OUTPUT_OBJECT = 11505;
   OBJECT_TYPE_SCHEDULE = 11506;
   OBJECT_TYPE_FILE_INFO = 11507;
-  OBJECT_TYPE_FILE_REFERENCE = 11508;
   OBJECT_TYPE_ICON = 11509;
-  OBJECT_TYPE_SECRET_REFERENCE = 11510;
   OBJECT_TYPE_TEXT = 12000;
   OBJECT_TYPE_TEXT_LINE = 12001;
   OBJECT_TYPE_TEXT_SPAN = 12002;
@@ -477,9 +473,7 @@ enum BenchType {
   BENCH_TYPE_OUTPUT_OBJECT = 11505;
   BENCH_TYPE_SCHEDULE = 11506;
   BENCH_TYPE_FILE_INFO = 11507;
-  BENCH_TYPE_FILE_REFERENCE = 11508;
   BENCH_TYPE_ICON = 11509;
-  BENCH_TYPE_SECRET_REFERENCE = 11510;
   BENCH_TYPE_TEXT = 12000;
   BENCH_TYPE_TEXT_LINE = 12001;
   BENCH_TYPE_TEXT_SPAN = 12002;
@@ -1728,11 +1722,7 @@ message TypeInfoData {
 message TextSpanData {
   ObjectType metatype = 1;
   optional string content = 33;
-  oneof node_ptr {
-    NodeReferenceData node_ptr_node = 340;
-    FileReferenceData node_ptr_file = 341;
-    SecretReferenceData node_ptr_secret = 342;
-  };
+  optional NodeReferenceData node_ptr = 34;
   optional ColorType color = 50;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
@@ -1864,33 +1854,6 @@ message CodeData {
 
 message FileInfoData {
   ObjectType metatype = 1;
-  FileKind kind = 40;
-  string title = 41;
-  optional string external_url = 43;
-  optional bytes inline_content = 44;
-  FileType type = 50;
-  optional string mime_type = 51;
-  optional FileFormat format = 52;
-  int64 size = 53;
-  optional string sha256 = 54;
-  optional int32 width = 55;
-  optional int32 height = 56;
-  optional float aspect_ratio = 57;
-  optional string codec = 58;
-  optional google.protobuf.Duration duration = 60;
-  optional int32 bitrate = 61;
-  optional int32 channels = 62;
-  optional int32 sample_rate = 63;
-}
-
-message FileReferenceData {
-  ObjectType metatype = 1;
-  NodeType node_type = 30;
-  optional string id = 31;
-  optional string ck = 32;
-  optional string bench_id = 33;
-  optional string base_ck = 34;
-  optional string base_bench_id = 35;
   FileKind kind = 40;
   string title = 41;
   optional string external_url = 43;
@@ -2227,17 +2190,6 @@ message PathTokenData {
 message PathData {
   ObjectType metatype = 1;
   repeated PathTokenData tokens = 31;
-}
-
-message SecretReferenceData {
-  ObjectType metatype = 1;
-  NodeType node_type = 30;
-  optional string id = 31;
-  optional string ck = 32;
-  optional string bench_id = 33;
-  optional string base_ck = 34;
-  optional string base_bench_id = 35;
-  string title = 43;
 }
 
 message BaseNodeData {
@@ -3189,11 +3141,7 @@ message ViewData {
   optional IconData icon = 35;
   optional google.protobuf.Value subviews_packed = 39;
   optional TypeInfoData value_type = 40;
-  oneof node_ptr {
-    NodeReferenceData node_ptr_node = 420;
-    FileReferenceData node_ptr_file = 421;
-    SecretReferenceData node_ptr_secret = 422;
-  };
+  optional NodeReferenceData node_ptr = 42;
   optional Variant variant = 50;
   optional FontData font = 51;
   optional OffsetData position = 60;

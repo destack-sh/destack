@@ -32,7 +32,7 @@ import {
   isNode,
   makeDefaultObject,
   makeScope,
-  toPlainNodeRef,
+  toNodeRef,
   wrapSomeNode,
 } from "@/proto/wiring";
 import { origin, userPtr } from "@/system/client";
@@ -266,7 +266,7 @@ export function makeEditFromLog(
     category: options?.category ?? log.category,
     subjectPtr: subjectPtr,
     editedAt: Timestamp.now(),
-    undoOfPtr: mode == "undo" ? toPlainNodeRef(log) : undefined,
+    undoOfPtr: mode == "undo" ? toNodeRef(log) : undefined,
   };
 
   // invert edit

@@ -2,7 +2,6 @@ import { isEnumType, isNodeType } from "@/language/const";
 import { getEnumOptions } from "@/language/enum";
 import { getStorageKey, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
-import { type Transaction } from "@/language/transaction";
 import {
   Alignment,
   Anchor,
@@ -27,16 +26,13 @@ import {
   ViewData,
   ViewType,
   type AnyNodeData,
-  type AnyNodeReferenceData,
 } from "@/proto/wire";
 import {
   isNodeRef,
   makeStruct,
   toNodeRef,
-  toNodeRefOneOf,
   typeNodeReferenceMaybe,
-  type SomeNodeReferenceData,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { isFocusableElement } from "@/utils/element";
@@ -328,25 +324,8 @@ export function getNativeConstraintProps(constraint?: Partial<TypeConstraintData
   return props;
 }
 
-/** Set or unset the pinned 'nodePtr' for a Helper View (they normally default to some active node or some other empty state). */
-export function toggleHelperViewPin(
-  tx: Transaction,
-  graph: ReadNodeGraph,
-  options: { self: TypedNodeReferenceData<NodeType.VIEW>; nodePtr: AnyNodeData | SomeNodeReferenceData | null },
-) {
-  const self = graph.getOrError(options.self);
-  if (self.nodePtr?.oneofKind == null) {
-    if (options.nodePtr == null) return; // shouldn't happen?
-    // strip title so it's dynamically tied to the node
-    tx.update(self, { nodePtr: toNodeRefOneOf(options.nodePtr), title: undefined }, { debounce: "tick" });
-  } else {
-    const title = self.name?.replace(/\d+$/, ""); // title = name without postfix numbers
-    tx.update(self, { nodePtr: { oneofKind: undefined }, title }, { debounce: "tick" });
-  }
-}
-
 export function makeSelection(
-  nodes: AnyNodeData | AnyNodeReferenceData | (AnyNodeData | AnyNodeReferenceData)[],
+  nodes: AnyNodeData | NodeReferenceData | (AnyNodeData | NodeReferenceData)[],
 ): SelectionData {
   nodes = Array.isArray(nodes) ? nodes : [nodes];
   return {
@@ -357,7 +336,7 @@ export function makeSelection(
 }
 
 export function makeSelectionMaybe(
-  nodes: AnyNodeData | AnyNodeReferenceData | (AnyNodeData | AnyNodeReferenceData)[] | null | undefined,
+  nodes: AnyNodeData | NodeReferenceData | (AnyNodeData | NodeReferenceData)[] | null | undefined,
 ): SelectionData | undefined {
   if (nodes == null) return undefined;
   return makeSelection(Array.isArray(nodes) ? nodes : [nodes]);
