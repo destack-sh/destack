@@ -96,7 +96,7 @@ class Call(Struct):
         return node.input_type if node is not None else None
 
     @staticmethod
-    def new(node: "Block | Step", inputs: Any, **kwargs) -> "Call":
+    def new(node: "Block | Step", inputs: Any | None = None, **kwargs) -> "Call":
         input_type = node.input_type
         assert input_type is not None, f"no input type for {node!r}"
         return Call(
@@ -108,7 +108,7 @@ class Call(Struct):
 class Continue(Struct):
     """A "Continuation" of a Run somewhere (like in a Flow)."""
 
-    node: Union["Block", "Step", "Pipe"] = p_regular(
+    node: Union["Block", "Step", "Pipe", None] = p_regular(
         30,
         require=True,
         references=NodeType.BLOCK,
@@ -139,5 +139,11 @@ class Continue(Struct):
         return node.input_type if node is not None else None
 
     @staticmethod
-    def new(node: "Block | Step | Pipe", **kwargs) -> "Continue":
-        return Continue(node=node, **kwargs)
+    def new(node: "Block | Step | Pipe", inputs: Any | None = None, **kwargs) -> "Continue":
+        input_type = node.input_type
+        assert input_type is not None, f"no input type for {node!r}"
+        return Continue(
+            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, input_type, inputs), **kwargs
+        )
+
+    at = new

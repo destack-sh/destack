@@ -12,7 +12,7 @@ from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide, Step, StepType
 from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptKind
 from bench.language.run import Run, RunError, RunKind, RunnableNode, RunOptions
-from bench.language.value import CustomObject
+from bench.language.value import CustomObject, OutputObject
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
 from bench.runtime.runner import Context, Interrupted, Runner, get_run_options, restore_runner
@@ -119,11 +119,19 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             # feed forward connected Pipes/Steps
             outgoing: list[Run] = []
             if isinstance(runner.node, Step):
+                if runner.outputs is not None and runner.outputs.kind == ObjectKind.OUTPUT:
+                    continuations = cast(OutputObject, runner.outputs).continuations
+                else:
+                    continuations = ()
                 for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):
-                    next_run = self._start(
-                        pipe, inputs=runner.outputs, incoming=(runner.tracked_run,)
-                    )
-                    outgoing.append(next_run)
+                    if pipe.type == PipeType.PASS or (
+                        pipe.type in (PipeType.SELECT, PipeType.OPTION)
+                        and any(c.node == pipe or c.node == pipe.target for c in continuations)
+                    ):
+                        next_run = self._start(
+                            pipe, inputs=runner.outputs, incoming=(runner.tracked_run,)
+                        )
+                        outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
                 # NOTE :Incomplete: allow Steps to wait for multiple incoming Pipes
                 next_run = self._start(

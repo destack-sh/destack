@@ -903,10 +903,6 @@ class HasSessionContext(BuiltinObject):
         constraint=constraint(block_types=[BlockType.IDENTITY]),
     )
     if TYPE_CHECKING:
-        block_ptr: Optional[NodeReference] = None
-        block_id: Optional[UUID] = None
-        step_ptr: Optional[NodeReference] = None
-        step_id: Optional[UUID] = None
         session_ptr: Optional[NodeReference] = None
         session_id: Optional[UUID] = None
         run_ptr: Optional[NodeReference] = None

@@ -1,6 +1,7 @@
 from asyncio import CancelledError
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from uuid import UUID
 
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
@@ -23,7 +24,6 @@ from bench.language.node import (
     timed_node_,
 )
 from bench.language.property import (
-    Property,
     p_internal,
     p_node_ancestor,
     p_node_children,
@@ -39,7 +39,6 @@ from bench.language.validation import (
     TITLE_CONSTRAINT,
     TypeConstraintIn,
     ValidationError,
-    ValidationHandler,
 )
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
@@ -401,6 +400,16 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(33, require=False, array=False, references=NodeType.STEP)
     pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
+    if TYPE_CHECKING:
+        block_ptr: Optional[NodeReference] = None
+        block_id: Optional[UUID] = None
+        block_ck: Optional[UUID] = None
+        step_ptr: Optional[NodeReference] = None
+        step_id: Optional[UUID] = None
+        step_ck: Optional[UUID] = None
+        pipe_ptr: Optional[NodeReference] = None
+        pipe_id: Optional[UUID] = None
+        pipe_ck: Optional[UUID] = None
     incoming: list["Run"] = p_internal(
         36, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
@@ -528,8 +537,19 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
             return None
 
     @property
-    def base(self) -> Optional["Step | Block"]:
-        if self.step_ptr is not None:
+    def base_ptr(self) -> Optional["NodeReference"]:
+        if self.pipe_ptr is not None:
+            return self.pipe_ptr
+        elif self.step_ptr is not None:
+            return self.step_ptr
+        else:
+            return self.block_ptr
+
+    @property
+    def base(self) -> Optional["RunnableNode"]:
+        if self.pipe_ptr is not None:
+            return self.pipe
+        elif self.step_ptr is not None:
             return self.step
         else:
             return self.block
@@ -544,11 +564,15 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         else:
             return cast(RunData, data).block_ptr
 
-    def _validate_component(
-        self, properties: Collection[Property], invalid: ValidationHandler
-    ) -> None:
-        if self.root_ptr is not None and self.root_ptr.id == self.id:
-            invalid(self, "root points to self", (Run.root, Run.id))
+    def has(self, *nodes: Node) -> bool:
+        """Whether the Run has any of the given Nodes."""
+        nodes_ck = tuple(n.ck for n in nodes)
+        if self.base_ck in nodes_ck:
+            return True
+        for run in self._graph.get_descendants(self, NodeType.RUN, recursive=True):
+            if cast(Run, run).base_ck in nodes_ck:
+                return True
+        return False
 
     def pause(self):
         """Mark this Run as paused."""
