@@ -837,8 +837,12 @@ export class FlowContext {
 
         if (
           targetPort != null &&
-          !portEquals(sourcePort, targetPort) &&
-          !(SINK_STEP_TYPES.includes(sourcePort.parent.type) || SOURCE_STEP_TYPES.includes(targetPort?.parent.type))
+          !portEquals(sourcePort, targetPort) /* can't connect same port */ &&
+          !SINK_STEP_TYPES.includes(sourcePort.parent.type) /* can't go from sink */ &&
+          !SOURCE_STEP_TYPES.includes(targetPort?.parent.type) /* can't go to source */ &&
+          !this.pipes.value.some(
+            (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
+          ) /* can't connect same two Steps twice */
         ) {
           // connect it up
           log.info("flow.drag.connect", { from: sourcePort, to: targetPort });

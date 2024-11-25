@@ -11,7 +11,7 @@ import {
   PIPE_WIDTH,
   PipePath,
   STEP_CONTEXT_ACTIONS,
-  STEP_SIZE
+  STEP_SIZE,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
 import {
@@ -99,18 +99,26 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath: Ref<PipePath | null> = computed(() => {
   if (flowCtx.draggable?.kind != "port") return null;
   // preview path between current dragged port and step (or point in canvas if nothing)
-  const source = flowCtx.getStepBoundingBox(flowCtx.draggable.step);
-  if (source == null) return null;
+  const sourceStep = flowCtx.draggable.step;
+  const sourceBounding = flowCtx.getStepBoundingBox(sourceStep);
+  if (sourceBounding == null) return null;
   const cursor = flowCtx.cursorWorldPos.value;
   const targetStep = flowCtx.getStepAt(cursor);
-  if (targetStep != null && !SOURCE_STEP_TYPES.includes(targetStep.type)) {
+  const isValid =
+    targetStep != null &&
+    !SOURCE_STEP_TYPES.includes(targetStep.type) &&
+    !flowCtx.pipes.value.some((pipe) => pipe.sourcePtr?.ck == sourceStep.ck && pipe.targetPtr?.ck == targetStep.ck);
+  if (isValid) {
     // real path preview
     const target = flowCtx.getStepBoundingBox(targetStep);
     if (target == null) return null;
-    return flowCtx.computePath(source, target);
+    return flowCtx.computePath(sourceBounding, target);
   } else {
     // just direct path
-    const sourceMidpoint = { x: source.x1 + source.width / 2, y: source.y1 + source.height / 2 };
+    const sourceMidpoint = {
+      x: sourceBounding.x1 + sourceBounding.width / 2,
+      y: sourceBounding.y1 + sourceBounding.height / 2,
+    };
     const midpoint = { x: (sourceMidpoint.x + cursor.x) / 2, y: (sourceMidpoint.y + cursor.y) / 2 };
     return { start: sourceMidpoint, end: cursor, midpoint };
   }

@@ -317,6 +317,8 @@ class RunErrorType(IdEnum):
     # retryable
     MODEL_FAILED = 500
     ACTION_MODE_CHANGED = 501
+    INVALID_CONTINUATION = 502
+    INVALID_CALL = 503
     RETRYABLE = 999
 
     @property

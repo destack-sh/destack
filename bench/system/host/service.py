@@ -548,7 +548,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
-        # apply edits to loaded data graphs (see above for optimistic counterpart)
+        # apply edits to loaded data graphs (see on_commit_prepare above for optimistic counterpart)
         self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="data")
         self._update_loaded_graphs(edits=new_edits, cascaded_edits=(), scope="both")
 
@@ -595,6 +595,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # restore in memory unpacked graphs from data graphs
         #  (we apply edits optimistically above in on_commit_prepare)
         self._reset_loaded_graphs()
+        # nocheckin: fix this (connection is closed is never recovered
+        #  ... try restarting postgres container to trigger the error)
 
         # run plugins
         for plugin in self._plugins:

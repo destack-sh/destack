@@ -11,7 +11,7 @@ from bench.language.const import ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide, Step, StepType
 from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptKind
-from bench.language.run import Run, RunError, RunKind, RunnableNode, RunOptions
+from bench.language.run import Run, RunError, RunErrorType, RunKind, RunnableNode, RunOptions
 from bench.language.value import CustomObject, OutputObject
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
@@ -123,17 +123,39 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                     continuations = cast(OutputObject, runner.outputs).continuations
                 else:
                     continuations = ()
+                continued_option: Pipe | None = None
                 for pipe in self.get_pipes_at(runner.node, PortSide.OUTGOING):
+                    # check if Pipe should be continued
                     if pipe.type == PipeType.PASS or (
                         pipe.type in (PipeType.SELECT, PipeType.OPTION)
                         and any(c.node == pipe or c.node == pipe.target for c in continuations)
                     ):
-                        next_run = self._start(
-                            pipe, inputs=runner.outputs, incoming=(runner.tracked_run,)
-                        )
+                        if pipe.type == PipeType.OPTION:
+                            if continued_option is not None:
+                                # already continued another option, ignore this one
+                                #  (shouldn't happen usually because we validate in Step runner,
+                                #   but Flow architecture may change between there and here)
+                                logger.debug("flow.tick.continue.ignore", flow=self.node, pipe=pipe)
+                                continue
+                            continued_option = pipe
+
+                        # assemble Pipe inputs
+                        # nocheckin: do :PipeMapping
+                        input_type = pipe.input_type
+                        assert input_type is not None, f"no input type for {pipe!r}"
+                        inputs = CustomObject.new(ObjectKind.INPUT, {}, input_type)
+                        if runner.outputs is not None:
+                            for field in inputs._type._fields:
+                                key = inputs._get_key(field.name)
+                                if key is not None:
+                                    inputs[field] = runner.outputs._do_get(field)
+
+                        # run it
+                        next_run = self._start(pipe, inputs=inputs, incoming=(runner.tracked_run,))
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
                 # NOTE :Incomplete: allow Steps to wait for multiple incoming Pipes
+                # nocheckin: assemble Step inputs :PipeMapping
                 next_run = self._start(
                     runner.node.target, inputs=runner.outputs, incoming=(runner.tracked_run,)
                 )
@@ -313,6 +335,30 @@ class StepRunnerBase(Runner[Step], ABC):
                     return True
         return False
 
+    def _check_outputs(self):
+        """Checks the outputs for this Step for Step-specific errors."""
+        # check continuations
+        if (
+            self.flow is not None
+            and self.outputs is not None
+            and self.outputs.kind == ObjectKind.OUTPUT
+            and cast(OutputObject, self.outputs).continuations
+        ):
+            continuations = cast(OutputObject, self.outputs).continuations
+            continued_options: list[Pipe] = []
+            for pipe in self.flow.get_pipes_at(self.node, PortSide.OUTGOING):
+                if pipe.type == PipeType.OPTION and any(
+                    c.node == pipe or c.node == pipe.target for c in continuations
+                ):
+                    continued_options.append(pipe)
+            if len(continued_options) > 1:
+                error = RunError(
+                    kind=RunErrorKind.RUNTIME,
+                    type=RunErrorType.INVALID_CONTINUATION,
+                    title=f"multiple mutually exclusive option pipes: f{continued_options!r}",
+                )
+                raise RetryableError(message=None, error=error)
+
 
 class StartStepRunner(StepRunnerBase):
     @override
@@ -345,7 +391,10 @@ class TriggerStepRunner(StepRunnerBase):
 
 
 class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
-    pass
+    @override
+    async def run(self) -> None:
+        await super().run()
+        self._check_outputs()
 
 
 class YieldStepRunner(StepRunnerBase):
@@ -416,7 +465,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
         if self.output_type is not None:
             # assemble/map inputs from incoming Runs/Context
-            # nocheckin: do Pipe mapping
+            # nocheckin: do :PipeMapping
             self.outputs = CustomObject.new(ObjectKind.INPUT, {}, self.output_type)
             if self.inputs is not None:
                 for field in self.outputs._type._fields:
