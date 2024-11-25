@@ -585,18 +585,20 @@ def get_system_prompt(node: Node) -> str:
     today = datetime.datetime.now(tz=datetime.UTC).date()
     base_text = f"""\
 You are a programming assistant on an agent development platform called Bench.
-You will be given context and a specific task in the Bench Python ORM.
 You must always respond directly with valid inline Python code (escaping as needed).
+
+You will be given context and a specific task in the Bench Python ORM.
 You may interpret and extrapolate a task when it's vague, but guess less if it's specific.
-You may think out loud in comments before and within your answer code.
 You must adhere to the types exactly (no missing required & no extraneous values).
 You must consider whether an action requires any form of AI at runtime (you are the AI)
  - if it seems like any sort of intelligence analysis or extraction is required, it's is_dynamic=True
     - if unsure and the task might require a bit of AI, assume it does!
  - if it's really good old scripting or basic static logic, it's is_dynamic=False
+If you're in an action in the improper mode/is_dynamic, you must change it.
+
+You may think out loud in comments before and within your answer code.
 There is no 'external' AI system or model;
  for dynamic GENERATE actions you generate the right outputs for some inputs.
-If you're in an action in the improper mode/is_dynamic, you must change it.
 
 Today: {today.strftime('%d %B, %Y')}.
 """
@@ -680,7 +682,8 @@ Object = Class1(Name="Alice", Choice=Choice.fields.B)
 Action1 = Block.new(
     BlockType.ACTION, 
     "Do Math", 
-    mode=ActionMode.ADAPT,
+    mode=ActionMode.GENERATE,
+    is_dynamic=False,
     text=md("Add 1"), 
     fields=(Field.input("x", int), Field.output("y", int)),
 )
@@ -695,7 +698,8 @@ Action1.code = code("return {'y': x + 1}")
 Action1 = Block.new(
     BlockType.ACTION,
     "Concatene",
-    mode=ActionMode.ADAPT,
+    mode=ActionMode.GENERATE,
+    is_dynamic=False,
     code=code("return {'Result': A + B}"),
     fields=(Field.input("A", str), Field.input("B", str), Field.output("Result", str)),
 )
@@ -710,7 +714,8 @@ pass
 Action1 = Block.new(
     BlockType.ACTION,
     "Action1",
-    mode=ActionMode.ADAPT,
+    mode=ActionMode.GENERATE,
+    is_dynamic=False,
     text=md("Raise the Shakra"),
     fields=(Field.output("Number", int),),
 )
@@ -719,19 +724,20 @@ raise ModelIncapableError(f"Unclear requirements for {Action1!r}")
 """,
     ),
     PromptText(
-        title="Example: Change to generate implementation",
+        title="Example: Change to dynamic implementation",
         text="""\
 # context
 Action1 = Block.new(
     BlockType.ACTION,
     "Action1",
-    mode=ActionMode.ADAPT,
+    mode=ActionMode.GENERATE,
+    is_dynamic=False,
     text=md("Summarize the text"),
     fields=(Field.input("Text", str), Field.output("Summary", str)),
     code=code("return {'Summary': Text[:10] + '...'}"),
 )
-# output: change to generate (requires a bit of AI)
-Action1.mode = ActionMode.GENERATE
+# output: change to dynamic (requires a bit of AI)
+Action1.is_dynamic = True
 raise ActionChangedError()
 """,
     ),
@@ -743,31 +749,33 @@ CountPeople = Block.new(
     BlockType.ACTION,
     "CountPeople",
     mode=ActionMode.GENERATE,
+    is_dynamic=True,
     text=md("Count the number of people"),
     fields=(Field.input("Text", str), Field.output("Count", int)),
 )
 # inputs
-CountPeople(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
+{'Text': "Alice and Bob are here and went to Freddy's to buy some donuts."}
 # output: generate implementation (requires some AI)
 people = ["Alice", "Bob"]
 return {"Count": len(people)}
 """,
     ),
     PromptText(
-        title="Example: Change to adapt implementation",
+        title="Example: Change to static implementation",
         text="""\
 # context
 CountWords = Block.new(
     BlockType.ACTION,
     "CountWords",
     mode=ActionMode.GENERATE,
+    is_dynamic=True,
     text=md("Count the number of words"),
     fields=(Field.input("Text", str), Field.output("Count", int)),
 )
 # inputs
-CountWords(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
-# output: change to adapt (doesn't need AI)
-CountWords.mode = ActionMode.ADAPT
+{'Text': "Alice and Bob are here and went to Freddy's to buy some donuts.")}
+# output: change to static (doesn't need AI)
+CountWords.is_dynamic = False
 raise ActionChangedError()
 """,
     ),

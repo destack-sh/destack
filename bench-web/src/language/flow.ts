@@ -41,11 +41,7 @@ export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.duplicate",
   "common.edit.delete",
 ];
-export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "common.edit.rename",
-  "common.edit.duplicate",
-  "common.edit.delete",
-];
+export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["common.edit.rename", "common.edit.delete"];
 
 export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
@@ -99,9 +95,10 @@ export class StepState {
   flow: FlowContext;
   stepPtr: TypedNodeReferenceData<NodeType.STEP>;
   step: Ref<StepData | null>;
-  fields: Ref<FieldData[]>;
   nodePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
   node: Ref<BlockData | StepData | null>;
+  fields: Ref<FieldData[]>;
+  stepFields: Ref<FieldData[]>;
   nodeFields: Ref<FieldData[]>;
   // layout
   boundingBox: Ref<BoundingBox | null> = shallowRef(null);
@@ -125,7 +122,18 @@ export class StepState {
     });
     this.node = flow.graph.getRef(this.nodePtr);
     this.nodeFields = flow.graph.getChildrenRef(this.nodePtr, NodeType.FIELD);
-    this.fields = flow.graph.getChildrenRef(step, NodeType.FIELD);
+    this.stepFields = flow.graph.getChildrenRef(step, NodeType.FIELD);
+    this.fields = computed(() => {
+      if (this.step.value?.type == StepType.START) {
+        return this.flow.fields.value.filter((f) => f.type == FieldType.INPUT);
+      } else if (this.step.value?.type == StepType.COMPLETE) {
+        return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
+      } else if (this.step.value?.type == StepType.ACTION) {
+        return this.stepFields.value;
+      } else {
+        return [];
+      }
+    });
     // layout
     this.boundingBox = computedValue(() =>
       this.step.value != null ? this.flow.getStepBoundingBox(this.step.value) : null,
@@ -925,7 +933,7 @@ export class FlowContext {
     const state = this.stepsStates.value[step.id!];
     if (state == null || this.flow.value == null) return null;
     return getStepFields(this.spaceGraph, step, side, {
-      stepFields: state.fields.value,
+      stepFields: state.stepFields.value,
       flow: this.flow.value,
       flowFields: this.fields.value,
       node: state.node.value,

@@ -595,8 +595,6 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # restore in memory unpacked graphs from data graphs
         #  (we apply edits optimistically above in on_commit_prepare)
         self._reset_loaded_graphs()
-        # nocheckin: fix this (connection is closed is never recovered
-        #  ... try restarting postgres container to trigger the error)
 
         # run plugins
         for plugin in self._plugins:

@@ -270,7 +270,7 @@ defineExpose<ViewExposed>({ self });
         v-if="runtime.focusedRun != null"
         role="button"
         class="mx-2 flex cursor-pointer flex-row items-center gap-x-1 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
-        @click="canvas.goToNode(runtime.focusedRun)"
+        @click="runtime.focusedRun != null && canvas.goToNode(runtime.focusedRun)"
       >
         <IconName v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>

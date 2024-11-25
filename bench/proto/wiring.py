@@ -394,6 +394,7 @@ def unpack_node_graph(
                 supergraph=supergraph,
                 connection=connection,
                 expect=Node,
+                session=session,
             )
             graph.add(node)
 
@@ -403,11 +404,6 @@ def unpack_node_graph(
                     if not prop.is_ephemeral and not prop.is_tree_reference:
                         setattr(parent, prop.name, getattr(node, prop.name))
                 node = cast(Node, parent)
-
-    # track in session
-    if session is not None:
-        for node in graph._nodes_by_id.values():
-            node._track_self(session)
 
     return graph
 

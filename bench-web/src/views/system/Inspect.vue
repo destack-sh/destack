@@ -180,7 +180,7 @@ defineExpose<ViewExposed>({ self, id });
     </div>
     <div v-if="layout.sections.length == 0" class="mx-4">
       <!-- Empty state -->
-      <span class="text-gray-400">Just a {{ toCamelName(NodeType, node.metatype) }}.</span>
+      <span class="text-gray-400">Just a  {{ toCamelName(NodeType, node.metatype) }}.</span>
     </div>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center text-center">

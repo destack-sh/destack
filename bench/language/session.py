@@ -770,7 +770,9 @@ class Session(RuntimeNode[SessionData]):
             if self._on_commit_failed is not None:
                 await self._on_commit_failed(self, e)
             if isinstance(e, ChannelUnavailableError):
-                logger.error("session.commit.error", error=e)
+                logger.error("session.commit.error", error=e, channels=self._channels)
+                for channel in self._channels:
+                    await channel.reset()
                 self._tx.reset()
             raise
 

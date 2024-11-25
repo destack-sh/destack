@@ -1,14 +1,13 @@
 <script lang="ts" setup>
 import { SINK_STEP_TYPES } from "@/language/const";
-import { createField, NAME_TYPE } from "@/language/field";
+import { NAME_TYPE } from "@/language/field";
 import { FLOW_PORT_SIZE, getStepSides, STEP_CONTEXT_ACTIONS, STEP_SIZE, useFlowContext } from "@/language/flow";
-import { cloneNode } from "@/language/node";
 import { getRunDurationString, isRunActive } from "@/language/session";
-import { ColorShade, FieldData, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
+import { ColorShade, FieldType, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
 import { canvas, pkgConnection } from "@/system/space";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
+import type { ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
@@ -48,13 +47,7 @@ const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: ste
 // Interaction
 //
 
-// actions (some of these actions also only work for field ports)
-const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData | null } => {
-  let field = fields.value.find((f) => f.id == ctx?.triggerNode?.id);
-  if (field == null) field = nodeFields.value.find((f) => f.id == ctx?.triggerNode?.id); // related fields
-  if (field == null) field = flowCtx.fields.value.find((f) => f.id == ctx?.triggerNode?.id); // related fields
-  return { field: field ?? null };
-};
+// actions
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"step"> = {
   // common
   "common.edit.rename": {
@@ -62,26 +55,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     action: () => {
       nextTick(() => focusInElement(nameRef.value as MaybeElement));
     },
-  },
-  "common.create.above": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    createField(flowCtx.tx, flowCtx.graph, { anchor: "before", target: field });
-  },
-  "common.create.below": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    createField(flowCtx.tx, flowCtx.graph, { anchor: "after", target: field });
-  },
-  "common.edit.duplicate": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    const duplicate = cloneNode(flowCtx.tx, flowCtx.graph, field, { includeChildren: true });
-  },
-  "common.edit.delete": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    flowCtx.tx.delete(field);
   },
 };
 
@@ -127,7 +100,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div
       v-if="step.type != StepType.TEXT"
       ref="bodyRef"
-      class="mx-1 flex w-full flex-row items-center gap-x-2.5 py-1"
+      class="mx-1 flex w-full flex-row gap-x-2.5 py-1"
       :style="{
         height: STEP_SIZE.height + 'px',
       }"
@@ -153,7 +126,12 @@ defineExpose<ViewExposed>({ self, id, actions });
         <IconInline ref="iconRef" v-bind="getNodeIcon(step)" class="rounded text-center text-lg text-gray-700" />
       </div>
       <!-- Main -->
-      <div class="flex flex-1 flex-col">
+      <div
+        class="flex flex-1 flex-col"
+        :style="{
+          maxWidth: `calc(100% - 60px)`,
+        }"
+      >
         <!-- Header -->
         <div class="flex flex-row gap-x-1.5">
           <!-- Name -->
@@ -186,9 +164,25 @@ defineExpose<ViewExposed>({ self, id, actions });
           </div>
         </div>
         <!-- Body -->
-        <div class="text-gray-700">
-          <!-- nocheckin: Step body -->
-          body
+        <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
+          <!-- Fields -->
+          <!-- NOTE :Incomplete: better Step body -->
+          <span
+            v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
+            :key="field.id"
+            class="truncate text-gray-400"
+          >
+            {{ field.name }}
+          </span>
+          <i v-if="fields.length != 0" class="fas fa-arrow-right text-xs text-gray-400" />
+          <span
+            v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
+            :key="field.id"
+            class="truncate text-gray-400"
+          >
+            {{ field.name }}
+          </span>
+          <span v-if="fields.length == 0" class="text-gray-400">No fields</span>
         </div>
       </div>
     </div>

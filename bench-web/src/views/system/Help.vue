@@ -16,7 +16,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inspect from "@/views/system/Inspect.vue";
 import Start from "@/views/system/Start.vue";
-import { computed, ref, Ref, toRef, watchEffect } from "vue";
+import { computed, nextTick, ref, Ref, toRef, watchEffect } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -59,6 +59,7 @@ function start() {
     startRef.value.start();
   } else {
     setAspect(HelpAspect.RUN);
+    nextTick(() => startRef.value?.start());
   }
 }
 
@@ -106,7 +107,7 @@ defineExpose<ViewExposed>({ self });
             :style="{ color: getRunColorHex(selfRun.status) }"
           />
           <span class="ml-1.5 text-gray-400">{{ getRunDurationString(selfRun, { minUnit: "s" }) }}</span>
-          <span class="text-gray-400 ml-2 mr-1">/</span>
+          <span class="ml-2 mr-1 text-gray-400">/</span>
         </template>
         <span
           class="fas fa-circle-small w-5 text-center"

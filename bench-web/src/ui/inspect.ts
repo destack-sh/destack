@@ -371,17 +371,16 @@ export function makeInspectLayout(
   // Steps
   //
   else if (isNode(node, NodeType.STEP)) {
-    const comonRows: InspectRow[] = [
-      rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }),
-    ];
-    section(undefined, comonRows);
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
+      const comonRows: InspectRow[] = [];
+      section(undefined, comonRows);
+      comonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
       sectionSchema();
+      if (node.type == StepType.ACTION) {
+        sectionAction();
+      }
+      sectionRun(StepProperty.runOptions);
     }
-    if (node.type == StepType.ACTION) {
-      sectionAction();
-    }
-    sectionRun(StepProperty.runOptions);
   }
 
   //

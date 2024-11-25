@@ -154,8 +154,9 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     @override
     async def reset(self):
         async with self.connection.lock:
-            await self.connection.close()
-        self.connection = await self.connection.pool.acquire()
+            pool = self.connection.pool
+            await pool.close()
+            self.connection = await pool.acquire()
 
     @override
     @_pg_method
