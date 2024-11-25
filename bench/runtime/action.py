@@ -62,55 +62,53 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         attempt = self.current_attempt
         assert attempt is not None, f"no current attempt for {self!r}"
         action = cast(Action, self.node)
-        if action.mode == ActionMode.STATIC:
+        if action.mode == ActionMode.CODE:
             # run directly
-            if action.code is not None:
-                # run implementation directly
-                self.outputs = await self._run_implementation(
-                    attempt=attempt,
-                    code=action.code or Code.empty(),
-                    tools=action.tools,
-                    inputs=self.inputs,
-                )
-            else:
-                # run delegate directly
-                delegate = action.delegate
-                if not delegate:
-                    raise RunImpossibleError(f"no delegate for {self!r}")
-                delegate_runner = self._get_resumable_subrunner(
-                    node=delegate,
-                    inputs=self.inputs,
-                    output_type=self.output_type,
-                )
-                await self.runtime.run_runner(delegate_runner)
-                self.outputs = delegate_runner.outputs
-        elif action.mode == ActionMode.ADAPTIVE:
-            # adapt (if needed) & run implementation
-            if attempt.code is None:
-                update_code = await self._generate_code(
-                    task=TaskType.ADAPT, inputs=None, output_type=None, include_run_context=False
-                )
-                if update_code != CODE_PASS:
-                    await self._run_code(
-                        code=update_code, node=action, inputs=None, output_type=None
-                    )
-                attempt._do_set("code", action.code, validate=False)
             self.outputs = await self._run_implementation(
                 attempt=attempt,
-                code=attempt.code or Code.empty(),
+                code=action.code or Code.empty(),
                 tools=action.tools,
                 inputs=self.inputs,
             )
-        elif action.mode == ActionMode.DYNAMIC:
-            # generate a new implementation every time
+        elif action.mode == ActionMode.DELEGATE:
+            # run delegate directly
+            delegate = action.delegate
+            if not delegate:
+                raise RunImpossibleError(f"no delegate for {self!r}")
+            delegate_runner = self._get_resumable_subrunner(
+                node=delegate,
+                inputs=self.inputs,
+                output_type=self.output_type,
+            )
+            await self.runtime.run_runner(delegate_runner)
+            self.outputs = delegate_runner.outputs
+        elif action.mode == ActionMode.GENERATE:
             if attempt.code is None:
-                implementation_code = await self._generate_code(
-                    task=TaskType.RUN,
-                    inputs=self.inputs,
-                    output_type=self.output_type,
-                    include_run_context=True,
-                )
-                attempt._do_set("code", implementation_code, validate=False)
+                # if attempt doesn't have code yet, generate it
+                #  (the code may be from a previous run at this attempt that was interrupted)
+                if not action.is_dynamic:
+                    # adapt (if needed) & run implementation
+                    update_code = await self._generate_code(
+                        task=TaskType.ADAPT,
+                        inputs=None,
+                        output_type=None,
+                        include_run_context=False,
+                    )
+                    if update_code != CODE_PASS:
+                        await self._run_code(
+                            code=update_code, node=action, inputs=None, output_type=None
+                        )
+                    attempt._do_set("code", action.code, validate=False)
+                else:
+                    # generate a new implementation every time
+                    implementation_code = await self._generate_code(
+                        task=TaskType.RUN,
+                        inputs=self.inputs,
+                        output_type=self.output_type,
+                        include_run_context=True,
+                    )
+                    attempt._do_set("code", implementation_code, validate=False)
+                self.session.commit_optimistic()
             self.outputs = await self._run_implementation(
                 attempt=attempt,
                 code=attempt.code or Code.empty(),
@@ -188,7 +186,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
             prompt=prompt,
             model=model,
             rendered_prompt=rendered_prompt,  # type: ignore
-            user_id=str(self.runtime.session.bench_id),
+            user_id=str(self.session.bench_id),
             options=self.options,
         )
         if not completion:
@@ -593,11 +591,12 @@ You may interpret and extrapolate a task when it's vague, but guess less if it's
 You may think out loud in comments before and within your answer code.
 You must adhere to the types exactly (no missing required & no extraneous values).
 You must consider whether an action requires any form of AI at runtime (you are the AI)
- - if it seems like any sort of intelligence analysis or extraction is required, it's DYNAMIC
- - if it's really good old scripting or basic static logic, it's ADAPTIVE
- - if unsure and the task might require a bit of AI, assume it does and set to DYNAMIC
-There is no 'external' AI system, for DYNAMIC actions you must generate the right outputs for some inputs.
-If you're in an action in the improper mode, you must change it.
+ - if it seems like any sort of intelligence analysis or extraction is required, it's is_dynamic=True
+    - if unsure and the task might require a bit of AI, assume it does!
+ - if it's really good old scripting or basic static logic, it's is_dynamic=False
+There is no 'external' AI system or model;
+ for dynamic GENERATE actions you generate the right outputs for some inputs.
+If you're in an action in the improper mode/is_dynamic, you must change it.
 
 Today: {today.strftime('%d %B, %Y')}.
 """
@@ -607,7 +606,7 @@ Today: {today.strftime('%d %B, %Y')}.
 def get_task_prompt(task: TaskType):
     if task == TaskType.ADAPT:
         return """\
-Task: ADAPT (mode=ActionMode.ADAPTIVE)
+Action (mode=ActionMode.GENERATE, is_dynamic=False)
 
 Adapt the implementation around the current node to the desired behaviour given the context.
 Usually that just means looking at the current node, but sometimes other nodes too.
@@ -615,18 +614,18 @@ If the implementation already looks good, just respond with `pass`.
 Manipulate nodes via the ORM by updating their properties directly or even adding/removing nodes.
 
 If the implementation should be dynamic per input (i.e., requires any hint of AI) instead,
- you must set the node's mode to DYNAMIC and raise ActionModeChangedError instead.
+ you must set the node's is_dynamic=True and raise ActionChangedError instead.
         """
     elif task == TaskType.RUN:
         return """\
-Task: RUN (mode=ActionMode.DYNAMIC)
+Action (mode=ActionMode.GENERATE, is_dynamic=True)
 
 Generate the output for the specific given inputs (do not attempt to generalize).
 You may perform any intermediate computations as needed in Python, but you shouldn't try
  to imitate AI logic in code. You are the AI, and you have to generate any AI outputs/intermediates.
 
-If the implementation shouldn't be dynamic per input (i.e., good old code) instead,
- you must set the node's mode to ADAPTIVE and raise ActionModeChangedError instead. 
+If the implementation should *not* be dynamic per input (i.e., good old code) instead,
+ you must set the node's is_dynamic=False and raise ActionChangedError instead. 
 """
     else:
         assert_never(task)
@@ -657,6 +656,13 @@ Database.fields.Name or Sentiment.fields.Neutral
 """,
     ),
     PromptText(
+        "Example: Wait",
+        text="""\
+# wait for a bit
+await sleep(2)
+""",
+    ),
+    PromptText(
         "Example: Types and values",
         text="""\
 # types are defined in Blocks
@@ -674,7 +680,7 @@ Object = Class1(Name="Alice", Choice=Choice.fields.B)
 Action1 = Block.new(
     BlockType.ACTION, 
     "Do Math", 
-    mode=ActionMode.ADAPTIVE,
+    mode=ActionMode.ADAPT,
     text=md("Add 1"), 
     fields=(Field.input("x", int), Field.output("y", int)),
 )
@@ -689,7 +695,7 @@ Action1.code = code("return {'y': x + 1}")
 Action1 = Block.new(
     BlockType.ACTION,
     "Concatene",
-    mode=ActionMode.ADAPTIVE,
+    mode=ActionMode.ADAPT,
     code=code("return {'Result': A + B}"),
     fields=(Field.input("A", str), Field.input("B", str), Field.output("Result", str)),
 )
@@ -704,7 +710,7 @@ pass
 Action1 = Block.new(
     BlockType.ACTION,
     "Action1",
-    mode=ActionMode.ADAPTIVE,
+    mode=ActionMode.ADAPT,
     text=md("Raise the Shakra"),
     fields=(Field.output("Number", int),),
 )
@@ -713,56 +719,56 @@ raise ModelIncapableError(f"Unclear requirements for {Action1!r}")
 """,
     ),
     PromptText(
-        title="Example: Change to dynamic implementation",
+        title="Example: Change to generate implementation",
         text="""\
 # context
 Action1 = Block.new(
     BlockType.ACTION,
     "Action1",
-    mode=ActionMode.ADAPTIVE,
+    mode=ActionMode.ADAPT,
     text=md("Summarize the text"),
     fields=(Field.input("Text", str), Field.output("Summary", str)),
     code=code("return {'Summary': Text[:10] + '...'}"),
 )
-# output: change to dynamic (requires a bit of AI)
-Action1.mode = ActionMode.DYNAMIC
-raise ActionModeChangedError()
+# output: change to generate (requires a bit of AI)
+Action1.mode = ActionMode.GENERATE
+raise ActionChangedError()
 """,
     ),
     PromptText(
-        title="Example: Dynamic implementation",
+        title="Example: GENERATE implementation",
         text="""\
 # context
 CountPeople = Block.new(
     BlockType.ACTION,
     "CountPeople",
-    mode=ActionMode.DYNAMIC,
+    mode=ActionMode.GENERATE,
     text=md("Count the number of people"),
     fields=(Field.input("Text", str), Field.output("Count", int)),
 )
 # inputs
 CountPeople(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
-# output: dynamic implementation (requires some AI)
+# output: generate implementation (requires some AI)
 people = ["Alice", "Bob"]
 return {"Count": len(people)}
 """,
     ),
     PromptText(
-        title="Example: Change to adaptive implementation",
+        title="Example: Change to adapt implementation",
         text="""\
 # context
 CountWords = Block.new(
     BlockType.ACTION,
     "CountWords",
-    mode=ActionMode.DYNAMIC,
+    mode=ActionMode.GENERATE,
     text=md("Count the number of words"),
     fields=(Field.input("Text", str), Field.output("Count", int)),
 )
 # inputs
 CountWords(Text="Alice and Bob are here and went to Freddy's to buy some donuts.")
-# output: change to adaptive (doesn't need AI)
-CountWords.mode = ActionMode.ADAPTIVE
-raise ActionModeChangedError()
+# output: change to adapt (doesn't need AI)
+CountWords.mode = ActionMode.ADAPT
+raise ActionChangedError()
 """,
     ),
 )

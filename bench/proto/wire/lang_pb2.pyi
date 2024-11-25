@@ -889,9 +889,9 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ActionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ACTION_MODE_UNSPECIFIED: _ClassVar[ActionMode]
-    ACTION_MODE_STATIC: _ClassVar[ActionMode]
-    ACTION_MODE_ADAPTIVE: _ClassVar[ActionMode]
-    ACTION_MODE_DYNAMIC: _ClassVar[ActionMode]
+    ACTION_MODE_CODE: _ClassVar[ActionMode]
+    ACTION_MODE_DELEGATE: _ClassVar[ActionMode]
+    ACTION_MODE_GENERATE: _ClassVar[ActionMode]
 
 class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1167,7 +1167,9 @@ class RunErrorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_ERROR_TYPE_MODEL_INCAPABLE: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_NON_RETRYABLE: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_MODEL_FAILED: _ClassVar[RunErrorType]
-    RUN_ERROR_TYPE_ACTION_MODE_CHANGED: _ClassVar[RunErrorType]
+    RUN_ERROR_TYPE_ACTION_CHANGED: _ClassVar[RunErrorType]
+    RUN_ERROR_TYPE_INVALID_CONTINUATION: _ClassVar[RunErrorType]
+    RUN_ERROR_TYPE_INVALID_CALL: _ClassVar[RunErrorType]
     RUN_ERROR_TYPE_RETRYABLE: _ClassVar[RunErrorType]
 
 class RunSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2365,9 +2367,9 @@ BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_ROLE: BlockType
 BLOCK_TYPE_IDENTITY: BlockType
 ACTION_MODE_UNSPECIFIED: ActionMode
-ACTION_MODE_STATIC: ActionMode
-ACTION_MODE_ADAPTIVE: ActionMode
-ACTION_MODE_DYNAMIC: ActionMode
+ACTION_MODE_CODE: ActionMode
+ACTION_MODE_DELEGATE: ActionMode
+ACTION_MODE_GENERATE: ActionMode
 SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
 SCHEDULE_TYPE_INTERVAL: ScheduleType
 SCHEDULE_TYPE_CRON: ScheduleType
@@ -2574,7 +2576,9 @@ RUN_ERROR_TYPE_TEXT_INVALID: RunErrorType
 RUN_ERROR_TYPE_MODEL_INCAPABLE: RunErrorType
 RUN_ERROR_TYPE_NON_RETRYABLE: RunErrorType
 RUN_ERROR_TYPE_MODEL_FAILED: RunErrorType
-RUN_ERROR_TYPE_ACTION_MODE_CHANGED: RunErrorType
+RUN_ERROR_TYPE_ACTION_CHANGED: RunErrorType
+RUN_ERROR_TYPE_INVALID_CONTINUATION: RunErrorType
+RUN_ERROR_TYPE_INVALID_CALL: RunErrorType
 RUN_ERROR_TYPE_RETRYABLE: RunErrorType
 RUN_SPAN_TYPE_UNSPECIFIED: RunSpanType
 RUN_SPAN_TYPE_CUSTOM: RunSpanType
@@ -4888,16 +4892,18 @@ class ValueBlockData(_message.Message):
     def __init__(self, value_type: _Optional[_Union[TypeInfoData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class ActionBlockData(_message.Message):
-    __slots__ = ("mode", "code", "tools_ptr", "delegate_ptr")
+    __slots__ = ("mode", "is_dynamic", "code", "tools_ptr", "delegate_ptr")
     MODE_FIELD_NUMBER: _ClassVar[int]
+    IS_DYNAMIC_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     TOOLS_PTR_FIELD_NUMBER: _ClassVar[int]
     DELEGATE_PTR_FIELD_NUMBER: _ClassVar[int]
     mode: ActionMode
+    is_dynamic: bool
     code: CodeData
     tools_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     delegate_ptr: NodeReferenceData
-    def __init__(self, mode: _Optional[_Union[ActionMode, str]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tools_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, mode: _Optional[_Union[ActionMode, str]] = ..., is_dynamic: bool = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tools_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class TextBlockData(_message.Message):
     __slots__ = ()
@@ -5316,16 +5322,18 @@ class StepData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[StepType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., run_options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., position: _Optional[_Union[Vector2Data, _Mapping]] = ..., size: _Optional[_Union[RectangleData, _Mapping]] = ...) -> None: ...
 
 class ActionStepData(_message.Message):
-    __slots__ = ("mode", "code", "tools_ptr", "delegate_ptr")
+    __slots__ = ("mode", "is_dynamic", "code", "tools_ptr", "delegate_ptr")
     MODE_FIELD_NUMBER: _ClassVar[int]
+    IS_DYNAMIC_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     TOOLS_PTR_FIELD_NUMBER: _ClassVar[int]
     DELEGATE_PTR_FIELD_NUMBER: _ClassVar[int]
     mode: ActionMode
+    is_dynamic: bool
     code: CodeData
     tools_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     delegate_ptr: NodeReferenceData
-    def __init__(self, mode: _Optional[_Union[ActionMode, str]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tools_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, mode: _Optional[_Union[ActionMode, str]] = ..., is_dynamic: bool = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tools_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SendStepData(_message.Message):
     __slots__ = ()

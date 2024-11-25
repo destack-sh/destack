@@ -148,7 +148,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 parent_run = None
             with tracer.start_as_current_span("runtime.create_run"):
                 run = Run(
-                    parent=parent_run or self.runtime.session.package,
+                    parent=parent_run or self.session.package,
                     kind=self.kind,
                     block=node if isinstance(node, Block) else node.block,
                     step=node if isinstance(node, Step) else None,
@@ -156,10 +156,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     options=options,
                     status=self.status,
                     inputs=self.inputs,
-                    session=self.runtime.session,
+                    session=self.session,
                     _skip_validate_self=True,
                 )
-                self.runtime.session._create(run)
+                self.session._create(run)
             self.tracked_run = run
 
     def __str__(self):
@@ -188,6 +188,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         yield self
         for run in self.runners:
             yield from run.walk()
+
+    @property
+    def session(self):
+        return self.runtime.session
 
     @property
     def is_tracked(self) -> bool:
@@ -240,7 +244,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             if interrupt.kind == kind and interrupt.breakpoint_site == breakpoint:
                 return interrupt
         interrupt = Interrupt.from_run(kind, self.tracked_run, breakpoint=breakpoint)
-        self.runtime.session._create(interrupt)
+        self.session._create(interrupt)
         return interrupt
 
     @final

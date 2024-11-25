@@ -56,15 +56,12 @@ export function getNodeType(node: AnyNodeData | NodeReferenceData): NodeType {
 export function generateNodeName(node: Partial<AnyNodeData>, siblings: AnyNodeData[]): string {
   if ((node as any).type != null) {
     // node subtype
+    siblings = siblings.filter((n) => (n as any).type == (node as any).type);
     const properties = PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as ObjectType];
     const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype as unknown as ObjectType];
     const enumType = ENUM_BY_TYPE[propertyInfos[properties!["type" as any]]?.enumType!];
     const subtypeName = toCasing(enumType[(node as any).type] as string, Casing.CAMEL);
-    const typeName = toCamelName(NodeType, node.metatype);
-    const maxId = Math.max(
-      ...siblings.filter((n) => (n as any).type == (node as any).type).map((n) => extractNameId((n as any).name) ?? 0),
-      1,
-    );
+    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 1);
     return `${subtypeName}${siblings.length == 0 ? "" : maxId + 1}`;
   } else {
     // node type

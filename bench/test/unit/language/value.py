@@ -80,7 +80,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     Action1 = Block.new(
         BlockType.ACTION,
         "Action1",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
         fields=[
             Field.output("Output1", PrimitiveType.INT32),
             Field.output("Output 2 with a Space", Text),

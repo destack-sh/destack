@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
 import { getRunBasePtr, getRunDurationString, isRunActive, isRunnable } from "@/language/session";
-import { HelpAspect, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
@@ -39,14 +39,21 @@ const { node } = supergraph.getLinkRef(nodePtr);
 const isNodeRunnable = computed(() => node.value != null && isRunnable(node.value));
 
 // run
-const run = computed(() => {
+const containingRun: Ref<RunData | null> = computed(() => {
   if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
     return runtime.focusedRun;
   } else {
     return null;
   }
 });
-const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) : nodePtr.value));
+const selfRun: Ref<RunData | null> = computed(() => {
+  if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
+    return runtime.focusedRunTree.getLastActiveRun({ ck: nodePtr.value.ck });
+  } else {
+    return null;
+  }
+});
+const runBasePtr = computed(() => (containingRun.value != null ? getRunBasePtr(containingRun.value) : nodePtr.value));
 function start() {
   if (startRef.value != null) {
     startRef.value.start();
@@ -91,13 +98,22 @@ defineExpose<ViewExposed>({ self });
       <NodeReference v-if="node" :node="node" :connection="pkgConnection" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->
-      <div v-if="run != null">
+      <div v-if="containingRun != null">
+        <template v-if="selfRun != null && selfRun.id != containingRun.id">
+          <span
+            class="fas fa-circle-small w-5 text-center"
+            :class="[isRunActive(selfRun) ? 'animate-pulse' : '']"
+            :style="{ color: getRunColorHex(selfRun.status) }"
+          />
+          <span class="ml-1.5 text-gray-400">{{ getRunDurationString(selfRun, { minUnit: "s" }) }}</span>
+          <span class="text-gray-400 ml-2 mr-1">/</span>
+        </template>
         <span
           class="fas fa-circle-small w-5 text-center"
-          :class="[isRunActive(run) ? 'animate-pulse' : '']"
-          :style="{ color: getRunColorHex(run.status) }"
+          :class="[isRunActive(containingRun) ? 'animate-pulse' : '']"
+          :style="{ color: getRunColorHex(containingRun.status) }"
         />
-        <span class="ml-1.5 text-gray-400">{{ getRunDurationString(run, { minUnit: "s" }) }}</span>
+        <span class="ml-1.5 text-gray-400">{{ getRunDurationString(containingRun, { minUnit: "s" }) }}</span>
       </div>
 
       <!-- Meta/Controls -->
@@ -111,8 +127,8 @@ defineExpose<ViewExposed>({ self });
         >
           <!-- Run controls -->
           <button
-            v-for="action in run != null
-              ? [...getRunActions(run), CLEAR_RUN_ACTION]
+            v-for="action in containingRun != null
+              ? [...getRunActions(containingRun), CLEAR_RUN_ACTION]
               : [{ title: 'Start', isPrimary: true, icon: makeIcon('fas fa-play'), action: () => start() }]"
             v-if="isNodeRunnable"
             :key="action.title"
