@@ -67,7 +67,7 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     ]
 
     # subtype set
-    ActionStep1.mode = ActionMode.DYNAMIC
+    ActionStep1.mode = ActionMode.GENERATE
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,

@@ -14,18 +14,21 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.ACTION_MODE)
 class ActionMode(IdEnum):
-    STATIC = 1  # always run as specified
-    ADAPTIVE = 2  # run as specified by default but adapt if out of date or error
-    DYNAMIC = 3  # dynamically adapt to inputs every time
+    CODE = 1, "Run specific hand-written code"
+    DELEGATE = 2  # always run a specific delegate
+    GENERATE = 3  # dynamically adapt or answer inputs every time
 
 
 @object_()
 class ActionBase(BuiltinObject):
     """Common base for 'actions' that do something using code somehow."""
 
-    mode: ActionMode = p_regular(100, default=ActionMode.ADAPTIVE)
+    mode: ActionMode = p_regular(100, default=ActionMode.GENERATE)
+    is_dynamic: bool = p_regular(
+        101, default=False, description="Whether this action is dynamic w.r.t. its inputs."
+    )
     text: Optional["Text"] = p_regular(
-        101,
+        110,
         default=None,
         require=False,
         array=False,
@@ -33,7 +36,7 @@ class ActionBase(BuiltinObject):
         description="Text description of this action.",
     )
     code: Optional["Code"] = p_regular(
-        102,
+        111,
         default=None,
         require=False,
         array=False,
@@ -41,7 +44,7 @@ class ActionBase(BuiltinObject):
         description="Current implementation code for this action.",
     )
     tools: list[Union["Block", "Field"]] = p_regular(
-        103,
+        112,
         require=False,
         array=True,
         references=(NodeType.BLOCK, NodeType.FIELD),
@@ -49,7 +52,7 @@ class ActionBase(BuiltinObject):
         description="Available implementations and tools for this action.",
     )
     delegate: Optional["Block"] = p_regular(
-        104,
+        113,
         require=False,
         array=False,
         references=NodeType.BLOCK,

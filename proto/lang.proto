@@ -895,9 +895,9 @@ enum BlockType {
 
 enum ActionMode {
   ACTION_MODE_UNSPECIFIED = 0;
-  ACTION_MODE_STATIC = 1;
-  ACTION_MODE_ADAPTIVE = 2;
-  ACTION_MODE_DYNAMIC = 3;
+  ACTION_MODE_CODE = 1;
+  ACTION_MODE_DELEGATE = 2;
+  ACTION_MODE_GENERATE = 3;
 }
 
 enum ScheduleType {
@@ -1173,7 +1173,9 @@ enum RunErrorType {
   RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
   RUN_ERROR_TYPE_NON_RETRYABLE = 499;
   RUN_ERROR_TYPE_MODEL_FAILED = 500;
-  RUN_ERROR_TYPE_ACTION_MODE_CHANGED = 501;
+  RUN_ERROR_TYPE_ACTION_CHANGED = 501;
+  RUN_ERROR_TYPE_INVALID_CONTINUATION = 502;
+  RUN_ERROR_TYPE_INVALID_CALL = 503;
   RUN_ERROR_TYPE_RETRYABLE = 999;
 }
 
@@ -2688,9 +2690,10 @@ message ValueBlockData {
 // A building block with logic, types, UI, state, auth, AI, ...
 message ActionBlockData {
   ActionMode mode = 100;
-  optional CodeData code = 102;
-  repeated NodeReferenceData tools_ptr = 103;
-  optional NodeReferenceData delegate_ptr = 104;
+  bool is_dynamic = 101;
+  optional CodeData code = 111;
+  repeated NodeReferenceData tools_ptr = 112;
+  optional NodeReferenceData delegate_ptr = 113;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -2921,9 +2924,10 @@ message StepData {
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message ActionStepData {
   ActionMode mode = 100;
-  optional CodeData code = 102;
-  repeated NodeReferenceData tools_ptr = 103;
-  optional NodeReferenceData delegate_ptr = 104;
+  bool is_dynamic = 101;
+  optional CodeData code = 111;
+  repeated NodeReferenceData tools_ptr = 112;
+  optional NodeReferenceData delegate_ptr = 113;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.

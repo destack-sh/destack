@@ -68,6 +68,7 @@ export type InspectSection = {
 
 type InspectRowBase = {
   title?: string;
+  subtitle?: string;
 };
 export type InspectFieldsRow = InspectRowBase & {
   type: "fields";
@@ -144,6 +145,7 @@ export function makeInspectLayout(
     path: number | [number] | [number, number],
     options?: {
       title?: string | false;
+      subtitle?: string;
       isFullWidth?: boolean;
       isDisabled?: boolean;
       default?: any;
@@ -177,6 +179,7 @@ export function makeInspectLayout(
     const row: InspectViewRow = {
       type: "view",
       title: title === false ? undefined : title,
+      subtitle: options?.subtitle,
       isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: !options?.isDisabled },
@@ -274,13 +277,23 @@ export function makeInspectLayout(
   }
 
   function actionRows(): InspectRow[] {
-    const mode: ActionMode = (subnode as ActionStepData | ActionBlockData)?.mode ?? ActionMode.ADAPTIVE;
-    const rows: InspectRow[] = [rowProperty(ActionBlockProperty.mode)];
-    if (mode == ActionMode.STATIC) {
-      rows.push(rowProperty(ActionBlockProperty.delegatePtr));
-      rows.push(rowProperty(ActionBlockProperty.code, { isFullWidth: true }));
-    } else {
+    const action = subnode as ActionStepData | ActionBlockData | undefined;
+    const mode: ActionMode = action?.mode ?? ActionMode.GENERATE;
+    const rows: InspectRow[] = [rowProperty(ActionBlockProperty.mode, { title: false, isFullWidth: true })];
+    if (mode == ActionMode.CODE) {
+      rows.push(rowProperty(ActionBlockProperty.code, { title: false, isFullWidth: true }));
+    } else if (mode == ActionMode.DELEGATE) {
+      rows.push(rowProperty(ActionBlockProperty.delegatePtr, { title: false, isFullWidth: true }));
+    } else if (mode == ActionMode.GENERATE) {
+      rows.push(rowProperty(ActionBlockProperty.isDynamic));
       rows.push(rowProperty(ActionBlockProperty.toolsPtr, { isFullWidth: true }));
+      if (!action?.isDynamic) {
+        rows.push(
+          rowProperty(ActionBlockProperty.code, { subtitle: "(Generated)", isFullWidth: true, isDisabled: true }),
+        );
+      }
+    } else if (mode != ActionMode.UNSPECIFIED) {
+      assertNever(mode);
     }
     return rows;
   }

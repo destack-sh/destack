@@ -145,6 +145,7 @@ defineExpose<ViewExposed>({ self, id });
         >
           <div v-if="row.title" class="py-0.5">
             <span class="">{{ row.title }}</span>
+            <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
           </div>
           <!-- Fields -->
           <div v-if="row.type == 'fields'" class="rounded border border-gray-200">

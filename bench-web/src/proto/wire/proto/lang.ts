@@ -3758,15 +3758,19 @@ export interface ActionBlockData {
      */
     mode: ActionMode;
     /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 102;
+     * @generated from protobuf field: bool is_dynamic = 101;
+     */
+    isDynamic: boolean;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 111;
      */
     code?: CodeData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 103;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 112;
      */
     toolsPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData delegate_ptr = 104;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData delegate_ptr = 113;
      */
     delegatePtr?: NodeReferenceData;
 }
@@ -4591,15 +4595,19 @@ export interface ActionStepData {
      */
     mode: ActionMode;
     /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 102;
+     * @generated from protobuf field: bool is_dynamic = 101;
+     */
+    isDynamic: boolean;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 111;
      */
     code?: CodeData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 103;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tools_ptr = 112;
      */
     toolsPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData delegate_ptr = 104;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData delegate_ptr = 113;
      */
     delegatePtr?: NodeReferenceData;
 }
@@ -9362,17 +9370,17 @@ export enum ActionMode {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_MODE_STATIC = 1;
+     * @generated from protobuf enum value: ACTION_MODE_CODE = 1;
      */
-    STATIC = 1,
+    CODE = 1,
     /**
-     * @generated from protobuf enum value: ACTION_MODE_ADAPTIVE = 2;
+     * @generated from protobuf enum value: ACTION_MODE_DELEGATE = 2;
      */
-    ADAPTIVE = 2,
+    DELEGATE = 2,
     /**
-     * @generated from protobuf enum value: ACTION_MODE_DYNAMIC = 3;
+     * @generated from protobuf enum value: ACTION_MODE_GENERATE = 3;
      */
-    DYNAMIC = 3
+    GENERATE = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.ScheduleType
@@ -10313,9 +10321,17 @@ export enum RunErrorType {
      */
     MODEL_FAILED = 500,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_ACTION_MODE_CHANGED = 501;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_ACTION_CHANGED = 501;
      */
-    ACTION_MODE_CHANGED = 501,
+    ACTION_CHANGED = 501,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_CONTINUATION = 502;
+     */
+    INVALID_CONTINUATION = 502,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_CALL = 503;
+     */
+    INVALID_CALL = 503,
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_RETRYABLE = 999;
      */
@@ -21444,14 +21460,16 @@ class ActionBlockData$Type extends MessageType$<ActionBlockData> {
     constructor() {
         super("symbolx.bench.ActionBlockData", [
             { no: 100, name: "mode", kind: "enum", T: () => ["symbolx.bench.ActionMode", ActionMode, "ACTION_MODE_"] },
-            { no: 102, name: "code", kind: "message", T: () => CodeData },
-            { no: 103, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 104, name: "delegate_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 101, name: "is_dynamic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 111, name: "code", kind: "message", T: () => CodeData },
+            { no: 112, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 113, name: "delegate_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ActionBlockData>): ActionBlockData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.mode = 0;
+        message.isDynamic = false;
         message.toolsPtr = [];
         if (value !== undefined)
             reflectionMergePartial<ActionBlockData>(this, message, value);
@@ -21465,13 +21483,16 @@ class ActionBlockData$Type extends MessageType$<ActionBlockData> {
                 case /* symbolx.bench.ActionMode mode */ 100:
                     message.mode = reader.int32();
                     break;
-                case /* optional symbolx.bench.CodeData code */ 102:
+                case /* bool is_dynamic */ 101:
+                    message.isDynamic = reader.bool();
+                    break;
+                case /* optional symbolx.bench.CodeData code */ 111:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 103:
+                case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 112:
                     message.toolsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData delegate_ptr */ 104:
+                case /* optional symbolx.bench.NodeReferenceData delegate_ptr */ 113:
                     message.delegatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.delegatePtr);
                     break;
                 default:
@@ -21489,15 +21510,18 @@ class ActionBlockData$Type extends MessageType$<ActionBlockData> {
         /* symbolx.bench.ActionMode mode = 100; */
         if (message.mode !== 0)
             writer.tag(100, WireType.Varint).int32(message.mode);
-        /* optional symbolx.bench.CodeData code = 102; */
+        /* bool is_dynamic = 101; */
+        if (message.isDynamic !== false)
+            writer.tag(101, WireType.Varint).bool(message.isDynamic);
+        /* optional symbolx.bench.CodeData code = 111; */
         if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tools_ptr = 103; */
+            CodeData.internalBinaryWrite(message.code, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tools_ptr = 112; */
         for (let i = 0; i < message.toolsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData delegate_ptr = 104; */
+            NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData delegate_ptr = 113; */
         if (message.delegatePtr)
-            NodeReferenceData.internalBinaryWrite(message.delegatePtr, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.delegatePtr, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23254,14 +23278,16 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
     constructor() {
         super("symbolx.bench.ActionStepData", [
             { no: 100, name: "mode", kind: "enum", T: () => ["symbolx.bench.ActionMode", ActionMode, "ACTION_MODE_"] },
-            { no: 102, name: "code", kind: "message", T: () => CodeData },
-            { no: 103, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 104, name: "delegate_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 101, name: "is_dynamic", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 111, name: "code", kind: "message", T: () => CodeData },
+            { no: 112, name: "tools_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 113, name: "delegate_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ActionStepData>): ActionStepData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.mode = 0;
+        message.isDynamic = false;
         message.toolsPtr = [];
         if (value !== undefined)
             reflectionMergePartial<ActionStepData>(this, message, value);
@@ -23275,13 +23301,16 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
                 case /* symbolx.bench.ActionMode mode */ 100:
                     message.mode = reader.int32();
                     break;
-                case /* optional symbolx.bench.CodeData code */ 102:
+                case /* bool is_dynamic */ 101:
+                    message.isDynamic = reader.bool();
+                    break;
+                case /* optional symbolx.bench.CodeData code */ 111:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 103:
+                case /* repeated symbolx.bench.NodeReferenceData tools_ptr */ 112:
                     message.toolsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData delegate_ptr */ 104:
+                case /* optional symbolx.bench.NodeReferenceData delegate_ptr */ 113:
                     message.delegatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.delegatePtr);
                     break;
                 default:
@@ -23299,15 +23328,18 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
         /* symbolx.bench.ActionMode mode = 100; */
         if (message.mode !== 0)
             writer.tag(100, WireType.Varint).int32(message.mode);
-        /* optional symbolx.bench.CodeData code = 102; */
+        /* bool is_dynamic = 101; */
+        if (message.isDynamic !== false)
+            writer.tag(101, WireType.Varint).bool(message.isDynamic);
+        /* optional symbolx.bench.CodeData code = 111; */
         if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tools_ptr = 103; */
+            CodeData.internalBinaryWrite(message.code, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tools_ptr = 112; */
         for (let i = 0; i < message.toolsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData delegate_ptr = 104; */
+            NodeReferenceData.internalBinaryWrite(message.toolsPtr[i], writer.tag(112, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData delegate_ptr = 113; */
         if (message.delegatePtr)
-            NodeReferenceData.internalBinaryWrite(message.delegatePtr, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.delegatePtr, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28376,9 +28408,10 @@ export enum ValueBlockProperty {
 
 export enum ActionBlockProperty {
   mode = 100,
-  code = 102,
-  toolsPtr = 103,
-  delegatePtr = 104,
+  isDynamic = 101,
+  code = 111,
+  toolsPtr = 112,
+  delegatePtr = 113,
 }
 
 export enum TextBlockProperty {
@@ -28439,9 +28472,10 @@ export enum IconViewProperty {
 
 export enum ActionStepProperty {
   mode = 100,
-  code = 102,
-  toolsPtr = 103,
-  delegatePtr = 104,
+  isDynamic = 101,
+  code = 111,
+  toolsPtr = 112,
+  delegatePtr = 113,
 }
 
 export enum SendStepProperty {
@@ -29493,7 +29527,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29520,7 +29554,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29602,7 +29636,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30300,10 +30334,11 @@ export const ValueBlockDataInfo: Record<ValueBlockProperty, PropertyInfo> = {
   [ValueBlockProperty.valuePacked]: { id: 101, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ActionBlockDataInfo: Record<ActionBlockProperty, PropertyInfo> = {
-  [ActionBlockProperty.mode]: { id: 100, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.ACTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionBlockProperty.code]: { id: 102, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [ActionBlockProperty.toolsPtr]: { id: 103, name: 'tools_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionBlockProperty.delegatePtr]: { id: 104, name: 'delegate_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionBlockProperty.mode]: { id: 100, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.ACTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionBlockProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionBlockProperty.code]: { id: 111, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ActionBlockProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionBlockProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const TextBlockDataInfo: Record<TextBlockProperty, PropertyInfo> = {
 
@@ -30350,10 +30385,11 @@ export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
   [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
-  [ActionStepProperty.mode]: { id: 100, name: 'mode', component: ObjectType.STEP, enumType: EnumType.ACTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionStepProperty.code]: { id: 102, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [ActionStepProperty.toolsPtr]: { id: 103, name: 'tools_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionStepProperty.delegatePtr]: { id: 104, name: 'delegate_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionStepProperty.mode]: { id: 100, name: 'mode', component: ObjectType.STEP, enumType: EnumType.ACTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 3, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionStepProperty.isDynamic]: { id: 101, name: 'is_dynamic', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionStepProperty.code]: { id: 111, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ActionStepProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionStepProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SendStepDataInfo: Record<SendStepProperty, PropertyInfo> = {
 

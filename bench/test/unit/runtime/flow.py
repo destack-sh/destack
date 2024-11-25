@@ -17,7 +17,7 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     """Run a Steps directly. Should work."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
-    Code = Step.new(StepType.ACTION, "Code", mode=ActionMode.STATIC, code=code("pass"))
+    Code = Step.new(StepType.ACTION, "Code", mode=ActionMode.CODE, code=code("pass"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Fail = Step.new(StepType.FAIL, "Fail")
     Flow1.steps.extend(Start, Code, Complete)
@@ -56,7 +56,7 @@ async def test_run_flow_spurious(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Flow1.steps.append(Step.new(StepType.START, "Start"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Code1 = Step.new(StepType.ACTION, "Code1", mode=ActionMode.STATIC, code=code("pass"))
+    Code1 = Step.new(StepType.ACTION, "Code1", mode=ActionMode.CODE, code=code("pass"))
     # don't actually connect the steps
     Flow1.steps.extend(Start, Complete, Code1)
     local_runtime.page().blocks.append(Flow1)
@@ -138,7 +138,7 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     Code1 = Step.new(
         StepType.ACTION,
         "Code1",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
         fields=(Field.input("Input1", str, is_required=True),),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
@@ -167,7 +167,7 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
     Code1 = Step.new(
         StepType.ACTION,
         "Code1",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
         code=code("return 2 * Input1"),
         fields=(
             Field.input("Input1", int, is_required=True),
@@ -190,9 +190,7 @@ async def test_run_flow_error(local_runtime: RuntimeHandle):
     """Run a code Step that raises an error. Flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
-    Code1 = Step.new(
-        StepType.ACTION, "Code1", mode=ActionMode.STATIC, code=code("raise ValueError")
-    )
+    Code1 = Step.new(StepType.ACTION, "Code1", mode=ActionMode.CODE, code=code("raise ValueError"))
     Flow1.steps.extend(Start, Code1)
     Start.connect(PipeType.PASS, Code1)
     local_runtime.page().blocks.extend(Flow1)
@@ -210,7 +208,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
     Code1 = Step.new(
         StepType.ACTION,
         "Code1",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
         code=code("raise ValueError('error')"),
         run_options=RunOptions(suppress_fail=True),
     )
@@ -232,13 +230,13 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Race1 = Step.new(
-        StepType.ACTION, "Race1", mode=ActionMode.STATIC, code=code("await asyncio.sleep(1)")
+        StepType.ACTION, "Race1", mode=ActionMode.CODE, code=code("await asyncio.sleep(1)")
     )
     Race2 = Step.new(
-        StepType.ACTION, "Race2", mode=ActionMode.STATIC, code=code("await asyncio.sleep(2)")
+        StepType.ACTION, "Race2", mode=ActionMode.CODE, code=code("await asyncio.sleep(2)")
     )
     Race3 = Step.new(
-        StepType.ACTION, "Race3", mode=ActionMode.STATIC, code=code("await asyncio.sleep(3)")
+        StepType.ACTION, "Race3", mode=ActionMode.CODE, code=code("await asyncio.sleep(3)")
     )
     Flow1.steps.extend(Start, Race1, Race2, Race3, Complete)
     Start.connect(PipeType.PASS, Race1)
@@ -261,7 +259,7 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     """Runs an infinite loop that's not infinite because it also completes immediately."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
-    Loop = Step.new(StepType.ACTION, "Loop", mode=ActionMode.STATIC, code=code("pass"))
+    Loop = Step.new(StepType.ACTION, "Loop", mode=ActionMode.CODE, code=code("pass"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Loop, Complete)
     Start.connect(PipeType.PASS, Loop)
@@ -281,12 +279,12 @@ async def test_run_flow_select_continuations_manually(local_runtime: RuntimeHand
     Router = Step.new(
         ActionStep,
         "Router",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
         code=code("pass"),
     )
-    Code2 = Step.new(ActionStep, "Code2", mode=ActionMode.STATIC, code=code("pass"))
-    Code3 = Step.new(ActionStep, "Code3", mode=ActionMode.STATIC, code=code("pass"))
-    Code4 = Step.new(ActionStep, "Code4", mode=ActionMode.STATIC, code=code("pass"))
+    Code2 = Step.new(ActionStep, "Code2", mode=ActionMode.CODE, code=code("pass"))
+    Code3 = Step.new(ActionStep, "Code3", mode=ActionMode.CODE, code=code("pass"))
+    Code4 = Step.new(ActionStep, "Code4", mode=ActionMode.CODE, code=code("pass"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow.steps.extend(Start, Router, Code2, Code3, Code4, Complete)
     Start.connect(PipeType.PASS, Router)
@@ -353,7 +351,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     Code1 = Step.new(
         StepType.ACTION,
         "Code1",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
         code=code("await asyncio.sleep(5)"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
@@ -429,7 +427,7 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
     StartOuter = Step.new(StepType.START, "Start")
-    ActionOuter = Step.new(StepType.ACTION, "Action", mode=ActionMode.STATIC, delegate=FlowInner)
+    ActionOuter = Step.new(StepType.ACTION, "Action", mode=ActionMode.CODE, delegate=FlowInner)
     CompleteOuter = Step.new(StepType.COMPLETE, "Complete")
     FlowOuter.steps.extend(StartOuter, ActionOuter, CompleteOuter)
     StartOuter.connect(PipeType.PASS, ActionOuter)
@@ -471,7 +469,7 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     Action = Step.new(
         StepType.ACTION,
         "Action",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
         code=code("pass"),
         run_options=RunOptions(
             breakpoints=[Breakpoint.before(), Breakpoint.after_completed(), Breakpoint.after()]

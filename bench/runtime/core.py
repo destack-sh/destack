@@ -39,7 +39,7 @@ BASE_RUN_OPTIONS_BY_KIND = {
 
 
 class RuntimeError(BenchError, RuntimeError):
-    def __init__(self, message: str | None, error: RunError | None = None) -> None:
+    def __init__(self, message: str | None = None, error: RunError | None = None) -> None:
         super().__init__(message)
         self.error = error
 
@@ -80,8 +80,8 @@ class ModelIncapableError(NonRetryableError):
     run_error_type = RunErrorType.MODEL_INCAPABLE
 
 
-class ActionModeChangedError(ModelIncapableError):
-    run_error_type = RunErrorType.ACTION_MODE_CHANGED
+class ActionChangedError(ModelIncapableError):
+    run_error_type = RunErrorType.ACTION_CHANGED
 
 
 class ModelFailedError(RetryableError):

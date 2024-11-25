@@ -18,12 +18,12 @@ def _for_every_provider():
     )
 
 
-async def test_run_action_empty_strict(hosted_runtime: RuntimeHandle):
+async def test_run_action_empty_code(hosted_runtime: RuntimeHandle):
     """Running an empty action in strict mode should raise an error."""
     ActionBlock1 = Block.new(
         ActionBlock,
         "Action1",
-        mode=ActionMode.STATIC,
+        mode=ActionMode.CODE,
     )
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()
@@ -33,9 +33,9 @@ async def test_run_action_empty_strict(hosted_runtime: RuntimeHandle):
     assert runner.error and runner.error.type == RunErrorType.RUN_IMPOSSIBLE
 
 
-async def test_run_action_empty_adaptive(hosted_runtime: RuntimeHandle):
-    """Running an empty action in adaptive mode should raise an error."""
-    ActionBlock1 = Block.new(ActionBlock, "Action1", mode=ActionMode.ADAPTIVE)
+async def test_run_action_empty_generate(hosted_runtime: RuntimeHandle):
+    """Running an empty action in generate mode should raise an error."""
+    ActionBlock1 = Block.new(ActionBlock, "Action1", mode=ActionMode.GENERATE)
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()
 
@@ -45,7 +45,7 @@ async def test_run_action_empty_adaptive(hosted_runtime: RuntimeHandle):
 
 async def test_run_action_math(hosted_runtime: RuntimeHandle):
     """
-    Running an adaptive action with a math implementation should work.
+    Running a generate action with a math implementation should work.
     Changing the action and re-running should change the output.
     """
     # Base: 'Add 1'
@@ -53,7 +53,7 @@ async def test_run_action_math(hosted_runtime: RuntimeHandle):
         ActionBlock,
         "Action1",
         text=md("Add 1"),
-        mode=ActionMode.ADAPTIVE,
+        mode=ActionMode.GENERATE,
         fields=[Field.input("x", int), Field.output("y", int)],
     )
     hosted_runtime.page().blocks.append(ActionBlock1)
@@ -73,9 +73,9 @@ async def test_run_action_math(hosted_runtime: RuntimeHandle):
 
 async def test_run_action_dynamic_text(hosted_runtime: RuntimeHandle):
     """
-    Running an adaptive action with a desired dynamic behaviour should update it to dynamic,
+    Running a generate action with a desired dynamic behaviour should update it to dynamic,
      and then it should run as expected.
-    Changing it back to desired adaptive behavior should return it to adaptive mode.
+    Changing it back to desired generate behavior should return it to generate mode.
     """
     # Sentiment analysis
     Sentiment = Block.new(
@@ -87,22 +87,22 @@ async def test_run_action_dynamic_text(hosted_runtime: RuntimeHandle):
         ActionBlock,
         "Action1",
         text=md("Judge text sentiment"),
-        mode=ActionMode.ADAPTIVE,
+        mode=ActionMode.GENERATE,
         fields=(Field.input("Text", str), Field.output("Sentiment", Sentiment)),
     )
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()
 
-    # Run as adaptive, should become dynamic
+    # Run as generate, should become dynamic
     runner = await hosted_runtime.run(ActionBlock1, inputs={"Text": "That was great!"})
     assert runner.outputs and runner.outputs.Sentiment == Sentiment.fields.Positive
-    assert ActionBlock1.mode == ActionMode.DYNAMIC  # should change to dynamic
+    assert ActionBlock1.is_dynamic  # should change to dynamic
 
-    # Change so that it should run as adaptive again
+    # Change so that it should run as generate again
     ActionBlock1.text = md("The text is positive if it contains the phrase 'good' (verbatim)")
     runner = await hosted_runtime.run(ActionBlock1, inputs={"Text": "That was good!"})
     assert runner.outputs and runner.outputs.Sentiment == Sentiment.fields.Positive
-    assert ActionBlock1.mode == ActionMode.ADAPTIVE  # should change back to adaptive
+    assert not ActionBlock1.is_dynamic  # should change back to generate
     runner = await hosted_runtime.run(ActionBlock1, inputs={"Text": "That was bad!"})
     assert runner.outputs and runner.outputs.Sentiment == Sentiment.fields.Negative
-    assert ActionBlock1.mode == ActionMode.ADAPTIVE  # should remain adaptive
+    assert not ActionBlock1.is_dynamic  # should remain generate
