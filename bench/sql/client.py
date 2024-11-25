@@ -206,7 +206,7 @@ class PostgresConnection:
         PostgresConnection._connection_id += 1
         self._conn = conn
         self._cursor = conn.cursor()
-        self._lock = asyncio.Lock()
+        self.lock = asyncio.Lock()  # lock to acquire while using the connection
         self.autocommit = autocommit
 
     def __str__(self):
