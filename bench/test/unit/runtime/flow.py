@@ -6,7 +6,7 @@ from bench.language import ActionMode, BlockType, RunStatus
 from bench.language.block import Block
 from bench.language.code import code
 from bench.language.field import Field
-from bench.language.flow import PipeType, Step, StepType
+from bench.language.flow import ActionStep, PipeType, Step, StepType
 from bench.language.interrupt import Breakpoint, BreakpointScope
 from bench.language.run import RunErrorType, RunOptions
 from bench.runtime.runner import make_run_from_node
@@ -272,6 +272,39 @@ async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Flow1)
     assert runner.tracked_run and len(runner.tracked_run.runs) <= 10  # should complete quickly
+
+
+async def test_run_flow_select_continuations_manually(local_runtime: RuntimeHandle):
+    """Runs a Flow with manually selected Continuations."""
+    Flow = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Router = Step.new(
+        ActionStep,
+        "Router",
+        mode=ActionMode.STATIC,
+        code=code("pass"),
+    )
+    Code2 = Step.new(ActionStep, "Code2", mode=ActionMode.STATIC, code=code("pass"))
+    Code3 = Step.new(ActionStep, "Code3", mode=ActionMode.STATIC, code=code("pass"))
+    Code4 = Step.new(ActionStep, "Code4", mode=ActionMode.STATIC, code=code("pass"))
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow.steps.extend(Start, Router, Code2, Code3, Code4, Complete)
+    Start.connect(PipeType.PASS, Router)
+    Router.connect(PipeType.SELECT, Complete)
+    Router.connect(PipeType.SELECT, Code2)
+    Router.connect(PipeType.OPTION, Code3)
+    Router.connect(PipeType.OPTION, Code4)
+    await local_runtime.commit()
+
+    # first run: select Code2 and Code3
+    Router.code = code("""\
+return {
+    'continuations': [Continue.new(Code2), Continue.new(Code3)],
+}
+""")
+    runner = await local_runtime.run(Flow)
+    assert runner.tracked_run
+    assert runner.tracked_run.has(Code2) and runner.tracked_run.has(Code3)
 
 
 async def test_run_flow_abort(local_runtime: RuntimeHandle):

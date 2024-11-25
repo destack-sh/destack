@@ -202,7 +202,7 @@ class NodeType(IdEnum):
     # Regional
     #
 
-    # resource (named)
+    # resource (virtual)
     SERVER = 200  # elastic compute
     STORE = 201  # real database
     DRIVE = 203  # object store like S3/MinIO, maybe block storage later

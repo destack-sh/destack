@@ -164,6 +164,9 @@ class CustomObject(Mapping[str, Any]):
 
     __eq__ = equals
 
+    def __bool__(self) -> bool:
+        return True  # always True
+
     def _get_key(self, item: str) -> "Field | Property | None":
         object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[self.kind]
         prop = object_cls.__properties__.get(item)

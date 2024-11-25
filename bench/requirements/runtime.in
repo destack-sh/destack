@@ -36,6 +36,7 @@ psycopg[binary,pool]==3.2.3
 pyairtable==2.3.5
 pyarrow==18.0.0
 pydantic>=2
+pydub==0.25.1
 PyGithub>=2.3.0
 pypandoc==1.13
 pypdf>=3.16.0
