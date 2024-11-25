@@ -225,6 +225,9 @@ def origin_matches(origin: ClientOriginData, other: ClientOriginData) -> bool:
     return origin.id == other.id and origin.nonce == other.nonce
 
 
+# NOTE :Architecture :Cleanup: the whole Engine/Channel/Connection system seems convoluted
+
+
 class GraphEngine[C: Channel](abc.ABC):
     """A Graph IO service to perform IO on some subgraph."""
 
@@ -264,7 +267,7 @@ class GraphEngine[C: Channel](abc.ABC):
 
     @abc.abstractmethod
     async def channel(self, session: "Session") -> C:
-        """Opens an IO channel on this subgraph in a session."""
+        """Opens an IO channel on this subgraph in a Session."""
         ...
 
 
@@ -284,7 +287,7 @@ class NullEngine(GraphEngine):
 
 
 class Channel[E: GraphEngine](abc.ABC):
-    """A channel to a specific store to read from in a session."""
+    """A channel to a specific Store to read from in a Session."""
 
     def __init__(self, engine: E, session: "Session"):
         self.engine = engine
@@ -400,7 +403,7 @@ class Connection[
     ResultDataT: ResultData,
     UpdateT: UpdateData,
 ](abc.ABC):
-    """A connection to a graph for some query."""
+    """A Connection to a Graph for some Query."""
 
     def __init__(
         self,

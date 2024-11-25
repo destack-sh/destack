@@ -13,7 +13,7 @@ from bench.test.unit.conftest import RuntimeHandle
 
 
 async def test_run_code_function_empty(local_runtime: RuntimeHandle):
-    """Empty Code without any fields should fail."""
+    """Empty Code with optional input/output Fields should work."""
     Code1 = Block.new(
         BlockType.ACTION,
         "Code1",
@@ -24,8 +24,7 @@ async def test_run_code_function_empty(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     runner = await local_runtime.run(Code1, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.RUN_IMPOSSIBLE
+    assert runner.status == RunStatus.COMPLETED
 
 
 async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
