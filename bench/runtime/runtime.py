@@ -108,7 +108,7 @@ class Runtime:
                         runner.outputs = CustomObject.new(ObjectKind.OUTPUT, {}, runner.output_type)
                     check_value(runner.outputs, runner.output_type, on_invalid_raise)
             attempt._do_set("status", RunStatus.COMPLETED, validate=False)
-            log.debug("runtime.attempt", attempt=attempt, span="current")
+            log.debug("runtime.attempt.completed", attempt=attempt, span="current")
         except asyncio.CancelledError as e:
             # cancelled
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
