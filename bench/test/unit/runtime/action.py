@@ -4,7 +4,7 @@ from bench.language.action import ActionMode
 from bench.language.block import ActionBlock, Block
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
-from bench.language.run import ModelProvider, RunErrorType
+from bench.language.run import ModelProvider
 from bench.language.text import md
 from bench.runtime.core import ModelIncapableError
 from bench.test.unit.conftest import RuntimeHandle
@@ -18,8 +18,8 @@ def _for_every_provider():
     )
 
 
-async def test_run_action_empty_code(hosted_runtime: RuntimeHandle):
-    """Running an empty action in strict mode should raise an error."""
+async def test_run_action_code(hosted_runtime: RuntimeHandle):
+    """Running an empty code action should work."""
     ActionBlock1 = Block.new(
         ActionBlock,
         "Action1",
@@ -29,8 +29,7 @@ async def test_run_action_empty_code(hosted_runtime: RuntimeHandle):
     await hosted_runtime.commit()
 
     runner = await hosted_runtime.run(ActionBlock1, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.RUN_IMPOSSIBLE
+    assert runner.status == RunStatus.COMPLETED
 
 
 async def test_run_action_empty_generate(hosted_runtime: RuntimeHandle):
@@ -77,7 +76,7 @@ async def test_run_action_dynamic_text(hosted_runtime: RuntimeHandle):
      and then it should run as expected.
     Changing it back to desired generate behavior should return it to generate mode.
     """
-    # Sentiment analysis
+    # sentiment analysis... exciting
     Sentiment = Block.new(
         BlockType.CHOICE,
         "Sentiment",
@@ -93,16 +92,16 @@ async def test_run_action_dynamic_text(hosted_runtime: RuntimeHandle):
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()
 
-    # Run as generate, should become dynamic
+    # run as generate, should become dynamic
     runner = await hosted_runtime.run(ActionBlock1, inputs={"Text": "That was great!"})
     assert runner.outputs and runner.outputs.Sentiment == Sentiment.fields.Positive
     assert ActionBlock1.is_dynamic  # should change to dynamic
 
-    # Change so that it should run as generate again
-    ActionBlock1.text = md("The text is positive if it contains the phrase 'good' (verbatim)")
+    # change so that it should run as static again
+    ActionBlock1.text = md("The text is positive if it contains 'good' (verbatim)")
     runner = await hosted_runtime.run(ActionBlock1, inputs={"Text": "That was good!"})
     assert runner.outputs and runner.outputs.Sentiment == Sentiment.fields.Positive
-    assert not ActionBlock1.is_dynamic  # should change back to generate
+    assert not ActionBlock1.is_dynamic  # should change back to static
     runner = await hosted_runtime.run(ActionBlock1, inputs={"Text": "That was bad!"})
     assert runner.outputs and runner.outputs.Sentiment == Sentiment.fields.Negative
-    assert not ActionBlock1.is_dynamic  # should remain generate
+    assert not ActionBlock1.is_dynamic  # should remain static

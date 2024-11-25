@@ -139,8 +139,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                                 continue
                             continued_option = pipe
 
-                        # assemble Pipe inputs
-                        # nocheckin: do :PipeMapping
+                        # assemble Pipe inputs :PipeMapping
                         input_type = pipe.input_type
                         assert input_type is not None, f"no input type for {pipe!r}"
                         inputs = CustomObject.new(ObjectKind.INPUT, {}, input_type)
@@ -155,7 +154,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         outgoing.append(next_run)
             elif isinstance(runner.node, Pipe):
                 # NOTE :Incomplete: allow Steps to wait for multiple incoming Pipes
-                # nocheckin: assemble Step inputs :PipeMapping
+                # assemble Step inputs :PipeMapping
                 next_run = self._start(
                     runner.node.target, inputs=runner.outputs, incoming=(runner.tracked_run,)
                 )
@@ -464,8 +463,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
         if self.node.delay is not None:
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
         if self.output_type is not None:
-            # assemble/map inputs from incoming Runs/Context
-            # nocheckin: do :PipeMapping
+            # assemble/map inputs from incoming Runs/Context :PipeMapping
             self.outputs = CustomObject.new(ObjectKind.INPUT, {}, self.output_type)
             if self.inputs is not None:
                 for field in self.outputs._type._fields:

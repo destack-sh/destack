@@ -503,7 +503,7 @@ class Connection[
                             if isinstance(e, ChannelUnavailableError):
                                 # try reconnecting the channel
                                 await self.channel.reset()
-                                self.log.debug("connect.reconnect")
+                                self.log.debug("connect.reset")
                 else:
                     raise retry.to_error(operation=self.query)
                 # unpack (should not be retried)
