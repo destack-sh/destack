@@ -163,7 +163,7 @@ class EditStack {
 
 // one edit stack for all bench tx buffers
 // NOTE :UX: we currently only have one shared edit stack, should probably be per view root?
-const editStack = new EditStack((e) => e.category != ChangeCategory.SPACE && e.category != ChangeCategory.SESSION);
+const editStack = new EditStack((e) => e.category != ChangeCategory.SPACE && e.category != ChangeCategory.RUNTIME);
 const editStackSubs: Array<() => void> = [];
 watch(
   txBuffers,

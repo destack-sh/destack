@@ -393,7 +393,7 @@ enum AccessType {
 enum ChangeCategory {
   CHANGE_CATEGORY_UNSPECIFIED = 0;
   CHANGE_CATEGORY_SPACE = 10;
-  CHANGE_CATEGORY_SESSION = 20;
+  CHANGE_CATEGORY_RUNTIME = 20;
 }
 
 // The type of edit operation.

@@ -7552,9 +7552,9 @@ export enum ChangeCategory {
      */
     SPACE = 10,
     /**
-     * @generated from protobuf enum value: CHANGE_CATEGORY_SESSION = 20;
+     * @generated from protobuf enum value: CHANGE_CATEGORY_RUNTIME = 20;
      */
-    SESSION = 20
+    RUNTIME = 20
 }
 /**
  * The type of edit operation.

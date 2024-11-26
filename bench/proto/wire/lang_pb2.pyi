@@ -400,7 +400,7 @@ class ChangeCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CHANGE_CATEGORY_UNSPECIFIED: _ClassVar[ChangeCategory]
     CHANGE_CATEGORY_SPACE: _ClassVar[ChangeCategory]
-    CHANGE_CATEGORY_SESSION: _ClassVar[ChangeCategory]
+    CHANGE_CATEGORY_RUNTIME: _ClassVar[ChangeCategory]
 
 class EditOperationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1941,7 +1941,7 @@ ACCESS_TYPE_SEND: AccessType
 ACCESS_TYPE_RECEIVE: AccessType
 CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
 CHANGE_CATEGORY_SPACE: ChangeCategory
-CHANGE_CATEGORY_SESSION: ChangeCategory
+CHANGE_CATEGORY_RUNTIME: ChangeCategory
 EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
 EDIT_OPERATION_TYPE_SET: EditOperationType
 EDIT_OPERATION_TYPE_CLEAR: EditOperationType

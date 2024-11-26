@@ -3,7 +3,7 @@ import { SINK_STEP_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { FLOW_PORT_SIZE, getStepSides, STEP_CONTEXT_ACTIONS, STEP_SIZE, useFlowContext } from "@/language/flow";
 import { getRunDurationString, isRunActive } from "@/language/session";
-import { ColorShade, FieldType, NodeType, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
+import { ColorShade, FieldType, NodeType, Orientation, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
 import { canvas, pkgConnection } from "@/system/space";
@@ -12,6 +12,7 @@ import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
+import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -151,15 +152,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Controls/Meta -->
           <div class="ml-auto flex flex-row pl-2 pr-1.5">
             <!-- Run status -->
-            <button v-if="lastRun != null" class="rounded px-1 hover:bg-gray-100">
-              <span class="ml-1.5 text-gray-400">{{ getRunDurationString(lastRun, { minUnit: "s" }) }}</span>
-              <span
-                class="fas fa-circle-small ml-0.5 w-5 text-center"
-                :class="[isRunActive(lastRun) ? 'animate-pulse' : '']"
-                :style="{
-                  color: getRunColorHex(lastRun.status),
-                }"
-              />
+            <button v-if="lastRun != null" class="rounded hover:bg-gray-100">
+              <RunStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" />
             </button>
           </div>
         </div>
