@@ -1,11 +1,11 @@
 import asyncio
-import enum
 import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, assert_never, override
+from typing import TYPE_CHECKING, override
 
 import structlog
+from more_itertools import first
 from opentelemetry import trace
 
 from bench.language.bench import Bench, ResourceStatus
@@ -17,7 +17,7 @@ from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.trigger import Trigger
 from bench.proto.services import get_channel
-from bench.proto.wire import KillRunRequest, PauseRunRequest, ProcessRunRequest, RuntimeClient
+from bench.proto.wire import RunRequest, RuntimeClient
 from bench.system.host.core import Commit, DeferredHostPlugin, Host, HostPlugin
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
@@ -29,16 +29,8 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class RunOperation(enum.Enum):
-    START = 1
-    PAUSE = 2
-    RESUME = 3
-    KILL = 4
-
-
 @dataclass(slots=True)
 class PendingRunOperation:
-    op: RunOperation
     run: Run
     retry: RetryState
     retry_at: datetime | None = None
@@ -64,17 +56,12 @@ class RunPlugin(HostPlugin[Run]):
         #  (like Runs 'stuck' on dead or since restarted Machines)
         self.tasks.start_queue(self._run_queue, self._process_queue, skip_errors=True)
 
-    def _queue_operation(self, op: RunOperation, run: Run) -> PendingRunOperation:
-        """Queues a Run operation. Cancels any preceding operations for the same Run."""
-        # cancel any previous operations for this run
-        for pending_op in self._run_queue._queue:  # type: ignore
-            if pending_op.run.id == run.id:
-                pending_op.is_cancelled = True
-                logger.trace(f"scheduler.{op.name.lower()}.cancel", host=self, run=run)
+    def _queue_run(self, run: Run) -> PendingRunOperation:
+        """Queues a Run operation.."""
         # queue new operation
-        pending_op = PendingRunOperation(op=op, run=run, retry=self._retry.new(self.host.oracle))
+        pending_op = PendingRunOperation(run=run, retry=self._retry.new(self.host.oracle))
         self._run_queue.put_nowait(pending_op)
-        logger.trace(f"scheduler.{op.name.lower()}.queue", host=self, run=run)
+        logger.trace("scheduler.run.queue", host=self, run=run)
         return pending_op
 
     @override
@@ -82,14 +69,11 @@ class RunPlugin(HostPlugin[Run]):
         for run in commit.added:
             # start new scheduled runs
             if run.status == RunStatus.SCHEDULED and run.parent_type == NodeType.PACKAGE:
-                self._queue_operation(RunOperation.START, run)
+                self._queue_run(run)
         for run in commit.updated:
             # resume active runs
             if run.resumed_at is not None and run.status.is_interrupted:
-                self._queue_operation(RunOperation.RESUME, run)
-            # kill active runs with killed_at
-            if run.killed_at is not None and not run.status.is_terminal:
-                self._queue_operation(RunOperation.KILL, run)
+                self._queue_run(run)
 
     @tracer.start_as_current_span("scheduler.process_run")
     async def _process_queue(self, op: PendingRunOperation) -> None:
@@ -98,7 +82,6 @@ class RunPlugin(HostPlugin[Run]):
         run = op.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
         assert self.bench.main_server, f"missing main server for {self.bench!r}"
-        op_name = op.op.name.lower()
         log = logger.bind(host=self, run=run, server=self.bench.main_server, retry=op.retry)
 
         # select machines to process run on
@@ -110,64 +93,33 @@ class RunPlugin(HostPlugin[Run]):
                 & Machine.get_property("type").eq(MachineType.RUNTIME)
             )
             .select_all()
-            .tolist()
+            .to_list()
         )
-        if op.op == RunOperation.START:
-            # start on any available machine
-            candidate_machines = available_machines
-        elif op.op == RunOperation.RESUME:
-            # if last machine is still available, resume on it
-            if run.machine_id and any(m for m in available_machines if m.id == run.machine_id):
-                candidate_machines = [m for m in available_machines if m.id == run.machine_id]
-            else:  # otherwise, resume on any available machine
-                candidate_machines = available_machines
-        elif op.op == RunOperation.PAUSE or op.op == RunOperation.KILL:
-            # pause/kill on relevant machines
-            candidate_machines = [
-                m for m in available_machines if run.machine_id is None or m.id == run.machine_id
-            ]
+        # if last machine is still available, use that
+        existing_machine = first((m for m in available_machines if m.id == run.machine_id), None)
+        if existing_machine:
+            candidate_machines = [existing_machine]
         else:
-            assert_never(op.op)
-        random.shuffle(candidate_machines)
+            # otherwise, pick any available machine
+            candidate_machines = available_machines
+            random.shuffle(candidate_machines)
 
         # contact machines
         for machine in candidate_machines:
             try:
                 assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
                 runtime = RuntimeClient(get_channel(machine.connection_uri))
-                if op.op == RunOperation.START or op.op == RunOperation.RESUME:
-                    request = ProcessRunRequest(run=run._to_data(), is_blocking=False)
-                    response = await runtime.process_run(request)
-                    success = True
-                elif op.op == RunOperation.PAUSE:
-                    request = PauseRunRequest(run=run._to_data())
-                    response = await runtime.pause_run(request)
-                    success = response.is_processed
-                elif op.op == RunOperation.KILL:
-                    request = KillRunRequest(run=run._to_data())
-                    response = await runtime.kill_run(request)
-                    success = response.is_processed
-                else:
-                    assert_never(op.op)
-                if success:
-                    log.debug(f"scheduler.{op_name}", machine=machine, span="current")
-                    return  # success
+                request = RunRequest(run=run._to_data(), is_blocking=False)
+                _ = await runtime.run(request)
+                log.debug("scheduler.run", machine=machine, span="current")
+                return  # success
             except Exception as e:
-                log.error(f"scheduler.{op_name}.error", machine=machine, error=e)
+                log.error("scheduler.run.error", machine=machine, error=e)
                 op.retry.on_error(e)
                 continue
 
         # failed to process run
-        if op.op == RunOperation.PAUSE or op.op == RunOperation.KILL:
-            # kill directly
-            async with self.host.session(commit=True):
-                run.status = RunStatus.ABORTED
-                run.terminated_at = self.host.oracle.utc()
-                if run.started_at is None:
-                    run.started_at = run.terminated_at
-                if run.started_at is not None:
-                    run.duration = run.terminated_at - run.started_at
-        elif not op.retry.should_retry:
+        if not op.retry.should_retry:
             # give up
             error = RunError(
                 kind=RunErrorKind.RUNTIME,
@@ -176,13 +128,13 @@ class RunPlugin(HostPlugin[Run]):
                 text=Text.from_markdown("Could not reach any applicable Machine."),
             )
             async with self.host.session(commit=True):  # :StaleNodes
-                run.status = RunStatus.ABORTED if op.op == RunOperation.KILL else RunStatus.FAILED
+                run.status = RunStatus.ABORTED if run.started_at else RunStatus.CANCELLED
                 run.terminated_at = self.host.oracle.utc()
                 if run.started_at is not None:
                     run.duration = run.terminated_at - run.started_at
                 run.error = error
             log.error(
-                f"scheduler.{op_name}.failed",
+                "scheduler.run.failed",
                 server=self.bench.main_server,
                 machines=available_machines,
                 error=error,
@@ -197,7 +149,7 @@ class RunPlugin(HostPlugin[Run]):
                 callback=lambda: op.is_cancelled or self._run_queue.put_nowait(op),
             )
             log.trace(
-                f"scheduler.{op_name}.retry",
+                "scheduler.run.retry",
                 server=self.bench.main_server,
                 machines=available_machines,
                 interval=op.retry.get_wait_interval,

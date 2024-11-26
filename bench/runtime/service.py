@@ -4,7 +4,6 @@ import os
 import random
 import sys
 from asyncio.subprocess import Process
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Awaitable, Mapping, assert_never, override
 from uuid import UUID
@@ -21,13 +20,9 @@ from bench.proto.wire import (
     HealthCheckRequest,
     HealthClient,
     HostClient,
-    KillRunRequest,
-    KillRunResponse,
-    PauseRunRequest,
-    PauseRunResponse,
-    ProcessRunRequest,
-    ProcessRunResponse,
     RunData,
+    RunRequest,
+    RunResponse,
     RuntimeBase,
     RuntimeClient,
     ServiceKind,
@@ -51,16 +46,16 @@ RUNTIME_HEALTHCHECK_TIMEOUT = get_from_env(
 )
 
 
-@dataclass(slots=True)
-class ManagedRun:
-    """A runtime run that is managed in this service."""
+class RunHandle:
+    """A Run that in this service."""
 
-    service: "RuntimeService"
-    run_data: RunData
-    run: Run
-    thread: "ManagedThread | None" = None
-    started_at: datetime | None = None  # tracked outside Run to avoid interference with thread
-    task: asyncio.Task | None = None
+    def __init__(self, service: "RuntimeService", run_data: RunData, run: Run):
+        self.service = service
+        self.run_data = run_data
+        self.run = run
+        self.thread: RuntimeThreadHandle | None = None
+        self.started_at: datetime | None = None
+        self.task: asyncio.Task | None = None
 
     def _do_terminate(self, status: RunStatus):
         self.run.status = status
@@ -71,8 +66,8 @@ class ManagedRun:
             self.run.duration = self.run.terminated_at - self.started_at
 
 
-class ManagedThread:
-    """An active runtime thread running (somehow) in this service."""
+class RuntimeThreadHandle:
+    """An active RuntimeThread in this service."""
 
     def __init__(self, service: "RuntimeService", *, id: int, mode: RuntimeThreadMode):
         self.service = service
@@ -80,9 +75,9 @@ class ManagedThread:
         self.mode = mode
 
         self._client: RuntimeClient | RuntimeBase | None = None
-        self._started_at: datetime | None = None
+        self._restarted_at: datetime | None = None
         self._restarts = 0
-        self._active_runs: list[ManagedRun] = []
+        self._active_runs: list[RunHandle] = []
 
         # local
         self._thread: RuntimeThread | None = None
@@ -129,7 +124,7 @@ class ManagedThread:
             )
         else:
             assert_never(self.mode)
-        self._started_at = self.service.oracle.utc()
+        self._restarted_at = self.service.oracle.utc()
 
         # start healthcheck (if needed)
         if self.mode == RuntimeThreadMode.PROCESS:
@@ -188,7 +183,7 @@ class ManagedThread:
         else:
             assert_never(self.mode)
         self._restarts += 1
-        self._started_at = self.service.oracle.utc()
+        self._restarted_at = self.service.oracle.utc()
         logger.debug("runtime.restart_thread", thread=self, restarts=self._restarts)
 
     async def restart(self):
@@ -210,8 +205,8 @@ class ManagedThread:
             logger.error("runtime.in_thread.timeout", thread=self, error=e)
             # restart if thread wasn't restarted recently
             if (
-                not self._started_at
-                or (self.service.oracle.utc() - self._started_at).total_seconds()
+                not self._restarted_at
+                or (self.service.oracle.utc() - self._restarted_at).total_seconds()
                 > RUNTIME_HEALTHCHECK_TIMEOUT
             ):
                 await self.restart()
@@ -274,8 +269,8 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         self._max_threads = max_threads
         self._max_concurrency_per_thread = max_concurrency_per_thread
         self._run_semaphore = asyncio.BoundedSemaphore(max_threads * max_concurrency_per_thread)
-        self._threads: list[ManagedThread] = []
-        self._active_runs: list[ManagedRun] = []
+        self._threads: list[RuntimeThreadHandle] = []
+        self._active_runs: list[RunHandle] = []
 
     def __str__(self):
         return f"{self._client_id} on {self._bench_id}"
@@ -304,7 +299,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             os.setsid()
         assert self._max_threads > 0, f"no threads for {self!r}"
         self._threads = [
-            ManagedThread(self, id=i, mode=self._mode) for i in range(self._max_threads)
+            RuntimeThreadHandle(self, id=i, mode=self._mode) for i in range(self._max_threads)
         ]
         await asyncio.gather(*(t.start() for t in self._threads))
         logger.info("runtime.start", runtime=self)
@@ -318,8 +313,8 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         await super().wait_closed()
         await asyncio.gather(*(t.wait_closed() for t in self._threads))
 
-    @tracer.start_as_current_span("runtime.process_run")
-    async def _do_process_run(self, run: ManagedRun):
+    @tracer.start_as_current_span("runtime.run")
+    async def _do_run(self, run: RunHandle):
         run.started_at = self.oracle.utc()
         self._active_runs.append(run)
         try:
@@ -337,23 +332,20 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                     lambda: run.thread and asyncio.create_task(run.thread.healthcheck()),
                 )
                 # and run 'blocking'
-                request = ProcessRunRequest(run=run.run_data, is_blocking=True)
+                request = RunRequest(run=run.run_data, is_blocking=True)
                 if isinstance(run.thread.client, RuntimeBase):
-                    _ = await run.thread.client.process_run(request, {})
+                    _ = await run.thread.client.run(request, {})
                 elif isinstance(run.thread.client, RuntimeClient):
-                    _ = await run.thread.client.process_run(request)
+                    _ = await run.thread.client.run(request)
                 else:
                     raise RuntimeError(f"unexpected : {type(run.thread.client)}")
                 extra_healthcheck.cancel()  # no longer needed
                 logger.info(
-                    "runtime.process_run", thread=run.thread, run_id=run.run_data.id, span="current"
+                    "runtime.run", thread=run.thread, run_id=run.run_data.id, span="current"
                 )
             except Exception as e:
                 logger.error(
-                    "runtime.process_run.error",
-                    thread=run.thread,
-                    run_id=run.run_data.id,
-                    exc_info=e,
+                    "runtime.run.error", thread=run.thread, run_id=run.run_data.id, exc_info=e
                 )
                 raise
             finally:
@@ -364,7 +356,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             self._active_runs.remove(run)
 
     @override
-    async def process_run(self, request: ProcessRunRequest, headers: Mapping) -> ProcessRunResponse:
+    async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
         assert self._main_package, f"{self!r} has no main package"
         set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=request.run.id)
 
@@ -376,63 +368,11 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             run = wiring.unpack_object(
                 request.run, supergraph=self._supergraph, session=session, expect=Run
             )
-            managed_run = ManagedRun(service=self, run_data=request.run, run=run)
+            managed_run = RunHandle(service=self, run_data=request.run, run=run)
 
         # process it (queue and run)
-        managed_run.task = asyncio.create_task(self._do_process_run(managed_run))
+        managed_run.task = asyncio.create_task(self._do_run(managed_run))
         if request.is_blocking:
             await managed_run.task
 
-        return ProcessRunResponse()
-
-    @override
-    async def pause_run(self, request: PauseRunRequest, headers: Mapping) -> PauseRunResponse:
-        # find active run
-        for run in self._active_runs:
-            if run.run_data.id == request.run.id:
-                if run.thread is None:
-                    # not yet running, cancel directly
-                    assert run.task is not None, f"no task for {run!r}"
-                    run.task.cancel()
-                    async with self.session() as session:
-                        run.run.status = RunStatus.PAUSED
-                        session.commit_optimistic()
-                else:
-                    # pause in thread
-                    request = PauseRunRequest(run=run.run_data)
-                    if isinstance(run.thread.client, RuntimeBase):
-                        method = run.thread.client.pause_run(request, headers)
-                    elif isinstance(run.thread.client, RuntimeClient):
-                        method = run.thread.client.pause_run(request, metadata=headers)
-                    else:
-                        raise RuntimeError(f"unexpected : {type(run.thread.client)}")
-                    _ = await run.thread.do(method, timeout=None)
-                return PauseRunResponse(is_processed=True)
-        else:
-            return PauseRunResponse(is_processed=False)
-
-    @override
-    async def kill_run(self, request: KillRunRequest, headers: Mapping) -> KillRunResponse:
-        # find active run
-        for run in self._active_runs:
-            if run.run_data.id == request.run.id:
-                if run.thread is None:
-                    # not yet running, cancel directly
-                    assert run.task is not None, f"no task for {run!r}"
-                    run.task.cancel()
-                    async with self.session() as session:
-                        run._do_terminate(RunStatus.CANCELLED)
-                        session.commit_optimistic()
-                else:
-                    # kill in thread
-                    request = KillRunRequest(run=run.run_data)
-                    if isinstance(run.thread.client, RuntimeBase):
-                        method = run.thread.client.kill_run(request, headers)
-                    elif isinstance(run.thread.client, RuntimeClient):
-                        method = run.thread.client.kill_run(request, metadata=headers)
-                    else:
-                        raise RuntimeError(f"unexpected : {type(run.thread.client)}")
-                    _ = await run.thread.do(method, timeout=None)
-                return KillRunResponse(is_processed=True)
-        else:
-            return KillRunResponse(is_processed=False)
+        return RunResponse()

@@ -1,15 +1,8 @@
-import {
-  BOUNDARY_STEP_TYPES,
-  getPropertyTitle,
-  isStructType,
-  RUNNABLE_BLOCK_TYPES,
-  toCamelName,
-} from "@/language/const";
+import { BOUNDARY_STEP_TYPES, getPropertyTitle, RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { createField, getPropertyType, makeTypeInfo, TypeIdentity, updateFieldType } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import { unpackSubnode } from "@/language/node";
-import { makeEdit, makeEditFromSubnode, Transaction, TransactionOptions } from "@/language/transaction";
-import { packValue } from "@/language/value";
+import { makeEditFromSubnode, Transaction, TransactionOptions } from "@/language/transaction";
 import {
   ActionBlockData,
   ActionBlockProperty,
@@ -26,6 +19,7 @@ import {
   FieldProperty,
   FieldType,
   IconData,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   PipeProperty,
@@ -60,6 +54,7 @@ export type InspectAction = {
 };
 export type InspectSection = {
   title?: string;
+  subtitle?: string;
   rows: InspectRow[];
   isDefaultCollapsed?: boolean;
   summary?: string;
@@ -73,6 +68,7 @@ type InspectRowBase = {
 export type InspectFieldsRow = InspectRowBase & {
   type: "fields";
   fieldType: FieldType;
+  delegatePtr?: NodeReferenceData;
 };
 export type InspectViewRow = InspectRowBase & {
   type: "view";
@@ -86,7 +82,11 @@ export type InspectIconRow = InspectRowBase & {
   type: "icon";
   icon: IconData;
 };
-export type InspectRow = InspectFieldsRow | InspectViewRow | InspectIconRow;
+export type InspectTextRow = InspectRowBase & {
+  type: "text";
+  text: string;
+};
+export type InspectRow = InspectFieldsRow | InspectViewRow | InspectIconRow | InspectTextRow;
 
 export function makeInspectLayout(
   node: AnyNodeData,
@@ -110,10 +110,11 @@ export function makeInspectLayout(
   function section(
     title: string | undefined,
     rows: InspectRow[],
-    options?: { isDefaultCollapsed?: boolean; summary?: string; actions?: InspectAction[] },
+    options?: { isDefaultCollapsed?: boolean; subtitle?: string; summary?: string; actions?: InspectAction[] },
   ) {
     sections.push({
       title,
+      subtitle: options?.subtitle,
       rows,
       isDefaultCollapsed: options?.isDefaultCollapsed,
       summary: options?.summary,
@@ -251,27 +252,35 @@ export function makeInspectLayout(
     return row;
   }
 
-  function actionAddField(fieldType: FieldType, icon: IconData | string = "fas fa-plus"): InspectAction {
+  function actionAddField(
+    fieldType: FieldType,
+    icon: IconData | string = "fas fa-plus",
+    options?: { delegatePtr?: NodeReferenceData },
+  ): InspectAction {
     return {
       title: `Add ${toCamelName(FieldType, fieldType)}`,
       icon: makeIcon(icon),
-      action: (e) => onAddFieldAction(e, fieldType, node as BlockData, graph, txFactory),
+      action: (e) => {
+        const delegate = options?.delegatePtr != null ? graph.get(options.delegatePtr) : null;
+        onAddFieldAction(e, fieldType, (delegate ?? node) as BlockData, graph, txFactory);
+      },
     };
   }
 
-  function sectionSchema() {
+  function sectionSchema(options?: { subtitle?: string; delegatePtr?: NodeReferenceData }) {
     section(
       "Schema",
       [
-        { type: "fields", fieldType: FieldType.INPUT },
+        { type: "fields", fieldType: FieldType.INPUT, delegatePtr: options?.delegatePtr },
         { type: "icon", icon: makeIcon("fas fa-arrow-down") },
-        { type: "fields", fieldType: FieldType.OUTPUT },
+        { type: "fields", fieldType: FieldType.OUTPUT, delegatePtr: options?.delegatePtr },
       ],
       {
         actions: [
-          actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT]),
-          actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT]),
+          actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], options),
+          actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], options),
         ],
+        subtitle: options?.subtitle,
       },
     );
   }
@@ -299,7 +308,8 @@ export function makeInspectLayout(
   }
 
   function sectionAction() {
-    const summary = undefined; // ???
+    const action = subnode as ActionStepData | ActionBlockData | undefined;
+    const summary = action?.mode != null ? toCamelName(ActionMode, action?.mode) : undefined;
     section("Action", actionRows(), { summary });
   }
 
@@ -356,7 +366,7 @@ export function makeInspectLayout(
       rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
     ];
     if (node.type == FieldType.OPTION) {
-      // commonRows.push() // color?
+      // color?
     } else {
       commonRows.push(rowType());
       if (node.type != FieldType.VARIABLE) {
@@ -375,7 +385,19 @@ export function makeInspectLayout(
       const comonRows: InspectRow[] = [];
       section(undefined, comonRows);
       comonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
-      sectionSchema();
+      const action = subnode as ActionStepData | undefined;
+      if (action?.mode == ActionMode.DELEGATE) {
+        // schema from delegate
+        const delegatePtr = action.delegatePtr;
+        if (delegatePtr != null) {
+          sectionSchema({ subtitle: "(Delegate)", delegatePtr });
+        } else {
+          section("Schema", [{ type: "text", text: "No delegate set." }]);
+        }
+      } else {
+        sectionSchema();
+      }
+
       if (node.type == StepType.ACTION) {
         sectionAction();
       }

@@ -31,7 +31,7 @@ const id = toRef(props, "id");
 const stepPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.STEP>);
 const flowCtx = useFlowContext();
 const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
-const { step, fields, nodePtr, node, nodeFields } = stepState;
+const { step, fields, delegatePtr: nodePtr, delegate: node, delegateFields: nodeFields } = stepState;
 const isInspected = computed(() => canvas.isInspected(stepPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
 const sides = computed(() => (step.value != null ? getStepSides(step.value) : []));
@@ -165,6 +165,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
         <!-- Body -->
         <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
+          <!-- Delegate -->
+          <!-- ...? -->
           <!-- Fields -->
           <!-- NOTE :Incomplete: better Step body -->
           <span
