@@ -208,8 +208,8 @@ class CommitTransactionRequest(_message.Message):
     scope: _lang_pb2.GraphScopeData
     id: str
     edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    context: _lang_pb2.SessionContextData
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., context: _Optional[_Union[_lang_pb2.SessionContextData, _Mapping]] = ...) -> None: ...
+    context: _lang_pb2.RuntimeContextData
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., context: _Optional[_Union[_lang_pb2.RuntimeContextData, _Mapping]] = ...) -> None: ...
 
 class CommitTransactionResponse(_message.Message):
     __slots__ = ("cascaded_edits", "epoch")

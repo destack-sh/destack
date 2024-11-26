@@ -115,7 +115,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           id="inputs"
           ref="inputsRef"
           class="w-full"
-          :value-type="outputType"
+          :value-type="inputType"
           is-inline
           :variant="Variant.STEALTH"
           :model-value="run.inputsPacked"

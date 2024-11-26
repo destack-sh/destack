@@ -19,8 +19,8 @@ from bench.language.connection import (
     GraphEngine,
     SearchConnection,
     SearchResultData,
-    WatchGetUpdate,
-    WatchSearchUpdate,
+    WatchGetUpdateData,
+    WatchSearchUpdateData,
     WritableChannel,
 )
 from bench.language.const import NodeType, QueryType
@@ -184,7 +184,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
         request = wire.GetNodesRequest(
             scope=engine.scope,
             roots=roots_ptr,
-            block_ptr=query._block._to_plain_ref_data() if query._block else None,
+            block_ptr=query._block._to_ref_data() if query._block else None,
             ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
             descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
             select=query._select._to_data() if query._select else None,
@@ -208,7 +208,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
     @override
     async def _do_subscribe(
         self, query: "QueryBuilder", result: GetResultData
-    ) -> AsyncIterator[WatchGetUpdate]:
+    ) -> AsyncIterator[WatchGetUpdateData]:
         from bench.proto import wiring
 
         assert result.connection_token is not None, f"{result!r} has no token"
@@ -217,7 +217,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
             scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
         )
         async for rep in unary_stream_rpc(self.channel.engine.remote.watch_get, watch_req):
-            update = WatchGetUpdate(
+            update = WatchGetUpdateData(
                 edits=list(rep.edits),
                 cascaded_edits=list(rep.cascaded_edits),
                 added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
@@ -238,7 +238,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
         request = wire.SearchNodesRequest(
             scope=engine.scope,
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            block_ptr=query._block._to_plain_ref_data() if query._block else None,
+            block_ptr=query._block._to_ref_data() if query._block else None,
             filter=wiring.pack_object_maybe(query._filter, ExpressionData),
             sort=(
                 [wiring.pack_object(s, ExpressionData) for s in query._sort] if query._sort else []
@@ -273,7 +273,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
     @override
     async def _do_subscribe(
         self, query: "QueryBuilder", result: SearchResultData
-    ) -> AsyncIterator[WatchSearchUpdate]:
+    ) -> AsyncIterator[WatchSearchUpdateData]:
         from bench.proto import wiring
 
         assert result.connection_token is not None, f"{result!r} has no token"
@@ -282,7 +282,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
             scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
         )
         async for rep in unary_stream_rpc(self.channel.engine.remote.watch_search, watch_req):
-            update = WatchSearchUpdate(
+            update = WatchSearchUpdateData(
                 edits=list(rep.edits),
                 cascaded_edits=list(rep.cascaded_edits),
                 added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],

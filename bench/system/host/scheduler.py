@@ -71,9 +71,13 @@ class RunPlugin(HostPlugin[Run]):
             if run.status == RunStatus.SCHEDULED and run.parent_type == NodeType.PACKAGE:
                 self._queue_run(run)
         for run in commit.updated:
-            # resume active runs
-            if run.resumed_at is not None and run.status.is_interrupted:
-                self._queue_run(run)
+            # resume active runs (at root)
+            if (
+                run.resumed_at is not None
+                and run.interrupted_at is not None
+                and run.resumed_at > run.interrupted_at
+            ):
+                self._queue_run(run.root or run)
 
     @tracer.start_as_current_span("scheduler.process_run")
     async def _process_queue(self, op: PendingRunOperation) -> None:
@@ -109,7 +113,7 @@ class RunPlugin(HostPlugin[Run]):
             try:
                 assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
                 runtime = RuntimeClient(get_channel(machine.connection_uri))
-                request = RunRequest(run=run._to_data(), is_blocking=False)
+                request = RunRequest(run_ptr=run._to_ref_data(), is_blocking=False)
                 _ = await runtime.run(request)
                 log.debug("scheduler.run", machine=machine, span="current")
                 return  # success

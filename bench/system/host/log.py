@@ -6,7 +6,7 @@ from bench.language.session import Session
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.value import pack_builtin_object_data, pack_proto_json
 from bench.proto import wire
-from bench.proto.wire.lang_pb2 import EditData, LogData, SessionContextData
+from bench.proto.wire.lang_pb2 import EditData, LogData, RuntimeContextData
 from bench.proto.wiring import unwrap_some_node, wrap_some_node
 from bench.system.host.core import Commit, HostPlugin
 from bench.utils.uuidt import UUIDT
@@ -30,9 +30,9 @@ class LogPlugin(HostPlugin):
 
         # add logs
         # NOTE :Incomplete: how does LogPlugin get the session context?
-        context_data: SessionContextData = SessionContextData()
-        package_ptr = session.package._to_plain_ref_data()
-        bench_ptr = session.bench._to_plain_ref_data()
+        context_data: RuntimeContextData = RuntimeContextData()
+        package_ptr = session.package._to_ref_data()
+        bench_ptr = session.bench._to_ref_data()
         log_edits: list[EditData] = []
         for edit in commit.edits:
             node_type = NodeType(edit.node_ptr.node_type)

@@ -203,7 +203,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             track=True,
         )
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        runner.tracked_run.incoming_ptr = tuple(run.to_plain_ref() for run in incoming)
+        runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)

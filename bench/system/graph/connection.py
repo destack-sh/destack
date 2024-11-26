@@ -14,9 +14,9 @@ from bench.language.connection import (
     GetResultData,
     SearchOptions,
     SearchResultData,
-    WatchAggregateUpdate,
-    WatchGetUpdate,
-    WatchSearchUpdate,
+    WatchAggregateUpdateData,
+    WatchGetUpdateData,
+    WatchSearchUpdateData,
 )
 from bench.language.const import ROOT_NODE_TYPES, EditType, NodeType, QueryType
 from bench.language.expression import apply_sort, evaluate_conditional
@@ -52,7 +52,7 @@ CONNECTION_CACHE_EXPIRE_SECONDS = get_from_env(
 
 class Connection[
     ResultT: GetResultData | SearchResultData | AggregateResultData,
-    UpdateT: WatchGetUpdate | WatchSearchUpdate | WatchAggregateUpdate,
+    UpdateT: WatchGetUpdateData | WatchSearchUpdateData | WatchAggregateUpdateData,
 ](abc.ABC):
     """
     A system-side query connection to a (sub)graph.
@@ -214,7 +214,7 @@ def _get_edited_node(updated_graph: NodeDataGraph, edit: EditData) -> AnyNodeDat
     return updated_node
 
 
-class GetConnection(Connection[GetResultData, WatchGetUpdate]):
+class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
     """
     Connected get query in the graph.
     If live and any root is removed, we error (like the usual get behavior; not sure about this).
@@ -334,7 +334,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
 
         # emit update if any
         if filtered_edits or filtered_cascaded_edits:
-            update = WatchGetUpdate(
+            update = WatchGetUpdateData(
                 edits=filtered_edits,
                 cascaded_edits=filtered_cascaded_edits,
                 added_nodes=added_nodes,
@@ -344,7 +344,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
             self.notify_update(update)
 
 
-class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
+class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     """
     Connected search query in the graph.
     If live, we update the result set dynamically (with added/removed nodes).
@@ -478,7 +478,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
             ]
 
             # emit update
-            update = WatchSearchUpdate(
+            update = WatchSearchUpdateData(
                 edits=relevant_edits,
                 cascaded_edits=[],
                 roots_ptr=self._result_data.roots_ptr,
@@ -490,7 +490,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
             self.notify_update(update)
 
 
-class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate]):
+class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdateData]):
     """
     Connected aggregate query in the graph.
     Live isn't supported yet, but eventually (like search) this should be incremental materialized view.

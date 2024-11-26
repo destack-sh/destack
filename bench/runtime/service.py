@@ -13,14 +13,14 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language.const import ClientType, RunStatus
+from bench.language.const import ClientType
+from bench.language.node import NodeReference
 from bench.language.run import Run
 from bench.proto import wiring
 from bench.proto.wire import (
     HealthCheckRequest,
     HealthClient,
     HostClient,
-    RunData,
     RunRequest,
     RunResponse,
     RuntimeBase,
@@ -49,21 +49,13 @@ RUNTIME_HEALTHCHECK_TIMEOUT = get_from_env(
 class RunHandle:
     """A Run that in this service."""
 
-    def __init__(self, service: "RuntimeService", run_data: RunData, run: Run):
+    def __init__(self, service: "RuntimeService", run_ptr: NodeReference, run: Run | None):
         self.service = service
-        self.run_data = run_data
+        self.run_ptr = run_ptr
         self.run = run
         self.thread: RuntimeThreadHandle | None = None
         self.started_at: datetime | None = None
         self.task: asyncio.Task | None = None
-
-    def _do_terminate(self, status: RunStatus):
-        self.run.status = status
-        self.run.terminated_at = self.service.oracle.utc()
-        if self.run.started_at:
-            self.run.duration = self.run.terminated_at - self.run.started_at
-        elif self.started_at:
-            self.run.duration = self.run.terminated_at - self.started_at
 
 
 class RuntimeThreadHandle:
@@ -117,7 +109,7 @@ class RuntimeThreadHandle:
             )
             await self._thread.start()
         elif self.mode == RuntimeThreadMode.PROCESS:
-            # start subprocess
+            # run subprocess
             self._port = random.randint(60000, 65535)
             self._process, self._channel, self._client = await self._start_process(
                 id=self.id, port=self._port
@@ -136,7 +128,7 @@ class RuntimeThreadHandle:
             )
 
     async def healthcheck(self):
-        """Periodically checks the health of the thread."""
+        """Checks the health of the thread."""
         if self.mode == RuntimeThreadMode.PROCESS:
             assert self._channel is not None, f"no channel for {self!r}"
             client = HealthClient(self._channel)
@@ -189,11 +181,7 @@ class RuntimeThreadHandle:
     async def restart(self):
         """Restarts the thread."""
         # 'kill' any active runs
-        async with self.service.session() as session:
-            for run in self.service._active_runs:
-                if run.thread == self:
-                    run._do_terminate(RunStatus.ABORTED)
-            session.commit_optimistic()
+        ...  # nocheckin
         # and force restart
         await self._do_restart()
 
@@ -332,7 +320,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                     lambda: run.thread and asyncio.create_task(run.thread.healthcheck()),
                 )
                 # and run 'blocking'
-                request = RunRequest(run=run.run_data, is_blocking=True)
+                request = RunRequest(run_ptr=run.run_ptr._to_data(), is_blocking=True)
                 if isinstance(run.thread.client, RuntimeBase):
                     _ = await run.thread.client.run(request, {})
                 elif isinstance(run.thread.client, RuntimeClient):
@@ -340,13 +328,9 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 else:
                     raise RuntimeError(f"unexpected : {type(run.thread.client)}")
                 extra_healthcheck.cancel()  # no longer needed
-                logger.info(
-                    "runtime.run", thread=run.thread, run_id=run.run_data.id, span="current"
-                )
+                logger.info("runtime.run", thread=run.thread, run=run.run_ptr, span="current")
             except Exception as e:
-                logger.error(
-                    "runtime.run.error", thread=run.thread, run_id=run.run_data.id, exc_info=e
-                )
+                logger.error("runtime.run.error", thread=run.thread, run=run.run_ptr, exc_info=e)
                 raise
             finally:
                 self._run_semaphore.release()
@@ -358,19 +342,17 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
     @override
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
         assert self._main_package, f"{self!r} has no main package"
-        set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=request.run.id)
+        set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=request.run_ptr.id)
 
-        # unpack run
-        async with self.session() as session:
-            # NOTE :UX: mark run as queued as we queue it for a thread
-            #  (without having a race condition because of optimistic commits on both sides;
-            #   i.e. never commit the 'mark as queued' after it already ran and mess up the status)
-            run = wiring.unpack_object(
-                request.run, supergraph=self._supergraph, session=session, expect=Run
-            )
-            managed_run = RunHandle(service=self, run_data=request.run, run=run)
+        # NOTE :UX: mark run as queued as we queue it for a thread
+        #  (without having a race condition because of optimistic commits on both sides;
+        #   i.e. never commit the 'mark as queued' after it already ran and mess up the status)
 
         # process it (queue and run)
+        run_ptr = wiring.unpack_object_validate(
+            request.run_ptr, supergraph=None, expect=NodeReference
+        )
+        managed_run = RunHandle(service=self, run_ptr=run_ptr, run=None)
         managed_run.task = asyncio.create_task(self._do_run(managed_run))
         if request.is_blocking:
             await managed_run.task

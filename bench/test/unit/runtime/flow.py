@@ -365,7 +365,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    await local_runtime.runtime.abort(run)
+    local_runtime.runtime.kill(run)
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED
@@ -404,7 +404,7 @@ async def test_run_flow_yield(local_runtime: RuntimeHandle):
     assert len(runner.attempts) == 1  # should be the same attempt
 
     # handle interrupt
-    runner.tracked_run.interrupt.close()
+    runner.tracked_run.interrupt.complete()
 
     # resume run (after handling Interrupt)
     runner = await local_runtime.run(runner.tracked_run)
@@ -427,7 +427,7 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     # outer flow
     FlowOuter = Block.new(BlockType.FLOW, "FlowOuter")
     StartOuter = Step.new(StepType.START, "Start")
-    ActionOuter = Step.new(StepType.ACTION, "Action", mode=ActionMode.CODE, delegate=FlowInner)
+    ActionOuter = Step.new(StepType.ACTION, "Action", mode=ActionMode.DELEGATE, delegate=FlowInner)
     CompleteOuter = Step.new(StepType.COMPLETE, "Complete")
     FlowOuter.steps.extend(StartOuter, ActionOuter, CompleteOuter)
     StartOuter.connect(PipeType.PASS, ActionOuter)
@@ -448,7 +448,7 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interrupt
 
     # handle interrupt
-    runner.tracked_run.interrupt.close()
+    runner.tracked_run.interrupt.complete()
 
     # resume run (after handling Interrupt)
     runner = await local_runtime.run(runner.tracked_run)
@@ -520,7 +520,7 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
         run = runner.tracked_run
 
         # handle interrupt
-        runner.interrupt.close()
+        runner.interrupt.complete()
 
     # run up to completion
     runner = await local_runtime.run(run)

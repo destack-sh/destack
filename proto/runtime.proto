@@ -10,7 +10,7 @@ import "proto/lang.proto";
 //
 
 message RunRequest {
-	RunData run = 1;
+	NodeReferenceData run_ptr = 1;
 	bool is_blocking = 2; // whether to wait for the Run to terminate
 }
 message RunResponse {

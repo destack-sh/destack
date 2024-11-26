@@ -233,7 +233,7 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.run_runner.track")
     async def _do_run_tracked(self, runner: Runner):
-        """Runs a Runner, retrying automatically and updating the Run along the way."""
+        """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
         # NOTE :Performance: update the Run as efficiently as possible :RuntimeHotPath
         # NOTE :UX :Performance: commit optimistically ideally only while inside user code
         #  (while we're inside a leaf Runner.run, but not while updating/creating Runs,
@@ -305,7 +305,7 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.run_runner")
     async def run_runner(self, runner: Runner, hook: RunnerHook | None = None):
-        """Runs something runnable, considering its dependencies and run options."""
+        """Runs a Runner until termination/interruption."""
         async with self.session.active():
             self._active_runners_by_id[runner.id] = runner
             exc = None
@@ -351,7 +351,7 @@ class Runtime:
         return_error: bool = False,
         optimistic: bool = False,
     ) -> Runner | None:
-        """Start or resume a top-level Run in this Runtime."""
+        """Start or resume a top-level Run in this Runtime until termination/interruption."""
         if not isinstance(run, Run):
             run = make_run_from_node(run, inputs=inputs, parent=self.active_run)
         runner = None
@@ -385,12 +385,16 @@ class Runtime:
                     await self.session.commit()
         return runner
 
-    async def pause(self, run: Run):
-        """Pause a Run currently executing in this Runtime."""
+    def pause(self, run: Run):
+        """Pause an active Run in this Runtime."""
         raise NotImplementedError
 
-    async def abort(self, run: Run):
-        """Abort a Run currently executing in this Runtime (and any inside it)."""
+    def resume(self, run: Run):
+        """Resume a paused Run in this Runtime."""
+        raise NotImplementedError
+
+    def kill(self, run: Run):
+        """Kill a Run currently executing in this Runtime (and any inside it)."""
         root_runner = self._active_runners_by_id.get(run.id)
         if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")

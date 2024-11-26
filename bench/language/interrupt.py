@@ -13,9 +13,9 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.session import HasSessionContext
 from bench.language.trigger import Trigger
 from bench.language.value import CustomObject
+from bench.proto.wire.lang_pb2 import InterruptData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -123,7 +123,7 @@ class InterruptStatus(IdEnum):
 
 
 @timed_node_(NodeType.INTERRUPT)
-class Interrupt(RuntimeNode, HasSessionContext):
+class Interrupt(RuntimeNode[InterruptData]):
     """An Interrupt in the execution of a Run."""
 
     # meta
@@ -156,6 +156,9 @@ class Interrupt(RuntimeNode, HasSessionContext):
     outputs_packed: Any = p_value_packed(50)
     outputs: Any = p_value_runtime(50, kind=ObjectKind.OUTPUT, typ=None)
 
+    # context
+    # ...HasRuntimeContext[90-99]
+
     @property
     def runnable(self):
         if self.pipe_ptr:
@@ -173,7 +176,7 @@ class Interrupt(RuntimeNode, HasSessionContext):
     def is_closed(self) -> bool:
         return self.status == InterruptStatus.COMPLETED
 
-    def close(self, outputs: CustomObject | None = None) -> None:
+    def complete(self, outputs: CustomObject | None = None) -> None:
         """Mark this Interrupt as closed."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"

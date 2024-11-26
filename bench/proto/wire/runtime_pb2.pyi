@@ -14,12 +14,12 @@ from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Opti
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class RunRequest(_message.Message):
-    __slots__ = ("run", "is_blocking")
-    RUN_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("run_ptr", "is_blocking")
+    RUN_PTR_FIELD_NUMBER: _ClassVar[int]
     IS_BLOCKING_FIELD_NUMBER: _ClassVar[int]
-    run: _lang_pb2.RunData
+    run_ptr: _lang_pb2.NodeReferenceData
     is_blocking: bool
-    def __init__(self, run: _Optional[_Union[_lang_pb2.RunData, _Mapping]] = ..., is_blocking: bool = ...) -> None: ...
+    def __init__(self, run_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., is_blocking: bool = ...) -> None: ...
 
 class RunResponse(_message.Message):
     __slots__ = ()

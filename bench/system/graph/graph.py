@@ -34,7 +34,7 @@ from bench.language.const import (
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE, Node
 from bench.language.query import NodeNotFoundError, QueryBuilder
-from bench.language.session import SessionContext
+from bench.language.session import RuntimeContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import edit_data_graph
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -66,8 +66,8 @@ from bench.system.graph.connection import (
     ConnectionIndex,
     GetConnection,
     SearchConnection,
-    WatchGetUpdate,
-    WatchSearchUpdate,
+    WatchGetUpdateData,
+    WatchSearchUpdateData,
 )
 from bench.utils.func import bittuple, group_by, to_uuid
 from bench.utils.oracle import Oracle
@@ -223,7 +223,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         )
 
     def _parse_commit(
-        self, subject: Subject, context: SessionContext, edits: Sequence[EditData]
+        self, subject: Subject, context: RuntimeContext, edits: Sequence[EditData]
     ) -> "CommitArea":
         """Prepares and validates the edits for a commit."""
         area = extract_commit_area(edits, base_graph=None)
@@ -255,7 +255,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         session: Session,
         graph: NodeGraph,
         data_graph: NodeDataGraph,
-        context: SessionContext | None,
+        context: RuntimeContext | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
@@ -312,7 +312,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         area: "CommitArea",
         scope: GraphScopeData,
         subject: Subject,
-        context: SessionContext,
+        context: RuntimeContext,
         edits: Sequence[EditData],
     ) -> tuple[Sequence[EditData], Sequence[EditData]]:
         """Commits some edits."""
@@ -399,10 +399,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
         # figure out context
         context = wiring.unpack_object_validate_maybe(
-            request.context, supergraph=subject._supergraph, expect=SessionContext
+            request.context, supergraph=subject._supergraph, expect=RuntimeContext
         )
         if context is None:
-            context = SessionContext(
+            context = RuntimeContext(
                 client=subject.client,
                 server=subject.server,
                 user=subject.user,
@@ -557,7 +557,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         subscription = await self.connector.subscribe(
             subject=subject,
             connection_t=GetConnection,
-            update_t=WatchGetUpdate,
+            update_t=WatchGetUpdateData,
             connection_token=request.connection_token,
             since_epoch=request.since_epoch,
         )
@@ -689,7 +689,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         subscription = await self.connector.subscribe(
             subject=subject,
             connection_t=SearchConnection,
-            update_t=WatchSearchUpdate,
+            update_t=WatchSearchUpdateData,
             connection_token=request.connection_token,
             since_epoch=request.since_epoch,
         )

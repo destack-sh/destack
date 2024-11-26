@@ -42,6 +42,7 @@ from bench.language.const import (
     NODE_TYPES,
     TK_LENGTH_BYTES,
     UNSET,
+    BlockType,
     ClientType,
     EditOperationType,
     NodeType,
@@ -76,7 +77,12 @@ from bench.language.setup import (
     OBJECT_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
-from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
+from bench.language.validation import (
+    ValidationError,
+    ValidationHandler,
+    constraint,
+    on_invalid_raise,
+)
 from bench.proto.wire import (
     AnyNodeData,
     AnyObjectData,
@@ -98,10 +104,12 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Branch,
+        Client,
         CustomObject,
         Expression,
         Field,
         GetConnection,
+        Machine,
         NodeReference,
         Package,
         PropertyReference,
@@ -2061,14 +2069,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent = parent.parent
             return "/".join(reversed(path_parts))
 
-    def to_plain_ref(self) -> "NodeReference":
-        """Gets a plain reference to this node."""
-        return NodeReference._ref_from_node(self)
-
-    def _to_plain_ref_data(self) -> NodeReferenceData:
-        """Gets a plain data reference to this node."""
-        return NodeReference._ref_from_node(self)._to_data()
-
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this node. May be rich in subclasses."""
         return NodeReference._ref_from_node(self)
@@ -2296,8 +2296,66 @@ class HasTimeIdentity(BuiltinObject, abc.ABC):
     __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
 
 
+@object_()
+class HasRuntimeContext(BuiltinObject):
+    """Context for a Node in some Session."""
+
+    # NOTE :Security: session context properties are p_internal (not p_system) so we can update
+    #   them in all Clients. But this also means Users could mess with them if they really want to.
+    session: Optional["Session"] = p_internal(
+        90, require=False, array=False, references=NodeType.SESSION, same_bench=True
+    )
+    run: Optional["Run"] = p_internal(
+        91, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
+    run_root: Optional["Run"] = p_internal(
+        92, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
+    client: Optional["Client"] = p_internal(
+        93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
+    )
+    machine: Optional["Machine"] = p_internal(
+        94, require=False, array=False, references=NodeType.MACHINE, same_bench=True
+    )
+    server: Optional["Server"] = p_internal(
+        95, require=False, array=False, references=NodeType.SERVER, same_bench=True
+    )
+    user: Optional["User"] = p_internal(96, require=False, array=False, references=NodeType.USER)
+    identity: Optional["Block"] = p_internal(
+        97,
+        require=False,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(block_types=[BlockType.IDENTITY]),
+    )
+    if TYPE_CHECKING:
+        session_ptr: Optional[NodeReference] = None
+        session_id: Optional[UUID] = None
+        run_ptr: Optional[NodeReference] = None
+        run_id: Optional[UUID] = None
+        run_root_ptr: Optional[NodeReference] = None
+        run_root_id: Optional[UUID] = None
+        client_ptr: Optional[NodeReference] = None
+        client_id: Optional[UUID] = None
+        machine_ptr: Optional[NodeReference] = None
+        machine_id: Optional[UUID] = None
+        server_ptr: Optional[NodeReference] = None
+        server_id: Optional[UUID] = None
+        user_ptr: Optional[NodeReference] = None
+        user_id: Optional[UUID] = None
+        identity_ptr: Optional[NodeReference] = None
+        identity_id: Optional[UUID] = None
+
+    @property
+    def runtime(self):
+        """The Runtime associated with this context (if any)."""
+        return self.session._runtime if self.session is not None else None
+
+
 @node_component()
-class RuntimeNode[NodeDataT: AnyNodeData](HasTimeIdentity, PackageNode[NodeDataT], abc.ABC):
+class RuntimeNode[NodeDataT: AnyNodeData](
+    HasTimeIdentity, PackageNode[NodeDataT], HasRuntimeContext, abc.ABC
+):
     """An eternal runtime node."""
 
 

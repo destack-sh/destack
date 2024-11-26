@@ -101,7 +101,7 @@ def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
             rendered_obj = rendered_defns[name]
             if isinstance(original_obj, Node):
                 assert isinstance(rendered_obj, Node)
-                identity_map[original_obj.ck] = rendered_obj.to_plain_ref()
+                identity_map[original_obj.ck] = rendered_obj.to_ref()
         for name, original_obj in original_defns.items():
             rendered_obj = rendered_defns[name]
             assert cast(BuiltinObject, rendered_obj).equals(original_obj, identity_map=identity_map)

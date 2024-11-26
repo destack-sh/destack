@@ -419,7 +419,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                     grpc_port=host_info.grpc_port,
                     grpc_web_port=host_info.grpc_web_port,
                     ssl=host_info.ssl,
-                    bench=bench._to_plain_ref_data(),
+                    bench=bench._to_ref_data(),
                 )
                 hosts.append(host_info)
         return ResolveHostsResponse(hosts=hosts)

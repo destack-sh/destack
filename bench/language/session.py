@@ -31,7 +31,6 @@ from bench.language.connection import (
 from bench.language.const import (
     NODE_TYPES,
     BenchError,
-    BlockType,
     EditType,
     NodeType,
     SessionStatus,
@@ -42,20 +41,18 @@ from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EMPTY_SCOPE,
     BenchNode,
-    BuiltinObject,
     EditSubject,
+    HasRuntimeContext,
     Node,
     NodeReference,
     PackageNode,
     RuntimeNode,
     Struct,
-    object_,
     struct_,
     timed_node_,
 )
 from bench.language.property import p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
-from bench.language.validation import constraint
 from bench.proto import wire
 from bench.proto.wire import (
     ClientOriginData,
@@ -63,7 +60,7 @@ from bench.proto.wire import (
     GraphScopeData,
     HostClient,
     RpcMetadata,
-    SessionContextData,
+    RuntimeContextData,
     SessionData,
     SupervisorClient,
 )
@@ -76,15 +73,11 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Client,
-        Machine,
         NodeReference,
         Package,
         QueryBuilder,
         Run,
-        Server,
         Step,
-        User,
     )
     from bench.runtime.runtime import Runtime
 
@@ -126,21 +119,7 @@ class Session(RuntimeNode[SessionData]):
     closed_at: Optional[datetime] = p_system(43, default=None)
 
     # context
-    client: Optional["Client"] = p_internal(
-        61, require=False, array=False, references=NodeType.CLIENT
-    )
-    server: Optional["Server"] = p_internal(
-        62, require=False, array=False, references=NodeType.SERVER
-    )
-    machine: Optional["Machine"] = p_internal(
-        63, require=False, array=False, references=NodeType.MACHINE
-    )
-    user: Optional["User"] = p_internal(64, require=False, array=False, references=NodeType.USER)
-    if TYPE_CHECKING:
-        client_ptr: Optional[NodeReference] = None
-        server_ptr: Optional[NodeReference] = None
-        machine_ptr: Optional[NodeReference] = None
-        user_ptr: Optional[NodeReference] = None
+    # ...HasRuntimeContext[90-99]
 
     # flags
     _is_readonly: bool = p_runtime(default=False)
@@ -156,7 +135,7 @@ class Session(RuntimeNode[SessionData]):
     # context
     _origin: ClientOriginData | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
-    _context_data: SessionContextData | None = p_runtime(default=None)
+    _context_data: RuntimeContextData | None = p_runtime(default=None)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
@@ -494,10 +473,10 @@ class Session(RuntimeNode[SessionData]):
     # Edits
     #
 
-    def _get_context(self) -> SessionContextData:
+    def _get_context(self) -> RuntimeContextData:
         """Gathers context valid for the entire session"""
         if self._context_data is None:
-            context = SessionContextData(metatype=wire.ObjectType.OBJECT_TYPE_SESSION_CONTEXT)
+            context = RuntimeContextData(metatype=wire.ObjectType.OBJECT_TYPE_RUNTIME_CONTEXT)
             if self.client_ptr is not None:
                 context.client_ptr.CopyFrom(self.client_ptr._to_data())
             if self.machine_ptr is not None:
@@ -870,61 +849,8 @@ class EditContext(Struct):
         identity_ptr: Optional[NodeReference] = None
 
 
-@object_()
-class HasSessionContext(BuiltinObject):
-    """Context for a Node in some Session."""
-
-    # NOTE :Security: session context properties are p_internal, not p_system so we can update
-    #   them in all clients. But this also means users can mess with them if they really want to.
-    # :SessionContext
-    # context
-    session: Optional["Session"] = p_internal(
-        80, require=False, array=False, references=NodeType.SESSION, same_bench=True
-    )
-    run: Optional["Run"] = p_internal(
-        81, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    run_root: Optional["Run"] = p_internal(
-        82, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    client: Optional["Client"] = p_internal(
-        83, require=False, array=False, references=NodeType.CLIENT, same_bench=True
-    )
-    machine: Optional["Machine"] = p_internal(
-        84, require=False, array=False, references=NodeType.MACHINE, same_bench=True
-    )
-    server: Optional["Server"] = p_internal(
-        85, require=False, array=False, references=NodeType.SERVER, same_bench=True
-    )
-    user: Optional["User"] = p_internal(86, require=False, array=False, references=NodeType.USER)
-    identity: Optional["Block"] = p_internal(
-        87,
-        require=False,
-        array=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.IDENTITY]),
-    )
-    if TYPE_CHECKING:
-        session_ptr: Optional[NodeReference] = None
-        session_id: Optional[UUID] = None
-        run_ptr: Optional[NodeReference] = None
-        run_id: Optional[UUID] = None
-        run_root_ptr: Optional[NodeReference] = None
-        run_root_id: Optional[UUID] = None
-        client_ptr: Optional[NodeReference] = None
-        client_id: Optional[UUID] = None
-        machine_ptr: Optional[NodeReference] = None
-        machine_id: Optional[UUID] = None
-        server_ptr: Optional[NodeReference] = None
-        server_id: Optional[UUID] = None
-        user_ptr: Optional[NodeReference] = None
-        user_id: Optional[UUID] = None
-        identity_ptr: Optional[NodeReference] = None
-        identity_id: Optional[UUID] = None
-
-
-@struct_(StructType.SESSION_CONTEXT)
-class SessionContext(Struct, HasSessionContext):
+@struct_(StructType.RUNTIME_CONTEXT)
+class RuntimeContext(Struct, HasRuntimeContext):
     """Context information for runtime nodes created in a session."""
 
     pass

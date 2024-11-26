@@ -445,7 +445,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
                 clone._select.select_all_properties = False
                 clone._select.select_properties_ptr.append(key.to_ref())
             else:
-                clone._select.select_fields_ptr.append(key.to_plain_ref())
+                clone._select.select_fields_ptr.append(key.to_ref())
         return clone
 
     def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
