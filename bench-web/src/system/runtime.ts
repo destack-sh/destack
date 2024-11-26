@@ -5,6 +5,7 @@ import { timesortNode } from "@/language/order";
 import {
   getRunBasePtr as getRunBasePtr,
   isRunActive,
+  isRunInterrupted,
   isRunnable,
   isRunTerminal,
   makeRun,
@@ -16,15 +17,19 @@ import {
   ChangeCategory,
   ExpressionType,
   IconData,
+  InterruptData,
+  InterruptStatus,
   NodeReferenceData,
   NodeType,
   ObjectType,
   RunOptionsData,
   RunProperty,
+  RunStatus,
   StepData,
   Timestamp,
   type RunData,
 } from "@/proto/wire";
+import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { describeNode, propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { pkgConnection, pkgGraph, space, spaceConnection } from "@/system/space";
@@ -45,6 +50,7 @@ export class RunTree {
   runBaseRef: Ref<BlockData | StepData | null>;
   runConnection: Connection<"get", NodeType.RUN>;
   runsByBaseCk: Ref<Record<string, RunData[]>>;
+  interruptsRef: Ref<InterruptData[]>;
 
   constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
     this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
@@ -87,6 +93,7 @@ export class RunTree {
       }
       return runByBaseCk;
     });
+    this.interruptsRef = runGraph.getOfTypeRef(NodeType.INTERRUPT);
   }
 
   /** The root Run. */
@@ -214,23 +221,48 @@ export class Runtime {
     log.trace("runtime.kill", run);
     this.tx.update(run, { killedAt: Timestamp.now() });
   }
+
+  /** Complete an Interrupt */
+  complete(interrupt: InterruptData) {
+    log.trace("runtime.complete", interrupt);
+    const tx = this.tx;
+    tx.update(interrupt, { status: InterruptStatus.COMPLETED, closedAt: Timestamp.now() }, { debounce: "tick" });
+  }
+
+  /*+ Cancel an Interrupt */
+  cancel(interrupt: InterruptData) {
+    log.trace("runtime.cancel", interrupt);
+    const tx = this.tx;
+    tx.update(interrupt, { status: InterruptStatus.CANCELLED, closedAt: Timestamp.now() }, { debounce: "tick" });
+  }
 }
 
 const runPtr = computedValue(() => space.value?.runPtr ?? null);
 export const runtime = new Runtime(pkgGraph, () => pkgConnection.tx, runPtr);
 
+type RuntimeAction = { title: string; isPrimary?: boolean; icon: IconData; action: () => void };
+
 /** Gets the available actions for a Run */
-type RunAction = { title: string; isPrimary?: boolean; icon: IconData; action: () => void };
-export function getRunActions(run: RunData) {
-  const actions: RunAction[] = [];
+export function getRunActions(run: RunData): RuntimeAction[] {
+  const actions: RuntimeAction[] = [];
   if (isRunActive(run)) {
-    actions.push({
-      title: "Pause",
-      icon: makeIcon("fas fa-pause"),
-      action: () => {
-        runtime.pause(run);
-      },
-    });
+    if (run.status == RunStatus.PAUSED) {
+      actions.push({
+        title: "Resume",
+        icon: makeIcon("fas fa-pause"),
+        action: () => {
+          runtime.pause(run);
+        },
+      });
+    } else if (!isRunInterrupted(run)) {
+      actions.push({
+        title: "Pause",
+        icon: makeIcon("fas fa-play"),
+        action: () => {
+          runtime.pause(run);
+        },
+      });
+    }
     actions.push({
       title: "Stop",
       icon: makeIcon("fas fa-stop"),
@@ -238,8 +270,7 @@ export function getRunActions(run: RunData) {
         runtime.kill(run);
       },
     });
-  }
-  if (isRunTerminal(run)) {
+  } else if (isRunTerminal(run)) {
     actions.push({
       title: "Restart",
       icon: makeIcon("fas fa-redo"),
@@ -254,7 +285,8 @@ export function getRunActions(run: RunData) {
   }
   return actions;
 }
-export const CLEAR_RUN_ACTION: RunAction = {
+
+export const CLEAR_RUN_ACTION: RuntimeAction = {
   title: "Clear",
   icon: makeIcon("fas fa-xmark"),
   action: () => {
@@ -262,3 +294,17 @@ export const CLEAR_RUN_ACTION: RunAction = {
     spaceConnection.tx.update(space.value, { runPtr: undefined });
   },
 };
+
+export function getInterruptActions(interrupt: InterruptData): RuntimeAction[] {
+  const actions: RuntimeAction[] = [];
+  if (interrupt.status == InterruptStatus.OPEN) {
+    actions.push({
+      title: "Complete",
+      icon: makeIcon("fas fa-play"),
+      action: () => {
+        runtime.complete(interrupt);
+      },
+    });
+  }
+  return actions;
+}

@@ -2,7 +2,7 @@
 import { SINK_STEP_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { FLOW_PORT_SIZE, getStepSides, STEP_CONTEXT_ACTIONS, STEP_SIZE, useFlowContext } from "@/language/flow";
-import { getRunDurationString, isRunActive } from "@/language/session";
+import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/session";
 import { ColorShade, FieldType, NodeType, Orientation, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
@@ -66,10 +66,14 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="step"
     ref="containerRef"
-    class="group/step rounded border transition-colors duration-150"
-    :class="[isInspected || isHighlighted ? 'border-gray-400 bg-gray-100' : 'border-gray-200 bg-white']"
+    class="group/step rounded border outline outline-1 transition-colors duration-150"
+    :class="[
+      isInspected || isHighlighted ? 'border-gray-400 bg-gray-100' : 'border-gray-200 bg-white',
+      lastRun != null && isRunActive(lastRun) ? '' : 'outline-transparent',
+    ]"
     :style="{
       borderColor: lastRun != null ? getRunColorHex(lastRun.status) : '',
+      outlineColor: lastRun != null && isRunActive(lastRun) ? getRunColorHex(lastRun.status) : '',
     }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >

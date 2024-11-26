@@ -434,16 +434,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         default=None,
         description="Duration from first attempt start to last attempt termination.",
     )
-    cached_duration: Optional[timedelta] = p_internal(
-        42,
-        default=None,
-        description="Total original duration of contained Run cache hits.",
-    )
-    active_duration: Optional[timedelta] = p_internal(
-        43,
-        default=None,
-        description="Total duration of direct (or contained) Run activity.",
-    )
+    # cached_duration, active_duration, ...?
     attempts: list[RunAttempt] = p_internal(44, array=True, struct=StructType.RUN_ATTEMPT)
     error: Optional["RunError"] = p_internal(
         45, default=None, require=False, array=False, struct=StructType.RUN_ERROR

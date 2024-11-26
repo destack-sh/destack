@@ -101,6 +101,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
     </div>
     <!-- Existing Run -->
     <div v-else class="flex flex-col gap-y-2">
+      <!-- nocheckin: also turn this into collapsible sections like in Inspect (factor out Section?) -->
       <!-- Ancestor runs? -->
       <div class="px-5">
         <div
@@ -167,6 +168,26 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         </div>
         <RunTimeline :node-ptr="toNodeRef(run)" class="" />
       </div>
+      <!-- Interrupts -->
+      <div v-if="runtime.focusedRunTree.interruptsRef.value.length > 0" class="px-5">
+        <div
+          class="flex flex-row items-center"
+          :style="{
+            height: `${SECTION_HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-semibold">Interrupts</span>
+        </div>
+        <!-- nocheckin: handle interrupts properly -->
+        <div class="flex flex-col">
+          <div v-for="interrupt of runtime.focusedRunTree.interruptsRef.value" :key="interrupt.id">
+            {{ interrupt.id }}
+            <button @click="runtime.complete(interrupt)">complete</button>
+          </div>
+        </div>
+      </div>
+      <!-- Events -->
+      <!-- ... -->
     </div>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center text-center">

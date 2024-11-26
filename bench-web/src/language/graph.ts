@@ -107,6 +107,9 @@ export interface ReadNodeGraph {
     options?: { metatypes?: T[]; filter?: (node: NodeTypeMapping[T]) => boolean; includeSelf?: boolean },
   ): NodeTypeMapping[T][];
 
+  /** Gets nodes of a specific type */
+  getOfType<T extends NodeType>(metatype: T): NodeTypeMapping[T][];
+
   //
   // Observable helpers
   //
@@ -171,6 +174,9 @@ export interface ReadNodeGraph {
     node: MaybeRef<NodeKey<any> | undefined | null>,
     options?: { metatypes?: T[]; includeSelf?: boolean },
   ): SubRef<NodeTypeMapping[T][]>;
+
+  /** Gets nodes of a specific type reactively */
+  getOfTypeRef<T extends NodeType>(metatype: T): SubRef<NodeTypeMapping[T][]>;
 }
 
 /** A node graph with write methods */
@@ -266,6 +272,10 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
       }
     }
     return descendants;
+  }
+
+  getOfType<T extends NodeType>(metatype: T): NodeTypeMapping[T][] {
+    return this.nodes.filter((n) => (n.metatype as unknown as NodeType) == metatype) as NodeTypeMapping[T][];
   }
 
   //
@@ -444,6 +454,22 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
     const nodeRef = toRef(node);
     const get: () => NodeTypeMapping[T][] = () =>
       nodeRef.value != null ? this.getDescendants(nodeRef.value, options) : [];
+    let sub: (() => void) | null = null;
+    const unsub = () => {
+      if (sub != null) {
+        sub();
+        sub = null;
+      }
+    };
+    const { ref, trigger } = manualSubRef(get, unsub);
+    sub = this.subscribeAny(trigger);
+    trigger();
+    return ref;
+  }
+
+  getOfTypeRef<T extends NodeType>(metatype: T): SubRef<NodeTypeMapping[T][]> {
+    // NOTE :Performance: getOfTypeRef just uses subscribeAny for simplicity, but that's not ideal
+    const get: () => NodeTypeMapping[T][] = () => this.getOfType(metatype);
     let sub: (() => void) | null = null;
     const unsub = () => {
       if (sub != null) {

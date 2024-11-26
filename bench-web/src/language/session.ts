@@ -46,7 +46,7 @@ export function isRunActive(run: RunData): boolean {
   return ACTIVE_RUN_STATUSES.includes(run.status);
 }
 
-export function isRunHalted(run: RunData): boolean {
+export function isRunInterrupted(run: RunData): boolean {
   return INTERRUPTED_RUN_STATUSES.includes(run.status);
 }
 

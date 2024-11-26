@@ -8,7 +8,7 @@ import structlog
 from opentelemetry import baggage, context, trace
 
 from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
-from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointSite
+from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointSite, Interrupt
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -354,6 +354,7 @@ class Runtime:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         if not isinstance(run, Run):
             run = make_run_from_node(run, inputs=inputs, parent=self.active_run)
+            self.session._create(run)
         runner = None
         async with self.session.active():
             try:
@@ -387,11 +388,11 @@ class Runtime:
 
     def pause(self, run: Run):
         """Pause an active Run in this Runtime."""
-        raise NotImplementedError
+        raise NotImplementedError("nocheckin: Runtime.pause")
 
     def resume(self, run: Run):
         """Resume a paused Run in this Runtime."""
-        raise NotImplementedError
+        raise NotImplementedError("nocheckin: Runtime.resume")
 
     def kill(self, run: Run):
         """Kill a Run currently executing in this Runtime (and any inside it)."""
@@ -402,3 +403,7 @@ class Runtime:
             if not runner.status.is_terminal:
                 runner.cancel()
                 logger.debug("runtime.run.abort", runner=runner)
+
+    def handle(self, interrupt: Interrupt):
+        """Handle an updated Interrupt in this Runtime."""
+        raise NotImplementedError("nocheckin: Runtime.handle")

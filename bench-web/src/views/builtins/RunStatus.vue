@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { getRunDurationString, isRunActive } from "@/language/session";
-import { Orientation, RunData } from "@/proto/wire";
+import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/session";
+import { ColorShade, Orientation, RunData } from "@/proto/wire";
 import { getRunColorHex } from "@/ui/style";
 
 const props = defineProps<{
@@ -10,14 +10,33 @@ const props = defineProps<{
 </script>
 <template>
   <div
-    class="flex items-center gap-x-1"
+    class="flex items-center gap-x-2"
     :class="[orientation == Orientation.HORIZONTAL_REVERSED ? 'flex-row-reverse' : 'flex-row']"
   >
+    <!-- Dot -->
+    <span v-if="isRunInterrupted(run)" class="relative flex h-[10px] w-[10px]">
+      <span
+        class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+        :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S400) }"
+      />
+      <span
+        class="relative inline-flex h-[10px] w-[10px] rounded-full"
+        :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S500) }"
+      />
+    </span>
     <span
-      class="fas fa-circle-small w-5 text-center"
+      v-else
+      class="h-[10px] w-[10px] rounded-full"
       :class="[isRunActive(run) ? 'animate-pulse' : '']"
-      :style="{ color: getRunColorHex(run.status) }"
+      :style="{ backgroundColor: getRunColorHex(run.status) }"
     />
+    <!-- Duration -->
     <span class="text-gray-400">{{ getRunDurationString(run, { minUnit: "s" }) }}</span>
+    <!-- Highlight -->
+    <i
+      v-if="isRunInterrupted(run)"
+      v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
+      class="fas fa-hand rounded px-1.5 text-gray-700"
+    />
   </div>
 </template>
