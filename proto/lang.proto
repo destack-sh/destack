@@ -2796,8 +2796,6 @@ message RunData {
   RunOptionsData options = 39;
   RunStatus status = 40;
   optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Duration cached_duration = 42;
-  optional google.protobuf.Duration active_duration = 43;
   repeated RunAttemptData attempts = 44;
   optional RunErrorData error = 45;
   optional google.protobuf.Timestamp scheduled_at = 46;

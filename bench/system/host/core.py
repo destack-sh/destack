@@ -302,7 +302,7 @@ class HostPlugin[T: Node]:
         """
         pass
 
-    async def on_commit_failed(self, session: Session, error: Exception) -> None:
+    async def on_commit_failed(self, session: Session, error: BaseException) -> None:
         """
         React to a failed commit.
         """

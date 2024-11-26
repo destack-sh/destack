@@ -73,6 +73,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import (
         Block,
+        Interrupt,
         NodeReference,
         Package,
         QueryBuilder,
@@ -173,7 +174,7 @@ class Session(RuntimeNode[SessionData]):
         ]
         | None
     ) = p_runtime(default=None)
-    _on_commit_failed: Callable[["Session", Exception], Awaitable[None]] | None = p_runtime(
+    _on_commit_failed: Callable[["Session", BaseException], Awaitable[None]] | None = p_runtime(
         default=None
     )
 
@@ -628,12 +629,14 @@ class Session(RuntimeNode[SessionData]):
                 logger.error("session.queue.error", session=self, exc_info=e)
                 raise
 
-    def _is_current_session_node(self, node: Node) -> bool:
+    def _is_current_runtime_node(self, node: Node) -> bool:
         """Whether this is a runtime node tied to the current session."""
         if node.metatype == NodeType.SESSION:
             return self.id == node.id
         elif node.metatype == NodeType.RUN:
             return cast("Run", node).session_id == self.id
+        elif node.metatype == NodeType.INTERRUPT:
+            return cast("Interrupt", node).session_id == self.id
         else:
             return False
 
@@ -645,7 +648,7 @@ class Session(RuntimeNode[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
 
         def _filter(node: Node) -> bool:
-            if not include_runtime and self._is_current_session_node(node):
+            if not include_runtime and self._is_current_runtime_node(node):
                 return False
             if not include_state and node.metatype.is_state:  # noqa: SIM103
                 return False
@@ -745,7 +748,7 @@ class Session(RuntimeNode[SessionData]):
 
             log.debug("session.commit")
             return edits, cascaded_edits
-        except Exception as e:
+        except BaseException as e:
             if self._on_commit_failed is not None:
                 await self._on_commit_failed(self, e)
             if isinstance(e, ChannelUnavailableError):

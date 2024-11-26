@@ -1,22 +1,24 @@
 <script lang="ts" setup>
-import { getRunBasePtr as getRunBasePtr, getRunDurationMs, isRunActive, isRunTerminal } from "@/language/session";
+import { getRunBasePtr, getRunDurationMs, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
+  ColorShade,
   IconData,
+  NodeReferenceData,
   NodeType,
+  Orientation,
   RunAttemptData,
   RunData,
   RunSpanData,
-  RunStatus,
-  NodeReferenceData,
   ViewData,
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { RunTree } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
-import { getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
+import { getNodeIcon, ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
-import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
+import { getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
+import RunStatus from "@/views/builtins/RunStatus.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, Ref, shallowRef, toRef, watchEffect } from "vue";
@@ -95,7 +97,7 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     // context
     const basePtr = getRunBasePtr(run);
     const baseNode = basePtr != null ? pkgGraph.get(basePtr) : null;
-    const color = getColorHex(COLOR_BY_RUN_STATUS[run.status])!;
+    const color = getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!;
 
     // span
     let offsetRelative: number;
@@ -195,14 +197,10 @@ watchEffect(() => {
         </button>
         <!-- Meta -->
         <div class="ml-auto flex-shrink-0 pl-1.5">
-          <!-- Duration -->
-          <span class="ml-auto mr-1.5 text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
-          <!-- Status -->
-          <i
+          <RunStatus
             v-if="isNode(span.content, NodeType.RUN)"
-            class="fas fa-circle-small ml-auto w-5 text-center"
-            :class="[isRunActive(span.content) ? 'animate-pulse' : '']"
-            :style="{ color: span.color }"
+            :run="span.content"
+            :orientation="Orientation.HORIZONTAL_REVERSED"
           />
         </div>
       </div>

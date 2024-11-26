@@ -4125,14 +4125,6 @@ export interface RunData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Duration cached_duration = 42;
-     */
-    cachedDuration?: Duration;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration active_duration = 43;
-     */
-    activeDuration?: Duration;
-    /**
      * @generated from protobuf field: repeated symbolx.bench.RunAttemptData attempts = 44;
      */
     attempts: RunAttemptData[];
@@ -22169,8 +22161,6 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 39, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 41, name: "duration", kind: "message", T: () => Duration },
-            { no: 42, name: "cached_duration", kind: "message", T: () => Duration },
-            { no: 43, name: "active_duration", kind: "message", T: () => Duration },
             { no: 44, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunAttemptData },
             { no: 45, name: "error", kind: "message", T: () => RunErrorData },
             { no: 46, name: "scheduled_at", kind: "message", T: () => Timestamp },
@@ -22295,12 +22285,6 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* optional google.protobuf.Duration duration */ 41:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
-                    break;
-                case /* optional google.protobuf.Duration cached_duration */ 42:
-                    message.cachedDuration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.cachedDuration);
-                    break;
-                case /* optional google.protobuf.Duration active_duration */ 43:
-                    message.activeDuration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.activeDuration);
                     break;
                 case /* repeated symbolx.bench.RunAttemptData attempts */ 44:
                     message.attempts.push(RunAttemptData.internalBinaryRead(reader, reader.uint32(), options));
@@ -22470,12 +22454,6 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional google.protobuf.Duration duration = 41; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Duration cached_duration = 42; */
-        if (message.cachedDuration)
-            Duration.internalBinaryWrite(message.cachedDuration, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Duration active_duration = 43; */
-        if (message.activeDuration)
-            Duration.internalBinaryWrite(message.activeDuration, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.RunAttemptData attempts = 44; */
         for (let i = 0; i < message.attempts.length; i++)
             RunAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
@@ -28333,8 +28311,6 @@ export enum RunProperty {
   options = 39,
   status = 40,
   duration = 41,
-  cachedDuration = 42,
-  activeDuration = 43,
   attempts = 44,
   error = 45,
   scheduledAt = 46,
@@ -30269,8 +30245,6 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.options]: { id: 39, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.cachedDuration]: { id: 42, name: 'cached_duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.activeDuration]: { id: 43, name: 'active_duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.attempts]: { id: 44, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ATTEMPT },
   [RunProperty.error]: { id: 45, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
   [RunProperty.scheduledAt]: { id: 46, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },

@@ -591,7 +591,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         )
 
     @override
-    async def on_commit_failed(self, session: Session, exc: Exception):
+    async def on_commit_failed(self, session: Session, exc: BaseException):
         # restore in memory unpacked graphs from data graphs
         #  (we apply edits optimistically above in on_commit_prepare)
         self._reset_loaded_graphs()

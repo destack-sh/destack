@@ -43,14 +43,17 @@ class RunHandle:
 
     def on_update(self, update: WatchGetUpdate):
         for node in update.updated.values():
-            # nocheckin: handle Run/Interrupt updates in Runtime
+            # handle Run/Interrupt updates in Runtime
             if isinstance(node, Run):
                 if node.killed_at:
                     self.thread.runtime.kill(node)
                 elif node.paused_at and (not node.resumed_at or node.paused_at > node.resumed_at):
                     self.thread.runtime.pause(node)
+                elif node.resumed_at and (not node.paused_at or node.resumed_at > node.paused_at):
+                    self.thread.runtime.resume(node)
             elif isinstance(node, Interrupt):
-                ...
+                if node.status.is_closed:
+                    self.thread.runtime.handle(node)
 
 
 class RuntimeThread(RuntimeServiceBase, RuntimeBase):

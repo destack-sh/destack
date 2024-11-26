@@ -184,6 +184,9 @@ class Interrupt(RuntimeNode[InterruptData]):
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
         self.outputs = outputs
+        runtime = self._session.runtime
+        if runtime:
+            runtime.handle(self)
 
     def cancel(self) -> None:
         """Mark this Interrupt as cancelled."""
@@ -192,6 +195,9 @@ class Interrupt(RuntimeNode[InterruptData]):
         self.status = InterruptStatus.CANCELLED
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
+        runtime = self._session.runtime
+        if runtime:
+            runtime.handle(self)
 
     @staticmethod
     def from_run(

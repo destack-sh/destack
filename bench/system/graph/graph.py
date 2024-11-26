@@ -298,11 +298,11 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     async def _on_commit_failed_hook(
         self,
         session: Session,
-        exc: Exception,
+        exc: BaseException,
     ) -> None:
         await self.on_commit_failed(session=session, exc=exc)
 
-    async def on_commit_failed(self, session: Session, exc: Exception):
+    async def on_commit_failed(self, session: Session, exc: BaseException):
         """Handle a failed commit."""
         pass  # do nothing by default
 

@@ -99,7 +99,7 @@ defineExpose<ViewExposed>({ self });
       <NodeReference v-if="node" :node="node" :connection="pkgConnection" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->
-      <div v-if="containingRun != null" class="flex flex-row">
+      <div v-if="containingRun != null" class="flex px-1.5 flex-row">
         <template v-if="selfRun != null && selfRun.id != containingRun.id">
           <RunStatus :run="selfRun" />
           <span class="ml-2 mr-1 text-gray-400">/</span>
@@ -111,7 +111,7 @@ defineExpose<ViewExposed>({ self });
       <div class="ml-auto flex flex-row items-center">
         <!-- Controls -->
         <div
-          class="flex flex-row items-center gap-x-1"
+          class="flex flex-row items-center gap-x-0.5"
           :style="{
             height: `${HEADER_HEIGHT}px`,
           }"
@@ -124,7 +124,7 @@ defineExpose<ViewExposed>({ self });
             v-if="isNodeRunnable"
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'run' }"
-            class="rounded px-1 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
+            class="rounded px-0.5 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
             @click.stop="action.action()"
           >
             <span v-if="action.isPrimary" class="mr-1">{{ action.title }}</span>

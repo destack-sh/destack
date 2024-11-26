@@ -191,6 +191,6 @@ class DatabasePlugin(HostPlugin[Block | Field]):
                 del self.context.custom_tables_by_database[cast(Block, node)]
 
     @override
-    async def on_commit_failed(self, session: Session, error: Exception) -> None:
+    async def on_commit_failed(self, session: Session, error: BaseException) -> None:
         # reset context
         self._init_context_from_blocks()
