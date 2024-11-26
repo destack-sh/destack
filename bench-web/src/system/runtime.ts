@@ -54,7 +54,7 @@ export class RunTree {
         scope: graph.scope,
         roots: [this.runPtr.value!],
         ancestorTypes: [NodeType.RUN],
-        descendantTypes: [NodeType.RUN],
+        descendantTypes: [NodeType.RUN, NodeType.INTERRUPT],
         isOptional: true,
         isEnabled: this.runPtr.value != null,
       })),

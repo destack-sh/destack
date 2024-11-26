@@ -10,13 +10,9 @@ from bench.language.graph import NodeGraph
 from bench.language.run import Run
 from bench.proto import wiring
 from bench.proto.wire import (
-    KillRunRequest,
-    KillRunResponse,
-    PauseRunRequest,
-    PauseRunResponse,
-    ProcessRunRequest,
-    ProcessRunResponse,
     RunData,
+    RunRequest,
+    RunResponse,
     RuntimeBase,
     ServiceKind,
 )
@@ -103,7 +99,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
         logger.info("thread.start", process=self, bench=self._bench)
 
-    async def _do_process_run(self, run_data: RunData) -> None:
+    async def _do_run(self, run_data: RunData) -> None:
         # TODO :Robustness: Run.created_epoch may be ahead of our own epoch if the sync takes longer to
         #  arrive than the request from the scheduler (both from our Host). This means the caller/user
         #  may expect a different current state than we actually have (so we may be behind).
@@ -146,24 +142,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             logger.info("thread.process_run", process=self, run=run, span="current")
 
     @override
-    async def process_run(self, request: ProcessRunRequest, headers: Mapping) -> ProcessRunResponse:
-        await self._do_process_run(request.run)
-        return ProcessRunResponse()
-
-    @override
-    async def pause_run(self, request: PauseRunRequest, headers: Mapping) -> PauseRunResponse:
-        assert self._runtime is not None, f"no runtime for {self!r}"
-        run = self._supergraph.get(UUID(request.run.id))
-        if not isinstance(run, Run):
-            return PauseRunResponse(is_processed=False)
-        await self._runtime.pause(run)
-        return PauseRunResponse(is_processed=True)
-
-    @override
-    async def kill_run(self, request: KillRunRequest, headers: Mapping) -> KillRunResponse:
-        assert self._runtime is not None, f"no runtime for {self!r}"
-        run = self._supergraph.get(UUID(request.run.id))
-        if not isinstance(run, Run):
-            return KillRunResponse(is_processed=False)
-        await self._runtime.abort(run)
-        return KillRunResponse(is_processed=True)
+    async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
+        await self._do_run(request.run)
+        return RunResponse()

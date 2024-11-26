@@ -872,7 +872,7 @@ class EditContext(Struct):
 
 @object_()
 class HasSessionContext(BuiltinObject):
-    """Context for the creation of a node in some Session."""
+    """Context for a Node in some Session."""
 
     # NOTE :Security: session context properties are p_internal, not p_system so we can update
     #   them in all clients. But this also means users can mess with them if they really want to.

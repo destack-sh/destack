@@ -3,6 +3,7 @@ import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
 import type { Transaction, TransactionOptions } from "@/language/transaction";
 import {
+  ActionMode,
   BlockData,
   BlockType,
   ColorShade,
@@ -95,11 +96,11 @@ export class StepState {
   flow: FlowContext;
   stepPtr: TypedNodeReferenceData<NodeType.STEP>;
   step: Ref<StepData | null>;
-  nodePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
-  node: Ref<BlockData | StepData | null>;
+  delegatePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
+  delegate: Ref<BlockData | StepData | null>;
   fields: Ref<FieldData[]>;
   stepFields: Ref<FieldData[]>;
-  nodeFields: Ref<FieldData[]>;
+  delegateFields: Ref<FieldData[]>;
   // layout
   boundingBox: Ref<BoundingBox | null> = shallowRef(null);
 
@@ -107,21 +108,21 @@ export class StepState {
     this.flow = flow;
     this.stepPtr = toNodeRef(step);
     this.step = flow.graph.getRef(this.stepPtr, { ignoreAncestors: true });
-    this.nodePtr = computedValue(() => {
+    this.delegatePtr = computedValue(() => {
       if (this.step.value?.type == StepType.ACTION) {
-        const nodePtr = unpackSubnodeProperty(
+        const delegatePtr = unpackSubnodeProperty(
           NodeType.STEP,
           StepType.ACTION,
           this.step.value?.subnodePacked,
           "delegatePtr",
         );
-        return nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
+        return delegatePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
       } else {
         return null;
       }
     });
-    this.node = flow.graph.getRef(this.nodePtr);
-    this.nodeFields = flow.graph.getChildrenRef(this.nodePtr, NodeType.FIELD);
+    this.delegate = flow.graph.getRef(this.delegatePtr);
+    this.delegateFields = flow.graph.getChildrenRef(this.delegatePtr, NodeType.FIELD);
     this.stepFields = flow.graph.getChildrenRef(step, NodeType.FIELD);
     this.fields = computed(() => {
       if (this.step.value?.type == StepType.START) {
@@ -129,7 +130,12 @@ export class StepState {
       } else if (this.step.value?.type == StepType.COMPLETE) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
       } else if (this.step.value?.type == StepType.ACTION) {
-        return this.stepFields.value;
+        const mode = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, this.step.value?.subnodePacked, "mode");
+        if (mode == ActionMode.DELEGATE) {
+          return this.delegateFields.value;
+        } else {
+          return this.stepFields.value;
+        }
       } else {
         return [];
       }
@@ -936,8 +942,8 @@ export class FlowContext {
       stepFields: state.stepFields.value,
       flow: this.flow.value,
       flowFields: this.fields.value,
-      node: state.node.value,
-      nodeFields: state.nodeFields.value,
+      node: state.delegate.value,
+      nodeFields: state.delegateFields.value,
     });
   }
 

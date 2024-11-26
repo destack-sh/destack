@@ -105,6 +105,8 @@ defineExpose<ViewExposed>({ self, id });
         />
         <!-- Title -->
         <span class="font-medium">{{ section.title }}</span>
+        <!-- Subtitle -->
+        <span v-if="section.subtitle" class="ml-1.5 text-gray-400">{{ section.subtitle }}</span>
         <!-- Meta -->
         <div class="ml-auto flex flex-row items-center gap-x-1 pr-1">
           <!-- Summary -->
@@ -152,7 +154,7 @@ defineExpose<ViewExposed>({ self, id });
             <Type
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
-              :node-ptr="nodePtr"
+              :node-ptr="row.delegatePtr ?? nodePtr"
               :field-type="row.fieldType"
               :variant="Variant.STEALTH"
             />
@@ -172,6 +174,10 @@ defineExpose<ViewExposed>({ self, id });
           <div v-else-if="row.type == 'icon'" class="w-full text-center">
             <IconInline class="text-gray-400" v-bind="row.icon" />
           </div>
+          <!-- Text -->
+          <div v-else-if="row.type == 'text'" class="text-gray-400">
+            <span>{{ row.text }}</span>
+          </div>
           <div v-else>
             <span class="text-danger-600">???</span>
           </div>
@@ -180,7 +186,7 @@ defineExpose<ViewExposed>({ self, id });
     </div>
     <div v-if="layout.sections.length == 0" class="mx-4">
       <!-- Empty state -->
-      <span class="text-gray-400">Just a  {{ toCamelName(NodeType, node.metatype) }}.</span>
+      <span class="text-gray-400">Just a {{ toCamelName(NodeType, node.metatype) }}.</span>
     </div>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center text-center">
