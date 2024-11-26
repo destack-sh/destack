@@ -40,9 +40,9 @@ from .connection import (
     SearchOptions,
     SearchResult,
     SearchResultData,
-    WatchAggregateUpdate,
-    WatchGetUpdate,
-    WatchSearchUpdate,
+    WatchAggregateUpdateData,
+    WatchGetUpdateData,
+    WatchSearchUpdateData,
 )
 from .const import (
     VERSION,
@@ -126,7 +126,7 @@ from .run import (
     VideoOptions,
 )
 from .secret import Secret
-from .session import EditContext, Session, SessionContext
+from .session import EditContext, RuntimeContext, Session
 from .setup import _complete_bench_setup
 from .stream import Stream
 from .text import Text, TextSpan, md, text
@@ -313,6 +313,7 @@ __all__ = [
     "RunOptions",
     "RunSpan",
     "RunStatus",
+    "RuntimeContext",
     "S",
     "ScheduleType",
     "SearchConnection",
@@ -323,7 +324,6 @@ __all__ = [
     "SelectOptions",
     "Server",
     "Session",
-    "SessionContext",
     "SortMode",
     "SortType",
     "SourceNode",
@@ -359,9 +359,9 @@ __all__ = [
     "VideoOptions",
     "View",
     "ViewType",
-    "WatchAggregateUpdate",
-    "WatchGetUpdate",
-    "WatchSearchUpdate",
+    "WatchAggregateUpdateData",
+    "WatchGetUpdateData",
+    "WatchSearchUpdateData",
     "check_value",
     "check_value_scalar",
     "code",

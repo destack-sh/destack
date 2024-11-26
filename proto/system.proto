@@ -168,7 +168,7 @@ message CommitTransactionRequest {
   // All the edits for all the changes in order.
   repeated EditData edits = 3;
   // Extra session context (with any info not contained in EditContext, like machine/server).
-  optional SessionContextData context = 4;
+  optional RuntimeContextData context = 4;
 }
 message CommitTransactionResponse {
   // Any cascaded edits.

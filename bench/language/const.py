@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.25.2"
+VERSION = "2024.11.26.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -341,7 +341,7 @@ USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(IdEnum):
     # intrinsic (10000-10499)
-    SESSION_CONTEXT = 10001
+    RUNTIME_CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10003
     EDIT_INFO = 10004

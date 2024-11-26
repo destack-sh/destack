@@ -320,7 +320,7 @@ class Transaction:
         if run is not None:
             subject_ptr = run.identity_ptr or run.step_ptr or run.block_ptr
         elif session._subject is not None:
-            subject_ptr = session._subject.to_plain_ref()
+            subject_ptr = session._subject.to_ref()
         else:
             subject_ptr = None
 
@@ -431,7 +431,7 @@ class Transaction:
             if edit_event.run is not None:
                 edit_context = EditContextData(metatype=wire.ObjectType.OBJECT_TYPE_EDIT_CONTEXT)
                 run = edit_event.run
-                edit_context.run_ptr.CopyFrom(run._to_plain_ref_data())
+                edit_context.run_ptr.CopyFrom(run._to_ref_data())
                 if run.root_ptr is not None:
                     edit_context.run_root_ptr.CopyFrom(run.root_ptr._to_data())
                 if run.block_ptr is not None:
@@ -454,7 +454,7 @@ class Transaction:
                 metatype=wire.ObjectType.OBJECT_TYPE_EDIT,
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
-                node_ptr=node._to_plain_ref_data(),
+                node_ptr=node._to_ref_data(),
                 scope=edit_event.scope,
                 operations=operations,
                 origin=edit_event.origin,

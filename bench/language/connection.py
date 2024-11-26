@@ -135,12 +135,19 @@ class GetResult[T: Node]:
 
 
 @dataclass(slots=True)
-class WatchGetUpdate:
+class WatchGetUpdateData:
     edits: list[EditData]
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
     removed_nodes_ptr: list[NodeReferenceData]
     epoch: int
+
+
+@dataclass(slots=True)
+class WatchGetUpdate:
+    added: list[AnyNodeData]
+    updated: list[AnyNodeData]
+    removed: list[NodeReferenceData]
 
 
 #
@@ -171,7 +178,7 @@ class SearchResult[T: Node]:
 
 
 @dataclass(slots=True)
-class WatchSearchUpdate:
+class WatchSearchUpdateData:
     edits: list[EditData]
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
@@ -179,6 +186,13 @@ class WatchSearchUpdate:
     roots_ptr: list[NodeReferenceData]
     total: int | None
     epoch: int
+
+
+@dataclass(slots=True)
+class WatchSearchUpdate:
+    added: list[AnyNodeData]
+    updated: list[AnyNodeData]
+    removed: list[NodeReferenceData]
 
 
 #
@@ -204,15 +218,21 @@ class AggregateResult:
 
 
 @dataclass(slots=True)
-class WatchAggregateUpdate:
+class WatchAggregateUpdateData:
     aggregation: AggregationResultData
     epoch: int
+
+
+@dataclass(slots=True)
+class WatchAggregateUpdate:
+    pass
 
 
 ConnectionOptions = GetOptions | SearchOptions | AggregateOptions
 ResultData = GetResultData | SearchResultData | AggregateResultData
 Result = GetResult | SearchResult | AggregateResult
-UpdateData = WatchGetUpdate | WatchSearchUpdate | WatchAggregateUpdate
+UpdateData = WatchGetUpdateData | WatchSearchUpdateData | WatchAggregateUpdateData
+Update = WatchGetUpdate | WatchSearchUpdate | WatchAggregateUpdate
 
 
 def scope_includes(scope: GraphScopeData, other: GraphScopeData) -> bool:
@@ -401,7 +421,8 @@ class Connection[
     OptionsT: ConnectionOptions,
     ResultT: Result,
     ResultDataT: ResultData,
-    UpdateT: UpdateData,
+    UpdateDataT: UpdateData,
+    UpdateT: Update,
 ](abc.ABC):
     """A Connection to a Graph for some Query."""
 
@@ -557,14 +578,21 @@ class Connection[
                     retry.on_success()
 
                     # subscribe
-                    async for update in self._do_subscribe(self.query, self._result_data):
+                    async for update_data in self._do_subscribe(self.query, self._result_data):
                         assert (
-                            update.epoch > self.epoch
-                        ), f"epoch regression: {update!r} in {self!r}"
+                            update_data.epoch > self.epoch
+                        ), f"epoch regression: {update_data!r} in {self!r}"
                         log.trace(f"connect.{self.type_name}.update")
-                        self._apply_update(self._result_data, self._result, update)
-                        for callback in self._update_subscribers:
-                            callback(update)
+                        update = self._apply_update(
+                            self._result_data,
+                            self._result,
+                            update_data,
+                            unpack=len(self._update_subscribers) > 0,
+                        )
+                        if len(self._update_subscribers) > 0:
+                            assert update is not None, f"no update for {update_data!r} in {self!r}"
+                            for callback in self._update_subscribers:
+                                callback(update)
                 except Exception as e:
                     last_error = e
                     interval = retry.get_wait_interval()
@@ -590,7 +618,9 @@ class Connection[
         ...
 
     @abc.abstractmethod
-    def _apply_update(self, result_data: ResultDataT, result: ResultT | None, update: UpdateT):
+    def _apply_update(
+        self, result_data: ResultDataT, result: ResultT | None, update: UpdateDataT, unpack: bool
+    ) -> UpdateT | None:
         """Applies an update to the result (in place)."""
         ...
 
@@ -599,7 +629,9 @@ class Connection[
         """Fetches the result data for the connection."""
         ...
 
-    def _do_subscribe(self, query: "QueryBuilder", result: ResultDataT) -> AsyncIterator[UpdateT]:
+    def _do_subscribe(
+        self, query: "QueryBuilder", result: ResultDataT
+    ) -> AsyncIterator[UpdateDataT]:
         """Subscribes to updates for the connection."""
         raise ChannelIncapableError(self, query, reason="live subscription not supported")
 
@@ -623,7 +655,9 @@ class Connection[
 
 
 class GetConnection[ChannelT: Channel, T: Node](
-    Connection[ChannelT, GetOptions, GetResult[T], GetResultData, WatchGetUpdate]
+    Connection[
+        ChannelT, GetOptions, GetResult[T], GetResultData, WatchGetUpdateData, WatchGetUpdate
+    ]
 ):
     """Base for get connections (may be live)."""
 
@@ -648,8 +682,12 @@ class GetConnection[ChannelT: Channel, T: Node](
 
     @override
     def _apply_update(
-        self, result_data: GetResultData, result: GetResult | None, update: WatchGetUpdate
-    ):
+        self,
+        result_data: GetResultData,
+        result: GetResult | None,
+        update: WatchGetUpdateData,
+        unpack: bool,
+    ) -> WatchGetUpdate | None:
         from bench.language.transaction import edit_data_graph, edit_graph
 
         if self.session._origin:
@@ -670,9 +708,18 @@ class GetConnection[ChannelT: Channel, T: Node](
                 validate=False,
             )
 
+        # nocheckin: unpack update
+
 
 class SearchConnection[ChannelT: Channel, T: Node](
-    Connection[ChannelT, SearchOptions, SearchResult[T], SearchResultData, WatchSearchUpdate]
+    Connection[
+        ChannelT,
+        SearchOptions,
+        SearchResult[T],
+        SearchResultData,
+        WatchSearchUpdateData,
+        WatchSearchUpdate,
+    ]
 ):
     """Base for search connections (may be live)."""
 
@@ -698,8 +745,12 @@ class SearchConnection[ChannelT: Channel, T: Node](
 
     @override
     def _apply_update(
-        self, result_data: SearchResultData, result: SearchResult | None, update: WatchSearchUpdate
-    ):
+        self,
+        result_data: SearchResultData,
+        result: SearchResult | None,
+        update: WatchSearchUpdateData,
+        unpack: bool,
+    ) -> WatchSearchUpdate | None:
         from bench.language.transaction import edit_data_graph, edit_graph
         from bench.proto import wiring
 
@@ -767,7 +818,12 @@ class SearchConnection[ChannelT: Channel, T: Node](
 
 class AggregateConnection[ChannelT: Channel](
     Connection[
-        ChannelT, AggregateOptions, AggregateResult, AggregateResultData, WatchAggregateUpdate
+        ChannelT,
+        AggregateOptions,
+        AggregateResult,
+        AggregateResultData,
+        WatchAggregateUpdateData,
+        WatchAggregateUpdate,
     ]
 ):
     """Base for aggregate connections (may be live)."""
@@ -793,8 +849,9 @@ class AggregateConnection[ChannelT: Channel](
         self,
         result_data: AggregateResultData,
         result: AggregateResult | None,
-        update: WatchAggregateUpdate,
-    ):
+        update: WatchAggregateUpdateData,
+        unpack: bool,
+    ) -> WatchAggregateUpdate | None:
         from bench.proto import wiring
 
         result_data.aggregation = update.aggregation

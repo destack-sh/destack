@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.25.2"
+VERSION = "2024.11.26.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1269,13 +1269,18 @@ SESSION_TABLE = Table(
         Column("duration", PrimitiveType.INTERVAL, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("session_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("run_root_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("client_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_id", PrimitiveType.UUID, is_nullable=True),
-        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),

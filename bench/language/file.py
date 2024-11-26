@@ -865,7 +865,7 @@ async def download_batch(
     with tracer.start_as_current_span("file.prepare_download"):
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
-            files=[(f.to_plain_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
+            files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
             environment=MACHINE_ENVIRONMENT,
         )
         download_rep = await session.host.download_files(

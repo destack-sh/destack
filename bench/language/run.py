@@ -33,7 +33,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.session import HasSessionContext
 from bench.language.text import Text, TextLine
 from bench.language.validation import (
     TITLE_CONSTRAINT,
@@ -153,6 +152,8 @@ class RunOptions(Struct):
     """
     Options for running something.
     """
+
+    # NOTE :Incomplete: some RunOptions don't do anything yet (e.g., max_concurrency, cache, ...)
 
     # general
     max_attempts: Optional[int] = p_regular(
@@ -386,7 +387,7 @@ class Context(Struct):
 
 
 @timed_node_(NodeType.RUN)
-class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
+class Run(RuntimeNode[RunData], HasNodeBase):
     """
     Run a Block, Step or some lambda (Code) in a Session.
     """
@@ -482,7 +483,7 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
     events: list["RunEvent"] = p_internal(67, array=True, struct=StructType.RUN_EVENT)
 
-    # ...HasSessionContext[70-89]
+    # ...HasRuntimeContext[90-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     interrupts: LocalNodeList["Interrupt"] = p_node_children(NodeType.INTERRUPT)
@@ -580,15 +581,24 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         """Mark this Run as paused."""
         assert self._session is not None, f"{self!r} has no session"
         self.paused_at = self._session._oracle.utc()
+        runtime = self.runtime
+        if runtime:
+            runtime.pause(self)
 
     def resume(self):
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
         self.resumed_at = self._session._oracle.utc()
+        runtime = self.runtime
+        if runtime:
+            runtime.resume(self)
 
     def kill(self):
         """Mark this Run as killed."""
         assert self._session is not None, f"{self!r} has no session"
         self.killed_at = self._session._oracle.utc()
+        runtime = self.runtime
+        if runtime:
+            runtime.kill(self)
 
     cancel = abort = kill

@@ -5,12 +5,12 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.const import NONCE, RUNTIME_NODE_TYPES, ClientType
-from bench.language.graph import NodeGraph
+from bench.language.connection import WatchGetUpdate
+from bench.language.const import NONCE, ClientType, NodeType
+from bench.language.node import NodeReference
 from bench.language.run import Run
 from bench.proto import wiring
 from bench.proto.wire import (
-    RunData,
     RunRequest,
     RunResponse,
     RuntimeBase,
@@ -28,6 +28,17 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+class RunHandle:
+    def __init__(self, run: Run, lock: asyncio.Lock, thread: "RuntimeThread") -> None:
+        self.run = run
+        self.lock = lock
+        self.thread = thread
+        self.task: asyncio.Task | None = None
+
+    def on_update(self, update: WatchGetUpdate):
+        raise NotImplementedError(f"nocheckin: {update!r}")
 
 
 class RuntimeThread(RuntimeServiceBase, RuntimeBase):
@@ -68,6 +79,9 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         self.id = id
         self._mode = mode
         self._runtime: Runtime | None = None
+        self._lock_by_run: dict[UUID, asyncio.Lock] = {}  # locks for each Run
+        self._owned_runs: dict[UUID, RunHandle] = {}  # Runs this Thread is responsible for
+        self._active_runs: dict[UUID, RunHandle] = {}  # Runs currently active in this Thread
 
     def __str__(self):
         bench_str = repr(self.bench) if self._bench else self._bench_id
@@ -84,6 +98,16 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             "thread_id": self.id,
         }
 
+    def _set_baggage(self):
+        set_baggage(
+            bench_id=self._bench_id,
+            client_id=self._client_id,
+            server_id=self._server_id,
+            machine_id=self._machine_id,
+            thread_id=self.id,
+            thread_nonce=NONCE,
+        )
+
     async def start(self):
         await super().start()
         assert self._session is not None, f"no session for {self!r}"
@@ -99,49 +123,71 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
         logger.info("thread.start", process=self, bench=self._bench)
 
-    async def _do_run(self, run_data: RunData) -> None:
-        # TODO :Robustness: Run.created_epoch may be ahead of our own epoch if the sync takes longer to
-        #  arrive than the request from the scheduler (both from our Host). This means the caller/user
-        #  may expect a different current state than we actually have (so we may be behind).
+    async def _load(self, run_ptr: NodeReference) -> RunHandle:
+        """Load the Run tree for execution."""
+        assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
+        assert self._session is not None, f"no session for {self!r}"
+        assert self._main_package is not None, f"no main package for {self!r}"
+
+        # synchronize access so we don't load the same Run twice in case of overlapping requests
+        if run_ptr.id in self._lock_by_run:
+            lock = self._lock_by_run[run_ptr.id]
+        else:
+            lock = asyncio.Lock()
+            self._lock_by_run[run_ptr.id] = lock
+
+        async with lock:
+            if run_ptr.id not in self._owned_runs:
+                # actually load the Run
+                self._set_baggage()
+                with tracer.start_as_current_span("thread.load"):
+                    async with self._session.active(readonly=True):
+                        run = await Run.include_descendants(NodeType.RUN, NodeType.INTERRUPT).get(
+                            run_ptr, live=True
+                        )
+                    assert run.package_id == self._main_package.id, f"{run!r} is not in {self!r}"
+                    assert run.root_ptr is None, f"{run!r} is not a root Run"
+                    handle = RunHandle(run, lock, self)
+                    self._owned_runs[run_ptr.id] = handle
+            else:
+                # already loaded
+                handle = self._owned_runs[run_ptr.id]
+        return handle
+
+    async def _do_run(self, handle: RunHandle) -> None:
+        """Process a Run (once) until termination/interruption."""
         assert self._session is not None, f"no session for {self!r}"
         assert self._runtime is not None, f"no runtime for {self!r}"
-        assert self._main_package is not None, f"no main package for {self!r}"
-        package = self._main_package
-        assert (
-            run_data.parent_ptr and UUID(run_data.package_ptr.id) == package.id
-        ), f"{run_data!r} not in {package!r}"
-        set_baggage(
-            bench_id=self._bench_id,
-            client_id=self._client_id,
-            server_id=self._server_id,
-            machine_id=self._machine_id,
-            thread_id=self.id,
-            thread_nonce=NONCE,
-        )
-        with tracer.start_as_current_span("thread.process_run"):
-            async with self._session.active(readonly=True):
-                #  NOTE :Cleanup: figure out better way to manage :TransientGraphs in supergraph
-                graph = NodeGraph(
-                    scope=self._session._get_scope_for_node(self._main_package),
-                    node_types=RUNTIME_NODE_TYPES,
-                    supergraph=self._supergraph,
-                )
-                run = wiring.unpack_object_validate(
-                    run_data,
-                    supergraph=self._supergraph,
-                    graph=graph,
-                    session=self._session,
-                    expect=Run,
-                )
-                graph.add(run)
-                self._supergraph.add_graph(graph)
+
+        self._set_baggage()
+        with tracer.start_as_current_span("thread.run"):
+            # process run
+            self._active_runs[handle.run.id] = handle
             try:
-                await self._runtime.run(run, return_error=True, optimistic=True)
+                await self._runtime.run(handle.run, return_error=True, optimistic=True)
+                logger.info("thread.run", process=self, run=handle.run, span="current")
+                if handle.run.status.is_terminal:
+                    del self._owned_runs[handle.run.id]
             finally:
-                self._supergraph.remove_graph(graph)  # :TransientGraphs
-            logger.info("thread.process_run", process=self, run=run, span="current")
+                del self._active_runs[handle.run.id]
+                handle.task = None
+
+    def _run_if_needed(self, handle: RunHandle) -> None:
+        """Runs the handle if it should be but isn't."""
+        if handle.task is None:
+            if not handle.run.status.is_terminal:
+                handle.task = asyncio.create_task(self._do_run(handle))
 
     @override
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
-        await self._do_run(request.run)
+        # TODO :Robustness: Run.created_epoch may be ahead of our own epoch if the sync takes longer to
+        #  arrive than the request from the scheduler (both from our Host). This means the caller/user
+        #  may expect a different current state than we actually have (so we may be behind).
+        run_ptr = wiring.unpack_object_validate(
+            request.run_ptr, supergraph=None, expect=NodeReference
+        )
+        handle = await self._load(run_ptr)
+        self._run_if_needed(handle)
+        if request.is_blocking and handle.task is not None:
+            await handle.task
         return RunResponse()
