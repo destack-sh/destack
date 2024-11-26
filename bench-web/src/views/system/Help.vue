@@ -1,17 +1,17 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { getRunBasePtr, getRunDurationString, isRunActive, isRunnable } from "@/language/session";
+import { getRunBasePtr, isRunnable } from "@/language/session";
 import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
 import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
-import { getRunColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inspect from "@/views/system/Inspect.vue";
@@ -99,22 +99,12 @@ defineExpose<ViewExposed>({ self });
       <NodeReference v-if="node" :node="node" :connection="pkgConnection" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->
-      <div v-if="containingRun != null">
+      <div v-if="containingRun != null" class="flex flex-row">
         <template v-if="selfRun != null && selfRun.id != containingRun.id">
-          <span
-            class="fas fa-circle-small w-5 text-center"
-            :class="[isRunActive(selfRun) ? 'animate-pulse' : '']"
-            :style="{ color: getRunColorHex(selfRun.status) }"
-          />
-          <span class="ml-1.5 text-gray-400">{{ getRunDurationString(selfRun, { minUnit: "s" }) }}</span>
+          <RunStatus :run="selfRun" />
           <span class="ml-2 mr-1 text-gray-400">/</span>
         </template>
-        <span
-          class="fas fa-circle-small w-5 text-center"
-          :class="[isRunActive(containingRun) ? 'animate-pulse' : '']"
-          :style="{ color: getRunColorHex(containingRun.status) }"
-        />
-        <span class="ml-1.5 text-gray-400">{{ getRunDurationString(containingRun, { minUnit: "s" }) }}</span>
+        <RunStatus :run="containingRun" />
       </div>
 
       <!-- Meta/Controls -->

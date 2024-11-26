@@ -160,7 +160,7 @@ export class Runtime {
   }
 
   get tx() {
-    return this.txFactory().with({ connectionId: CONNECTION_IGNORE, category: ChangeCategory.SESSION });
+    return this.txFactory().with({ connectionId: CONNECTION_IGNORE, category: ChangeCategory.RUNTIME });
   }
 
   /** The current Run. */

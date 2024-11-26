@@ -757,7 +757,7 @@ class ChangeCategory(IdEnum):
     """Optional classification for edits."""
 
     SPACE = 10
-    SESSION = 20
+    RUNTIME = 20
 
 
 @enum_(EnumType.EDIT_OPERATION_TYPE)

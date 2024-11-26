@@ -5,8 +5,9 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.connection import WatchGetUpdate
+from bench.language.connection import GetConnection, WatchGetUpdate
 from bench.language.const import NONCE, ClientType, NodeType
+from bench.language.interrupt import Interrupt
 from bench.language.node import NodeReference
 from bench.language.run import Run
 from bench.proto import wiring
@@ -31,14 +32,25 @@ tracer = trace.get_tracer(__name__)
 
 
 class RunHandle:
-    def __init__(self, run: Run, lock: asyncio.Lock, thread: "RuntimeThread") -> None:
+    def __init__(
+        self, run: Run, connection: GetConnection, lock: asyncio.Lock, thread: "RuntimeThread"
+    ) -> None:
         self.run = run
+        self.connection = connection
         self.lock = lock
         self.thread = thread
         self.task: asyncio.Task | None = None
 
     def on_update(self, update: WatchGetUpdate):
-        raise NotImplementedError(f"nocheckin: {update!r}")
+        for node in update.updated.values():
+            # nocheckin: handle Run/Interrupt updates in Runtime
+            if isinstance(node, Run):
+                if node.killed_at:
+                    self.thread.runtime.kill(node)
+                elif node.paused_at and (not node.resumed_at or node.paused_at > node.resumed_at):
+                    self.thread.runtime.pause(node)
+            elif isinstance(node, Interrupt):
+                ...
 
 
 class RuntimeThread(RuntimeServiceBase, RuntimeBase):
@@ -108,6 +120,11 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             thread_nonce=NONCE,
         )
 
+    @property
+    def runtime(self) -> Runtime:
+        assert self._runtime is not None, f"no runtime for {self!r}"
+        return self._runtime
+
     async def start(self):
         await super().start()
         assert self._session is not None, f"no session for {self!r}"
@@ -147,8 +164,10 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                         )
                     assert run.package_id == self._main_package.id, f"{run!r} is not in {self!r}"
                     assert run.root_ptr is None, f"{run!r} is not a root Run"
-                    handle = RunHandle(run, lock, self)
+                    assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
+                    handle = RunHandle(run, run._connection, lock, self)
                     self._owned_runs[run_ptr.id] = handle
+                    run._connection.on_update(handle.on_update)
             else:
                 # already loaded
                 handle = self._owned_runs[run_ptr.id]
@@ -166,7 +185,11 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             try:
                 await self._runtime.run(handle.run, return_error=True, optimistic=True)
                 logger.info("thread.run", process=self, run=handle.run, span="current")
+
+                # done, close handle
                 if handle.run.status.is_terminal:
+                    handle.connection.close()
+                    await handle.connection.wait_closed()
                     del self._owned_runs[handle.run.id]
             finally:
                 del self._active_runs[handle.run.id]

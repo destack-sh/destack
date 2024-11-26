@@ -11,6 +11,7 @@ from typing import (
     AsyncIterator,
     Callable,
     Collection,
+    Mapping,
     Optional,
     Union,
     cast,
@@ -26,6 +27,7 @@ from opentelemetry import trace
 from bench.language.const import (
     BenchError,
     ConditionalType,
+    EditType,
     NodeType,
     QueryType,
 )
@@ -145,9 +147,9 @@ class WatchGetUpdateData:
 
 @dataclass(slots=True)
 class WatchGetUpdate:
-    added: list[AnyNodeData]
-    updated: list[AnyNodeData]
-    removed: list[NodeReferenceData]
+    added: Mapping[UUID, Node]
+    updated: Mapping[UUID, Node]
+    removed: Mapping[UUID, Node]
 
 
 #
@@ -190,9 +192,9 @@ class WatchSearchUpdateData:
 
 @dataclass(slots=True)
 class WatchSearchUpdate:
-    added: list[AnyNodeData]
-    updated: list[AnyNodeData]
-    removed: list[NodeReferenceData]
+    added: Mapping[UUID, Node]
+    updated: Mapping[UUID, Node]
+    removed: Mapping[UUID, Node]
 
 
 #
@@ -589,8 +591,7 @@ class Connection[
                             update_data,
                             unpack=len(self._update_subscribers) > 0,
                         )
-                        if len(self._update_subscribers) > 0:
-                            assert update is not None, f"no update for {update_data!r} in {self!r}"
+                        if update is not None:
                             for callback in self._update_subscribers:
                                 callback(update)
                 except Exception as e:
@@ -690,6 +691,7 @@ class GetConnection[ChannelT: Channel, T: Node](
     ) -> WatchGetUpdate | None:
         from bench.language.transaction import edit_data_graph, edit_graph
 
+        # filter edits
         if self.session._origin:
             new_edits = [
                 edit
@@ -698,17 +700,54 @@ class GetConnection[ChannelT: Channel, T: Node](
             ]
         else:
             new_edits = update.edits
+        if not new_edits:
+            return None
+
+        # apply
         edit_data_graph(result_data.graph, update.edits, include_deleted=self.query.include_deleted)
         if result is not None:
-            edit_graph(
-                graph=result.graph,
-                supergraph=self.session._supergraph,
-                edits=new_edits,
-                include_deleted=self.query.include_deleted,
-                validate=False,
-            )
+            if unpack:
+                # unpack update
+                added: dict[UUID, Node] = {}
+                updated: dict[UUID, Node] = {}
+                removed: dict[UUID, Node] = {}
 
-        # nocheckin: unpack update
+                # collect pre-edit nodes (for remove)
+                for edit in new_edits:
+                    if edit.type in (EditType.DELETE, EditType.ERASE):
+                        node = result.graph.get(UUID(edit.node_ptr.id))
+                        assert node is not None, f"missing node for edit: {edit!r}"
+                        removed[node.id] = node
+
+                # do edit
+                edit_graph(
+                    graph=result.graph,
+                    supergraph=self.session._supergraph,
+                    edits=new_edits,
+                    include_deleted=self.query.include_deleted,
+                    validate=False,
+                )
+
+                # collect post-edit nodes (for add/update)
+                for edit in new_edits:
+                    if edit.type in (EditType.CREATE, EditType.UPDATE, EditType.MOVE):
+                        node = result.graph.get(UUID(edit.node_ptr.id))
+                        assert node is not None, f"missing node for edit: {edit!r}"
+                        if edit.type == EditType.CREATE:
+                            added[node.id] = node
+                        else:
+                            updated[node.id] = node
+
+                return WatchGetUpdate(added=added, updated=updated, removed=removed)
+            else:
+                # just edit directly
+                edit_graph(
+                    graph=result.graph,
+                    supergraph=self.session._supergraph,
+                    edits=new_edits,
+                    include_deleted=self.query.include_deleted,
+                    validate=False,
+                )
 
 
 class SearchConnection[ChannelT: Channel, T: Node](
@@ -756,6 +795,16 @@ class SearchConnection[ChannelT: Channel, T: Node](
 
         # :ConnectionUpdateOrdering
 
+        # filter edits
+        if self.session._origin:
+            new_edits = [
+                edit
+                for edit in update.edits
+                if not edit.origin or not origin_matches(edit.origin, self.session._origin)
+            ]
+        else:
+            new_edits = update.edits
+
         # apply other added/removed nodes
         for node_data in update.added_nodes:
             result_data.graph.add(node_data)
@@ -778,15 +827,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
                 assert node is not None, f"missing node for update: {node!r}"
                 result.graph.remove(node)
 
-        # apply edits
-        if self.session._origin:
-            new_edits = [
-                edit
-                for edit in update.edits
-                if not edit.origin or not origin_matches(edit.origin, self.session._origin)
-            ]
-        else:
-            new_edits = update.edits
+        # apply
         edit_data_graph(result_data.graph, update.edits, include_deleted=self.query.include_deleted)
         for node_data in update.added_nodes:
             result_data.graph.add(node_data)

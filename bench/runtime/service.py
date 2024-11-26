@@ -158,6 +158,9 @@ class RuntimeThreadHandle:
 
     async def _do_restart(self):
         """Restarts the given thread."""
+
+    async def restart(self):
+        """Restarts the thread."""
         if self.mode == RuntimeThreadMode.LOCAL:
             pass  # nothing
         elif self.mode == RuntimeThreadMode.PROCESS:
@@ -168,7 +171,7 @@ class RuntimeThreadHandle:
                     self._process.kill()
                     _ = await self._process.wait()
                 except Exception as e:
-                    logger.error("runtime.restart_thread.terminate.error", thread=self, exc_info=e)
+                    logger.error("runtime.thread.terminate.error", thread=self, exc_info=e)
             self._process, self._channel, self._client = await self._start_process(
                 id=self.id, port=self._port
             )
@@ -176,21 +179,14 @@ class RuntimeThreadHandle:
             assert_never(self.mode)
         self._restarts += 1
         self._restarted_at = self.service.oracle.utc()
-        logger.debug("runtime.restart_thread", thread=self, restarts=self._restarts)
-
-    async def restart(self):
-        """Restarts the thread."""
-        # 'kill' any active runs
-        ...  # nocheckin
-        # and force restart
-        await self._do_restart()
+        logger.debug("runtime.thread", thread=self, restarts=self._restarts)
 
     async def do[T](self, func: Awaitable[T], *, timeout: float | None) -> T:
         """Await something from the given thread. If it doesn't respond in time, we restart it."""
         try:
             return await asyncio.wait_for(func, timeout=timeout)
         except (asyncio.TimeoutError, grpclib.exceptions.StreamTerminatedError) as e:
-            logger.error("runtime.in_thread.timeout", thread=self, error=e)
+            logger.error("runtime.thread.timeout", thread=self, error=e)
             # restart if thread wasn't restarted recently
             if (
                 not self._restarted_at

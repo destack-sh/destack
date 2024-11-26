@@ -217,15 +217,14 @@ def _get_edited_node(updated_graph: NodeDataGraph, edit: EditData) -> AnyNodeDat
 class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
     """
     Connected get query in the graph.
-    If live and any root is removed, we error (like the usual get behavior; not sure about this).
     """
 
     read_type: ClassVar[QueryType] = QueryType.GET
 
     def __init__(self, scope: GraphScopeData, query: "QueryBuilder", oracle: Oracle):
         super().__init__(scope, query, oracle)
-        self._get_node_ids: set[str] = {str(r.id) for r in query._roots or () if r.id}
-        self._get_node_cks: set[str] = {str(r.ck) for r in query._roots or () if r.ck}
+        self._root_ids: set[str] = {str(r.id) for r in query._roots or () if r.id}
+        self._roots_cks: set[str] = {str(r.ck) for r in query._roots or () if r.ck}
 
     def __result_str__(self, result: GetResultData) -> str:
         return f"nodes={len(result.graph)}"
@@ -265,13 +264,26 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                     else:
                         raise RuntimeError(f"missing parent ptr for {node!r} in {edit!r}")
                 if parent_id in result_graph:
-                    is_in_scope = True  # already have parent
-                elif (
-                    node.id in self._get_node_ids or getattr(node, "ck", None) in self._get_node_cks
-                ):
-                    is_in_scope = True  # optional root
-                    # add node and its ancestors
-                    # (this must be an optional root that we didn't have before)
+                    # already have a parent, check if parent is a root or just a common ancestor
+                    parent = result_graph.get(parent_id)
+                    while parent is not None:
+                        if (
+                            parent.id in self._root_ids
+                            or getattr(parent, "ck", None) in self._roots_cks
+                        ):
+                            # yup, parent is a real root
+                            is_in_scope = True
+                            break
+                        if parent.parent_ptr and parent.parent_ptr.id:
+                            parent = result_graph.get(parent.parent_ptr.id)
+                        else:
+                            parent = None
+                    else:
+                        # just a shared ancestor, not in scope
+                        is_in_scope = False
+                elif node.id in self._root_ids or getattr(node, "ck", None) in self._roots_cks:
+                    # optional root, add the node and its ancestors
+                    is_in_scope = True
                     ancestor = updated_graph.get(parent_id)
                     while ancestor is not None:
                         if ancestor.id not in result_graph:
@@ -290,7 +302,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                 node = _get_edited_node(updated_graph, edit)
                 if node is None:
                     node = result_graph[edit.node_ptr.id]
-                # apply (just copy node instead of actually applying edit, we don't modify anything here)
+                # apply (just use updated node instead of actually applying edit, we're read only)
                 relevant_edits.append(edit)
                 if edit_type == EditType.ERASE or (
                     not self.query.include_deleted and edit_type == EditType.DELETE

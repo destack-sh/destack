@@ -2,13 +2,11 @@
 import { createBlock } from "@/language/block";
 import { toCamelName } from "@/language/const";
 import { packSubnode, useSubnodeProperty } from "@/language/node";
-import { getRunDurationString } from "@/language/session";
 import {
   BlockType,
   HubAspect,
   NodeType,
   Orientation,
-  RunStatus,
   TreeViewPreset,
   ViewData,
   ViewType,
@@ -21,10 +19,10 @@ import { isAuthenticated, user } from "@/system/user";
 import { fireActionById } from "@/ui/action";
 import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
-import { getRunColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { isDeveloperMode } from "@/utils/globals";
 import IconName from "@/views/builtins/IconName.vue";
+import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Tree from "@/views/system/Tree.vue";
@@ -275,12 +273,7 @@ defineExpose<ViewExposed>({ self });
         <IconName v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>
         <!-- Status -->
-        <i
-          class="fas fa-circle-small ml-2 transition-colors duration-75"
-          :style="{ color: getRunColorHex(runtime.focusedRun.status) }"
-          :class="runtime.focusedRun.status == RunStatus.RUNNING ? 'animate-pulse' : ''"
-        />
-        <span class="ml-2 text-gray-400">{{ getRunDurationString(runtime.focusedRun, { minUnit: "s" }) }}</span>
+        <RunStatus :run="runtime.focusedRun" />
         <!-- Controls -->
         <div class="ml-auto flex flex-row gap-x-1">
           <button
