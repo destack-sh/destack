@@ -250,7 +250,7 @@ def origin_matches(origin: ClientOriginData, other: ClientOriginData) -> bool:
 # NOTE :Architecture :Cleanup: the whole Engine/Channel/Connection system seems convoluted
 
 
-class GraphEngine[C: Channel](abc.ABC):
+class GraphEngine[C: "Channel"](abc.ABC):
     """A Graph IO service to perform IO on some subgraph."""
 
     def __init__(

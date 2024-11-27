@@ -302,6 +302,7 @@ def test_unnamed_node(session: Session, mock_package: Package):
     """Cannot create path to an unnamed node (like a File)."""
     package = mock_package
 
+    assert package.bench
     file = File(
         parent=package.bench.main_drive,
         kind=FileKind.DRIVE,

@@ -20,6 +20,7 @@ from typing import (
     Mapping,
     TypeVar,
     Union,
+    assert_never,
     cast,
 )
 from uuid import UUID
@@ -97,7 +98,7 @@ def to_uuid(id: str | UUID | None) -> UUID | None:
     elif isinstance(id, UUID):
         return id
     else:
-        raise TypeError(f"unexpected id type: {id!r}")
+        assert_never(id)
 
 
 @cached(cache={})
@@ -109,7 +110,7 @@ def uuid_to_str(id: UUID | str | None) -> str | None:
     elif isinstance(id, UUID):
         return intern(str(id))
     else:
-        raise TypeError(f"unexpected id type: {id!r}")
+        assert_never(id)
 
 
 def get_first(obj: dict, keys: Iterable[str]):

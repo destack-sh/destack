@@ -123,9 +123,9 @@ class ServiceBase(abc.ABC):
         # combine mappings from non-overlapping superclasses
         patched_mapping = {}
         for cls in self.__class__.__bases__:
-            if cls.__mapping__ == ServiceBase.__mapping__:
+            if cls.__mapping__ == ServiceBase.__mapping__:  # type: ignore
                 continue
-            for method, handler in cls.__mapping__(self).items():
+            for method, handler in cls.__mapping__(self).items():  # type: ignore
                 patched_mapping[method] = self._wrap_rpc(method, handler)
         assert len(patched_mapping) > 0, f"no RPCs found in {self!r}"
         return patched_mapping

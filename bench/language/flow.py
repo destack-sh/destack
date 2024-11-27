@@ -395,7 +395,7 @@ class Step(SourceNode[StepData]):
         return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
 
     @staticmethod
-    def new[StepT: Step = Step](
+    def new[StepT: "Step" = "Step"](
         typ: StepType | Type[StepT] | NodeSubtypeStub[StepT], name: str, **kwargs
     ) -> StepT:
         """Creates a new Step of the given type."""

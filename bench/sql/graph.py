@@ -744,7 +744,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             elif meta_prop.primitive_type == PrimitiveType.UUID:
                 extra_value = str(extra_value)
             elif meta_prop.enum_type == EnumType.NODE_TYPE:
-                extra_value = NodeType(extra_value)
+                extra_value = NodeType(cast(int, extra_value))
             else:
                 raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
             setattr(ptr, meta_key, extra_value)

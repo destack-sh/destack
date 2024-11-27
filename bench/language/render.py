@@ -302,7 +302,7 @@ class Renderer:
             return self.render_node_ref(value)
         elif typ.kind == TypeKind.ENUM:
             enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
-            value = enum_cls(value)
+            value = enum_cls(cast(int, value))
             return f"{enum_cls.__name__}.{value.name}"
         elif typ.kind == TypeKind.STRUCT:
             if isinstance(value, Property):

@@ -126,7 +126,7 @@ class _PatchedSpan(Span):
         parent_context: Optional[Any] = None,
     ) -> None:
         with self._lock:
-            if self._start_time is not None:
+            if self._start_time is not None:  # type: ignore
                 return  # ignore double start
             self._start_time = start_time if start_time is not None else time_ns()
 
@@ -134,9 +134,9 @@ class _PatchedSpan(Span):
 
     def end(self, end_time: Optional[int] = None) -> None:
         with self._lock:
-            if self._start_time is None:
+            if self._start_time is None:  # type: ignore
                 raise RuntimeError("Calling end() on a not started span.")
-            if self._end_time is not None:
+            if self._end_time is not None:  # type: ignore
                 return  # ignore double end
 
             self._end_time = end_time if end_time is not None else time_ns()

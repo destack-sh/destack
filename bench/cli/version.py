@@ -20,7 +20,7 @@ def show():
 
 
 @app.command()
-def bump(revision: int = typer.Option(None)):
+def bump(revision: int | None = typer.Option(None)):
     """
     Bump the CalVer to the current date. Increment revision if the date is the same.
     Format: YYYY.MM.DD.R

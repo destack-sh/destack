@@ -89,22 +89,24 @@ def test_project_custom_objects(shared_session: Session, shared_package: Package
 def test_project_remote_nodes(shared_session: Session, shared_package: Package):
     """'Remote' nodes that aren't loaded in the graph should also be projected."""
     Class1 = Block.new(BlockType.CLASS, "Class1", fields=[Field.member("File", File)])
+    bench = shared_package.bench
+    assert bench
     File1 = File(
-        parent=shared_package.bench.main_drive,
+        parent=bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile1.txt",
         type=FileType.TEXT,
         size=1024,
     )
     File2 = File(
-        parent=shared_package.bench.main_drive,
+        parent=bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile2.txt",
         type=FileType.TEXT,
         size=1024,
     )
     File3 = File(
-        parent=shared_package.bench.main_drive,
+        parent=bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile3.txt",
         type=FileType.TEXT,

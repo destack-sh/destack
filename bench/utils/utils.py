@@ -8,7 +8,7 @@ from typing import Optional, Type, cast
 import cachetools
 
 
-def str_to_bool(value: str) -> bool:
+def str_to_bool(value: str | None) -> bool:
     truthy_strs_lower = ("y", "yes", "t", "true", "on", "yup", "1")
     return value is not None and str(value).lower() in truthy_strs_lower
 
@@ -34,12 +34,12 @@ def get_from_env_maybe[T](
             )
     try:
         if typ is bool:
-            value = str_to_bool(cast(str, value))
+            value = str_to_bool(value)
         elif issubclass(typ, StrEnum):
             try:
                 value = typ(value)
             except ValueError:
-                value = typ[cast(str, value)]
+                value = typ[value]
         elif issubclass(typ, Enum):
             try:
                 value = int(value)  # type: ignore

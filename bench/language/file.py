@@ -1004,7 +1004,8 @@ async def upload(
     if session is None:
         session = active_session()
     if drive is None:
-        drive = session.bench.main_drive
+        bench = session.bench
+        drive = bench.main_drive if bench is not None else None
         if drive is None:
             raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
     file.parent = drive

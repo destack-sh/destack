@@ -959,6 +959,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     if TYPE_CHECKING:
         parent: "BuiltinObject | CustomObject | None" = None
         _skip_validate_self: InitVar[bool] = False
+        _skip_extra_kwargs: InitVar[bool] = False
 
     _session: "Session | None" = p_runtime(default=None)
     _supergraph: "NodeSuperGraph" = p_runtime(default=None)
@@ -2065,6 +2066,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             while parent is not None:
                 if parent.metatype == NodeType.BRANCH or parent.metatype == NodeType.PACKAGE:
                     parent = cast("Branch | Package", parent).bench
+                    continue
                 path_parts.append(parent._path_key)
                 parent = parent.parent
             return "/".join(reversed(path_parts))
@@ -2233,7 +2235,7 @@ class NodeSubtypeStub[NodeT: Node]:
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     """A node that exists inside a Bench."""
 
-    bench: "Bench" = p_node_ancestor_with_self(
+    bench: "Bench | None" = p_node_ancestor_with_self(
         6, NodeType.BENCH, require=True, store=True, wire=True
     )
     if TYPE_CHECKING:
@@ -2255,7 +2257,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """A node that exists inside a Package."""
 
-    package: "Package" = p_node_ancestor_with_self(
+    package: "Package | None" = p_node_ancestor_with_self(
         5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:

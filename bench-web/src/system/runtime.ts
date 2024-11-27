@@ -3,7 +3,7 @@ import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
 import { timesortNode } from "@/language/order";
 import {
-  getRunBasePtr as getRunBasePtr,
+  getRunBasePtr,
   isRunActive,
   isRunInterrupted,
   isRunnable,
@@ -29,7 +29,6 @@ import {
   Timestamp,
   type RunData,
 } from "@/proto/wire";
-import { Duration } from "@/proto/wire/google/protobuf/duration";
 import { describeNode, propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { pkgConnection, pkgGraph, space, spaceConnection } from "@/system/space";

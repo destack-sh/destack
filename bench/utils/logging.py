@@ -402,7 +402,7 @@ def _add_logging_level(
         )
 
     # Lock because logger class and level name are queried and set
-    registered_num = logging.getLevelName(level_name)
+    registered_num = logging.getLevelName(level_name)  # type: ignore
     logger_class = logging.getLoggerClass()
     logger_adapter = logging.LoggerAdapter
 
