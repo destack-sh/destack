@@ -2353,6 +2353,11 @@ class HasRuntimeContext(BuiltinObject):
         """The Runtime associated with this context (if any)."""
         return self.session._runtime if self.session is not None else None
 
+    @property
+    def thread(self):
+        """The RuntimeThread associated with this context (if any)."""
+        return self.runtime.thread if self.runtime is not None else None
+
 
 @node_component()
 class RuntimeNode[NodeDataT: AnyNodeData](

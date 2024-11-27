@@ -615,8 +615,9 @@ class Connection[
                     continue
         finally:
             self.session._on_connection_end(self)
-            self.close()
-            await self.wait_closed()
+            if not self._is_closed:
+                self.close()
+                await self.wait_closed()
             log.trace(f"connect.{self.type_name}.end")
 
     @abc.abstractmethod

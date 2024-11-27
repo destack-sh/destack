@@ -36,7 +36,7 @@ const props = defineProps<{
     <i
       v-if="isRunInterrupted(run)"
       v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
-      class="fas fa-hand rounded text-gray-700"
+      class="fas fa-hand rounded text-pink-500"
     />
   </div>
 </template>

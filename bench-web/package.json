@@ -1,6 +1,6 @@
 {
   "name": "bench-web",
-  "version": "2024.11.27.0",
+  "version": "2024.11.27.1",
   "private": true,
   "type": "module",
   "scripts": {

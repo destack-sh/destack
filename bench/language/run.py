@@ -178,6 +178,7 @@ class RunOptions(Struct):
     retry_on: list["RunErrorType"] = p_regular(44, array=True)
     suppress_fail: Optional[bool] = p_regular(45, default=None)
     suppress_abort: Optional[bool] = p_regular(46, default=None)
+    suppress_pause: Optional[bool] = p_regular(47, default=None)
 
     # context
     # ...
@@ -400,6 +401,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     )
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
+        root_id: Optional[UUID] = None
     block: Optional["Block"] = p_internal(32, require=False, array=False, references=NodeType.BLOCK)
     step: Optional["Step"] = p_internal(33, require=False, array=False, references=NodeType.STEP)
     pipe: Optional["Pipe"] = p_internal(34, require=False, array=False, references=NodeType.PIPE)
@@ -500,6 +502,13 @@ class Run(RuntimeNode[RunData], HasNodeBase):
             return self.block
 
     @property
+    def ancestors(self):
+        parent = self
+        while isinstance(parent, Run):
+            yield parent
+            parent = parent.parent
+
+    @property
     def is_active(self) -> bool:
         return self.status not in TERMINAL_RUN_STATUSES
 
@@ -572,24 +581,24 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         """Mark this Run as paused."""
         assert self._session is not None, f"{self!r} has no session"
         self.paused_at = self._session._oracle.utc()
-        runtime = self.runtime
-        if runtime:
-            runtime.pause(self)
+        thread = self.thread
+        if thread:
+            thread.pause(self)
 
     def resume(self):
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
         self.resumed_at = self._session._oracle.utc()
-        runtime = self.runtime
-        if runtime:
-            runtime.resume(self)
+        thread = self.thread
+        if thread:
+            thread.resume(self)
 
     def kill(self):
         """Mark this Run as killed."""
         assert self._session is not None, f"{self!r} has no session"
         self.killed_at = self._session._oracle.utc()
-        runtime = self.runtime
-        if runtime:
-            runtime.kill(self)
+        thread = self.thread
+        if thread:
+            thread.kill(self)
 
     cancel = abort = kill

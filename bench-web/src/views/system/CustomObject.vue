@@ -301,7 +301,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
             class="ml-auto flex-shrink-0 text-gray-400"
             :class="fieldView.isFullWidth ? '' : 'text-right'"
           >
-            <span class="italic">Unset</span>
+            <span class="">Unset</span>
           </div>
           <div v-else class="ml-auto flex-shrink-0 text-warning-600" :class="fieldView.isFullWidth ? '' : 'text-right'">
             {{ fieldView.viewType != null ? ViewType[fieldView.viewType] : "No View for Type" }}

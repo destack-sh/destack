@@ -5,10 +5,11 @@ from typing import Any, Mapping
 from uuid import UUID
 
 import structlog
+from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
 from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
-from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointSite, Interrupt
+from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointSite
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -29,6 +30,10 @@ from bench.runtime.runner import (
 )
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RetryState
+
+if TYPE_CHECKING:
+    from bench.runtime.thread import RuntimeThread
+
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -53,6 +58,7 @@ class Runtime:
         session: Session,
         cache: Cache,
         oracle: Oracle,
+        thread: "RuntimeThread | None" = None,
         static_glbls: Mapping[str, Any] = STATIC_CODE_GLOBALS,
         dynamic_glbls: Mapping[str, Any] = DYNAMIC_CODE_GLOBALS,
     ):
@@ -62,6 +68,7 @@ class Runtime:
         self.package = session.package
         self.oracle = oracle
         self.static_glbls = static_glbls
+        self.thread = thread
         self.dynamic_glbls = dynamic_glbls
         self.combined_glbls = {**static_glbls, **dynamic_glbls}
 
@@ -386,24 +393,12 @@ class Runtime:
                     await self.session.commit()
         return runner
 
-    def pause(self, run: Run):
-        """Pause an active Run in this Runtime."""
-        raise NotImplementedError("nocheckin: Runtime.pause")
-
-    def resume(self, run: Run):
-        """Resume a paused Run in this Runtime."""
-        raise NotImplementedError("nocheckin: Runtime.resume")
-
     def kill(self, run: Run):
-        """Kill a Run currently executing in this Runtime (and any inside it)."""
+        """Kill a Run that is currently active in this Runtime (and any inside it)."""
         root_runner = self._active_runners_by_id.get(run.id)
         if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
         for runner in reversed(list(root_runner.walk())):
             if not runner.status.is_terminal:
                 runner.cancel()
-                logger.debug("runtime.run.abort", runner=runner)
-
-    def handle(self, interrupt: Interrupt):
-        """Handle an updated Interrupt in this Runtime."""
-        raise NotImplementedError("nocheckin: Runtime.handle")
+                logger.debug("runtime.run.kill", runner=runner)

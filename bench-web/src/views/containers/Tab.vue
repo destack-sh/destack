@@ -32,9 +32,7 @@ const id = toRef(props, "id");
 // focus
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
-const tabsNodes = spaceGraph.getManyMaybeRef(
-  computed(() => tabs.value.map((t) => t.nodePtr ?? null)),
-);
+const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => t.nodePtr ?? null)));
 const tabsTitles = computed(() => {
   // views with a nodePtr are titled by the node name :ViewNodeTitles
   const tabsTitles: string[] = [];
@@ -217,7 +215,7 @@ defineExpose<ViewExposed>({ self, actions });
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Tab button -->
-      <button
+      <div
         v-for="(tab, i) in tabs"
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         :key="tab.id"
@@ -264,7 +262,7 @@ defineExpose<ViewExposed>({ self, actions });
           class="absolute z-10 h-full w-1 bg-primary-500"
           :class="[activeHeaderDropZone.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
         />
-      </button>
+      </div>
       <!-- Remaining space -->
       <div class="flex-1 border-b border-gray-200" />
       <!-- Drop indicator if no tab -->

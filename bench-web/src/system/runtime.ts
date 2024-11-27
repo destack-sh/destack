@@ -105,6 +105,11 @@ export class RunTree {
     return this.runsRef.value;
   }
 
+  /** The interrupts for the current active Run. */
+  get interrupts() {
+    return this.interruptsRef.value;
+  }
+
   /** The base node of the current active Run. */
   get base() {
     return this.runBaseRef.value;
@@ -205,24 +210,29 @@ export class Runtime {
 
   /** Pause a Run. */
   pause(run: RunData) {
+    if (!isRunActive(run)) throw new Error(`cannot pause inactive run for ${describeNode(run)}`);
     log.trace("runtime.pause", run);
     this.tx.update(run, { pausedAt: Timestamp.now() });
   }
 
   /** Resume a Run. */
   resume(run: RunData) {
+    if (run.status != RunStatus.PAUSED) throw new Error(`cannot resume non-paused run for ${describeNode(run)}`);
     log.trace("runtime.resume", run);
     this.tx.update(run, { resumedAt: Timestamp.now() });
   }
 
   /** Stop a Run. */
   kill(run: RunData) {
+    if (!isRunActive(run)) throw new Error(`cannot kill inactive run for ${describeNode(run)}`);
     log.trace("runtime.kill", run);
     this.tx.update(run, { killedAt: Timestamp.now() });
   }
 
   /** Complete an Interrupt */
   complete(interrupt: InterruptData) {
+    if (interrupt.status != InterruptStatus.OPEN)
+      throw new Error(`cannot complete non-open interrupt for ${describeNode(interrupt)}`);
     log.trace("runtime.complete", interrupt);
     const tx = this.tx;
     tx.update(interrupt, { status: InterruptStatus.COMPLETED, closedAt: Timestamp.now() }, { debounce: "tick" });
@@ -230,6 +240,8 @@ export class Runtime {
 
   /*+ Cancel an Interrupt */
   cancel(interrupt: InterruptData) {
+    if (interrupt.status != InterruptStatus.OPEN)
+      throw new Error(`cannot cancel non-open interrupt for ${describeNode(interrupt)}`);
     log.trace("runtime.cancel", interrupt);
     const tx = this.tx;
     tx.update(interrupt, { status: InterruptStatus.CANCELLED, closedAt: Timestamp.now() }, { debounce: "tick" });

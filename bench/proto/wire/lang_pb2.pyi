@@ -3416,7 +3416,7 @@ class VideoOptionsData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class RunOptionsData(_message.Message):
-    __slots__ = ("metatype", "max_attempts", "max_concurrency", "max_runs", "timeout", "retry_interval", "backoff", "max_retry_interval", "retry_on", "suppress_fail", "suppress_abort", "breakpoints", "cache_mode", "cache_retention", "model_provider", "model_type", "text_options", "audio_options", "image_options", "video_options")
+    __slots__ = ("metatype", "max_attempts", "max_concurrency", "max_runs", "timeout", "retry_interval", "backoff", "max_retry_interval", "retry_on", "suppress_fail", "suppress_abort", "suppress_pause", "breakpoints", "cache_mode", "cache_retention", "model_provider", "model_type", "text_options", "audio_options", "image_options", "video_options")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     MAX_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
@@ -3428,6 +3428,7 @@ class RunOptionsData(_message.Message):
     RETRY_ON_FIELD_NUMBER: _ClassVar[int]
     SUPPRESS_FAIL_FIELD_NUMBER: _ClassVar[int]
     SUPPRESS_ABORT_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESS_PAUSE_FIELD_NUMBER: _ClassVar[int]
     BREAKPOINTS_FIELD_NUMBER: _ClassVar[int]
     CACHE_MODE_FIELD_NUMBER: _ClassVar[int]
     CACHE_RETENTION_FIELD_NUMBER: _ClassVar[int]
@@ -3448,6 +3449,7 @@ class RunOptionsData(_message.Message):
     retry_on: _containers.RepeatedScalarFieldContainer[RunErrorType]
     suppress_fail: bool
     suppress_abort: bool
+    suppress_pause: bool
     breakpoints: _containers.RepeatedCompositeFieldContainer[BreakpointData]
     cache_mode: CacheMode
     cache_retention: _duration_pb2.Duration
@@ -3457,7 +3459,7 @@ class RunOptionsData(_message.Message):
     audio_options: AudioOptionsData
     image_options: ImageOptionsData
     video_options: VideoOptionsData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., max_attempts: _Optional[int] = ..., max_concurrency: _Optional[int] = ..., max_runs: _Optional[int] = ..., timeout: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., backoff: _Optional[float] = ..., max_retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ..., suppress_fail: bool = ..., suppress_abort: bool = ..., breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ..., cache_mode: _Optional[_Union[CacheMode, str]] = ..., cache_retention: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., model_provider: _Optional[_Union[ModelProvider, str]] = ..., model_type: _Optional[_Union[ModelType, str]] = ..., text_options: _Optional[_Union[TextOptionsData, _Mapping]] = ..., audio_options: _Optional[_Union[AudioOptionsData, _Mapping]] = ..., image_options: _Optional[_Union[ImageOptionsData, _Mapping]] = ..., video_options: _Optional[_Union[VideoOptionsData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., max_attempts: _Optional[int] = ..., max_concurrency: _Optional[int] = ..., max_runs: _Optional[int] = ..., timeout: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., backoff: _Optional[float] = ..., max_retry_interval: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ..., suppress_fail: bool = ..., suppress_abort: bool = ..., suppress_pause: bool = ..., breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ..., cache_mode: _Optional[_Union[CacheMode, str]] = ..., cache_retention: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., model_provider: _Optional[_Union[ModelProvider, str]] = ..., model_type: _Optional[_Union[ModelType, str]] = ..., text_options: _Optional[_Union[TextOptionsData, _Mapping]] = ..., audio_options: _Optional[_Union[AudioOptionsData, _Mapping]] = ..., image_options: _Optional[_Union[ImageOptionsData, _Mapping]] = ..., video_options: _Optional[_Union[VideoOptionsData, _Mapping]] = ...) -> None: ...
 
 class RunAttemptData(_message.Message):
     __slots__ = ("metatype", "code", "status", "duration", "started_at", "started_epoch", "terminated_at", "terminated_epoch", "interrupted_at", "interrupt_ptr", "error", "intermediates_packed")
