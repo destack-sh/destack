@@ -176,7 +176,7 @@ class Interrupt(RuntimeNode[InterruptData]):
     def is_closed(self) -> bool:
         return self.status == InterruptStatus.COMPLETED
 
-    def complete(self, outputs: CustomObject | None = None) -> None:
+    def complete(self, outputs: CustomObject | None = None, _trigger_thread: bool = True) -> None:
         """Mark this Interrupt as closed."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
@@ -184,20 +184,20 @@ class Interrupt(RuntimeNode[InterruptData]):
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
         self.outputs = outputs
-        runtime = self._session.runtime
-        if runtime:
-            runtime.handle(self)
+        thread = self._session.thread
+        if thread and _trigger_thread:
+            thread.resume(self)
 
-    def cancel(self) -> None:
+    def cancel(self, _trigger_thread: bool = True) -> None:
         """Mark this Interrupt as cancelled."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
         self.status = InterruptStatus.CANCELLED
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
-        runtime = self._session.runtime
-        if runtime:
-            runtime.handle(self)
+        thread = self._session.thread
+        if thread and _trigger_thread:
+            thread.resume(self)
 
     @staticmethod
     def from_run(

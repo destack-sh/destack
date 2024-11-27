@@ -1904,6 +1904,7 @@ message RunOptionsData {
   repeated RunErrorType retry_on = 44;
   optional bool suppress_fail = 45;
   optional bool suppress_abort = 46;
+  optional bool suppress_pause = 47;
   repeated BreakpointData breakpoints = 60;
   optional CacheMode cache_mode = 70;
   optional google.protobuf.Duration cache_retention = 71;

@@ -1010,6 +1010,10 @@ export interface RunOptionsData {
      */
     suppressAbort?: boolean;
     /**
+     * @generated from protobuf field: optional bool suppress_pause = 47;
+     */
+    suppressPause?: boolean;
+    /**
      * @generated from protobuf field: repeated symbolx.bench.BreakpointData breakpoints = 60;
      */
     breakpoints: BreakpointData[];
@@ -14660,6 +14664,7 @@ class RunOptionsData$Type extends MessageType$<RunOptionsData> {
             { no: 44, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
             { no: 45, name: "suppress_fail", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 46, name: "suppress_abort", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 47, name: "suppress_pause", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 60, name: "breakpoints", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BreakpointData },
             { no: 70, name: "cache_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.CacheMode", CacheMode, "CACHE_MODE_"] },
             { no: 71, name: "cache_retention", kind: "message", T: () => Duration },
@@ -14721,6 +14726,9 @@ class RunOptionsData$Type extends MessageType$<RunOptionsData> {
                     break;
                 case /* optional bool suppress_abort */ 46:
                     message.suppressAbort = reader.bool();
+                    break;
+                case /* optional bool suppress_pause */ 47:
+                    message.suppressPause = reader.bool();
                     break;
                 case /* repeated symbolx.bench.BreakpointData breakpoints */ 60:
                     message.breakpoints.push(BreakpointData.internalBinaryRead(reader, reader.uint32(), options));
@@ -14798,6 +14806,9 @@ class RunOptionsData$Type extends MessageType$<RunOptionsData> {
         /* optional bool suppress_abort = 46; */
         if (message.suppressAbort !== undefined)
             writer.tag(46, WireType.Varint).bool(message.suppressAbort);
+        /* optional bool suppress_pause = 47; */
+        if (message.suppressPause !== undefined)
+            writer.tag(47, WireType.Varint).bool(message.suppressPause);
         /* repeated symbolx.bench.BreakpointData breakpoints = 60; */
         for (let i = 0; i < message.breakpoints.length; i++)
             BreakpointData.internalBinaryWrite(message.breakpoints[i], writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -28926,6 +28937,7 @@ export enum RunOptionsProperty {
   retryOn = 44,
   suppressFail = 45,
   suppressAbort = 46,
+  suppressPause = 47,
   breakpoints = 60,
   cacheMode = 70,
   cacheRetention = 71,
@@ -30794,6 +30806,7 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.retryOn]: { id: 44, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.suppressFail]: { id: 45, name: 'suppress_fail', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.suppressAbort]: { id: 46, name: 'suppress_abort', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.suppressPause]: { id: 47, name: 'suppress_pause', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.breakpoints]: { id: 60, name: 'breakpoints', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BREAKPOINT },
   [RunOptionsProperty.cacheMode]: { id: 70, name: 'cache_mode', component: ObjectType.RUN_OPTIONS, enumType: EnumType.CACHE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.cacheRetention]: { id: 71, name: 'cache_retention', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },

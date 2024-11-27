@@ -125,7 +125,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-tooltip="{ small: true, text: `Change icon` }"
         class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded"
         :style="{
-          backgroundColor: getNodeColorHex(step, ColorShade.S200),
+          backgroundColor: getNodeColorHex(step, ColorShade.S300),
         }"
       >
         <IconInline ref="iconRef" v-bind="getNodeIcon(step)" class="rounded text-center text-lg text-gray-700" />

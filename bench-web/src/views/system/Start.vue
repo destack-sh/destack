@@ -4,8 +4,9 @@ import { useSubnodeProperty } from "@/language/node";
 import { getRunBasePtr, isRunnable } from "@/language/session";
 import { FieldType, NodeType, RunData, TypeKind, Variant, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { runtime } from "@/system/runtime";
+import { getInterruptActions, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
+import { IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -169,7 +170,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         <RunTimeline :node-ptr="toNodeRef(run)" class="" />
       </div>
       <!-- Interrupts -->
-      <div v-if="runtime.focusedRunTree.interruptsRef.value.length > 0" class="px-5">
+      <div v-if="runtime.focusedRunTree.interrupts.length > 0" class="px-5">
         <div
           class="flex flex-row items-center"
           :style="{
@@ -178,11 +179,25 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         >
           <span class="font-semibold">Interrupts</span>
         </div>
-        <!-- nocheckin: handle interrupts properly -->
         <div class="flex flex-col">
-          <div v-for="interrupt of runtime.focusedRunTree.interruptsRef.value" :key="interrupt.id">
+          <!-- Interrupt -->
+          <div
+            v-for="interrupt of runtime.focusedRunTree.interrupts"
+            :key="interrupt.id"
+            class="flex flex-row items-center rounded hover:bg-gray-100"
+          >
             {{ interrupt.id }}
-            <button @click="runtime.complete(interrupt)">complete</button>
+            <div class="ml-auto flex flex-row gap-x-1">
+              <button
+                v-for="action in getInterruptActions(interrupt)"
+                :key="action.title"
+                v-tooltip="{ title: action.title, small: true, group: 'run' }"
+                class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                @click="action.action()"
+              >
+                <IconInline v-bind="action.icon" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
