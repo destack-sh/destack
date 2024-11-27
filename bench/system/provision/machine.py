@@ -61,6 +61,8 @@ def _get_machine_env_vars(
         supervisor_url = dockerify_url(supervisor_url)
     elif is_in_minikube:
         supervisor_url = minikubeify_url(supervisor_url)
+    bench = machine.bench
+    assert bench is not None, f"missing bench for {machine!r}"
     env_vars: dict[str, str | None] = {
         # hosting
         "SERVICE_NAME": "runtime",
@@ -69,7 +71,7 @@ def _get_machine_env_vars(
         "REGION": machine.region.slug,
         "SUPERVISOR_URL": supervisor_url,
         # bench
-        "BENCH_ID": str(machine.bench.id),
+        "BENCH_ID": str(bench.id),
         "SERVER_ID": str(machine.parent.id) if isinstance(machine.parent, Server) else None,
         "MACHINE_ID": str(machine.id),
         "CLIENT_ID": str(client.id),
@@ -262,7 +264,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
         labels = {
             "app": KUBERNETES_MACHINE_APP_LABEL,
-            "bench_id": str(machine.bench.id),
+            "bench_id": str(self.bench.id),
             "machine_id": str(machine.id),
             "version": machine.version,
             "environment": ENV.value,

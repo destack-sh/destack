@@ -72,7 +72,7 @@ def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> Enum
 #
 
 
-def pack_subnode(node_cls: type[Node], subnode: dict):
+def pack_subnode(node_cls: type[Node], subnode: dict[str, Any]):
     subnode_packed: dict[str, dict[str, JsonValue]] = {}
     for subnode_key in subnode:
         subtype_cls = node_cls.__subclass_by_subtype__[int(subnode_key)]  # type: ignore

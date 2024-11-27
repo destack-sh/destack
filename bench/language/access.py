@@ -1062,7 +1062,7 @@ def evaluate_and_adapt_read(
     # add any required skipped nodes back in (as Skips)
     skips: dict[str, wire.SkipData] = {}
     for node in visible_nodes:
-        if node.parent_ptr is not None and node.parent_ptr.id in skipped:
+        if node.parent_ptr.id in skipped:
             if node.parent_ptr.id in skips:
                 continue
             skip = wire.SkipData(
@@ -1072,7 +1072,7 @@ def evaluate_and_adapt_read(
                 order_key=getattr(node, "order_key", None),
                 reference_ptr=NodeReference._ref_data_from_node_data(node),
             )
-            skips[cast(str, node.parent_ptr.id)] = skip
+            skips[node.parent_ptr.id] = skip
     visible_nodes.extend(skips.values())
 
     # if we got here none of the required nodes were denied (above)
@@ -1181,7 +1181,7 @@ def evaluate_use(
         node_type=node.metatype,
         wanted_properties=node_cls.__properties_mask_set__,
         scope_id=str(node.id),
-        root_id=str(node.bench.id),
+        root_id=str(node.bench_id),
         mode=AccessMode.ATOMIC,
         cache=None,
     )

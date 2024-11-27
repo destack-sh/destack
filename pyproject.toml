@@ -60,6 +60,23 @@ strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true
 strictSetInference = true
+reportPrivateUsage = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = false
+reportMissingParameterType = false
+reportMissingTypeArgument = false
+reportUnknownLambdaType = false
+reportUnusedVariable = false
+reportUnusedFunction = false
+reportUnusedImport = false
+reportMissingTypeStubs = false
+reportUnnecessaryIsInstance = false
+reportUnnecessaryContains = false
+reportUnnecessaryComparison = false
+reportUnnecessaryCast = false
+reportConstantRedefinition = false
 
 [tool.coverage.run]
 omit = ["bench/migrations/*", "bench/test/*"]

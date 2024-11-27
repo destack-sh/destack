@@ -31,8 +31,12 @@ class LogPlugin(HostPlugin):
         # add logs
         # NOTE :Incomplete: how does LogPlugin get the session context?
         context_data: RuntimeContextData = RuntimeContextData()
-        package_ptr = session.package._to_ref_data()
-        bench_ptr = session.bench._to_ref_data()
+        package_ptr = session.package_ptr
+        bench_ptr = session.bench_ptr
+        assert package_ptr is not None, f"no package_ptr in {session!r}"
+        assert bench_ptr is not None, f"no bench_ptr in {session!r}"
+        package_ptr_data = package_ptr._to_data()
+        bench_ptr_data = bench_ptr._to_data()
         log_edits: list[EditData] = []
         for edit in commit.edits:
             node_type = NodeType(edit.node_ptr.node_type)
@@ -50,9 +54,9 @@ class LogPlugin(HostPlugin):
             log_data = LogData(
                 metatype=wire.ObjectType.OBJECT_TYPE_LOG,
                 id=str(UUIDT()),
-                parent_ptr=package_ptr,
-                package_ptr=package_ptr,
-                bench_ptr=bench_ptr,
+                parent_ptr=package_ptr_data,
+                package_ptr=package_ptr_data,
+                bench_ptr=bench_ptr_data,
                 created_at=edit.edited_at,
                 created_epoch=edit.epoch,
                 updated_at=edit.edited_at,

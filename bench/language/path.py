@@ -408,10 +408,11 @@ def get_node(scope: Node, path: str | Path) -> Node | None:
         elif token.type == PathTokenType.BENCH:
             if not isinstance(scope, (Package, PackageNode)):
                 raise PathLogicError(f"bench references are only valid for bench nodes: {path}")
-            if token.name != scope.package.name:
+            pkg = scope.package
+            if pkg is not None and token.name != pkg.name:
                 raise PathLogicError(f"references to other benches are not supported: {path}")
             else:
-                current = scope.package
+                current = pkg
         elif token.type == PathTokenType.CHILD:
             assert token.name, f"missing name for {token!r} in {path!r}"
             current = _get_child(current, token.name)
