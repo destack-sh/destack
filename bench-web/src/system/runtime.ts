@@ -9,6 +9,8 @@ import {
   isRunnable,
   isRunTerminal,
   makeRun,
+  RunnableNode,
+  RunnableNodeType,
   type RunnableObject,
 } from "@/language/session";
 import { CONNECTION_IGNORE, type Transaction } from "@/language/transaction";
@@ -45,18 +47,21 @@ export class RunTree {
   runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
   runRef: Ref<RunData | null>;
   runsRef: Ref<RunData[]>;
-  runBasePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
-  runBaseRef: Ref<BlockData | StepData | null>;
+  runBasePtr: Ref<TypedNodeReferenceData<RunnableNodeType> | null>;
+  runBaseRef: Ref<RunnableNode | null>;
   runConnection: Connection<"get", NodeType.RUN>;
   runsByBaseCk: Ref<Record<string, RunData[]>>;
+  basesPtrs: Ref<TypedNodeReferenceData<RunnableNodeType>[]>;
+  basesRef: Ref<RunnableNode[]>;
+  baseByCkRef: Ref<Record<string, RunnableNode>>;
   interruptsRef: Ref<InterruptData[]>;
 
-  constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
+  constructor(pkgGraph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
     this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
     const { graph: runGraph, connection: runConnection } = useGetConnection(
       { name: "runtime.run." + this.id, live: true },
       computed(() => ({
-        scope: graph.scope,
+        scope: pkgGraph.scope,
         roots: [this.runPtr.value!],
         ancestorTypes: [NodeType.RUN],
         descendantTypes: [NodeType.RUN, NodeType.INTERRUPT],
@@ -68,12 +73,9 @@ export class RunTree {
     this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }); // :NodeRefStability
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
     this.runBasePtr = computedValue(
-      () =>
-        (this.runRef.value?.stepPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<
-          NodeType.BLOCK | NodeType.STEP
-        >,
+      () => (this.runRef.value?.stepPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<RunnableNodeType>,
     );
-    this.runBaseRef = graph.getRef(this.runBasePtr);
+    this.runBaseRef = pkgGraph.getRef(this.runBasePtr);
     this.runConnection = runConnection;
     this.runsByBaseCk = computed(() => {
       const runByBaseCk: Record<string, RunData[]> = {};
@@ -91,6 +93,22 @@ export class RunTree {
         timesortNode(runByBaseCk[runBaseCk]);
       }
       return runByBaseCk;
+    });
+    this.basesPtrs = computed(() => {
+      const basePtrs: TypedNodeReferenceData<RunnableNodeType>[] = [];
+      for (const run of this.runsRef.value) {
+        const base = getRunBasePtr(run);
+        if (base != null) basePtrs.push(base as TypedNodeReferenceData<RunnableNodeType>);
+      }
+      return basePtrs;
+    });
+    this.basesRef = pkgGraph.getManyRef(this.basesPtrs);
+    this.baseByCkRef = computed(() => {
+      const basesByCk: Record<string, RunnableNode> = {};
+      for (const base of this.basesRef.value) {
+        basesByCk[base.ck] = base;
+      }
+      return basesByCk;
     });
     this.interruptsRef = runGraph.getOfTypeRef(NodeType.INTERRUPT);
   }
@@ -117,6 +135,10 @@ export class RunTree {
 
   hasBase(base: { ck?: string }) {
     return this.runsByBaseCk.value[base.ck!] != null;
+  }
+
+  getBase(base: { ck?: string }) {
+    return this.baseByCkRef.value[base.ck!];
   }
 
   /** Gets the last (active) Runs for the given base node. */
@@ -311,9 +333,16 @@ export function getInterruptActions(interrupt: InterruptData): RuntimeAction[] {
   if (interrupt.status == InterruptStatus.OPEN) {
     actions.push({
       title: "Complete",
-      icon: makeIcon("fas fa-play"),
+      icon: makeIcon("fas fa-check"),
       action: () => {
         runtime.complete(interrupt);
+      },
+    });
+    actions.push({
+      title: "Cancel",
+      icon: makeIcon("fas fa-xmark"),
+      action: () => {
+        runtime.cancel(interrupt);
       },
     });
   }

@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import { getRunBasePtr, isRunnable } from "@/language/session";
-import { FieldType, NodeType, RunData, TypeKind, Variant, ViewData, ViewType } from "@/proto/wire";
+import { getInterruptBasePtr, getInterruptDurationString, getRunBasePtr, isRunnable } from "@/language/session";
+import { FieldType, InterruptStatus, NodeType, RunData, TypeKind, Variant, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
-import { IconInline } from "@/ui/icon";
+import { getNodeIcon, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -16,6 +16,7 @@ import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = 32;
 const SECTION_HEADER_HEIGHT = 32;
+const ROW_HEIGHT = 28;
 
 const props = defineProps<
   {
@@ -41,6 +42,7 @@ const run = computed(() => {
   }
 });
 const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) : nodePtr.value));
+const runTree = computed(() => runtime.focusedRunTree);
 
 // run
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.START, toRef(props, "subnodePacked"), "inputsPacked");
@@ -170,7 +172,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         <RunTimeline :node-ptr="toNodeRef(run)" class="" />
       </div>
       <!-- Interrupts -->
-      <div v-if="runtime.focusedRunTree.interrupts.length > 0" class="px-5">
+      <div v-if="runTree.interrupts.length > 0" class="px-5">
         <div
           class="flex flex-row items-center"
           :style="{
@@ -182,11 +184,30 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         <div class="flex flex-col">
           <!-- Interrupt -->
           <div
-            v-for="interrupt of runtime.focusedRunTree.interrupts"
+            v-for="interrupt of runTree.interrupts"
             :key="interrupt.id"
-            class="flex flex-row items-center rounded hover:bg-gray-100"
+            class="flex flex-row items-center gap-x-2 rounded hover:bg-gray-100"
+            :style="{
+              height: `${ROW_HEIGHT}px`,
+            }"
           >
-            {{ interrupt.id }}
+            <!-- Base -->
+            <div class="flex flex-row items-center gap-x-1">
+              <IconInline
+                v-bind="getNodeIcon(runTree.getBase(getInterruptBasePtr(interrupt)!)!)"
+                class="w-5 text-center text-gray-700"
+              />
+              <span>{{ runTree.getBase(getInterruptBasePtr(interrupt)!)?.name }}</span>
+            </div>
+            <!-- Duration -->
+            <span class="text-gray-400">{{ getInterruptDurationString(interrupt) }}</span>
+            <!-- Highlight -->
+            <i
+              v-if="interrupt.status == InterruptStatus.OPEN"
+              v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
+              class="fas fa-hand rounded text-pink-500"
+            />
+            <!-- Actions -->
             <div class="ml-auto flex flex-row gap-x-1">
               <button
                 v-for="action in getInterruptActions(interrupt)"
