@@ -323,7 +323,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
             include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
-        connection = await channel.get(self.query, GetOptions(live=False, unpack=False))
+        connection = await channel.get(self.query, GetOptions(live=False, mode="packed"))
         self._result_data = connection.result_data
         return self._result_data
 
@@ -383,7 +383,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
             is_readonly=True,
         )
         connection = await channel.search(
-            self.query, SearchOptions(live=False, unpack=False, count=True)
+            self.query, SearchOptions(live=False, mode="packed", count=True)
         )
         self._result_data = connection.result_data
         self._result_roots_ids = {node.id for node in self._result_data.roots}
@@ -521,7 +521,9 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdateDa
             include_deleted=self.query.include_deleted,
             is_readonly=True,
         )
-        connection = await channel.aggregate(self.query, AggregateOptions(live=False, unpack=False))
+        connection = await channel.aggregate(
+            self.query, AggregateOptions(live=False, mode="packed")
+        )
         self._result_data = connection.result_data
         return self._result_data
 

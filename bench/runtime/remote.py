@@ -207,15 +207,13 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
 
     @override
     async def _do_subscribe(
-        self, query: "QueryBuilder", result: GetResultData
+        self, query: "QueryBuilder", token: str | None, epoch: int
     ) -> AsyncIterator[WatchGetUpdateData]:
         from bench.proto import wiring
 
-        assert result.connection_token is not None, f"{result!r} has no token"
-        assert result.epoch is not None, f"{result!r} has no epoch"
-        watch_req = WatchGetRequest(
-            scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
-        )
+        assert token is not None, f"{self!r} has no token"
+        assert epoch is not None, f"{self!r} has no epoch"
+        watch_req = WatchGetRequest(scope=self.scope, connection_token=token, since_epoch=epoch)
         async for rep in unary_stream_rpc(self.channel.engine.remote.watch_get, watch_req):
             update = WatchGetUpdateData(
                 edits=list(rep.edits),
@@ -272,15 +270,13 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
 
     @override
     async def _do_subscribe(
-        self, query: "QueryBuilder", result: SearchResultData
+        self, query: "QueryBuilder", token: str | None, epoch: int
     ) -> AsyncIterator[WatchSearchUpdateData]:
         from bench.proto import wiring
 
-        assert result.connection_token is not None, f"{result!r} has no token"
-        assert result.epoch is not None, f"{result!r} has no epoch"
-        watch_req = WatchSearchRequest(
-            scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
-        )
+        assert token is not None, f"{self!r} has no token"
+        assert epoch is not None, f"{self!r} has no epoch"
+        watch_req = WatchSearchRequest(scope=self.scope, connection_token=token, since_epoch=epoch)
         async for rep in unary_stream_rpc(self.channel.engine.remote.watch_search, watch_req):
             update = WatchSearchUpdateData(
                 edits=list(rep.edits),

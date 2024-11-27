@@ -43,7 +43,7 @@ class RunHandle:
 
     def on_update(self, update: WatchGetUpdate):
         for node in update.updated.values():
-            # handle Run/Interrupt updates in Runtime
+            # react to Run/Interrupt updates in Runtime
             if isinstance(node, Run):
                 if node.killed_at:
                     self.thread.runtime.kill(node)

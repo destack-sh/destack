@@ -347,7 +347,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                         scope, adapted_query.all_node_types, include_deleted=False, is_readonly=True
                     )
                     connection = await channel.get(
-                        adapted_query, GetOptions(live=False, unpack=False)
+                        adapted_query, GetOptions(live=False, mode="packed")
                     )
                     # merge result into data_graph (there may be duplicates)
                     for node_data in connection.result_data.graph.nodes:
