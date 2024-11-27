@@ -202,6 +202,25 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return self.parent is not None
 
     @property
+    def should_pause(self) -> bool:
+        if self.options.suppress_pause or self.tracked_run is None:
+            return False
+        runner = self
+        while runner is not None:
+            if (
+                runner.tracked_run is not None
+                and runner.tracked_run.paused_at
+                and not runner.options.suppress_pause
+                and (
+                    not runner.tracked_run.resumed_at
+                    or runner.tracked_run.resumed_at < runner.tracked_run.paused_at
+                )
+            ):
+                return True
+            runner = runner.parent
+        return False
+
+    @property
     def current_attempt(self) -> RunAttempt | None:
         return self.attempts[-1] if self.attempts else None
 
@@ -270,7 +289,15 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     def _trap_pause(self):
         """Yield/resume a pause the given Runner if required."""
         if self.tracked_run is None:
-            return
+            return  # can't break into untracked Run
+        if self.should_pause:
+            interrupt = self._get_or_create_interrupt(InterruptKind.PAUSE)
+            if interrupt.is_closed:
+                logger.trace("runtime.pause.closed", runner=self, interrupt=interrupt)
+                return  # pause already handled
+            else:
+                logger.trace("runtime.pause", runner=self, interrupt=interrupt)
+                raise Interrupted(self, self.tracked_run, interrupt)
 
     def cancel(self):
         self.is_cancelled = True

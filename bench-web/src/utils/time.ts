@@ -83,28 +83,6 @@ export type FormatDurationOptions = {
   digits?: number;
 };
 
-/** Converts a duration to milliseconds. */
-export function durationToMs(duration: ProtoDuration | Duration): number {
-  let durationMs: number;
-  if (duration instanceof Duration) {
-    durationMs = duration.as("milliseconds");
-  } else {
-    durationMs = Number(duration.seconds) * 1000 + duration.nanos / 1e6;
-  }
-  return durationMs;
-}
-
-/** Converts a timestamp to milliseconds. */
-export function timestampToMs(timestamp: Timestamp | DateTime): number {
-  let timestampMs: number;
-  if (timestamp instanceof DateTime) {
-    timestampMs = timestamp.toMillis();
-  } else {
-    timestampMs = Number(timestamp.seconds) * 1000 + timestamp.nanos / 1e6;
-  }
-  return timestampMs;
-}
-
 /**
  * Formats a duration into the nearest (ideally >1, less then <1 of next available unit)
  * Like 3.7s, 48m, 2d, 1w, 3y.
@@ -455,4 +433,31 @@ export function timedeltaToISOFormat(duration: number | ProtoDuration): string {
     }
   }
   return result;
+}
+
+/** Converts a duration to milliseconds. */
+export function durationToMs(duration: ProtoDuration | Duration): number {
+  let durationMs: number;
+  if (duration instanceof Duration) {
+    durationMs = duration.as("milliseconds");
+  } else {
+    durationMs = Number(duration.seconds) * 1000 + duration.nanos / 1e6;
+  }
+  return durationMs;
+}
+
+/** Converts a timestamp to milliseconds. */
+export function timestampToMs(timestamp: Timestamp | DateTime): number {
+  let timestampMs: number;
+  if (timestamp instanceof DateTime) {
+    timestampMs = timestamp.toMillis();
+  } else {
+    timestampMs = Number(timestamp.seconds) * 1000 + timestamp.nanos / 1e6;
+  }
+  return timestampMs;
+}
+
+/** Compare two timestamps. */
+export function compareTimestamps(a: Timestamp | DateTime, b: Timestamp | DateTime): number {
+  return timestampToMs(a) - timestampToMs(b);
 }

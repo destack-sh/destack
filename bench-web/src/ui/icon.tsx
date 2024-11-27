@@ -17,6 +17,7 @@ import {
   FileType,
   HubAspect,
   IconKind,
+  InterruptKind,
   LogLevel,
   NodeReferenceData,
   NodeType,
@@ -35,7 +36,7 @@ import {
   TypeKind,
   ViewType,
   type AnyNodeData,
-  type IconData
+  type IconData,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -424,10 +425,10 @@ export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
   [Anchor.BOTTOM]: "fas fa-align-bottom",
 });
 export const ICON_BY_HUB_ASPECT: Partial<Record<HubAspect, IconData>> = _makeIcons({
-  [HubAspect.SOURCE]: 'fas fa-code',
-  [HubAspect.ACTIVITY]: 'fas fa-wave-pulse',
-  [HubAspect.CATALOG]: 'fas fa-globe',
-  [HubAspect.LIBRARY]: 'fas fa-shapes',
+  [HubAspect.SOURCE]: "fas fa-code",
+  [HubAspect.ACTIVITY]: "fas fa-wave-pulse",
+  [HubAspect.CATALOG]: "fas fa-globe",
+  [HubAspect.LIBRARY]: "fas fa-shapes",
 });
 
 export const ICON_BY_TYPE_KIND: Partial<Record<TypeKind, IconData>> = _makeIcons({
@@ -529,6 +530,13 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
   [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),
   [RunStatus.FAILED]: makeIcon({ faName: "fas fa-circle-exclamation" }),
+};
+
+export const ICON_BY_INTERRUPT_KIND: Record<InterruptKind, IconData> = {
+  [InterruptKind.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [InterruptKind.YIELD]: makeIcon({ faName: "fas fa-hand" }),
+  [InterruptKind.PAUSE]: makeIcon({ faName: "fas fa-pause" }),
+  [InterruptKind.WAIT]: makeIcon({ faName: "fas fa-bolt" }),
 };
 
 export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons<EditType>({
@@ -649,7 +657,7 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
 /** Gets the icon for a node 'subtype' (enum property) with the given name/value.  */
 function getNodeSubtypeIcon(nodeType: NodeType, subtype: any): IconData | undefined {
   const allProperties = PROPERTY_ENUM_BY_TYPE[nodeType]!;
-  const prop = PROPERTY_INFOS_BY_TYPE[nodeType][allProperties['type' as any]];
+  const prop = PROPERTY_INFOS_BY_TYPE[nodeType][allProperties["type" as any]];
   if (prop?.enumType != null) {
     const enumIcons = ICONS_BY_ENUM_TYPE[prop.enumType];
     if (enumIcons?.[subtype] != null) {

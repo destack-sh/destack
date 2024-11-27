@@ -22,6 +22,7 @@ import {
 import { describeNode, isNode, isStruct, makeDefaultObject, toNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 import {
+  compareTimestamps,
   durationToMs,
   formatDuration,
   FormatDurationOptions,
@@ -51,6 +52,11 @@ export function isRunActive(run: RunData): boolean {
 
 export function isRunInterrupted(run: RunData): boolean {
   return INTERRUPTED_RUN_STATUSES.includes(run.status);
+}
+
+export function isRunPaused(run: RunData): boolean {
+  if (isRunTerminal(run)) return false;
+  return run.pausedAt != null && (run.resumedAt == null || compareTimestamps(run.pausedAt, run.resumedAt) > 0);
 }
 
 export function isRunTerminal(run: RunData): boolean {

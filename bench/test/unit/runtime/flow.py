@@ -1,7 +1,5 @@
 import asyncio
 
-import pytest
-
 from bench.language import ActionMode, BlockType, RunStatus
 from bench.language.block import Block
 from bench.language.code import code
@@ -9,7 +7,7 @@ from bench.language.field import Field
 from bench.language.flow import ActionStep, PipeType, Step, StepType
 from bench.language.interrupt import Breakpoint, BreakpointScope
 from bench.language.run import RunErrorType, RunOptions
-from bench.runtime.runner import make_run_from_node
+from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -527,7 +525,34 @@ async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
 
 
-@pytest.mark.skip("nocheckin :Incomplete: pause/resume Runs")
-async def test_run_flow_pause(local_runtime: RuntimeHandle):
+async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     """Run a long async Flow and pause it, then resume it."""
-    pass
+    Flow = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Action1 = Step.new(
+        StepType.ACTION, "Action1", mode=ActionMode.CODE, code=code("await sleep(0.5)")
+    )
+    Action2 = Step.new(
+        StepType.ACTION, "Action2", mode=ActionMode.CODE, code=code("await sleep(0.5)")
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow.steps.extend(Start, Action1, Action2, Complete)
+    Start.connect(PipeType.PASS, Action1)
+    Action1.connect(PipeType.PASS, Action2)
+    Action2.connect(PipeType.PASS, Complete)
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
+
+    # run, pause
+    runner = make_runner(local_runtime.runtime, Flow, track=True)
+    assert runner.tracked_run is not None
+    asyncio.get_event_loop().call_later(0.1, runner.tracked_run.pause)
+    try:
+        _ = await local_runtime.runtime.run_runner(runner)
+    except Interrupted:
+        assert runner.status == RunStatus.PAUSED
+
+    # resume
+    runner.tracked_run.resume()
+    _ = await local_runtime.runtime.run_runner(runner)
+    assert runner.status == RunStatus.COMPLETED
