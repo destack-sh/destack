@@ -19,7 +19,7 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from bench.language.connection import AggregateOptions, SearchConnection
+from bench.language.connection import AggregateOptions, ConnectMode, SearchConnection
 from bench.language.const import (
     NODE_TYPES,
     AggregationType,
@@ -520,17 +520,23 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Union["Expression", "NodeReference", None] = None,
         live: bool = False,
+        mode: ConnectMode = "unpacked",
         **kwargs,
     ) -> NodeT: ...
     @overload
     async def get(
-        self, filter: Sequence["NodeReference"], live: bool = False, **kwargs
+        self,
+        filter: Sequence["NodeReference"],
+        live: bool = False,
+        mode: ConnectMode = "unpacked",
+        **kwargs,
     ) -> list[NodeT]: ...
     @tracer.start_as_current_span("query.get")
     async def get(
         self,
         filter: Union["Expression", "NodeReference", Sequence["NodeReference"], None] = None,
         live: bool = False,
+        mode: ConnectMode = "unpacked",
         **kwargs,
     ) -> NodeT | list[NodeT]:
         """
@@ -546,7 +552,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             query._roots = [filter] if isinstance(filter, NodeReference) else list(filter)
             query._type = QueryType.GET
             channel = await query._get_read_channel()
-            connection = await channel.get(query, GetOptions(unpack=True, live=live))
+            connection = await channel.get(query, GetOptions(mode=mode, live=live))
 
             # coerce to node/list of nodes
             if len(connection.result.roots) != len(query._roots):
@@ -574,7 +580,13 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             return results[0]  # success
 
     @tracer.start_as_current_span("query.search")
-    async def search(self, filter: Optional["Expression"] = None, **kwargs) -> list[NodeT]:
+    async def search(
+        self,
+        filter: Optional["Expression"] = None,
+        live: bool = False,
+        mode: ConnectMode = "both",
+        **kwargs,
+    ) -> list[NodeT]:
         """Fetches the nodes matching the query."""
         from bench.language.connection import SearchOptions
 
@@ -583,14 +595,12 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         )
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
-        connection = await channel.search(
-            query, SearchOptions(live=False, unpack=True, count=False)
-        )
+        connection = await channel.search(query, SearchOptions(live=live, mode=mode, count=False))
         return cast(list[NodeT], connection.result.roots)
 
     @tracer.start_as_current_span("query.search")
     async def search_live(
-        self, filter: Optional["Expression"] = None, **kwargs
+        self, filter: Optional["Expression"] = None, mode: ConnectMode = "both", **kwargs
     ) -> "SearchConnection[Any, NodeT]":
         """Fetches the nodes matching the query (live)."""
         from bench.language.connection import SearchOptions
@@ -600,14 +610,16 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         )
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
-        connection = await channel.search(query, SearchOptions(live=True, unpack=True, count=False))
+        connection = await channel.search(query, SearchOptions(live=True, mode=mode, count=False))
         return connection
 
     tolist = search  # type: ignore
     to_list = search  # type: ignore
 
     @tracer.start_as_current_span("query.count")
-    async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
+    async def count(
+        self, filter: Optional["Expression"] = None, mode: ConnectMode = "unpacked", **kwargs
+    ) -> int:
         """Returns the number of results."""
         from bench.language.expression import A, coerce_conditional
 
@@ -622,13 +634,15 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
         # query
         channel = await query._get_read_channel()
-        connection = await channel.aggregate(query, AggregateOptions(live=False, unpack=False))
+        connection = await channel.aggregate(query, AggregateOptions(live=False, mode=mode))
         aggregation = connection.result_data.aggregation
         assert aggregation.count is not None, f"missing count in {connection!r}"
         return aggregation.count
 
     @tracer.start_as_current_span("query.exists")
-    async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
+    async def exists(
+        self, filter: Optional["Expression"] = None, mode: ConnectMode = "unpacked", **kwargs
+    ) -> bool:
         """Whether any nodes match the query."""
         from bench.language.expression import A, coerce_conditional
 
@@ -643,7 +657,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
         # query
         channel = await query._get_read_channel()
-        connection = await channel.aggregate(query, AggregateOptions(live=False, unpack=False))
+        connection = await channel.aggregate(query, AggregateOptions(live=False, mode=mode))
         aggregation = connection.result_data.aggregation
         assert aggregation.exists is not None, f"missing exists in {connection!r}"
         return aggregation.exists

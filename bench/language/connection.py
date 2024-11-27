@@ -11,6 +11,7 @@ from typing import (
     AsyncIterator,
     Callable,
     Collection,
+    Literal,
     Mapping,
     Optional,
     Union,
@@ -106,10 +107,13 @@ class ChannelIncapableError(ChannelError):
     pass
 
 
+ConnectMode = Literal["both", "packed", "unpacked"]
+
+
 @dataclass(slots=True)
 class _ConnectOptions:
     live: bool
-    unpack: bool
+    mode: ConnectMode
 
 
 #
@@ -444,14 +448,15 @@ class Connection[
         self.retry = retry
         self.node_types = list(query.all_node_types)
         self.options = options
+        self.mode = options.mode
         self.is_live = options.live
-        self.is_unpacked = options.unpack
         self.log = logger.bind(connection=self)
 
         self._connect_task: asyncio.Task | None = None
         self._has_result: asyncio.Event = asyncio.Event()
         self._result: ResultT | None = None
         self._result_data: ResultDataT | None = None
+        self._epoch: int | None = None
         self._is_closed = False
         self._update_subscribers: list[Callable[[UpdateT], None]] = []
 
@@ -472,7 +477,7 @@ class Connection[
     @property
     def has_result(self) -> bool:
         """Whether the connection has a result for the query."""
-        return self._result_data is not None
+        return self._has_result.is_set()
 
     @property
     def result(self) -> ResultT:
@@ -486,9 +491,8 @@ class Connection[
 
     @property
     def epoch(self) -> int:
-        assert self._result_data is not None, f"{self!r} has no result data"
-        assert self._result_data.epoch is not None, f"{self!r} has no epoch"
-        return self._result_data.epoch
+        assert self._epoch is not None, f"{self!r} has no epoch"
+        return self._epoch
 
     @final
     def on_update(self, callback: Callable[[UpdateT], None]):
@@ -512,7 +516,7 @@ class Connection[
                     # try read
                     with tracer.start_as_current_span(f"connect.{self.type_name}.read"):
                         try:
-                            self._result_data = await self._do_read(self.query)
+                            result_data = await self._do_read(self.query)
                             self.log.trace(f"connect.{self.type_name}", span="current")
                             break  # success
                         except Exception as e:
@@ -530,8 +534,11 @@ class Connection[
                 else:
                     raise retry.to_error(operation=self.query)
                 # unpack (should not be retried)
-                if self.options.unpack:
-                    self._result = self._unpack_result(self._result_data)
+                self._epoch = result_data.epoch
+                if self.mode == "packed" or self.mode == "both":
+                    self._result_data = result_data
+                if self.mode == "unpacked" or self.mode == "both":
+                    self._result = self._unpack_result(result_data)
                 self._has_result.set()
             finally:
                 self.session._on_connection_end(self)
@@ -562,16 +569,20 @@ class Connection[
                 try:
                     # initial read
                     with tracer.start_as_current_span(f"connect.{self.type_name}"):
-                        self._result_data = await self._do_read(self.query)
+                        result_data = await self._do_read(self.query)
+                        assert result_data.epoch is not None, f"{result_data!r} has no epoch"
                         if last_error is not None:
                             log.debug(f"connect.{self.type_name}.recover", span="current")
                         else:
                             log.trace(f"connect.{self.type_name}", span="current")
                         last_error = None
                     # unpack
-                    if self.options.unpack:
+                    self._epoch = result_data.epoch
+                    if self.mode == "packed" or self.mode == "both":
+                        self._result_data = result_data
+                    if self.mode == "unpacked" or self.mode == "both":
                         old_result = self._result
-                        new_result = self._unpack_result(self._result_data)
+                        new_result = self._unpack_result(result_data)
                         if old_result is not None:  # patch in place
                             self._result = self._patch_result(old_result, new_result)
                         else:
@@ -580,16 +591,16 @@ class Connection[
                     retry.on_success()
 
                     # subscribe
-                    async for update_data in self._do_subscribe(self.query, self._result_data):
-                        assert (
-                            update_data.epoch > self.epoch
-                        ), f"epoch regression: {update_data!r} in {self!r}"
+                    async for update_data in self._do_subscribe(
+                        self.query, token=result_data.connection_token, epoch=result_data.epoch
+                    ):
+                        self._epoch = update_data.epoch
                         log.trace(f"connect.{self.type_name}.update")
                         update = self._apply_update(
                             self._result_data,
                             self._result,
                             update_data,
-                            unpack=len(self._update_subscribers) > 0,
+                            unpack_update=len(self._update_subscribers) > 0,
                         )
                         if update is not None:
                             for callback in self._update_subscribers:
@@ -620,7 +631,11 @@ class Connection[
 
     @abc.abstractmethod
     def _apply_update(
-        self, result_data: ResultDataT, result: ResultT | None, update: UpdateDataT, unpack: bool
+        self,
+        result_data: ResultDataT | None,
+        result: ResultT | None,
+        update: UpdateDataT,
+        unpack_update: bool,
     ) -> UpdateT | None:
         """Applies an update to the result (in place)."""
         ...
@@ -631,7 +646,7 @@ class Connection[
         ...
 
     def _do_subscribe(
-        self, query: "QueryBuilder", result: ResultDataT
+        self, query: "QueryBuilder", token: str | None, epoch: int
     ) -> AsyncIterator[UpdateDataT]:
         """Subscribes to updates for the connection."""
         raise ChannelIncapableError(self, query, reason="live subscription not supported")
@@ -684,10 +699,10 @@ class GetConnection[ChannelT: Channel, T: Node](
     @override
     def _apply_update(
         self,
-        result_data: GetResultData,
+        result_data: GetResultData | None,
         result: GetResult | None,
         update: WatchGetUpdateData,
-        unpack: bool,
+        unpack_update: bool,
     ) -> WatchGetUpdate | None:
         from bench.language.transaction import edit_data_graph, edit_graph
 
@@ -704,9 +719,12 @@ class GetConnection[ChannelT: Channel, T: Node](
             return None
 
         # apply
-        edit_data_graph(result_data.graph, update.edits, include_deleted=self.query.include_deleted)
+        if result_data is not None:
+            edit_data_graph(
+                result_data.graph, update.edits, include_deleted=self.query.include_deleted
+            )
         if result is not None:
-            if unpack:
+            if unpack_update:
                 # unpack update
                 added: dict[UUID, Node] = {}
                 updated: dict[UUID, Node] = {}
@@ -785,15 +803,16 @@ class SearchConnection[ChannelT: Channel, T: Node](
     @override
     def _apply_update(
         self,
-        result_data: SearchResultData,
+        result_data: SearchResultData | None,
         result: SearchResult | None,
         update: WatchSearchUpdateData,
-        unpack: bool,
+        unpack_update: bool,
     ) -> WatchSearchUpdate | None:
         from bench.language.transaction import edit_data_graph, edit_graph
         from bench.proto import wiring
 
         # :ConnectionUpdateOrdering
+        assert result_data is not None, f"{self!r} does not work without packed result"
 
         # filter edits
         if self.session._origin:
@@ -888,14 +907,15 @@ class AggregateConnection[ChannelT: Channel](
     @override
     def _apply_update(
         self,
-        result_data: AggregateResultData,
+        result_data: AggregateResultData | None,
         result: AggregateResult | None,
         update: WatchAggregateUpdateData,
-        unpack: bool,
+        unpack_update: bool,
     ) -> WatchAggregateUpdate | None:
         from bench.proto import wiring
 
-        result_data.aggregation = update.aggregation
+        if result_data is not None:
+            result_data.aggregation = update.aggregation
         if result is not None:
             result.aggregation = wiring.unpack_object(
                 update.aggregation, supergraph=self.session._supergraph, expect=AggregationResult
@@ -1120,7 +1140,7 @@ class SplitConnection(Connection):
                         include_deleted=query.include_deleted,
                     )
                     descendant_connection = await descendants_channel.search(
-                        descendant_query, SearchOptions(live=False, unpack=False, count=False)
+                        descendant_query, SearchOptions(live=False, mode="packed", count=False)
                     )
                     combined_graph.extend(descendant_connection.result_data.graph.nodes)
 
@@ -1172,7 +1192,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
         channel = await self.session._get_channel(engine)
         connection = await channel.search(
             query.trim_to(engine.node_types),
-            SearchOptions(live=False, unpack=False, count=self.options.count),
+            SearchOptions(live=False, mode="packed", count=self.options.count),
         )
         result = connection.result_data
         if query._select is None:
@@ -1206,7 +1226,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
         )
         channel = await self.session._get_channel(engine)
         connection = await channel.get(
-            query.trim_to(engine.node_types), GetOptions(live=False, unpack=False)
+            query.trim_to(engine.node_types), GetOptions(live=False, mode="packed")
         )
         result = connection.result_data
         if not query._ancestor_types and not query._descendant_types:

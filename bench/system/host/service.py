@@ -304,7 +304,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             session._engines += (local_pg_engine_from_store(tmp_bench.main_store),)
 
             # load full bench
-            self._bench = await BENCH_QUERY.get(self.bench_ptr)
+            self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
             assert self._bench.main_store, f"{self._bench!r} has no main store"
             assert self._bench.main_branch, f"{self._bench!r} has no main branch"
             assert self._bench.main_branch.main_package, f"{self._bench!r} has no main package"
@@ -312,7 +312,9 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
 
             # load packages
-            self._main_package = await PACKAGE_QUERY.get(self._bench.main_branch.main_package_ptr)
+            self._main_package = await PACKAGE_QUERY.get(
+                self._bench.main_branch.main_package_ptr, mode="both"
+            )
 
             # cleanup
             self._supergraph.remove_graph(tmp_bench._graph)
