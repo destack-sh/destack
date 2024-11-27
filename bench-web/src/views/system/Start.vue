@@ -6,7 +6,7 @@ import { FieldType, InterruptStatus, NodeType, RunData, TypeKind, Variant, ViewD
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
-import { getNodeIcon, IconInline } from "@/ui/icon";
+import { getNodeIcon, ICON_BY_INTERRUPT_KIND, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -104,7 +104,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
     </div>
     <!-- Existing Run -->
     <div v-else class="flex flex-col gap-y-2">
-      <!-- nocheckin: also turn this into collapsible sections like in Inspect (factor out Section?) -->
+      <!-- TODO :UX: also turn this into collapsible sections like in Inspect (factor out Section?) -->
       <!-- Ancestor runs? -->
       <div class="px-5">
         <div
@@ -199,16 +199,18 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
               />
               <span>{{ runTree.getBase(getInterruptBasePtr(interrupt)!)?.name }}</span>
             </div>
-            <!-- Duration -->
-            <span class="text-gray-400">{{ getInterruptDurationString(interrupt) }}</span>
-            <!-- Highlight -->
-            <i
-              v-if="interrupt.status == InterruptStatus.OPEN"
-              v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
-              class="fas fa-hand rounded text-pink-500"
-            />
-            <!-- Actions -->
-            <div class="ml-auto flex flex-row gap-x-1">
+            <!-- Meta/Controls -->
+            <div class="ml-auto flex flex-row items-center gap-x-1">
+              <!-- Duration -->
+              <span class="text-gray-400">{{ getInterruptDurationString(interrupt, { minUnit: "s" }) }}</span>
+              <!-- Highlight -->
+              <IconInline
+                v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
+                class="w-5 text-center transition-colors duration-75"
+                :class="interrupt.status == InterruptStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
+                v-bind="ICON_BY_INTERRUPT_KIND[interrupt.kind]"
+              />
+              <!-- Actions -->
               <button
                 v-for="action in getInterruptActions(interrupt)"
                 :key="action.title"

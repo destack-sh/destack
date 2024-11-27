@@ -225,6 +225,8 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
     @override
     async def run(self) -> None:
         assert self.tracked_run is not None, f"{self!r} must be tracked"
+        self._stop_result = None
+        self._stop_event.clear()
 
         # start / resume
         runs = self.tracked_run.runs.tolist()
@@ -378,7 +380,7 @@ class FailStepRunner(StepRunnerBase):
     async def run(self) -> None:
         self.outputs = self.inputs
         if self.flow is not None:
-            e = RetryableError("Flow failed")  # this should be customizable
+            e = RetryableError(f"Flow failed at {self.node!r}")  # this should be customizable
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             self.flow._fail(error=error)
 

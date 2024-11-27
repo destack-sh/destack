@@ -222,7 +222,6 @@ class Runtime:
             assert last_attempt is not None, f"missing last attempt for run {runner!r}"
 
             # breakpoint after
-            runner._trap_pause()
             if last_attempt.status.is_terminal:
                 if last_attempt.status == RunStatus.FAILED:
                     runner._trap_breakpoint(

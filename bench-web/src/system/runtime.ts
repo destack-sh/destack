@@ -7,6 +7,7 @@ import {
   isRunActive,
   isRunInterrupted,
   isRunnable,
+  isRunPaused,
   isRunTerminal,
   makeRun,
   RunnableNode,
@@ -232,29 +233,28 @@ export class Runtime {
 
   /** Pause a Run. */
   pause(run: RunData) {
-    if (!isRunActive(run)) throw new Error(`cannot pause inactive run for ${describeNode(run)}`);
+    if (!isRunActive(run)) return;
     log.trace("runtime.pause", run);
     this.tx.update(run, { pausedAt: Timestamp.now() });
   }
 
   /** Resume a Run. */
   resume(run: RunData) {
-    if (run.status != RunStatus.PAUSED) throw new Error(`cannot resume non-paused run for ${describeNode(run)}`);
+    if (run.status != RunStatus.PAUSED) return;
     log.trace("runtime.resume", run);
     this.tx.update(run, { resumedAt: Timestamp.now() });
   }
 
   /** Stop a Run. */
   kill(run: RunData) {
-    if (!isRunActive(run)) throw new Error(`cannot kill inactive run for ${describeNode(run)}`);
+    if (!isRunActive(run)) return;
     log.trace("runtime.kill", run);
     this.tx.update(run, { killedAt: Timestamp.now() });
   }
 
   /** Complete an Interrupt */
   complete(interrupt: InterruptData) {
-    if (interrupt.status != InterruptStatus.OPEN)
-      throw new Error(`cannot complete non-open interrupt for ${describeNode(interrupt)}`);
+    if (interrupt.status != InterruptStatus.OPEN) return;
     log.trace("runtime.complete", interrupt);
     const tx = this.tx;
     tx.update(interrupt, { status: InterruptStatus.COMPLETED, closedAt: Timestamp.now() }, { debounce: "tick" });
@@ -262,8 +262,7 @@ export class Runtime {
 
   /*+ Cancel an Interrupt */
   cancel(interrupt: InterruptData) {
-    if (interrupt.status != InterruptStatus.OPEN)
-      throw new Error(`cannot cancel non-open interrupt for ${describeNode(interrupt)}`);
+    if (interrupt.status != InterruptStatus.OPEN) return;
     log.trace("runtime.cancel", interrupt);
     const tx = this.tx;
     tx.update(interrupt, { status: InterruptStatus.CANCELLED, closedAt: Timestamp.now() }, { debounce: "tick" });
@@ -279,18 +278,18 @@ type RuntimeAction = { title: string; isPrimary?: boolean; icon: IconData; actio
 export function getRunActions(run: RunData): RuntimeAction[] {
   const actions: RuntimeAction[] = [];
   if (isRunActive(run)) {
-    if (run.status == RunStatus.PAUSED) {
+    if (isRunPaused(run)) {
       actions.push({
         title: "Resume",
-        icon: makeIcon("fas fa-pause"),
+        icon: makeIcon("fas fa-play"),
         action: () => {
-          runtime.pause(run);
+          runtime.resume(run);
         },
       });
-    } else if (!isRunInterrupted(run)) {
+    } else {
       actions.push({
         title: "Pause",
-        icon: makeIcon("fas fa-play"),
+        icon: makeIcon("fas fa-pause"),
         action: () => {
           runtime.pause(run);
         },
