@@ -1,6 +1,8 @@
 <script lang="ts" setup>
+import { toCamelName } from "@/language/const";
 import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/session";
-import { ColorShade, Orientation, RunData } from "@/proto/wire";
+import { ColorShade, Orientation, RunData, RunStatus } from "@/proto/wire";
+import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
 
 const props = defineProps<{
@@ -33,10 +35,11 @@ const props = defineProps<{
     <!-- Duration -->
     <span class="text-gray-400">{{ getRunDurationString(run, { minUnit: "s" }) }}</span>
     <!-- Highlight -->
-    <i
+    <IconInline
       v-if="isRunInterrupted(run)"
-      v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
-      class="fas fa-hand rounded text-pink-500"
+      v-tooltip="{ title: toCamelName(RunStatus, run.status), small: true, group: 'run.status' }"
+      class="text-pink-500"
+      v-bind="ICON_BY_RUN_STATUS[run.status]"
     />
   </div>
 </template>

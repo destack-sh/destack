@@ -46,15 +46,20 @@ class RunHandle:
         self.task: asyncio.Task | None = None
         self.log = logger.bind(root=root, thread=thread)
 
+    def __str__(self):
+        return f"{self.root} in {self.thread} [{'active' if self.is_active else 'inactive'}]"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self!s}>"
+
     @property
     def is_active(self) -> bool:
         return self.root.id in self.thread._active_runs
 
     def run_if_needed(self) -> None:
         """Runs the handle if it should be but isn't."""
-        if self.task is None:
-            if not self.root.status.is_terminal:
-                self.task = asyncio.create_task(self.thread._do_run(self))
+        if (self.task is None or self.task.done()) and not self.root.status.is_terminal:
+            self.task = asyncio.create_task(self.thread._do_run(self))
 
     def on_update(self, update: WatchGetUpdate):
         for node in update.updated.values():
@@ -86,7 +91,6 @@ class RunHandle:
         for node in nodes:
             if isinstance(node, Run):
                 # close open Interrupt, resume affected Runs
-                self.log.debug("run.resume", run=node)
                 interrupt = node.interrupt
                 if interrupt and not interrupt.status.is_closed:
                     interrupt.complete(_trigger_thread=False)
@@ -94,12 +98,12 @@ class RunHandle:
                 runs_to_resume.update(node.ancestors)
             elif isinstance(node, Interrupt):
                 # resume affected Runs
-                self.log.debug("interrupt.resume", interrupt=node)
                 for run in self.root._graph.nodes_of_type(Run):
                     if run.interrupt == node:
                         runs_to_resume.add(run)
             else:
                 assert_never(node)
+        logger.debug("thread.resume", nodes=nodes, runs=runs_to_resume)
         self.run_if_needed()
 
     def kill(self, run: Run):
@@ -131,7 +135,7 @@ class RunHandle:
             else:
                 self.resume(*closed_interrupts)
             self.runtime.session.commit_optimistic()
-        self.log.debug("run.kill", run=run)
+        self.log.debug("thread.kill", run=run)
 
     def close(self):
         """Close this RunHandle."""
@@ -278,7 +282,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                     handle.close()
             finally:
                 del self._active_runs[handle.root.id]
-                handle.task = None
 
     def pause(self, run: Run):
         """Pause an owned Run."""

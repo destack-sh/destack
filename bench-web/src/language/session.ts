@@ -4,9 +4,11 @@ import { makeNode } from "@/language/node";
 import {
   BlockType,
   CodeData,
+  InterruptData,
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PipeData,
   RunKind,
   RunOptionsData,
   RunStatus,
@@ -15,7 +17,7 @@ import {
   type AnyNodeData,
   type BlockData,
   type RunData,
-  type StepData
+  type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, makeDefaultObject, toNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
@@ -28,7 +30,8 @@ import {
   TimeUpdateInterval,
 } from "@/utils/time";
 
-export type RunnableNode = BlockData | StepData;
+export type RunnableNode = BlockData | StepData | PipeData;
+export type RunnableNodeType = NodeType.BLOCK | NodeType.STEP | NodeType.PIPE;
 export type RunnableObject = RunnableNode | TextData | CodeData;
 
 /** Whether the given node is runnable */
@@ -56,6 +59,10 @@ export function isRunTerminal(run: RunData): boolean {
 
 export function getRunBasePtr(run: RunData): NodeReferenceData | null {
   return run.pipePtr ?? run.stepPtr ?? run.blockPtr ?? null;
+}
+
+export function getInterruptBasePtr(interrupt: InterruptData): NodeReferenceData | null {
+  return interrupt.pipePtr ?? interrupt.stepPtr ?? interrupt.blockPtr ?? null;
 }
 
 /** Determine the type of run for some runnable object */
@@ -98,6 +105,22 @@ export function getRunDurationString(run: RunData, options?: FormatDurationOptio
   return formatDuration(durationMs, options);
 }
 
+/** Gets the duration of an Interrupt */
+export function getInterruptDurationMs(interrupt: InterruptData, nowMs: number): number {
+  const startedAtMs = timestampToMs(interrupt.createdAt!);
+  const closedAtMs = interrupt.closedAt != null ? timestampToMs(interrupt.closedAt) : nowMs;
+  return closedAtMs - startedAtMs;
+}
+
+/** Gets the duration of an Interrupt as a formatted string */
+export function getInterruptDurationString(interrupt: InterruptData, options?: FormatDurationOptions): string | null {
+  const now = getNow(TimeUpdateInterval.MILLISECOND).value;
+  const nowMs = timestampToMs(now);
+  const durationMs = getInterruptDurationMs(interrupt, nowMs);
+  if (durationMs == 0) return null;
+  return formatDuration(durationMs, options);
+}
+
 export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
   return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;
 }
@@ -111,6 +134,7 @@ export function makeRun(
   let packagePtr: NodeReferenceData | undefined = undefined;
   let block: BlockData | undefined = undefined;
   let step: StepData | undefined = undefined;
+  let pipe: PipeData | undefined = undefined;
   if (isNode(runnable, NodeType.BLOCK)) {
     block = runnable;
     packagePtr = options?.packagePtr ?? runnable.packagePtr;
@@ -118,6 +142,10 @@ export function makeRun(
     step = runnable;
     block = graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
     packagePtr = options?.packagePtr ?? step.packagePtr;
+  } else if (isNode(runnable, NodeType.PIPE)) {
+    pipe = runnable;
+    block = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
+    packagePtr = options?.packagePtr ?? pipe.packagePtr;
   } else if (isStruct(runnable, StructType.TEXT) || isStruct(runnable, StructType.CODE)) {
     if (options?.packagePtr == null) throw new Error(`missing package ptr for runnable lambda: ${runnable}`);
     packagePtr = options.packagePtr;
@@ -132,6 +160,7 @@ export function makeRun(
     status: RunStatus.SCHEDULED,
     blockPtr: block != null ? toNodeRef(block) : undefined,
     stepPtr: isNode(runnable, NodeType.STEP) ? toNodeRef(runnable) : undefined,
+    pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),
   });

@@ -104,8 +104,9 @@ class Runtime:
             if runner.is_cancelled:
                 raise asyncio.CancelledError()
             with tracer.start_as_current_span("runtime.attempt.run"):
-                started_at = self.oracle.utc()
-                attempt._do_set("started_at", started_at, validate=False)
+                if attempt.started_at is None:
+                    started_at = self.oracle.utc()
+                    attempt._do_set("started_at", started_at, validate=False)
                 runner.task = asyncio.create_task(runner.run())
                 await runner.task
                 terminated_at = self.oracle.utc()

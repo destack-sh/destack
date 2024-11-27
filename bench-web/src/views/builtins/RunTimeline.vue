@@ -21,13 +21,14 @@ import { getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, ref, Ref, shallowRef, toRef, watchEffect } from "vue";
+import { computed, ref, Ref, shallowRef, toRef, watchEffect, onMounted } from "vue";
 
 const TREE_WIDTH = 280;
 const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
 const BAR_PADDING = 4;
 const MIN_SPAN_WIDTH = 2;
+const BASE_TYPES = [NodeType.BLOCK, NodeType.STEP]; // NOTE :Incomplete: RunTimeline should be configurable
 
 const props = defineProps<{ nodePtr: NodeReferenceData } & Pick<ViewData, "size">>();
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
@@ -35,6 +36,9 @@ const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.R
 const containerRef = ref<HTMLElement | null>(null);
 const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
 const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH);
+
+// Add this near the other refs at the top of the script
+const isInitialRender = ref(true);
 
 //
 // Run
@@ -133,6 +137,8 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
     // descend
     for (const child of runTree.runGraph.getChildren(run)) {
       if (!isNode(child, NodeType.RUN)) continue;
+      const basePtr = getRunBasePtr(child);
+      if (basePtr != null && !BASE_TYPES.includes(basePtr.nodeType)) continue;
       walkRun(child, span, depth + 1);
     }
   }
@@ -157,6 +163,13 @@ watchEffect(() => {
       timeline.value = EMPTY_TIMELINE;
     }
   }
+});
+
+// wait for initial render to complete so the transition-all doesn't look glitchy on mount
+onMounted(() => {
+  setTimeout(() => {
+    isInitialRender.value = false;
+  }, 100);
 });
 </script>
 <template>
@@ -206,7 +219,8 @@ watchEffect(() => {
       </div>
       <!-- Timeline -->
       <div
-        class="absolute transform rounded transition-all duration-100"
+        class="absolute transform rounded"
+        :class="{ 'transition-all duration-100': !isInitialRender }"
         :style="{
           height: ROW_HEIGHT - 2 * BAR_PADDING + 'px',
           top: BAR_PADDING + 'px',
