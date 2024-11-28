@@ -231,9 +231,12 @@ function makeConnectionOverlayGraph(
       if (event.type == "reset") {
         overlay.clear();
       }
-      if (event.newEdits.length > 0) {
-        editGraph(overlay, event.newEdits, { base: base });
+      let edits = event.newEdits;
+      if (event.meta.connectionId == null) {
+        // filter to only edits from this connection
+        edits = edits.filter((e) => base.nodeTypes.includes(e.nodePtr?.nodeType!));
       }
+      editGraph(overlay, edits, { base: base, ignoreMissing: event.meta.connectionId == null });
     }
   });
   return { graph: overlay, sub };
