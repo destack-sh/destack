@@ -153,8 +153,10 @@ class Interrupt(RuntimeNode[InterruptData]):
     )
 
     # content
-    outputs_packed: Any = p_value_packed(50)
-    outputs: Any = p_value_runtime(50, kind=ObjectKind.OUTPUT, typ=None)
+    inputs_packed: Any = p_value_packed(51)
+    inputs: Any = p_value_runtime(51, kind=ObjectKind.INPUT, typ=None)
+    outputs_packed: Any = p_value_packed(52)
+    outputs: Any = p_value_runtime(52, kind=ObjectKind.OUTPUT, typ=None)
 
     # context
     # ...HasRuntimeContext[90-99]

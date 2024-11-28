@@ -4741,7 +4741,11 @@ export interface InterruptData {
      */
     triggerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 50;
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 51;
+     */
+    inputsPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 52;
      */
     outputsPacked?: JsonValue;
     /**
@@ -5416,9 +5420,9 @@ export interface TreeViewData {
 /**
  * A view of a user interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.StartViewData
+ * @generated from protobuf message symbolx.bench.RunViewData
  */
-export interface StartViewData {
+export interface RunViewData {
     /**
      * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 100;
      */
@@ -5468,9 +5472,9 @@ export interface HelpViewData {
 /**
  * A view of a user interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.InspectViewData
+ * @generated from protobuf message symbolx.bench.DetailViewData
  */
-export interface InspectViewData {
+export interface DetailViewData {
     /**
      * @generated from protobuf field: repeated string expanded_sections = 100;
      */
@@ -10841,9 +10845,9 @@ export enum ViewType {
      */
     TREE = 400,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_INSPECT = 403;
+     * @generated from protobuf enum value: VIEW_TYPE_DETAIL = 403;
      */
-    INSPECT = 403,
+    DETAIL = 403,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_CREATE = 404;
      */
@@ -10853,9 +10857,9 @@ export enum ViewType {
      */
     CHAT = 405,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_START = 406;
+     * @generated from protobuf enum value: VIEW_TYPE_RUN = 406;
      */
-    START = 406,
+    RUN = 406,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_FEED = 407;
      */
@@ -11662,9 +11666,9 @@ export enum HubAspect {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_SOURCE = 1;
+     * @generated from protobuf enum value: HUB_ASPECT_BENCH = 1;
      */
-    SOURCE = 1,
+    BENCH = 1,
     /**
      * @generated from protobuf enum value: HUB_ASPECT_ACTIVITY = 2;
      */
@@ -11687,9 +11691,9 @@ export enum HelpAspect {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: HELP_ASPECT_INSPECT = 1;
+     * @generated from protobuf enum value: HELP_ASPECT_DETAIL = 1;
      */
-    INSPECT = 1,
+    DETAIL = 1,
     /**
      * @generated from protobuf enum value: HELP_ASPECT_RUN = 2;
      */
@@ -23500,7 +23504,8 @@ class InterruptData$Type extends MessageType$<InterruptData> {
             { no: 41, name: "duration", kind: "message", T: () => Duration },
             { no: 42, name: "closed_at", kind: "message", T: () => Timestamp },
             { no: 49, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "outputs_packed", kind: "message", T: () => Value },
+            { no: 51, name: "inputs_packed", kind: "message", T: () => Value },
+            { no: 52, name: "outputs_packed", kind: "message", T: () => Value },
             { no: 90, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 91, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 92, name: "run_root_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23600,7 +23605,10 @@ class InterruptData$Type extends MessageType$<InterruptData> {
                 case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 49:
                     message.triggerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.triggerPtr);
                     break;
-                case /* optional google.protobuf.Value outputs_packed */ 50:
+                case /* optional google.protobuf.Value inputs_packed */ 51:
+                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional google.protobuf.Value outputs_packed */ 52:
                     message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData session_ptr */ 90:
@@ -23711,9 +23719,12 @@ class InterruptData$Type extends MessageType$<InterruptData> {
         /* optional symbolx.bench.NodeReferenceData trigger_ptr = 49; */
         if (message.triggerPtr)
             NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value outputs_packed = 50; */
+        /* optional google.protobuf.Value inputs_packed = 51; */
+        if (message.inputsPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value outputs_packed = 52; */
         if (message.outputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(52, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData session_ptr = 90; */
         if (message.sessionPtr)
             NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
@@ -25097,19 +25108,19 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
  */
 export const TreeViewData = new TreeViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class StartViewData$Type extends MessageType$<StartViewData> {
+class RunViewData$Type extends MessageType$<RunViewData> {
     constructor() {
-        super("symbolx.bench.StartViewData", [
+        super("symbolx.bench.RunViewData", [
             { no: 100, name: "inputs_packed", kind: "message", T: () => Value }
         ]);
     }
-    create(value?: PartialMessage<StartViewData>): StartViewData {
+    create(value?: PartialMessage<RunViewData>): RunViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<StartViewData>(this, message, value);
+            reflectionMergePartial<RunViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartViewData): StartViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunViewData): RunViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -25128,7 +25139,7 @@ class StartViewData$Type extends MessageType$<StartViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: StartViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RunViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* optional google.protobuf.Value inputs_packed = 100; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
@@ -25139,9 +25150,9 @@ class StartViewData$Type extends MessageType$<StartViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.StartViewData
+ * @generated MessageType for protobuf message symbolx.bench.RunViewData
  */
-export const StartViewData = new StartViewData$Type();
+export const RunViewData = new RunViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FeedViewData$Type extends MessageType$<FeedViewData> {
     constructor() {
@@ -25298,22 +25309,22 @@ class HelpViewData$Type extends MessageType$<HelpViewData> {
  */
 export const HelpViewData = new HelpViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class InspectViewData$Type extends MessageType$<InspectViewData> {
+class DetailViewData$Type extends MessageType$<DetailViewData> {
     constructor() {
-        super("symbolx.bench.InspectViewData", [
+        super("symbolx.bench.DetailViewData", [
             { no: 100, name: "expanded_sections", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "collapsed_sections", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<InspectViewData>): InspectViewData {
+    create(value?: PartialMessage<DetailViewData>): DetailViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.expandedSections = [];
         message.collapsedSections = [];
         if (value !== undefined)
-            reflectionMergePartial<InspectViewData>(this, message, value);
+            reflectionMergePartial<DetailViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: InspectViewData): InspectViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DetailViewData): DetailViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -25335,7 +25346,7 @@ class InspectViewData$Type extends MessageType$<InspectViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: InspectViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: DetailViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated string expanded_sections = 100; */
         for (let i = 0; i < message.expandedSections.length; i++)
             writer.tag(100, WireType.LengthDelimited).string(message.expandedSections[i]);
@@ -25349,9 +25360,9 @@ class InspectViewData$Type extends MessageType$<InspectViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.InspectViewData
+ * @generated MessageType for protobuf message symbolx.bench.DetailViewData
  */
-export const InspectViewData = new InspectViewData$Type();
+export const DetailViewData = new DetailViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
     constructor() {
@@ -27235,14 +27246,14 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = TreeViewData | StartViewData | FeedViewData | HubViewData | HelpViewData | InspectViewData | UserWizardViewData | IconViewData;
+export type ViewSubtype = TreeViewData | RunViewData | FeedViewData | HubViewData | HelpViewData | DetailViewData | UserWizardViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.TREE]: TreeViewData,
-  [ViewType.START]: StartViewData,
+  [ViewType.RUN]: RunViewData,
   [ViewType.FEED]: FeedViewData,
   [ViewType.HUB]: HubViewData,
   [ViewType.HELP]: HelpViewData,
-  [ViewType.INSPECT]: InspectViewData,
+  [ViewType.DETAIL]: DetailViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.ICON]: IconViewData,
 }
@@ -28381,7 +28392,8 @@ export enum InterruptProperty {
   duration = 41,
   closedAt = 42,
   triggerPtr = 49,
-  outputsPacked = 50,
+  inputsPacked = 51,
+  outputsPacked = 52,
   sessionPtr = 90,
   runPtr = 91,
   runRootPtr = 92,
@@ -28478,7 +28490,7 @@ export enum TreeViewProperty {
   preset = 110,
 }
 
-export enum StartViewProperty {
+export enum RunViewProperty {
   inputsPacked = 100,
 }
 
@@ -28496,7 +28508,7 @@ export enum HelpViewProperty {
   aspect = 100,
 }
 
-export enum InspectViewProperty {
+export enum DetailViewProperty {
   expandedSections = 100,
   collapsedSections = 101,
 }
@@ -29366,11 +29378,11 @@ export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
 
 export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.TREE]: TreeViewProperty,
-  [ViewType.START]: StartViewProperty,
+  [ViewType.RUN]: RunViewProperty,
   [ViewType.FEED]: FeedViewProperty,
   [ViewType.HUB]: HubViewProperty,
   [ViewType.HELP]: HelpViewProperty,
-  [ViewType.INSPECT]: InspectViewProperty,
+  [ViewType.DETAIL]: DetailViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.ICON]: IconViewProperty,
 }
@@ -29567,7 +29579,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29594,7 +29606,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29676,7 +29688,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30315,7 +30327,8 @@ export const InterruptDataInfo: Record<InterruptProperty, PropertyInfo> = {
   [InterruptProperty.duration]: { id: 41, name: 'duration', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptProperty.closedAt]: { id: 42, name: 'closed_at', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptProperty.triggerPtr]: { id: 49, name: 'trigger_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptProperty.outputsPacked]: { id: 50, name: 'outputs_packed', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [InterruptProperty.inputsPacked]: { id: 51, name: 'inputs_packed', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [InterruptProperty.outputsPacked]: { id: 52, name: 'outputs_packed', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [InterruptProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptProperty.runPtr]: { id: 91, name: 'run_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptProperty.runRootPtr]: { id: 92, name: 'run_root_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
@@ -30402,8 +30415,8 @@ export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
   [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
-export const StartViewDataInfo: Record<StartViewProperty, PropertyInfo> = {
-  [StartViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
+  [RunViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
   [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -30416,9 +30429,9 @@ export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
 export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
   [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
-export const InspectViewDataInfo: Record<InspectViewProperty, PropertyInfo> = {
-  [InspectViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [InspectViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+export const DetailViewDataInfo: Record<DetailViewProperty, PropertyInfo> = {
+  [DetailViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DetailViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -31094,11 +31107,11 @@ export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, Pro
 }
 export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, PropertyInfo>>> = {
   [ViewType.TREE]: TreeViewDataInfo,
-  [ViewType.START]: StartViewDataInfo,
+  [ViewType.RUN]: RunViewDataInfo,
   [ViewType.FEED]: FeedViewDataInfo,
   [ViewType.HUB]: HubViewDataInfo,
   [ViewType.HELP]: HelpViewDataInfo,
-  [ViewType.INSPECT]: InspectViewDataInfo,
+  [ViewType.DETAIL]: DetailViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.ICON]: IconViewDataInfo,
 }

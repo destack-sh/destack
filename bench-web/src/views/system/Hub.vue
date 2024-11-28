@@ -133,7 +133,7 @@ const state = canvas.registerView(self, id);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HUB, toRef(props, "subnodePacked"), "aspect");
-const visibleAspects = [HubAspect.SOURCE, HubAspect.ACTIVITY, HubAspect.CATALOG];
+const visibleAspects = [HubAspect.BENCH, HubAspect.ACTIVITY, HubAspect.CATALOG];
 const visibleAspectsOverflow = computed(() => visibleAspects.length * 75 > (props.size?.width ?? 0));
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
@@ -188,8 +188,8 @@ defineExpose<ViewExposed>({ self });
       </button>
     </div>
 
-    <!-- Content: Source -->
-    <div v-if="aspect == HubAspect.SOURCE">
+    <!-- Content: Bench -->
+    <div v-if="aspect == HubAspect.BENCH">
       <Scroll
         id="scroll"
         ref="scrollRef"

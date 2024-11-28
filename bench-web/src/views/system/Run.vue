@@ -1,8 +1,25 @@
 <script lang="ts" setup>
-import { makeTypeInfo } from "@/language/field";
+import { makeTypeInfo, TypeIdentity } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
-import { getInterruptBasePtr, getInterruptDurationString, getRunBasePtr, isRunnable } from "@/language/session";
-import { FieldType, InterruptStatus, NodeType, RunData, TypeKind, Variant, ViewData, ViewType } from "@/proto/wire";
+import {
+  getInterruptBasePtr,
+  getInterruptDurationString,
+  getRunBasePtr,
+  isRunnable,
+  RunnableNode,
+} from "@/language/session";
+import {
+  FieldType,
+  InterruptData,
+  InterruptStatus,
+  NodeType,
+  RunData,
+  TypeInfoData,
+  TypeKind,
+  Variant,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
@@ -45,7 +62,7 @@ const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) 
 const runTree = computed(() => runtime.focusedRunTree);
 
 // run
-const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.START, toRef(props, "subnodePacked"), "inputsPacked");
+const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
 const inputType = computed(() =>
   runBasePtr.value != null
     ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.INPUT })
@@ -60,6 +77,32 @@ const outputType = computed(() =>
 const inputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
 const outputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
 
+// interrupts
+type InterruptInfo = {
+  base: RunnableNode;
+  interrupt: InterruptData;
+  inputType: TypeInfoData;
+  outputType: TypeInfoData;
+};
+const interrupts = computed(() => {
+  const interrupts: InterruptInfo[] = [];
+  for (const interrupt of runTree.value.interrupts) {
+    const base = runTree.value.getBase(getInterruptBasePtr(interrupt)!)!;
+    const inputType = makeTypeInfo({
+      kind: TypeKind.OBJECT,
+      baseTypePtr: getInterruptBasePtr(interrupt)!,
+      baseFieldType: FieldType.INPUT,
+    });
+    const outputType = makeTypeInfo({
+      kind: TypeKind.OBJECT,
+      baseTypePtr: getInterruptBasePtr(interrupt)!,
+      baseFieldType: FieldType.OUTPUT,
+    });
+    interrupts.push({ base, interrupt, inputType, outputType });
+  }
+  return interrupts;
+});
+
 function start() {
   if (node.value == null || !isRunnable(node.value)) return;
   const run = runtime.start(node.value, { inputsPacked: inputsPacked.value as any, focus: true });
@@ -69,6 +112,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
 </script>
 <template>
   <div v-if="node" class="h-full w-full">
+    <!-- TODO :UX: also turn this into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-2">
       <!-- Inputs -->
@@ -93,7 +137,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           @update:model-value="
             (value) => {
               state.update(
-                { metatype: NodeType.VIEW, type: ViewType.START, subnode: { inputsPacked: value } },
+                { metatype: NodeType.VIEW, type: ViewType.RUN, subnode: { inputsPacked: value } },
                 { debounce: 'short' },
               );
             }
@@ -104,7 +148,6 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
     </div>
     <!-- Existing Run -->
     <div v-else class="flex flex-col gap-y-2">
-      <!-- TODO :UX: also turn this into collapsible sections like in Inspect (factor out Section?) -->
       <!-- Ancestor runs? -->
       <div class="px-5">
         <div
@@ -172,7 +215,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
         <RunTimeline :node-ptr="toNodeRef(run)" class="" />
       </div>
       <!-- Interrupts -->
-      <div v-if="runTree.interrupts.length > 0" class="px-5">
+      <div v-if="interrupts.length > 0" class="px-5">
         <div
           class="flex flex-row items-center"
           :style="{
@@ -180,46 +223,61 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           }"
         >
           <span class="font-semibold">Interruptions</span>
+          <span v-if="interrupts.some((i) => i.interrupt.status == InterruptStatus.OPEN)" class="ml-1.5 text-gray-400">
+            ({{ interrupts.filter((i) => i.interrupt.status == InterruptStatus.OPEN).length }} open)
+          </span>
         </div>
         <div class="flex flex-col">
           <!-- Interrupt -->
-          <div
-            v-for="interrupt of runTree.interrupts"
-            :key="interrupt.id"
-            class="flex flex-row items-center gap-x-2 rounded hover:bg-gray-100"
-            :style="{
-              height: `${ROW_HEIGHT}px`,
-            }"
-          >
-            <!-- Base -->
-            <div class="flex flex-row items-center gap-x-1">
-              <IconInline
-                v-bind="getNodeIcon(runTree.getBase(getInterruptBasePtr(interrupt)!)!)"
-                class="w-5 text-center text-gray-700"
-              />
-              <span>{{ runTree.getBase(getInterruptBasePtr(interrupt)!)?.name }}</span>
-            </div>
-            <!-- Meta/Controls -->
-            <div class="ml-auto flex flex-row items-center gap-x-1">
-              <!-- Duration -->
-              <span class="text-gray-400">{{ getInterruptDurationString(interrupt, { minUnit: "s" }) }}</span>
+          <div v-for="interrupt of interrupts" :key="interrupt.interrupt.id" class="">
+            <!-- Interrupt Header -->
+            <div
+              class="flex flex-row items-center gap-x-2"
+              :style="{
+                height: `${ROW_HEIGHT}px`,
+              }"
+            >
               <!-- Highlight -->
               <IconInline
                 v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
-                class="w-5 text-center transition-colors duration-75"
-                :class="interrupt.status == InterruptStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
-                v-bind="ICON_BY_INTERRUPT_TYPE[interrupt.type]"
+                class="transition-colors duration-75"
+                :class="interrupt.interrupt.status == InterruptStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
+                v-bind="ICON_BY_INTERRUPT_TYPE[interrupt.interrupt.type]"
               />
-              <!-- Actions -->
-              <button
-                v-for="action in getInterruptActions(interrupt)"
-                :key="action.title"
-                v-tooltip="{ title: action.title, small: true, group: 'run' }"
-                class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                @click="action.action()"
-              >
-                <IconInline v-bind="action.icon" />
-              </button>
+              <!-- Base -->
+              <span>{{ interrupt.base.name }}</span>
+              <!-- Duration -->
+              <span class="text-gray-400">{{ getInterruptDurationString(interrupt.interrupt, { minUnit: "s" }) }}</span>
+              <!-- Meta/Controls -->
+              <div class="ml-auto flex flex-row items-center gap-x-1">
+                <!-- Actions -->
+                <button
+                  v-for="action in getInterruptActions(interrupt.interrupt)"
+                  :key="action.title"
+                  v-tooltip="{ title: action.title, small: true, group: 'run' }"
+                  class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  @click="action.action()"
+                >
+                  <IconInline v-bind="action.icon" />
+                </button>
+              </div>
+            </div>
+            <!-- Interrupt Body -->
+            <div v-if="interrupt.interrupt.status == InterruptStatus.OPEN">
+              <CustomObject
+                id="interrupt-outputs"
+                class="w-full"
+                :value-type="interrupt.outputType"
+                is-inline
+                is-input
+                :variant="Variant.STEALTH"
+                :model-value="interrupt.interrupt.outputsPacked"
+                @update:model-value="
+                  (value) => {
+                    runtime.tx.update(interrupt.interrupt, { outputsPacked: value }, { debounce: 'short' });
+                  }
+                "
+              />
             </div>
           </div>
         </div>

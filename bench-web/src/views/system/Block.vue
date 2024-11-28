@@ -141,7 +141,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Open in its own page -->
       <button
         v-if="hasCanvas"
-        class="ml-1.5 rounded px-1 py-0.5 text-base text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+        class="ml-1.5 rounded px-1 py-0.5 text-base text-gray-400 opacity-0 transition-opacity duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/block-line:opacity-100 group-hover/block:opacity-100"
         @click="() => canvas.goToNode(block!)"
       >
         <i class="fas fa-arrow-up-right" />

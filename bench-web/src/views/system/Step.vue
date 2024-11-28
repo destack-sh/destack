@@ -165,24 +165,29 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
           <!-- Delegate -->
           <!-- ...? -->
-          <!-- Fields -->
-          <!-- NOTE :Incomplete: better Step body -->
-          <span
-            v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
-            :key="field.id"
-            class="truncate text-gray-400"
-          >
-            {{ field.name }}
-          </span>
-          <i v-if="fields.length != 0" class="fas fa-arrow-right text-xs text-gray-400" />
-          <span
-            v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
-            :key="field.id"
-            class="truncate text-gray-400"
-          >
-            {{ field.name }}
-          </span>
-          <span v-if="fields.length == 0" class="text-gray-400">No fields</span>
+          <template v-if="step.type == StepType.FAIL">
+            <span class="text-gray-400">Fail the entire flow.</span>
+          </template>
+          <template v-else>
+            <!-- Fields -->
+            <!-- NOTE :Incomplete: better Step body -->
+            <span
+              v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
+              :key="field.id"
+              class="truncate text-gray-400"
+            >
+              {{ field.name }}
+            </span>
+            <i v-if="fields.length != 0" class="fas fa-arrow-right text-xs text-gray-400" />
+            <span
+              v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
+              :key="field.id"
+              class="truncate text-gray-400"
+            >
+              {{ field.name }}
+            </span>
+            <span v-if="fields.length == 0" class="text-gray-400">No fields</span>
+          </template>
         </div>
       </div>
     </div>

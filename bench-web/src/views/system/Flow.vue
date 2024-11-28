@@ -462,9 +462,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <button
             v-for="stepType in [
               StepType.START,
-              StepType.ACTION,
               StepType.COMPLETE,
               StepType.FAIL,
+              StepType.ACTION,
               StepType.YIELD,
               StepType.TEXT,
             ]"

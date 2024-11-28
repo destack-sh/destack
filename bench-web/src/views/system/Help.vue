@@ -14,8 +14,8 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Inspect from "@/views/system/Inspect.vue";
-import Start from "@/views/system/Start.vue";
+import Inspect from "@/views/system/Detail.vue";
+import Start from "@/views/system/Run.vue";
 import { computed, nextTick, ref, Ref, toRef, watchEffect } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
@@ -69,7 +69,7 @@ function setAspect(aspect: HelpAspect) {
   state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
 }
 const visibleAspects = computed(() => {
-  const visibleAspects: HelpAspect[] = [HelpAspect.INSPECT];
+  const visibleAspects: HelpAspect[] = [HelpAspect.DETAIL];
   if (isNodeRunnable.value) {
     visibleAspects.push(HelpAspect.RUN);
   }
@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self });
     </div>
 
     <!-- Content -->
-    <div v-if="aspect == HelpAspect.INSPECT">
+    <div v-if="aspect == HelpAspect.DETAIL">
       <Scroll
         id="scroll"
         ref="scrollRef"
