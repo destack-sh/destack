@@ -552,10 +552,10 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     Flow = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Action1 = Step.new(
-        StepType.ACTION, "Action1", mode=ActionMode.CODE, code=code("await sleep(0.5)")
+        StepType.ACTION, "Action1", mode=ActionMode.CODE, code=code("await sleep(0.2)")
     )
     Action2 = Step.new(
-        StepType.ACTION, "Action2", mode=ActionMode.CODE, code=code("await sleep(0.5)")
+        StepType.ACTION, "Action2", mode=ActionMode.CODE, code=code("await sleep(0.2)")
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow.steps.extend(Start, Action1, Action2, Complete)
