@@ -16,9 +16,9 @@ import {
   TypeKind,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData
+  type NodeReferenceData,
 } from "@/proto/wire";
-import { isNode, toNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
+import { isNode, toNodeRef } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import {
   AVAILABLE_FA_ICONS,
@@ -129,7 +129,10 @@ function walkGraph(options: {
     // title is composed of nodes in path
     const pathParts = [];
     for (let i = ancestors.length - 1 - (options.skipDepth ?? 0); i >= 0; i--) {
-      pathParts.push(ancestors[i].title);
+      const ancestor = ancestors[i];
+      if (ancestor.title != null && ancestor.title != "") {
+        pathParts.push(ancestor.title);
+      }
     }
     const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
     const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR);

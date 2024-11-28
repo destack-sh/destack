@@ -3046,7 +3046,7 @@ class ComputedValueData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ...) -> None: ...
 
 class TypeConstraintData(_message.Message):
-    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_is_attached", "node_types", "block_types", "step_types", "file_types", "file_formats", "view_types")
+    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_is_attached", "node_types", "node_scope_ptr", "node_max_depth", "block_types", "step_types", "file_types", "file_formats", "view_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
     MAX_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -3058,6 +3058,8 @@ class TypeConstraintData(_message.Message):
     ENDS_WITH_FIELD_NUMBER: _ClassVar[int]
     NODE_IS_ATTACHED_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
+    NODE_SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    NODE_MAX_DEPTH_FIELD_NUMBER: _ClassVar[int]
     BLOCK_TYPES_FIELD_NUMBER: _ClassVar[int]
     STEP_TYPES_FIELD_NUMBER: _ClassVar[int]
     FILE_TYPES_FIELD_NUMBER: _ClassVar[int]
@@ -3074,12 +3076,14 @@ class TypeConstraintData(_message.Message):
     ends_with: str
     node_is_attached: bool
     node_types: _containers.RepeatedScalarFieldContainer[NodeType]
+    node_scope_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    node_max_depth: int
     block_types: _containers.RepeatedScalarFieldContainer[BlockType]
     step_types: _containers.RepeatedScalarFieldContainer[StepType]
     file_types: _containers.RepeatedScalarFieldContainer[FileType]
     file_formats: _containers.RepeatedScalarFieldContainer[FileFormat]
     view_types: _containers.RepeatedScalarFieldContainer[ViewType]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_is_attached: bool = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ..., step_types: _Optional[_Iterable[_Union[StepType, str]]] = ..., file_types: _Optional[_Iterable[_Union[FileType, str]]] = ..., file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ..., view_types: _Optional[_Iterable[_Union[ViewType, str]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_is_attached: bool = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_scope_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., node_max_depth: _Optional[int] = ..., block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ..., step_types: _Optional[_Iterable[_Union[StepType, str]]] = ..., file_types: _Optional[_Iterable[_Union[FileType, str]]] = ..., file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ..., view_types: _Optional[_Iterable[_Union[ViewType, str]]] = ...) -> None: ...
 
 class TypeInfoData(_message.Message):
     __slots__ = ("metatype", "kind", "primitive_type", "bench_type", "base_type_ptr", "base_field_type", "oneof_ptr", "default_packed", "format", "condition", "constraint", "is_required", "is_list", "is_secret")

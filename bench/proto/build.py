@@ -84,7 +84,7 @@ _PUBLIC_SERVICES = ("GraphIo", "Supervisor", "Host")  # :ServiceKind
 
 
 def _render_js_value(value: Any) -> str:
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         return f"[{', '.join(_render_js_value(v) for v in value)}]"
     elif isinstance(value, bool):
         return "true" if value else "false"

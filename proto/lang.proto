@@ -1698,6 +1698,8 @@ message TypeConstraintData {
   optional string ends_with = 62;
   optional bool node_is_attached = 70;
   repeated NodeType node_types = 71;
+  repeated NodeReferenceData node_scope_ptr = 72;
+  optional int32 node_max_depth = 73;
   repeated BlockType block_types = 80;
   repeated StepType step_types = 81;
   repeated FileType file_types = 82;

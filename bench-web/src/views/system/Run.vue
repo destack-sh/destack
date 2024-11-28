@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { makeTypeInfo } from "@/language/field";
+import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import {
   getInterruptBasePtr,
@@ -309,7 +309,14 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                   is-input
                   class="mt-1.5"
                   :style="{ width: 'calc(90% - 100px)' }"
-                  :value-type="makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.STEP, isList: true })"
+                  :value-type="
+                    makeTypeInfo({
+                      kind: TypeKind.NODE,
+                      benchType: BenchType.STEP,
+                      isList: true,
+                      constraint: makeTypeConstraint({ nodeScopePtr: [interrupt.base.parentPtr!], nodeMaxDepth: 1 }),
+                    })
+                  "
                   :model-value="interrupt.continuations.map((c) => c.nodePtr)"
                   @update:model-value="
                     (value) =>
