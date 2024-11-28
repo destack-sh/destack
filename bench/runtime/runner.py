@@ -81,7 +81,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "id",
         "input_type",
         "inputs",
-        "is_cancelled",
+        "is_killed",
         "kind",
         "logs",
         "node",
@@ -136,7 +136,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.tracked_run = run
         self.task: asyncio.Task | None = None
         self.outer_task: asyncio.Task | None = None
-        self.is_cancelled = False
+        self.is_killed = False
 
         # nest active Runners/Runs
         if self.parent is not None:
@@ -204,8 +204,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return self.tracked_run is not None
 
     @property
-    def is_nested(self) -> bool:
-        return self.parent is not None
+    def is_root(self) -> bool:
+        return self.parent is None
 
     @property
     def should_pause(self) -> bool:
@@ -317,18 +317,18 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.should_pause:
             self._trap_interrupt(InterruptType.PAUSE)
 
-    def cancel(self):
-        self.is_cancelled = True
+    def kill(self):
+        """Kill this Runner/Run."""
+        if self.status.is_terminal:
+            return
+        self.is_killed = True
         if self.outer_task is not None:
             self.outer_task.cancel()
         if self.task is not None:
             self.task.cancel()
-
-    def mark_killed(self):
-        """Mark this Runner's Run as killed."""
-        assert self.tracked_run is not None, f"{self!r} is not tracked"
-        self.tracked_run._mark_killed()
-        self.status = self.tracked_run.status
+        if self.tracked_run is not None and not self.is_active:
+            self.tracked_run._mark_killed()
+            self.status = self.tracked_run.status
 
     @abc.abstractmethod
     async def run(self) -> None:

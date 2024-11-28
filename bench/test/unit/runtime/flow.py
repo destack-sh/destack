@@ -5,7 +5,7 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.field import Field
 from bench.language.flow import ActionStep, PipeType, Step, StepType
-from bench.language.interrupt import Breakpoint, BreakpointScope
+from bench.language.interrupt import Breakpoint, BreakpointScope, Interrupt, InterruptStatus
 from bench.language.run import RunErrorType, RunOptions
 from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
@@ -578,3 +578,26 @@ async def test_run_flow_pause_resume(local_runtime: RuntimeHandle):
     runner.tracked_run.resume()
     _ = await local_runtime.runtime.run_runner(runner)
     assert runner.status == RunStatus.COMPLETED
+
+
+async def test_run_flow_autoclose_interrupts_on_complete(local_runtime: RuntimeHandle):
+    """Run and complete a Flow with an Interrupt active, it should auto-cancel."""
+    Flow = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Yield = Step.new(StepType.YIELD, "Yield")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Pass = Step.new(StepType.ACTION, "Pass", mode=ActionMode.CODE, code=code("pass"))
+    Flow.steps.extend(Start, Yield, Pass, Complete)
+    Start.connect(PipeType.PASS, Yield)
+    Start.connect(PipeType.PASS, Pass)
+    Pass.connect(PipeType.PASS, Complete)
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow)
+    assert runner.status == RunStatus.COMPLETED
+    assert runner.tracked_run is not None
+
+    interrupts = runner.tracked_run._graph.nodes_of_type(Interrupt)
+    assert len(interrupts) == 1
+    assert interrupts[0].status == InterruptStatus.CANCELLED

@@ -15,6 +15,7 @@ import {
   FieldType,
   InterruptData,
   InterruptStatus,
+  InterruptType,
   NodeType,
   ObjectType,
   RunData,
@@ -40,6 +41,7 @@ import { computed, ref, toRef, type Ref } from "vue";
 const HEADER_HEIGHT = 32;
 const SECTION_HEADER_HEIGHT = 32;
 const ROW_HEIGHT = 28;
+const INTERRUPT_TYPES = [InterruptType.YIELD]; // NOTE :UX: make shown interrupt types configurable
 
 const props = defineProps<
   {
@@ -94,6 +96,7 @@ type InterruptInfo = {
 const interrupts = computed(() => {
   const interrupts: InterruptInfo[] = [];
   for (const interrupt of runTree.value.interrupts) {
+    if (!INTERRUPT_TYPES.includes(interrupt.type)) continue;
     const base = runTree.value.getBase(getInterruptBasePtr(interrupt)!)!;
     const inputType = makeTypeInfo({
       kind: TypeKind.OBJECT,
@@ -253,20 +256,15 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
             ({{ interrupts.filter((i) => i.interrupt.status == InterruptStatus.OPEN).length }} open)
           </span>
         </div>
-        <div class="flex flex-col">
+        <div class="flex flex-col gap-y-1.5">
           <!-- Interrupt -->
           <div v-for="interrupt of interrupts" :key="interrupt.interrupt.id" class="">
             <!-- Interrupt Header -->
-            <div
-              class="flex flex-row items-center gap-x-1.5"
-              :style="{
-                height: `${ROW_HEIGHT}px`,
-              }"
-            >
+            <div class="flex flex-row items-center gap-x-1.5">
               <!-- Highlight -->
               <IconInline
                 v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
-                class="w-5 text-center transition-colors duration-75"
+                class="w-5 text-center transition-colors duration-150"
                 :class="interrupt.interrupt.status == InterruptStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
                 v-bind="ICON_BY_INTERRUPT_TYPE[interrupt.interrupt.type]"
               />
