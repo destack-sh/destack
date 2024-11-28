@@ -16,6 +16,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.const import (
+    NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     TK_LENGTH_B64,
@@ -204,6 +205,8 @@ class TypeConstraint(Struct):
     # node-ish
     node_is_attached: Optional[bool] = p_regular(70, require=False, default=None)
     node_types: list["NodeType"] = p_regular(71, array=True)
+    node_scope: list["Node"] = p_regular(72, require=False, array=True, references=NODE_TYPES.tuple)
+    node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
     # specific node-ish
     block_types: list["BlockType"] = p_regular(80, array=True)
     step_types: list["StepType"] = p_regular(81, array=True)
