@@ -6,7 +6,7 @@ import { FieldType, InterruptStatus, NodeType, RunData, TypeKind, Variant, ViewD
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
-import { getNodeIcon, ICON_BY_INTERRUPT_KIND, IconInline } from "@/ui/icon";
+import { getNodeIcon, ICON_BY_INTERRUPT_TYPE, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
@@ -179,7 +179,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
             height: `${SECTION_HEADER_HEIGHT}px`,
           }"
         >
-          <span class="font-semibold">Interrupts</span>
+          <span class="font-semibold">Interruptions</span>
         </div>
         <div class="flex flex-col">
           <!-- Interrupt -->
@@ -208,7 +208,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                 v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
                 class="w-5 text-center transition-colors duration-75"
                 :class="interrupt.status == InterruptStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
-                v-bind="ICON_BY_INTERRUPT_KIND[interrupt.kind]"
+                v-bind="ICON_BY_INTERRUPT_TYPE[interrupt.type]"
               />
               <!-- Actions -->
               <button

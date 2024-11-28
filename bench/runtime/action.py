@@ -28,9 +28,9 @@ from bench.language.run import (
     ModelType,
     Run,
     RunAttempt,
-    RunKind,
     RunnableNode,
     RunOptions,
+    RunType,
 )
 from bench.language.text import Text
 from bench.language.value import CustomObject, OutputObject, sample_value, unpack_custom_object
@@ -262,7 +262,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
 class ActionRunner(ActionRunnerBase):
     """Action Runner."""
 
-    kind: ClassVar[RunKind] = RunKind.ACTION
+    kind: ClassVar[RunType] = RunType.ACTION
 
 
 #

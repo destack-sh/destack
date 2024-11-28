@@ -30,7 +30,7 @@ from bench.language.property import (
     p_node_parent,
     p_regular,
 )
-from bench.language.run import RunKind, RunOptions
+from bench.language.run import RunOptions, RunType
 from bench.language.validation import (
     NAME_CONSTRAINT,
     constraint,
@@ -178,8 +178,8 @@ class Pipe(SourceNode[PipeData]):
         return f"{source.absolute_path if source else '???'} {sign} {target.absolute_path if target else '???'}"
 
     @property
-    def run_kind(self) -> RunKind:
-        return RunKind.PIPE
+    def run_type(self) -> RunType:
+        return RunType.PIPE
 
     @property
     def block(self) -> "Block | None":
@@ -228,6 +228,7 @@ class StepType(IdEnum):
     ACTION = 60
     SEND = 61  # emit a message
     YIELD = 62  # to other program/human
+    # CREATE?
 
     # state
     # ...
@@ -317,8 +318,8 @@ class Step(SourceNode[StepData]):
         return None
 
     @property
-    def run_kind(self) -> RunKind:
-        return RunKind.STEP
+    def run_type(self) -> RunType:
+        return RunType.STEP
 
     def connect(
         self,

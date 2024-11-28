@@ -94,20 +94,20 @@ class Breakpoint(Struct):
         return Breakpoint(site=BreakpointSite.RUN_AFTER_COMPLETED, scope=scope, action=action)
 
 
-@enum_(EnumType.INTERRUPT_KIND)
-class InterruptKind(IdEnum):
+@enum_(EnumType.INTERRUPT_TYPE)
+class InterruptType(IdEnum):
     PAUSE = 1  # external pause
     YIELD = 2  # voluntary yield
     WAIT = 3  # wait on trigger
 
 
-RUN_STATUS_BY_INTERRUPT_KIND: dict[InterruptKind, RunStatus] = {
-    InterruptKind.PAUSE: RunStatus.PAUSED,
-    InterruptKind.YIELD: RunStatus.YIELDED,
-    InterruptKind.WAIT: RunStatus.WAITING,
+RUN_STATUS_BY_INTERRUPT_TYPE: dict[InterruptType, RunStatus] = {
+    InterruptType.PAUSE: RunStatus.PAUSED,
+    InterruptType.YIELD: RunStatus.YIELDED,
+    InterruptType.WAIT: RunStatus.WAITING,
 }
-INTERRUPT_KIND_BY_RUN_STATUS: dict[RunStatus, InterruptKind] = {
-    v: k for k, v in RUN_STATUS_BY_INTERRUPT_KIND.items()
+INTERRUPT_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptType] = {
+    v: k for k, v in RUN_STATUS_BY_INTERRUPT_TYPE.items()
 }
 
 
@@ -119,7 +119,7 @@ class InterruptStatus(IdEnum):
 
     @property
     def is_closed(self) -> bool:
-        return self > 7
+        return self >= 7
 
 
 @timed_node_(NodeType.INTERRUPT)
@@ -128,7 +128,7 @@ class Interrupt(RuntimeNode[InterruptData]):
 
     # meta
     parent: "Run" = p_node_parent(4, NodeType.RUN)
-    kind: InterruptKind = p_regular(30, require=True)
+    type: InterruptType = p_regular(30, require=True)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
@@ -158,6 +158,17 @@ class Interrupt(RuntimeNode[InterruptData]):
 
     # context
     # ...HasRuntimeContext[90-99]
+
+    def __content_str__(self):
+        node = self.runnable
+        path = node.absolute_path if node else "<lambda>"
+        if self.duration is not None:
+            duration_str = f"{self.duration.total_seconds():.3f}s"
+            return (
+                f"{self.type.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}"
+            )
+        else:
+            return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
     def runnable(self):
@@ -201,14 +212,14 @@ class Interrupt(RuntimeNode[InterruptData]):
 
     @staticmethod
     def from_run(
-        kind: InterruptKind,
+        kind: InterruptType,
         run: "Run",
         trigger: "Trigger | None" = None,
         attempt: Optional[int] = None,
         breakpoint: BreakpointSite | None = None,
     ) -> "Interrupt":
         return Interrupt(
-            kind=kind,
+            type=kind,
             parent=run,
             session=run.session,
             block=run.block,

@@ -4085,9 +4085,9 @@ export interface RunData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: symbolx.bench.RunKind kind = 30;
+     * @generated from protobuf field: symbolx.bench.RunType type = 30;
      */
-    kind: RunKind;
+    type: RunType;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData root_ptr = 31;
      */
@@ -4697,9 +4697,9 @@ export interface InterruptData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: symbolx.bench.InterruptKind kind = 30;
+     * @generated from protobuf field: symbolx.bench.InterruptType type = 30;
      */
-    kind: InterruptKind;
+    type: InterruptType;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData root_ptr = 31;
      */
@@ -6306,9 +6306,9 @@ export enum EnumType {
      */
     RUN_STATUS = 23003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 23004;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 23004;
      */
-    RUN_KIND = 23004,
+    RUN_TYPE = 23004,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 23005;
      */
@@ -6346,9 +6346,9 @@ export enum EnumType {
      */
     BREAKPOINT_TARGET = 23013,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPT_KIND = 23014;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPT_TYPE = 23014;
      */
-    INTERRUPT_KIND = 23014,
+    INTERRUPT_TYPE = 23014,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_INTERRUPT_STATUS = 23015;
      */
@@ -8221,9 +8221,9 @@ export enum BenchType {
      */
     RUN_STATUS = 23003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 23004;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_TYPE = 23004;
      */
-    RUN_KIND = 23004,
+    RUN_TYPE = 23004,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 23005;
      */
@@ -8261,9 +8261,9 @@ export enum BenchType {
      */
     BREAKPOINT_TARGET = 23013,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT_KIND = 23014;
+     * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT_TYPE = 23014;
      */
-    INTERRUPT_KIND = 23014,
+    INTERRUPT_TYPE = 23014,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_INTERRUPT_STATUS = 23015;
      */
@@ -10239,31 +10239,31 @@ export enum RunStatus {
     COMPLETED = 10
 }
 /**
- * @generated from protobuf enum symbolx.bench.RunKind
+ * @generated from protobuf enum symbolx.bench.RunType
  */
-export enum RunKind {
+export enum RunType {
     /**
-     * @generated from protobuf enum value: RUN_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: RUN_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_KIND_CODE = 1;
+     * @generated from protobuf enum value: RUN_TYPE_CODE = 1;
      */
     CODE = 1,
     /**
-     * @generated from protobuf enum value: RUN_KIND_ACTION = 2;
+     * @generated from protobuf enum value: RUN_TYPE_ACTION = 2;
      */
     ACTION = 2,
     /**
-     * @generated from protobuf enum value: RUN_KIND_STEP = 10;
+     * @generated from protobuf enum value: RUN_TYPE_STEP = 10;
      */
     STEP = 10,
     /**
-     * @generated from protobuf enum value: RUN_KIND_FLOW = 11;
+     * @generated from protobuf enum value: RUN_TYPE_FLOW = 11;
      */
     FLOW = 11,
     /**
-     * @generated from protobuf enum value: RUN_KIND_PIPE = 12;
+     * @generated from protobuf enum value: RUN_TYPE_PIPE = 12;
      */
     PIPE = 12
 }
@@ -10344,6 +10344,10 @@ export enum RunErrorType {
      * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_CALL = 503;
      */
     INVALID_CALL = 503,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_INTERRUPT_CANCELLED = 504;
+     */
+    INTERRUPT_CANCELLED = 504,
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_RETRYABLE = 999;
      */
@@ -10491,23 +10495,23 @@ export enum BreakpointScope {
     PIPE = 21
 }
 /**
- * @generated from protobuf enum symbolx.bench.InterruptKind
+ * @generated from protobuf enum symbolx.bench.InterruptType
  */
-export enum InterruptKind {
+export enum InterruptType {
     /**
-     * @generated from protobuf enum value: INTERRUPT_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: INTERRUPT_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: INTERRUPT_KIND_PAUSE = 1;
+     * @generated from protobuf enum value: INTERRUPT_TYPE_PAUSE = 1;
      */
     PAUSE = 1,
     /**
-     * @generated from protobuf enum value: INTERRUPT_KIND_YIELD = 2;
+     * @generated from protobuf enum value: INTERRUPT_TYPE_YIELD = 2;
      */
     YIELD = 2,
     /**
-     * @generated from protobuf enum value: INTERRUPT_KIND_WAIT = 3;
+     * @generated from protobuf enum value: INTERRUPT_TYPE_WAIT = 3;
      */
     WAIT = 3
 }
@@ -22161,7 +22165,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunKind", RunKind, "RUN_KIND_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.RunType", RunType, "RUN_TYPE_"] },
             { no: 31, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22208,7 +22212,7 @@ class RunData$Type extends MessageType$<RunData> {
         message.id = "";
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
-        message.kind = 0;
+        message.type = 0;
         message.incomingPtr = [];
         message.outgoingPtr = [];
         message.status = 0;
@@ -22264,8 +22268,8 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* symbolx.bench.RunKind kind */ 30:
-                    message.kind = reader.int32();
+                case /* symbolx.bench.RunType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData root_ptr */ 31:
                     message.rootPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootPtr);
@@ -22432,9 +22436,9 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunKind kind = 30; */
-        if (message.kind !== 0)
-            writer.tag(30, WireType.Varint).int32(message.kind);
+        /* symbolx.bench.RunType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional symbolx.bench.NodeReferenceData root_ptr = 31; */
         if (message.rootPtr)
             NodeReferenceData.internalBinaryWrite(message.rootPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -23485,7 +23489,7 @@ class InterruptData$Type extends MessageType$<InterruptData> {
             { no: 15, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 16, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.InterruptKind", InterruptKind, "INTERRUPT_KIND_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.InterruptType", InterruptType, "INTERRUPT_TYPE_"] },
             { no: 31, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23513,7 +23517,7 @@ class InterruptData$Type extends MessageType$<InterruptData> {
         message.id = "";
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
-        message.kind = 0;
+        message.type = 0;
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<InterruptData>(this, message, value);
@@ -23563,8 +23567,8 @@ class InterruptData$Type extends MessageType$<InterruptData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* symbolx.bench.InterruptKind kind */ 30:
-                    message.kind = reader.int32();
+                case /* symbolx.bench.InterruptType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData root_ptr */ 31:
                     message.rootPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootPtr);
@@ -23674,9 +23678,9 @@ class InterruptData$Type extends MessageType$<InterruptData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.InterruptKind kind = 30; */
-        if (message.kind !== 0)
-            writer.tag(30, WireType.Varint).int32(message.kind);
+        /* symbolx.bench.InterruptType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional symbolx.bench.NodeReferenceData root_ptr = 31; */
         if (message.rootPtr)
             NodeReferenceData.internalBinaryWrite(message.rootPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
@@ -27069,7 +27073,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.RUN_STATUS]: RunStatus,
-  [EnumType.RUN_KIND]: RunKind,
+  [EnumType.RUN_TYPE]: RunType,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
   [EnumType.RUN_ERROR_TYPE]: RunErrorType,
   [EnumType.RUN_SPAN_TYPE]: RunSpanType,
@@ -27079,7 +27083,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.BREAKPOINT_SITE]: BreakpointSite,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
   [EnumType.BREAKPOINT_TARGET]: BreakpointScope,
-  [EnumType.INTERRUPT_KIND]: InterruptKind,
+  [EnumType.INTERRUPT_TYPE]: InterruptType,
   [EnumType.INTERRUPT_STATUS]: InterruptStatus,
   [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.CODE_TYPE]: CodeType,
@@ -27424,7 +27428,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.RUN_STATUS]: RunStatus,
-  [EnumType.RUN_KIND]: RunKind,
+  [EnumType.RUN_TYPE]: RunType,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
   [EnumType.RUN_ERROR_TYPE]: RunErrorType,
   [EnumType.RUN_SPAN_TYPE]: RunSpanType,
@@ -27434,7 +27438,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.BREAKPOINT_SITE]: BreakpointSite,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
   [EnumType.BREAKPOINT_TARGET]: BreakpointScope,
-  [EnumType.INTERRUPT_KIND]: InterruptKind,
+  [EnumType.INTERRUPT_TYPE]: InterruptType,
   [EnumType.INTERRUPT_STATUS]: InterruptStatus,
   [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.CODE_TYPE]: CodeType,
@@ -28311,7 +28315,7 @@ export enum RunProperty {
   updatedEpoch = 15,
   deletedAt = 16,
   subnodePacked = 29,
-  kind = 30,
+  type = 30,
   rootPtr = 31,
   blockPtr = 32,
   stepPtr = 33,
@@ -28366,7 +28370,7 @@ export enum InterruptProperty {
   updatedEpoch = 15,
   deletedAt = 16,
   subnodePacked = 29,
-  kind = 30,
+  type = 30,
   rootPtr = 31,
   blockPtr = 32,
   stepPtr = 33,
@@ -29563,7 +29567,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29590,7 +29594,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29672,7 +29676,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.27.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.11.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30246,7 +30250,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN, enumType: EnumType.RUN_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN, enumType: EnumType.RUN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.rootPtr]: { id: 31, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.blockPtr]: { id: 32, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.stepPtr]: { id: 33, name: 'step_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
@@ -30300,7 +30304,7 @@ export const InterruptDataInfo: Record<InterruptProperty, PropertyInfo> = {
   [InterruptProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.INTERRUPT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [InterruptProperty.kind]: { id: 30, name: 'kind', component: ObjectType.INTERRUPT, enumType: EnumType.INTERRUPT_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [InterruptProperty.type]: { id: 30, name: 'type', component: ObjectType.INTERRUPT, enumType: EnumType.INTERRUPT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptProperty.rootPtr]: { id: 31, name: 'root_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptProperty.blockPtr]: { id: 32, name: 'block_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptProperty.stepPtr]: { id: 33, name: 'step_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },

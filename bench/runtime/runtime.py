@@ -9,7 +9,7 @@ from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
 from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
-from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_KIND, BreakpointSite
+from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -126,7 +126,7 @@ class Runtime:
             raise
         except Interrupted as e:
             # interrupted
-            status = RUN_STATUS_BY_INTERRUPT_KIND[e.interrupt.kind]
+            status = RUN_STATUS_BY_INTERRUPT_TYPE[e.interrupt.type]
             attempt._do_set("status", status, validate=False)
             attempt._do_set("interrupted_at", self.oracle.utc(), validate=False)
             attempt._do_set("interrupt", e.interrupt, validate=False)
@@ -277,7 +277,7 @@ class Runtime:
                 interrupted_at = (
                     last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
                 )
-                runner.status = RUN_STATUS_BY_INTERRUPT_KIND[e.interrupt.kind]
+                runner.status = RUN_STATUS_BY_INTERRUPT_TYPE[e.interrupt.type]
                 run._do_set("interrupted_at", interrupted_at, validate=False)
             else:
                 run._do_set("interrupted_at", self.oracle.utc(), validate=False)

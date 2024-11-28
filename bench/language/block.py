@@ -41,8 +41,8 @@ if TYPE_CHECKING:
         Policy,
         Property,
         Record,
-        RunKind,
         RunOptions,
+        RunType,
         Step,
         Text,
         Trigger,
@@ -145,13 +145,13 @@ class Block(SourceNode[BlockData]):
         return self.type.is_runnable
 
     @property
-    def run_kind(self) -> "RunKind | None":
-        from bench.language.run import RunKind
+    def run_type(self) -> "RunType | None":
+        from bench.language.run import RunType
 
         if self.type == BlockType.ACTION:
-            return RunKind.ACTION
+            return RunType.ACTION
         elif self.type == BlockType.FLOW:
-            return RunKind.FLOW
+            return RunType.FLOW
         else:
             return None
 

@@ -25,7 +25,8 @@ from bench.language.interrupt import (
     BreakpointScope,
     BreakpointSite,
     Interrupt,
-    InterruptKind,
+    InterruptStatus,
+    InterruptType,
 )
 from bench.language.log import LogInfo
 from bench.language.run import (
@@ -34,13 +35,13 @@ from bench.language.run import (
     RunAttempt,
     RunError,
     RunEvent,
-    RunKind,
     RunnableNode,
     RunOptions,
     RunSpan,
+    RunType,
 )
 from bench.language.value import CustomObject
-from bench.runtime.core import BASE_RUN_OPTIONS_BY_KIND, RunImpossibleError
+from bench.runtime.core import BASE_RUN_OPTIONS_BY_KIND, InterruptCancelledError, RunImpossibleError
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -98,7 +99,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "tracked_run",
     )
 
-    kind: ClassVar[RunKind]
+    kind: ClassVar[RunType]
 
     def __init__(
         self,
@@ -149,7 +150,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             with tracer.start_as_current_span("runtime.create_run"):
                 run = Run(
                     parent=parent_run or self.session.package,
-                    kind=self.kind,
+                    type=self.kind,
                     block=node if isinstance(node, Block) else node.block,
                     step=node if isinstance(node, Step) else None,
                     pipe=node if isinstance(node, Pipe) else None,
@@ -255,35 +256,53 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return False
 
     def _get_or_create_interrupt(
-        self, kind: InterruptKind, *, breakpoint: BreakpointSite | None = None
+        self,
+        kind: InterruptType,
+        *,
+        attempt: int | None = None,
+        breakpoint: BreakpointSite | None = None,
     ):
         """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
         assert self.tracked_run is not None, f"{self!r} is not tracked"
         for interrupt in self.tracked_run.interrupts:
-            if interrupt.kind == kind and interrupt.breakpoint_site == breakpoint:
+            if (
+                interrupt.type == kind
+                and interrupt.attempt_no == attempt
+                and interrupt.breakpoint_site == breakpoint
+            ):
                 return interrupt
         interrupt = Interrupt.from_run(kind, self.tracked_run, breakpoint=breakpoint)
         self.session._create(interrupt)
         return interrupt
 
+    def _trap_interrupt(
+        self,
+        kind: InterruptType,
+        *,
+        attempt: int | None = None,
+        breakpoint: BreakpointSite | None = None,
+    ):
+        """Yield/resume an Interrupt of the given kind if set in this Runner."""
+        assert self.tracked_run is not None, f"{self!r} is not tracked"
+        interrupt = self._get_or_create_interrupt(kind, attempt=attempt, breakpoint=breakpoint)
+        if interrupt.status == InterruptStatus.COMPLETED:
+            logger.trace(f"runtime.{kind.name.lower()}.completed", runner=self, interrupt=interrupt)
+            return interrupt  # interrupt already handled
+        elif interrupt.status == InterruptStatus.CANCELLED:
+            logger.trace(f"runtime.{kind.name.lower()}.cancelled", runner=self, interrupt=interrupt)
+            raise InterruptCancelledError(f"{interrupt!r} is cancelled")
+        else:
+            logger.trace(f"runtime.{kind.name.lower()}", runner=self, interrupt=interrupt)
+            raise Interrupted(self, self.tracked_run, interrupt)
+
     @final
     def _trap_breakpoint(self, site: BreakpointSite, *alias_sites: BreakpointSite):
-        """
-        Yield/resume the given kind of breakpoint if set in this Runner.
-        """
+        """Yield/resume the given kind of breakpoint if set in this Runner."""
         if self.tracked_run is None:
             return  # can't break into untracked Run
         # handle applicable breakpoint (if any)
         if self._has_breakpoint_set(site, *alias_sites):
-            interrupt = self._get_or_create_interrupt(InterruptKind.YIELD, breakpoint=site)
-            if interrupt.is_closed:
-                logger.trace(
-                    "runtime.breakpoint.closed", runner=self, interrupt=interrupt, site=site
-                )
-                return  # breakpoint already handled
-            else:
-                logger.trace("runtime.breakpoint", runner=self, interrupt=interrupt, site=site)
-                raise Interrupted(self, self.tracked_run, interrupt)
+            self._trap_interrupt(InterruptType.YIELD, breakpoint=site)
 
     @final
     def _trap_pause(self):
@@ -291,13 +310,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.tracked_run is None:
             return  # can't break into untracked Run
         if self.should_pause:
-            interrupt = self._get_or_create_interrupt(InterruptKind.PAUSE)
-            if interrupt.is_closed:
-                logger.trace("runtime.pause.closed", runner=self, interrupt=interrupt)
-                return  # pause already handled
-            else:
-                logger.trace("runtime.pause", runner=self, interrupt=interrupt)
-                raise Interrupted(self, self.tracked_run, interrupt)
+            self._trap_interrupt(InterruptType.PAUSE)
 
     def cancel(self):
         self.is_cancelled = True
@@ -317,7 +330,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         ...
 
 
-def get_run_options(kind: RunKind, options: RunOptions | None):
+def get_run_options(kind: RunType, options: RunOptions | None):
     """Get the combined run options for a node."""
     base_options = BASE_RUN_OPTIONS_BY_KIND[kind]
     return base_options.override(options)
@@ -337,25 +350,25 @@ def make_run_from_node(
         block = node
         step = None
         pipe = None
-        kind = node.run_kind
+        kind = node.run_type
         assert kind is not None, f"no run kind for {node!r}"
     elif isinstance(node, Step):
         step = node
         block = step.block
         pipe = None
-        kind = RunKind.STEP
+        kind = RunType.STEP
     elif isinstance(node, Pipe):
         pipe = node
         block = pipe.block
         step = None
-        kind = RunKind.PIPE
+        kind = RunType.PIPE
     else:
         assert_never(node)
 
     options = get_run_options(kind, node.run_options)
     run = Run(
         parent=parent or node.package,
-        kind=kind,
+        type=kind,
         block=block,
         step=step,
         pipe=pipe,
@@ -382,7 +395,7 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
     return make_runner(
         runtime,
         node,
-        kind=run.kind,
+        kind=run.type,
         options=run.options,
         context=run.context,
         inputs=inputs,
@@ -396,7 +409,7 @@ def make_runner(
     node: RunnableNode,
     track: bool,
     *,
-    kind: RunKind | None = None,
+    kind: RunType | None = None,
     context: Context | None = None,
     inputs: Any | None = None,
     parent: "Run | None" = None,
@@ -405,9 +418,9 @@ def make_runner(
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
 
-    run_kind = kind or node.run_kind
-    assert run_kind is not None, f"no run kind for {node!r}"
-    options = get_run_options(run_kind, run.options if run is not None else node.run_options)
+    RUN_TYPE = kind or node.run_type
+    assert RUN_TYPE is not None, f"no run kind for {node!r}"
+    options = get_run_options(RUN_TYPE, run.options if run is not None else node.run_options)
     base_kwargs: dict[str, Any] = {
         "runtime": runtime,
         "options": options,
@@ -419,32 +432,32 @@ def make_runner(
         "parent": parent,
         **kwargs,
     }
-    if run_kind == RunKind.CODE:
+    if RUN_TYPE == RunType.CODE:
         from bench.runtime.code import CodeFunctionRunner
 
         code = getattr(node, "code", None) or Code.empty()
         runner = CodeFunctionRunner(**base_kwargs, code=code)
-    elif run_kind == RunKind.ACTION:
+    elif RUN_TYPE == RunType.ACTION:
         from bench.runtime.action import ActionRunner
 
         runner = ActionRunner(**base_kwargs)
-    elif run_kind == RunKind.FLOW:
+    elif RUN_TYPE == RunType.FLOW:
         from bench.runtime.flow import FlowRunner
 
         runner = FlowRunner(**base_kwargs)
-    elif run_kind == RunKind.STEP:
+    elif RUN_TYPE == RunType.STEP:
         from bench.runtime.flow import STEP_RUNNER_BY_STEP_TYPE, Step
 
         assert isinstance(node, Step), f"expected Step, got {node!r}"
         runner_cls = STEP_RUNNER_BY_STEP_TYPE[node.type]
         runner = runner_cls(**base_kwargs)
-    elif run_kind == RunKind.PIPE:
+    elif RUN_TYPE == RunType.PIPE:
         from bench.runtime.flow import PIPE_RUNNER_BY_PIPE_TYPE, Pipe
 
         assert isinstance(node, Pipe), f"expected Pipe, got {node!r}"
         runner_cls = PIPE_RUNNER_BY_PIPE_TYPE[node.type]
         runner = runner_cls(**base_kwargs)
     else:
-        assert_never(run_kind)
+        assert_never(RUN_TYPE)
 
     return cast(Runner, runner)
