@@ -7,7 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import FlowBlock
-from bench.language.const import NodeType, ObjectKind, RunErrorKind, RunStatus
+from bench.language.const import ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide, Step, StepType
 from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptType
@@ -72,33 +72,13 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         """Abort any contained Steps (and any relevant Interrupts)."""
         logger.debug("flow.abort", flow=self.node, runner=self)
 
-        closed_interrupts: list[Interrupt] = []
         for runner in self.runners:
-            if (
+            if not runner.options.suppress_abort and not (
                 isinstance(runner.node, Step) and runner.node.type.is_boundary
-            ) or runner.options.suppress_abort:
-                continue  # skip runners that can't be aborted
-
-            # cancel for sure, mark as aborted if not already terminated
-            runner.cancel()
-            if runner.tracked_run:
-                if not runner.is_active and not runner.status.is_terminal:
-                    runner.mark_killed()
-
-                # also close any contained open Interrupts
-                for node in self.runtime.session._graph.get_descendants(
-                    runner.tracked_run, NodeType.INTERRUPT, recursive=True
-                ):
-                    if isinstance(node, Interrupt) and node.status.is_open:
-                        node.cancel(_trigger_runtime=False)
-                        closed_interrupts.append(node)
-
-        # trigger resume for interrupts
-        if self.is_nested and closed_interrupts and self.tracked_run is not None:
-            runs_to_resume = self.runtime.get_interrupted_runs(
-                self.tracked_run._graph, *closed_interrupts
-            )
-            self.runtime.resume(*runs_to_resume)
+            ):
+                runner.kill()
+                if runner.tracked_run is not None:
+                    self.runtime.close(runner.tracked_run, resume=not self.is_root)
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Steps."""

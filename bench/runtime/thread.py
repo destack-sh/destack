@@ -1,6 +1,6 @@
 import asyncio
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Collection, Mapping, override
+from typing import TYPE_CHECKING, Any, Collection, Mapping, cast, override
 from uuid import UUID
 
 import structlog
@@ -111,24 +111,17 @@ class RunHandle:
             self.runtime.kill(run)
         else:
             # mark inner Runs/Interrupts as killed
-            closed_interrupts: list[Interrupt] = []
             for node in chain(
-                (run,),
-                run._graph.get_descendants(run, NodeType.RUN, recursive=True),
-                run._graph.get_descendants(run, NodeType.INTERRUPT, recursive=True),
+                (run,), run._graph.iter_descendants(run, NodeType.RUN, recursive=True)
             ):
-                if isinstance(node, Run) and not node.status.is_terminal:
+                node = cast(Run, node)
+                if not node.status.is_terminal:
                     node._mark_killed()
-                elif isinstance(node, Interrupt) and not node.status.is_closed:
-                    node.cancel(_trigger_runtime=False)
-                    closed_interrupts.append(node)
+                    self.runtime.close(run, resume=False)
             if run.id == self.root.id:
                 self.close()
-            elif closed_interrupts:
-                runs_to_resume = self.runtime.get_interrupted_runs(
-                    self.root._graph, *closed_interrupts
-                )
-                self.run(runs_to_resume=runs_to_resume)
+            else:
+                self.run()  # not active, start running again
             self.runtime.session.commit_optimistic()
         self.log.debug("thread.kill", run=run)
 

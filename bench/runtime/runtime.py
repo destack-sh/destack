@@ -1,14 +1,14 @@
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 from uuid import UUID
 
 import structlog
 from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
-from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
+from bench.language.const import BenchError, NodeType, ObjectKind, RunErrorKind, RunStatus
 from bench.language.graph import NodeGraph
 from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite, Interrupt
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
@@ -103,7 +103,7 @@ class Runtime:
         started_at: datetime | None = None
         terminated_at: datetime | None = None
         try:
-            if runner.is_cancelled:
+            if runner.is_killed:
                 raise asyncio.CancelledError()
             with tracer.start_as_current_span("runtime.attempt.run"):
                 if attempt.started_at is None:
@@ -300,6 +300,7 @@ class Runtime:
             run._do_set("error", runner.error, validate=False)
             run._do_set("status", runner.status, validate=False)
             if runner.status.is_terminal:
+                # update terminal status
                 last_attempt = runner.current_attempt
                 if last_attempt is not None:
                     # made an attempt
@@ -315,6 +316,9 @@ class Runtime:
                     run._do_set("terminated_at", self.oracle.utc(), validate=False)
                     run._do_set("terminated_epoch", self.session.epoch, validate=False)
                     run._do_set("duration", run.terminated_at - run.started_at)  # type: ignore
+
+                # close any remaining (directly) contained open Interrupts
+                self.close(run)
 
             # commit intermediate session edits
             self.session.commit_optimistic()
@@ -430,5 +434,23 @@ class Runtime:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
         for runner in reversed(list(root_runner.walk())):
             if not runner.status.is_terminal:
-                runner.cancel()
+                runner.kill()
+                if runner.tracked_run is not None:
+                    self.close(runner.tracked_run, resume=not runner.is_root)
                 logger.debug("runtime.run.kill", runner=runner)
+
+    def close(self, run: Run, resume: bool = True):
+        """Close the Interrupts in a Run."""
+        closed_interrupts: list[Interrupt] | None = None
+        for interrupt in run._graph.iter_descendants(run, NodeType.INTERRUPT):
+            interrupt = cast(Interrupt, interrupt)
+            if interrupt.status.is_open:
+                interrupt.cancel(_trigger_runtime=False)
+                if closed_interrupts is None:
+                    closed_interrupts = []
+                closed_interrupts.append(interrupt)
+
+        # trigger resume for Interrupts (if we can still run, i.e. not at root)
+        if resume and run.parent_ptr is not None and closed_interrupts:
+            runs_to_resume = self.get_interrupted_runs(run._graph, *closed_interrupts)
+            self.resume(*runs_to_resume)
