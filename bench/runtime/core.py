@@ -13,7 +13,7 @@ from bench.language.const import BenchError
 from bench.language.file import upload
 from bench.language.node import Node
 from bench.language.path import get_node
-from bench.language.run import RunError, RunErrorType, RunKind, RunOptions
+from bench.language.run import RunError, RunErrorType, RunOptions, RunType
 from bench.language.setup import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
 from bench.runtime.capture import LogSink
 from bench.utils.func import get_subclasses
@@ -24,12 +24,13 @@ if TYPE_CHECKING:
 
 ATTEMPT_ONCE = RunOptions(max_attempts=1)
 ATTEMPT_THRICE = RunOptions(max_attempts=3)
+ATTEMPT_FOREVER = RunOptions(max_attempts=None)
 BASE_RUN_OPTIONS_BY_KIND = {
-    RunKind.CODE: ATTEMPT_ONCE,
-    RunKind.ACTION: ATTEMPT_THRICE,
-    RunKind.STEP: ATTEMPT_ONCE,
-    RunKind.PIPE: ATTEMPT_ONCE,
-    RunKind.FLOW: ATTEMPT_ONCE,
+    RunType.CODE: ATTEMPT_ONCE,
+    RunType.ACTION: ATTEMPT_THRICE,
+    RunType.STEP: ATTEMPT_ONCE,
+    RunType.PIPE: ATTEMPT_ONCE,
+    RunType.FLOW: ATTEMPT_ONCE,
 }
 
 
@@ -82,6 +83,10 @@ class ModelIncapableError(NonRetryableError):
 
 class ActionChangedError(ModelIncapableError):
     run_error_type = RunErrorType.ACTION_CHANGED
+
+
+class InterruptCancelledError(RetryableError):
+    run_error_type = RunErrorType.INTERRUPT_CANCELLED
 
 
 class ModelFailedError(RetryableError):

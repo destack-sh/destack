@@ -4,7 +4,7 @@ from bench.language import Block, BlockType, Field, code
 from bench.language.action import ActionMode
 from bench.language.const import RunStatus
 from bench.language.node import Node
-from bench.language.run import Run, RunErrorType, RunKind, RunOptions
+from bench.language.run import Run, RunErrorType, RunOptions, RunType
 from bench.language.value import CustomObject
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.runtime.core import ATTEMPT_ONCE
@@ -157,7 +157,7 @@ async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
-    run = Run(parent=local_runtime.package, options=ATTEMPT_ONCE, kind=RunKind.CODE, block=Code1)
+    run = Run(parent=local_runtime.package, options=ATTEMPT_ONCE, type=RunType.CODE, block=Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
@@ -177,7 +177,7 @@ async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
-    run = Run(parent=local_runtime.package, options=ATTEMPT_ONCE, kind=RunKind.CODE, block=Code1)
+    run = Run(parent=local_runtime.package, options=ATTEMPT_ONCE, type=RunType.CODE, block=Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE

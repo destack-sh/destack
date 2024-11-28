@@ -79,7 +79,7 @@ from .field import (
 from .file import File, FileFormat, FileKind, FileRetentionMode, FileType
 from .flow import FieldMapping, ObjectMapping, Pipe, PipeType, Step, StepType
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
-from .interrupt import Breakpoint, BreakpointAction, BreakpointSite, Interrupt, InterruptKind
+from .interrupt import Breakpoint, BreakpointAction, BreakpointSite, Interrupt, InterruptType
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
 from .machine import Browser, Machine
@@ -118,10 +118,10 @@ from .run import (
     RunErrorKind,
     RunErrorType,
     RunEvent,
-    RunKind,
     RunOptions,
     RunSpan,
     RunStatus,
+    RunType,
     TextOptions,
     VideoOptions,
 )
@@ -254,7 +254,7 @@ __all__ = [
     "IconKind",
     "ImageOptions",
     "Interrupt",
-    "InterruptKind",
+    "InterruptType",
     "Line",
     "LocalNodeList",
     "Log",
@@ -309,10 +309,10 @@ __all__ = [
     "RunErrorKind",
     "RunErrorType",
     "RunEvent",
-    "RunKind",
     "RunOptions",
     "RunSpan",
     "RunStatus",
+    "RunType",
     "RuntimeContext",
     "S",
     "ScheduleType",

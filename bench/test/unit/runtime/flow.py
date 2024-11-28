@@ -453,6 +453,28 @@ async def test_run_flow_yield_nested(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.COMPLETED
 
 
+async def test_run_flow_yield_cancelled(local_runtime: RuntimeHandle):
+    """Run a Flow with a Yield step, then cancel it."""
+    Flow = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Yield = Step.new(StepType.YIELD, "Yield")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow.steps.extend(Start, Yield, Complete)
+    Start.connect(PipeType.PASS, Yield)
+    Yield.connect(PipeType.PASS, Complete)
+    local_runtime.page().blocks.append(Flow)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow)
+    assert runner.status == RunStatus.YIELDED
+    assert runner.tracked_run
+    assert runner.tracked_run.interrupt
+    runner.tracked_run.interrupt.cancel()
+    runner = await local_runtime.run(runner.tracked_run, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INTERRUPT_CANCELLED
+
+
 async def test_run_flow_breakpoint(local_runtime: RuntimeHandle):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
     Flow = Block.new(

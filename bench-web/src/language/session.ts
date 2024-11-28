@@ -9,7 +9,7 @@ import {
   NodeType,
   ObjectType,
   PipeData,
-  RunKind,
+  RunType,
   RunOptionsData,
   RunStatus,
   StructType,
@@ -72,15 +72,15 @@ export function getInterruptBasePtr(interrupt: InterruptData): NodeReferenceData
 }
 
 /** Determine the type of run for some runnable object */
-export function getRunKind(runnable: RunnableObject): RunKind {
+export function getRunType(runnable: RunnableObject): RunType {
   if (isNode(runnable, NodeType.BLOCK)) {
     if (runnable.type == BlockType.ACTION) {
-      return RunKind.ACTION;
+      return RunType.ACTION;
     } else if (runnable.type == BlockType.FLOW) {
-      return RunKind.FLOW;
+      return RunType.FLOW;
     }
   } else if (isNode(runnable, NodeType.STEP)) {
-    return RunKind.STEP;
+    return RunType.STEP;
   }
 
   throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);
@@ -162,7 +162,7 @@ export function makeRun(
     metatype: NodeType.RUN,
     parentPtr: packagePtr,
     packagePtr: packagePtr,
-    kind: getRunKind(runnable),
+    type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
     blockPtr: block != null ? toNodeRef(block) : undefined,
     stepPtr: isNode(runnable, NodeType.STEP) ? toNodeRef(runnable) : undefined,

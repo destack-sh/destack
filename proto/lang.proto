@@ -63,7 +63,7 @@ enum EnumType {
   ENUM_TYPE_LOG_KIND = 23001;
   ENUM_TYPE_LOG_LEVEL = 23002;
   ENUM_TYPE_RUN_STATUS = 23003;
-  ENUM_TYPE_RUN_KIND = 23004;
+  ENUM_TYPE_RUN_TYPE = 23004;
   ENUM_TYPE_RUN_ERROR_KIND = 23005;
   ENUM_TYPE_RUN_ERROR_TYPE = 23006;
   ENUM_TYPE_RUN_SPAN_TYPE = 23007;
@@ -73,7 +73,7 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_SITE = 23011;
   ENUM_TYPE_BREAKPOINT_ACTION = 23012;
   ENUM_TYPE_BREAKPOINT_TARGET = 23013;
-  ENUM_TYPE_INTERRUPT_KIND = 23014;
+  ENUM_TYPE_INTERRUPT_TYPE = 23014;
   ENUM_TYPE_INTERRUPT_STATUS = 23015;
   ENUM_TYPE_CACHE_MODE = 23016;
   ENUM_TYPE_CODE_TYPE = 23017;
@@ -567,7 +567,7 @@ enum BenchType {
   BENCH_TYPE_LOG_KIND = 23001;
   BENCH_TYPE_LOG_LEVEL = 23002;
   BENCH_TYPE_RUN_STATUS = 23003;
-  BENCH_TYPE_RUN_KIND = 23004;
+  BENCH_TYPE_RUN_TYPE = 23004;
   BENCH_TYPE_RUN_ERROR_KIND = 23005;
   BENCH_TYPE_RUN_ERROR_TYPE = 23006;
   BENCH_TYPE_RUN_SPAN_TYPE = 23007;
@@ -577,7 +577,7 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_SITE = 23011;
   BENCH_TYPE_BREAKPOINT_ACTION = 23012;
   BENCH_TYPE_BREAKPOINT_TARGET = 23013;
-  BENCH_TYPE_INTERRUPT_KIND = 23014;
+  BENCH_TYPE_INTERRUPT_TYPE = 23014;
   BENCH_TYPE_INTERRUPT_STATUS = 23015;
   BENCH_TYPE_CACHE_MODE = 23016;
   BENCH_TYPE_CODE_TYPE = 23017;
@@ -1146,13 +1146,13 @@ enum RunStatus {
   RUN_STATUS_COMPLETED = 10;
 }
 
-enum RunKind {
-  RUN_KIND_UNSPECIFIED = 0;
-  RUN_KIND_CODE = 1;
-  RUN_KIND_ACTION = 2;
-  RUN_KIND_STEP = 10;
-  RUN_KIND_FLOW = 11;
-  RUN_KIND_PIPE = 12;
+enum RunType {
+  RUN_TYPE_UNSPECIFIED = 0;
+  RUN_TYPE_CODE = 1;
+  RUN_TYPE_ACTION = 2;
+  RUN_TYPE_STEP = 10;
+  RUN_TYPE_FLOW = 11;
+  RUN_TYPE_PIPE = 12;
 }
 
 enum RunErrorKind {
@@ -1176,6 +1176,7 @@ enum RunErrorType {
   RUN_ERROR_TYPE_ACTION_CHANGED = 501;
   RUN_ERROR_TYPE_INVALID_CONTINUATION = 502;
   RUN_ERROR_TYPE_INVALID_CALL = 503;
+  RUN_ERROR_TYPE_INTERRUPT_CANCELLED = 504;
   RUN_ERROR_TYPE_RETRYABLE = 999;
 }
 
@@ -1227,11 +1228,11 @@ enum BreakpointScope {
   BREAKPOINT_SCOPE_PIPE = 21;
 }
 
-enum InterruptKind {
-  INTERRUPT_KIND_UNSPECIFIED = 0;
-  INTERRUPT_KIND_PAUSE = 1;
-  INTERRUPT_KIND_YIELD = 2;
-  INTERRUPT_KIND_WAIT = 3;
+enum InterruptType {
+  INTERRUPT_TYPE_UNSPECIFIED = 0;
+  INTERRUPT_TYPE_PAUSE = 1;
+  INTERRUPT_TYPE_YIELD = 2;
+  INTERRUPT_TYPE_WAIT = 3;
 }
 
 enum InterruptStatus {
@@ -2786,7 +2787,7 @@ message RunData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  RunKind kind = 30;
+  RunType type = 30;
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData step_ptr = 33;
@@ -2958,7 +2959,7 @@ message InterruptData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  InterruptKind kind = 30;
+  InterruptType type = 30;
   optional NodeReferenceData root_ptr = 31;
   optional NodeReferenceData block_ptr = 32;
   optional NodeReferenceData step_ptr = 33;

@@ -66,8 +66,8 @@ if TYPE_CHECKING:
 RunnableNode = Union["Block", "Step", "Pipe"]
 
 
-@enum_(EnumType.RUN_KIND)
-class RunKind(IdEnum):
+@enum_(EnumType.RUN_TYPE)
+class RunType(IdEnum):
     CODE = 1
     ACTION = 2
     STEP = 10
@@ -321,6 +321,7 @@ class RunErrorType(IdEnum):
     ACTION_CHANGED = 501
     INVALID_CONTINUATION = 502
     INVALID_CALL = 503
+    INTERRUPT_CANCELLED = 504
     RETRYABLE = 999
 
     @property
@@ -395,7 +396,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     # meta
     parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
-    kind: RunKind = p_system(30)
+    type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
@@ -487,16 +488,16 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         if self.duration is not None:
             duration_str = f"{self.duration.total_seconds():.3f}s"
             return (
-                f"{self.kind.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}"
+                f"{self.type.bench_name}:{path}, {self.status.bench_name}, duration={duration_str}"
             )
         else:
-            return f"{self.kind.bench_name}:{path}, {self.status.bench_name}"
+            return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
     def runnable(self) -> Union["Block", "Step", "Pipe", None]:
-        if self.kind == RunKind.PIPE:
+        if self.type == RunType.PIPE:
             return self.pipe
-        elif self.kind == RunKind.STEP:
+        elif self.type == RunType.STEP:
             return self.step
         else:
             return self.block

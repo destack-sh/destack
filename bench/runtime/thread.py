@@ -104,6 +104,7 @@ class RunHandle:
             else:
                 assert_never(node)
         logger.debug("thread.resume", nodes=nodes, runs=runs_to_resume)
+        # nocheckin: resume inner Runs
         self.run_if_needed()
 
     def kill(self, run: Run):

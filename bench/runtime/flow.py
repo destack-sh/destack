@@ -10,8 +10,8 @@ from bench.language.block import FlowBlock
 from bench.language.const import ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide, Step, StepType
-from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptKind
-from bench.language.run import Run, RunError, RunErrorType, RunKind, RunnableNode, RunOptions
+from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptType
+from bench.language.run import Run, RunError, RunErrorType, RunnableNode, RunOptions, RunType
 from bench.language.value import CustomObject, OutputObject
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
@@ -184,12 +184,12 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             runner_cls = STEP_RUNNER_BY_STEP_TYPE.get(node.type)
             if runner_cls is None:
                 raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
-            run_options = get_run_options(RunKind.STEP, node.run_options)
+            run_options = get_run_options(RunType.STEP, node.run_options)
         elif isinstance(node, Pipe):
             runner_cls = PIPE_RUNNER_BY_PIPE_TYPE.get(node.type)
             if runner_cls is None:
                 raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
-            run_options = get_run_options(RunKind.PIPE, node.run_options)
+            run_options = get_run_options(RunType.PIPE, node.run_options)
         else:
             assert_never(node)
         runner = runner_cls(
@@ -267,7 +267,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
 class FlowRunner(FlowRunnerBase[FlowBlock]):
     """Runs an entire Flow."""
 
-    kind: ClassVar[RunKind] = RunKind.FLOW
+    kind: ClassVar[RunType] = RunType.FLOW
 
     @override
     def get_steps(self) -> Sequence[Step]:
@@ -299,7 +299,7 @@ class FlowRunner(FlowRunnerBase[FlowBlock]):
 class StepRunnerBase(Runner[Step], ABC):
     """Step Runner in a Flow."""
 
-    kind: ClassVar[RunKind] = RunKind.STEP
+    kind: ClassVar[RunType] = RunType.STEP
 
     def __init__(
         self,
@@ -401,12 +401,8 @@ class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
 class YieldStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        assert self.tracked_run is not None, f"{self!r} must be tracked"
-        interrupt = self._get_or_create_interrupt(InterruptKind.YIELD)
-        if interrupt.is_open:
-            raise Interrupted(cast(Runner, self), self.tracked_run, interrupt)
-        else:
-            self.outputs = interrupt.outputs
+        interrupt = self._trap_interrupt(InterruptType.YIELD)
+        self.outputs = interrupt.outputs
 
 
 STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
@@ -423,7 +419,7 @@ STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
 
 
 class PipeRunnerBase(Runner[Pipe], ABC):
-    kind: ClassVar[RunKind] = RunKind.PIPE
+    kind: ClassVar[RunType] = RunType.PIPE
 
     def __init__(
         self,

@@ -12,7 +12,7 @@ from bench.language.field import Field, TypeBase
 from bench.language.file import upload
 from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
-from bench.language.run import Run, RunKind, RunnableNode, RunOptions
+from bench.language.run import Run, RunnableNode, RunOptions, RunType
 from bench.language.value import CustomObject, coerce_custom_object
 from bench.runtime.capture import (
     MAX_LOG_LINE_LENGTH,
@@ -36,7 +36,7 @@ class CodeRunnerBase(Runner):
 
     __slots__ = ("code", "compiled", "log_sink")
 
-    kind: ClassVar[RunKind] = RunKind.CODE
+    kind: ClassVar[RunType] = RunType.CODE
 
     def __init__(
         self,
