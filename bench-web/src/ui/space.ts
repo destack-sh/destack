@@ -318,7 +318,7 @@ export class SpaceCanvas {
 
     // open inspector
     if (inspect.focusInspector) {
-      this.addView({ type: ViewType.INSPECT }, { ifPresent: "focus" });
+      this.addView({ type: ViewType.DETAIL }, { ifPresent: "focus" });
     }
   }
 
@@ -1096,7 +1096,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       name: "Side",
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 280, maxWidth: 500 }),
-      subnode: { aspect: HubAspect.SOURCE },
+      subnode: { aspect: HubAspect.BENCH },
     },
     {
       type: ViewType.HISTORY,
@@ -1110,7 +1110,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 500 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 400, maxWidth: 800 }),
-      subnode: { aspect: HelpAspect.INSPECT },
+      subnode: { aspect: HelpAspect.DETAIL },
     },
   ]);
   return { primary: layout.viewsByName["Main"] };

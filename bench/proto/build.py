@@ -103,7 +103,9 @@ def _render_js_value(value: Any) -> str:
 def _render_js_constraint(constraint: TypeConstraint | TypeConstraintIn) -> str:
     constraint_parts = []
     for p in TypeConstraint.__declared_properties__.values():
-        p_value = getattr(constraint, p.name)
+        if p.reference_wired_ptr:
+            p = p.reference_wired_ptr
+        p_value = getattr(constraint, p.name, None)
         if p_value is not None:
             js_value = _render_js_value(p_value)
             constraint_parts.append(f"{to_casing(p.name, Casing.LOWER_CAMEL)}: {js_value}")
