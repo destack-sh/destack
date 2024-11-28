@@ -1336,10 +1336,10 @@ enum ViewType {
   VIEW_TYPE_TYPE = 209;
   VIEW_TYPE_OBJECT = 210;
   VIEW_TYPE_TREE = 400;
-  VIEW_TYPE_INSPECT = 403;
+  VIEW_TYPE_DETAIL = 403;
   VIEW_TYPE_CREATE = 404;
   VIEW_TYPE_CHAT = 405;
-  VIEW_TYPE_START = 406;
+  VIEW_TYPE_RUN = 406;
   VIEW_TYPE_FEED = 407;
   VIEW_TYPE_TIMELINE = 408;
   VIEW_TYPE_HUB = 409;
@@ -1568,7 +1568,7 @@ enum TreeViewPreset {
 
 enum HubAspect {
   HUB_ASPECT_UNSPECIFIED = 0;
-  HUB_ASPECT_SOURCE = 1;
+  HUB_ASPECT_BENCH = 1;
   HUB_ASPECT_ACTIVITY = 2;
   HUB_ASPECT_CATALOG = 3;
   HUB_ASPECT_LIBRARY = 4;
@@ -1576,7 +1576,7 @@ enum HubAspect {
 
 enum HelpAspect {
   HELP_ASPECT_UNSPECIFIED = 0;
-  HELP_ASPECT_INSPECT = 1;
+  HELP_ASPECT_DETAIL = 1;
   HELP_ASPECT_RUN = 2;
   HELP_ASPECT_CHAT = 3;
   HELP_ASPECT_VERSION = 4;
@@ -2970,7 +2970,8 @@ message InterruptData {
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp closed_at = 42;
   optional NodeReferenceData trigger_ptr = 49;
-  optional google.protobuf.Value outputs_packed = 50;
+  optional google.protobuf.Value inputs_packed = 51;
+  optional google.protobuf.Value outputs_packed = 52;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData run_root_ptr = 92;
@@ -3152,7 +3153,7 @@ message TreeViewData {
 }
 
 // A view of a user interface in a Bench.
-message StartViewData {
+message RunViewData {
   optional google.protobuf.Value inputs_packed = 100;
 }
 
@@ -3174,7 +3175,7 @@ message HelpViewData {
 }
 
 // A view of a user interface in a Bench.
-message InspectViewData {
+message DetailViewData {
   repeated string expanded_sections = 100;
   repeated string collapsed_sections = 101;
 }

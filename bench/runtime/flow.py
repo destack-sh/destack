@@ -336,7 +336,7 @@ class StepRunnerBase(Runner[Step], ABC):
                     return True
         return False
 
-    def _check_outputs(self):
+    def _check_step_outputs(self):
         """Checks the outputs for this Step for Step-specific errors."""
         # check continuations
         if (
@@ -395,7 +395,7 @@ class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
     @override
     async def run(self) -> None:
         await super().run()
-        self._check_outputs()
+        self._check_step_outputs()
 
 
 class YieldStepRunner(StepRunnerBase):
@@ -403,6 +403,7 @@ class YieldStepRunner(StepRunnerBase):
     async def run(self) -> None:
         interrupt = self._trap_interrupt(InterruptType.YIELD)
         self.outputs = interrupt.outputs
+        self._check_step_outputs()
 
 
 STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {

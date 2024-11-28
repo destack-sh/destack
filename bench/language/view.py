@@ -66,10 +66,10 @@ class ViewType(IdEnum):
     OBJECT = 210
     # helpers
     TREE = 400
-    INSPECT = 403
+    DETAIL = 403
     CREATE = 404
     CHAT = 405
-    START = 406
+    RUN = 406
     FEED = 407
     TIMELINE = 408
     HUB = 409
@@ -579,8 +579,8 @@ class TreeView(View):
     preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
 
 
-@node_subtype_(ViewType.START)
-class StartView(View):
+@node_subtype_(ViewType.RUN)
+class RunView(View):
     inputs_packed: Any = p_value_packed(100)
 
 
@@ -595,7 +595,7 @@ class FeedView(View):
 
 @enum_(EnumType.HUB_ASPECT)
 class HubAspect(IdEnum):
-    SOURCE = 1
+    BENCH = 1
     ACTIVITY = 2
     CATALOG = 3
     LIBRARY = 4
@@ -608,7 +608,7 @@ class HubView(View):
 
 @enum_(EnumType.HELP_ASPECT)
 class HelpAspect(IdEnum):
-    INSPECT = 1
+    DETAIL = 1
     RUN = 2
     CHAT = 3
     VERSION = 4
@@ -619,8 +619,8 @@ class HelpView(View):
     aspect: HelpAspect = p_regular(100)
 
 
-@node_subtype_(ViewType.INSPECT)
-class InspectView(View):
+@node_subtype_(ViewType.DETAIL)
+class DetailView(View):
     expanded_sections: list[str] = p_regular(100, array=True)
     collapsed_sections: list[str] = p_regular(101, array=True)
 

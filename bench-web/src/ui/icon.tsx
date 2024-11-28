@@ -271,12 +271,12 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
 
 export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons<StepType>({
   // boundary
-  [StepType.START]: "fas fa-rocket-launch",
+  [StepType.START]: "fas fa-circle-play",
   [StepType.COMPLETE]: "fas fa-flag-checkered",
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.TRIGGER]: "fas fa-bolt",
   // run
-  [StepType.ACTION]: "fas fa-circle-play",
+  [StepType.ACTION]: "fas fa-code",
   [StepType.SEND]: "fas fa-paper-plane-top",
   [StepType.YIELD]: "fas fa-hand",
   // control
@@ -319,10 +319,10 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
 
   // helpers
   [ViewType.TREE]: "fas fa-list-tree",
-  [ViewType.INSPECT]: "fas fa-eye",
+  [ViewType.DETAIL]: "fas fa-eye",
   [ViewType.CREATE]: "fas fa-plus",
   [ViewType.CHAT]: "fas fa-message",
-  [ViewType.START]: "fas fa-play",
+  [ViewType.RUN]: "fas fa-play",
   [ViewType.FEED]: "fas fa-list-timeline",
   [ViewType.TIMELINE]: "fas fa-timeline",
 
@@ -425,7 +425,7 @@ export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
   [Anchor.BOTTOM]: "fas fa-align-bottom",
 });
 export const ICON_BY_HUB_ASPECT: Partial<Record<HubAspect, IconData>> = _makeIcons({
-  [HubAspect.SOURCE]: "fas fa-code",
+  [HubAspect.BENCH]: "fas fa-code",
   [HubAspect.ACTIVITY]: "fas fa-wave-pulse",
   [HubAspect.CATALOG]: "fas fa-globe",
   [HubAspect.LIBRARY]: "fas fa-shapes",

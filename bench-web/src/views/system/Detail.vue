@@ -35,13 +35,13 @@ const layout = computed(() =>
 
 const expandedSections = useSubnodeProperty(
   NodeType.VIEW,
-  ViewType.INSPECT,
+  ViewType.DETAIL,
   toRef(props, "subnodePacked"),
   "expandedSections",
 );
 const collapsedSections = useSubnodeProperty(
   NodeType.VIEW,
-  ViewType.INSPECT,
+  ViewType.DETAIL,
   toRef(props, "subnodePacked"),
   "collapsedSections",
 );
@@ -62,7 +62,7 @@ function toggleSection(section: InspectSection) {
     state.update(
       {
         metatype: NodeType.VIEW,
-        type: ViewType.INSPECT,
+        type: ViewType.DETAIL,
         subnode: { expandedSections: newExpandedSections },
       },
       { debounce: "long" },
@@ -77,7 +77,7 @@ function toggleSection(section: InspectSection) {
     state.update(
       {
         metatype: NodeType.VIEW,
-        type: ViewType.INSPECT,
+        type: ViewType.DETAIL,
         subnode: { collapsedSections: newCollapsedSections },
       },
       { debounce: "long" },

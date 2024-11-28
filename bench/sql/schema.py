@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.28.1"
+VERSION = "2024.11.28.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1418,6 +1418,7 @@ INTERRUPT_TABLE = Table(
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_ck", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),

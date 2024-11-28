@@ -125,17 +125,20 @@ export class StepState {
     this.delegateFields = flow.graph.getChildrenRef(this.delegatePtr, NodeType.FIELD);
     this.stepFields = flow.graph.getChildrenRef(step, NodeType.FIELD);
     this.fields = computed(() => {
-      if (this.step.value?.type == StepType.START) {
+      const stepType = this.step.value?.type;
+      if (stepType == StepType.START) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.INPUT);
-      } else if (this.step.value?.type == StepType.COMPLETE) {
+      } else if (stepType == StepType.COMPLETE) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
-      } else if (this.step.value?.type == StepType.ACTION) {
+      } else if (stepType == StepType.ACTION) {
         const mode = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, this.step.value?.subnodePacked, "mode");
         if (mode == ActionMode.DELEGATE) {
           return this.delegateFields.value;
         } else {
           return this.stepFields.value;
         }
+      } else if (stepType == StepType.YIELD) {
+        return this.stepFields.value;
       } else {
         return [];
       }
