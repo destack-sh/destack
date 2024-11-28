@@ -75,8 +75,6 @@ export function newTransactionId(): string {
 // Transaction
 //
 
-// connection ids are positive, so this connection id is used to prevent an edit from being used in an overlay graph
-export const CONNECTION_IGNORE = Number.MIN_SAFE_INTEGER;
 
 /** Metadata for a transaction (mostly local only). */
 export type TransactionMeta = {
@@ -214,13 +212,13 @@ export class TransactionBuilder implements Transaction {
         });
       }
       base = this.state._txByConnectionId[meta.connectionId];
-    }
+    } 
 
     // and split if change/category is specified
     if (meta.change != null || meta.category != null) {
       return new TransactionBuilder({
         state: this.state,
-        connectionId: base.connectionId,
+        connectionId: meta.connectionId,
         subject: base.subject,
         change: meta.change ?? base.change,
         category: meta.category ?? base.category,
@@ -575,7 +573,7 @@ export function applyEditOperation(operation: EditOperationData, node: AnyNodeDa
 export function editGraph(
   graph: ReadNodeGraph & WriteNodeGraph,
   edits: EditData[],
-  options?: { base?: ReadNodeGraph },
+  options?: { base?: ReadNodeGraph; ignoreMissing?: boolean },
 ) {
   for (const edit of edits) {
     if (
@@ -601,6 +599,9 @@ export function editGraph(
       // remove
       const oldNode = graph.get(edit.nodePtr!);
       if (!oldNode) {
+        if (options?.ignoreMissing) {
+          continue;
+        }
         throw new Error(`missing node for delete: ${describeNode(edit.nodePtr!)} in ${graph.describeSelf()}`);
       }
       graph.remove(oldNode);
@@ -618,6 +619,9 @@ export function editGraph(
           updatedNode = options.base.get(edit.nodePtr!);
         }
         if (!updatedNode) {
+          if (options?.ignoreMissing) {
+            continue;
+          }
           throw new Error(`missing node for update: ${describeNode(edit.nodePtr!)} in ${graph.describeSelf()}`);
         }
       }

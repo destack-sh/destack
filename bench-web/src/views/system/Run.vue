@@ -274,7 +274,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                 :model-value="interrupt.interrupt.outputsPacked"
                 @update:model-value="
                   (value) => {
-                    runtime.tx.update(interrupt.interrupt, { outputsPacked: value }, { debounce: 'short' });
+                    runTree.tx.update(interrupt.interrupt, { outputsPacked: value }, { debounce: 'short' });
                   }
                 "
               />

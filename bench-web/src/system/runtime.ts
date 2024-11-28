@@ -5,7 +5,6 @@ import { timesortNode } from "@/language/order";
 import {
   getRunBasePtr,
   isRunActive,
-  isRunInterrupted,
   isRunnable,
   isRunPaused,
   isRunTerminal,
@@ -14,9 +13,8 @@ import {
   RunnableNodeType,
   type RunnableObject,
 } from "@/language/session";
-import { CONNECTION_IGNORE, type Transaction } from "@/language/transaction";
+import { type Transaction } from "@/language/transaction";
 import {
-  BlockData,
   ChangeCategory,
   ExpressionType,
   IconData,
@@ -28,7 +26,6 @@ import {
   RunOptionsData,
   RunProperty,
   RunStatus,
-  StepData,
   Timestamp,
   type RunData,
 } from "@/proto/wire";
@@ -114,6 +111,11 @@ export class RunTree {
     this.interruptsRef = runGraph.getOfTypeRef(NodeType.INTERRUPT);
   }
 
+  /** A transaction for this RunTree. */
+  get tx() {
+    return this.runConnection.tx.with({ category: ChangeCategory.RUNTIME });
+  }
+
   /** The root Run. */
   get run() {
     return this.runRef.value;
@@ -194,7 +196,7 @@ export class Runtime {
   }
 
   get tx() {
-    return this.txFactory().with({ connectionId: CONNECTION_IGNORE, category: ChangeCategory.RUNTIME });
+    return this.txFactory().with({ connectionId: undefined, category: ChangeCategory.RUNTIME });
   }
 
   /** The current Run. */
