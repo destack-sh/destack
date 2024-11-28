@@ -188,7 +188,12 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                         # assemble Pipe inputs :PipeMapping
                         input_type = pipe.input_type
                         assert input_type is not None, f"no input type for {pipe!r}"
-                        inputs = CustomObject.new(ObjectKind.INPUT, {}, input_type)
+                        inputs = CustomObject.new(
+                            ObjectKind.INPUT,
+                            {},
+                            input_type,
+                            supergraph=self.runtime.session._supergraph,
+                        )
                         if runner.outputs is not None:
                             for field in inputs._type._fields:
                                 key = inputs._get_key(field.name)
@@ -463,7 +468,9 @@ class PipeRunnerBase(Runner[Pipe], ABC):
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
         if self.output_type is not None:
             # assemble/map inputs from incoming Runs/Context :PipeMapping
-            self.outputs = CustomObject.new(ObjectKind.INPUT, {}, self.output_type)
+            self.outputs = CustomObject.new(
+                ObjectKind.INPUT, {}, self.output_type, supergraph=self.runtime.session._supergraph
+            )
             if self.inputs is not None:
                 for field in self.outputs._type._fields:
                     key = self.inputs._get_key(field.name)

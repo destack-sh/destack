@@ -29,6 +29,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
+from bench.language.graph import NULL_SUPERGRAPH, NodeSuperGraph
 from bench.language.property import (
     Property,
     p_regular,
@@ -94,6 +95,7 @@ class CustomObject(Mapping[str, Any]):
     """
 
     __slots__ = (
+        "_supergraph",
         "_type",
         "_value",
         "ancestor_prop",
@@ -110,12 +112,15 @@ class CustomObject(Mapping[str, Any]):
         value: dict[str, SomeValue] | None = None,
         parent: ValueParent | None = None,
         parent_key: ValueParentKey | None = None,
+        supergraph: NodeSuperGraph | None = None,
     ):
         self.kind = kind
         self._type = type
         self._value = value  # unpacked value
         self.parent = parent
         self.parent_key = parent_key
+        self._supergraph = supergraph or type._supergraph
+        assert self._supergraph != NULL_SUPERGRAPH, f"missing supergraph for {self!r}"
 
     def __str__(self) -> str:
         if self._value is None:
@@ -198,7 +203,7 @@ class CustomObject(Mapping[str, Any]):
             return key.default
         elif isinstance(value, NodeReference):
             # auto resolve references
-            resolved_value = self._type._supergraph.get(value)
+            resolved_value = self._supergraph.get(value)
             if resolved_value is not None:
                 return resolved_value
             else:
@@ -298,13 +303,23 @@ class CustomObject(Mapping[str, Any]):
     ) -> "CustomObject":
         """Copy this object into the given parent/prop."""
         value_packed = pack_custom_object(self, self._type)
-        copy = unpack_custom_object(self.kind, value_packed, self._type, parent, parent_key)
+        copy = unpack_custom_object(
+            self.kind,
+            value_packed,
+            typ=self._type,
+            supergraph=self._supergraph,
+            parent=parent,
+            parent_key=parent_key,
+        )
         return copy
 
     def clone(self) -> "CustomObject":
         """Clones this object."""
         return CustomObject.new(
-            self.kind, {**self._value} if self._value is not None else None, self._type
+            self.kind,
+            {**self._value} if self._value is not None else None,
+            self._type,
+            supergraph=self._supergraph,
         )
 
     def update(
@@ -329,6 +344,7 @@ class CustomObject(Mapping[str, Any]):
         typ: "TypeBase",
         parent: ValueParent | None = None,
         parent_property: ValueParentKey | None = None,
+        supergraph: NodeSuperGraph | None = None,
     ) -> "CustomObject":
         """Creates a new Object of the given Object type, coercing the given value."""
         assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object type"
@@ -338,6 +354,7 @@ class CustomObject(Mapping[str, Any]):
             value=value,
             parent=parent,
             parent_key=parent_property,
+            supergraph=supergraph,
         )
 
     @property
@@ -366,11 +383,21 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
             value_packed = {}
             obj._do_set(wired_prop.name, value_packed, track=False, validate=False)
             value = CustomObject(
-                object_kind, value_type, value_packed, parent=obj, parent_key=wired_prop
+                object_kind,
+                value_type,
+                value_packed,
+                parent=obj,
+                parent_key=wired_prop,
+                supergraph=obj._supergraph,
             )
         else:
             value = unpack_value(
-                value_packed, value_type, parent=obj, parent_key=wired_prop, wrap_scalar=False
+                value_packed,
+                value_type,
+                parent=obj,
+                parent_key=wired_prop,
+                wrap_scalar=False,
+                supergraph=obj._supergraph,
             )
     elif (
         value_packed is None
@@ -380,7 +407,12 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
         value = None
     else:
         value = unpack_value(
-            value_packed, value_type, parent=obj, parent_key=wired_prop, wrap_scalar=True
+            value_packed,
+            value_type,
+            parent=obj,
+            parent_key=wired_prop,
+            wrap_scalar=True,
+            supergraph=obj._supergraph,
         )
     return value_type, value
 
@@ -447,8 +479,10 @@ def _coerce_value_scalar(
     value: ScalarValue,
     typ: "TypeBase",
     as_packed: bool = False,
+    *,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
+    supergraph: NodeSuperGraph | None = None,
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
     try:
@@ -475,8 +509,10 @@ def coerce_custom_object_scalar(
     value: dict | CustomObject,
     typ: "TypeBase",
     as_packed: bool = False,
+    *,
     parent: ValueParent | None = None,
     parent_prop: ValueParentKey | None = None,
+    supergraph: NodeSuperGraph | None = None,
 ) -> CustomObject:
     """Coerces a single object from a dict representation or existing Object (recursively)."""
     if type(value) is CustomObject:
@@ -504,7 +540,12 @@ def coerce_custom_object_scalar(
                 field_value, field, as_packed=as_packed, parent=parent, parent_key=parent_prop
             )
         return CustomObject.new(
-            kind=kind, value=value_coerced, typ=typ, parent=parent, parent_property=parent_prop
+            kind=kind,
+            value=value_coerced,
+            typ=typ,
+            parent=parent,
+            parent_property=parent_prop,
+            supergraph=supergraph,
         )
 
 
@@ -512,8 +553,10 @@ def coerce_value(
     value: Any,
     typ: "TypeBase",
     as_packed: bool = False,
+    *,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
+    supergraph: NodeSuperGraph | None = None,
 ) -> SomeValue:
     """
     Coerces the given value to the expected type (recursively).
@@ -531,6 +574,7 @@ def coerce_value(
                 as_packed=as_packed,
                 parent=parent,
                 parent_prop=parent_key,
+                supergraph=supergraph,
             )
         else:
             if not isinstance(value, Sequence):
@@ -545,6 +589,7 @@ def coerce_value(
                     as_packed=as_packed,
                     parent=parent,
                     parent_prop=parent_key,
+                    supergraph=supergraph,
                 )
                 for element in value
             ]
@@ -553,7 +598,12 @@ def coerce_value(
             return None
         elif not typ.is_list:
             return _coerce_value_scalar(
-                value, typ, as_packed=as_packed, parent=parent, parent_key=parent_key
+                value,
+                typ,
+                as_packed=as_packed,
+                parent=parent,
+                parent_key=parent_key,
+                supergraph=supergraph,
             )
         else:
             if not isinstance(value, Sequence):
@@ -948,7 +998,9 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         raise TypeError(f"cannot pack value of type {typ!r}")
 
 
-def unpack_value_scalar(value_packed: JsonValue, typ: "TypeBase") -> ScalarValue:
+def unpack_value_scalar(
+    value_packed: JsonValue, typ: "TypeBase", *, supergraph: NodeSuperGraph | None
+) -> ScalarValue:
     """
     Unpacks the given scalar value into its runtime representation.
     """
@@ -977,8 +1029,7 @@ def unpack_value_scalar(value_packed: JsonValue, typ: "TypeBase") -> ScalarValue
 
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
         value_struct = unpack_builtin_object_data(value_packed)
-        # TODO :Broken: pass in proper supergraph to values (and structs in values)
-        return wiring.unpack_object(cast(AnyStructData, value_struct), supergraph=None)
+        return wiring.unpack_object(cast(AnyStructData, value_struct), supergraph=supergraph)
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
@@ -1135,8 +1186,10 @@ def unpack_custom_object(
     kind: ObjectKind,
     value_packed: dict[str, JsonValue],
     typ: "TypeBase",
+    *,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
+    supergraph: NodeSuperGraph | None,
 ) -> CustomObject:
     """
     Unpacks an object value from a JSON packed representation.
@@ -1154,12 +1207,15 @@ def unpack_custom_object(
             if field_value is None:
                 continue
         elif not field.is_list:
-            field_value = unpack_value_scalar(field_value_packed, field)
+            field_value = unpack_value_scalar(field_value_packed, field, supergraph=supergraph)
         else:  # scalar list
             assert isinstance(
                 field_value_packed, list
             ), f"{field_value_packed!r} is not a list, expected {field!r}"
-            field_value = [unpack_value_scalar(element, field) for element in field_value_packed]
+            field_value = [
+                unpack_value_scalar(element, field, supergraph=supergraph)
+                for element in field_value_packed
+            ]
         value[storage_key] = field_value
 
     # properties
@@ -1170,17 +1226,27 @@ def unpack_custom_object(
         if prop_value_packed is None:
             continue
         elif not prop.is_list:
-            prop_value = unpack_value_scalar(prop_value_packed, prop.type_info)
+            prop_value = unpack_value_scalar(
+                prop_value_packed, prop.type_info, supergraph=supergraph
+            )
         else:
             assert isinstance(
                 prop_value_packed, list
             ), f"{prop_value_packed!r} is not a list, expected {prop!r}"
             prop_typ = prop.type_info
-            prop_value = [unpack_value_scalar(element, prop_typ) for element in prop_value_packed]
+            prop_value = [
+                unpack_value_scalar(element, prop_typ, supergraph=supergraph)
+                for element in prop_value_packed
+            ]
         value[storage_key] = prop_value
 
     return CustomObject.new(
-        kind=kind, value=value, typ=typ, parent=parent, parent_property=parent_key
+        kind=kind,
+        value=value,
+        typ=typ,
+        parent=parent,
+        parent_property=parent_key,
+        supergraph=supergraph,
     )
 
 
@@ -1236,9 +1302,10 @@ def pack_value_data(value: SomeValueData, typ: "TypeBase", wrap_scalar: bool = T
 def unpack_value(
     value_packed: JsonValue,
     typ: "TypeBase",
+    *,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
-    *,
+    supergraph: NodeSuperGraph | None = None,
     wrap_scalar: bool,
 ) -> SomeValue | None:
     """
@@ -1251,7 +1318,12 @@ def unpack_value(
             if not isinstance(value_packed, dict):
                 raise TypeError(f"{value_packed!r} is not a dict, expected {typ!r}")
             return unpack_custom_object(
-                kind=kind, value_packed=value_packed, typ=typ, parent=parent, parent_key=parent_key
+                kind=kind,
+                value_packed=value_packed,
+                typ=typ,
+                supergraph=supergraph,
+                parent=parent,
+                parent_key=parent_key,
             )
         else:
             if not isinstance(value_packed, list):
@@ -1261,6 +1333,7 @@ def unpack_value(
                     kind=kind,
                     value_packed=cast(dict[str, JsonValue], element),
                     typ=typ,
+                    supergraph=supergraph,
                     parent=parent,
                     parent_key=parent_key,
                 )
@@ -1273,11 +1346,13 @@ def unpack_value(
         if value_packed is None:
             return None
         elif not typ.is_list:
-            return unpack_value_scalar(value_packed, typ)
+            return unpack_value_scalar(value_packed, typ, supergraph=supergraph)
         else:
             if not isinstance(value_packed, list):
                 raise TypeError(f"{value_packed!r} is not a list, expected {typ!r}")
-            return [unpack_value_scalar(element, typ) for element in value_packed]
+            return [
+                unpack_value_scalar(element, typ, supergraph=supergraph) for element in value_packed
+            ]
 
 
 def unpack_value_data(

@@ -212,7 +212,10 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
             )
         else:
             intermediates = unpack_custom_object(
-                ObjectKind.OUTPUT, attempt.intermediates_packed, typ=output_type
+                ObjectKind.OUTPUT,
+                attempt.intermediates_packed,
+                typ=output_type,
+                supergraph=self.runtime.session._supergraph,
             )
         if intermediates is not None and cast(OutputObject, intermediates).call is not None:
             # run tool/delegate

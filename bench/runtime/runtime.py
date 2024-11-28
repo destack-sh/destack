@@ -113,7 +113,12 @@ class Runtime:
             if runner.output_type is not None:
                 with tracer.start_as_current_span("runtime.check_outputs"):
                     if runner.outputs is None:
-                        runner.outputs = CustomObject.new(ObjectKind.OUTPUT, {}, runner.output_type)
+                        runner.outputs = CustomObject.new(
+                            ObjectKind.OUTPUT,
+                            {},
+                            runner.output_type,
+                            supergraph=self.session._supergraph,
+                        )
                     check_value(runner.outputs, runner.output_type, on_invalid_raise)
             attempt._do_set("status", RunStatus.COMPLETED, validate=False)
             log.debug("runtime.attempt.completed", attempt=attempt, span="current")
@@ -160,7 +165,9 @@ class Runtime:
         # check inputs
         if runner.input_type is not None:
             with tracer.start_as_current_span("runtime.check_inputs"):
-                inputs = runner.inputs or CustomObject.new(ObjectKind.INPUT, {}, runner.input_type)
+                inputs = runner.inputs or CustomObject.new(
+                    ObjectKind.INPUT, {}, runner.input_type, supergraph=self.session._supergraph
+                )
                 try:
                     check_value(inputs, runner.input_type, on_invalid_raise)
                 except ValidationError as e:

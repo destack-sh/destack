@@ -109,7 +109,9 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
 
     # pack/unpack
     obj_packed = pack_custom_object(obj, Action1Output)
-    obj_unpacked = unpack_custom_object(ObjectKind.OUTPUT, obj_packed, Action1Output)
+    obj_unpacked = unpack_custom_object(
+        ObjectKind.OUTPUT, obj_packed, Action1Output, supergraph=session._supergraph
+    )
     assert obj_unpacked.equals(obj)
 
 

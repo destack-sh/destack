@@ -388,7 +388,9 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
     if node is None:
         raise RunImpossibleError(f"no node for {run!r}")
     if run.inputs is None and run.input_type is not None:
-        inputs = CustomObject.new(ObjectKind.INPUT, {}, run.input_type)
+        inputs = CustomObject.new(
+            ObjectKind.INPUT, {}, run.input_type, supergraph=runtime.session._supergraph
+        )
     else:
         inputs = run.inputs
 

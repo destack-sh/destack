@@ -1088,7 +1088,7 @@ def evaluate_edit(
     """
     Evaluates whether the given policies (base and in graph) allow the given edits.
     Assumes that all policies are valid, and that all relevant scopes are in the graph.
-    TODO :Broken :Security: verify equivalent 'use' access for the edits
+    NOTE :Broken :Security: verify equivalent 'use' access for the edits
      (e.g. create Run with base=Block <=> run Block, create Signal with base=Block <=> emit Block)
     """
     from bench.proto import wiring
