@@ -1,7 +1,14 @@
 <script lang="ts" setup>
 import { SINK_STEP_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
-import { FLOW_PORT_SIZE, getStepSides, STEP_CONTEXT_ACTIONS, STEP_SIZE, useFlowContext } from "@/language/flow";
+import {
+  DEFAULT_TEXT_BY_STEP_TYPE,
+  FLOW_PORT_SIZE,
+  getStepSides,
+  STEP_CONTEXT_ACTIONS,
+  STEP_SIZE,
+  useFlowContext,
+} from "@/language/flow";
 import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/session";
 import { ColorShade, FieldType, NodeType, Orientation, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
@@ -165,29 +172,26 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
           <!-- Delegate -->
           <!-- ...? -->
-          <template v-if="step.type == StepType.FAIL">
-            <span class="text-gray-400">Fail the entire flow.</span>
-          </template>
-          <template v-else>
-            <!-- Fields -->
-            <!-- NOTE :Incomplete: better Step body -->
-            <span
-              v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
-              :key="field.id"
-              class="truncate text-gray-400"
-            >
-              {{ field.name }}
-            </span>
-            <i v-if="fields.length != 0" class="fas fa-arrow-right text-xs text-gray-400" />
-            <span
-              v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
-              :key="field.id"
-              class="truncate text-gray-400"
-            >
-              {{ field.name }}
-            </span>
-            <span v-if="fields.length == 0" class="text-gray-400">No fields</span>
-          </template>
+          <!-- Fields -->
+          <!-- NOTE :Incomplete: better Step body -->
+          <span
+            v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
+            :key="field.id"
+            class="truncate text-gray-400"
+          >
+            {{ field.name }}
+          </span>
+          <i v-if="fields.length != 0" class="fas fa-arrow-right text-xs text-gray-400" />
+          <span
+            v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
+            :key="field.id"
+            class="truncate text-gray-400"
+          >
+            {{ field.name }}
+          </span>
+          <span v-if="fields.length == 0" class="text-gray-400">
+            {{ DEFAULT_TEXT_BY_STEP_TYPE[step.type] ?? "No fields" }}
+          </span>
         </div>
       </div>
     </div>

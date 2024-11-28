@@ -602,4 +602,28 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         if thread:
             thread.kill(self)
 
+    def _mark_killed(self):
+        """Mark this Run as killed."""
+        assert self._session is not None, f"{self!r} has no session"
+        if self.status.is_terminal:
+            return  # already terminated
+
+        # run
+        self.terminated_at = self._session._oracle.utc()
+        self.terminated_epoch = self._session.epoch
+        if self.started_at:
+            self.duration = self.terminated_at - self.started_at
+        self.status = RunStatus.ABORTED if self.status.is_active else RunStatus.CANCELLED
+
+        # last attempt
+        if self.attempts:
+            last_attempt = self.attempts[-1]
+            last_attempt.terminated_at = self.terminated_at
+            last_attempt.terminated_epoch = self.terminated_epoch
+            if last_attempt.started_at:
+                last_attempt.duration = last_attempt.terminated_at - last_attempt.started_at
+            last_attempt.status = (
+                RunStatus.ABORTED if last_attempt.status.is_active else RunStatus.CANCELLED
+            )
+
     cancel = abort = kill

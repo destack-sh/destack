@@ -160,6 +160,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     session=self.session,
                     _skip_validate_self=True,
                 )
+                self.id = run.id
                 self.session._create(run)
             self.tracked_run = run
 
@@ -193,6 +194,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     @property
     def session(self):
         return self.runtime.session
+
+    @property
+    def is_active(self) -> bool:
+        return self.outer_task is not None and not self.outer_task.done()
 
     @property
     def is_tracked(self) -> bool:
@@ -319,6 +324,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.task is not None:
             self.task.cancel()
 
+    def mark_killed(self):
+        """Mark this Runner's Run as killed."""
+        assert self.tracked_run is not None, f"{self!r} is not tracked"
+        self.tracked_run._mark_killed()
+        self.status = self.tracked_run.status
+
     @abc.abstractmethod
     async def run(self) -> None:
         """
@@ -328,6 +339,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
          - On interrupt, raise Interrupted.
         """
         ...
+
+    def resume(self, runs: Sequence[Run]):  # noqa: B027
+        """Resume inner Runs."""
+        pass
 
 
 def get_run_options(kind: RunType, options: RunOptions | None):

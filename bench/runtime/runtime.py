@@ -9,7 +9,8 @@ from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
 from bench.language.const import BenchError, ObjectKind, RunErrorKind, RunStatus
-from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite
+from bench.language.graph import NodeGraph
+from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite, Interrupt
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -28,6 +29,7 @@ from bench.runtime.runner import (
     make_run_from_node,
     restore_runner,
 )
+from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RetryState
 
@@ -351,8 +353,8 @@ class Runtime:
         except Exception as e:
             logger.error("runtime.run_runner.error", runner=runner, exc_info=e)
 
-    def create_runner(self, runner: Runner, on_stop: RunnerHook | None = None) -> Runner:
-        """Run a Runner asynchronously."""
+    def schedule_runner(self, runner: Runner, on_stop: RunnerHook | None = None) -> Runner:
+        """Schedule a Runner to run asynchronously."""
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner, hook=on_stop))
         return runner
 
@@ -399,6 +401,27 @@ class Runtime:
                 if not optimistic:
                     await self.session.commit()
         return runner
+
+    def get_interrupted_runs(self, graph: NodeGraph, *interrupts: Interrupt) -> list[Run]:
+        """Gets all Runs that were directly interrupted by the given Interrupts."""
+        interrupted_runs: list[Run] = []
+        for run in graph.nodes_of_type(Run):
+            interrupt = run.interrupt
+            if run.status.is_interrupted and interrupt is not None and interrupt in interrupts:
+                interrupted_runs.append(run)
+        return interrupted_runs
+
+    def resume(self, *runs: Run):
+        """Resume interrupted Runs. Does *not* mark the Run or close open Interrupts."""
+        runs_by_parent_id: dict[UUID | None, list[Run]] = group_by(
+            runs, key=lambda run: run.parent_id
+        )
+        for parent_id, child_runs in runs_by_parent_id.items():
+            if parent_id is None:
+                continue  # can't resume top-level Run
+            parent_runner = self._active_runners_by_id.get(parent_id)
+            if parent_runner is not None:
+                parent_runner.resume(child_runs)
 
     def kill(self, run: Run):
         """Kill a Run that is currently active in this Runtime (and any inside it)."""

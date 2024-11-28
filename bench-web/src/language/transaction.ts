@@ -75,10 +75,9 @@ export function newTransactionId(): string {
 // Transaction
 //
 
-
 /** Metadata for a transaction (mostly local only). */
 export type TransactionMeta = {
-  connectionId?: number;
+  connectionId?: number | null;
   subject?: MaybeRef<NodeReferenceData | null>;
   change?: ChangeIn;
   category?: ChangeCategory;
@@ -208,17 +207,19 @@ export class TransactionBuilder implements Transaction {
         this.state._txByConnectionId[meta.connectionId] = new TransactionBuilder({
           state: this.state,
           subject: this.subject,
-          ...meta,
+          connectionId: meta.connectionId,
+          change: meta.change ?? this.change,
+          category: meta.category ?? this.category,
         });
       }
       base = this.state._txByConnectionId[meta.connectionId];
-    } 
+    }
 
     // and split if change/category is specified
     if (meta.change != null || meta.category != null) {
       return new TransactionBuilder({
         state: this.state,
-        connectionId: meta.connectionId,
+        connectionId: meta.connectionId === null ? undefined : base.connectionId,
         subject: base.subject,
         change: meta.change ?? base.change,
         category: meta.category ?? base.category,

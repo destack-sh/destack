@@ -119,6 +119,10 @@ class InterruptStatus(IdEnum):
     COMPLETED = 10
 
     @property
+    def is_open(self) -> bool:
+        return self < 7
+
+    @property
     def is_closed(self) -> bool:
         return self >= 7
 
@@ -199,7 +203,7 @@ class Interrupt(RuntimeNode[InterruptData]):
     def is_closed(self) -> bool:
         return self.status == InterruptStatus.COMPLETED
 
-    def complete(self, outputs: CustomObject | None = None, _trigger_thread: bool = True) -> None:
+    def complete(self, outputs: CustomObject | None = None, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as closed."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
@@ -207,20 +211,22 @@ class Interrupt(RuntimeNode[InterruptData]):
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
         self.outputs = outputs
-        thread = self._session.thread
-        if thread and _trigger_thread:
-            thread.resume(self)
+        runtime = self._session.runtime
+        if runtime and _trigger_runtime:
+            runs_to_resume = runtime.get_interrupted_runs(self._graph, self)
+            runtime.resume(*runs_to_resume)
 
-    def cancel(self, _trigger_thread: bool = True) -> None:
+    def cancel(self, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as cancelled."""
         assert not self.is_closed, f"{self!r} is already closed"
         assert self._session is not None, f"{self!r} has no session"
         self.status = InterruptStatus.CANCELLED
         self.closed_at = self._session._oracle.utc()
         self.duration = self.closed_at - self.created_at
-        thread = self._session.thread
-        if thread and _trigger_thread:
-            thread.resume(self)
+        runtime = self._session.runtime
+        if runtime and _trigger_runtime:
+            runs_to_resume = runtime.get_interrupted_runs(self._graph, self)
+            runtime.resume(*runs_to_resume)
 
     @staticmethod
     def from_run(
