@@ -18,17 +18,17 @@ const props = defineProps<{
     <!-- Dot -->
     <span v-if="isRunInterrupted(run)" class="relative flex h-[10px] w-[10px]">
       <span
-        class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+        class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 transition-colors duration-150"
         :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S400) }"
       />
       <span
-        class="relative inline-flex h-[10px] w-[10px] rounded-full"
+        class="relative inline-flex h-[10px] w-[10px] rounded-full transition-colors duration-150"
         :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S500) }"
       />
     </span>
     <span
       v-else
-      class="h-[10px] w-[10px] rounded-full"
+      class="h-[10px] w-[10px] rounded-full transition-colors duration-150"
       :class="[isRunActive(run) ? 'animate-pulse' : '']"
       :style="{ backgroundColor: getRunColorHex(run.status) }"
     />
@@ -38,7 +38,7 @@ const props = defineProps<{
     <IconInline
       v-if="isRunInterrupted(run)"
       v-tooltip="{ title: toCamelName(RunStatus, run.status), small: true, group: 'run.status' }"
-      class="text-pink-500"
+      class="text-pink-500 transition-colors duration-150"
       v-bind="ICON_BY_RUN_STATUS[run.status]"
     />
   </div>

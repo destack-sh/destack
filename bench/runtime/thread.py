@@ -1,14 +1,14 @@
 import asyncio
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Mapping, assert_never, override
+from typing import TYPE_CHECKING, Any, Collection, Mapping, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
 from bench.language.connection import GetConnection, WatchGetUpdate
-from bench.language.const import NONCE, ClientType, NodeType, RunStatus
-from bench.language.interrupt import Interrupt
+from bench.language.const import NONCE, ClientType, NodeType
+from bench.language.interrupt import Interrupt, InterruptType
 from bench.language.node import NodeReference
 from bench.language.run import Run
 from bench.proto import wiring
@@ -56,12 +56,20 @@ class RunHandle:
     def is_active(self) -> bool:
         return self.root.id in self.thread._active_runs
 
-    def run_if_needed(self) -> None:
+    def run(self, runs_to_resume: Collection[Run] = ()) -> None:
         """Runs the handle if it should be but isn't."""
-        if (self.task is None or self.task.done()) and not self.root.status.is_terminal:
+        if self.root.status.is_terminal:
+            return  # nothing to run anymore
+        if self.task is None or self.task.done():
+            # start 'fresh'
             self.task = asyncio.create_task(self.thread._do_run(self))
+        else:
+            # resume active
+            self.runtime.resume(*runs_to_resume)
+            logger.debug("thread.run.resume", runs=runs_to_resume)
 
     def on_update(self, update: WatchGetUpdate):
+        runs_to_resume: set[Run] = set()
         for node in update.updated.values():
             # react to Run/Interrupt updates in Runtime
             if isinstance(node, Run):
@@ -75,37 +83,26 @@ class RunHandle:
                     elif node.resumed_at and (
                         not node.paused_at or node.resumed_at > node.paused_at
                     ):
-                        self.resume(node)
+                        # close open Interrupt, resume affected Runs
+                        interrupt = node.interrupt
+                        if (
+                            interrupt
+                            and interrupt.type == InterruptType.PAUSE
+                            and not interrupt.status.is_closed
+                        ):
+                            interrupt.complete(_trigger_runtime=False)
+                        runs_to_resume.add(node)
+                        runs_to_resume.update(node.ancestors)
             elif isinstance(node, Interrupt):
                 if node.status.is_closed:
-                    self.resume(node)
+                    runs_to_resume.update(self.runtime.get_interrupted_runs(self.root._graph, node))
+        if runs_to_resume:
+            self.run(runs_to_resume=runs_to_resume)
 
     def pause(self, run: Run):
         """Pause an owned Run."""
-        # nothing to do (pause is trapped automatically if active)
+        # nothing to do? (pause is trapped automatically if active)
         self.log.debug("run.pause", run=run)
-
-    def resume(self, *nodes: Run | Interrupt):
-        """Resume an owned Run or Interrupt."""
-        runs_to_resume: set[Run] = set()
-        for node in nodes:
-            if isinstance(node, Run):
-                # close open Interrupt, resume affected Runs
-                interrupt = node.interrupt
-                if interrupt and not interrupt.status.is_closed:
-                    interrupt.complete(_trigger_thread=False)
-                runs_to_resume.add(node)
-                runs_to_resume.update(node.ancestors)
-            elif isinstance(node, Interrupt):
-                # resume affected Runs
-                for run in self.root._graph.nodes_of_type(Run):
-                    if run.interrupt == node:
-                        runs_to_resume.add(run)
-            else:
-                assert_never(node)
-        logger.debug("thread.resume", nodes=nodes, runs=runs_to_resume)
-        # nocheckin: resume inner Runs
-        self.run_if_needed()
 
     def kill(self, run: Run):
         """Kill an owned Run."""
@@ -121,20 +118,17 @@ class RunHandle:
                 run._graph.get_descendants(run, NodeType.INTERRUPT, recursive=True),
             ):
                 if isinstance(node, Run) and not node.status.is_terminal:
-                    node.terminated_at = self.runtime.oracle.utc()
-                    node.terminated_epoch = self.runtime.session.epoch
-                    if node.started_at:
-                        node.duration = node.terminated_at - node.started_at
-                    node.status = (
-                        RunStatus.ABORTED if node.status.is_active else RunStatus.CANCELLED
-                    )
+                    node._mark_killed()
                 elif isinstance(node, Interrupt) and not node.status.is_closed:
-                    node.cancel(_trigger_thread=False)
+                    node.cancel(_trigger_runtime=False)
                     closed_interrupts.append(node)
             if run.id == self.root.id:
                 self.close()
-            else:
-                self.resume(*closed_interrupts)
+            elif closed_interrupts:
+                runs_to_resume = self.runtime.get_interrupted_runs(
+                    self.root._graph, *closed_interrupts
+                )
+                self.run(runs_to_resume=runs_to_resume)
             self.runtime.session.commit_optimistic()
         self.log.debug("thread.kill", run=run)
 
@@ -290,11 +284,12 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         assert handle is not None, f"no handle for {run!r} in {self!r}"
         handle.pause(run)
 
-    def resume(self, run: Run | Interrupt):
+    def resume(self, run: Run):
         """Resume an owned Run or Interrupt."""
-        handle = self._owned_runs.get(run.id)
+        handle = self._owned_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
-        handle.resume(run)
+        handle.run()
+        self.runtime.resume(run)
 
     def kill(self, run: Run):
         """Kill an owned Run."""
@@ -311,7 +306,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             request.run_ptr, supergraph=None, expect=NodeReference
         )
         handle = await self._load(run_ptr)
-        handle.run_if_needed()
+        handle.run()
         if request.is_blocking and handle.task is not None:
             await handle.task
         return RunResponse()

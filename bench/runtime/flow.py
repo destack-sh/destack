@@ -7,7 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import FlowBlock
-from bench.language.const import ObjectKind, RunErrorKind, RunStatus
+from bench.language.const import NodeType, ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe, PipeType, PortSide, Step, StepType
 from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptType
@@ -69,14 +69,36 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         ...
 
     def _abort(self):
-        """Abort any (non-boundary) running steps."""
+        """Abort any contained Steps (and any relevant Interrupts)."""
         logger.debug("flow.abort", flow=self.node, runner=self)
+
+        closed_interrupts: list[Interrupt] = []
         for runner in self.runners:
             if (
-                not (isinstance(runner.node, Step) and runner.node.type.is_boundary)
-                and not runner.options.suppress_abort
-            ):
-                runner.cancel()
+                isinstance(runner.node, Step) and runner.node.type.is_boundary
+            ) or runner.options.suppress_abort:
+                continue  # skip runners that can't be aborted
+
+            # cancel for sure, mark as aborted if not already terminated
+            runner.cancel()
+            if runner.tracked_run:
+                if not runner.is_active and not runner.status.is_terminal:
+                    runner.mark_killed()
+
+                # also close any contained open Interrupts
+                for node in self.runtime.session._graph.get_descendants(
+                    runner.tracked_run, NodeType.INTERRUPT, recursive=True
+                ):
+                    if isinstance(node, Interrupt) and node.status.is_open:
+                        node.cancel(_trigger_runtime=False)
+                        closed_interrupts.append(node)
+
+        # trigger resume for interrupts
+        if self.is_nested and closed_interrupts and self.tracked_run is not None:
+            runs_to_resume = self.runtime.get_interrupted_runs(
+                self.tracked_run._graph, *closed_interrupts
+            )
+            self.runtime.resume(*runs_to_resume)
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Steps."""
@@ -139,12 +161,14 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
+        self.runtime.schedule_runner(cast(Runner, runner), on_stop=self._on_stopped)
         return runner.tracked_run
 
-    def _resume(self, run: Run) -> Run:
+    def _resume(self, run: Run | Runner) -> Run:
         """Resume a Run in this Flow."""
-        runner = restore_runner(self.runtime, run)
+        runner = run if isinstance(run, Runner) else restore_runner(self.runtime, run)
+        if runner in self._interrupted_runners:
+            self._interrupted_runners.remove(runner)
         assert isinstance(
             runner, (StepRunnerBase, PipeRunnerBase)
         ), f"unexpected {runner!r} in {self!r}"
@@ -152,7 +176,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
-        self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
+        self.runtime.schedule_runner(cast(Runner, runner), on_stop=self._on_stopped)
         return runner.tracked_run
 
     def _on_stopped(self, runner: Runner, exc: Exception | None) -> None:
@@ -267,6 +291,16 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             raise Interrupted(self, self.tracked_run, self._stop_result)
         else:
             assert_never(self._stop_result)
+
+    @override
+    def resume(self, runs: Sequence[Run]) -> None:
+        interrupted_runners_by_id: dict[UUID, Runner] = {
+            runner.id: runner for runner in self._interrupted_runners
+        }
+        for run in runs:
+            runner = interrupted_runners_by_id.get(run.id)
+            if runner is not None:
+                self._resume(runner)
 
 
 class FlowRunner(FlowRunnerBase[FlowBlock]):

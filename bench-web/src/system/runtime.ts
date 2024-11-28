@@ -196,7 +196,7 @@ export class Runtime {
   }
 
   get tx() {
-    return this.txFactory().with({ connectionId: undefined, category: ChangeCategory.RUNTIME });
+    return this.txFactory().with({ connectionId: null, category: ChangeCategory.RUNTIME });
   }
 
   /** The current Run. */

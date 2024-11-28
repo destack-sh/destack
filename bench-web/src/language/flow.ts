@@ -55,6 +55,13 @@ export const FLOW_SCALE_SPEED = 0.01;
 export const PIPE_WIDTH = 2;
 export const STEP_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 
+export const DEFAULT_TEXT_BY_STEP_TYPE: Partial<Record<StepType, string>> = {
+  [StepType.START]: "Begin the flow.",
+  [StepType.COMPLETE]: "End the entire flow.",
+  [StepType.FAIL]: "Fail the entire flow.",
+  [StepType.YIELD]: "Yield control to someone.",
+};
+
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
 export function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
   return {
@@ -1103,7 +1110,11 @@ export function createStep(
   // TODO :UX: create step in empty space
   let position: Vector2Data | null = options.step.position ?? null;
   if (options.near != null) {
-    position = makeStruct({ metatype: StructType.VECTOR2, x: options.near.x, y: options.near.y });
+    position = makeStruct({
+      metatype: StructType.VECTOR2,
+      x: options.near.x - STEP_SIZE.width / 2,
+      y: options.near.y - STEP_SIZE.height / 2,
+    }); 
   }
 
   // create
