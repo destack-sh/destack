@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from git import TYPE_CHECKING
 
 from bench.language.const import EnumType, NodeType, ObjectKind, RunStatus, StructType, enum_
+from bench.language.field import TypeBase
 from bench.language.node import NodeReference, RuntimeNode, Struct, struct_, timed_node_
 from bench.language.property import (
     p_internal,
@@ -156,7 +157,9 @@ class Interrupt(RuntimeNode[InterruptData]):
     inputs_packed: Any = p_value_packed(51)
     inputs: Any = p_value_runtime(51, kind=ObjectKind.INPUT, typ=None)
     outputs_packed: Any = p_value_packed(52)
-    outputs: Any = p_value_runtime(52, kind=ObjectKind.OUTPUT, typ=None)
+    outputs: Any = p_value_runtime(
+        52, kind=ObjectKind.OUTPUT, typ=lambda self: cast("Interrupt", self).output_type
+    )
 
     # context
     # ...HasRuntimeContext[90-99]
@@ -180,6 +183,13 @@ class Interrupt(RuntimeNode[InterruptData]):
             return self.step
         else:
             return self.block
+
+    @property
+    def output_type(self) -> TypeBase | None:
+        runnable = self.runnable
+        if runnable is None:
+            return None
+        return runnable.output_type
 
     @property
     def is_open(self) -> bool:

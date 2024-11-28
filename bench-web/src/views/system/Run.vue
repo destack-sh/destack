@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { makeTypeInfo, TypeIdentity } from "@/language/field";
+import { makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import {
   getInterruptBasePtr,
@@ -8,26 +8,32 @@ import {
   isRunnable,
   RunnableNode,
 } from "@/language/session";
+import { packCustomObjectProperty, unpackCustomObjectProperty } from "@/language/value";
 import {
+  BenchType,
+  ContinueData,
   FieldType,
   InterruptData,
   InterruptStatus,
   NodeType,
+  ObjectType,
   RunData,
+  StructType,
   TypeInfoData,
   TypeKind,
   Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
 import { canvas, pkgGraph } from "@/system/space";
-import { getNodeIcon, ICON_BY_INTERRUPT_TYPE, IconInline } from "@/ui/icon";
+import { ICON_BY_INTERRUPT_TYPE, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
 import RunTimeline from "@/views/builtins/RunTimeline.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
+import Picker from "@/views/content/Picker.vue";
 import CustomObject from "@/views/system/CustomObject.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -79,8 +85,9 @@ const outputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
 
 // interrupts
 type InterruptInfo = {
-  base: RunnableNode;
+  base: RunnableNode | null;
   interrupt: InterruptData;
+  continuations: ContinueData[];
   inputType: TypeInfoData;
   outputType: TypeInfoData;
 };
@@ -98,10 +105,29 @@ const interrupts = computed(() => {
       baseTypePtr: getInterruptBasePtr(interrupt)!,
       baseFieldType: FieldType.OUTPUT,
     });
-    interrupts.push({ base, interrupt, inputType, outputType });
+
+    const continuations = unpackCustomObjectProperty(
+      ObjectType.OUTPUT_OBJECT,
+      interrupt.outputsPacked!,
+      "continuations",
+    );
+    interrupts.push({ base, interrupt, inputType, outputType, continuations: continuations ?? [] });
   }
   return interrupts;
 });
+function setContinuations(interrupt: InterruptInfo, value: ContinueData[]) {
+  const continuationsPacked = packCustomObjectProperty(ObjectType.OUTPUT_OBJECT, value, "continuations");
+  runTree.value.tx.update(
+    interrupt.interrupt,
+    {
+      outputsPacked: {
+        ...(interrupt.interrupt.outputsPacked as any),
+        ...((continuationsPacked as any) ?? {}),
+      },
+    },
+    { debounce: "tick" },
+  );
+}
 
 function start() {
   if (node.value == null || !isRunnable(node.value)) return;
@@ -143,7 +169,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
             }
           "
         />
-        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">No inputs</span>
+        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">Nothing</span>
       </div>
     </div>
     <!-- Existing Run -->
@@ -232,7 +258,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           <div v-for="interrupt of interrupts" :key="interrupt.interrupt.id" class="">
             <!-- Interrupt Header -->
             <div
-              class="flex flex-row items-center gap-x-2"
+              class="flex flex-row items-center gap-x-1.5"
               :style="{
                 height: `${ROW_HEIGHT}px`,
               }"
@@ -240,30 +266,24 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
               <!-- Highlight -->
               <IconInline
                 v-tooltip="{ title: 'Interrupted', small: true, group: 'run.status' }"
-                class="transition-colors duration-75"
+                class="w-5 text-center transition-colors duration-75"
                 :class="interrupt.interrupt.status == InterruptStatus.OPEN ? 'text-pink-500' : 'text-gray-700'"
                 v-bind="ICON_BY_INTERRUPT_TYPE[interrupt.interrupt.type]"
               />
-              <!-- Base -->
-              <span>{{ interrupt.base.name }}</span>
+              <!-- Node -->
+              <span>{{ interrupt.base?.name ?? "???" }}</span>
               <!-- Duration -->
-              <span class="text-gray-400">{{ getInterruptDurationString(interrupt.interrupt, { minUnit: "s" }) }}</span>
+              <span class="ml-0.5 text-gray-400">{{
+                getInterruptDurationString(interrupt.interrupt, { minUnit: "s" })
+              }}</span>
               <!-- Meta/Controls -->
               <div class="ml-auto flex flex-row items-center gap-x-1">
                 <!-- Actions -->
-                <button
-                  v-for="action in getInterruptActions(interrupt.interrupt)"
-                  :key="action.title"
-                  v-tooltip="{ title: action.title, small: true, group: 'run' }"
-                  class="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                  @click="action.action()"
-                >
-                  <IconInline v-bind="action.icon" />
-                </button>
               </div>
             </div>
             <!-- Interrupt Body -->
             <div v-if="interrupt.interrupt.status == InterruptStatus.OPEN">
+              <!-- Interrupt Outputs -->
               <CustomObject
                 id="interrupt-outputs"
                 class="w-full"
@@ -278,6 +298,41 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                   }
                 "
               />
+              <!-- Interrupt Continuations -->
+              <div v-if="isNode(interrupt.base, NodeType.STEP)" class="flex flex-row items-center gap-x-[10%]">
+                <span class="w-[100px]">
+                  <span class="max-w-full truncate py-1 text-gray-900">Continue</span>
+                </span>
+                <!-- Select continuation (from :CustomObjectProperties) -->
+                <Picker
+                  id="interrupt-continuations"
+                  is-input
+                  class="mt-1.5"
+                  :style="{ width: 'calc(90% - 100px)' }"
+                  :value-type="makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.STEP, isList: true })"
+                  :model-value="interrupt.continuations.map((c) => c.nodePtr)"
+                  @update:model-value="
+                    (value) =>
+                      setContinuations(
+                        interrupt,
+                        value?.map((v: any) => makeStruct({ metatype: StructType.CONTINUE, nodePtr: v })),
+                      )
+                  "
+                />
+              </div>
+              <!-- Actions -->
+              <div class="ml-auto mt-1 flex flex-row justify-end gap-x-1 py-1">
+                <button
+                  v-for="action in getInterruptActions(interrupt.interrupt)"
+                  :key="action.title"
+                  v-tooltip="{ title: action.title, small: true, group: 'run' }"
+                  class="rounded px-1 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
+                  @click="action.action()"
+                >
+                  <IconInline class="w-5 text-center" v-bind="action.icon" />
+                  <span v-if="action.isPrimary" class="ml-1">{{ action.title }}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

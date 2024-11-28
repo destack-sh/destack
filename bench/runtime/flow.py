@@ -109,6 +109,52 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                 self._stop_result = "completed"
             self._stop_event.set()
 
+    def _start(
+        self, node: Step | Pipe, *, inputs: CustomObject | None, incoming: Sequence[Run]
+    ) -> Run:
+        """Run a Step or Pipe in this Flow."""
+        if isinstance(node, Step):
+            runner_cls = STEP_RUNNER_BY_STEP_TYPE.get(node.type)
+            if runner_cls is None:
+                raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
+            run_options = get_run_options(RunType.STEP, node.run_options)
+        elif isinstance(node, Pipe):
+            runner_cls = PIPE_RUNNER_BY_PIPE_TYPE.get(node.type)
+            if runner_cls is None:
+                raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
+            run_options = get_run_options(RunType.PIPE, node.run_options)
+        else:
+            assert_never(node)
+        runner = runner_cls(
+            runtime=self.runtime,
+            options=run_options,
+            node=node,  # type: ignore
+            flow=self,
+            context=self.context,
+            parent=cast(Runner, self),
+            inputs=inputs,
+            track=True,
+        )
+        assert runner.tracked_run is not None, f"{runner!r} must be tracked"
+        runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
+        logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
+        self._active_runners_by_id[runner.id] = runner
+        self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
+        return runner.tracked_run
+
+    def _resume(self, run: Run) -> Run:
+        """Resume a Run in this Flow."""
+        runner = restore_runner(self.runtime, run)
+        assert isinstance(
+            runner, (StepRunnerBase, PipeRunnerBase)
+        ), f"unexpected {runner!r} in {self!r}"
+        runner.flow = self
+        assert runner.tracked_run is not None, f"{runner!r} must be tracked"
+        logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
+        self._active_runners_by_id[runner.id] = runner
+        self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
+        return runner.tracked_run
+
     def _on_stopped(self, runner: Runner, exc: Exception | None) -> None:
         """Tick this Flow when a Step or Pipe stops."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
@@ -175,52 +221,6 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             raise RuntimeError(f"unexpected stopped {runner!r} in {self!r}")
 
         self._stop_if_needed()
-
-    def _start(
-        self, node: Step | Pipe, *, inputs: CustomObject | None, incoming: Sequence[Run]
-    ) -> Run:
-        """Run a Step or Pipe in this Flow."""
-        if isinstance(node, Step):
-            runner_cls = STEP_RUNNER_BY_STEP_TYPE.get(node.type)
-            if runner_cls is None:
-                raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
-            run_options = get_run_options(RunType.STEP, node.run_options)
-        elif isinstance(node, Pipe):
-            runner_cls = PIPE_RUNNER_BY_PIPE_TYPE.get(node.type)
-            if runner_cls is None:
-                raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
-            run_options = get_run_options(RunType.PIPE, node.run_options)
-        else:
-            assert_never(node)
-        runner = runner_cls(
-            runtime=self.runtime,
-            options=run_options,
-            node=node,  # type: ignore
-            flow=self,
-            context=self.context,
-            parent=cast(Runner, self),
-            inputs=inputs,
-            track=True,
-        )
-        assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        runner.tracked_run.incoming_ptr = tuple(run.to_ref() for run in incoming)
-        logger.debug("flow.tick.start", flow=self.node, node=node, runner=runner)
-        self._active_runners_by_id[runner.id] = runner
-        self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
-        return runner.tracked_run
-
-    def _resume(self, run: Run) -> Run:
-        """Resume a Run in this Flow."""
-        runner = restore_runner(self.runtime, run)
-        assert isinstance(
-            runner, (StepRunnerBase, PipeRunnerBase)
-        ), f"unexpected {runner!r} in {self!r}"
-        runner.flow = self
-        assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-        logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
-        self._active_runners_by_id[runner.id] = runner
-        self.runtime.create_runner(cast(Runner, runner), on_stop=self._on_stopped)
-        return runner.tracked_run
 
     @override
     async def run(self) -> None:
