@@ -10,8 +10,17 @@ import {
 import type { ReadNodeGraph } from "@/language/graph";
 import {
   DateTime,
+  FieldType,
+  InputObjectData,
+  InputObjectDataInfo,
+  InputObjectProperty,
+  MemberObjectDataInfo,
+  MemberObjectProperty,
   NodeReferenceData,
+  ObjectKind,
   ObjectType,
+  OutputObjectDataInfo,
+  OutputObjectProperty,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
@@ -22,6 +31,8 @@ import {
   Timestamp,
   TypeConstraintIn,
   TypeKind,
+  VariableObjectDataInfo,
+  VariableObjectProperty,
   type AnyNodeData,
   type AnyStructData,
   type AnyTypeMapping,
@@ -43,6 +54,31 @@ export type PrimitiveValue =
   | Duration;
 export type ScalarValue = PrimitiveValue | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
+
+export const CUSTOM_OBJECT_PROPERTY_INFOS_BY_KIND: Partial<Record<ObjectKind, Record<any, PropertyInfo>>> = {
+  [ObjectKind.VARIABLE]: VariableObjectDataInfo,
+  [ObjectKind.MEMBER]: MemberObjectDataInfo,
+  [ObjectKind.INPUT]: InputObjectDataInfo,
+  [ObjectKind.OUTPUT]: OutputObjectDataInfo,
+};
+export const CUSTOM_OBJECT_PROPERTY_ENUM_BY_KIND: Partial<Record<ObjectKind, Record<any, any>>> = {
+  [ObjectKind.VARIABLE]: VariableObjectProperty,
+  [ObjectKind.MEMBER]: MemberObjectProperty,
+  [ObjectKind.INPUT]: InputObjectProperty,
+  [ObjectKind.OUTPUT]: OutputObjectProperty,
+};
+export const OBJECT_KIND_BY_FIELD_TYPE: Partial<Record<FieldType, ObjectKind>> = {
+  [FieldType.VARIABLE]: ObjectKind.VARIABLE,
+  [FieldType.MEMBER]: ObjectKind.MEMBER,
+  [FieldType.INPUT]: ObjectKind.INPUT,
+  [FieldType.OUTPUT]: ObjectKind.OUTPUT,
+};
+export const OBJECT_KIND_BY_OBJECT_TYPE: Partial<Record<ObjectType, ObjectKind>> = {
+  [ObjectType.VARIABLE_OBJECT]: ObjectKind.VARIABLE,
+  [ObjectType.MEMBER_OBJECT]: ObjectKind.MEMBER,
+  [ObjectType.INPUT_OBJECT]: ObjectKind.INPUT,
+  [ObjectType.OUTPUT_OBJECT]: ObjectKind.OUTPUT,
+};
 
 //
 // Packing/unpacking
@@ -213,13 +249,16 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
 // TODO :Test!: figure out how to test value packing on bench-web properly (ensure it's in sync with bench)
 
 /** Packs a single object value into a packed & secret packed value. */
-function packCustomObject(
+export function packCustomObject(
+  kind: ObjectKind,
   value: ScalarValue,
   type: TypeIdentity,
   options: { graph: ReadNodeGraph; recurseCustomObject?: boolean },
 ): JsonValue {
   const fields = resolveFields(type, options.graph);
   const valuePacked: { [key: string]: JsonValue } = {};
+
+  // fields
   for (const field of fields) {
     const fieldStorageKey = getStorageKey(field, field);
     const fieldValue = (value as any)[fieldStorageKey];
@@ -241,17 +280,39 @@ function packCustomObject(
       valuePacked[fieldStorageKey] = fieldValue.map((v: any) => packValueScalar(v, field));
     }
   }
+
+  // properties
+  const propertiesInfos = CUSTOM_OBJECT_PROPERTY_INFOS_BY_KIND[kind];
+  const propertiesEnum = CUSTOM_OBJECT_PROPERTY_ENUM_BY_KIND[kind];
+  if (propertiesInfos != null && propertiesEnum != null) {
+    for (const prop of Object.values(propertiesInfos)) {
+      const propStorageKey = propertiesEnum[prop.id];
+      const propValue = (value as any)[propStorageKey];
+      const propType = getPropertyType(prop);
+      if (propValue == null) {
+        continue;
+      } else if (!prop.isList) {
+        valuePacked[propStorageKey] = packValueScalar(propValue, propType);
+      } else {
+        valuePacked[propStorageKey] = propValue.map((v: any) => packValueScalar(v, propType));
+      }
+    }
+  }
+
   return valuePacked;
 }
 
 /** Unpacks a single packed & secret packed value into an object. */
-function unpackCustomObject(
+export function unpackCustomObject(
+  kind: ObjectKind,
   valuePacked: JsonValue,
   type: TypeIdentity,
   options: { graph: ReadNodeGraph; recurseCustomObject?: boolean },
 ): SomeValue {
   const fields = resolveFields(type, options.graph);
   const value: { [key: string]: SomeValue } = {};
+
+  // fields
   for (const field of fields) {
     const fieldStorageKey = getStorageKey(field, field);
     const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
@@ -276,7 +337,73 @@ function unpackCustomObject(
       value[fieldStorageKey] = fieldValuePacked.map((v: any) => unpackValueScalar(v, field));
     }
   }
+
+  // properties
+  const propertiesInfos = CUSTOM_OBJECT_PROPERTY_INFOS_BY_KIND[kind];
+  const propertiesEnum = CUSTOM_OBJECT_PROPERTY_ENUM_BY_KIND[kind];
+  if (propertiesInfos != null && propertiesEnum != null) {
+    for (const prop of Object.values(propertiesInfos)) {
+      const propStorageKey = propertiesEnum[prop.id];
+      const propValue = (valuePacked as any)[propStorageKey];
+      const propType = getPropertyType(prop);
+      if (propValue == null) {
+        continue;
+      } else if (!prop.isList) {
+        value[propStorageKey] = unpackValueScalar(propValue, propType);
+      } else {
+        value[propStorageKey] = propValue.map((v: any) => unpackValueScalar(v, propType));
+      }
+    }
+  }
+
   return value;
+}
+
+/** Unpacks a single custom object property. */
+export function unpackCustomObjectProperty<
+  T extends ObjectType.VARIABLE_OBJECT | ObjectType.MEMBER_OBJECT | ObjectType.INPUT_OBJECT | ObjectType.OUTPUT_OBJECT,
+  K extends keyof AnyTypeMapping[T],
+>(objectType: T, valuePacked: JsonValue, propertyName: K): AnyTypeMapping[T][K] | undefined {
+  const kind = OBJECT_KIND_BY_OBJECT_TYPE[objectType];
+  if (kind == null) throw new Error(`unknown object type ${objectType}`);
+  const propertiesInfos = CUSTOM_OBJECT_PROPERTY_INFOS_BY_KIND[kind];
+  const propertiesEnum = CUSTOM_OBJECT_PROPERTY_ENUM_BY_KIND[kind];
+  if (propertiesInfos == null || propertiesEnum == null) throw new Error(`unknown object kind ${kind}`);
+  const propId = propertiesEnum[propertyName];
+  const propInfo = propertiesInfos[propId];
+  const propType = getPropertyType(propInfo);
+  const propValue = (valuePacked as any)?.[propId];
+  if (propValue == null) {
+    return undefined;
+  } else if (!propInfo.isList) {
+    return unpackValueScalar(propValue, propType) as AnyTypeMapping[T][K];
+  } else {
+    return propValue?.map((v: any) => unpackValueScalar(v, propType)) as AnyTypeMapping[T][K];
+  }
+}
+
+/** Packs a custom object property. */
+export function packCustomObjectProperty<
+  T extends ObjectType.VARIABLE_OBJECT | ObjectType.MEMBER_OBJECT | ObjectType.INPUT_OBJECT | ObjectType.OUTPUT_OBJECT,
+  K extends keyof AnyTypeMapping[T],
+>(objectType: T, value: AnyTypeMapping[T][K], propertyName: K): JsonValue | null {
+  const kind = OBJECT_KIND_BY_OBJECT_TYPE[objectType];
+  if (kind == null) throw new Error(`unknown object type ${objectType}`);
+  const propertiesInfos = CUSTOM_OBJECT_PROPERTY_INFOS_BY_KIND[kind];
+  const propertiesEnum = CUSTOM_OBJECT_PROPERTY_ENUM_BY_KIND[kind];
+  if (propertiesInfos == null || propertiesEnum == null) throw new Error(`unknown object kind ${kind}`);
+  const propId = propertiesEnum[propertyName];
+  const propInfo = propertiesInfos[propId];
+  const propType = getPropertyType(propInfo);
+  let propValuePacked;
+  if (value == null) {
+    propValuePacked = null;
+  } else if (!propInfo.isList) {
+    propValuePacked = packValueScalar(value, propType);
+  } else {
+    propValuePacked = (value as any[]).map((v: any) => packValueScalar(v, propType));
+  }
+  return { [propId]: propValuePacked };
 }
 
 /**
@@ -293,15 +420,20 @@ export function packValue(
 ): JsonValue {
   if (type.kind == TypeKind.OBJECT) {
     // nested custom object
+    const objectKind = OBJECT_KIND_BY_FIELD_TYPE[type.baseFieldType!];
+    if (objectKind == null) throw new Error(`unknown object kind for field type ${describeTypeIdentity(type)}`);
     if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
       return null;
     } else if (!type.isList) {
-      return packCustomObject(value, type, { graph: options.graph, recurseCustomObject: options.recurseCustomObject });
+      return packCustomObject(objectKind, value, type, {
+        graph: options.graph,
+        recurseCustomObject: options.recurseCustomObject,
+      });
     } else {
       const valuePacked: JsonValue[] = [];
       for (let i = 0; i < value.length; i++) {
-        const packed = packCustomObject(value[i], type, {
+        const packed = packCustomObject(objectKind, value[i], type, {
           graph: options.graph,
           recurseCustomObject: options.recurseCustomObject,
         });
@@ -340,6 +472,8 @@ export function unpackValue(
 ): any {
   if (type.kind == TypeKind.OBJECT) {
     // nested custom object
+    const objectKind = OBJECT_KIND_BY_FIELD_TYPE[type.baseFieldType!];
+    if (objectKind == null) throw new Error(`unknown object kind for field type ${describeTypeIdentity(type)}`);
     if (options.graph == null) {
       throw new Error(
         `missing graph to unpack object type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`,
@@ -348,7 +482,7 @@ export function unpackValue(
     if (valuePacked == null) {
       return null;
     } else if (!type.isList) {
-      return unpackCustomObject(valuePacked, type, {
+      return unpackCustomObject(objectKind, valuePacked, type, {
         graph: options.graph,
         recurseCustomObject: options.recurseCustomObject,
       });
@@ -357,7 +491,10 @@ export function unpackValue(
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`);
       }
       return valuePacked!.map((v: any, i: number) =>
-        unpackCustomObject(v, type, { graph: options.graph!, recurseCustomObject: options.recurseCustomObject }),
+        unpackCustomObject(objectKind, v, type, {
+          graph: options.graph!,
+          recurseCustomObject: options.recurseCustomObject,
+        }),
       );
     }
   } else {

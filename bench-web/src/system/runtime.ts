@@ -335,6 +335,7 @@ export function getInterruptActions(interrupt: InterruptData): RuntimeAction[] {
     actions.push({
       title: "Complete",
       icon: makeIcon("fas fa-check"),
+      isPrimary: true,
       action: () => {
         runtime.complete(interrupt);
       },

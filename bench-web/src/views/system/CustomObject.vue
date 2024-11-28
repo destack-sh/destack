@@ -49,19 +49,21 @@ const width = computed(() =>
   props.variant == Variant.STEALTH ? null : Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH),
 );
 
-const facetIcon = computed(() => baseType.value?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]);
-const facetName = computed(() => baseType.value?.name);
-const baseTypePtr = computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined);
-const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(baseTypePtr);
-const baseType = pkgGraph.getRef(baseTypePtr);
-const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need to be resolved later :TypeResolution
-const titleField = computed(() => getTitleField(fields.value));
-const fieldViews = computed(() =>
-  getFieldViews(fields.value, pkgGraph, {
-    types: [props.valueType?.baseFieldType ?? FieldType.MEMBER],
-    isInput: props.isInput,
-  }),
+const facetIcon = computed(() => base.value?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]);
+const facetName = computed(() => base.value?.name);
+const basePtr = computed(
+  () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | undefined,
 );
+const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(basePtr);
+const base = pkgGraph.getRef(basePtr);
+const baseFields = pkgGraph.getChildrenRef(base, NodeType.FIELD);
+const fields = computed(() =>
+  props.valueType?.baseFieldType != null
+    ? baseFields.value.filter((f) => f.type == props.valueType!.baseFieldType)
+    : baseFields.value,
+);
+const titleField = computed(() => getTitleField(fields.value));
+const fieldViews = computed(() => getFieldViews(fields.value, pkgGraph, { isInput: props.isInput }));
 const hasValue = computed(() => {
   if (props.modelValue == null) return false;
   if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
@@ -234,6 +236,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
         :class="variant != Variant.STEALTH ? 'py-3' : ''"
         :style="{ width: width != null ? width + 'px' : '100%' }"
       >
+        <!-- NOTE :Incomplete: builtin custom object properties :CustomObjectProperties -->
         <li
           v-for="fieldView of fieldViews"
           :key="fieldView.field.id"

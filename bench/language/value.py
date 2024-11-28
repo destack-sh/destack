@@ -1092,7 +1092,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
     if not _value:
         return value_packed  # empty value
 
-    object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[value.kind]
+    # fields
     for field in typ._base_fields:
         storage_key = field.storage_key
         field_value = cast(SomeValue, _value.get(storage_key))
@@ -1109,6 +1109,9 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
             value_packed[storage_key] = [
                 pack_value_scalar(element, field) for element in field_value
             ]
+
+    # properties
+    object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[value.kind]
     for prop in object_cls.__properties__.values():
         storage_key = prop.key
         prop_value = cast(SomeValue, _value.get(storage_key))
@@ -1140,7 +1143,7 @@ def unpack_custom_object(
     """
     value: dict[str, SomeValue] = {}
 
-    object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[kind]
+    # fields
     for field in typ._base_fields:
         storage_key = field.storage_key
         field_value_packed = value_packed.get(storage_key)
@@ -1158,6 +1161,9 @@ def unpack_custom_object(
             ), f"{field_value_packed!r} is not a list, expected {field!r}"
             field_value = [unpack_value_scalar(element, field) for element in field_value_packed]
         value[storage_key] = field_value
+
+    # properties
+    object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[kind]
     for prop in object_cls.__properties__.values():
         storage_key = prop.key
         prop_value_packed = value_packed.get(storage_key)
