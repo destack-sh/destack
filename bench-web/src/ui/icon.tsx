@@ -278,7 +278,7 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.TRIGGER]: "fas fa-bolt-lightning",
   // run
   [StepType.ACTION]: "fas fa-code",
-  [StepType.SEND]: "fas fa-paper-plane-top",
+  [StepType.CREATE]: "fas fa-plus",
   [StepType.YIELD]: "fas fa-hand",
   // control
   // ...

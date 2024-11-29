@@ -1586,8 +1586,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         parent_ptr: Optional[NodeReference] = None
 
     # 10-29: reserved for node tracking
-    # NOTE: created_by/updated_by are 'baseless' because Run can only be a subject if it's a lambda
-    #  (and otherwise we attribute the change to the Run's block/step/identity)
     created_at: datetime = p_system(10, default=None, require=True, autoset=True)
     created_by: Optional[EditSubject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
         11,
@@ -1741,6 +1739,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                             prop_value = []
                         else:
                             continue  # skip optional None
+                    else:
+                        raise ValueError(f"missing required property: {prop!r}")
                 self._do_set(prop.name, prop_value, track=False, validate=False)
 
     @final
@@ -2230,7 +2230,7 @@ class HasTracingContext(BuiltinObject):
     """Context for a Node in some Session."""
 
     # tracing :Tracing
-    mode: RuntimeMode = p_internal(90, default_sql=RuntimeMode.PRODUCTION)
+    mode: RuntimeMode = p_internal(90, default_sql=str(RuntimeMode.PRODUCTION.value))
     # NOTE :Incomplete: richer :Tracing context
 
 

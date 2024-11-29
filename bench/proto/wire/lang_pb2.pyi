@@ -1278,7 +1278,7 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_FAIL: _ClassVar[StepType]
     STEP_TYPE_TRIGGER: _ClassVar[StepType]
     STEP_TYPE_ACTION: _ClassVar[StepType]
-    STEP_TYPE_SEND: _ClassVar[StepType]
+    STEP_TYPE_CREATE: _ClassVar[StepType]
     STEP_TYPE_YIELD: _ClassVar[StepType]
     STEP_TYPE_LOOP: _ClassVar[StepType]
     STEP_TYPE_TEXT: _ClassVar[StepType]
@@ -2656,7 +2656,7 @@ STEP_TYPE_COMPLETE: StepType
 STEP_TYPE_FAIL: StepType
 STEP_TYPE_TRIGGER: StepType
 STEP_TYPE_ACTION: StepType
-STEP_TYPE_SEND: StepType
+STEP_TYPE_CREATE: StepType
 STEP_TYPE_YIELD: StepType
 STEP_TYPE_LOOP: StepType
 STEP_TYPE_TEXT: StepType
@@ -5340,9 +5340,15 @@ class ActionStepData(_message.Message):
     delegate_ptr: NodeReferenceData
     def __init__(self, agency: _Optional[_Union[Agency, str]] = ..., is_dynamic: bool = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tools_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
-class SendStepData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+class CreateStepData(_message.Message):
+    __slots__ = ("node_type", "field_type", "block_base_ptr")
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    FIELD_TYPE_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_BASE_PTR_FIELD_NUMBER: _ClassVar[int]
+    node_type: NodeType
+    field_type: FieldType
+    block_base_ptr: NodeReferenceData
+    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., field_type: _Optional[_Union[FieldType, str]] = ..., block_base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class LoopStepData(_message.Message):
     __slots__ = ("for_field_ptr",)

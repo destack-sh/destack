@@ -73,26 +73,23 @@ class RunHandle:
         for node in update.updated.values():
             # react to Run/Interrupt updates in Runtime
             if isinstance(node, Run):
-                if not node.status.is_terminal:
-                    if node.killed_at:
-                        self.kill(node)
-                    elif node.paused_at and (
-                        not node.resumed_at or node.paused_at > node.resumed_at
+                if node.status.is_terminal:
+                    continue  # nothing to do anymore
+                if node.killed_at:
+                    self.kill(node)
+                elif node.paused_at and (not node.resumed_at or node.paused_at > node.resumed_at):
+                    self.pause(node)
+                elif node.resumed_at and (not node.paused_at or node.resumed_at > node.paused_at):
+                    # close open Interrupt, resume affected Runs
+                    interrupt = node.interrupt
+                    if (
+                        interrupt
+                        and interrupt.type == InterruptType.PAUSE
+                        and not interrupt.status.is_closed
                     ):
-                        self.pause(node)
-                    elif node.resumed_at and (
-                        not node.paused_at or node.resumed_at > node.paused_at
-                    ):
-                        # close open Interrupt, resume affected Runs
-                        interrupt = node.interrupt
-                        if (
-                            interrupt
-                            and interrupt.type == InterruptType.PAUSE
-                            and not interrupt.status.is_closed
-                        ):
-                            interrupt.complete(_trigger_runtime=False)
-                        runs_to_resume.add(node)
-                        runs_to_resume.update(node.ancestors)
+                        interrupt.complete(_trigger_runtime=False)
+                    runs_to_resume.add(node)
+                    runs_to_resume.update(node.ancestors)
             elif isinstance(node, Interrupt):
                 if node.status.is_closed:
                     runs_to_resume.update(self.runtime.get_interrupted_runs(self.root._graph, node))

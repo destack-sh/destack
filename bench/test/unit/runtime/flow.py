@@ -3,17 +3,18 @@ import asyncio
 from bench.language import Agency, BlockType, RunStatus
 from bench.language.block import Block
 from bench.language.code import code
-from bench.language.const import RuntimeMode
+from bench.language.const import FieldType, NodeType, RuntimeMode
 from bench.language.field import Field
 from bench.language.flow import ActionStep, PipeType, Step, StepType
 from bench.language.interrupt import Breakpoint, BreakpointScope, Interrupt, InterruptStatus
+from bench.language.message import Message
 from bench.language.run import RunErrorType, RunOptions
 from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
 
 async def test_run_step_directly(local_runtime: RuntimeHandle):
-    """Run a Steps directly. Should work."""
+    """Run a Step directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Code = Step.new(StepType.ACTION, "Code", agency=Agency.CODE, code=code("pass"))
@@ -29,7 +30,29 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(Fail)
 
 
+async def test_run_step_create(local_runtime: RuntimeHandle):
+    """Run a CreateStep to create a Message."""
+    MessageType1 = Block.new(BlockType.MESSAGE, "Message", fields=(Field.member("Rating", int),))
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Create = Step.new(
+        StepType.CREATE,
+        "Create",
+        node_type=NodeType.MESSAGE,
+        field_type=FieldType.MEMBER,
+        block_base=MessageType1,
+    )
+    Flow1.steps.append(Create)
+    local_runtime.page().blocks.extend(MessageType1, Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Create, inputs={"Rating": 1})
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 1
+    assert runner.outputs and isinstance(runner.outputs, Message)
+    assert runner.outputs.Rating == 1
+
+
 async def test_run_pipe_directly(local_runtime: RuntimeHandle):
+    """Run a Pipe directly."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")

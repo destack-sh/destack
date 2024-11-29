@@ -20,6 +20,7 @@ import {
   PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
+  RuntimeMode,
   TextData,
   Timestamp,
   type AnyNodeData,
@@ -317,6 +318,11 @@ export class TransactionBuilder implements Transaction {
         }
         (nodeIn as any).benchPtr = this.state.benchPtr; // infer bench
       }
+    }
+
+    // inject :Tracing
+    if ("mode" in properties && (nodeIn as any).mode == null) {
+      (nodeIn as any).mode = RuntimeMode.PRODUCTION; // should this be relative to the current Space.mode?
     }
 
     // create node

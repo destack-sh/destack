@@ -507,16 +507,16 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     @property
     def variable_type(self) -> "TypeBase | None":
-        if self.step is not None:
-            return self.step.variable_type
-        elif self.block is not None:
+        if self.block is not None:
             return self.block.variable_type
         else:
             return None
 
     @property
     def input_type(self) -> "TypeBase | None":
-        if self.step is not None:
+        if self.pipe is not None:
+            return self.pipe.input_type
+        elif self.step is not None:
             return self.step.input_type
         elif self.block is not None:
             return self.block.input_type
@@ -525,7 +525,9 @@ class Run(RuntimeNode[RunData], HasNodeBase):
 
     @property
     def output_type(self) -> "TypeBase | None":
-        if self.step is not None:
+        if self.pipe is not None:
+            return self.pipe.output_type
+        elif self.step is not None:
             return self.step.output_type
         elif self.block is not None:
             return self.block.output_type

@@ -419,6 +419,12 @@ class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
         self._check_step_outputs()
 
 
+class CreateStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError("nocheckin: CreateStepRunner")
+
+
 class YieldStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
@@ -431,8 +437,9 @@ STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
     StepType.START: StartStepRunner,
     StepType.COMPLETE: CompleteStepRunner,
     StepType.FAIL: FailStepRunner,
-    StepType.YIELD: YieldStepRunner,
     StepType.ACTION: ActionStepRunner,
+    StepType.CREATE: CreateStepRunner,
+    StepType.YIELD: YieldStepRunner,
 }
 
 #

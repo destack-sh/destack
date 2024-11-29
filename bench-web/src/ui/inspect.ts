@@ -35,6 +35,8 @@ import {
   TypeKind,
   Variant,
   ViewType,
+  CreateStepData,
+  CreateStepProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
@@ -383,25 +385,41 @@ export function makeInspectLayout(
   //
   else if (isNode(node, NodeType.STEP)) {
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
-      const comonRows: InspectRow[] = [];
-      section(undefined, comonRows);
-      comonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
-      const action = subnode as ActionStepData | undefined;
-      if (action?.agency == Agency.DELEGATE) {
-        // schema from delegate
-        const delegatePtr = action.delegatePtr;
-        if (delegatePtr != null) {
-          sectionSchema({ subtitle: "(Delegate)", delegatePtr });
+      const commonRows: InspectRow[] = [];
+      section(undefined, commonRows);
+      commonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
+
+      if (node.type == StepType.ACTION) {
+        const action = subnode as ActionStepData | undefined;
+        if (action?.agency == Agency.DELEGATE) {
+          // schema from delegate
+          const delegatePtr = action.delegatePtr;
+          if (delegatePtr != null) {
+            sectionSchema({ subtitle: "(Delegate)", delegatePtr });
+          } else {
+            section("Schema", [{ type: "text", text: "No delegate set." }]);
+          }
         } else {
-          section("Schema", [{ type: "text", text: "No delegate set." }]);
+          sectionSchema();
+        }
+        sectionAction();
+      } else if (node.type == StepType.CREATE) {
+        // only 'input' schema from delegate
+        commonRows.push(rowProperty(CreateStepProperty.blockBasePtr, { title: "Block" }));
+        const create = subnode as CreateStepData | undefined;
+        const fieldType = create?.fieldType ?? FieldType.MEMBER;
+        if (create?.blockBasePtr != null) {
+          section("Schema", [{ type: "fields", fieldType: fieldType, delegatePtr: create.blockBasePtr }], {
+            actions: [actionAddField(fieldType, "fas fa-plus", { delegatePtr: create.blockBasePtr })],
+            subtitle: "(Create)",
+          });
+        } else {
+          section("Schema", [{ type: "text", text: "No type set." }]);
         }
       } else {
         sectionSchema();
       }
 
-      if (node.type == StepType.ACTION) {
-        sectionAction();
-      }
       sectionRun(StepProperty.runOptions);
     }
   }

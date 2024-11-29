@@ -106,8 +106,8 @@ const index: Ref<SearchIndex<any>> = computed(() => {
       // based node
       const base = pkgGraph.get(props.valueType.baseTypePtr);
       if (base != null) roots = [base];
-    } else if (props.valueType.constraint?.nodeScopePtr != null) {
-      roots = props.valueType.constraint.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
+    } else if ((props.valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
+      roots = props.valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
     }
     let metatypes: NodeType[];
     if (props.valueType.benchType != null) {

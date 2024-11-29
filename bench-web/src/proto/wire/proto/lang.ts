@@ -4589,9 +4589,21 @@ export interface ActionStepData {
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
  *
- * @generated from protobuf message symbolx.bench.SendStepData
+ * @generated from protobuf message symbolx.bench.CreateStepData
  */
-export interface SendStepData {
+export interface CreateStepData {
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 100;
+     */
+    nodeType: NodeType;
+    /**
+     * @generated from protobuf field: symbolx.bench.FieldType field_type = 101;
+     */
+    fieldType: FieldType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_base_ptr = 102;
+     */
+    blockBasePtr?: NodeReferenceData;
 }
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -5273,7 +5285,7 @@ export interface MessageData {
      */
     originPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData block_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 36;
      */
     blockPtr?: NodeReferenceData;
     /**
@@ -5707,7 +5719,7 @@ export interface SpaceData {
      */
     runPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.RuntimeMode mode = 80;
+     * @generated from protobuf field: symbolx.bench.RuntimeMode mode = 90;
      */
     mode: RuntimeMode;
 }
@@ -10802,9 +10814,9 @@ export enum StepType {
      */
     ACTION = 60,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_SEND = 61;
+     * @generated from protobuf enum value: STEP_TYPE_CREATE = 61;
      */
-    SEND = 61,
+    CREATE = 61,
     /**
      * @generated from protobuf enum value: STEP_TYPE_YIELD = 62;
      */
@@ -23453,20 +23465,57 @@ class ActionStepData$Type extends MessageType$<ActionStepData> {
  */
 export const ActionStepData = new ActionStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SendStepData$Type extends MessageType$<SendStepData> {
+class CreateStepData$Type extends MessageType$<CreateStepData> {
     constructor() {
-        super("symbolx.bench.SendStepData", []);
+        super("symbolx.bench.CreateStepData", [
+            { no: 100, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 101, name: "field_type", kind: "enum", T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
+            { no: 102, name: "block_base_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
     }
-    create(value?: PartialMessage<SendStepData>): SendStepData {
+    create(value?: PartialMessage<CreateStepData>): CreateStepData {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodeType = 0;
+        message.fieldType = 0;
         if (value !== undefined)
-            reflectionMergePartial<SendStepData>(this, message, value);
+            reflectionMergePartial<CreateStepData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SendStepData): SendStepData {
-        return target ?? this.create();
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateStepData): CreateStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.NodeType node_type */ 100:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* symbolx.bench.FieldType field_type */ 101:
+                    message.fieldType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData block_base_ptr */ 102:
+                    message.blockBasePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockBasePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
-    internalBinaryWrite(message: SendStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CreateStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.NodeType node_type = 100; */
+        if (message.nodeType !== 0)
+            writer.tag(100, WireType.Varint).int32(message.nodeType);
+        /* symbolx.bench.FieldType field_type = 101; */
+        if (message.fieldType !== 0)
+            writer.tag(101, WireType.Varint).int32(message.fieldType);
+        /* optional symbolx.bench.NodeReferenceData block_base_ptr = 102; */
+        if (message.blockBasePtr)
+            NodeReferenceData.internalBinaryWrite(message.blockBasePtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23474,9 +23523,9 @@ class SendStepData$Type extends MessageType$<SendStepData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.SendStepData
+ * @generated MessageType for protobuf message symbolx.bench.CreateStepData
  */
-export const SendStepData = new SendStepData$Type();
+export const CreateStepData = new CreateStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class LoopStepData$Type extends MessageType$<LoopStepData> {
     constructor() {
@@ -24880,7 +24929,7 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* symbolx.bench.NodeReferenceData origin_ptr */ 35:
                     message.originPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.originPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData block_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData block_ptr */ 36:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData reply_to_ptr */ 37:
@@ -24967,7 +25016,7 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* symbolx.bench.NodeReferenceData origin_ptr = 35; */
         if (message.originPtr)
             NodeReferenceData.internalBinaryWrite(message.originPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData block_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData block_ptr = 36; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData reply_to_ptr = 37; */
@@ -25821,7 +25870,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
             { no: 75, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 76, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 77, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 80, name: "mode", kind: "enum", T: () => ["symbolx.bench.RuntimeMode", RuntimeMode, "RUNTIME_MODE_"] }
+            { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.RuntimeMode", RuntimeMode, "RUNTIME_MODE_"] }
         ]);
     }
     create(value?: PartialMessage<SpaceData>): SpaceData {
@@ -25920,7 +25969,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
                 case /* optional symbolx.bench.NodeReferenceData run_ptr */ 77:
                     message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
                     break;
-                case /* symbolx.bench.RuntimeMode mode */ 80:
+                case /* symbolx.bench.RuntimeMode mode */ 90:
                     message.mode = reader.int32();
                     break;
                 default:
@@ -26010,9 +26059,9 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         /* optional symbolx.bench.NodeReferenceData run_ptr = 77; */
         if (message.runPtr)
             NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(77, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RuntimeMode mode = 80; */
+        /* symbolx.bench.RuntimeMode mode = 90; */
         if (message.mode !== 0)
-            writer.tag(80, WireType.Varint).int32(message.mode);
+            writer.tag(90, WireType.Varint).int32(message.mode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27627,10 +27676,10 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.ICON]: IconViewData,
 }
 
-export type StepSubtype = ActionStepData | SendStepData | LoopStepData | TextStepData;
+export type StepSubtype = ActionStepData | CreateStepData | LoopStepData | TextStepData;
 export interface StepSubtypeMapping extends Record<StepType, StepSubtype> {
   [StepType.ACTION]: ActionStepData,
-  [StepType.SEND]: SendStepData,
+  [StepType.CREATE]: CreateStepData,
   [StepType.LOOP]: LoopStepData,
   [StepType.TEXT]: TextStepData,
 }
@@ -28354,7 +28403,7 @@ export enum SpaceProperty {
   inspectionPtr = 75,
   basePtr = 76,
   runPtr = 77,
-  mode = 80,
+  mode = 90,
 }
 
 export enum BlockProperty {
@@ -28925,8 +28974,10 @@ export enum ActionStepProperty {
   delegatePtr = 113,
 }
 
-export enum SendStepProperty {
-
+export enum CreateStepProperty {
+  nodeType = 100,
+  fieldType = 101,
+  blockBasePtr = 102,
 }
 
 export enum LoopStepProperty {
@@ -29787,7 +29838,7 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
 
 export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
   [StepType.ACTION]: ActionStepProperty,
-  [StepType.SEND]: SendStepProperty,
+  [StepType.CREATE]: CreateStepProperty,
   [StepType.LOOP]: LoopStepProperty,
   [StepType.TEXT]: TextStepProperty,
 }
@@ -29985,7 +30036,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.maxRam]: { id: 53, name: 'max_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, nodeTypes: [], nodeScopePtr: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 60, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.bumpedAt]: { id: 61, name: 'bumped_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SERVER, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SERVER, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STORE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30010,7 +30061,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 52, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [StoreProperty.mode]: { id: 90, name: 'mode', component: ObjectType.STORE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.mode]: { id: 90, name: 'mode', component: ObjectType.STORE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DRIVE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30030,7 +30081,7 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.status]: { id: 36, name: 'status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.mode]: { id: 90, name: 'mode', component: ObjectType.DRIVE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.mode]: { id: 90, name: 'mode', component: ObjectType.DRIVE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const VaultDataInfo: Record<VaultProperty, PropertyInfo> = {
   [VaultProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VAULT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30050,7 +30101,7 @@ export const VaultDataInfo: Record<VaultProperty, PropertyInfo> = {
   [VaultProperty.region]: { id: 35, name: 'region', component: ObjectType.VAULT, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [VaultProperty.status]: { id: 36, name: 'status', component: ObjectType.VAULT, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [VaultProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.VAULT, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [VaultProperty.mode]: { id: 90, name: 'mode', component: ObjectType.VAULT, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [VaultProperty.mode]: { id: 90, name: 'mode', component: ObjectType.VAULT, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const CacheDataInfo: Record<CacheProperty, PropertyInfo> = {
   [CacheProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CACHE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30070,7 +30121,7 @@ export const CacheDataInfo: Record<CacheProperty, PropertyInfo> = {
   [CacheProperty.region]: { id: 35, name: 'region', component: ObjectType.CACHE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [CacheProperty.status]: { id: 36, name: 'status', component: ObjectType.CACHE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [CacheProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.CACHE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [CacheProperty.mode]: { id: 90, name: 'mode', component: ObjectType.CACHE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [CacheProperty.mode]: { id: 90, name: 'mode', component: ObjectType.CACHE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MACHINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30106,7 +30157,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.terminatedAt]: { id: 62, name: 'terminated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 63, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.restartedAt]: { id: 64, name: 'restarted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.mode]: { id: 90, name: 'mode', component: ObjectType.MACHINE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.mode]: { id: 90, name: 'mode', component: ObjectType.MACHINE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BROWSER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30125,7 +30176,7 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.status]: { id: 36, name: 'status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BROWSER, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BROWSER, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30163,7 +30214,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.sampleRate]: { id: 63, name: 'sample_rate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.retention]: { id: 70, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 71, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.mode]: { id: 90, name: 'mode', component: ObjectType.FILE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.mode]: { id: 90, name: 'mode', component: ObjectType.FILE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STREAM, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30182,7 +30233,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.region]: { id: 35, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.status]: { id: 36, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.mode]: { id: 90, name: 'mode', component: ObjectType.STREAM, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.mode]: { id: 90, name: 'mode', component: ObjectType.STREAM, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SECRET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30204,7 +30255,7 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [SecretProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [SecretProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SECRET, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SECRET, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MEMBERSHIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30302,7 +30353,7 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [DependencyProperty.scopesPtr]: { id: 30, name: 'scopes_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.mode]: { id: 90, name: 'mode', component: ObjectType.DEPENDENCY, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.mode]: { id: 90, name: 'mode', component: ObjectType.DEPENDENCY, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30330,7 +30381,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.runPtr]: { id: 77, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.mode]: { id: 80, name: 'mode', component: ObjectType.SPACE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SPACE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30362,7 +30413,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.identityPtr]: { id: 45, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.isBuiltin]: { id: 60, name: 'is_builtin', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isOwned]: { id: 61, name: 'is_owned', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BLOCK, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30388,7 +30439,7 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.schedule]: { id: 50, name: 'schedule', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
   [TriggerProperty.messagePtr]: { id: 51, name: 'message_ptr', component: ObjectType.TRIGGER, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [12], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [TriggerProperty.mode]: { id: 90, name: 'mode', component: ObjectType.TRIGGER, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.mode]: { id: 90, name: 'mode', component: ObjectType.TRIGGER, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FIELD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30425,7 +30476,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.isRequired]: { id: 60, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.isList]: { id: 61, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.mode]: { id: 90, name: 'mode', component: ObjectType.FIELD, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.mode]: { id: 90, name: 'mode', component: ObjectType.FIELD, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30459,7 +30510,7 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.includeDeleted]: { id: 61, name: 'include_deleted', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.first]: { id: 62, name: 'first', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.skip]: { id: 63, name: 'skip', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [QueryProperty.mode]: { id: 90, name: 'mode', component: ObjectType.QUERY, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.mode]: { id: 90, name: 'mode', component: ObjectType.QUERY, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30503,7 +30554,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.isInput]: { id: 82, name: 'is_input', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isInline]: { id: 83, name: 'is_inline', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isLoading]: { id: 85, name: 'is_loading', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.mode]: { id: 90, name: 'mode', component: ObjectType.VIEW, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.mode]: { id: 90, name: 'mode', component: ObjectType.VIEW, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STEP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30532,7 +30583,7 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.identityPtr]: { id: 43, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.position]: { id: 80, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [StepProperty.size]: { id: 81, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE },
-  [StepProperty.mode]: { id: 90, name: 'mode', component: ObjectType.STEP, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.mode]: { id: 90, name: 'mode', component: ObjectType.STEP, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PIPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30564,7 +30615,7 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.mapping]: { id: 70, name: 'mapping', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OBJECT_MAPPING },
   [PipeProperty.mappingCode]: { id: 71, name: 'mapping_code', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [PipeProperty.delay]: { id: 80, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.mode]: { id: 90, name: 'mode', component: ObjectType.PIPE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.mode]: { id: 90, name: 'mode', component: ObjectType.PIPE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.color]: { id: 91, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
   [PipeProperty.isHidden]: { id: 92, name: 'is_hidden', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.isNameHidden]: { id: 93, name: 'is_name_hidden', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -30593,7 +30644,7 @@ export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
   [BadgeProperty.keyHash]: { id: 41, name: 'key_hash', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [BadgeProperty.password]: { id: 42, name: 'password', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [BadgeProperty.passwordHash]: { id: 43, name: 'password_hash', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [BadgeProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BADGE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.mode]: { id: 90, name: 'mode', component: ObjectType.BADGE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MESSAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30612,7 +30663,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.type]: { id: 30, name: 'type', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.status]: { id: 31, name: 'status', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 4, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.originPtr]: { id: 35, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.MESSAGE, kind: 'reference', constraint: { nodeTypes: [1010], nodeScopePtr: [], blockTypes: [12], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.blockPtr]: { id: 36, name: 'block_ptr', component: ObjectType.MESSAGE, kind: 'reference', constraint: { nodeTypes: [1010], nodeScopePtr: [], blockTypes: [12], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.replyToPtr]: { id: 37, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.title]: { id: 40, name: 'title', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256, nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.text]: { id: 41, name: 'text', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -30620,7 +30671,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.expiresAt]: { id: 44, name: 'expires_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.readAt]: { id: 45, name: 'read_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.isPinned]: { id: 50, name: 'is_pinned', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.mode]: { id: 90, name: 'mode', component: ObjectType.MESSAGE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.mode]: { id: 90, name: 'mode', component: ObjectType.MESSAGE, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RECORD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30639,7 +30690,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.blockPtr]: { id: 34, name: 'block_ptr', component: ObjectType.RECORD, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RecordProperty.mode]: { id: 90, name: 'mode', component: ObjectType.RECORD, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.mode]: { id: 90, name: 'mode', component: ObjectType.RECORD, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30667,7 +30718,7 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.serverPtr]: { id: 85, name: 'server_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.userPtr]: { id: 86, name: 'user_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.identityPtr]: { id: 87, name: 'identity_ptr', component: ObjectType.SESSION, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SESSION, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.mode]: { id: 90, name: 'mode', component: ObjectType.SESSION, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30722,7 +30773,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.serverPtr]: { id: 85, name: 'server_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.userPtr]: { id: 86, name: 'user_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.identityPtr]: { id: 87, name: 'identity_ptr', component: ObjectType.RUN, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.mode]: { id: 90, name: 'mode', component: ObjectType.RUN, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.mode]: { id: 90, name: 'mode', component: ObjectType.RUN, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const InterruptDataInfo: Record<InterruptProperty, PropertyInfo> = {
   [InterruptProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INTERRUPT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30759,7 +30810,7 @@ export const InterruptDataInfo: Record<InterruptProperty, PropertyInfo> = {
   [InterruptProperty.serverPtr]: { id: 85, name: 'server_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptProperty.userPtr]: { id: 86, name: 'user_ptr', component: ObjectType.INTERRUPT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptProperty.identityPtr]: { id: 87, name: 'identity_ptr', component: ObjectType.INTERRUPT, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptProperty.mode]: { id: 90, name: 'mode', component: ObjectType.INTERRUPT, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [InterruptProperty.mode]: { id: 90, name: 'mode', component: ObjectType.INTERRUPT, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30793,7 +30844,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.serverPtr]: { id: 85, name: 'server_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.userPtr]: { id: 86, name: 'user_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.identityPtr]: { id: 87, name: 'identity_ptr', component: ObjectType.LOG, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [51], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.mode]: { id: 90, name: 'mode', component: ObjectType.LOG, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.mode]: { id: 90, name: 'mode', component: ObjectType.LOG, enumType: EnumType.RUNTIME_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SKIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30870,8 +30921,10 @@ export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
   [ActionStepProperty.toolsPtr]: { id: 112, name: 'tools_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [ActionStepProperty.delegatePtr]: { id: 113, name: 'delegate_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [21, 22], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
-export const SendStepDataInfo: Record<SendStepProperty, PropertyInfo> = {
-
+export const CreateStepDataInfo: Record<CreateStepProperty, PropertyInfo> = {
+  [CreateStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CreateStepProperty.fieldType]: { id: 101, name: 'field_type', component: ObjectType.STEP, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CreateStepProperty.blockBasePtr]: { id: 102, name: 'block_base_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [31, 12], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LoopStepDataInfo: Record<LoopStepProperty, PropertyInfo> = {
   [LoopStepProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
@@ -31543,7 +31596,7 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
 }
 export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, PropertyInfo>>> = {
   [StepType.ACTION]: ActionStepDataInfo,
-  [StepType.SEND]: SendStepDataInfo,
+  [StepType.CREATE]: CreateStepDataInfo,
   [StepType.LOOP]: LoopStepDataInfo,
   [StepType.TEXT]: TextStepDataInfo,
 }

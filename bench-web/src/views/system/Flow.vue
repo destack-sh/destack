@@ -465,6 +465,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               StepType.COMPLETE,
               StepType.FAIL,
               StepType.ACTION,
+              StepType.CREATE,
               StepType.YIELD,
               StepType.TEXT,
             ]"

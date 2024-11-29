@@ -20,11 +20,7 @@ def _for_every_provider():
 
 async def test_run_action_code(hosted_runtime: RuntimeHandle):
     """Running an empty code action should work."""
-    ActionBlock1 = Block.new(
-        ActionBlock,
-        "Action1",
-        agency=Agency.CODE,
-    )
+    ActionBlock1 = Block.new(ActionBlock, "Action1", agency=Agency.CODE)
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()
 

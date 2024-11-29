@@ -102,7 +102,7 @@ defineExpose<ViewExposed>({ self });
       <div v-if="containingRun != null" class="flex px-1.5 flex-row">
         <template v-if="selfRun != null && selfRun.id != containingRun.id">
           <RunStatus :run="selfRun" />
-          <span class="ml-2 mr-1 text-gray-400">/</span>
+          <span class="ml-2 mr-2 text-gray-400">/</span>
         </template>
         <RunStatus :run="containingRun" />
       </div>
