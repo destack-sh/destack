@@ -50,6 +50,7 @@ from bench.language.const import (
     PrimitiveType,
     QueryType,
     ReferenceKind,
+    RuntimeMode,
     StructType,
     _active_session,
 )
@@ -1622,7 +1623,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
     subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(NODE_SUBTYPE_PACKED_ID)
 
-    # 30+ for 'user' node/struct properties
+    # 30-89 for 'user' node/struct properties
     # <... defined in concrete type ...>
 
     _graph: "NodeGraph" = p_runtime(default=None)
@@ -1632,19 +1633,25 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def __init__(
         self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs
     ):
+        # inject :Tracing context
+        cls = type(self)
+        if isinstance(self, HasTracingContext):
+            if not kwargs.get("mode"):
+                mode = get_tracing_context()
+                kwargs["mode"] = mode
+
+        # init object
         super().__init__(**kwargs, _skip_validate_self=True, _skip_extra_kwargs=True)
 
-        # init ck/id
+        # init node
         if isinstance(self, SourceNode):
             if self.ck is None:
-                self.ck = self.__class__.__ck_factory__()
-                self.id = self.__class__.__id_factory__()
+                self.ck = cls.__ck_factory__()
+                self.id = cls.__id_factory__()
                 self._is_new = True
         elif self.id is None:
-            self.id = self.__class__.__id_factory__()
+            self.id = cls.__id_factory__()
             self._is_new = True
-
-        # init timestamps
         if self.created_at is None:
             if self._session is None and self.metatype == NodeType.SESSION:
                 # 'bootstrap' session with itself
@@ -2092,19 +2099,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         parent = self.parent
         return self.deleted_at is not None or (parent is not None and parent.is_deleted)
 
-    def move(
-        self,
-        to_parent: "Node",
-        after: Optional["Node"],
-        before: Optional["Node"],
-    ):
-        """Move this node to a new parent."""
-        from_parent = self.parent
-        from_parent_ptr = self.parent_ptr
-        assert from_parent_ptr and from_parent, f"{self!r} has no parent"
-        assert to_parent._graph is from_parent._graph, f"{self!r} not in graph of {to_parent!r}"
-        raise NotImplementedError("move not yet supported")
-
     def delete(self):
         """Delete this node (move to trash)."""
         assert not self.is_deleted, f"{self!r} is already deleted"
@@ -2231,6 +2225,22 @@ class NodeSubtypeStub[NodeT: Node]:
         return self._node_cls(type=self._node_subtype, **kwargs)
 
 
+@object_()
+class HasTracingContext(BuiltinObject):
+    """Context for a Node in some Session."""
+
+    # tracing :Tracing
+    mode: RuntimeMode = p_internal(90, default_sql=RuntimeMode.PRODUCTION)
+    # NOTE :Incomplete: richer :Tracing context
+
+
+def get_tracing_context() -> RuntimeMode:
+    """Inject the current runtime mode for a Node."""
+    session = _active_session.get(None)
+    mode = session.active_mode if session is not None else RuntimeMode.PRODUCTION
+    return mode
+
+
 @node_component()
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     """A node that exists inside a Bench."""
@@ -2254,7 +2264,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 
 
 @node_component()
-class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
+class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
     """A node that exists inside a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(
@@ -2287,8 +2297,6 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
 class StateNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
     """A package node with a persistent identity that can be instanced."""
 
-    pass
-
 
 @node_component()
 class HasTimeIdentity(BuiltinObject, abc.ABC):
@@ -2305,26 +2313,26 @@ class HasRuntimeContext(BuiltinObject):
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
     #   them in all Clients. But this also means Users could mess with them if they really want to.
     session: Optional["Session"] = p_internal(
-        90, require=False, array=False, references=NodeType.SESSION, same_bench=True
+        80, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     run: Optional["Run"] = p_internal(
-        91, require=False, array=False, references=NodeType.RUN, same_bench=True
+        81, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     run_root: Optional["Run"] = p_internal(
-        92, require=False, array=False, references=NodeType.RUN, same_bench=True
+        82, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     client: Optional["Client"] = p_internal(
-        93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
+        83, require=False, array=False, references=NodeType.CLIENT, same_bench=True
     )
     machine: Optional["Machine"] = p_internal(
-        94, require=False, array=False, references=NodeType.MACHINE, same_bench=True
+        84, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
     server: Optional["Server"] = p_internal(
-        95, require=False, array=False, references=NodeType.SERVER, same_bench=True
+        85, require=False, array=False, references=NodeType.SERVER, same_bench=True
     )
-    user: Optional["User"] = p_internal(96, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_internal(86, require=False, array=False, references=NodeType.USER)
     identity: Optional["Block"] = p_internal(
-        97,
+        87,
         require=False,
         array=False,
         references=NodeType.BLOCK,

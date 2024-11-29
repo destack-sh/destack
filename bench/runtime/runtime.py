@@ -8,7 +8,14 @@ import structlog
 from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
-from bench.language.const import BenchError, NodeType, ObjectKind, RunErrorKind, RunStatus
+from bench.language.const import (
+    BenchError,
+    NodeType,
+    ObjectKind,
+    RunErrorKind,
+    RunStatus,
+    RuntimeMode,
+)
 from bench.language.graph import NodeGraph
 from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite, Interrupt
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
@@ -93,7 +100,16 @@ class Runtime:
     @property
     def active_run(self) -> Run | None:
         runner = self._active_runner.get(None)
-        return runner.tracked_run if runner else None
+        while runner is not None:
+            if runner.tracked_run is not None:
+                return runner.tracked_run
+            runner = runner.parent
+        return None
+
+    @property
+    def active_mode(self) -> RuntimeMode:
+        runner = self._active_runner.get(None)
+        return runner.mode if runner else self.session.mode
 
     @tracer.start_as_current_span("runtime.run_runner.attempt")
     async def _do_attempt(self, runner: Runner, retry: RetryState, attempt: RunAttempt):
@@ -368,12 +384,13 @@ class Runtime:
         run: Run | RunnableNode,
         *,
         inputs: Any | None = None,
+        mode: RuntimeMode | None = None,
         return_error: bool = False,
         optimistic: bool = False,
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         if not isinstance(run, Run):
-            run = make_run_from_node(run, inputs=inputs, parent=self.active_run)
+            run = make_run_from_node(run, inputs=inputs, mode=mode, parent=self.active_run)
             self.session._create(run)
         runner = None
         async with self.session.active():

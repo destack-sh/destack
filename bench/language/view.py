@@ -549,7 +549,7 @@ class View(SourceNode[ViewData]):
     is_input: bool = p_regular(82, default=False)
     is_inline: bool = p_regular(83, default=False)
     ...
-    is_loading: bool = p_regular(90, default=False)
+    is_loading: bool = p_regular(85, default=False)
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
 

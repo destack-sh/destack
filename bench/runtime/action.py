@@ -11,7 +11,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import code
-from bench.language.action import ActionMode
+from bench.language.action import Agency
 from bench.language.block import ActionBlock, Block
 from bench.language.code import Code
 from bench.language.const import BlockType, ObjectKind
@@ -62,7 +62,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         attempt = self.current_attempt
         assert attempt is not None, f"no current attempt for {self!r}"
         action = cast(Action, self.node)
-        if action.mode == ActionMode.CODE:
+        if action.agency == Agency.CODE:
             # run directly
             self.outputs = await self._run_implementation(
                 attempt=attempt,
@@ -70,7 +70,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                 tools=action.tools,
                 inputs=self.inputs,
             )
-        elif action.mode == ActionMode.DELEGATE:
+        elif action.agency == Agency.DELEGATE:
             # run delegate directly
             delegate = action.delegate
             if not delegate:
@@ -82,7 +82,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
             )
             await self.runtime.run_runner(delegate_runner)
             self.outputs = delegate_runner.outputs
-        elif action.mode == ActionMode.GENERATE:
+        elif action.agency == Agency.GENERATE:
             if attempt.code is None:
                 # if attempt doesn't have code yet, generate it
                 #  (the code may be from a previous run at this attempt that was interrupted)
@@ -116,7 +116,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                 inputs=self.inputs,
             )
         else:
-            assert_never(action.mode)
+            assert_never(action.agency)
 
     def _get_resumable_subrunner(
         self, node: RunnableNode, inputs: CustomObject | None, output_type: TypeBase | None = None

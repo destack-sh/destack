@@ -34,6 +34,7 @@ from bench.language.const import (
     ClientType,
     ObjectType,
     Region,
+    RuntimeMode,
     UserStatus,
     _active_session,
 )
@@ -226,9 +227,10 @@ class RuntimeHandle:
         run: Run | RunnableNode,
         *,
         inputs: Any | None = None,
+        mode: RuntimeMode | None = None,
         return_error: bool = False,
     ) -> Runner:
-        runner = await self.runtime.run(run, inputs=inputs, return_error=return_error)
+        runner = await self.runtime.run(run, inputs=inputs, mode=mode, return_error=return_error)
         assert runner is not None, f"no runner for {run!r}"
         return runner
 

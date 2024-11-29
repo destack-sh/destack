@@ -120,7 +120,7 @@ class Log(RuntimeNode[LogData]):
     )
 
     # context
-    # ...HasRuntimeContext[90-99]
+    # ...HasRuntimeContext[80-99]
 
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] ({self.created_at})"

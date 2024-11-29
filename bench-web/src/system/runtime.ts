@@ -1,20 +1,22 @@
 import { ACTIVE_RUN_STATUSES } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
+import { makeNode } from "@/language/node";
 import { timesortNode } from "@/language/order";
 import {
   getRunBasePtr,
+  getRunType,
   isRunActive,
   isRunnable,
   isRunPaused,
   isRunTerminal,
-  makeRun,
   RunnableNode,
   RunnableNodeType,
   type RunnableObject,
 } from "@/language/session";
 import { type Transaction } from "@/language/transaction";
 import {
+  BlockData,
   ChangeCategory,
   ExpressionType,
   IconData,
@@ -23,18 +25,31 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PipeData,
   RunOptionsData,
   RunProperty,
   RunStatus,
+  RuntimeMode,
+  StepData,
+  StructType,
   Timestamp,
   type RunData,
 } from "@/proto/wire";
-import { describeNode, propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  describeNode,
+  isNode,
+  isStruct,
+  makeDefaultObject,
+  propertyReference,
+  toNodeRef,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { pkgConnection, pkgGraph, space, spaceConnection } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
+import { assertNever } from "@protobuf-ts/runtime";
 import { computed, type Ref } from "vue";
 
 /** A reactive Run with all its descendants */
@@ -273,6 +288,58 @@ export class Runtime {
 
 const runPtr = computedValue(() => space.value?.runPtr ?? null);
 export const runtime = new Runtime(pkgGraph, () => pkgConnection.tx, runPtr);
+
+export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
+  return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;
+}
+
+/** Make a new Run for some runnable node */
+export function makeRun(
+  graph: ReadNodeGraph,
+  runnable: RunnableObject,
+  options?: {
+    inputsPacked?: Record<string, any>;
+    packagePtr?: NodeReferenceData;
+    options?: RunOptionsData;
+    mode?: RuntimeMode;
+  },
+): RunData {
+  let packagePtr: NodeReferenceData | undefined = undefined;
+  let block: BlockData | undefined = undefined;
+  let step: StepData | undefined = undefined;
+  let pipe: PipeData | undefined = undefined;
+  if (isNode(runnable, NodeType.BLOCK)) {
+    block = runnable;
+    packagePtr = options?.packagePtr ?? runnable.packagePtr;
+  } else if (isNode(runnable, NodeType.STEP)) {
+    step = runnable;
+    block = graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
+    packagePtr = options?.packagePtr ?? step.packagePtr;
+  } else if (isNode(runnable, NodeType.PIPE)) {
+    pipe = runnable;
+    block = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
+    packagePtr = options?.packagePtr ?? pipe.packagePtr;
+  } else if (isStruct(runnable, StructType.TEXT) || isStruct(runnable, StructType.CODE)) {
+    if (options?.packagePtr == null) throw new Error(`missing package ptr for runnable lambda: ${runnable}`);
+    packagePtr = options.packagePtr;
+  } else {
+    assertNever(runnable);
+  }
+  const run = makeNode({
+    metatype: NodeType.RUN,
+    parentPtr: packagePtr,
+    packagePtr: packagePtr,
+    type: getRunType(runnable),
+    status: RunStatus.SCHEDULED,
+    mode: options?.mode ?? space.value?.mode ?? RuntimeMode.PRODUCTION,
+    blockPtr: block != null ? toNodeRef(block) : undefined,
+    stepPtr: isNode(runnable, NodeType.STEP) ? toNodeRef(runnable) : undefined,
+    pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,
+    inputsPacked: options?.inputsPacked ?? undefined,
+    options: makeRunOptions(options?.options),
+  });
+  return run;
+}
 
 type RuntimeAction = { title: string; isPrimary?: boolean; icon: IconData; action: () => void };
 

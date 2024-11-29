@@ -242,7 +242,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
           :key="fieldView.field.id"
           class="mx-auto w-full"
           :class="[
-            fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row items-center gap-x-[10%]',
+            fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[5%]',
             variant != Variant.STEALTH ? 'px-4' : '',
           ]"
           :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"

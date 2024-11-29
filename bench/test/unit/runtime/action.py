@@ -1,6 +1,6 @@
 import pytest
 
-from bench.language.action import ActionMode
+from bench.language.action import Agency
 from bench.language.block import ActionBlock, Block
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
@@ -23,7 +23,7 @@ async def test_run_action_code(hosted_runtime: RuntimeHandle):
     ActionBlock1 = Block.new(
         ActionBlock,
         "Action1",
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()
@@ -34,7 +34,7 @@ async def test_run_action_code(hosted_runtime: RuntimeHandle):
 
 async def test_run_action_empty_generate(hosted_runtime: RuntimeHandle):
     """Running an empty action in generate mode should raise an error."""
-    ActionBlock1 = Block.new(ActionBlock, "Action1", mode=ActionMode.GENERATE)
+    ActionBlock1 = Block.new(ActionBlock, "Action1", agency=Agency.GENERATE)
     hosted_runtime.page().blocks.append(ActionBlock1)
     await hosted_runtime.commit()
 
@@ -52,7 +52,7 @@ async def test_run_action_math(hosted_runtime: RuntimeHandle):
         ActionBlock,
         "Action1",
         text=md("Add 1"),
-        mode=ActionMode.GENERATE,
+        agency=Agency.GENERATE,
         fields=[Field.input("x", int), Field.output("y", int)],
     )
     hosted_runtime.page().blocks.append(ActionBlock1)
@@ -86,7 +86,7 @@ async def test_run_action_dynamic_text(hosted_runtime: RuntimeHandle):
         ActionBlock,
         "Action1",
         text=md("Judge text sentiment"),
-        mode=ActionMode.GENERATE,
+        agency=Agency.GENERATE,
         fields=(Field.input("Text", str), Field.output("Sentiment", Sentiment)),
     )
     hosted_runtime.page().blocks.append(ActionBlock1)

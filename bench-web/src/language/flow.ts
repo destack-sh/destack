@@ -3,7 +3,7 @@ import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
 import type { Transaction, TransactionOptions } from "@/language/transaction";
 import {
-  ActionMode,
+  Agency,
   BlockData,
   BlockType,
   ColorShade,
@@ -138,8 +138,8 @@ export class StepState {
       } else if (stepType == StepType.COMPLETE) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
       } else if (stepType == StepType.ACTION) {
-        const mode = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, this.step.value?.subnodePacked, "mode");
-        if (mode == ActionMode.DELEGATE) {
+        const agency = unpackSubnodeProperty(NodeType.STEP, StepType.ACTION, this.step.value?.subnodePacked, "agency");
+        if (agency == Agency.DELEGATE) {
           return this.delegateFields.value;
         } else {
           return this.stepFields.value;
@@ -1114,7 +1114,7 @@ export function createStep(
       metatype: StructType.VECTOR2,
       x: options.near.x - STEP_SIZE.width / 2,
       y: options.near.y - STEP_SIZE.height / 2,
-    }); 
+    });
   }
 
   // create
@@ -1169,108 +1169,4 @@ export function createPipe(
     targetPtr: toNodeRef(target.parent),
   });
   return pipe;
-}
-
-interface AStarNode {
-  x: number;
-  y: number;
-  g: number; // cost from start
-  h: number; // heuristic estimate of distance to target
-  f: number; // total cost
-  parent: AStarNode | null;
-}
-
-function manhattanDistance(a: Vector2, b: Vector2): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-function euclideanDistance(a: Vector2, b: Vector2): number {
-  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
-}
-
-/** Finds the shortest path between two points on a grid using the A* algorithm. */
-function pathfind(
-  source: Vector2,
-  target: Vector2,
-  options: { step: number; maxIterations: number; hit: (vec: Vector2) => BoundingBox | undefined },
-): Vector2[] | null {
-  const openSet: AStarNode[] = [];
-  const closedSet: Set<string> = new Set();
-  const MANHATTEN_WEIGHT = 1.0;
-  const EUCLIDEAN_WEIGHT = 0.5;
-  const DIRECTION_CHANGE_WEIGHT = 1.0;
-
-  const startNode: AStarNode = {
-    x: source.x,
-    y: source.y,
-    g: 0,
-    h: manhattanDistance(source, target),
-    f: 0,
-    parent: null,
-  };
-  startNode.f = startNode.g + startNode.h;
-
-  openSet.push(startNode);
-
-  const directions = [
-    { dx: options.step, dy: 0 },
-    { dx: 0, dy: options.step },
-    { dx: -options.step, dy: 0 },
-    { dx: 0, dy: -options.step },
-  ];
-
-  let iterations = 0;
-  while (openSet.length > 0 && iterations < options.maxIterations) {
-    iterations++;
-    openSet.sort((a, b) => a.f - b.f);
-    const current = openSet.shift()!;
-
-    if (Math.abs(target.x - current.x) <= 1 && Math.abs(target.y - current.y) <= 1) {
-      // path found, reconstruct and return it
-      const path: Vector2[] = [];
-      let node: AStarNode | null = current;
-      while (node) {
-        path.unshift({ x: node.x, y: node.y });
-        node = node.parent;
-      }
-      return path;
-    }
-    closedSet.add(`${current.x},${current.y}`);
-
-    for (const { dx, dy } of directions) {
-      const nextPos = { x: current.x + dx, y: current.y + dy };
-      if (options.hit(nextPos) || closedSet.has(`${nextPos.x},${nextPos.y}`)) {
-        continue; // already hit or closed
-      }
-
-      const directionChanged = current.parent?.x !== nextPos.x && current.parent?.y !== nextPos.y;
-      const g = current.g + options.step + (directionChanged ? options.step * DIRECTION_CHANGE_WEIGHT : 0);
-      const h =
-        manhattanDistance(nextPos, target) * MANHATTEN_WEIGHT +
-        euclideanDistance(nextPos, target) * EUCLIDEAN_WEIGHT +
-        (directionChanged ? 1 : 0) * options.step * DIRECTION_CHANGE_WEIGHT;
-
-      const f = g + h;
-      const existingOpenNode = openSet.find((node) => node.x === nextPos.x && node.y === nextPos.y);
-      if (existingOpenNode) {
-        if (g < existingOpenNode.g) {
-          existingOpenNode.g = g;
-          existingOpenNode.f = f;
-          existingOpenNode.parent = current;
-        }
-      } else {
-        openSet.push({
-          x: nextPos.x,
-          y: nextPos.y,
-          g,
-          h,
-          f,
-          parent: current,
-        });
-      }
-    }
-  }
-
-  // no path found
-  return null;
 }

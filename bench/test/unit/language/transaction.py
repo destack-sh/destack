@@ -1,4 +1,4 @@
-from bench.language.action import ActionMode
+from bench.language.action import Agency
 from bench.language.block import Block, FlowBlock, ValueBlock
 from bench.language.const import BlockType, EditOperationType
 from bench.language.field import Field, to_type
@@ -67,7 +67,7 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     ]
 
     # subtype set
-    ActionStep1.mode = ActionMode.GENERATE
+    ActionStep1.agency = Agency.GENERATE
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,

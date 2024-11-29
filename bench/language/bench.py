@@ -21,6 +21,7 @@ from bench.language.list import LocalNodeList
 from bench.language.node import (
     BenchNode,
     ClientOrigin,
+    HasTracingContext,
     SourceNode,
     local_node_,
     node_,
@@ -288,7 +289,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component()
-class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
+class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
     """
     An external resource in a Bench.
     Resources generally work on the 'desired state' principle.

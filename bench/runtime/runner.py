@@ -17,7 +17,7 @@ from opentelemetry import trace
 
 from bench.language import Block, Step
 from bench.language.code import Code
-from bench.language.const import ObjectKind, RunStatus
+from bench.language.const import ObjectKind, RunStatus, RuntimeMode
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe
 from bench.language.interrupt import (
@@ -29,6 +29,7 @@ from bench.language.interrupt import (
     InterruptType,
 )
 from bench.language.log import LogInfo
+from bench.language.node import get_tracing_context
 from bench.language.run import (
     Context,
     Run,
@@ -84,6 +85,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "is_killed",
         "kind",
         "logs",
+        "mode",
         "node",
         "options",
         "outer_task",
@@ -112,6 +114,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         parent: "Runner | None" = None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
+        mode: RuntimeMode | None = None,
         run: Run | None = None,
     ) -> None:
         self.id = run.id if run is not None else UUIDT()
@@ -138,6 +141,16 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.outer_task: asyncio.Task | None = None
         self.is_killed = False
 
+        # determine mode
+        if mode is not None:
+            self.mode = mode
+        elif self.parent is not None:
+            self.mode = self.parent.mode
+        elif run is not None:
+            self.mode = run.mode
+        else:
+            self.mode = RuntimeMode.PRODUCTION
+
         # nest active Runners/Runs
         if self.parent is not None:
             self.parent.runners.append(self)
@@ -156,6 +169,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     pipe=node if isinstance(node, Pipe) else None,
                     options=options,
                     status=self.status,
+                    mode=self.mode,
                     inputs=self.inputs,
                     session=self.session,
                     _skip_validate_self=True,
@@ -355,6 +369,7 @@ def make_run_from_node(
     node: "RunnableNode",
     *,
     inputs: Any | None = None,
+    mode: RuntimeMode | None = None,
     parent: "Run | None" = None,
 ) -> "Run":
     """Creates a Run from a runnable Node."""
@@ -388,6 +403,7 @@ def make_run_from_node(
         step=step,
         pipe=pipe,
         options=options,
+        mode=mode or get_tracing_context(),
     )
     if inputs is None:
         inputs = {}
@@ -413,7 +429,6 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
         runtime,
         node,
         kind=run.type,
-        options=run.options,
         context=run.context,
         inputs=inputs,
         run=run,
@@ -429,9 +444,9 @@ def make_runner(
     kind: RunType | None = None,
     context: Context | None = None,
     inputs: Any | None = None,
+    output_type: TypeBase | None = None,
     parent: "Run | None" = None,
     run: Run | None = None,
-    **kwargs,
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
 
@@ -443,11 +458,11 @@ def make_runner(
         "options": options,
         "context": context,
         "inputs": inputs,
+        "output_type": output_type,
         "run": run,
         "track": track,
         "node": node,
         "parent": parent,
-        **kwargs,
     }
     if RUN_TYPE == RunType.CODE:
         from bench.runtime.code import CodeFunctionRunner

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.11.28.4"
+VERSION = "2024.11.29.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -302,6 +302,7 @@ SERVER_TABLE = Table(
         Column("max_ram", PrimitiveType.FLOAT32, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("bumped_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -333,6 +334,7 @@ STORE_TABLE = Table(
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -359,6 +361,7 @@ DRIVE_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column("current_status", PrimitiveType.INT16),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -385,6 +388,7 @@ VAULT_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column("current_status", PrimitiveType.INT16),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -411,6 +415,7 @@ CACHE_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column("current_status", PrimitiveType.INT16),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -460,6 +465,7 @@ MACHINE_TABLE = Table(
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("restarted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -485,6 +491,7 @@ BROWSER_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column("current_status", PrimitiveType.INT16),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -529,6 +536,7 @@ FILE_TABLE = Table(
         Column("sample_rate", PrimitiveType.INT32, is_nullable=True),
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -554,6 +562,7 @@ STREAM_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column("current_status", PrimitiveType.INT16),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -582,6 +591,7 @@ SECRET_TABLE = Table(
         Column("current_status", PrimitiveType.INT16),
         Column("value_type", PrimitiveType.JSON),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -746,6 +756,7 @@ DEPENDENCY_TABLE = Table(
         Column("scopes_bench_id", PrimitiveType.UUID, is_array=True),
         Column("dependency_id", PrimitiveType.UUID),
         Column("dependency_bench_id", PrimitiveType.UUID),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -797,6 +808,7 @@ SPACE_TABLE = Table(
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -843,6 +855,7 @@ BLOCK_TABLE = Table(
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("is_builtin", PrimitiveType.BOOLEAN, default="false"),
         Column("is_owned", PrimitiveType.BOOLEAN, default="false"),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -882,6 +895,7 @@ TRIGGER_TABLE = Table(
         Column("message_ck", PrimitiveType.UUID, is_nullable=True),
         Column("message_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -937,6 +951,7 @@ FIELD_TABLE = Table(
         Column("is_required", PrimitiveType.BOOLEAN, default="false"),
         Column("is_list", PrimitiveType.BOOLEAN, default="false"),
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -987,6 +1002,7 @@ QUERY_TABLE = Table(
         Column("include_deleted", PrimitiveType.BOOLEAN, default="false"),
         Column("first", PrimitiveType.INT32, is_nullable=True),
         Column("skip", PrimitiveType.INT32, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -1046,6 +1062,7 @@ VIEW_TABLE = Table(
         Column("is_input", PrimitiveType.BOOLEAN, default="false"),
         Column("is_inline", PrimitiveType.BOOLEAN, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, default="false"),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -1089,6 +1106,7 @@ STEP_TABLE = Table(
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("size", PrimitiveType.JSON, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
 
@@ -1135,6 +1153,7 @@ PIPE_TABLE = Table(
         Column("mapping", PrimitiveType.JSON, is_nullable=True),
         Column("mapping_code", PrimitiveType.JSON, is_nullable=True),
         Column("delay", PrimitiveType.INTERVAL, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
         Column("is_name_hidden", PrimitiveType.BOOLEAN, default="false"),
@@ -1176,6 +1195,7 @@ BADGE_TABLE = Table(
         ),
         Column("password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
         Column("password_hash", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
     indexes=(
         Index("bench_idx_key", IndexType.BTREE, ("key",), is_unique=True),
@@ -1235,6 +1255,7 @@ MESSAGE_TABLE = Table(
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("read_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("is_pinned", PrimitiveType.BOOLEAN, default="false"),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1281,6 +1302,7 @@ SESSION_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
@@ -1367,6 +1389,7 @@ RUN_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1432,6 +1455,7 @@ INTERRUPT_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1487,6 +1511,7 @@ LOG_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="1"),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),

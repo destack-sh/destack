@@ -18,8 +18,10 @@ import {
   type BlockData,
   type RunData,
   type StepData,
+  RuntimeMode,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, makeDefaultObject, toNodeRef } from "@/proto/wiring";
+import { space } from "@/system/space";
 import { assertNever } from "@/utils/functools";
 import {
   compareTimestamps,
@@ -125,50 +127,4 @@ export function getInterruptDurationString(interrupt: InterruptData, options?: F
   const durationMs = getInterruptDurationMs(interrupt, nowMs);
   if (durationMs == 0) return null;
   return formatDuration(durationMs, options);
-}
-
-export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
-  return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;
-}
-
-/** Make a new Run for some runnable node */
-export function makeRun(
-  graph: ReadNodeGraph,
-  runnable: RunnableObject,
-  options?: { inputsPacked?: Record<string, any>; packagePtr?: NodeReferenceData; options?: RunOptionsData },
-): RunData {
-  let packagePtr: NodeReferenceData | undefined = undefined;
-  let block: BlockData | undefined = undefined;
-  let step: StepData | undefined = undefined;
-  let pipe: PipeData | undefined = undefined;
-  if (isNode(runnable, NodeType.BLOCK)) {
-    block = runnable;
-    packagePtr = options?.packagePtr ?? runnable.packagePtr;
-  } else if (isNode(runnable, NodeType.STEP)) {
-    step = runnable;
-    block = graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
-    packagePtr = options?.packagePtr ?? step.packagePtr;
-  } else if (isNode(runnable, NodeType.PIPE)) {
-    pipe = runnable;
-    block = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
-    packagePtr = options?.packagePtr ?? pipe.packagePtr;
-  } else if (isStruct(runnable, StructType.TEXT) || isStruct(runnable, StructType.CODE)) {
-    if (options?.packagePtr == null) throw new Error(`missing package ptr for runnable lambda: ${runnable}`);
-    packagePtr = options.packagePtr;
-  } else {
-    assertNever(runnable);
-  }
-  const run = makeNode({
-    metatype: NodeType.RUN,
-    parentPtr: packagePtr,
-    packagePtr: packagePtr,
-    type: getRunType(runnable),
-    status: RunStatus.SCHEDULED,
-    blockPtr: block != null ? toNodeRef(block) : undefined,
-    stepPtr: isNode(runnable, NodeType.STEP) ? toNodeRef(runnable) : undefined,
-    pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,
-    inputsPacked: options?.inputsPacked ?? undefined,
-    options: makeRunOptions(options?.options),
-  });
-  return run;
 }

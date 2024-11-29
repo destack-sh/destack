@@ -10,6 +10,7 @@ from bench.language.const import (
     EnumType,
     FieldType,
     NodeType,
+    RunType,
     StructType,
     TypeKind,
     enum_,
@@ -30,7 +31,7 @@ from bench.language.property import (
     p_node_parent,
     p_regular,
 )
-from bench.language.run import RunOptions, RunType
+from bench.language.run import RunOptions
 from bench.language.validation import (
     NAME_CONSTRAINT,
     constraint,

@@ -23,7 +23,6 @@ import { useElementSize } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, Ref, shallowRef, toRef, watchEffect, onMounted } from "vue";
 
-const TREE_WIDTH = 280;
 const DEPTH_OFFSET = 12;
 const ROW_HEIGHT = 28;
 const BAR_PADDING = 4;
@@ -35,7 +34,7 @@ const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.R
 
 const containerRef = ref<HTMLElement | null>(null);
 const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
-const spanContainerWidth = computed(() => containerWidth.value - TREE_WIDTH);
+const spanContainerWidth = computed(() => containerWidth.value);
 
 // Add this near the other refs at the top of the script
 const isInitialRender = ref(true);
@@ -175,12 +174,12 @@ onMounted(() => {
 <template>
   <!-- Spans -->
   <!-- NOTE :Incomplete: RunTimeline 'axis' markers above spans (regularly spaced) -->
-  <div ref="containerRef" class="flex w-full flex-1 flex-col">
+  <div ref="containerRef" class="flex w-full flex-1 flex-col gap-y-0.5">
     <!-- Span -->
     <div
       v-for="span in timeline.spans"
       :key="span.id"
-      class="group/span relative flex w-full flex-row items-center rounded transition-colors duration-75"
+      class="group/span relative w-full rounded transition-colors duration-75"
       :class="[canvas.isHighlighted(span.baseNode) ? 'bg-gray-100' : 'bg-white hover:bg-gray-100']"
       :style="{
         height: ROW_HEIGHT + 'px',
@@ -191,12 +190,25 @@ onMounted(() => {
     >
       <!-- Tree  -->
       <div
-        class="flex flex-shrink-0 flex-row items-center pr-2"
+        class="relative flex w-full flex-row items-center py-1 pr-2"
         :style="{
           paddingLeft: span.depth * DEPTH_OFFSET + 'px',
-          width: TREE_WIDTH + 'px',
         }"
       >
+        <!-- Timeline -->
+        <div
+          class="absolute bottom-0 h-[2px] w-full transform bg-red-500"
+          :class="{ 'transition-all duration-100': !isInitialRender }"
+          :style="{
+            width: Math.max(MIN_SPAN_WIDTH, span.widthRelative * spanContainerWidth) + 'px',
+            left: span.offsetRelative * spanContainerWidth + 'px',
+            backgroundColor: span.color,
+          }"
+        >
+          <!-- Marker left/right -->
+          <div class="absolute left-0 top-[-2px] h-[6px] w-[2px]" :style="{ backgroundColor: span.color }" />
+          <div class="absolute right-0 top-[-2px] h-[6px] w-[2px]" :style="{ backgroundColor: span.color }" />
+        </div>
         <!-- Node -->
         <button
           class="group/node truncate hover:cursor-pointer"
@@ -217,19 +229,6 @@ onMounted(() => {
           />
         </div>
       </div>
-      <!-- Timeline -->
-      <div
-        class="absolute transform rounded"
-        :class="{ 'transition-all duration-100': !isInitialRender }"
-        :style="{
-          height: ROW_HEIGHT - 2 * BAR_PADDING + 'px',
-          top: BAR_PADDING + 'px',
-          width: Math.max(MIN_SPAN_WIDTH, span.widthRelative * spanContainerWidth) + 'px',
-          left: TREE_WIDTH + span.offsetRelative * spanContainerWidth + 'px',
-          backgroundColor: span.color,
-        }"
-        @click.stop="isNode(span.baseNode) && canvas.goToNode(span.baseNode)"
-      ></div>
     </div>
   </div>
 </template>

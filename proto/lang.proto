@@ -42,7 +42,7 @@ enum EnumType {
   ENUM_TYPE_TYPE_FORMAT = 21504;
   ENUM_TYPE_OBJECT_KIND = 21505;
   ENUM_TYPE_BLOCK_TYPE = 21506;
-  ENUM_TYPE_ACTION_MODE = 21507;
+  ENUM_TYPE_AGENCY = 21507;
   ENUM_TYPE_SCHEDULE_TYPE = 22001;
   ENUM_TYPE_TIME_INTERVAL = 22002;
   ENUM_TYPE_DAY = 22003;
@@ -83,6 +83,7 @@ enum EnumType {
   ENUM_TYPE_PORT_SIDE = 23021;
   ENUM_TYPE_PIPE_TYPE = 23022;
   ENUM_TYPE_NOTIFICATION_LEVEL = 23023;
+  ENUM_TYPE_RUNTIME_MODE = 23024;
   ENUM_TYPE_SPACE_TYPE = 23501;
   ENUM_TYPE_VIEW_TYPE = 23502;
   ENUM_TYPE_VARIANT = 23503;
@@ -546,7 +547,7 @@ enum BenchType {
   BENCH_TYPE_TYPE_FORMAT = 21504;
   BENCH_TYPE_OBJECT_KIND = 21505;
   BENCH_TYPE_BLOCK_TYPE = 21506;
-  BENCH_TYPE_ACTION_MODE = 21507;
+  BENCH_TYPE_AGENCY = 21507;
   BENCH_TYPE_SCHEDULE_TYPE = 22001;
   BENCH_TYPE_TIME_INTERVAL = 22002;
   BENCH_TYPE_DAY = 22003;
@@ -587,6 +588,7 @@ enum BenchType {
   BENCH_TYPE_PORT_SIDE = 23021;
   BENCH_TYPE_PIPE_TYPE = 23022;
   BENCH_TYPE_NOTIFICATION_LEVEL = 23023;
+  BENCH_TYPE_RUNTIME_MODE = 23024;
   BENCH_TYPE_SPACE_TYPE = 23501;
   BENCH_TYPE_VIEW_TYPE = 23502;
   BENCH_TYPE_VARIANT = 23503;
@@ -893,11 +895,11 @@ enum BlockType {
   BLOCK_TYPE_IDENTITY = 51;
 }
 
-enum ActionMode {
-  ACTION_MODE_UNSPECIFIED = 0;
-  ACTION_MODE_CODE = 1;
-  ACTION_MODE_DELEGATE = 2;
-  ACTION_MODE_GENERATE = 3;
+enum Agency {
+  AGENCY_UNSPECIFIED = 0;
+  AGENCY_CODE = 1;
+  AGENCY_DELEGATE = 2;
+  AGENCY_GENERATE = 3;
 }
 
 enum ScheduleType {
@@ -983,6 +985,7 @@ enum MessageStatus {
   MESSAGE_STATUS_FAILED = 5;
   MESSAGE_STATUS_RECEIVED = 6;
   MESSAGE_STATUS_READ = 7;
+  MESSAGE_STATUS_EXPIRED = 8;
 }
 
 enum ExpressionKind {
@@ -1311,6 +1314,13 @@ enum NotificationLevel {
   NOTIFICATION_LEVEL_PASSIVE = 1;
   NOTIFICATION_LEVEL_ACTIVE = 2;
   NOTIFICATION_LEVEL_URGENT = 3;
+}
+
+enum RuntimeMode {
+  RUNTIME_MODE_UNSPECIFIED = 0;
+  RUNTIME_MODE_PRODUCTION = 1;
+  RUNTIME_MODE_DEVELOPMENT = 2;
+  RUNTIME_MODE_TEST = 3;
 }
 
 enum SpaceType {
@@ -2188,14 +2198,14 @@ message EditContextData {
 
 message RuntimeContextData {
   ObjectType metatype = 1;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData server_ptr = 95;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
 }
 
 message BaseNodeData {
@@ -2259,6 +2269,7 @@ message FieldData {
   bool is_required = 60;
   bool is_list = 61;
   bool is_secret = 62;
+  RuntimeMode mode = 90;
 }
 
 message BenchData {
@@ -2355,6 +2366,7 @@ message DependencyData {
   optional google.protobuf.Value subnode_packed = 29;
   repeated NodeReferenceData scopes_ptr = 30;
   NodeReferenceData dependency_ptr = 40;
+  RuntimeMode mode = 90;
 }
 
 message ServerData {
@@ -2383,6 +2395,7 @@ message ServerData {
   optional float max_ram = 53;
   optional google.protobuf.Timestamp active_at = 60;
   optional google.protobuf.Timestamp bumped_at = 61;
+  RuntimeMode mode = 90;
 }
 
 message StoreData {
@@ -2408,6 +2421,7 @@ message StoreData {
   optional string external_name = 50;
   optional string external_id = 51;
   optional string connection_uri = 52;
+  RuntimeMode mode = 90;
 }
 
 message DriveData {
@@ -2428,6 +2442,7 @@ message DriveData {
   Region region = 35;
   ResourceStatus status = 36;
   ResourceStatus current_status = 37;
+  RuntimeMode mode = 90;
 }
 
 message VaultData {
@@ -2448,6 +2463,7 @@ message VaultData {
   Region region = 35;
   ResourceStatus status = 36;
   ResourceStatus current_status = 37;
+  RuntimeMode mode = 90;
 }
 
 message CacheData {
@@ -2468,6 +2484,7 @@ message CacheData {
   Region region = 35;
   ResourceStatus status = 36;
   ResourceStatus current_status = 37;
+  RuntimeMode mode = 90;
 }
 
 message ClientData {
@@ -2617,6 +2634,7 @@ message BadgeData {
   optional string key_hash = 41;
   optional string password = 42;
   optional string password_hash = 43;
+  RuntimeMode mode = 90;
 }
 
 message QueryData {
@@ -2651,6 +2669,7 @@ message QueryData {
   bool include_deleted = 61;
   optional int32 first = 62;
   optional int32 skip = 63;
+  RuntimeMode mode = 90;
 }
 
 message BlockData {
@@ -2683,6 +2702,7 @@ message BlockData {
   optional NodeReferenceData identity_ptr = 45;
   bool is_builtin = 60;
   bool is_owned = 61;
+  RuntimeMode mode = 90;
 }
 
 // A building block with logic, types, UI, state, auth, AI, ...
@@ -2693,7 +2713,7 @@ message ValueBlockData {
 
 // A building block with logic, types, UI, state, auth, AI, ...
 message ActionBlockData {
-  ActionMode mode = 100;
+  Agency agency = 100;
   bool is_dynamic = 101;
   optional CodeData code = 111;
   repeated NodeReferenceData tools_ptr = 112;
@@ -2735,6 +2755,7 @@ message RecordData {
   optional string order_key = 33;
   NodeReferenceData block_ptr = 34;
   optional google.protobuf.Value value_packed = 40;
+  RuntimeMode mode = 90;
 }
 
 message FileData {
@@ -2773,6 +2794,7 @@ message FileData {
   optional int32 sample_rate = 63;
   FileRetentionMode retention = 70;
   optional google.protobuf.Timestamp expires_at = 71;
+  RuntimeMode mode = 90;
 }
 
 message RunData {
@@ -2820,14 +2842,15 @@ message RunData {
   repeated LogInfoData logs = 65;
   repeated RunSpanData spans = 66;
   repeated RunEventData events = 67;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData server_ptr = 95;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+  RuntimeMode mode = 90;
 }
 
 message PipeData {
@@ -2860,6 +2883,7 @@ message PipeData {
   optional ObjectMappingData mapping = 70;
   optional CodeData mapping_code = 71;
   optional google.protobuf.Duration delay = 80;
+  RuntimeMode mode = 90;
   optional ColorData color = 91;
   bool is_hidden = 92;
   bool is_name_hidden = 93;
@@ -2897,11 +2921,12 @@ message StepData {
   optional NodeReferenceData identity_ptr = 43;
   optional Vector2Data position = 80;
   optional RectangleData size = 81;
+  RuntimeMode mode = 90;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message ActionStepData {
-  ActionMode mode = 100;
+  Agency agency = 100;
   bool is_dynamic = 101;
   optional CodeData code = 111;
   repeated NodeReferenceData tools_ptr = 112;
@@ -2945,6 +2970,7 @@ message TriggerData {
   optional ScheduleData schedule = 50;
   optional NodeReferenceData message_ptr = 51;
   optional ExpressionData condition = 52;
+  RuntimeMode mode = 90;
 }
 
 message InterruptData {
@@ -2974,14 +3000,15 @@ message InterruptData {
   optional NodeReferenceData trigger_ptr = 49;
   optional google.protobuf.Value inputs_packed = 51;
   optional google.protobuf.Value outputs_packed = 52;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData server_ptr = 95;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+  RuntimeMode mode = 90;
 }
 
 message LogData {
@@ -3008,14 +3035,15 @@ message LogData {
   repeated EditOperationData operations = 44;
   optional ChangeCategory category = 48;
   optional ChangeVignetteData vignette = 49;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData server_ptr = 95;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+  RuntimeMode mode = 90;
 }
 
 message MachineData {
@@ -3052,6 +3080,7 @@ message MachineData {
   optional google.protobuf.Timestamp terminated_at = 62;
   optional google.protobuf.Timestamp active_at = 63;
   optional google.protobuf.Timestamp restarted_at = 64;
+  RuntimeMode mode = 90;
 }
 
 message BrowserData {
@@ -3071,6 +3100,7 @@ message BrowserData {
   Region region = 35;
   ResourceStatus status = 36;
   ResourceStatus current_status = 37;
+  RuntimeMode mode = 90;
 }
 
 message MessageData {
@@ -3098,6 +3128,7 @@ message MessageData {
   optional google.protobuf.Timestamp expires_at = 44;
   optional google.protobuf.Timestamp read_at = 45;
   bool is_pinned = 50;
+  RuntimeMode mode = 90;
 }
 
 message ViewData {
@@ -3141,7 +3172,8 @@ message ViewData {
   bool is_disabled = 81;
   bool is_input = 82;
   bool is_inline = 83;
-  bool is_loading = 90;
+  bool is_loading = 85;
+  RuntimeMode mode = 90;
 }
 
 // A view of a user interface in a Bench.
@@ -3218,6 +3250,7 @@ message SpaceData {
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
   optional NodeReferenceData run_ptr = 77;
+  RuntimeMode mode = 80;
 }
 
 message SecretData {
@@ -3240,6 +3273,7 @@ message SecretData {
   ResourceStatus current_status = 37;
   TypeInfoData value_type = 40;
   optional google.protobuf.Value value_packed = 41;
+  RuntimeMode mode = 90;
 }
 
 message SessionData {
@@ -3260,14 +3294,15 @@ message SessionData {
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp opened_at = 42;
   optional google.protobuf.Timestamp closed_at = 43;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData run_ptr = 91;
-  optional NodeReferenceData run_root_ptr = 92;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData server_ptr = 95;
-  optional NodeReferenceData user_ptr = 96;
-  optional NodeReferenceData identity_ptr = 97;
+  optional NodeReferenceData session_ptr = 80;
+  optional NodeReferenceData run_ptr = 81;
+  optional NodeReferenceData run_root_ptr = 82;
+  optional NodeReferenceData client_ptr = 83;
+  optional NodeReferenceData machine_ptr = 84;
+  optional NodeReferenceData server_ptr = 85;
+  optional NodeReferenceData user_ptr = 86;
+  optional NodeReferenceData identity_ptr = 87;
+  RuntimeMode mode = 90;
 }
 
 message StreamData {
@@ -3287,6 +3322,7 @@ message StreamData {
   Region region = 35;
   ResourceStatus status = 36;
   ResourceStatus current_status = 37;
+  RuntimeMode mode = 90;
 }
 
 enum IdEnum {

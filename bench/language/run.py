@@ -11,6 +11,7 @@ from bench.language.const import (
     ObjectKind,
     RunErrorKind,
     RunStatus,
+    RunType,
     StructType,
     enum_,
 )
@@ -64,15 +65,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 RunnableNode = Union["Block", "Step", "Pipe"]
-
-
-@enum_(EnumType.RUN_TYPE)
-class RunType(IdEnum):
-    CODE = 1
-    ACTION = 2
-    STEP = 10
-    FLOW = 11
-    PIPE = 12
 
 
 @enum_(EnumType.MODEL_PROVIDER)
@@ -477,7 +469,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
     events: list["RunEvent"] = p_internal(67, array=True, struct=StructType.RUN_EVENT)
 
-    # ...HasRuntimeContext[90-99]
+    # ...HasRuntimeContext[80-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     interrupts: LocalNodeList["Interrupt"] = p_node_children(NodeType.INTERRUPT)

@@ -16,19 +16,19 @@ const props = defineProps<{
     :class="[orientation == Orientation.HORIZONTAL_REVERSED ? 'flex-row-reverse' : 'flex-row']"
   >
     <!-- Dot -->
-    <span v-if="isRunInterrupted(run)" class="relative flex h-[10px] w-[10px]">
+    <span v-if="isRunInterrupted(run)" class="relative flex h-[8px] w-[8px]">
       <span
         class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 transition-colors duration-150"
         :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S400) }"
       />
       <span
-        class="relative inline-flex h-[10px] w-[10px] rounded-full transition-colors duration-150"
+        class="relative inline-flex h-[8px] w-[8px] rounded-full transition-colors duration-150"
         :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S500) }"
       />
     </span>
     <span
       v-else
-      class="h-[10px] w-[10px] rounded-full transition-colors duration-150"
+      class="h-[8px] w-[8px] rounded-full transition-colors duration-150"
       :class="[isRunActive(run) ? 'animate-pulse' : '']"
       :style="{ backgroundColor: getRunColorHex(run.status) }"
     />

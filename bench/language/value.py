@@ -1474,7 +1474,7 @@ class CustomObjectBase(BuiltinObject):
     """
 
     # TODO :Incomplete: 'free' values in custom objects
-    # TODO :Incomplete: value tracing: sources, references, ...
+    # TODO :Incomplete :Tracing: sources, references, ...
     pass
 
 
