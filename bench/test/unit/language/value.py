@@ -3,7 +3,7 @@ from typing import cast
 import pytest
 from hypothesis import given
 
-from bench.language.action import ActionMode, Call, Continue
+from bench.language.action import Agency, Call, Continue
 from bench.language.bench import Package
 from bench.language.block import Block, ValueBlock
 from bench.language.const import (
@@ -80,7 +80,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     Action1 = Block.new(
         BlockType.ACTION,
         "Action1",
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
         fields=[
             Field.output("Output1", PrimitiveType.INT32),
             Field.output("Output 2 with a Space", Text),

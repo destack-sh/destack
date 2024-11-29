@@ -10,6 +10,7 @@ from bench.language.const import (
     NodeType,
     ObjectKind,
     StructType,
+    active_session,
     enum_,
 )
 from bench.language.field import TypeBase, constraint
@@ -65,6 +66,7 @@ class MessageStatus(IdEnum):
     FAILED = 5
     RECEIVED = 6
     READ = 7
+    EXPIRED = 8
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value")
@@ -77,10 +79,10 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
     type: MessageType = p_regular(30, require=True, default=MessageType.NATIVE)
     status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
-    origin: BenchNode = p_regular(35, require=True, references=NODE_TYPES.tuple)
-    block: "Block" = p_internal(
+    origin: BenchNode | None = p_regular(35, require=True, references=NODE_TYPES.tuple)
+    block: "Block | None" = p_internal(
         36,
-        require=True,
+        require=False,
         array=False,
         references=NodeType.BLOCK,
         constraint=constraint(block_types=[BlockType.MESSAGE]),
@@ -123,4 +125,30 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
 
     @property
     def value_type(self) -> "TypeBase | None":
-        return self.block.to_type(as_object=True)
+        block = self.block
+        return block.to_type(as_object=True) if block is not None else None
+
+    @staticmethod
+    def new(
+        block: "Block | None" = None,
+        title: str | None = None,
+        text: "Text | None" = None,
+        value: "CustomObject | None" = None,
+        *,
+        parent: MessageParent | None = None,
+        origin: BenchNode | None = None,
+        type: MessageType = MessageType.NATIVE,
+        status: MessageStatus = MessageStatus.SENT,
+        reply_to: "Message | None" = None,
+    ) -> "Message":
+        return Message(
+            parent=parent or active_session().package,
+            block=block,
+            title=title,
+            text=text,
+            value=value,
+            origin=origin,
+            reply_to=reply_to,
+            type=type,
+            status=status,
+        )

@@ -1,7 +1,7 @@
 import asyncio
 
 from bench.language import Block, BlockType, Field, code
-from bench.language.action import ActionMode
+from bench.language.action import Agency
 from bench.language.const import RunStatus
 from bench.language.node import Node
 from bench.language.run import Run, RunErrorType, RunOptions, RunType
@@ -18,7 +18,7 @@ async def test_run_code_function_empty(local_runtime: RuntimeHandle):
         BlockType.ACTION,
         "Code1",
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
@@ -30,7 +30,7 @@ async def test_run_code_function_empty(local_runtime: RuntimeHandle):
 async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     """Code block with a syntax error should re-raise that error."""
     InvalidCode = Block.new(
-        BlockType.ACTION, "InvalidCode", code=code("!!invalid!!"), mode=ActionMode.CODE
+        BlockType.ACTION, "InvalidCode", code=code("!!invalid!!"), agency=Agency.CODE
     )
     local_runtime.page().blocks.append(InvalidCode)
     await local_runtime.commit()
@@ -60,7 +60,7 @@ warn('warn1')
 error('error1')
 critical('critical1')        
 """),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Logs101)
     await local_runtime.commit()
@@ -98,7 +98,7 @@ print('print2')
 raise ValueError('error1')
 print('print3')
 """),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Logs102)
     await local_runtime.commit()
@@ -119,7 +119,7 @@ async def test_run_code_capture_log_size_overflow(local_runtime: RuntimeHandle):
 for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
     print('print', i)
 """),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Logs103)
     await local_runtime.commit()
@@ -135,7 +135,7 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
         BlockType.ACTION,
         "Logs103",
         code=code(f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})"""),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Logs103)
     await local_runtime.commit()
@@ -152,7 +152,7 @@ async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
         "InvalidCode",
         code=code("pass"),
         fields=(Field.input("Input1", int, is_required=True),),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
@@ -172,7 +172,7 @@ async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
         "InvalidCode",
         code=code("return 'invalid'"),
         fields=(Field.output("Output1", int),),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
@@ -195,7 +195,7 @@ async def test_run_code_function_coerce_inputs(local_runtime: RuntimeHandle):
             Field.output("Output1", float),
             Field.output("Output2", float),
         ),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -221,7 +221,7 @@ assert Very_WEIRD__THER_Input == 7
             Field.input("Long Input", str),
             Field.input("Very WEIRD ÖTHER Input", int),
         ),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -238,7 +238,7 @@ async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
         "Function",
         code=code("""pass"""),
         fields=(Field.input("Input1", int),),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -257,7 +257,7 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
         "Function",
         code=code("""return Input1 * 4"""),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     hosted_runtime.page().blocks.append(Function)
     await hosted_runtime.commit()
@@ -272,7 +272,7 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
         "Function",
         code=code("return Input1 * 1.7"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     hosted_runtime.page().blocks.append(Function)
     await hosted_runtime.commit()
@@ -285,7 +285,7 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
         "Function",
         code=code("return 'stringy'"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     hosted_runtime.page().blocks.append(Function)
     await hosted_runtime.commit()
@@ -305,7 +305,7 @@ async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
             Field.output("Result2", int),
             Field.output("Result3", int),
         ),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -330,7 +330,7 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
             Field.output("Result1", bool),
             Field.output("Result2", int),
         ),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -355,7 +355,7 @@ return coerce_custom_object(
             Field.output("Input1", int),
             Field.output("Input2", int),
         ],
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -379,7 +379,7 @@ Color = get_node("^Color")
 return {"Color": Color.Red}
 """),
         fields=[Field.output("Color", Color)],
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.extend(Color, Function)
     await local_runtime.commit()
@@ -397,7 +397,7 @@ async def test_run_code_function_output_generic_node(local_runtime: RuntimeHandl
 return [self]
 """),
         fields=[Field.output("Output", Node, is_list=True)],
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -437,7 +437,7 @@ assert ShapeKind.Rectangle is not None
 return Shape(Kind=ShapeKind.Square)
 """),
         fields=[Field.output("Result", Shape)],
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     subpage.blocks.append(Function)
     await local_runtime.commit()
@@ -453,7 +453,7 @@ async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
         BlockType.ACTION,
         "Code1",
         code=code("""raise RetryableError('error1')"""),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
         run_options=RunOptions(max_attempts=3),
     )
     local_runtime.page().blocks.append(CodeBlock)
@@ -471,7 +471,7 @@ async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
         BlockType.ACTION,
         "Code1",
         code=code("""raise NonRetryableError('error1')"""),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
         run_options=RunOptions(max_attempts=3),
     )
     local_runtime.page().blocks.append(CodeBlock)
@@ -489,7 +489,7 @@ async def test_run_code_abort(local_runtime: RuntimeHandle):
         BlockType.ACTION,
         "Code1",
         code=code("""await asyncio.sleep(5)"""),
-        mode=ActionMode.CODE,
+        agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()

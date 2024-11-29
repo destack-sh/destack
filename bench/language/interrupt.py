@@ -166,7 +166,7 @@ class Interrupt(RuntimeNode[InterruptData]):
     )
 
     # context
-    # ...HasRuntimeContext[90-99]
+    # ...HasRuntimeContext[80-99]
 
     def __content_str__(self):
         node = self.runnable
@@ -246,4 +246,5 @@ class Interrupt(RuntimeNode[InterruptData]):
             trigger=trigger,
             attempt_no=attempt,
             breakpoint_site=breakpoint,
+            mode=run.mode,
         )

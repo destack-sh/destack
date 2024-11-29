@@ -30,6 +30,7 @@ import {
   RegionArea,
   ResourceStatus,
   RunStatus,
+  RuntimeMode,
   StepType,
   StructType,
   TypeFormat,
@@ -171,7 +172,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.STORE]: "fas fa-database",
   [NodeType.DRIVE]: "fas fa-hdd",
   [NodeType.VAULT]: "fas fa-treasure-chest",
-  [NodeType.CACHE]: "fas fa-bolt",
+  [NodeType.CACHE]: "fas fa-bolt-lightning",
   [NodeType.FILE]: "fas fa-file",
   [NodeType.SECRET]: "fas fa-key",
   [NodeType.BROWSER]: "fas fa-browser",
@@ -183,7 +184,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.SPACE]: "fas fa-galaxy",
   [NodeType.SKIP]: "fas fa-ban",
   [NodeType.BLOCK]: "fas fa-cube",
-  [NodeType.TRIGGER]: "fas fa-bolt",
+  [NodeType.TRIGGER]: "fas fa-bolt-lightning",
   [NodeType.FIELD]: "fas fa-triangle",
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-window-frame",
@@ -274,7 +275,7 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.START]: "fas fa-circle-play",
   [StepType.COMPLETE]: "fas fa-flag-checkered",
   [StepType.FAIL]: "fas fa-circle-exclamation",
-  [StepType.TRIGGER]: "fas fa-bolt",
+  [StepType.TRIGGER]: "fas fa-bolt-lightning",
   // run
   [StepType.ACTION]: "fas fa-code",
   [StepType.SEND]: "fas fa-paper-plane-top",
@@ -525,7 +526,7 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-circle-notch" }),
   [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-pause" }),
   [RunStatus.YIELDED]: makeIcon({ faName: "fas fa-hand" }),
-  [RunStatus.WAITING]: makeIcon({ faName: "fas fa-bolt" }),
+  [RunStatus.WAITING]: makeIcon({ faName: "fas fa-bolt-lightning" }),
   [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-check" }),
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
   [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),
@@ -536,7 +537,7 @@ export const ICON_BY_INTERRUPT_TYPE: Record<InterruptType, IconData> = {
   [InterruptType.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [InterruptType.YIELD]: makeIcon({ faName: "fas fa-hand" }),
   [InterruptType.PAUSE]: makeIcon({ faName: "fas fa-pause" }),
-  [InterruptType.WAIT]: makeIcon({ faName: "fas fa-bolt" }),
+  [InterruptType.WAIT]: makeIcon({ faName: "fas fa-bolt-lightning" }),
 };
 
 export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons<EditType>({
@@ -563,6 +564,12 @@ export const ICON_BY_EXPRESSION_OP: Partial<Record<ExpressionType, IconData>> = 
   [ExpressionType.ENDS_WITH]: "fas fa-arrow-left-from-line",
   [ExpressionType.ASCENDING]: "fas fa-arrow-up",
   [ExpressionType.DESCENDING]: "fas fa-arrow-down",
+});
+
+export const ICON_BY_RUNTIME_MODE: Partial<Record<RuntimeMode, IconData>> = _makeIcons<RuntimeMode>({
+  [RuntimeMode.PRODUCTION]: "fas fa-globe",
+  [RuntimeMode.DEVELOPMENT]: "fas fa-bug",
+  [RuntimeMode.TEST]: "fas fa-flask",
 });
 
 export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({
@@ -601,7 +608,7 @@ export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> 
 
 export const ICON_BY_CACHE_MODE: Partial<Record<CacheMode, IconData>> = _makeIcons<CacheMode>({
   [CacheMode.NEVER]: "fas fa-bolt-slash",
-  [CacheMode.ALWAYS]: "fas fa-bolt",
+  [CacheMode.ALWAYS]: "fas fa-bolt-lightning",
 });
 
 // big registry of ICON_BY_* by enum type
@@ -624,6 +631,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_TYPE,
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
+  [EnumType.RUNTIME_MODE]: ICON_BY_RUNTIME_MODE,
   [EnumType.REGION_AREA]: ICON_BY_REGION_AREA,
   [EnumType.REGION]: ICON_BY_REGION,
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,

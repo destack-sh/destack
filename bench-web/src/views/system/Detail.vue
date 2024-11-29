@@ -141,7 +141,7 @@ defineExpose<ViewExposed>({ self, id });
             row.type == 'view'
               ? row.isFullWidth
                 ? 'flex flex-col gap-y-0.5'
-                : 'flex flex-row flex-wrap items-center gap-x-[10%]'
+                : 'flex flex-row flex-wrap items-center gap-x-[5%]'
               : '',
           ]"
         >

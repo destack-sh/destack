@@ -914,7 +914,7 @@ async def pg_graph_select(
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
         columns = [node_table.get_column(prop.name) for prop in selected_properties]
-        selected_fields = []
+        selected_fields: Sequence[Field] = []
     else:
         node_table, block = ctx.get_custom_table(query.block)
         columns = [

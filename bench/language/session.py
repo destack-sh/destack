@@ -33,6 +33,7 @@ from bench.language.const import (
     BenchError,
     EditType,
     NodeType,
+    RuntimeMode,
     SessionStatus,
     StructType,
     _active_session,
@@ -120,7 +121,7 @@ class Session(RuntimeNode[SessionData]):
     closed_at: Optional[datetime] = p_system(43, default=None)
 
     # context
-    # ...HasRuntimeContext[90-99]
+    # ...HasRuntimeContext[80-99]
 
     # flags
     _is_readonly: bool = p_runtime(default=False)
@@ -262,6 +263,10 @@ class Session(RuntimeNode[SessionData]):
     def supervisor(self) -> SupervisorClient:
         assert self._supervisor is not None, f"no supervisor in {self!r}"
         return self._supervisor
+
+    @property
+    def active_mode(self) -> RuntimeMode:
+        return self._runtime.active_mode if self._runtime is not None else self.mode
 
     def _get_scope_for_node(self, n: Node) -> GraphScopeData:
         """Get the scope for a node in this session."""

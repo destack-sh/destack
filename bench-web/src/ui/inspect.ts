@@ -6,7 +6,7 @@ import { makeEditFromSubnode, Transaction, TransactionOptions } from "@/language
 import {
   ActionBlockData,
   ActionBlockProperty,
-  ActionMode,
+  Agency,
   ActionStepData,
   AnyNodeData,
   BenchType,
@@ -287,13 +287,13 @@ export function makeInspectLayout(
 
   function actionRows(): InspectRow[] {
     const action = subnode as ActionStepData | ActionBlockData | undefined;
-    const mode: ActionMode = action?.mode ?? ActionMode.GENERATE;
-    const rows: InspectRow[] = [rowProperty(ActionBlockProperty.mode, { title: false, isFullWidth: true })];
-    if (mode == ActionMode.CODE) {
+    const agency: Agency = action?.agency ?? Agency.GENERATE;
+    const rows: InspectRow[] = [rowProperty(ActionBlockProperty.agency, { title: false, isFullWidth: true })];
+    if (agency == Agency.CODE) {
       rows.push(rowProperty(ActionBlockProperty.code, { title: false, isFullWidth: true }));
-    } else if (mode == ActionMode.DELEGATE) {
+    } else if (agency == Agency.DELEGATE) {
       rows.push(rowProperty(ActionBlockProperty.delegatePtr, { title: false, isFullWidth: true }));
-    } else if (mode == ActionMode.GENERATE) {
+    } else if (agency == Agency.GENERATE) {
       rows.push(rowProperty(ActionBlockProperty.isDynamic));
       rows.push(rowProperty(ActionBlockProperty.toolsPtr, { isFullWidth: true }));
       if (!action?.isDynamic) {
@@ -301,15 +301,15 @@ export function makeInspectLayout(
           rowProperty(ActionBlockProperty.code, { subtitle: "(Generated)", isFullWidth: true, isDisabled: true }),
         );
       }
-    } else if (mode != ActionMode.UNSPECIFIED) {
-      assertNever(mode);
+    } else if (agency != Agency.UNSPECIFIED) {
+      assertNever(agency);
     }
     return rows;
   }
 
   function sectionAction() {
     const action = subnode as ActionStepData | ActionBlockData | undefined;
-    const summary = action?.mode != null ? toCamelName(ActionMode, action?.mode) : undefined;
+    const summary = action?.agency != null ? toCamelName(Agency, action?.agency) : undefined;
     section("Action", actionRows(), { summary });
   }
 
@@ -318,6 +318,7 @@ export function makeInspectLayout(
       "Run",
       [
         rowProperty([runOptionsProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" }),
+        rowProperty([runOptionsProperty, RunOptionsProperty.suppressPause]),
         rowProperty([runOptionsProperty, RunOptionsProperty.suppressAbort]),
         rowProperty([runOptionsProperty, RunOptionsProperty.suppressFail]),
       ],
@@ -386,7 +387,7 @@ export function makeInspectLayout(
       section(undefined, comonRows);
       comonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
       const action = subnode as ActionStepData | undefined;
-      if (action?.mode == ActionMode.DELEGATE) {
+      if (action?.agency == Agency.DELEGATE) {
         // schema from delegate
         const delegatePtr = action.delegatePtr;
         if (delegatePtr != null) {

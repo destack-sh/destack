@@ -6,7 +6,7 @@ from .access import (
     PolicyRule,
     Subject,
 )
-from .action import ActionBase, ActionMode, Call, Continue
+from .action import ActionBase, Agency, Call, Continue
 from .bench import (
     AnonymousResourceNode,
     Bench,
@@ -58,6 +58,8 @@ from .const import (
     PolicyEffect,
     PrimitiveType,
     Region,
+    RuntimeMode,
+    RunType,
     ScheduleType,
     SortMode,
     SortType,
@@ -121,7 +123,6 @@ from .run import (
     RunOptions,
     RunSpan,
     RunStatus,
-    RunType,
     TextOptions,
     VideoOptions,
 )
@@ -177,7 +178,7 @@ __all__ = [
     "AccessError",
     "AccessType",
     "ActionBase",
-    "ActionMode",
+    "Agency",
     "AggregateConnection",
     "AggregateOptions",
     "AggregateResult",
@@ -314,6 +315,7 @@ __all__ = [
     "RunStatus",
     "RunType",
     "RuntimeContext",
+    "RuntimeMode",
     "S",
     "ScheduleType",
     "SearchConnection",

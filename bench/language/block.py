@@ -9,6 +9,7 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
+    RunType,
     StructType,
     TypeKind,
 )
@@ -42,7 +43,6 @@ if TYPE_CHECKING:
         Property,
         Record,
         RunOptions,
-        RunType,
         Step,
         Text,
         Trigger,
@@ -146,8 +146,6 @@ class Block(SourceNode[BlockData]):
 
     @property
     def run_type(self) -> "RunType | None":
-        from bench.language.run import RunType
-
         if self.type == BlockType.ACTION:
             return RunType.ACTION
         elif self.type == BlockType.FLOW:

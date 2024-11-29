@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.11.28.4"
+VERSION = "2024.11.29.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -105,7 +105,7 @@ class EnumType(IdEnum):
     TYPE_FORMAT = 21504
     OBJECT_KIND = 21505
     BLOCK_TYPE = 21506
-    ACTION_MODE = 21507
+    AGENCY = 21507
 
     # basic (22000-22499)
     SCHEDULE_TYPE = 22001
@@ -152,6 +152,7 @@ class EnumType(IdEnum):
     PORT_SIDE = 23021
     PIPE_TYPE = 23022
     NOTIFICATION_LEVEL = 23023
+    RUNTIME_MODE = 23024
 
     # view (23500-23999)
     SPACE_TYPE = 23501
@@ -209,7 +210,7 @@ class NodeType(IdEnum):
     VAULT = 204  # secret storage
     CACHE = 205  # ephemeral key-value store
     # resource (anonymous)
-    MACHINE = 250  # actual machine providing compute
+    MACHINE = 250
     BROWSER = 251
     FILE = 260
     STREAM = 261
@@ -1035,6 +1036,22 @@ class Month(IdEnum):
     OCTOBER = 10
     NOVEMBER = 11
     DECEMBER = 12
+
+
+@enum_(EnumType.RUNTIME_MODE)
+class RuntimeMode(IdEnum):
+    PRODUCTION = 1
+    DEVELOPMENT = 2
+    TEST = 3
+
+
+@enum_(EnumType.RUN_TYPE)
+class RunType(IdEnum):
+    CODE = 1
+    ACTION = 2
+    STEP = 10
+    FLOW = 11
+    PIPE = 12
 
 
 @enum_(EnumType.RUN_ERROR_KIND)

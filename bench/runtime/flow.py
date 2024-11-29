@@ -331,6 +331,7 @@ class StepRunnerBase(Runner[Step], ABC):
         flow: FlowRunnerBase | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
+        output_type: TypeBase | None = None,
         run: Run | None = None,
     ) -> None:
         super().__init__(
@@ -341,6 +342,7 @@ class StepRunnerBase(Runner[Step], ABC):
             context=context,
             parent=parent,
             inputs=inputs,
+            output_type=output_type,
             run=run,
         )
         self.flow = flow
@@ -452,6 +454,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
         flow: FlowRunnerBase | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
+        output_type: TypeBase | None = None,
         run: Run | None = None,
     ) -> None:
         super().__init__(
@@ -462,6 +465,7 @@ class PipeRunnerBase(Runner[Pipe], ABC):
             context=context,
             parent=parent,
             inputs=inputs,
+            output_type=output_type,
             run=run,
         )
         self.flow = flow

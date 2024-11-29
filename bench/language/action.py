@@ -12,8 +12,8 @@ if TYPE_CHECKING:
     from bench.language import Block, Code, Field, ObjectMapping, Pipe, Step, Text
 
 
-@enum_(EnumType.ACTION_MODE)
-class ActionMode(IdEnum):
+@enum_(EnumType.AGENCY)
+class Agency(IdEnum):
     CODE = 1, "Run specific hand-written code"
     DELEGATE = 2  # always run a specific delegate
     GENERATE = 3  # dynamically adapt or answer inputs every time
@@ -23,7 +23,7 @@ class ActionMode(IdEnum):
 class ActionBase(BuiltinObject):
     """Common base for 'actions' that do something using code somehow."""
 
-    mode: ActionMode = p_regular(100, default=ActionMode.GENERATE)
+    agency: Agency = p_regular(100, default=Agency.GENERATE)
     is_dynamic: bool = p_regular(
         101, default=False, description="Whether this action is dynamic w.r.t. its inputs."
     )
