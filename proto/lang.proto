@@ -1288,7 +1288,7 @@ enum StepType {
   STEP_TYPE_FAIL = 3;
   STEP_TYPE_TRIGGER = 4;
   STEP_TYPE_ACTION = 60;
-  STEP_TYPE_SEND = 61;
+  STEP_TYPE_CREATE = 61;
   STEP_TYPE_YIELD = 62;
   STEP_TYPE_LOOP = 501;
   STEP_TYPE_TEXT = 900;
@@ -2934,7 +2934,10 @@ message ActionStepData {
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
-message SendStepData {
+message CreateStepData {
+  NodeType node_type = 100;
+  FieldType field_type = 101;
+  optional NodeReferenceData block_base_ptr = 102;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -3120,7 +3123,7 @@ message MessageData {
   MessageType type = 30;
   MessageStatus status = 31;
   NodeReferenceData origin_ptr = 35;
-  NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData block_ptr = 36;
   optional NodeReferenceData reply_to_ptr = 37;
   optional string title = 40;
   optional TextData text = 41;
@@ -3250,7 +3253,7 @@ message SpaceData {
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
   optional NodeReferenceData run_ptr = 77;
-  RuntimeMode mode = 80;
+  RuntimeMode mode = 90;
 }
 
 message SecretData {

@@ -227,9 +227,8 @@ class StepType(IdEnum):
 
     # run
     ACTION = 60
-    SEND = 61  # emit a message
-    YIELD = 62  # to other program/human
-    # CREATE?
+    CREATE = 61  # create a new node
+    YIELD = 62  # to something
 
     # state
     # ...
@@ -376,6 +375,14 @@ class Step(SourceNode[StepData]):
             return (
                 delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
             )
+        elif self.type == StepType.CREATE and cast(CreateStep, self).block_base_ptr:
+            block_base = cast(CreateStep, self).block_base
+            if block_base is not None and field_type == FieldType.INPUT:
+                return block_base.to_type(
+                    as_object=as_object, field_type=cast(CreateStep, self).field_type
+                )
+            else:
+                return None
         else:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -383,10 +390,6 @@ class Step(SourceNode[StepData]):
                 assert field_type is not None, f"missing field_type for object {self!r}"
                 typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
             return typ
-
-    @property
-    def variable_type(self) -> "TypeBase | None":
-        return self.to_type(as_object=True, field_type=FieldType.VARIABLE)
 
     @property
     def input_type(self) -> "TypeBase | None":
@@ -414,9 +417,19 @@ class ActionStep(Step, ActionBase):
     pass
 
 
-@node_subtype_(StepType.SEND)
-class SendStep(Step):
-    pass
+@node_subtype_(StepType.CREATE)
+class CreateStep(Step):
+    node_type: NodeType = p_regular(100)
+    field_type: FieldType = p_regular(101, default=FieldType.MEMBER)
+    block_base: Optional["Block"] = p_regular(
+        102,
+        require=False,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(block_types=[BlockType.DATABASE, BlockType.MESSAGE]),
+    )
+    if TYPE_CHECKING:
+        block_base_ptr: Optional["NodeReference"] = None
 
 
 @node_subtype_(StepType.LOOP)

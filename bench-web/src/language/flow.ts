@@ -103,8 +103,8 @@ export class StepState {
   flow: FlowContext;
   stepPtr: TypedNodeReferenceData<NodeType.STEP>;
   step: Ref<StepData | null>;
-  delegatePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
-  delegate: Ref<BlockData | StepData | null>;
+  delegatePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
+  delegate: Ref<BlockData | null>;
   fields: Ref<FieldData[]>;
   stepFields: Ref<FieldData[]>;
   delegateFields: Ref<FieldData[]>;
@@ -123,7 +123,15 @@ export class StepState {
           this.step.value?.subnodePacked,
           "delegatePtr",
         );
-        return delegatePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null;
+        return delegatePtr as TypedNodeReferenceData<NodeType.BLOCK> | null;
+      } else if (this.step.value?.type == StepType.CREATE) {
+        const blockBasePtr = unpackSubnodeProperty(
+          NodeType.STEP,
+          StepType.CREATE,
+          this.step.value?.subnodePacked,
+          "blockBasePtr",
+        );
+        return blockBasePtr as TypedNodeReferenceData<NodeType.BLOCK> | null;
       } else {
         return null;
       }
@@ -144,6 +152,14 @@ export class StepState {
         } else {
           return this.stepFields.value;
         }
+      } else if (stepType == StepType.CREATE) {
+        const fieldType = unpackSubnodeProperty(
+          NodeType.STEP,
+          StepType.CREATE,
+          this.step.value?.subnodePacked,
+          "fieldType",
+        );
+        return this.flow.fields.value.filter((f) => f.type == fieldType);
       } else if (stepType == StepType.YIELD) {
         return this.stepFields.value;
       } else {
