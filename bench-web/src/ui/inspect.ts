@@ -1,5 +1,19 @@
-import { BOUNDARY_STEP_TYPES, getPropertyTitle, RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
-import { createField, getPropertyType, makeTypeInfo, TypeIdentity, updateFieldType } from "@/language/field";
+import {
+  BOUNDARY_STEP_TYPES,
+  getPropertyTitle,
+  isNodeType,
+  RUNNABLE_BLOCK_TYPES,
+  SOURCE_NODE_TYPES,
+  toCamelName,
+} from "@/language/const";
+import {
+  createField,
+  getPropertyType,
+  makeTypeInfo,
+  TypeIdentity,
+  typeIsNumeric,
+  updateFieldType,
+} from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import { unpackSubnode } from "@/language/node";
 import { makeEditFromSubnode, Transaction, TransactionOptions } from "@/language/transaction";
@@ -37,6 +51,8 @@ import {
   ViewType,
   CreateStepData,
   CreateStepProperty,
+  TypeConstraintProperty,
+  PrimitiveType,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
@@ -368,6 +384,7 @@ export function makeInspectLayout(
     const commonRows: InspectRow[] = [
       rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
     ];
+    section(undefined, commonRows);
     if (node.type == FieldType.OPTION) {
       // color?
     } else {
@@ -375,9 +392,51 @@ export function makeInspectLayout(
       if (node.type != FieldType.VARIABLE) {
         commonRows.push(rowProperty(FieldProperty.isRequired));
         commonRows.push(rowProperty(FieldProperty.isList));
+
+        const constraintRows: InspectRow[] = [];
+        if (node.isList || node.primitiveType == PrimitiveType.STRING) {
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength]));
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength]));
+          if (node.primitiveType == PrimitiveType.STRING) {
+            constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith]));
+            constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith]));
+            constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex]));
+          }
+        }
+        if (typeIsNumeric(node)) {
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue]));
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue]));
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue]));
+        }
+        if (node.benchType == BenchType.BLOCK) {
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.blockTypes]));
+        } else if (node.benchType == BenchType.STEP) {
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepTypes]));
+        } else if (node.benchType == BenchType.FILE) {
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.fileTypes]));
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.fileFormats]));
+        } else if (node.benchType == BenchType.VIEW) {
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.viewTypes]));
+        }
+        if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeIsAttached], { title: "Is Attached" }),
+          );
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
+              title: "Scope",
+              props: {
+                valueType: makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
+              },
+            }),
+          );
+        }
+
+        if (constraintRows.length > 0) {
+          section("Constraint", constraintRows, { isDefaultCollapsed: true });
+        }
       }
     }
-    section(undefined, commonRows);
   }
 
   //

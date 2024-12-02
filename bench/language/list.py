@@ -50,7 +50,9 @@ class NodeList[V: Node](abc.ABC):
         self._node = node
         self._property = property
         assert (
-            property.reference_nodes and len(property.reference_nodes) == 1
+            property.reference_nodes
+            and property.reference_nodes != "any"
+            and len(property.reference_nodes) == 1
         ), f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_nodes[0]
         self._child_node_cls = cast(type[V], NODE_CLASS_BY_TYPE[self._child_node_type])

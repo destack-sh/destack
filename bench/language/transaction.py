@@ -13,7 +13,6 @@ from opentelemetry import trace
 
 from bench.language.connection import Channel, WritableChannel
 from bench.language.const import (
-    NODE_TYPES,
     TK_LENGTH_B64,
     ChangeCategory,
     EditOperationType,
@@ -119,21 +118,21 @@ class EditInfo(Struct):
         2,
         default_factory=UUIDT,
         require=True,
-        description="Unique identifier for the edit within a session.",
+        description="Unique identifier for the Edit within a Session.",
     )
-    type: EditType = p_system(30, require=True, description="Type of edit.")
-    node: Node = p_system(31, require=True, references=NODE_TYPES.tuple, description="Which node.")
+    type: EditType = p_system(30, require=True, description="Type of Edit.")
+    node: Node = p_system(31, require=True, references="any", description="Which Node.")
     vignette: ChangeVignette | None = p_system(
         32,
         require=False,
         struct=StructType.CHANGE_VIGNETTE,
-        description="Summary of the node before the edit.",
+        description="Summary of the Node before the Edit.",
     )
-    edited_at: datetime = p_system(33, require=True, description="When the edit was made.")
+    edited_at: datetime = p_system(33, require=True, description="When the Edit was made.")
     old_edited_at: Optional[datetime] = p_system(
         34,
         default=None,
-        description="The timestamp of the edit being undone with this edit.",
+        description="The timestamp of the Edit being undone with this Edit.",
     )
 
     # content
@@ -141,12 +140,12 @@ class EditInfo(Struct):
         40,
         primitive_type=None,
         is_node_data=True,
-        description="The entire node (for add/remove edits)",
+        description="The entire Node (for add/remove Edits)",
     )
     operations: list[EditOperation] = p_system(
         41,
         array=True,
-        description="The operations to perform on the node",
+        description="The operations to perform on the Node",
         struct=StructType.EDIT_OPERATION,
     )
 
@@ -154,37 +153,37 @@ class EditInfo(Struct):
 @struct_(StructType.EDIT)
 class Edit(EditInfo):
     """
-    An edit to a Node in some context.
+    An Edit to a Node in some context.
     """
 
     # ...EditInfo[30-59]
 
     # meta
     scope: GraphScope = p_system(
-        60, require=True, struct=StructType.GRAPH_SCOPE, description="Enclosing scope of the edit."
+        60, require=True, struct=StructType.GRAPH_SCOPE, description="Enclosing scope of the Edit."
     )
     change_key: UUID | None = p_system(
-        61, require=False, description="The change that this edit is part of."
+        61, require=False, description="The Change that this Edit is part of."
     )
     category: ChangeCategory | None = p_system(
-        62, require=False, description="Optional classification for the edit."
+        62, require=False, description="Optional classification for the Edit."
     )
     subject: EditSubject | None = p_system(
-        63, require=False, references=EDIT_SUBJECT_TYPES, description="Who made the edit."
+        63, require=False, references=EDIT_SUBJECT_TYPES, description="Who made the Edit."
     )
     origin: ClientOrigin | None = p_system(
-        64, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the edit came from."
+        64, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the Edit came from."
     )
     context: "EditContext | None" = p_system(
         65,
         require=False,
         struct=StructType.EDIT_CONTEXT,
-        description="Additional per edit context for servers.",
+        description="Additional per-Edit context for servers.",
     )
     epoch: int | None = p_system(
         68,
         require=False,
-        description="Epoch at that edit (client if submitting, system if accepted).",
+        description="Epoch at that Edit (Client if submitting, system if accepted).",
         primitive_type=PrimitiveType.INT64,
     )
     undo_of: Optional["Log"] = p_system(
@@ -192,39 +191,38 @@ class Edit(EditInfo):
         require=False,
         array=False,
         references=NodeType.LOG,
-        description="The logged change that is being undon with this edit.",
+        description="The logged Change that is being undone with this Edit.",
     )
 
 
 @struct_(StructType.CHANGE)
 class Change(Struct):
     """
-    A change is a sequence of related edits.
-    Any edit not associated with a change is implicitly in its own change.
-    The 'key' is the id the change will have in the Log.
+    A Change is a sequence of related Edits.
+    Any Edit not associated with a Change is implicitly in its own Change.
+    The 'key' is the id the Change will have in the Log.
     """
 
     key: UUID = p_system(30, default_factory=UUIDT)
     scope: Optional["Node"] = p_internal(
-        32, require=False, references=NODE_TYPES.tuple, description="Where to apply the change."
+        32, require=False, references="any", description="Where to apply the Change."
     )
     code: Optional["Code"] = p_internal(
         33,
         require=False,
         array=False,
         struct=StructType.CODE,
-        description="Code to (re)produce the change.",
+        description="Code to (re)produce the Change.",
     )
     edits: list[Edit] = p_internal(
-        34, array=True, struct=StructType.EDIT, description="The materialized edits in the change."
+        34, array=True, struct=StructType.EDIT, description="The materialized Edits in the Change."
     )
 
 
 @dataclasses.dataclass(slots=True)
 class EditEvent:
     """
-    A tiny representation of an edit we summarize into actual Edits on flush.
-    Mainly for 'debouncing' updates/moves into single Edits.
+    A compact representation of an Edit that we summarize into actual Edits on flush.
     """
 
     node: Node

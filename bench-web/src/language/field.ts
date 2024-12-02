@@ -32,6 +32,7 @@ import {
   TypeConstraintData,
   TypeInfoData,
   TypeKind,
+  ViewType,
   type AnyNodeData,
   type PropertyInfo,
 } from "@/proto/wire";
@@ -140,43 +141,47 @@ export const TITLE_TYPE = makeTypeInfo({
 
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};
 
-export function getPropertyType(property: PropertyInfo | PropertyReferenceData): TypeIdentity {
-  if (isStruct(property, StructType.PROPERTY_REFERENCE)) {
-    property = propertyInfo(property.type as unknown as ObjectType, property.id);
+export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): TypeIdentity {
+  if (isStruct(prop, StructType.PROPERTY_REFERENCE)) {
+    prop = propertyInfo(prop.type as unknown as ObjectType, prop.id);
   }
-  const cacheKey = `${property.component}.${property.id}`;
+  const cacheKey = `${prop.component}.${prop.id}`;
   const cached = _propertyTypeInfos[cacheKey];
   if (cached == null) {
     let kind: TypeKind;
     let benchType: BenchType | undefined;
     let primitiveType: PrimitiveType | undefined;
-    if ((property.referenceNodes?.length ?? 0) > 0) {
+    if ((prop.referenceNodes?.length ?? 0) > 0) {
       kind = TypeKind.NODE;
-      benchType = property.referenceNodes![0] as unknown as BenchType;
-    } else if (property.referenceStruct != null) {
+      if (prop.referenceNodes == 'any') {
+        benchType = undefined;
+      } else {
+        benchType = prop.referenceNodes![0] as unknown as BenchType;
+      }
+    } else if (prop.referenceStruct != null) {
       kind = TypeKind.STRUCT;
-      benchType = property.referenceStruct as unknown as BenchType;
-    } else if (property.enumType != null) {
+      benchType = prop.referenceStruct as unknown as BenchType;
+    } else if (prop.enumType != null) {
       kind = TypeKind.ENUM;
-      benchType = property.enumType as unknown as BenchType;
-    } else if (property.primitiveType != null) {
+      benchType = prop.enumType as unknown as BenchType;
+    } else if (prop.primitiveType != null) {
       kind = TypeKind.PRIMITIVE;
-      primitiveType = property.primitiveType;
-    } else if (property.referenceIsNodeData) {
+      primitiveType = prop.primitiveType;
+    } else if (prop.referenceIsNodeData) {
       kind = TypeKind.PRIMITIVE;
       primitiveType = PrimitiveType.JSON; // not sure what to put here, this is inaccessible outside of the system
     } else {
-      throw new Error(`cannot determine type info for ${JSON.stringify(property)}`);
+      throw new Error(`cannot determine type info for ${JSON.stringify(prop)}`);
     }
 
     const type: TypeIdentity = {
       kind,
       benchType,
       primitiveType,
-      isRequired: property.isRequired ?? false,
-      isList: property.isList ?? false,
-      isSecret: property.isEncrypted ?? false,
-      constraint: property.constraint != null ? makeTypeConstraint(property.constraint) : undefined,
+      isRequired: prop.isRequired ?? false,
+      isList: prop.isList ?? false,
+      isSecret: prop.isEncrypted ?? false,
+      constraint: prop.constraint != null ? makeTypeConstraint(prop.constraint) : undefined,
     };
     _propertyTypeInfos[cacheKey] = type;
   }
@@ -278,14 +283,17 @@ export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): strin
 export function getConstrainedTypeName(type: TypeIdentity): string | null {
   const metatypeName = toCamelName(BenchType, type.benchType);
   if (type.constraint?.blockTypes?.length == 1) {
-    const subtypeName = toCamelName(BlockType, type.constraint!.blockTypes[0]);
-    return `${subtypeName} ${metatypeName}`;
+    const typeName = toCamelName(BlockType, type.constraint!.blockTypes[0]);
+    return `${typeName} ${metatypeName}`;
   } else if (type.constraint?.stepTypes?.length == 1) {
-    const subtypeName = toCamelName(StepType, type.constraint!.stepTypes[0]);
-    return `${subtypeName} ${metatypeName}`;
+    const typeName = toCamelName(StepType, type.constraint!.stepTypes[0]);
+    return `${typeName} ${metatypeName}`;
+  } else if (type.constraint?.viewTypes?.length == 1) {
+    const typeName = toCamelName(ViewType, type.constraint!.viewTypes[0]);
+    return `${typeName} ${metatypeName}`;
   } else if (type.constraint?.fileTypes?.length == 1) {
-    const subtypeName = toCamelName(FileType, type.constraint!.fileTypes[0]);
-    return `${subtypeName} ${metatypeName}`;
+    const typeName = toCamelName(FileType, type.constraint!.fileTypes[0]);
+    return `${typeName} ${metatypeName}`;
   } else {
     return metatypeName;
   }
@@ -297,6 +305,8 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
     return isNode(node, NodeType.BLOCK) && constraint.blockTypes.includes(node.type);
   } else if (constraint.stepTypes.length > 0) {
     return isNode(node, NodeType.STEP) && constraint.stepTypes.includes(node.type);
+  } else if (constraint.viewTypes.length > 0) {
+    return isNode(node, NodeType.VIEW) && constraint.viewTypes.includes(node.type);
   } else if (constraint.fileTypes.length > 0 && isNode(node, NodeType.FILE)) {
     if (constraint.fileFormats.length > 0 && node.format != null && !constraint.fileFormats.includes(node.format)) {
       return false;

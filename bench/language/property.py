@@ -16,6 +16,7 @@ from uuid import UUID
 
 from bench.language.const import (
     BASED_NODE_TYPES,
+    NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     SUB_BENCH_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
@@ -33,7 +34,7 @@ from bench.language.const import (
 from bench.language.list import LocalNodeList, NodeList, ValueList
 from bench.language.setup import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
-from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
+from bench.utils.func import IdEnum, parse_py_annotation
 from bench.utils.utils import frozendict
 
 if TYPE_CHECKING:
@@ -114,7 +115,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     # references to nodes or structs
     reference_kind: ReferenceKind | None = None
-    reference_nodes: tuple[NodeType, ...] | None = None  # for node relations
+    reference_nodes: tuple[NodeType, ...] | Literal["any"] | None = None  # for node relations
     reference_wired_ptr: Optional["Property"] = None  # wired representation
     reference_stored_ids: tuple["Property", ...] | None = None  # stored representation
     reference_stored_props: tuple["Property", ...] | None = None
@@ -151,7 +152,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.reference_kind:
             non_default.append(self.reference_kind.bench_name)
             if self.reference_nodes:
-                if len(self.reference_nodes) == len(NodeType):
+                if self.reference_nodes == "any":
                     non_default.append("*")
                 else:
                     non_default.append("|".join(t.bench_name for t in self.reference_nodes))
@@ -211,8 +212,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
             ref = PropertyReference(type=getattr(self.component, "metatype", None), id=self.id)
             if self.reference_source is not None and self.reference_source.is_node_reference:
-                assert self.reference_nodes is not None, f"missing reference nodes for {self!r}"
-                ref.references_node = self.reference_nodes[0]
+                if self.reference_nodes == "any":
+                    ref.references_node = NODE_TYPES.tuple[0]
+                else:
+                    assert self.reference_nodes is not None, f"missing reference nodes for {self!r}"
+                    ref.references_node = self.reference_nodes[0]
                 ref.references_meta = self.reference_meta
             self._cached_as_ref = ref
         return self._cached_as_ref
@@ -311,7 +315,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.reference_nodes and not self.reference_source:
             kind = TypeKind.NODE
             bench_type = None
-            constraint.node_types = list(self.reference_nodes)
+            if self.reference_nodes != "any":
+                constraint.node_types = list(self.reference_nodes)
             primitive_type = None
         elif self.reference_struct:
             kind = TypeKind.STRUCT
@@ -468,12 +473,15 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             # ... and any other metadata (type, base, etc.)
             extra_stored_props: dict[PropertyReferenceMetadata, Property] = {}
             need_fks = self.reference_force_fk
+            if self.reference_nodes == "any":
+                reference_nodes = NODE_TYPES.tuple
+            else:
+                reference_nodes = self.reference_nodes or ()
 
             # figure out which reference types (if any) to pack into the shared 'id'/'ck'
             shared_ptr_types: list[NodeType] = []
             if need_fks:
-                assert self.reference_nodes is not None, f"unset reference nodes for {self!r}"
-                for ref_type in self.reference_nodes:
+                for ref_type in reference_nodes:
                     if ref_type in SUB_PACKAGE_NODE_TYPES:
                         shared_ptr_types.append(ref_type)
                         continue  # no FKs for package types
@@ -501,8 +509,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         is_indexed_in_pg=self.is_indexed_in_pg,
                     )
                     stored_ids.append(id_prop)
-            elif self.reference_nodes:
-                shared_ptr_types.extend(self.reference_nodes)
+            elif reference_nodes:
+                shared_ptr_types.extend(reference_nodes)
 
             if shared_ptr_types:
                 id_prop = Property(
@@ -563,7 +571,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     )
 
             # we need the 'bench_id' for the reference if it could be in a Bench
-            is_sub_bench = any(t in SUB_BENCH_NODE_TYPES for t in self.reference_nodes or ())
+            is_sub_bench = any(t in SUB_BENCH_NODE_TYPES for t in reference_nodes or ())
             if (
                 is_sub_bench
                 and self.reference_kind != ReferenceKind.NODE_PARENT
@@ -761,7 +769,7 @@ def p_property(
     default_factory: Callable[[], Any] | None = None,
     default_sql: Any = UNSET,
     require: bool = UNSET,
-    references: tuple[NodeType, ...] | NodeType | None = None,
+    references: tuple[NodeType, ...] | NodeType | Literal["any"] | None = None,
     fk: bool = False,
     same_bench: bool = False,
     baseless: bool = False,
@@ -779,6 +787,8 @@ def p_property(
     custom_list: type["ValueList"] | None = None,
     constraint: "TypeConstraint | TypeConstraintIn | None" = None,
 ) -> Any:
+    if isinstance(references, NodeType):
+        references = (references,)
     if references:
         reference_kind = ReferenceKind.NODE_REGULAR
     elif struct == StructType.PROPERTY_REFERENCE:
@@ -810,7 +820,7 @@ def p_property(
         primitive_type=primitive_type,
         constraint=constraint,
         reference_kind=reference_kind,
-        reference_nodes=try_tuple(references),
+        reference_nodes=references,
         reference_struct=struct,
         reference_is_node_data=is_node_data,
         reference_list_type=custom_list,

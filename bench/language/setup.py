@@ -152,6 +152,7 @@ def _complete_bench_setup():
     parent_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
     child_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
     for node_cls in NODE_CLASS_BY_TYPE.values():
+        assert node_cls.__parent_property__.reference_nodes != "any"
         for parent_type in node_cls.__parent_property__.reference_nodes or ():
             parent_types[node_cls.metatype].add(parent_type)
             child_types[parent_type].add(node_cls.metatype)
