@@ -68,19 +68,7 @@ const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "su
 function setAspect(aspect: HelpAspect) {
   state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
 }
-const visibleAspects = computed(() => {
-  const visibleAspects: HelpAspect[] = [HelpAspect.DETAIL];
-  if (isNodeRunnable.value) {
-    visibleAspects.push(HelpAspect.RUN);
-  }
-  return visibleAspects;
-});
-watchEffect(() => {
-  // ensure aspect is visible
-  if (!visibleAspects.value.includes(aspect.value)) {
-    setAspect(visibleAspects.value[0]);
-  }
-});
+const visibleAspects = [HelpAspect.DETAIL, HelpAspect.RUN];
 
 const startRef: Ref<InstanceType<typeof Start> | null> = ref(null);
 
@@ -99,7 +87,7 @@ defineExpose<ViewExposed>({ self });
       <NodeReference v-if="node" :node="node" :connection="pkgConnection" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->
-      <div v-if="containingRun != null" class="flex px-1.5 flex-row">
+      <div v-if="containingRun != null" class="flex flex-row px-1.5">
         <template v-if="selfRun != null && selfRun.id != containingRun.id">
           <RunStatus :run="selfRun" />
           <span class="ml-2 mr-2 text-gray-400">/</span>

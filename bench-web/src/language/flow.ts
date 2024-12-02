@@ -27,7 +27,7 @@ import type { ActionBuiltinId } from "@/ui/action";
 import { isDraggingAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
-import { addTransform, addVector2, type Vector2 } from "@/ui/view";
+import { addVector2, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { canvas } from "@/utils/globals";
@@ -221,18 +221,20 @@ export class FlowContext {
   private spaceTxFactory: () => Transaction;
   private txFactory: () => Transaction;
 
-  view: Ref<Partial<ViewData> | null>;
+  view: Ref<ViewData | null>;
   update: (update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) => void;
   stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
   containerRef: Ref<HTMLElement | null>;
   dragging: Ref<{ thing: FlowThing; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
   cursorWorldPos: Ref<Vector2>;
+  viewport: Ref<{
+    scale: number;
+    transform: TransformData & Required<Pick<TransformData, "translateX" | "translateY">>;
+  }>;
 
   flowPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
   flow: Ref<BlockData | null>;
   fields: Ref<FieldData[]>;
-  transform: Ref<TransformData>;
-  scale: Ref<number>;
   steps: Ref<StepData[]>;
   pipes: Ref<PipeData[]>;
 
@@ -263,13 +265,47 @@ export class FlowContext {
     this.containerRef = context.containerRef;
     this.stepRefs = context.stepRefs;
     this.cursorWorldPos = computed(() => this.viewportToWorldVec({ x: mouse.x.value, y: mouse.y.value }));
+    this.viewport = computed(() => {
+      if (context.transform.value != null) {
+        // manual transform
+        const scale = context.transform.value.scaleX ?? 1;
+        const translateX = context.transform.value.translateX ?? 0;
+        const translateY = context.transform.value.translateY ?? 0;
+        return { scale, transform: { metatype: ObjectType.TRANSFORM, translateX, translateY } };
+      } else {
+        // automatic transform
+        const padding = FLOW_GRID_STEP * 2;
+        const contentBoundingBox = this.contentBoundingBox.value;
+        const containerBounding = this.containerRef.value?.getBoundingClientRect();
+        if (contentBoundingBox == null || containerBounding == null)
+          return { scale: 1.0, transform: { metatype: ObjectType.TRANSFORM, translateX: 0, translateY: 0 } };
+
+        // calculate scale needed to fit content with padding
+        const contentWidth = contentBoundingBox.width + padding * 2;
+        const contentHeight = contentBoundingBox.height + padding * 2;
+        const scaleX = containerBounding.width / contentWidth;
+        const scaleY = containerBounding.height / contentHeight;
+        let scale = Math.min(scaleX, scaleY);
+
+        // clamp scale between min/max and round to step
+        scale = Math.max(FLOW_SCALE_MIN, Math.min(1.0, scale));
+        scale = Math.round(scale / FLOW_SCALE_SPEED) * FLOW_SCALE_SPEED;
+
+        // calculate translation to center content with padding
+        const translateX = -contentBoundingBox.x1 + (containerBounding.width / scale - contentBoundingBox.width) / 2;
+        const translateY = -contentBoundingBox.y1 + (containerBounding.height / scale - contentBoundingBox.height) / 2;
+
+        return {
+          scale,
+          transform: { metatype: ObjectType.TRANSFORM, translateX, translateY },
+        };
+      }
+    });
 
     // flow
     this.flowPtr = context.flowPtr;
     this.flow = this.graph.getRef(context.flowPtr);
     this.fields = this.graph.getChildrenRef(this.flow, NodeType.FIELD);
-    this.transform = computed(() => context.transform.value ?? makeStruct({ metatype: StructType.TRANSFORM }));
-    this.scale = computed(() => this.transform.value.scaleX ?? this.transform.value.scaleY ?? 1);
     this.steps = this.graph.getChildrenRef(this.flow, NodeType.STEP);
     this.pipes = this.graph.getChildrenRef(this.flow, NodeType.PIPE);
 
@@ -325,6 +361,10 @@ export class FlowContext {
     return this.dragging.value?.thing.kind == "port";
   }
 
+  get isDragging(): boolean {
+    return this.dragging.value != null;
+  }
+
   isDraggingPortAt(step: StepData, side?: PortSide): boolean {
     return (
       this.dragging.value?.thing.kind == "port" &&
@@ -333,7 +373,7 @@ export class FlowContext {
     );
   }
 
-  isDragging(step: StepData): boolean {
+  isDraggingStep(step: StepData): boolean {
     return this.dragging.value?.thing.kind == "step" && this.dragging.value?.thing.step.id == step.id;
   }
 
@@ -356,6 +396,13 @@ export class FlowContext {
   //
   // Canvas
   //
+
+  get currentViewport(): {
+    scale: number;
+    transform: TransformData & Required<Pick<TransformData, "translateX" | "translateY">>;
+  } {
+    return this.viewport.value;
+  }
 
   /** Gets the current center of the canvas in world coordinates. */
   get centerVec(): Vector2 | null {
@@ -653,7 +700,14 @@ export class FlowContext {
   /** Pan the canvas (in world coordinates). */
   pan(move: { x: number; y: number }) {
     this.update(
-      { transform: addTransform(this.transform.value, { translateX: move.x, translateY: move.y }) },
+      {
+        transform: {
+          metatype: ObjectType.TRANSFORM,
+          scaleX: this.currentViewport.scale,
+          translateX: this.currentViewport.transform.translateX + move.x,
+          translateY: this.currentViewport.transform.translateY + move.y,
+        },
+      },
       { debounce: "long" },
     );
   }
@@ -687,10 +741,10 @@ export class FlowContext {
   /** Convert world coordinates to view coordinates */
   worldToViewVec(worldVec: { x: number; y: number }): { x: number; y: number } {
     let viewVec = {
-      x: worldVec.x + (this.transform.value.translateX ?? 0),
-      y: worldVec.y + (this.transform.value.translateY ?? 0),
+      x: worldVec.x + this.currentViewport.transform.translateX,
+      y: worldVec.y + this.currentViewport.transform.translateY,
     };
-    viewVec = { x: viewVec.x * this.scale.value, y: viewVec.y * this.scale.value };
+    viewVec = { x: viewVec.x * this.currentViewport.scale, y: viewVec.y * this.currentViewport.scale };
     return viewVec;
   }
 
@@ -702,10 +756,10 @@ export class FlowContext {
 
   /** Convert screen coordinates to world coordinates */
   viewToWorldVec(viewVec: { x: number; y: number }): { x: number; y: number } {
-    let worldVec = { x: viewVec.x / this.scale.value, y: viewVec.y / this.scale.value };
+    let worldVec = { x: viewVec.x / this.currentViewport.scale, y: viewVec.y / this.currentViewport.scale };
     worldVec = {
-      x: worldVec.x - (this.transform.value.translateX ?? 0),
-      y: worldVec.y - (this.transform.value.translateY ?? 0),
+      x: worldVec.x - this.currentViewport.transform.translateX,
+      y: worldVec.y - this.currentViewport.transform.translateY,
     };
     return worldVec;
   }
@@ -718,7 +772,7 @@ export class FlowContext {
       originViewVec = { x: containerBounding.width / 2, y: containerBounding.height / 2 };
     }
     // figure out new zoom
-    const currentZoom = this.scale.value;
+    const currentZoom = this.currentViewport.scale;
     let newZoom: number;
     if (direction == "in") {
       newZoom = Math.min(FLOW_SCALE_MAX, currentZoom + FLOW_SCALE_SPEED * steps);
@@ -728,8 +782,8 @@ export class FlowContext {
       newZoom = direction;
     }
     if (newZoom == currentZoom) return; // no change
-    const translateX = this.transform.value?.translateX ?? 0;
-    const translateY = this.transform.value?.translateY ?? 0;
+    const translateX = this.currentViewport.transform.translateX;
+    const translateY = this.currentViewport.transform.translateY;
 
     // pan to keep the origin
     // (the viewport scales with (0, 0) at the origin, but we want the center of the viewport to stay in the same place)
@@ -753,27 +807,21 @@ export class FlowContext {
     };
     panVec.x += (newCenterWorldVec.x - newOriginWorldVec.x) * (newZoom - currentZoom);
     panVec.y += (newCenterWorldVec.y - newOriginWorldVec.y) * (newZoom - currentZoom);
-
-    this.update(
-      {
-        transform: {
-          ...this.transform.value,
-          scaleX: newZoom,
-          scaleY: newZoom,
-          translateX: translateX + panVec.x,
-          translateY: translateY + panVec.y,
-        },
-      },
-      { debounce: "long" },
-    );
+    const newTransform = {
+      ...this.currentViewport.transform,
+      scaleX: newZoom,
+      scaleY: newZoom,
+      translateX: translateX + panVec.x,
+      translateY: translateY + panVec.y,
+    };
+    this.update({ transform: newTransform }, { debounce: "long" });
   }
 
   /** Resets the viewport to the 'center' of the canvas */
   resetViewport() {
-    if (this.contentBoundingBox.value != null) {
-      this.panToCenter({ kind: "canvas" });
-    }
-    this.zoom(1, "center", 0);
+    // : center automatically if no offset/zoom set
+    if (this.view.value == null) return;
+    this.tx.update(this.view.value, { transform: undefined }, { debounce: "long" });
   }
 
   /** Pan the canvas in response to a wheel event */
@@ -828,9 +876,20 @@ export class FlowContext {
     const thing = this.dragging.value.thing;
     if (thing.kind == "canvas") {
       // pan canvas
-      const translateX = e.movementX / (this.transform.value?.scaleX ?? 1);
-      const translateY = e.movementY / (this.transform.value?.scaleY ?? 1);
-      this.update({ transform: addTransform(this.transform.value, { translateX, translateY }) }, { debounce: "long" });
+      const translateX = e.movementX / this.currentViewport.scale;
+      const translateY = e.movementY / this.currentViewport.scale;
+      this.update(
+        {
+          transform: {
+            metatype: ObjectType.TRANSFORM,
+            scaleX: this.currentViewport.scale,
+            scaleY: this.currentViewport.scale,
+            translateX: this.currentViewport.transform.translateX + translateX,
+            translateY: this.currentViewport.transform.translateY + translateY,
+          },
+        },
+        { debounce: "long" },
+      );
     } else if (thing.kind == "step") {
       // move step (snap to grid)
       const screenVec = this.viewportToViewVec({

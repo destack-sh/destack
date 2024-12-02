@@ -36,8 +36,13 @@ const containerRef = ref<HTMLElement | null>(null);
 const { width: containerWidth, height: containerHeight } = useElementSize(containerRef);
 const spanContainerWidth = computed(() => containerWidth.value);
 
-// Add this near the other refs at the top of the script
+// wait for initial render to complete so the transition-all doesn't look glitchy on mount
 const isInitialRender = ref(true);
+onMounted(() => {
+  setTimeout(() => {
+    isInitialRender.value = false;
+  }, 100);
+});
 
 //
 // Run
@@ -162,13 +167,6 @@ watchEffect(() => {
       timeline.value = EMPTY_TIMELINE;
     }
   }
-});
-
-// wait for initial render to complete so the transition-all doesn't look glitchy on mount
-onMounted(() => {
-  setTimeout(() => {
-    isInitialRender.value = false;
-  }, 100);
 });
 </script>
 <template>
