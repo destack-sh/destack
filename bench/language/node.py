@@ -491,8 +491,10 @@ def node_component(
                 if cls.__name__ != "Node" and not issubclass(cls, Node) and node_type is not None:
                     raise ValueError(f"{cls} is not a Node for {prop}")
                 list_properties[prop.name] = prop
-                for ref_t in prop.reference_nodes or ():
-                    list_properties_by_child[ref_t].append(prop)
+                assert isinstance(
+                    prop.reference_nodes, tuple
+                ), f"unexpected {prop.reference_nodes!r} for {prop!r}"
+                list_properties_by_child[prop.reference_nodes[0]].append(prop)
         cls.__node_child_properties__ = frozendict(list_properties)
 
         # subtypes for every final node base
@@ -795,12 +797,16 @@ def _node_ancestor_ref(prop: Property) -> property:
 
     # NOTE :Performance: _node_ancestor_ref could just walk in the graph directly?
 
+    assert prop.reference_nodes != "any", f"unexpected {prop.reference_nodes!r} for {prop!r}"
+
     if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF:
 
         def get_ancestor_first_self(self: Node) -> Optional[Node]:
             parent = self
             while parent is not None:
-                if prop.reference_nodes and parent.metatype in prop.reference_nodes:
+                if prop.reference_nodes and parent.metatype in cast(
+                    tuple[NodeType, ...], prop.reference_nodes
+                ):
                     return parent
                 parent = parent.parent
             return None
@@ -813,7 +819,9 @@ def _node_ancestor_ref(prop: Property) -> property:
             parent = self.parent
             farthest = None
             while parent is not None:
-                if prop.reference_nodes and parent.metatype in prop.reference_nodes:
+                if prop.reference_nodes and parent.metatype in cast(
+                    tuple[NodeType, ...], prop.reference_nodes
+                ):
                     farthest = parent
                 parent = parent.parent
             return farthest
@@ -2116,7 +2124,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     def get_node_child_property(cls, node_type: NodeType) -> Property:
         for prop in cls.__node_child_properties__.values():
-            if prop.reference_nodes and node_type in prop.reference_nodes:
+            if (
+                prop.reference_nodes
+                and prop.reference_nodes != "any"
+                and node_type in prop.reference_nodes
+            ):
                 return prop
         else:
             raise ValueError(f"no child property for {node_type} in {cls}")
@@ -2626,7 +2638,5 @@ class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 
     parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
-    reference: Optional[Node] = p_regular(
-        30, array=False, references=NODE_TYPES.tuple, require=True
-    )
+    reference: Optional[Node] = p_regular(30, array=False, references="any", require=True)
     order_key: str | None = p_internal(31, default=None)

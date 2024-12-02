@@ -12,8 +12,10 @@ import {
   FileType,
   NodeType,
   PrimitiveType,
+  StepType,
   TypeFormat,
   TypeKind,
+  ViewType,
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
@@ -383,6 +385,16 @@ export function typeIndex(idx: {
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.BLOCK;
       item.constraint = makeTypeConstraint({ blockTypes: [option.value as BlockType] });
+    } else if (enumType == EnumType.STEP_TYPE) {
+      item.title = option.title + " Step";
+      item.kind = TypeKind.NODE;
+      item.benchType = BenchType.STEP;
+      item.constraint = makeTypeConstraint({ stepTypes: [option.value as StepType] });
+    } else if (enumType == EnumType.VIEW_TYPE) {
+      item.title = option.title + " View";
+      item.kind = TypeKind.NODE;
+      item.benchType = BenchType.VIEW;
+      item.constraint = makeTypeConstraint({ viewTypes: [option.value as ViewType] });
     } else {
       throw new Error(`unexpected enum type: ${enumType} (${option.value})`);
     }
@@ -416,6 +428,7 @@ export function typeIndex(idx: {
       const typeFormatItems = getIntrinsicOptions(EnumType.TYPE_FORMAT);
       const fileItems = getIntrinsicOptions(EnumType.FILE_TYPE);
       const blockItems = getIntrinsicOptions(EnumType.BLOCK_TYPE);
+      const stepItems = getIntrinsicOptions(EnumType.STEP_TYPE);
       const nodeItems = getIntrinsicOptions(EnumType.BENCH_TYPE);
 
       // and any type definitions from blocks
@@ -435,10 +448,11 @@ export function typeIndex(idx: {
         ...primitiveItems,
         ...typeFormatItems,
         ...fileItems,
-        ...blockItems,
         ANY_NODE_TYPE,
-        ...nodeItems,
         ...graphItems,
+        ...blockItems,
+        ...stepItems,
+        ...nodeItems,
       ];
       return allItems;
     },

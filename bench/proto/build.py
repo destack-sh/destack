@@ -484,7 +484,7 @@ export type PropertyInfo = {
     
     // references
     referenceKind?: ReferenceKind;
-    referenceNodes?: NodeType[];
+    referenceNodes?: NodeType[] | "any";
     referenceStruct?: StructType;
     referenceIsNodeData?: boolean;
 }
@@ -547,8 +547,11 @@ export type PropertyInfo = {
             if prop.reference_kind:
                 prop_info_parts["referenceKind"] = f"ReferenceKind.{prop.reference_kind.name}"
             if prop.reference_nodes:
-                nodes_str_parts = [f"NodeType.{node.name}" for node in prop.reference_nodes]
-                prop_info_parts["referenceNodes"] = f"[{', '.join(nodes_str_parts)}]"
+                if prop.reference_nodes != "any":
+                    nodes_str_parts = [f"NodeType.{node.name}" for node in prop.reference_nodes]
+                    prop_info_parts["referenceNodes"] = f"[{', '.join(nodes_str_parts)}]"
+                else:
+                    prop_info_parts["referenceNodes"] = '"any"'
             if prop.reference_struct:
                 prop_info_parts["referenceStruct"] = f"StructType.{prop.reference_struct.name}"
             if prop.reference_is_node_data:

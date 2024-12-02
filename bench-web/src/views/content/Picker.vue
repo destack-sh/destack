@@ -66,7 +66,7 @@ const facetIcon = computed(() => {
     return null;
   }
 });
-const facetName = computed(() => {
+const facetName = computed(() => { 
   if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return baseType.value.name;
   } else if (props.valueType?.benchType != null) {

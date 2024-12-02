@@ -4,7 +4,7 @@ from uuid import UUID
 
 import regex
 
-from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
+from bench.language.const import EnumType, NodeType, StructType, enum_
 from bench.language.node import (
     BenchNode,
     BuiltinObject,
@@ -68,9 +68,7 @@ class TextSpan(TextOptionsBase, Struct):
     """A span of text with optional formatting."""
 
     content: Optional[str] = p_regular(33, default=None)
-    node: Optional[Node] = p_regular(
-        34, array=False, default=None, require=False, references=NODE_TYPES.tuple
-    )
+    node: Optional[Node] = p_regular(34, array=False, default=None, require=False, references="any")
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
 

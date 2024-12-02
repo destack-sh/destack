@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any, Optional
 import structlog
 
 from bench.language.const import (
-    NODE_TYPES,
     AccessType,
     EnumType,
     NodeType,
@@ -108,7 +107,7 @@ class Log(RuntimeNode[LogData]):
     # content
     type: AccessType | None = p_system(40, default=None)
     node: Optional["Node"] = p_system(
-        41, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
+        41, require=False, array=False, references="any", same_bench=True
     )
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None

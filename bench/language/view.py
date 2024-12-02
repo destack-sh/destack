@@ -498,7 +498,7 @@ class View(SourceNode[ViewData]):
         40, default=None, require=False, struct=StructType.TYPE_INFO
     )
     node: Optional["Node"] = p_regular(
-        42, default=None, require=False, array=False, references=NODE_TYPES.tuple
+        42, default=None, require=False, array=False, references="any"
     )
     if TYPE_CHECKING:
         node_type: Optional[NodeType] = None
@@ -569,12 +569,8 @@ class TreeView(View):
     node_types: list[NodeType] = p_regular(100, array=True)
     filter_is_page: Optional[bool] = p_regular(101, default=None, require=False)
     is_default_expanded: Optional[bool] = p_regular(102, default=None, require=False)
-    expanded_nodes: list[Node] = p_regular(
-        103, require=False, array=True, references=NODE_TYPES.tuple
-    )
-    collapsed_nodes: list[Node] = p_regular(
-        104, require=False, array=True, references=NODE_TYPES.tuple
-    )
+    expanded_nodes: list[Node] = p_regular(103, require=False, array=True, references="any")
+    collapsed_nodes: list[Node] = p_regular(104, require=False, array=True, references="any")
 
     preset: Optional[TreeViewPreset] = p_regular(110, default=None, require=False)
 

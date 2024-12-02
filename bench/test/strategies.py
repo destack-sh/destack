@@ -14,6 +14,7 @@ from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 from bench.language import NodeReference
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
+    NODE_TYPES,
     EnumType,
     FieldType,
     NodeType,
@@ -216,8 +217,11 @@ def get_naive_object_strategy(object_type: ObjectType):
                 continue  # nothing to do
             # generate random reference instead of node (sometimes this is enough)
             assert prop.reference_wired_ptr is not None, f"{prop!r} has no wired ptr"
+            reference_nodes = (
+                prop.reference_nodes if prop.reference_nodes != "any" else NODE_TYPES.tuple
+            )
             object_kwargs[prop.reference_wired_ptr.name] = wrap_value_scalar(
-                node_references(st.sampled_from(prop.reference_nodes)),
+                node_references(st.sampled_from(reference_nodes)),
                 is_required=prop.is_required,
                 is_list=prop.is_list,
             )

@@ -21,7 +21,6 @@ from opentelemetry import trace
 
 from bench.language.connection import AggregateOptions, ConnectMode, SearchConnection
 from bench.language.const import (
-    NODE_TYPES,
     AggregationType,
     BenchError,
     ConditionalType,
@@ -721,7 +720,7 @@ class Query(SourceNode[QueryData]):
     block: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
-    roots: list[Node] = p_regular(43, require=True, array=True, references=NODE_TYPES.tuple)
+    roots: list[Node] = p_regular(43, require=True, array=True, references="any")
     filter: Optional["Expression"] = p_regular(44, default=None, struct=StructType.EXPRESSION)
     sort: Optional[list["Expression"]] = p_regular(
         45, default=None, array=True, struct=StructType.EXPRESSION

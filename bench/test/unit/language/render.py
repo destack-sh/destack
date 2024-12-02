@@ -8,7 +8,7 @@ from hypothesis import assume, given
 
 from bench.language.bench import Package
 from bench.language.block import Block
-from bench.language.const import BlockType, ReferenceKind, StructType
+from bench.language.const import NODE_TYPES, BlockType, ReferenceKind, StructType
 from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileType
 from bench.language.flow import Pipe, PipeType, Step, StepType
@@ -49,7 +49,12 @@ def test_render_builtin_object_expr(
                 else:
                     setattr(o, prop.name, None)
                 continue
-            reference_node = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
+            reference_nodes = (
+                NODE_TYPES.tuple
+                if wired_prop.reference_nodes == "any"
+                else wired_prop.reference_nodes
+            )
+            reference_node = BUILTIN_OBJECTS_BY_TYPE[reference_nodes[0]]
             assert isinstance(reference_node, Node), f"expected Node, got {reference_node!r}"
             reference_alias = renderer.aliasing.add(reference_node)
             node_references[reference_alias] = reference_node

@@ -214,17 +214,20 @@ def map_builtin_object_to_table(
             else:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
         # FKs
+        reference_nodes = (
+            prop.reference_nodes or () if prop.reference_nodes != "any" else NODE_TYPES.tuple
+        )
         is_local = node.__is_local__ or any(
-            NODE_CLASS_BY_TYPE[n].__is_local__ for n in prop.reference_nodes or ()
+            NODE_CLASS_BY_TYPE[n].__is_local__ for n in reference_nodes
         )
         if (
             (prop.reference_kind == ReferenceKind.NODE_PARENT or prop.reference_force_fk)
             and not prop.is_list  # foreign keys must be scalar
-            and prop.reference_nodes
-            and (not is_local or node.metatype == prop.reference_nodes[0])
+            and reference_nodes
+            and (not is_local or node.metatype == reference_nodes[0])
         ):
-            assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
-            column.is_foreign_key_to = get_node_table_name(prop.reference_nodes[0])
+            assert len(reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
+            column.is_foreign_key_to = get_node_table_name(reference_nodes[0])
             if prop.reference_kind in (ReferenceKind.NODE_PARENT, ReferenceKind.NODE_ANCESTOR):
                 column.on_delete = CascadeAction.CASCADE
             else:
@@ -666,7 +669,7 @@ def _pg_pack_node_reference_into_row(
         # pointer id/ck
         for stored_prop in prop.reference_stored_ids:
             assert stored_prop.reference_nodes is not None, f"no reference nodes: {stored_prop!r}"
-            if reference is not None and reference.node_type in stored_prop.reference_nodes:
+            if reference is not None:
                 row[stored_prop.name] = reference.id
             else:
                 row[stored_prop.name] = None

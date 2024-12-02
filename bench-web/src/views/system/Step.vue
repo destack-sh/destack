@@ -177,7 +177,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           <span
             v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
             :key="field.id"
-            class="truncate text-gray-400"
+            class="truncate transition-colors duration-75"
+            :class="canvas.isHighlighted(field) ? 'text-gray-700' : 'text-gray-400'"
           >
             {{ field.name }}
           </span>
@@ -185,7 +186,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           <span
             v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
             :key="field.id"
-            class="truncate text-gray-400"
+            class="truncate transition-colors duration-75"
+            :class="canvas.isHighlighted(field) ? 'text-gray-700' : 'text-gray-400'"
           >
             {{ field.name }}
           </span>
