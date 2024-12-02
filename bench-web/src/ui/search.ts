@@ -342,6 +342,16 @@ export function typeIndex(idx: {
           (option) => option.value == value.constraint!.blockTypes[0],
         );
         if (option != null) return mapFromIntrinsicOption(EnumType.BLOCK_TYPE, option);
+      } else if (value.constraint?.stepTypes?.length == 1) {
+        const option = getEnumOptions(EnumType.STEP_TYPE).find(
+          (option) => option.value == value.constraint!.stepTypes[0],
+        );
+        if (option != null) return mapFromIntrinsicOption(EnumType.STEP_TYPE, option);
+      } else if (value.constraint?.viewTypes?.length == 1) {
+        const option = getEnumOptions(EnumType.VIEW_TYPE).find(
+          (option) => option.value == value.constraint!.viewTypes[0],
+        );
+        if (option != null) return mapFromIntrinsicOption(EnumType.VIEW_TYPE, option);
       }
       const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
       if (option != null) return mapFromIntrinsicOption(EnumType.BENCH_TYPE, option);
