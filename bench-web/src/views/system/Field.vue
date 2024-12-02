@@ -5,7 +5,7 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { focusInElement } from "@/ui/view";
-import IconName from "@/views/builtins/IconName.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -83,7 +83,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ]"
   >
     <!-- Icon -->
-    <IconName class="px-1 py-[3px]" :node="field" :tx="() => pkgConnection.tx" size="regular" light is-input />
+    <NodeReference class="px-1 py-[3px]" :node="field" :tx="() => pkgConnection.tx" size="regular" light is-input />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="pkgConnection" />
 </template>

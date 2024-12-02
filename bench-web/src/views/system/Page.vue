@@ -33,7 +33,7 @@ import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
-import IconName from "@/views/builtins/IconName.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -330,7 +330,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           }"
         >
           <!-- Icon -->
-          <IconName ref="iconNameRef" size="title" :node="page" is-input :tx="() => pkgConnection.tx" />
+          <NodeReference ref="NodeReferenceRef" size="title" :node="page" is-input :tx="() => pkgConnection.tx" />
         </div>
 
         <!-- Blocks -->

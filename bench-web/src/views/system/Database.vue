@@ -56,7 +56,7 @@ import {
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
-import IconName from "@/views/builtins/IconName.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -399,7 +399,7 @@ function writeColumnValue(
 
 //
 // Selection
-// TODO :UX: use (shared) containing view selection state for Database
+// nocheckin :UX: use (shared) containing view selection state for Database (move into state)
 //
 
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
@@ -714,7 +714,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     >
       <!-- Page header (title) -->
       <div v-if="variant != Variant.COMPACT">
-        <IconName
+        <NodeReference
           v-if="block"
           is-input
           class="mb-2 mt-5 px-0.5"

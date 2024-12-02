@@ -29,12 +29,11 @@ import {
 import {
   describeNode,
   isNode,
-  isNodeRef,
   makeDefaultObject,
   newNodeCk,
   newNodeId,
   nodeReference,
-  toNodeRef,
+  toNodeRef
 } from "@/proto/wiring";
 import { addVector2 } from "@/ui/view";
 import { Casing, toCasing } from "@/utils/string";
@@ -45,11 +44,6 @@ import { computed, Ref } from "vue";
 export function extractNameId(name: string): number | null {
   const match = name.match(/\d+$/);
   return match ? parseInt(match[0]) : null;
-}
-/** Gets the node type for a node or reference */
-export function getNodeType(node: AnyNodeData | NodeReferenceData): NodeType {
-  if (isNodeRef(node)) return node.nodeType;
-  else return node.metatype as unknown as NodeType;
 }
 
 /** Generates a node name for our :AutoNaming. */

@@ -9,7 +9,7 @@ import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import IconName from "@/views/builtins/IconName.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
@@ -32,7 +32,7 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const blockRef = ref<HTMLElement | null>(null);
-const iconNameRef: Ref<InstanceType<typeof IconName> | null> = ref(null);
+const NodeReferenceRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
@@ -99,7 +99,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   // common
   "common.edit.rename": {
     action: () => {
-      nextTick(() => iconNameRef.value?.focusName());
+      nextTick(() => NodeReferenceRef.value?.focusIdentifier());
     },
   },
   "common.navigate.open": (action, ctx) => {
@@ -130,8 +130,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   >
     <!-- Header -->
     <div v-if="block.type != BlockType.TEXT && block.type" class="flex flex-row items-center rounded-t px-1 py-1">
-      <IconName
-        ref="iconNameRef"
+      <NodeReference
+        ref="NodeReferenceRef"
         :size="hasCanvas ? 'large' : 'regular'"
         :underline="block.type == BlockType.PAGE"
         :node="block"
