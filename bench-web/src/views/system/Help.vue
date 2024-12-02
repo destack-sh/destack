@@ -35,7 +35,7 @@ const state = canvas.registerView(self, id);
 
 // node
 const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
-const { node } = supergraph.getLinkRef(nodePtr);
+const { node, connection } = supergraph.getLinkRef(nodePtr);
 const isNodeRunnable = computed(() => node.value != null && isRunnable(node.value));
 
 // run
@@ -84,7 +84,7 @@ defineExpose<ViewExposed>({ self });
       }"
     >
       <!-- Node -->
-      <NodeReference v-if="node" :node="node" :connection="pkgConnection" is-input />
+      <NodeReference v-if="node" :node="node" :tx="() => connection!.tx" size="regular" is-input />
       <span v-else class="text-gray-400">Nothing</span>
       <!-- Run status -->
       <div v-if="containingRun != null" class="flex flex-row px-1.5">

@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import { NodeType } from "@/proto/wire";
-import type { NodeReferenceData } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/language/graph";
-import { IconInline, getNodeIcon } from "@/ui/icon";
-import { toCamelName } from "@/language/const";
+import type { NodeReferenceData } from "@/proto/wire";
+import { NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { computed, toRef } from "vue";
 
 const props = defineProps<{
@@ -45,12 +44,12 @@ const selfIndex = computed(() => path.value.findIndex((node) => node.id == props
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
-        <IconInline
-          v-bind="getNodeIcon(node)"
-          class="mr-1.5 w-5"
-          :class="i > selfIndex && selfIndex != -1 ? 'text-gray-400' : 'text-gray-700'"
+        <NodeReference
+          :node="node"
+          size="regular"
+          :light="selfIndex != -1 && i != selfIndex"
+          :icon-light="selfIndex != -1 && i > selfIndex"
         />
-        <span>{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span>
       </button>
       <!-- Separator -->
       <span v-if="i < path.length - 1" class="ml-1.5 text-gray-400">/</span>

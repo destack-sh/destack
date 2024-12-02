@@ -21,7 +21,7 @@ import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/u
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { isDeveloperMode } from "@/utils/globals";
-import IconName from "@/views/builtins/IconName.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -270,7 +270,7 @@ defineExpose<ViewExposed>({ self });
         class="mx-2 flex cursor-pointer flex-row items-center gap-x-2.5 rounded py-1 pl-2 pr-2 hover:bg-gray-100"
         @click="runtime.focusedRun != null && canvas.goToNode(runtime.focusedRun)"
       >
-        <IconName v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
+        <NodeReference v-if="runtime.focusedRunTree.base" light size="regular" :node="runtime.focusedRunTree.base" />
         <span v-else class="text-gray-400">Run</span>
         <!-- Status -->
         <RunStatus :run="runtime.focusedRun" />

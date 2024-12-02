@@ -41,7 +41,7 @@ import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/pop
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
-import IconName from "@/views/builtins/IconName.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -254,7 +254,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       }"
     >
       <!-- Title -->
-      <IconName v-if="flow" class="mb-2 mt-5" size="title" is-input :node="flow" :tx="() => pkgConnection.tx" />
+      <NodeReference v-if="flow" class="mb-2 mt-5" size="title" is-input :node="flow" :tx="() => pkgConnection.tx" />
       <div class="flex flex-row flex-wrap items-center">
         <!-- Signature -->
         <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
