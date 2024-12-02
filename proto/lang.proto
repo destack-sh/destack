@@ -1648,12 +1648,14 @@ message MemberObjectData {
 
 message InputObjectData {
   ObjectType metatype = 1;
+  optional TextData text = 100;
 }
 
 message OutputObjectData {
   ObjectType metatype = 1;
-  optional CallData call = 100;
-  repeated ContinueData continuations = 101;
+  optional TextData text = 100;
+  optional CallData call = 110;
+  repeated ContinueData continuations = 111;
 }
 
 message ValueData {
@@ -2752,8 +2754,10 @@ message RecordData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  optional string order_key = 33;
-  NodeReferenceData block_ptr = 34;
+  optional string title = 32;
+  optional TextData text = 33;
+  optional string order_key = 34;
+  NodeReferenceData block_ptr = 36;
   optional google.protobuf.Value value_packed = 40;
   RuntimeMode mode = 90;
 }

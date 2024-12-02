@@ -1496,16 +1496,21 @@ class MemberObject(Struct, CustomObjectBase):
 class InputObject(Struct, CustomObjectBase):
     """An input object."""
 
-    pass
+    text: Optional["Text"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.TEXT
+    )
 
 
 @struct_(StructType.OUTPUT_OBJECT)
 class OutputObject(Struct, CustomObjectBase):
     """An output object."""
 
-    call: "Call | None" = p_regular(100, require=False, struct=StructType.CALL)
+    text: Optional["Text"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    call: "Call | None" = p_regular(110, require=False, struct=StructType.CALL)
     continuations: list["Continue"] = p_regular(
-        101, default=[], array=True, struct=StructType.CONTINUE
+        111, default=[], array=True, struct=StructType.CONTINUE
     )
 
 

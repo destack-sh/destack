@@ -2977,20 +2977,24 @@ class MemberObjectData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
 
 class InputObjectData(_message.Message):
-    __slots__ = ("metatype",)
+    __slots__ = ("metatype", "text")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ...) -> None: ...
+    text: TextData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
 
 class OutputObjectData(_message.Message):
-    __slots__ = ("metatype", "call", "continuations")
+    __slots__ = ("metatype", "text", "call", "continuations")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
     CALL_FIELD_NUMBER: _ClassVar[int]
     CONTINUATIONS_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
+    text: TextData
     call: CallData
     continuations: _containers.RepeatedCompositeFieldContainer[ContinueData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., call: _Optional[_Union[CallData, _Mapping]] = ..., continuations: _Optional[_Iterable[_Union[ContinueData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., call: _Optional[_Union[CallData, _Mapping]] = ..., continuations: _Optional[_Iterable[_Union[ContinueData, _Mapping]]] = ...) -> None: ...
 
 class ValueData(_message.Message):
     __slots__ = ("metatype", "type", "name", "text", "value_packed")
@@ -4971,7 +4975,7 @@ class QueryBlockData(_message.Message):
     def __init__(self, query_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class RecordData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "package_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "order_key", "block_ptr", "value_packed", "mode")
+    __slots__ = ("metatype", "id", "parent_ptr", "package_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "title", "text", "order_key", "block_ptr", "value_packed", "mode")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4985,6 +4989,8 @@ class RecordData(_message.Message):
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
@@ -5002,11 +5008,13 @@ class RecordData(_message.Message):
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
     subnode_packed: _struct_pb2.Value
+    title: str
+    text: TextData
     order_key: str
     block_ptr: NodeReferenceData
     value_packed: _struct_pb2.Value
     mode: RuntimeMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., order_key: _Optional[str] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., mode: _Optional[_Union[RuntimeMode, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., order_key: _Optional[str] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., mode: _Optional[_Union[RuntimeMode, str]] = ...) -> None: ...
 
 class FileData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "text", "region", "status", "current_status", "kind", "title", "external_url", "inline_content", "type", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "bitrate", "channels", "sample_rate", "retention", "expires_at", "mode")

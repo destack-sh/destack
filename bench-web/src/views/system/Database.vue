@@ -285,10 +285,9 @@ type ColumnView = {
 } & ColumnContent;
 const columns: Ref<ColumnView[]> = computed(() => {
   // NOTE :UX: support Table property columns properly :RichColumns
-  const properties: RecordProperty[] = [];
   const columns: ColumnView[] = [];
 
-  function addColumn(
+  function column(
     columnIn: Pick<
       ColumnView,
       "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isSelected"
@@ -311,11 +310,11 @@ const columns: Ref<ColumnView[]> = computed(() => {
     columns.push(column);
   }
 
-  for (const propertyId of properties) {
+  for (const propertyId of [RecordProperty.title] as RecordProperty[]) {
     // :RichColumns
     const property = propertyInfo(NodeType.RECORD, propertyId);
     const propertyType = getPropertyType(property);
-    addColumn({
+    column({
       id: propertyId.toString(),
       icon: getTypeIcon(propertyType),
       title: getPropertyTitle(property),
@@ -323,14 +322,14 @@ const columns: Ref<ColumnView[]> = computed(() => {
       kind: "property",
       property,
       propertyName: getPropertyName(property),
-      isInput: false,
+      isInput: true,
       isInspected: false,
       isHighlighted: false,
       isSelected: false,
     });
   }
   for (const field of fields.value) {
-    addColumn({
+    column({
       kind: "field",
       id: field.id,
       title: field.name,

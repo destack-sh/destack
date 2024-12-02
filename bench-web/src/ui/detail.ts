@@ -501,6 +501,7 @@ export function makeInspectLayout(
   //
   else if (isNode(node, NodeType.RECORD)) {
     section(undefined, [
+      rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }),
       {
         type: "view",
         viewType: ViewType.OBJECT,

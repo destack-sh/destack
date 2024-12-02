@@ -378,6 +378,7 @@ class Step(SourceNode[StepData]):
         elif self.type == StepType.CREATE and cast(CreateStep, self).block_base_ptr:
             block_base = cast(CreateStep, self).block_base
             if block_base is not None and field_type == FieldType.INPUT:
+                # nocheckin: create full node (Node data without identity)
                 return block_base.to_type(
                     as_object=as_object, field_type=cast(CreateStep, self).field_type
                 )

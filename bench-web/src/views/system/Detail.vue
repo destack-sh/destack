@@ -6,7 +6,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { InspectSection, makeInspectLayout } from "@/ui/inspect";
+import { InspectSection, makeInspectLayout } from "@/ui/detail";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";

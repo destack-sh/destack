@@ -817,11 +817,9 @@ export class FlowContext {
     this.update({ transform: newTransform }, { debounce: "long" });
   }
 
-  /** Resets the viewport to the 'center' of the canvas */
+  /** Resets the viewport */
   resetViewport() {
-    // : center automatically if no offset/zoom set
-    if (this.view.value == null) return;
-    this.tx.update(this.view.value, { transform: undefined }, { debounce: "long" });
+    this.update({ transform: undefined }, { debounce: "long" });
   }
 
   /** Pan the canvas in response to a wheel event */
