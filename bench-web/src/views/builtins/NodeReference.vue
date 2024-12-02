@@ -60,7 +60,7 @@ defineExpose({
 </script>
 <template>
   <div class="flex flex-row items-center">
-    <!-- nocheckin: support delegate nodes -->
+    <!-- NOTE :Incomplete: support :DelegateNodes (also with base nodes, like Records with icon from their Block) -->
     <IconInline
       ref="iconRef"
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"

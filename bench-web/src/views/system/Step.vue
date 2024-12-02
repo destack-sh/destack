@@ -39,7 +39,7 @@ const id = toRef(props, "id");
 const stepPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.STEP>);
 const flowCtx = useFlowContext();
 const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
-const { step, fields, delegatePtr: nodePtr, delegate: node, delegateFields: nodeFields } = stepState;
+const { step, fields, delegatePtr, delegate, delegateFields } = stepState;
 const isInspected = computed(() => canvas.isInspected(stepPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
 const sides = computed(() => (step.value != null ? getStepSides(step.value) : []));
@@ -117,7 +117,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         height: STEP_SIZE.height + 'px',
       }"
     >
-      <!-- nocheckin: support delegate nodes -->
+      <!-- NOTE :Incomplete: support :DelegateNodes -->
       <!-- Icon -->
       <div
         v-menu="
@@ -161,6 +161,14 @@ defineExpose<ViewExposed>({ self, id, actions });
               (newValue) => pkgConnection.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
             "
           />
+          <!-- Link (if delegate) -->
+          <button
+            v-if="delegate"
+            class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click.stop="canvas.goToNode(delegate)"
+          >
+            <i class="fas fa-arrow-up-right" />
+          </button>
           <!-- Controls/Meta -->
           <div class="ml-auto flex flex-row pl-2 pr-1.5">
             <!-- Run status -->
