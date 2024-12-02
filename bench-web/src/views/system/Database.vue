@@ -76,7 +76,7 @@ const GUTTER_WIDTH = 60;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; paddingX?: number; paddingY?: number } & Partial<
-    Pick<ViewData, "icon" | "nodePtr" | "variant" | "isInput" | "selection">
+    Pick<ViewData, "icon" | "nodePtr" | "variant" | "isInput">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -399,11 +399,11 @@ function writeColumnValue(
 
 //
 // Selection
-// nocheckin :UX: use (shared) containing view selection state for Database (move into state)
 //
 
+const selection = state.selection;
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
-  const selectedRecords = new Set(props.selection?.nodesPtr?.map((ptr) => ptr.id));
+  const selectedRecords = new Set(selection.value?.nodesPtr?.map((ptr) => ptr.id));
   return records.value
     .filter((record) => selectedRecords.has(record.id))
     .reduce(
@@ -415,7 +415,7 @@ const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
     );
 });
 const selectedFieldsByCk: Ref<Record<string, FieldData>> = computed(() => {
-  const selectedFields = new Set(props.selection?.fieldsPtr?.map((ptr) => ptr.ck));
+  const selectedFields = new Set(selection.value?.fieldsPtr?.map((ptr) => ptr.ck));
   return fields.value
     .filter((field) => selectedFields.has(field.ck))
     .reduce(
@@ -447,17 +447,17 @@ function isSelectedColumn(field: FieldData) {
 
 function isSelectedCell(record: RecordData, column: ColumnView) {
   if (!isSelectedRow(record)) return false;
-  if ((props.selection?.fieldsPtr?.length ?? 0) == 0) return true;
+  if ((selection.value?.fieldsPtr?.length ?? 0) == 0) return true;
   return column.kind == "field" && isSelectedColumn(column.field);
 }
 
 function addSelectionRow(record: RecordData) {
-  state.update({ selection: expandSelection(props.selection, [record]) }, { debounce: "tick" });
+  state.setSelection(expandSelection(selection.value, [record]));
 }
 
 function removeSelectionRow(record: RecordData) {
-  if (props.selection == null) return;
-  state.update({ selection: collapseSelection(props.selection, [record]) }, { debounce: "tick" });
+  if (selection.value == null) return;
+  state.setSelection(collapseSelection(selection.value, [record]));
 }
 
 function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: boolean) {
@@ -471,8 +471,8 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
     if (expandFromLast && lastSelectedY >= 0 && currentY >= 0) {
       const from = Math.min(lastSelectedY, currentY);
       const to = Math.max(lastSelectedY, currentY);
-      const selection = records.value.slice(from, to + 1);
-      state.update({ selection: expandSelection(props.selection, selection) }, { debounce: "tick" });
+      const newSelection = records.value.slice(from, to + 1);
+      state.setSelection(expandSelection(selection.value, newSelection));
     } else {
       addSelectionRow(record);
     }
@@ -483,17 +483,16 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
 }
 
 function selectAll() {
-  state.update(
-    { selection: { metatype: ObjectType.SELECTION, nodesPtr: records.value.map(toNodeRef), fieldsPtr: [] } },
-    { debounce: "tick" },
-  );
+  state.setSelection({
+    metatype: ObjectType.SELECTION,
+    nodesPtr: records.value.map(toNodeRef),
+    fieldsPtr: [],
+  });
 }
 
 function selectNone() {
   lastSelectedRow.value = null;
-  if (props.selection != undefined) {
-    state.update({ selection: undefined }, { debounce: "tick" });
-  }
+  state.setSelection(undefined);
 }
 
 // local selection region
@@ -524,7 +523,7 @@ function updateSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number
       .filter((column) => column.kind == "field")
       .map((column) => toNodeRef(column.field)),
   };
-  state.update({ selection }, { debounce: "long" });
+  state.setSelection(selection);
 }
 
 function endSelectRegion() {
@@ -535,7 +534,7 @@ function endSelectRegion() {
 useEventListener(window, "mouseup", endSelectRegion);
 useEventListener(containerRef, "mousedown", (e) => {
   // clear selection if we're not inside a row or the header
-  if (props.selection == null) return;
+  if (selection.value == null) return;
   const node = canvas.getNodeAt(e.target as HTMLElement);
   if (node?.nodeType != NodeType.RECORD && !headerRef.value?.contains(e.target as HTMLElement)) {
     selectNone();

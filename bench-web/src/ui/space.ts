@@ -581,7 +581,7 @@ export class SpaceCanvas {
     });
 
     //
-    // base view
+    // Base View
     //
 
     // mark component with view (if we have one)
@@ -597,7 +597,7 @@ export class SpaceCanvas {
     const baseViewRef: Ref<ViewData | null> | null = (base as any)?.__selfViewRef ?? null;
 
     //
-    // state (on demand)
+    // (Sub)State
     //
 
     function getState(viewId?: string, override?: ViewProps): Partial<Record<string, any> | undefined> {
@@ -641,7 +641,21 @@ export class SpaceCanvas {
       }
     }
 
-    return { getState, getChildState, update };
+    //
+    // Selection (from base view.. might want to move it even further up, like root?)
+    //
+
+    const selection = computed(() => baseViewRef?.value?.selection);
+
+    function setSelection(selection: SelectionData | undefined, options?: TransactionOptions) {
+      if (baseViewRef?.value != null) {
+        tx()
+          .with({ category: ChangeCategory.SPACE })
+          .update(baseViewRef.value, { selection }, { debounce: "long", ...options });
+      }
+    }
+
+    return { getState, getChildState, update, selection, setSelection };
   }
 
   /** Gets the containing root view (or self, if any) for a view */
