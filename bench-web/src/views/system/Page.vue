@@ -19,12 +19,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire/";
-import {
-  describeNode,
-  isNode,
-  toNodeRef,
-  type TypedNodeReferenceData
-} from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
@@ -272,7 +267,7 @@ const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
-  <div v-if="page" class="flex w-full select-none flex-col bg-white text-gray-900">
+  <div class="flex h-full w-full select-none flex-col bg-white text-gray-900">
     <!-- Meta header -->
     <div
       data-keep-inspection-in-base-view="true"
@@ -310,6 +305,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
     <!-- Page content -->
     <Scroll
+      v-if="page"
       id="body"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({
@@ -448,6 +444,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
       </div>
     </Scroll>
+    <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
   </div>
-  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
 </template>

@@ -36,7 +36,7 @@ import {
   propertyInfo,
   propertyReference,
   toNodeRef,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
@@ -57,6 +57,7 @@ import {
 import { assertNever } from "@/utils/functools";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import IconName from "@/views/builtins/IconName.vue";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -706,6 +707,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Header -->
     <div
+      v-if="block"
       :style="{
         marginLeft: variant != Variant.COMPACT ? `${GUTTER_WIDTH}px` : undefined,
         marginRight: variant != Variant.COMPACT ? `${GUTTER_WIDTH}px` : undefined,
@@ -836,6 +838,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Body (scroll horizontally, and vertically if not compact) -->
     <Scroll
+      v-if="block"
       id="body"
       ref="bodyRef"
       :size="bodySize"
@@ -1131,5 +1134,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
       </div>
     </Scroll>
+
+    <Inaccessible v-if="!block" :connection="pkgConnection" :node="nodePtr" class="h-full w-full" />
   </div>
 </template>
