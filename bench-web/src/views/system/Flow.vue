@@ -41,6 +41,7 @@ import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import IconName from "@/views/builtins/IconName.vue";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
@@ -234,7 +235,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     </div>
     <!-- Header -->
     <div
-      v-if="variant != Variant.COMPACT"
+      v-if="flow && variant != Variant.COMPACT"
       ref="headerRef"
       :style="{
         marginLeft: `${GUTTER_WIDTH}px`,
@@ -277,6 +278,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     </div>
     <!-- Canvas body -->
     <div
+      v-if="flow"
       ref="containerRef"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({
@@ -450,7 +452,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       </div>
 
       <!-- Overlay -->
-      <div class="pointer-events-none absolute bottom-0 left-0 flex w-full flex-row items-center justify-center p-2">
+      <div
+        v-if="flow"
+        class="pointer-events-none absolute bottom-0 left-0 flex w-full flex-row items-center justify-center p-2"
+      >
         <!-- Menu -->
         <div
           class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
@@ -522,5 +527,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         </div>
       </div>
     </div>
+    <Inaccessible v-else :connection="pkgConnection" :node="nodePtr" class="h-full w-full" />
   </div>
 </template>

@@ -55,5 +55,6 @@ const selfIndex = computed(() => path.value.findIndex((node) => node.id == props
       <!-- Separator -->
       <span v-if="i < path.length - 1" class="ml-1.5 text-gray-400">/</span>
     </template>
+    <span v-if="path.length == 0" class="text-gray-400">???</span>
   </div>
 </template>
