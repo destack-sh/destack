@@ -267,7 +267,7 @@ const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
-  <div class="flex h-full w-full select-none flex-col bg-white text-gray-900">
+  <div class="flex w-full select-none flex-col bg-white text-gray-900" :class="[page ? '' : 'h-full']">
     <!-- Meta header -->
     <div
       data-keep-inspection-in-base-view="true"

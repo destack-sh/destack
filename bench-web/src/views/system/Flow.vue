@@ -30,6 +30,7 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import { canvas } from "@/system/space";
 import {
   fireAction,
+  fireActionById,
   getAction,
   type ActionBuiltinId,
   type ActionContext,
@@ -48,7 +49,7 @@ import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
 import Type from "@/views/system/Type.vue";
 import { useElementSize } from "@vueuse/core";
-import { computed, provide, ref, toRef, type Ref } from "vue";
+import { computed, onMounted, provide, ref, toRef, type Ref } from "vue";
 
 const BACKGROUND_STYLE: "checker" | "dots" = "dots";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -91,11 +92,12 @@ const flowCtx = new FlowContext({
 });
 provide(FLOW_CONTEXT_KEY, flowCtx);
 const flow = flowCtx.flow;
-const scale = flowCtx.scale;
 const steps = flowCtx.steps;
 const pipes = flowCtx.pipes;
 const fields = flowCtx.fields;
-const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
+const stepsAndPipes: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
+
+const viewport = flowCtx.viewport;
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath: Ref<PipePath | null> = computed(() => {
   if (flowCtx.draggable?.kind != "port") return null;
@@ -129,15 +131,24 @@ const pendingPath: Ref<PipePath | null> = computed(() => {
 // Interaction
 //
 
+// wait for initial render to complete so the transition-all doesn't look glitchy on mount
+const isInitialRender = ref(true);
+onMounted(() => {
+  setTimeout(() => {
+    isInitialRender.value = false;
+  }, 100);
+});
+const shouldAnimateTransform = computed(() => !isInitialRender.value && !flowCtx.isDragging);
+
 // actions
 const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData | PipeData | null; idx: number } => {
   let thingIdx: number | undefined = undefined;
   if (thingIdx === undefined && ctx?.triggerNode?.id != null)
-    thingIdx = things.value.findIndex((thing) => thing.id == ctx!.triggerNode!.id);
+    thingIdx = stepsAndPipes.value.findIndex((thing) => thing.id == ctx!.triggerNode!.id);
   if (thingIdx === undefined && focusedNodePtr.value?.id != null)
-    thingIdx = things.value.findIndex((thing) => thing.id == focusedNodePtr.value!.id);
+    thingIdx = stepsAndPipes.value.findIndex((thing) => thing.id == focusedNodePtr.value!.id);
   if (thingIdx === undefined) return { thing: null, idx: -1 };
-  const thing = things.value[thingIdx];
+  const thing = stepsAndPipes.value[thingIdx];
   return { thing, idx: thingIdx };
 };
 const actions: Partial<ActionMapImplementation<"common" | "session">> = {
@@ -244,36 +255,62 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     >
       <!-- Title -->
       <IconName v-if="flow" class="mb-2 mt-5" size="title" is-input :node="flow" :tx="() => pkgConnection.tx" />
-      <!-- Signature -->
-      <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
-        <Type
-          id="type.input"
-          class=""
-          :node="flow"
-          :prepared-connection="pkgGetConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.INPUT"
-        />
-        <i
-          v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
-          class="fas fa-arrow-right-long text-base text-gray-400"
-        />
-        <Type
-          id="type.output"
-          class=""
-          :node="flow"
-          :prepared-connection="pkgGetConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.OUTPUT"
-        />
-        <span v-if="fields?.some((f) => f.type == FieldType.VARIABLE)" class="text-xs text-gray-400">◆</span>
-        <Type
-          id="type.input"
-          :node="flow"
-          :prepared-connection="pkgGetConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.VARIABLE"
-        />
+      <div class="flex flex-row flex-wrap items-center">
+        <!-- Signature -->
+        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
+          <Type
+            id="type.input"
+            class=""
+            :node="flow"
+            :prepared-connection="pkgGetConnection"
+            :node-ptr="props.nodePtr"
+            :field-type="FieldType.INPUT"
+          />
+          <i
+            v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
+            class="fas fa-arrow-right-long text-base text-gray-400"
+          />
+          <Type
+            id="type.output"
+            class=""
+            :node="flow"
+            :prepared-connection="pkgGetConnection"
+            :node-ptr="props.nodePtr"
+            :field-type="FieldType.OUTPUT"
+          />
+          <span v-if="fields?.some((f) => f.type == FieldType.VARIABLE)" class="text-xs text-gray-400">◆</span>
+          <Type
+            id="type.input"
+            :node="flow"
+            :prepared-connection="pkgGetConnection"
+            :node-ptr="props.nodePtr"
+            :field-type="FieldType.VARIABLE"
+          />
+        </div>
+        <!-- Canvas controls -->
+        <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1">
+          <!-- Zoom -->
+          <button
+            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom('out', flowCtx.centerVec!, 10)"
+          >
+            <i class="fas fa-minus w-5 text-center" />
+          </button>
+          <span class="text-gray-400">{{ Math.round(viewport.scale * 100) }}%</span>
+          <button
+            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
+          >
+            <i class="fas fa-plus w-5 text-center" />
+          </button>
+          <!-- Auto/Reset -->
+          <button
+            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.resetViewport()"
+          >
+            <i class="fas fa-arrows-to-dot w-5 text-center" />
+          </button>
+        </div>
       </div>
     </div>
     <!-- Canvas body -->
@@ -312,12 +349,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-if="BACKGROUND_STYLE == 'dots'"
           xmlns="http://www.w3.org/2000/svg"
           class="h-full w-full text-gray-200"
+          :class="shouldAnimateTransform ? 'transition duration-150' : ''"
           :style="{
             // extra spacing for smooth infinite scrolling
-            width: `${100 / scale}%`,
-            height: `${100 / scale}%`,
+            width: `${100 / viewport.scale}%`,
+            height: `${100 / viewport.scale}%`,
             transformOrigin: '0 0',
-            transform: `scale(${scale}, ${scale}) translate(${((transform?.translateX ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${((transform?.translateY ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
+            transform: `scale(${viewport.scale}, ${viewport.scale}) translate(${(viewport.transform.translateX % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${(viewport.transform.translateY % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
           }"
         >
           <defs>
@@ -343,11 +381,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-else-if="BACKGROUND_STYLE == 'checker'"
           xmlns="http://www.w3.org/2000/svg"
           class="h-full w-full text-gray-200"
+          :class="shouldAnimateTransform ? 'transition duration-150' : ''"
           :style="{
-            width: `${105 / scale}%`,
-            height: `${105 / scale}%`,
+            width: `${105 / viewport.scale}%`,
+            height: `${105 / viewport.scale}%`,
             transformOrigin: '0 0',
-            transform: `scale(${scale}, ${scale}) translate(${((transform?.translateX ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${((transform?.translateY ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
+            transform: `scale(${viewport.scale}, ${viewport.scale}) translate(${(viewport.transform.translateX % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${(viewport.transform.translateY % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
           }"
         >
           <defs>
@@ -391,9 +430,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <div class="z-0 h-full w-full overflow-hidden">
         <div
           class="relative h-full w-full"
+          :class="shouldAnimateTransform ? 'transition duration-150' : ''"
           :style="{
             transformOrigin: '0 0',
-            transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
+            transform: `scale(${viewport.scale}, ${viewport.scale}) translate(${viewport.transform.translateX}px, ${viewport.transform.translateY}px) `,
           }"
         >
           <!-- Pipes -->
@@ -439,7 +479,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               })
             "
             class="absolute"
-            :class="[flowCtx?.isDragging(step) ? 'cursor-grabbing' : 'cursor-grab']"
+            :class="[flowCtx?.isDraggingStep(step) ? 'cursor-grabbing' : 'cursor-grab']"
             :style="{
               width: STEP_SIZE.width + 'px',
               left: (step.position?.x ?? 0) + 'px',
@@ -454,11 +494,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- Overlay -->
       <div
         v-if="flow"
-        class="pointer-events-none absolute bottom-0 left-0 flex w-full flex-row items-center justify-center p-2"
+        class="pointer-events-none absolute bottom-0 left-0 flex w-full flex-row items-center justify-center"
       >
         <!-- Menu -->
         <div
-          class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded border border-gray-200 bg-white px-2 py-1.5"
+          class="rounded-b-0 pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-t-2xl border-x border-t border-gray-200 bg-white px-2.5 py-1.5"
           :class="
             variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
           "
@@ -481,7 +521,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               hideDelay: 100,
               small: true,
               referenceMargin: 8,
-              group: 'flow.create',
+              group: 'flow.overlay',
             }"
             class="rounded px-1"
             :class="
@@ -499,30 +539,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             "
           >
             <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
-          </button>
-          <div class="h-full w-[1px] bg-gray-200">&nbsp;</div>
-          <button
-            v-for="action of (
-              ['common.navigate.zoomIn', 'common.navigate.zoomOut', 'common.navigate.reset'] as ActionBuiltinId[]
-            ).map(getAction)"
-            :key="action.id"
-            v-tooltip="{
-              title: action.title,
-              showDelay: 200,
-              hideDelay: 100,
-              small: true,
-              referenceMargin: 8,
-              group: 'flow.actions',
-            }"
-            class="rounded px-1 text-base"
-            :class="
-              variant != Variant.COMPACT
-                ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
-            "
-            @click="fireAction(action)"
-          >
-            <IconInline v-bind="action.icon" class="w-5 text-center" />
           </button>
         </div>
       </div>
