@@ -2,12 +2,13 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 
 import structlog
 
-from bench.language.const import NodeType, ObjectKind
+from bench.language.const import NodeType, ObjectKind, StructType
 from bench.language.field import TypeBase
 from bench.language.node import HasNodeBase, StateNode, local_node_
 from bench.language.property import (
     p_internal,
     p_node_parent,
+    p_regular,
     p_system,
     p_value_packed,
     p_value_runtime,
@@ -16,7 +17,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Block, CustomObject
+    from bench.language import Block, CustomObject, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -35,11 +36,15 @@ class Record(StateNode[RecordData], HasNodeBase):
     A Record from a DatabaseBlock.
     """
 
-    # NOTE :Incomplete: support nested Records (Record.parent->Record)
+    # NOTE :Incomplete: support nested Records? (Record.parent->Record)
     parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
     # type: RecordType?
-    order_key: str | None = p_internal(33, default=INTEGER_ZERO)
-    block: "Block" = p_system(34, require=True, references=NodeType.BLOCK)
+    title: Optional[str] = p_regular(32, default=None)
+    text: Optional["Text"] = p_regular(
+        33, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    order_key: str | None = p_internal(34, default=INTEGER_ZERO)
+    block: "Block" = p_system(36, require=True, references=NodeType.BLOCK)
 
     # value
     value_packed: Any = p_value_packed(40)

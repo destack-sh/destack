@@ -117,6 +117,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         height: STEP_SIZE.height + 'px',
       }"
     >
+      <!-- nocheckin: support delegate nodes -->
       <!-- Icon -->
       <div
         v-menu="

@@ -499,6 +499,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <!-- Menu -->
         <div
           class="rounded-b-0 pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-t-2xl border-x border-t border-gray-200 bg-white px-2.5 py-1.5"
+          data-suppress-drag="true"
           :class="
             variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
           "
@@ -539,6 +540,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             "
           >
             <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
+          </button>
+          <!-- Reset Viewport (if compact) -->
+          <button
+            v-if="variant == Variant.COMPACT"
+            class="rounded px-1 text-gray-400 hover:text-gray-700"
+            @click="flowCtx.resetViewport()"
+          >
+            <i class="fas fa-arrows-to-dot w-5 text-center" />
           </button>
         </div>
       </div>

@@ -17,7 +17,7 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
-import { onAddFieldAction } from "@/ui/inspect";
+import { onAddFieldAction } from "@/ui/detail";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
