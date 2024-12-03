@@ -254,7 +254,7 @@ class Renderer:
         if alias is not None:
             # already have an alias
             return alias
-        elif isinstance(node, Node) and node._is_attached and "name" in node.__properties__:
+        elif isinstance(node, Node) and node.is_attached and "name" in node.__properties__:
             # reference as path
             path = get_path(scope=self.scope, node=node)
             rendered_path = render_path(path)

@@ -204,9 +204,6 @@ class Change(Struct):
     """
 
     key: UUID = p_system(30, default_factory=UUIDT)
-    scope: Optional["Node"] = p_internal(
-        32, require=False, references="any", description="Where to apply the Change."
-    )
     code: Optional["Code"] = p_internal(
         33,
         require=False,

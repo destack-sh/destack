@@ -139,7 +139,7 @@ class Bench(BenchNode[BenchData]):
     branches: LocalNodeList["Branch"] = p_node_children(NodeType.BRANCH)
 
     @property
-    def _is_attached(self) -> bool:
+    def is_attached(self) -> bool:
         return True
 
     @property
@@ -201,7 +201,7 @@ class Package(BenchNode[PackageData]):
     dependencies: LocalNodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
 
     @property
-    def _is_attached(self) -> bool:
+    def is_attached(self) -> bool:
         return True
 
     @property
@@ -459,11 +459,11 @@ class Client(BenchNode[ClientData]):
     )
 
     @property
-    def _is_attached(self) -> bool:
+    def is_attached(self) -> bool:
         parent = self.parent
         if parent is None:
             return False
-        return parent._is_attached
+        return parent.is_attached
 
     def __content_str__(self) -> str:
         value_parts = []

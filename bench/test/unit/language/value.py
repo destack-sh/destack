@@ -115,6 +115,11 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     assert obj_unpacked.equals(obj)
 
 
+#
+# Packing/unpacking
+#
+
+
 def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
 
@@ -211,18 +216,9 @@ def test_roundtrip_builtin_object_value(
 
 # TODO :Test: auto generate :Test types & values
 
-
-def test_sample_value_scalar(session: Session, package: Package):
-    typ = TypeInfo.from_type(bool)
-    val = sample_value(typ)
-    check_value(val, typ, on_invalid_raise)
-
-
-def test_sample_value_scalar_constrained(session: Session, package: Package):
-    typ = TypeInfo.from_type(int, constraint=constraint(min_value=10.0, max_value=20.0))
-    val = sample_value(typ)
-    check_value(val, typ, on_invalid_raise)
-
+#
+# Sampling
+#
 
 UNGENERATABLE_STRUCT_TYPES = [
     # Edit/Change have old/new_node_packed data
@@ -235,7 +231,8 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.MEMBER_OBJECT,
     StructType.INPUT_OBJECT,
     StructType.OUTPUT_OBJECT,
-    # references have special handling
+    # nodes have special handling
+    StructType.NODE_TREE,
     StructType.NODE_REFERENCE,
     StructType.PROPERTY_REFERENCE,
     # contain required references
@@ -244,6 +241,18 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.CONTINUE,
     StructType.CALL,
 ]
+
+
+def test_sample_value_scalar(session: Session, package: Package):
+    typ = TypeInfo.from_type(bool)
+    val = sample_value(typ)
+    check_value(val, typ, on_invalid_raise)
+
+
+def test_sample_value_scalar_constrained(session: Session, package: Package):
+    typ = TypeInfo.from_type(int, constraint=constraint(min_value=10.0, max_value=20.0))
+    val = sample_value(typ)
+    check_value(val, typ, on_invalid_raise)
 
 
 @pytest.mark.parametrize(

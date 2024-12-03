@@ -376,14 +376,8 @@ class Step(SourceNode[StepData]):
                 delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
             )
         elif self.type == StepType.CREATE and cast(CreateStep, self).block_base_ptr:
-            block_base = cast(CreateStep, self).block_base
-            if block_base is not None and field_type == FieldType.INPUT:
-                # nocheckin: create full node (Node data without identity)
-                return block_base.to_type(
-                    as_object=as_object, field_type=cast(CreateStep, self).field_type
-                )
-            else:
-                return None
+            # nocheckin: intrinsic type (for CreateStep)
+            return None
         else:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -421,7 +415,6 @@ class ActionStep(Step, ActionBase):
 @node_subtype_(StepType.CREATE)
 class CreateStep(Step):
     node_type: NodeType = p_regular(100)
-    field_type: FieldType = p_regular(101, default=FieldType.MEMBER)
     block_base: Optional["Block"] = p_regular(
         102,
         require=False,

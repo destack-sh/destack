@@ -1780,7 +1780,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self.id
 
     @property
-    def _is_attached(self) -> bool:
+    def is_attached(self) -> bool:
         return True
 
     @override
@@ -2271,8 +2271,8 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     )
 
     @property
-    def _is_attached(self) -> bool:
-        return self.parent is not None and self.bench is not None
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.bench is not None
 
 
 @node_component()
@@ -2287,8 +2287,8 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContex
         package_ptr: Optional[NodeReference] = None
 
     @property
-    def _is_attached(self) -> bool:
-        return self.parent is not None and self.package is not None
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.package is not None
 
 
 @node_component()
@@ -2604,7 +2604,7 @@ class PropertyReference(Struct):
             raise ValueError(f"could not resolve {self!r}")
         return resolved
 
-    def resolve_maybe(self) -> "Property | None":
+    def resolve_maybe(self) -> Property | None:
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
         if prop is not None:
@@ -2619,6 +2619,19 @@ class PropertyReference(Struct):
                 if id_prop is not None:
                     return id_prop
         return prop
+
+
+@struct_(StructType.NODE_TREE)
+class NodeTree(Struct):
+    """A tree of (detached) Nodes with a single root Node. For internal use."""
+
+    nodes: list[AnyNodeData] = p_regular(
+        35,
+        primitive_type=None,
+        is_node_data=True,
+        array=True,
+        description="The entire Nodes in the Tree.",
+    )
 
 
 # NOTE: import from .value later to avoid circular import

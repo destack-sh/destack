@@ -67,7 +67,7 @@ from .const import (
     TriggerType,
 )
 from .database import Record
-from .expression import A, AggregationResult, C, ComputedValue, Expression, S, coerce_conditional
+from .expression import A, AggregationResult, C, Expression, S, coerce_conditional
 from .field import (
     Field,
     FieldType,
@@ -220,7 +220,6 @@ __all__ = [
     "ColorShade",
     "ColorType",
     "ColorType",
-    "ComputedValue",
     "ConditionalType",
     "Connection",
     "Context",

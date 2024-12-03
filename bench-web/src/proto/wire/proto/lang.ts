@@ -112,6 +112,19 @@ export interface PropertyReferenceData {
     referencesMeta?: string;
 }
 /**
+ * @generated from protobuf message symbolx.bench.NodeTreeData
+ */
+export interface NodeTreeData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 35;
+     */
+    nodes: SomeNodeData[];
+}
+/**
  * @generated from protobuf message symbolx.bench.VariableObjectData
  */
 export interface VariableObjectData {
@@ -272,23 +285,6 @@ export interface AggregationResultData {
     scalar?: number;
 }
 /**
- * @generated from protobuf message symbolx.bench.ComputedValueData
- */
-export interface ComputedValueData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData expression = 35;
-     */
-    expression?: ExpressionData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.CodeData code = 36;
-     */
-    code?: CodeData;
-}
-/**
  * @generated from protobuf message symbolx.bench.TypeConstraintData
  */
 export interface TypeConstraintData {
@@ -329,19 +325,15 @@ export interface TypeConstraintData {
      */
     endsWith?: string;
     /**
-     * @generated from protobuf field: optional bool node_is_attached = 70;
-     */
-    nodeIsAttached?: boolean;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 71;
+     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 70;
      */
     nodeTypes: NodeType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData node_scope_ptr = 72;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData node_scope_ptr = 71;
      */
     nodeScopePtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional int32 node_max_depth = 73;
+     * @generated from protobuf field: optional int32 node_max_depth = 72;
      */
     nodeMaxDepth?: number;
     /**
@@ -1864,10 +1856,6 @@ export interface ChangeData {
      * @generated from protobuf field: string key = 30;
      */
     key: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scope_ptr = 32;
-     */
-    scopePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.CodeData code = 33;
      */
@@ -4613,10 +4601,6 @@ export interface CreateStepData {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: symbolx.bench.FieldType field_type = 101;
-     */
-    fieldType: FieldType;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_base_ptr = 102;
      */
     blockBasePtr?: NodeReferenceData;
@@ -6812,6 +6796,10 @@ export enum StructType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_TREE = 10012;
+     */
+    NODE_TREE = 10012,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 10500;
      */
     POLICY = 10500,
@@ -6923,10 +6911,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 12206;
      */
     VALUE = 12206,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COMPUTED_VALUE = 12207;
-     */
-    COMPUTED_VALUE = 12207,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_OBJECT_MAPPING = 12208;
      */
@@ -7237,6 +7221,10 @@ export enum ObjectType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
+     * @generated from protobuf enum value: OBJECT_TYPE_NODE_TREE = 10012;
+     */
+    NODE_TREE = 10012,
+    /**
      * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 10500;
      */
     POLICY = 10500,
@@ -7348,10 +7336,6 @@ export enum ObjectType {
      * @generated from protobuf enum value: OBJECT_TYPE_VALUE = 12206;
      */
     VALUE = 12206,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COMPUTED_VALUE = 12207;
-     */
-    COMPUTED_VALUE = 12207,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_OBJECT_MAPPING = 12208;
      */
@@ -7933,6 +7917,10 @@ export enum BenchType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_TREE = 10012;
+     */
+    NODE_TREE = 10012,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_POLICY = 10500;
      */
     POLICY = 10500,
@@ -8044,10 +8032,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_VALUE = 12206;
      */
     VALUE = 12206,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE = 12207;
-     */
-    COMPUTED_VALUE = 12207,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_OBJECT_MAPPING = 12208;
      */
@@ -12279,6 +12263,61 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
  */
 export const PropertyReferenceData = new PropertyReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class NodeTreeData$Type extends MessageType$<NodeTreeData> {
+    constructor() {
+        super("symbolx.bench.NodeTreeData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 35, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
+        ]);
+    }
+    create(value?: PartialMessage<NodeTreeData>): NodeTreeData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.nodes = [];
+        if (value !== undefined)
+            reflectionMergePartial<NodeTreeData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NodeTreeData): NodeTreeData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.SomeNodeData nodes */ 35:
+                    message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: NodeTreeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbolx.bench.SomeNodeData nodes = 35; */
+        for (let i = 0; i < message.nodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.NodeTreeData
+ */
+export const NodeTreeData = new NodeTreeData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class VariableObjectData$Type extends MessageType$<VariableObjectData> {
     constructor() {
         super("symbolx.bench.VariableObjectData", [
@@ -12815,67 +12854,6 @@ class AggregationResultData$Type extends MessageType$<AggregationResultData> {
  */
 export const AggregationResultData = new AggregationResultData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ComputedValueData$Type extends MessageType$<ComputedValueData> {
-    constructor() {
-        super("symbolx.bench.ComputedValueData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 35, name: "expression", kind: "message", T: () => ExpressionData },
-            { no: 36, name: "code", kind: "message", T: () => CodeData }
-        ]);
-    }
-    create(value?: PartialMessage<ComputedValueData>): ComputedValueData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ComputedValueData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ComputedValueData): ComputedValueData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ExpressionData expression */ 35:
-                    message.expression = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.expression);
-                    break;
-                case /* optional symbolx.bench.CodeData code */ 36:
-                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ComputedValueData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.ExpressionData expression = 35; */
-        if (message.expression)
-            ExpressionData.internalBinaryWrite(message.expression, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.CodeData code = 36; */
-        if (message.code)
-            CodeData.internalBinaryWrite(message.code, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ComputedValueData
- */
-export const ComputedValueData = new ComputedValueData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
     constructor() {
         super("symbolx.bench.TypeConstraintData", [
@@ -12888,10 +12866,9 @@ class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
             { no: 60, name: "regex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 61, name: "starts_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "ends_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 70, name: "node_is_attached", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 71, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 72, name: "node_scope_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 73, name: "node_max_depth", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 70, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 71, name: "node_scope_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 72, name: "node_max_depth", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 80, name: "block_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 81, name: "step_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.StepType", StepType, "STEP_TYPE_"] },
             { no: 82, name: "file_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
@@ -12945,20 +12922,17 @@ class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
                 case /* optional string ends_with */ 62:
                     message.endsWith = reader.string();
                     break;
-                case /* optional bool node_is_attached */ 70:
-                    message.nodeIsAttached = reader.bool();
-                    break;
-                case /* repeated symbolx.bench.NodeType node_types */ 71:
+                case /* repeated symbolx.bench.NodeType node_types */ 70:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.nodeTypes.push(reader.int32());
                     else
                         message.nodeTypes.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData node_scope_ptr */ 72:
+                case /* repeated symbolx.bench.NodeReferenceData node_scope_ptr */ 71:
                     message.nodeScopePtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int32 node_max_depth */ 73:
+                case /* optional int32 node_max_depth */ 72:
                     message.nodeMaxDepth = reader.int32();
                     break;
                 case /* repeated symbolx.bench.BlockType block_types */ 80:
@@ -13035,22 +13009,19 @@ class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
         /* optional string ends_with = 62; */
         if (message.endsWith !== undefined)
             writer.tag(62, WireType.LengthDelimited).string(message.endsWith);
-        /* optional bool node_is_attached = 70; */
-        if (message.nodeIsAttached !== undefined)
-            writer.tag(70, WireType.Varint).bool(message.nodeIsAttached);
-        /* repeated symbolx.bench.NodeType node_types = 71; */
+        /* repeated symbolx.bench.NodeType node_types = 70; */
         if (message.nodeTypes.length) {
-            writer.tag(71, WireType.LengthDelimited).fork();
+            writer.tag(70, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.nodeTypes.length; i++)
                 writer.int32(message.nodeTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.NodeReferenceData node_scope_ptr = 72; */
+        /* repeated symbolx.bench.NodeReferenceData node_scope_ptr = 71; */
         for (let i = 0; i < message.nodeScopePtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.nodeScopePtr[i], writer.tag(72, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 node_max_depth = 73; */
+            NodeReferenceData.internalBinaryWrite(message.nodeScopePtr[i], writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 node_max_depth = 72; */
         if (message.nodeMaxDepth !== undefined)
-            writer.tag(73, WireType.Varint).int32(message.nodeMaxDepth);
+            writer.tag(72, WireType.Varint).int32(message.nodeMaxDepth);
         /* repeated symbolx.bench.BlockType block_types = 80; */
         if (message.blockTypes.length) {
             writer.tag(80, WireType.LengthDelimited).fork();
@@ -17413,7 +17384,6 @@ class ChangeData$Type extends MessageType$<ChangeData> {
         super("symbolx.bench.ChangeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "scope_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "code", kind: "message", T: () => CodeData },
             { no: 34, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
@@ -17437,9 +17407,6 @@ class ChangeData$Type extends MessageType$<ChangeData> {
                     break;
                 case /* string key */ 30:
                     message.key = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData scope_ptr */ 32:
-                    message.scopePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scopePtr);
                     break;
                 case /* optional symbolx.bench.CodeData code */ 33:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
@@ -17465,9 +17432,6 @@ class ChangeData$Type extends MessageType$<ChangeData> {
         /* string key = 30; */
         if (message.key !== "")
             writer.tag(30, WireType.LengthDelimited).string(message.key);
-        /* optional symbolx.bench.NodeReferenceData scope_ptr = 32; */
-        if (message.scopePtr)
-            NodeReferenceData.internalBinaryWrite(message.scopePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.CodeData code = 33; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
@@ -23513,14 +23477,12 @@ class CreateStepData$Type extends MessageType$<CreateStepData> {
     constructor() {
         super("symbolx.bench.CreateStepData", [
             { no: 100, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "field_type", kind: "enum", T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 102, name: "block_base_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<CreateStepData>): CreateStepData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeType = 0;
-        message.fieldType = 0;
         if (value !== undefined)
             reflectionMergePartial<CreateStepData>(this, message, value);
         return message;
@@ -23532,9 +23494,6 @@ class CreateStepData$Type extends MessageType$<CreateStepData> {
             switch (fieldNo) {
                 case /* symbolx.bench.NodeType node_type */ 100:
                     message.nodeType = reader.int32();
-                    break;
-                case /* symbolx.bench.FieldType field_type */ 101:
-                    message.fieldType = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData block_base_ptr */ 102:
                     message.blockBasePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockBasePtr);
@@ -23554,9 +23513,6 @@ class CreateStepData$Type extends MessageType$<CreateStepData> {
         /* symbolx.bench.NodeType node_type = 100; */
         if (message.nodeType !== 0)
             writer.tag(100, WireType.Varint).int32(message.nodeType);
-        /* symbolx.bench.FieldType field_type = 101; */
-        if (message.fieldType !== 0)
-            writer.tag(101, WireType.Varint).int32(message.fieldType);
         /* optional symbolx.bench.NodeReferenceData block_base_ptr = 102; */
         if (message.blockBasePtr)
             NodeReferenceData.internalBinaryWrite(message.blockBasePtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
@@ -27110,9 +27066,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | DriveData | VaultData | CacheData | MachineData | BrowserData | FileData | StreamData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | InterruptData | LogData | SkipData
-export type AnyStructData = RuntimeContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathTokenData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ObjectMappingData | FieldMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyStructData = RuntimeContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | NodeTreeData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathTokenData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ObjectMappingData | FieldMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof DriveData | typeof VaultData | typeof CacheData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptData | typeof LogData | typeof SkipData
-export type AnyStructDataType = typeof RuntimeContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathTokenData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyStructDataType = typeof RuntimeContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof NodeTreeData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathTokenData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -27325,6 +27281,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
+  [ObjectType.NODE_TREE]: NodeTreeData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
@@ -27353,7 +27310,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
   [ObjectType.VALUE]: ValueData,
-  [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingData,
   [ObjectType.FIELD_MAPPING]: FieldMappingData,
   [ObjectType.RUN_ERROR]: RunErrorData,
@@ -27432,6 +27388,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ClientOriginData"]: ObjectType.CLIENT_ORIGIN,
   ["symbolx.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
   ["symbolx.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
+  ["symbolx.bench.NodeTreeData"]: ObjectType.NODE_TREE,
   ["symbolx.bench.PolicyData"]: ObjectType.POLICY,
   ["symbolx.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
   ["symbolx.bench.SubjectData"]: ObjectType.SUBJECT,
@@ -27460,7 +27417,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.SelectionData"]: ObjectType.SELECTION,
   ["symbolx.bench.SelectOptionsData"]: ObjectType.SELECT_OPTIONS,
   ["symbolx.bench.ValueData"]: ObjectType.VALUE,
-  ["symbolx.bench.ComputedValueData"]: ObjectType.COMPUTED_VALUE,
   ["symbolx.bench.ObjectMappingData"]: ObjectType.OBJECT_MAPPING,
   ["symbolx.bench.FieldMappingData"]: ObjectType.FIELD_MAPPING,
   ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
@@ -27600,6 +27556,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.CLIENT_ORIGIN]: ClientOriginData,
   [StructType.NODE_REFERENCE]: NodeReferenceData,
   [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
+  [StructType.NODE_TREE]: NodeTreeData,
   [StructType.POLICY]: PolicyData,
   [StructType.POLICY_RULE]: PolicyRuleData,
   [StructType.SUBJECT]: SubjectData,
@@ -27628,7 +27585,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.SELECTION]: SelectionData,
   [StructType.SELECT_OPTIONS]: SelectOptionsData,
   [StructType.VALUE]: ValueData,
-  [StructType.COMPUTED_VALUE]: ComputedValueData,
   [StructType.OBJECT_MAPPING]: ObjectMappingData,
   [StructType.FIELD_MAPPING]: FieldMappingData,
   [StructType.RUN_ERROR]: RunErrorData,
@@ -27788,6 +27744,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
+  [ObjectType.NODE_TREE]: NodeTreeData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
@@ -27816,7 +27773,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
   [ObjectType.VALUE]: ValueData,
-  [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingData,
   [ObjectType.FIELD_MAPPING]: FieldMappingData,
   [ObjectType.RUN_ERROR]: RunErrorData,
@@ -29022,7 +28978,6 @@ export enum ActionStepProperty {
 
 export enum CreateStepProperty {
   nodeType = 100,
-  fieldType = 101,
   blockBasePtr = 102,
 }
 
@@ -29103,7 +29058,6 @@ export enum EditOperationProperty {
 export enum ChangeProperty {
   metatype = 1,
   key = 30,
-  scopePtr = 32,
   code = 33,
   edits = 34,
 }
@@ -29145,6 +29099,11 @@ export enum PropertyReferenceProperty {
   id = 31,
   referencesNode = 32,
   referencesMeta = 33,
+}
+
+export enum NodeTreeProperty {
+  metatype = 1,
+  nodes = 35,
 }
 
 export enum PolicyProperty {
@@ -29247,10 +29206,9 @@ export enum TypeConstraintProperty {
   regex = 60,
   startsWith = 61,
   endsWith = 62,
-  nodeIsAttached = 70,
-  nodeTypes = 71,
-  nodeScopePtr = 72,
-  nodeMaxDepth = 73,
+  nodeTypes = 70,
+  nodeScopePtr = 71,
+  nodeMaxDepth = 72,
   blockTypes = 80,
   stepTypes = 81,
   fileTypes = 82,
@@ -29409,12 +29367,6 @@ export enum ValueProperty {
   name = 32,
   text = 34,
   valuePacked = 35,
-}
-
-export enum ComputedValueProperty {
-  metatype = 1,
-  expression = 35,
-  code = 36,
 }
 
 export enum ObjectMappingProperty {
@@ -29642,11 +29594,11 @@ export enum RectangleConstraintProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructProperty = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructProperty = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof NodeTreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructPropertyType = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof NodeTreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof NodeTreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -29698,6 +29650,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
+  [ObjectType.NODE_TREE]: NodeTreeProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
@@ -29726,7 +29679,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
   [ObjectType.VALUE]: ValueProperty,
-  [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingProperty,
   [ObjectType.FIELD_MAPPING]: FieldMappingProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
@@ -29805,6 +29757,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
+  [ObjectType.NODE_TREE]: NodeTreeProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
@@ -29833,7 +29786,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
   [ObjectType.VALUE]: ValueProperty,
-  [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingProperty,
   [ObjectType.FIELD_MAPPING]: FieldMappingProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
@@ -30973,7 +30925,6 @@ export const ActionStepDataInfo: Record<ActionStepProperty, PropertyInfo> = {
 }
 export const CreateStepDataInfo: Record<CreateStepProperty, PropertyInfo> = {
   [CreateStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [CreateStepProperty.fieldType]: { id: 101, name: 'field_type', component: ObjectType.STEP, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [CreateStepProperty.blockBasePtr]: { id: 102, name: 'block_base_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { nodeTypes: [], blockTypes: [31, 12], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LoopStepDataInfo: Record<LoopStepProperty, PropertyInfo> = {
@@ -31045,7 +30996,6 @@ export const EditOperationDataInfo: Record<EditOperationProperty, PropertyInfo> 
 export const ChangeDataInfo: Record<ChangeProperty, PropertyInfo> = {
   [ChangeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ChangeProperty.key]: { id: 30, name: 'key', component: ObjectType.CHANGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ChangeProperty.scopePtr]: { id: 32, name: 'scope_ptr', component: ObjectType.CHANGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ChangeProperty.code]: { id: 33, name: 'code', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ChangeProperty.edits]: { id: 34, name: 'edits', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT },
 }
@@ -31082,6 +31032,10 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
   [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.referencesNode]: { id: 32, name: 'references_node', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.referencesMeta]: { id: 33, name: 'references_meta', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const NodeTreeDataInfo: Record<NodeTreeProperty, PropertyInfo> = {
+  [NodeTreeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NODE_TREE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [NodeTreeProperty.nodes]: { id: 35, name: 'nodes', component: ObjectType.NODE_TREE, kind: 'primitive', isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31175,10 +31129,9 @@ export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo
   [TypeConstraintProperty.regex]: { id: 60, name: 'regex', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.startsWith]: { id: 61, name: 'starts_with', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.endsWith]: { id: 62, name: 'ends_with', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.nodeIsAttached]: { id: 70, name: 'node_is_attached', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.nodeTypes]: { id: 71, name: 'node_types', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.nodeScopePtr]: { id: 72, name: 'node_scope_ptr', component: ObjectType.TYPE_CONSTRAINT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TypeConstraintProperty.nodeMaxDepth]: { id: 73, name: 'node_max_depth', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.nodeTypes]: { id: 70, name: 'node_types', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.nodeScopePtr]: { id: 71, name: 'node_scope_ptr', component: ObjectType.TYPE_CONSTRAINT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TypeConstraintProperty.nodeMaxDepth]: { id: 72, name: 'node_max_depth', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.blockTypes]: { id: 80, name: 'block_types', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.stepTypes]: { id: 81, name: 'step_types', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.fileTypes]: { id: 82, name: 'file_types', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -31318,11 +31271,6 @@ export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
   [ValueProperty.name]: { id: 32, name: 'name', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ValueProperty.text]: { id: 34, name: 'text', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ValueProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-}
-export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> = {
-  [ComputedValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ComputedValueProperty.expression]: { id: 35, name: 'expression', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [ComputedValueProperty.code]: { id: 36, name: 'code', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
 }
 export const ObjectMappingDataInfo: Record<ObjectMappingProperty, PropertyInfo> = {
   [ObjectMappingProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OBJECT_MAPPING, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31569,6 +31517,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginDataInfo,
   [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
+  [ObjectType.NODE_TREE]: NodeTreeDataInfo,
   [ObjectType.POLICY]: PolicyDataInfo,
   [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,
   [ObjectType.SUBJECT]: SubjectDataInfo,
@@ -31597,7 +31546,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.SELECTION]: SelectionDataInfo,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsDataInfo,
   [ObjectType.VALUE]: ValueDataInfo,
-  [ObjectType.COMPUTED_VALUE]: ComputedValueDataInfo,
   [ObjectType.OBJECT_MAPPING]: ObjectMappingDataInfo,
   [ObjectType.FIELD_MAPPING]: FieldMappingDataInfo,
   [ObjectType.RUN_ERROR]: RunErrorDataInfo,
