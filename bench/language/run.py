@@ -352,14 +352,21 @@ class RunError(Struct, BenchError):
         # pass on inner error if there is one
         if isinstance(getattr(e, "error", None), RunError):
             return getattr(e, "error")  # manual error
-        # figure out error data
-        title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
-        if isinstance(e, SyntaxError):
+
+        # title/text
+        title = getattr(e, "title", None) or to_casing(
+            e.__class__.__name__, Casing.CAMEL, allow_whitespace=True
+        )
+        if isinstance(getattr(e, "text", None), Text):
+            text = getattr(e, "text")
+        elif isinstance(e, SyntaxError):
             header_line = TextLine.plain(f"Syntax error at line {e.lineno}, column {e.offset}:")
             code_lines = Text.code(e.args[0])
             text = Text(lines=[header_line, *code_lines.lines])
         else:
             text = Text.plain(str(e))
+
+        # kind/type
         if hasattr(e, "run_error_type"):
             typ = getattr(e, "run_error_type")
             assert isinstance(typ, RunErrorType), f"unexpected {typ!r} from {e!r}"

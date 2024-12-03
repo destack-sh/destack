@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from asyncio import Event
-from typing import ClassVar, Literal, Sequence, assert_never, cast, override
+from typing import Any, ClassVar, Literal, Sequence, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -9,9 +9,10 @@ from opentelemetry import trace
 from bench.language.block import FlowBlock
 from bench.language.const import ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
-from bench.language.flow import Pipe, PipeType, PortSide, Step, StepType
+from bench.language.flow import FailStep, Pipe, PipeType, PortSide, Step, StepType
 from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptType
 from bench.language.run import Run, RunError, RunErrorType, RunnableNode, RunOptions, RunType
+from bench.language.text import Text
 from bench.language.value import CustomObject, OutputObject
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
@@ -266,7 +267,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         elif isinstance(self._stop_result, CustomObject):
             self.outputs = self._stop_result
         elif isinstance(self._stop_result, RunError):
-            raise RetryableError(message=self._stop_result.title, error=self._stop_result)
+            raise RetryableError(title=self._stop_result.title, error=self._stop_result)
         elif isinstance(self._stop_result, Interrupt):
             raise Interrupted(self, self.tracked_run, self._stop_result)
         else:
@@ -379,7 +380,7 @@ class StepRunnerBase(Runner[Step], ABC):
                     type=RunErrorType.INVALID_CONTINUATION,
                     title=f"multiple mutually exclusive option pipes: f{continued_options!r}",
                 )
-                raise RetryableError(message=None, error=error)
+                raise RetryableError(title=None, error=error)
 
 
 class StartStepRunner(StepRunnerBase):
@@ -399,9 +400,16 @@ class CompleteStepRunner(StepRunnerBase):
 class FailStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        self.outputs = self.inputs
+        title = (
+            cast(Any, self.inputs).title or cast(FailStep, self.node).error_title or "Flow failed"
+        )
+        text = (
+            cast(Any, self.inputs).text
+            or cast(FailStep, self.node).error_text
+            or Text.plain(f"Flow failed at {self.node!r}")
+        )
         if self.flow is not None:
-            e = RetryableError(f"Flow failed at {self.node!r}")  # this should be customizable
+            e = RetryableError(title=title, text=text)
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             self.flow._fail(error=error)
 

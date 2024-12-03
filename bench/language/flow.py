@@ -222,12 +222,12 @@ class StepType(IdEnum):
     START = 1  # source with inputs
     COMPLETE = 2  # terminate with outputs
     FAIL = 3  # terminate with error
-    TRIGGER = 4  # source or intermediary
+    TRIGGER = 4  # source or intermediary :RichBuiltin
     # ABORT?
 
     # run
     ACTION = 60
-    CREATE = 61  # create a new node
+    CREATE = 61  # create a new node :RichBuiltin
     YIELD = 62  # to something
 
     # state
@@ -362,6 +362,7 @@ class Step(SourceNode[StepData]):
         self, as_object: bool = True, field_type: FieldType | None = None
     ) -> "TypeBase | None":
         """Gets a type represented by this Step (if any)"""
+        from bench.language.builtin import STUB_BY_STEP_TYPE
         from bench.language.field import TypeInfo
 
         if self.type == StepType.START:
@@ -375,9 +376,8 @@ class Step(SourceNode[StepData]):
             return (
                 delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
             )
-        elif self.type == StepType.CREATE and cast(CreateStep, self).block_base_ptr:
-            # nocheckin: intrinsic type (for CreateStep)
-            return None
+        elif self.type in STUB_BY_STEP_TYPE:
+            return STUB_BY_STEP_TYPE[self.type].to_type(as_object=as_object, field_type=field_type)
         else:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -410,6 +410,14 @@ class Step(SourceNode[StepData]):
 class ActionStep(Step, ActionBase):
     # ...ActionBase[100-129]
     pass
+
+
+@node_subtype_(StepType.FAIL)
+class FailStep(Step):
+    error_title: str | None = p_regular(100, default=None, require=False)
+    error_text: Optional["Text"] = p_regular(
+        101, default=None, require=False, array=False, struct=StructType.TEXT
+    )
 
 
 @node_subtype_(StepType.CREATE)

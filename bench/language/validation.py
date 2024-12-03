@@ -77,6 +77,7 @@ class TypeConstraintIn:
     ends_with: str | None = None
     # node-ish
     node_types: "list[NodeType]" = dataclasses.field(default_factory=list)
+    node_is_attached: bool | None = None
     node_scope: "list[Node]" = dataclasses.field(default_factory=list)
     node_max_depth: Optional[int] = None
     # specific node-ish
@@ -99,6 +100,7 @@ class TypeConstraintIn:
             starts_with=self.starts_with,
             ends_with=self.ends_with,
             node_types=self.node_types,
+            node_is_attached=self.node_is_attached,
             node_scope=self.node_scope,
             node_max_depth=self.node_max_depth,
             block_types=self.block_types,
@@ -158,6 +160,7 @@ def constraint(
         starts_with=starts_with,
         ends_with=ends_with,
         node_types=node_types if node_types is not None else [],
+        node_is_attached=node_is_attached,
         block_types=block_types if block_types is not None else [],
         step_types=step_types if step_types is not None else [],
         file_types=file_types if file_types is not None else [],

@@ -18,7 +18,7 @@ import {
   type BlockData,
   type RunData,
   type StepData,
-  RuntimeMode,
+  NodeMode,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, makeDefaultObject, toNodeRef } from "@/proto/wiring";
 import { space } from "@/system/space";

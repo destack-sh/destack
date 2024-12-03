@@ -204,7 +204,8 @@ class TypeConstraint(Struct):
     # node-ish
     node_types: list["NodeType"] = p_regular(70, array=True)
     node_scope: list["Node"] = p_regular(71, require=False, array=True, references="any")
-    node_max_depth: Optional[int] = p_regular(72, require=False, default=None)
+    node_is_attached: Optional[bool] = p_regular(72, require=False, default=None)
+    node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
     # specific node-ish
     block_types: list["BlockType"] = p_regular(80, array=True)
     step_types: list["StepType"] = p_regular(81, array=True)

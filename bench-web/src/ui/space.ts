@@ -23,7 +23,7 @@ import {
   NodeType,
   ObjectType,
   Orientation,
-  RuntimeMode,
+  NodeMode,
   SelectionData,
   SpaceData,
   StructType,
@@ -753,7 +753,7 @@ export class SpaceCanvas {
         orderKey: generateOrderKey(siblings[-1]?.orderKey ?? null, null),
         parentPtr: toNodeRef(parent),
         icon: toIconMaybe(view.icon),
-        mode: view.mode ?? RuntimeMode.PRODUCTION,
+        mode: view.mode ?? NodeMode.PRODUCTION,
       });
       if ((view.name ?? "").length == 0) {
         newView.name = generateNodeName(

@@ -53,6 +53,7 @@ import {
   CreateStepProperty,
   TypeConstraintProperty,
   PrimitiveType,
+  FailStepProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
@@ -443,42 +444,47 @@ export function makeInspectLayout(
   // Steps
   //
   else if (isNode(node, NodeType.STEP)) {
-    if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
-      const commonRows: InspectRow[] = [];
-      section(undefined, commonRows);
-      commonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
+    const commonRows: InspectRow[] = [];
+    section(undefined, commonRows);
+    commonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
 
-      if (node.type == StepType.ACTION) {
-        const action = subnode as ActionStepData | undefined;
-        if (action?.agency == Agency.DELEGATE) {
-          // schema from delegate
-          const delegatePtr = action.delegatePtr;
-          if (delegatePtr != null) {
-            sectionSchema({ subtitle: "(Delegate)", delegatePtr });
-          } else {
-            section("Schema", [{ type: "text", text: "No delegate set." }]);
-          }
+    if (node.type == StepType.ACTION) {
+      const action = subnode as ActionStepData | undefined;
+      if (action?.agency == Agency.DELEGATE) {
+        // schema from delegate
+        const delegatePtr = action.delegatePtr;
+        if (delegatePtr != null) {
+          sectionSchema({ subtitle: "(Delegate)", delegatePtr });
         } else {
-          sectionSchema();
-        }
-        sectionAction();
-      } else if (node.type == StepType.CREATE) {
-        // only 'input' schema from delegate
-        commonRows.push(rowProperty(CreateStepProperty.blockBasePtr, { title: "Block" }));
-        const create = subnode as CreateStepData | undefined;
-        const fieldType = create?.fieldType ?? FieldType.MEMBER;
-        if (create?.blockBasePtr != null) {
-          section("Schema", [{ type: "fields", fieldType: fieldType, delegatePtr: create.blockBasePtr }], {
-            actions: [actionAddField(fieldType, "fas fa-plus", { delegatePtr: create.blockBasePtr })],
-            subtitle: "(Create)",
-          });
-        } else {
-          section("Schema", [{ type: "text", text: "No type set." }]);
+          section("Schema", [{ type: "text", text: "No delegate set." }]);
         }
       } else {
         sectionSchema();
       }
+      sectionAction();
+    } else if (node.type == StepType.CREATE) {
+      // only 'input' schema from delegate
+      commonRows.push(rowProperty(CreateStepProperty.blockBasePtr, { title: "Block" }));
+      const create = subnode as CreateStepData | undefined;
+      const fieldType = FieldType.MEMBER;
+      if (create?.blockBasePtr != null) {
+        section("Schema", [{ type: "fields", fieldType: fieldType, delegatePtr: create.blockBasePtr }], {
+          actions: [actionAddField(fieldType, "fas fa-plus", { delegatePtr: create.blockBasePtr })],
+          subtitle: "(Create)",
+        });
+      } else {
+        section("Schema", [{ type: "text", text: "No type set." }]);
+      }
+    } else if (node.type == StepType.FAIL) {
+      section("Error", [
+        rowProperty(FailStepProperty.errorTitle, { title: "Title" }),
+        rowProperty(FailStepProperty.errorText, { title: "Text" }),
+      ]);
+    } else {
+      sectionSchema();
+    }
 
+    if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
       sectionRun(StepProperty.runOptions);
     }
   }

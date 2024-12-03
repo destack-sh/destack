@@ -137,6 +137,13 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     @abc.abstractmethod
     def _get_parent_ptr(self, node: V) -> "NodeReferenceData | NodeReference | None": ...
 
+    def _reindex(self):
+        """Discoard and rebuild all indexes (useful if node identities change for internally)."""
+        nodes = tuple(self._nodes_by_id.values())
+        self.clear()
+        for node in nodes:
+            self.add(node)
+
     def add(self, node: V):
         """Add a node to the graph (error if node already exists, *no* descendants)"""
         assert isinstance(

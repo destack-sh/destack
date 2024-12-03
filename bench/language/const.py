@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.12.02.2"
+VERSION = "2024.12.03.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -152,7 +152,7 @@ class EnumType(IdEnum):
     PORT_SIDE = 23021
     PIPE_TYPE = 23022
     NOTIFICATION_LEVEL = 23023
-    RUNTIME_MODE = 23024
+    NodeMode = 23024
 
     # view (23500-23999)
     SPACE_TYPE = 23501
@@ -1038,8 +1038,8 @@ class Month(IdEnum):
     DECEMBER = 12
 
 
-@enum_(EnumType.RUNTIME_MODE)
-class RuntimeMode(IdEnum):
+@enum_(EnumType.NodeMode)
+class NodeMode(IdEnum):
     PRODUCTION = 1
     DEVELOPMENT = 2
     TEST = 3

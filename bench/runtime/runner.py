@@ -17,7 +17,7 @@ from opentelemetry import trace
 
 from bench.language import Block, Step
 from bench.language.code import Code
-from bench.language.const import ObjectKind, RunStatus, RuntimeMode
+from bench.language.const import NodeMode, ObjectKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import Pipe
 from bench.language.interrupt import (
@@ -114,7 +114,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         parent: "Runner | None" = None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
-        mode: RuntimeMode | None = None,
+        mode: NodeMode | None = None,
         run: Run | None = None,
     ) -> None:
         self.id = run.id if run is not None else UUIDT()
@@ -149,7 +149,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         elif run is not None:
             self.mode = run.mode
         else:
-            self.mode = RuntimeMode.PRODUCTION
+            self.mode = NodeMode.PRODUCTION
 
         # nest active Runners/Runs
         if self.parent is not None:
@@ -369,7 +369,7 @@ def make_run_from_node(
     node: "RunnableNode",
     *,
     inputs: Any | None = None,
-    mode: RuntimeMode | None = None,
+    mode: NodeMode | None = None,
     parent: "Run | None" = None,
 ) -> "Run":
     """Creates a Run from a runnable Node."""
