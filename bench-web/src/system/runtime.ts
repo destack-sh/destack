@@ -29,7 +29,7 @@ import {
   RunOptionsData,
   RunProperty,
   RunStatus,
-  RuntimeMode,
+  NodeMode,
   StepData,
   StructType,
   Timestamp,
@@ -301,7 +301,7 @@ export function makeRun(
     inputsPacked?: Record<string, any>;
     packagePtr?: NodeReferenceData;
     options?: RunOptionsData;
-    mode?: RuntimeMode;
+    mode?: NodeMode;
   },
 ): RunData {
   let packagePtr: NodeReferenceData | undefined = undefined;
@@ -331,7 +331,7 @@ export function makeRun(
     packagePtr: packagePtr,
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
-    mode: options?.mode ?? space.value?.mode ?? RuntimeMode.PRODUCTION,
+    mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,
     blockPtr: block != null ? toNodeRef(block) : undefined,
     stepPtr: isNode(runnable, NodeType.STEP) ? toNodeRef(runnable) : undefined,
     pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,

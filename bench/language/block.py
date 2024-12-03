@@ -105,13 +105,7 @@ class Block(SourceNode[BlockData]):
         identity_ptr: Optional["NodeReference"] = None
 
     # flags
-    is_builtin: bool = p_system(
-        60, default=False, description="Whether this is an intrinsic provided by the system."
-    )
-    is_owned: bool = p_system(
-        61, default=False, description="Whether this is owned by its creator."
-    )
-    # is_test? (for testing)
+    # is_builtin, is_owned, is_test? (for testing)
 
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     badges: LocalNodeList["Badge"] = p_node_children(NodeType.BADGE)
@@ -204,6 +198,11 @@ class Block(SourceNode[BlockData]):
                     base_type=self,
                     base_field_type=field_type or FieldType.MEMBER,
                 )
+        elif self.type == BlockType.ACTION and cast(ActionBlock, self).delegate_ptr:
+            delegate = cast(ActionBlock, self).delegate
+            return (
+                delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
+            )
         elif self.type.is_runnable:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)

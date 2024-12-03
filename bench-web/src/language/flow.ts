@@ -153,13 +153,8 @@ export class StepState {
           return this.stepFields.value;
         }
       } else if (stepType == StepType.CREATE) {
-        const fieldType = unpackSubnodeProperty(
-          NodeType.STEP,
-          StepType.CREATE,
-          this.step.value?.subnodePacked,
-          "fieldType",
-        );
-        return this.flow.fields.value.filter((f) => f.type == fieldType);
+        // nocheckin: builtin fields
+        return [];
       } else if (stepType == StepType.YIELD) {
         return this.stepFields.value;
       } else {

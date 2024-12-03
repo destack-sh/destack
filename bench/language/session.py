@@ -32,8 +32,8 @@ from bench.language.const import (
     NODE_TYPES,
     BenchError,
     EditType,
+    NodeMode,
     NodeType,
-    RuntimeMode,
     SessionStatus,
     StructType,
     _active_session,
@@ -265,7 +265,7 @@ class Session(RuntimeNode[SessionData]):
         return self._supervisor
 
     @property
-    def active_mode(self) -> RuntimeMode:
+    def active_mode(self) -> NodeMode:
         return self._runtime.active_mode if self._runtime is not None else self.mode
 
     def _get_scope_for_node(self, n: Node) -> GraphScopeData:

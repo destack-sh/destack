@@ -45,12 +45,12 @@ from bench.language.const import (
     BlockType,
     ClientType,
     EditOperationType,
+    NodeMode,
     NodeType,
     ObjectType,
     PrimitiveType,
     QueryType,
     ReferenceKind,
-    RuntimeMode,
     StructType,
     _active_session,
 )
@@ -2242,14 +2242,14 @@ class HasTracingContext(BuiltinObject):
     """Context for a Node in some Session."""
 
     # tracing :Tracing
-    mode: RuntimeMode = p_internal(90, default_sql=str(RuntimeMode.PRODUCTION.value))
+    mode: NodeMode = p_internal(90, default_sql=str(NodeMode.PRODUCTION.value))
     # NOTE :Incomplete: richer :Tracing context
 
 
-def get_tracing_context() -> RuntimeMode:
+def get_tracing_context() -> NodeMode:
     """Inject the current runtime mode for a Node."""
     session = _active_session.get(None)
-    mode = session.active_mode if session is not None else RuntimeMode.PRODUCTION
+    mode = session.active_mode if session is not None else NodeMode.PRODUCTION
     return mode
 
 

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.02.2"
+VERSION = "2024.12.03.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -853,8 +853,6 @@ BLOCK_TABLE = Table(
         Column("identity_id", PrimitiveType.UUID, is_nullable=True),
         Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("is_builtin", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_owned", PrimitiveType.BOOLEAN, default="false"),
         Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )

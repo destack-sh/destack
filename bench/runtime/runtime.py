@@ -10,11 +10,11 @@ from opentelemetry import baggage, context, trace
 
 from bench.language.const import (
     BenchError,
+    NodeMode,
     NodeType,
     ObjectKind,
     RunErrorKind,
     RunStatus,
-    RuntimeMode,
 )
 from bench.language.graph import NodeGraph
 from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite, Interrupt
@@ -107,7 +107,7 @@ class Runtime:
         return None
 
     @property
-    def active_mode(self) -> RuntimeMode:
+    def active_mode(self) -> NodeMode:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
 
@@ -236,10 +236,10 @@ class Runtime:
             if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
                 if last_attempt.error:
                     # re-raise last error
-                    raise RetryableError(message=last_attempt.error.title, error=last_attempt.error)
+                    raise RetryableError(title=last_attempt.error.title, error=last_attempt.error)
                 else:
                     # no attempts, shouldn't actually get here if RetryOptions.max_attempts > 0
-                    raise NonRetryableError(message="retry exhausted")
+                    raise NonRetryableError(title="retry exhausted")
         finally:
             # reset active run
             self._active_runner.reset(active_run_runner_token)
@@ -384,7 +384,7 @@ class Runtime:
         run: Run | RunnableNode,
         *,
         inputs: Any | None = None,
-        mode: RuntimeMode | None = None,
+        mode: NodeMode | None = None,
         return_error: bool = False,
         optimistic: bool = False,
     ) -> Runner | None:

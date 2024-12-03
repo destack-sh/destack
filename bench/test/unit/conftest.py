@@ -32,9 +32,9 @@ from bench.language.const import (
     OBJECT_TYPES,
     BlockType,
     ClientType,
+    NodeMode,
     ObjectType,
     Region,
-    RuntimeMode,
     UserStatus,
     _active_session,
 )
@@ -227,7 +227,7 @@ class RuntimeHandle:
         run: Run | RunnableNode,
         *,
         inputs: Any | None = None,
-        mode: RuntimeMode | None = None,
+        mode: NodeMode | None = None,
         return_error: bool = False,
     ) -> Runner:
         runner = await self.runtime.run(run, inputs=inputs, mode=mode, return_error=return_error)

@@ -15,6 +15,7 @@ from bench.language.node import Node
 from bench.language.path import get_node
 from bench.language.run import RunError, RunErrorType, RunOptions, RunType
 from bench.language.setup import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
+from bench.language.text import Text
 from bench.runtime.capture import LogSink
 from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
@@ -40,8 +41,12 @@ BASE_RUN_OPTIONS_BY_KIND = {
 
 
 class RuntimeError(BenchError, RuntimeError):
-    def __init__(self, message: str | None = None, error: RunError | None = None) -> None:
-        super().__init__(message)
+    def __init__(
+        self, title: str | None = None, text: Text | None = None, error: RunError | None = None
+    ) -> None:
+        super().__init__(title)
+        self.title = title
+        self.text = text
         self.error = error
 
 

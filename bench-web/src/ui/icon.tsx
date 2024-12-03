@@ -30,7 +30,7 @@ import {
   RegionArea,
   ResourceStatus,
   RunStatus,
-  RuntimeMode,
+  NodeMode,
   StepType,
   StructType,
   TypeFormat,
@@ -566,10 +566,10 @@ export const ICON_BY_EXPRESSION_OP: Partial<Record<ExpressionType, IconData>> = 
   [ExpressionType.DESCENDING]: "fas fa-arrow-down",
 });
 
-export const ICON_BY_RUNTIME_MODE: Partial<Record<RuntimeMode, IconData>> = _makeIcons<RuntimeMode>({
-  [RuntimeMode.PRODUCTION]: "fas fa-globe",
-  [RuntimeMode.DEVELOPMENT]: "fas fa-bug",
-  [RuntimeMode.TEST]: "fas fa-flask",
+export const ICON_BY_RUNTIME_MODE: Partial<Record<NodeMode, IconData>> = _makeIcons<NodeMode>({
+  [NodeMode.PRODUCTION]: "fas fa-globe",
+  [NodeMode.DEVELOPMENT]: "fas fa-bug",
+  [NodeMode.TEST]: "fas fa-flask",
 });
 
 export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({

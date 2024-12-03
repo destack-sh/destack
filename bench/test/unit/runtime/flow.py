@@ -3,12 +3,13 @@ import asyncio
 from bench.language import Agency, BlockType, RunStatus
 from bench.language.block import Block
 from bench.language.code import code
-from bench.language.const import FieldType, NodeType, RuntimeMode
+from bench.language.const import FieldType, NodeMode, NodeType
 from bench.language.field import Field
 from bench.language.flow import ActionStep, PipeType, Step, StepType
 from bench.language.interrupt import Breakpoint, BreakpointScope, Interrupt, InterruptStatus
 from bench.language.message import Message
 from bench.language.run import RunErrorType, RunOptions
+from bench.language.text import Text
 from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -126,11 +127,11 @@ return Block.new(BlockType.TEXT, "Test")
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
-    runner = await local_runtime.run(Flow1, mode=RuntimeMode.TEST)
+    runner = await local_runtime.run(Flow1, mode=NodeMode.TEST)
     assert runner.tracked_run and len(runner.tracked_run.runs) == 5
-    assert all(r.mode == RuntimeMode.TEST for r in runner.tracked_run.runs)
+    assert all(r.mode == NodeMode.TEST for r in runner.tracked_run.runs)
     assert runner.outputs and isinstance(runner.outputs.Block, Block)
-    assert runner.outputs.Block.mode == RuntimeMode.TEST
+    assert runner.outputs.Block.mode == NodeMode.TEST
 
 
 async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
@@ -275,6 +276,26 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
     runner = await local_runtime.run(Flow1)
     assert runner.status == RunStatus.COMPLETED
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
+
+
+async def test_run_flow_fail(local_runtime: RuntimeHandle):
+    """Run a Flow with a Fail step."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Fail = Step.new(
+        StepType.FAIL, "Fail", error_title="Fail title", error_text=Text.plain("Fail text")
+    )
+    Flow1.steps.extend(Start, Fail)
+    Start.connect(PipeType.PASS, Fail)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    # from step
+    runner = await local_runtime.run(Flow1, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error
+    assert runner.error.title == "Fail title"
+    assert runner.error.text == Text.plain("Fail text")
 
 
 async def test_run_flow_race(local_runtime: RuntimeHandle):
