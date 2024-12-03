@@ -233,7 +233,7 @@ def map_builtin_object_to_table(
             else:
                 column.on_delete = CascadeAction.SET_NULL
 
-        if prop.is_indexed_in_pg or prop.is_unique:
+        if prop.is_indexed or prop.is_unique:
             index = Index(
                 f"bench_idx_{prop.name}",
                 type=IndexType.BTREE,

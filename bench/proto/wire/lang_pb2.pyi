@@ -168,6 +168,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_CLIENT_ORIGIN: _ClassVar[StructType]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructType]
+    STRUCT_TYPE_NODE_TREE: _ClassVar[StructType]
     STRUCT_TYPE_POLICY: _ClassVar[StructType]
     STRUCT_TYPE_POLICY_RULE: _ClassVar[StructType]
     STRUCT_TYPE_SUBJECT: _ClassVar[StructType]
@@ -196,7 +197,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_SELECTION: _ClassVar[StructType]
     STRUCT_TYPE_SELECT_OPTIONS: _ClassVar[StructType]
     STRUCT_TYPE_VALUE: _ClassVar[StructType]
-    STRUCT_TYPE_COMPUTED_VALUE: _ClassVar[StructType]
     STRUCT_TYPE_OBJECT_MAPPING: _ClassVar[StructType]
     STRUCT_TYPE_FIELD_MAPPING: _ClassVar[StructType]
     STRUCT_TYPE_RUN_ERROR: _ClassVar[StructType]
@@ -276,6 +276,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_CLIENT_ORIGIN: _ClassVar[ObjectType]
     OBJECT_TYPE_NODE_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_PROPERTY_REFERENCE: _ClassVar[ObjectType]
+    OBJECT_TYPE_NODE_TREE: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY_RULE: _ClassVar[ObjectType]
     OBJECT_TYPE_SUBJECT: _ClassVar[ObjectType]
@@ -304,7 +305,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_SELECTION: _ClassVar[ObjectType]
     OBJECT_TYPE_SELECT_OPTIONS: _ClassVar[ObjectType]
     OBJECT_TYPE_VALUE: _ClassVar[ObjectType]
-    OBJECT_TYPE_COMPUTED_VALUE: _ClassVar[ObjectType]
     OBJECT_TYPE_OBJECT_MAPPING: _ClassVar[ObjectType]
     OBJECT_TYPE_FIELD_MAPPING: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_ERROR: _ClassVar[ObjectType]
@@ -465,6 +465,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CLIENT_ORIGIN: _ClassVar[BenchType]
     BENCH_TYPE_NODE_REFERENCE: _ClassVar[BenchType]
     BENCH_TYPE_PROPERTY_REFERENCE: _ClassVar[BenchType]
+    BENCH_TYPE_NODE_TREE: _ClassVar[BenchType]
     BENCH_TYPE_POLICY: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_RULE: _ClassVar[BenchType]
     BENCH_TYPE_SUBJECT: _ClassVar[BenchType]
@@ -493,7 +494,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SELECTION: _ClassVar[BenchType]
     BENCH_TYPE_SELECT_OPTIONS: _ClassVar[BenchType]
     BENCH_TYPE_VALUE: _ClassVar[BenchType]
-    BENCH_TYPE_COMPUTED_VALUE: _ClassVar[BenchType]
     BENCH_TYPE_OBJECT_MAPPING: _ClassVar[BenchType]
     BENCH_TYPE_FIELD_MAPPING: _ClassVar[BenchType]
     BENCH_TYPE_RUN_ERROR: _ClassVar[BenchType]
@@ -1744,6 +1744,7 @@ STRUCT_TYPE_GRAPH_SCOPE: StructType
 STRUCT_TYPE_CLIENT_ORIGIN: StructType
 STRUCT_TYPE_NODE_REFERENCE: StructType
 STRUCT_TYPE_PROPERTY_REFERENCE: StructType
+STRUCT_TYPE_NODE_TREE: StructType
 STRUCT_TYPE_POLICY: StructType
 STRUCT_TYPE_POLICY_RULE: StructType
 STRUCT_TYPE_SUBJECT: StructType
@@ -1772,7 +1773,6 @@ STRUCT_TYPE_AGGREGATION_RESULT: StructType
 STRUCT_TYPE_SELECTION: StructType
 STRUCT_TYPE_SELECT_OPTIONS: StructType
 STRUCT_TYPE_VALUE: StructType
-STRUCT_TYPE_COMPUTED_VALUE: StructType
 STRUCT_TYPE_OBJECT_MAPPING: StructType
 STRUCT_TYPE_FIELD_MAPPING: StructType
 STRUCT_TYPE_RUN_ERROR: StructType
@@ -1849,6 +1849,7 @@ OBJECT_TYPE_GRAPH_SCOPE: ObjectType
 OBJECT_TYPE_CLIENT_ORIGIN: ObjectType
 OBJECT_TYPE_NODE_REFERENCE: ObjectType
 OBJECT_TYPE_PROPERTY_REFERENCE: ObjectType
+OBJECT_TYPE_NODE_TREE: ObjectType
 OBJECT_TYPE_POLICY: ObjectType
 OBJECT_TYPE_POLICY_RULE: ObjectType
 OBJECT_TYPE_SUBJECT: ObjectType
@@ -1877,7 +1878,6 @@ OBJECT_TYPE_AGGREGATION_RESULT: ObjectType
 OBJECT_TYPE_SELECTION: ObjectType
 OBJECT_TYPE_SELECT_OPTIONS: ObjectType
 OBJECT_TYPE_VALUE: ObjectType
-OBJECT_TYPE_COMPUTED_VALUE: ObjectType
 OBJECT_TYPE_OBJECT_MAPPING: ObjectType
 OBJECT_TYPE_FIELD_MAPPING: ObjectType
 OBJECT_TYPE_RUN_ERROR: ObjectType
@@ -2008,6 +2008,7 @@ BENCH_TYPE_GRAPH_SCOPE: BenchType
 BENCH_TYPE_CLIENT_ORIGIN: BenchType
 BENCH_TYPE_NODE_REFERENCE: BenchType
 BENCH_TYPE_PROPERTY_REFERENCE: BenchType
+BENCH_TYPE_NODE_TREE: BenchType
 BENCH_TYPE_POLICY: BenchType
 BENCH_TYPE_POLICY_RULE: BenchType
 BENCH_TYPE_SUBJECT: BenchType
@@ -2036,7 +2037,6 @@ BENCH_TYPE_AGGREGATION_RESULT: BenchType
 BENCH_TYPE_SELECTION: BenchType
 BENCH_TYPE_SELECT_OPTIONS: BenchType
 BENCH_TYPE_VALUE: BenchType
-BENCH_TYPE_COMPUTED_VALUE: BenchType
 BENCH_TYPE_OBJECT_MAPPING: BenchType
 BENCH_TYPE_FIELD_MAPPING: BenchType
 BENCH_TYPE_RUN_ERROR: BenchType
@@ -2964,6 +2964,14 @@ class PropertyReferenceData(_message.Message):
     references_meta: str
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., references_node: _Optional[_Union[NodeType, str]] = ..., references_meta: _Optional[str] = ...) -> None: ...
 
+class NodeTreeData(_message.Message):
+    __slots__ = ("metatype", "nodes")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    nodes: _containers.RepeatedCompositeFieldContainer[SomeNodeData]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., nodes: _Optional[_Iterable[_Union[SomeNodeData, _Mapping]]] = ...) -> None: ...
+
 class VariableObjectData(_message.Message):
     __slots__ = ("metatype",)
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3056,18 +3064,8 @@ class AggregationResultData(_message.Message):
     scalar: float
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., op: _Optional[_Union[AggregationType, str]] = ..., exists: bool = ..., count: _Optional[int] = ..., scalar: _Optional[float] = ...) -> None: ...
 
-class ComputedValueData(_message.Message):
-    __slots__ = ("metatype", "expression", "code")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
-    CODE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    expression: ExpressionData
-    code: CodeData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ...) -> None: ...
-
 class TypeConstraintData(_message.Message):
-    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_is_attached", "node_types", "node_scope_ptr", "node_max_depth", "block_types", "step_types", "file_types", "file_formats", "view_types")
+    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_types", "node_scope_ptr", "node_max_depth", "block_types", "step_types", "file_types", "file_formats", "view_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
     MAX_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -3077,7 +3075,6 @@ class TypeConstraintData(_message.Message):
     REGEX_FIELD_NUMBER: _ClassVar[int]
     STARTS_WITH_FIELD_NUMBER: _ClassVar[int]
     ENDS_WITH_FIELD_NUMBER: _ClassVar[int]
-    NODE_IS_ATTACHED_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
     NODE_SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
     NODE_MAX_DEPTH_FIELD_NUMBER: _ClassVar[int]
@@ -3095,7 +3092,6 @@ class TypeConstraintData(_message.Message):
     regex: str
     starts_with: str
     ends_with: str
-    node_is_attached: bool
     node_types: _containers.RepeatedScalarFieldContainer[NodeType]
     node_scope_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     node_max_depth: int
@@ -3104,7 +3100,7 @@ class TypeConstraintData(_message.Message):
     file_types: _containers.RepeatedScalarFieldContainer[FileType]
     file_formats: _containers.RepeatedScalarFieldContainer[FileFormat]
     view_types: _containers.RepeatedScalarFieldContainer[ViewType]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_is_attached: bool = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_scope_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., node_max_depth: _Optional[int] = ..., block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ..., step_types: _Optional[_Iterable[_Union[StepType, str]]] = ..., file_types: _Optional[_Iterable[_Union[FileType, str]]] = ..., file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ..., view_types: _Optional[_Iterable[_Union[ViewType, str]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_scope_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., node_max_depth: _Optional[int] = ..., block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ..., step_types: _Optional[_Iterable[_Union[StepType, str]]] = ..., file_types: _Optional[_Iterable[_Union[FileType, str]]] = ..., file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ..., view_types: _Optional[_Iterable[_Union[ViewType, str]]] = ...) -> None: ...
 
 class TypeInfoData(_message.Message):
     __slots__ = ("metatype", "kind", "primitive_type", "bench_type", "base_type_ptr", "base_field_type", "oneof_ptr", "default_packed", "format", "condition", "constraint", "is_required", "is_list", "is_secret")
@@ -3927,18 +3923,16 @@ class EditData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[EditType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., vignette: _Optional[_Union[ChangeVignetteData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., old_edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., node_data: _Optional[_Union[SomeNodeData, _Mapping]] = ..., operations: _Optional[_Iterable[_Union[EditOperationData, _Mapping]]] = ..., scope: _Optional[_Union[GraphScopeData, _Mapping]] = ..., change_key: _Optional[str] = ..., category: _Optional[_Union[ChangeCategory, str]] = ..., subject_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., origin: _Optional[_Union[ClientOriginData, _Mapping]] = ..., context: _Optional[_Union[EditContextData, _Mapping]] = ..., epoch: _Optional[int] = ..., undo_of_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class ChangeData(_message.Message):
-    __slots__ = ("metatype", "key", "scope_ptr", "code", "edits")
+    __slots__ = ("metatype", "key", "code", "edits")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
-    SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     EDITS_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     key: str
-    scope_ptr: NodeReferenceData
     code: CodeData
     edits: _containers.RepeatedCompositeFieldContainer[EditData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., key: _Optional[str] = ..., scope_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., key: _Optional[str] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
 
 class EditContextData(_message.Message):
     __slots__ = ("metatype", "block_ptr", "step_ptr", "session_ptr", "run_ptr", "run_root_ptr", "identity_ptr")
@@ -5349,14 +5343,12 @@ class ActionStepData(_message.Message):
     def __init__(self, agency: _Optional[_Union[Agency, str]] = ..., is_dynamic: bool = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., tools_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., delegate_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class CreateStepData(_message.Message):
-    __slots__ = ("node_type", "field_type", "block_base_ptr")
+    __slots__ = ("node_type", "block_base_ptr")
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FIELD_TYPE_FIELD_NUMBER: _ClassVar[int]
     BLOCK_BASE_PTR_FIELD_NUMBER: _ClassVar[int]
     node_type: NodeType
-    field_type: FieldType
     block_base_ptr: NodeReferenceData
-    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., field_type: _Optional[_Union[FieldType, str]] = ..., block_base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., block_base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class LoopStepData(_message.Message):
     __slots__ = ("for_field_ptr",)

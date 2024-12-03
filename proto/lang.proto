@@ -157,6 +157,7 @@ enum StructType {
   STRUCT_TYPE_CLIENT_ORIGIN = 10009;
   STRUCT_TYPE_NODE_REFERENCE = 10010;
   STRUCT_TYPE_PROPERTY_REFERENCE = 10011;
+  STRUCT_TYPE_NODE_TREE = 10012;
   STRUCT_TYPE_POLICY = 10500;
   STRUCT_TYPE_POLICY_RULE = 10501;
   STRUCT_TYPE_SUBJECT = 10502;
@@ -185,7 +186,6 @@ enum StructType {
   STRUCT_TYPE_SELECTION = 12204;
   STRUCT_TYPE_SELECT_OPTIONS = 12205;
   STRUCT_TYPE_VALUE = 12206;
-  STRUCT_TYPE_COMPUTED_VALUE = 12207;
   STRUCT_TYPE_OBJECT_MAPPING = 12208;
   STRUCT_TYPE_FIELD_MAPPING = 12209;
   STRUCT_TYPE_RUN_ERROR = 12700;
@@ -265,6 +265,7 @@ enum ObjectType {
   OBJECT_TYPE_CLIENT_ORIGIN = 10009;
   OBJECT_TYPE_NODE_REFERENCE = 10010;
   OBJECT_TYPE_PROPERTY_REFERENCE = 10011;
+  OBJECT_TYPE_NODE_TREE = 10012;
   OBJECT_TYPE_POLICY = 10500;
   OBJECT_TYPE_POLICY_RULE = 10501;
   OBJECT_TYPE_SUBJECT = 10502;
@@ -293,7 +294,6 @@ enum ObjectType {
   OBJECT_TYPE_SELECTION = 12204;
   OBJECT_TYPE_SELECT_OPTIONS = 12205;
   OBJECT_TYPE_VALUE = 12206;
-  OBJECT_TYPE_COMPUTED_VALUE = 12207;
   OBJECT_TYPE_OBJECT_MAPPING = 12208;
   OBJECT_TYPE_FIELD_MAPPING = 12209;
   OBJECT_TYPE_RUN_ERROR = 12700;
@@ -459,6 +459,7 @@ enum BenchType {
   BENCH_TYPE_CLIENT_ORIGIN = 10009;
   BENCH_TYPE_NODE_REFERENCE = 10010;
   BENCH_TYPE_PROPERTY_REFERENCE = 10011;
+  BENCH_TYPE_NODE_TREE = 10012;
   BENCH_TYPE_POLICY = 10500;
   BENCH_TYPE_POLICY_RULE = 10501;
   BENCH_TYPE_SUBJECT = 10502;
@@ -487,7 +488,6 @@ enum BenchType {
   BENCH_TYPE_SELECTION = 12204;
   BENCH_TYPE_SELECT_OPTIONS = 12205;
   BENCH_TYPE_VALUE = 12206;
-  BENCH_TYPE_COMPUTED_VALUE = 12207;
   BENCH_TYPE_OBJECT_MAPPING = 12208;
   BENCH_TYPE_FIELD_MAPPING = 12209;
   BENCH_TYPE_RUN_ERROR = 12700;
@@ -1638,6 +1638,11 @@ message PropertyReferenceData {
   optional string references_meta = 33;
 }
 
+message NodeTreeData {
+  ObjectType metatype = 1;
+  repeated SomeNodeData nodes = 35;
+}
+
 message VariableObjectData {
   ObjectType metatype = 1;
 }
@@ -1692,12 +1697,6 @@ message AggregationResultData {
   optional float scalar = 33;
 }
 
-message ComputedValueData {
-  ObjectType metatype = 1;
-  optional ExpressionData expression = 35;
-  optional CodeData code = 36;
-}
-
 message TypeConstraintData {
   ObjectType metatype = 1;
   optional float min_value = 40;
@@ -1708,10 +1707,9 @@ message TypeConstraintData {
   optional string regex = 60;
   optional string starts_with = 61;
   optional string ends_with = 62;
-  optional bool node_is_attached = 70;
-  repeated NodeType node_types = 71;
-  repeated NodeReferenceData node_scope_ptr = 72;
-  optional int32 node_max_depth = 73;
+  repeated NodeType node_types = 70;
+  repeated NodeReferenceData node_scope_ptr = 71;
+  optional int32 node_max_depth = 72;
   repeated BlockType block_types = 80;
   repeated StepType step_types = 81;
   repeated FileType file_types = 82;
@@ -2183,7 +2181,6 @@ message EditData {
 message ChangeData {
   ObjectType metatype = 1;
   string key = 30;
-  optional NodeReferenceData scope_ptr = 32;
   optional CodeData code = 33;
   repeated EditData edits = 34;
 }
@@ -2940,7 +2937,6 @@ message ActionStepData {
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message CreateStepData {
   NodeType node_type = 100;
-  FieldType field_type = 101;
   optional NodeReferenceData block_base_ptr = 102;
 }
 

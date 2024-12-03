@@ -501,7 +501,7 @@ class Session(RuntimeNode[SessionData]):
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
         for node in nodes:
-            if node._is_attached:  # ignore detached create (is created on attach)
+            if node.is_attached:  # ignore detached create (is created on attach)
                 self._pending_nodes_by_id[node.id] = node
                 self._tx.record_edit_event(EditType.CREATE, node)
 
@@ -513,7 +513,7 @@ class Session(RuntimeNode[SessionData]):
         ), f"cannot edit {nodes!r} in {self!r}"
         now = self._oracle.utc()
         for node in nodes:
-            assert node._is_attached, f"cannot upsert detached node {node!r}"
+            assert node.is_attached, f"cannot upsert detached node {node!r}"
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UPSERT, node, now=now)
 
@@ -525,7 +525,7 @@ class Session(RuntimeNode[SessionData]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        if node._is_attached:  # ignore detached updates
+        if node.is_attached:  # ignore detached updates
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
 
@@ -537,7 +537,7 @@ class Session(RuntimeNode[SessionData]):
         ), f"cannot edit {nodes!r} in {self!r}"
 
         for node in nodes:
-            assert node._is_attached, f"cannot delete detached node {node!r}"
+            assert node.is_attached, f"cannot delete detached node {node!r}"
             now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so remember them manually
@@ -555,7 +555,7 @@ class Session(RuntimeNode[SessionData]):
         ), f"cannot edit {nodes!r} in {self!r}"
 
         for node in nodes:
-            assert node._is_attached, f"cannot restore detached node {node!r}"
+            assert node.is_attached, f"cannot restore detached node {node!r}"
             now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.RESTORE, node, now=now)
@@ -570,7 +570,7 @@ class Session(RuntimeNode[SessionData]):
         ), f"cannot edit {nodes!r} in {self!r}"
 
         for node in nodes:
-            assert node._is_attached, f"cannot erase detached node {node!r}"
+            assert node.is_attached, f"cannot erase detached node {node!r}"
             now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so remember them manually

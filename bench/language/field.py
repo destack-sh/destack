@@ -202,10 +202,9 @@ class TypeConstraint(Struct):
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
     # node-ish
-    node_is_attached: Optional[bool] = p_regular(70, require=False, default=None)
-    node_types: list["NodeType"] = p_regular(71, array=True)
-    node_scope: list["Node"] = p_regular(72, require=False, array=True, references="any")
-    node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
+    node_types: list["NodeType"] = p_regular(70, array=True)
+    node_scope: list["Node"] = p_regular(71, require=False, array=True, references="any")
+    node_max_depth: Optional[int] = p_regular(72, require=False, default=None)
     # specific node-ish
     block_types: list["BlockType"] = p_regular(80, array=True)
     step_types: list["StepType"] = p_regular(81, array=True)
@@ -564,6 +563,8 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
                 return typ.constraint.file_formats[0]
             elif len(typ.constraint.file_types) == 1:
                 return typ.constraint.file_types[0]
+        if typ.kind == TypeKind.NODE and typ.bench_type is None:
+            return Node
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         bench_cls = BENCH_CLASS_BY_TYPE[typ.bench_type]
         return bench_cls

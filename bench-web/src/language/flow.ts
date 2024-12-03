@@ -822,6 +822,14 @@ export class FlowContext {
     this.update({ transform: undefined }, { debounce: "long" });
   }
 
+  /** Sets the viewport to the current viewport (stops auto viewport) */
+  setViewport() {
+    this.update(
+      { transform: { ...this.currentViewport.transform, scaleX: this.currentViewport.scale } },
+      { debounce: "long" },
+    );
+  }
+
   /** Pan the canvas in response to a wheel event */
   onWheel(e: WheelEvent) {
     // NOTE :UX: handle multitouch gestures in Flow better (zoom)
@@ -840,6 +848,7 @@ export class FlowContext {
   /** Starts dragging a thing. */
   startDragging(e: MouseEvent, thing: FlowThing): boolean {
     if (this.dragging.value != null) return false; // already dragging
+    this.setViewport(); // prevent auto viewport
     if (thing.kind == "canvas") {
       // start panning canvas
       this.dragging.value = {

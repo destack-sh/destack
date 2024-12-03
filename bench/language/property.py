@@ -85,21 +85,21 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     # flags
     is_list: bool = UNSET
-    is_required: bool = False  # = must be non-null
-    is_internal: bool = False  # = should be edited via accessors, but not enforced
-    is_system: bool = False  # = only editable by system
-    is_kernel: bool = False  # = only viewable by system
-    is_autoset: bool = False  # = set automatically by system, cannot set directly
+    is_required: bool = False  # must be non-null
+    is_internal: bool = False  # should be edited via accessors, but not enforced
+    is_system: bool = False  # only editable by system
+    is_kernel: bool = False  # only viewable by system
+    is_autoset: bool = False  # set automatically by system, cannot set directly
     is_computed: bool = False
     is_runtime: bool = UNSET  # exists on runtime instance
     is_ephemeral: bool = False  # runtime-only in-memory property
     is_wired: bool = UNSET  # serialized onto wire (in proto)
     is_stored: bool = UNSET  # stored in DB
-    is_indexed_in_pg: bool = False  # indexed in DB?
+    is_indexed: bool = False  # indexed in DB?
     is_unique: bool = False  # unique index in DB?
     is_deferred: bool = False  # loaded only on demand (only for stored node properties)
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
-    is_encrypted: bool = False  # encrypt at rest (only node properties)
+    is_encrypted: bool = False  # encrypt at rest (only for stored node properties)
     is_untracked: bool = False  # whether writes are tracked
 
     # value
@@ -124,11 +124,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_meta: PropertyReferenceMetadata | None = None
     reference_source: Optional["Property"] = None
     reference_struct: StructType | None = None  # for struct child types
-    reference_is_node_data: bool = False
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
     reference_is_bench_implicit: bool = False
     reference_is_baseless: bool = False
     reference_force_fk: bool = False
+    reference_is_node_data: bool = False
 
     _cached_as_ref: Optional["PropertyReference"] = None
     _type_info: Optional["TypeInfo"] = None
@@ -506,7 +506,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         is_list=is_list,
                         is_required=is_required,
                         primitive_type=PrimitiveType.UUID,
-                        is_indexed_in_pg=self.is_indexed_in_pg,
+                        is_indexed=self.is_indexed,
                     )
                     stored_ids.append(id_prop)
             elif reference_nodes:
@@ -840,7 +840,7 @@ def p_property(
         is_deferred=defer,
         is_encrypted=encrypt,
         is_sensitive=sensitive,
-        is_indexed_in_pg=index_in_pg,
+        is_indexed=index_in_pg,
         is_unique=unique,
     )
 
@@ -904,7 +904,7 @@ def _p_node_ancestor(
         is_stored=store,
         is_wired=wire,
         is_required=require,
-        is_indexed_in_pg=index_in_pg,
+        is_indexed=index_in_pg,
         reference_is_bench_implicit=is_bench_implicit,
     )
 

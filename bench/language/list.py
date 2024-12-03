@@ -97,7 +97,7 @@ class NodeList[V: Node](abc.ABC):
             added = (node,)  # already in the graph
 
         # 'create' node in session if it's attached
-        if self._node._session and self._node._is_attached:
+        if self._node._session and self._node.is_attached:
             self._node._session._create(*added)
             self._node._session.track_many(*added)
 
