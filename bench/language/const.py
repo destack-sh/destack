@@ -3,7 +3,7 @@ import secrets
 import typing
 from datetime import date, datetime, time, timedelta
 from typing import Any, Mapping, Optional, TypeGuard, cast
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict, get_from_env
@@ -21,6 +21,7 @@ class _Unset:
 
 
 # forever constants
+UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 VERSION = "2024.12.03.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8

@@ -1,6 +1,6 @@
 import { INVISIBLE_STEP_TYPES, SINK_STEP_TYPES, SOURCE_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
-import { makeNodeName, NodeIn, unpackSubnodeProperty } from "@/language/node";
+import { makeNodeName, NodeIn, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
 import type { Transaction, TransactionOptions } from "@/language/transaction";
 import {
   Agency,
@@ -103,6 +103,7 @@ export class StepState {
   flow: FlowContext;
   stepPtr: TypedNodeReferenceData<NodeType.STEP>;
   step: Ref<StepData | null>;
+  subnode: Ref<any | null>;
   delegatePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
   delegate: Ref<BlockData | null>;
   fields: Ref<FieldData[]>;
@@ -115,6 +116,10 @@ export class StepState {
     this.flow = flow;
     this.stepPtr = toNodeRef(step);
     this.step = flow.graph.getRef(this.stepPtr, { ignoreAncestors: true });
+    this.subnode = computed(() => {
+      if (this.step.value == null) return null;
+      return unpackSubnode(NodeType.STEP, this.step.value.type, this.step.value.subnodePacked);
+    });
     this.delegatePtr = computedValue(() => {
       if (this.step.value?.type == StepType.ACTION) {
         const delegatePtr = unpackSubnodeProperty(

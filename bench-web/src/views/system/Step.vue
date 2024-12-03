@@ -10,7 +10,17 @@ import {
   useFlowContext,
 } from "@/language/flow";
 import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/session";
-import { ColorShade, FieldType, NodeType, Orientation, PortSide, StepType, Variant, ViewData } from "@/proto/wire";
+import {
+  ColorShade,
+  FailStepData,
+  FieldType,
+  NodeType,
+  Orientation,
+  PortSide,
+  StepType,
+  Variant,
+  ViewData,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
 import { canvas, pkgConnection } from "@/system/space";
@@ -39,7 +49,7 @@ const id = toRef(props, "id");
 const stepPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.STEP>);
 const flowCtx = useFlowContext();
 const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
-const { step, fields, delegatePtr, delegate, delegateFields } = stepState;
+const { step, subnode, fields, delegatePtr, delegate, delegateFields } = stepState;
 const isInspected = computed(() => canvas.isInspected(stepPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
 const sides = computed(() => (step.value != null ? getStepSides(step.value) : []));
@@ -201,7 +211,10 @@ defineExpose<ViewExposed>({ self, id, actions });
             {{ field.name }}
           </span>
           <span v-if="fields.length == 0" class="text-gray-400">
-            {{ DEFAULT_TEXT_BY_STEP_TYPE[step.type] ?? "No fields" }}
+            <template v-if="step.type == StepType.FAIL && (subnode as FailStepData).errorTitle != null">
+              {{ (subnode as FailStepData).errorTitle }}
+            </template>
+            <template v-else>{{ DEFAULT_TEXT_BY_STEP_TYPE[step.type] ?? "No fields" }}</template>
           </span>
         </div>
       </div>

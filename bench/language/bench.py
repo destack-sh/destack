@@ -150,6 +150,10 @@ class Bench(BenchNode[BenchData]):
         assert main_package is not None, f"{self!r} has no main package"
         return main_package
 
+    @property
+    def main_package_ptr(self) -> NodeReference:
+        return self.main_package.to_ref()
+
 
 @local_node_(NodeType.BRANCH, unique=(("bench_id", "slug"),))
 class Branch(BenchNode[BranchData]):
