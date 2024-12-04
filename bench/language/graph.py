@@ -2,7 +2,6 @@ import abc
 from collections import deque
 from typing import (
     TYPE_CHECKING,
-    Any,
     ClassVar,
     Collection,
     Iterable,
@@ -17,8 +16,7 @@ from opentelemetry import trace
 
 from bench.language.const import EMPTY_LIST, NodeType, ObjectType
 from bench.proto.wire import AnyNodeData, GraphScopeData
-from bench.utils.func import IdEnum, bittuple
-from bench.utils.string import Casing, to_casing
+from bench.utils.func import bittuple
 
 if TYPE_CHECKING:
     from bench.language import Node, NodeReference
@@ -504,51 +502,3 @@ class NodeSuperGraph:
 
 
 NULL_SUPERGRAPH = NodeSuperGraph(root_ptr=None)
-
-
-def extract_name_id(name: str) -> Optional[int]:
-    """Extracts the last (potentially multi-digit) characters as an integer."""
-    for i in range(len(name), 0, -1):
-        if not name[i - 1].isdigit():
-            return None if i == len(name) else int(name[i:])
-    return int(name)
-
-
-def generate_node_name(
-    metatype: NodeType, type: Optional[Any], siblings: Collection["Node"]
-) -> str:
-    """Generates a new name for the given node based on its siblings. :AutoNaming"""
-    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW or metatype == NodeType.STEP:
-        assert isinstance(type, IdEnum), f"expected type for {metatype!r}, got {type!r}"
-        base_name = to_casing(type.name, Casing.CAMEL)
-        type_siblings = tuple(n for n in siblings if getattr(n, "type") == type)
-    else:
-        base_name = to_casing(metatype.name, Casing.CAMEL)
-        type_siblings = tuple(n for n in siblings if n.metatype == metatype)
-
-    if len(type_siblings) == 0:
-        max_id = 0
-    else:
-        max_id = max((extract_name_id(getattr(n, "name")) or 0) for n in type_siblings)
-    return f"{base_name}{max_id + 1}"
-
-
-def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
-    """Patches the existing graph in place from the new graph."""
-    for existing_node in list(old_graph.nodes):
-        if existing_node.id not in new_graph:
-            # node removed: leave as is, remove from existing graph
-            old_graph.remove(existing_node)
-            continue
-        else:
-            # node updated: patch in place
-            patch_node = new_graph[existing_node.id]
-            for prop in existing_node.__wired_properties__.values():
-                if prop.is_computed:
-                    continue  # ignore computed properties
-                prop_value = getattr(existing_node, prop.name)
-                existing_node._do_set(prop.name, prop_value, track=False, validate=False)
-    for patch_node in list(new_graph.nodes):
-        if patch_node.id not in old_graph:
-            # node added: add to existing graph
-            old_graph.add(patch_node)

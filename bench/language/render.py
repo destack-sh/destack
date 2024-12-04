@@ -25,7 +25,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypeBase, TypeConstraint, reverse_type_scalar
 from bench.language.flow import Step
-from bench.language.node import BuiltinObject, Node, NodeReference, Struct
+from bench.language.node import BuiltinObject, HasTracingContext, Node, NodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
@@ -409,8 +409,9 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
             or prop.reference_source
             or prop.is_value_packed
             or prop.name == "order_key"
+            or prop.name in HasTracingContext.__properties__
         ):
-            continue
+            continue  # ignore internal properties
         prop_value = getattr(obj, prop.name)
         if (
             (prop_value is None and prop.default is None)

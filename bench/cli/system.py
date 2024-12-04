@@ -10,8 +10,10 @@ from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, User
 from bench.language.bench import Client
 from bench.language.const import (
+    BENCH_SLUG,
     CLOUD,
     REGION,
+    SYSTEM_SLUG,
     ClientType,
     NodeType,
     Region,
@@ -45,7 +47,7 @@ async def bootstrap(region: Region = Region.ZURICH):
         )
         session._create(system_user)
         await session.flush(optimistic=True)
-        system_user.main_handle = system_user.handles.create(slug="system")
+        system_user.main_handle = system_user.handles.create(slug=SYSTEM_SLUG)
         system_bench = await create_default_bench(
             main_handle=system_user.main_handle,
             owner=system_user,
@@ -53,7 +55,7 @@ async def bootstrap(region: Region = Region.ZURICH):
             global_store=global_store,
             session=session,
         )
-        bench_bench_handle = system_user.handles.create(slug="bench")
+        bench_bench_handle = system_user.handles.create(slug=BENCH_SLUG)
         bench_bench = await create_default_bench(
             main_handle=bench_bench_handle,
             owner=system_user,

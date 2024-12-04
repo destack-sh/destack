@@ -70,7 +70,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex items-center gap-x-1.5 pl-0.5 transition-colors duration-75"
+    class="flex items-center gap-x-1.5 transition-colors duration-75"
     :class="[
       variant != Variant.STEALTH ? 'border w-fit border-gray-200' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',

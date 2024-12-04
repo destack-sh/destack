@@ -50,8 +50,8 @@ const indices = computed(() => {
   // package
   // NOTE: we only search package deeply if we have a query for performance & clarity
   if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "space", "bench", "package"].includes(m))
-    indices["Package"] = graphIndex({
-      id: "package",
+    indices["Bench"] = graphIndex({
+      id: "bench",
       graph: pkgGraph,
       metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.BLOCK, NodeType.STEP],
       roots: [pkgGraph.getOrError(packagePtr.value)],
@@ -285,7 +285,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.itemId] = ref) : delete resultsRefs[item.itemId])"
                   role="button"
                   :data-selected="item.itemId === activeResultLocalId"
-                  class="my-0.5 flex w-full flex-row items-center rounded border border-transparent px-2 py-1 data-[selected=true]:bg-gray-100"
+                  class="my-0.5 flex w-full flex-row items-center rounded border border-transparent px-2 py-1 transition-colors duration-75 hover:bg-gray-100 data-[selected=true]:bg-gray-100"
                   @click.stop.prevent="() => fire(item.itemId)"
                 >
                   <!-- Content -->
@@ -297,12 +297,7 @@ defineExpose({ isActive, open });
                   <!-- Title/Path -->
                   <span class="ml-2 truncate">
                     <!-- Title -->
-                    <span
-                      :class="
-                        item.itemId === activeResultLocalId ? 'underline decoration-gray-700 underline-offset-3' : ''
-                      "
-                      v-html="item.titleMarked ?? item.title"
-                    />
+                    <span v-html="item.titleMarked ?? item.title" />
                     <!-- Path -->
                     <span class="ml-2 text-gray-500">
                       <span v-html="item.pathMarked ?? item.path" />

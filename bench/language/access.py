@@ -683,8 +683,9 @@ class Access(Struct):
     # roots, read_options, ...
 
     def __content_str__(self) -> str:
-        if self.allowed_properties:
-            object_properties_str = "|".join(p.name for p in self.allowed_properties)
+        allowed_properties = self.allowed_properties
+        if allowed_properties:
+            object_properties_str = "|".join(p.name for p in allowed_properties)
             object_str = f"{self.node_type.bench_name} [{object_properties_str}]"
         else:
             object_str = f"{self.node_type.bench_name} [*]"

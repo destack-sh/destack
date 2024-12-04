@@ -810,14 +810,14 @@ defineExpose<ViewExposed>({ self, id, actions });
             <button
               v-tooltip="{ title: 'Duplicate', small: true }"
               class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
-              @click="duplicateSelection"
+              @click.stop="duplicateSelection"
             >
               <i class="fas fa-clone" />
             </button>
             <button
               v-tooltip="{ title: 'Delete', small: true }"
               class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
-              @click="deleteSelection"
+              @click.stop="deleteSelection"
             >
               <i class="fas fa-trash-can" />
             </button>
@@ -954,7 +954,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-1 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-1.5 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
               column.isInspected || column.isHighlighted ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
@@ -1056,15 +1056,21 @@ defineExpose<ViewExposed>({ self, id, actions });
           </Transition>
         </div>
         <!-- No rows -->
-        <button
+        <div
           v-else-if="records.length == 0"
-          class="w-full text-center text-gray-400 hover:bg-gray-100"
+          class="flex w-full flex-row items-center justify-center text-center"
           :style="{ height: `${ROW_HEIGHT_MIN}px` }"
-          @click="createRecord()"
         >
-          <i class="fas fa-empty-set mr-1.5" />
-          <span class="">No records. Click to add.</span>
-        </button>
+          <!-- Loading -->
+          <span v-if="recordConnection.isConnecting.value">
+            <i class="fas fa-spinner-third animate-spin text-gray-400" />
+          </span>
+          <!-- Nothing here -->
+          <button v-else class="h-full w-full text-center text-gray-400 hover:bg-gray-100" @click="createRecord()">
+            <i class="fas fa-empty-set mr-1.5" />
+            <span class="">No records. Click to add.</span>
+          </button>
+        </div>
 
         <!-- Row -->
         <div
@@ -1120,7 +1126,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :class="[
               x > 0 ? 'border-l' : '',
               isSelectedCell(record, column) ? 'bg-gray-100' : '',
-              column.isTitle ? 'flex flex-row items-center gap-x-1.5 pl-1 pr-2' : 'px-2',
+              column.isTitle ? 'flex flex-row items-center gap-x-1.5 pl-1.5 pr-2' : 'px-1.5',
             ]"
             :style="{
               width: `${column.width}px`,

@@ -17,7 +17,6 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import NodeType, QueryType
-from bench.language.graph import generate_node_name
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import get_key_bounds, get_order_key
@@ -135,6 +134,8 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
     @override
     def create(self, **kwargs) -> V:
         if "name" in self._child_node_cls.__properties__ and "name" not in kwargs:
+            from bench.language.node import generate_node_name
+
             # auto-generate name if required and not given :AutoNaming
             kwargs["name"] = generate_node_name(self._child_node_type, kwargs.get("type"), self)
         return super().create(**kwargs)
