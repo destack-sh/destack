@@ -79,11 +79,12 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalType, str] = {
 class Selection(Struct):
     """A selection of Nodes."""
 
-    nodes: list[Node] | None = p_regular(
+    nodes: list[Node] = p_regular(
         40, require=False, array=True, references=IN_BENCH_NODE_TYPES.tuple
     )
-    fields: list["Field"] | None = p_regular(
-        41, require=False, array=True, references=NodeType.FIELD
+    fields: list["Field"] = p_regular(41, require=False, array=True, references=NodeType.FIELD)
+    properties: list[Property] = p_regular(
+        42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
 

@@ -21,6 +21,7 @@ import {
   Orientation,
   PrimitiveType,
   PropertyInfo,
+  PropertyReferenceData,
   RecordData,
   RecordProperty,
   SelectionData,
@@ -36,6 +37,7 @@ import {
   propertyInfo,
   propertyReference,
   toNodeRef,
+  toPropertyRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
@@ -66,6 +68,7 @@ import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
+import { TooltipInfo } from "@/ui/tooltip";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -280,6 +283,7 @@ type ColumnView = {
   isInspected: boolean;
   isHighlighted: boolean;
   isSelected: boolean;
+  isTitle: boolean;
   paddingTop: number;
   paddingBottom: number;
 } & ColumnContent;
@@ -290,7 +294,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
   function column(
     columnIn: Pick<
       ColumnView,
-      "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isSelected"
+      "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isTitle"
     > &
       ColumnContent,
   ) {
@@ -306,7 +310,9 @@ const columns: Ref<ColumnView[]> = computed(() => {
       debounce: getColumnDebounce(columnIn.type, view?.type),
       paddingTop: padding.paddingTop,
       paddingBottom: padding.paddingBottom,
+      isSelected: false,
     };
+    column.isSelected = isSelectedColumn(column);
     columns.push(column);
   }
 
@@ -325,7 +331,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isInput: true,
       isInspected: false,
       isHighlighted: false,
-      isSelected: false,
+      isTitle: propertyId == RecordProperty.title,
     });
   }
   for (const field of fields.value) {
@@ -340,7 +346,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isInput: true,
       isHighlighted: canvas.isHighlighted(field),
       isInspected: canvas.isInspected(field),
-      isSelected: isSelectedColumn(field),
+      isTitle: false,
     });
   }
 
@@ -426,11 +432,24 @@ const selectedFieldsByCk: Ref<Record<string, FieldData>> = computed(() => {
       {} as Record<string, FieldData>,
     );
 });
+const selectedPropertiesById: Ref<Record<number, PropertyReferenceData>> = computed(() => {
+  const selectedProperties = selection.value?.propertiesPtr?.map((ptr) => ptr.id);
+  if (selectedProperties == null) return {};
+  return selectedProperties.reduce(
+    (acc, id) => {
+      acc[id] = toPropertyRef(propertyInfo(NodeType.RECORD, id));
+      return acc;
+    },
+    {} as Record<number, PropertyReferenceData>,
+  );
+});
 const selectedColumns = computed(() => columns.value.filter((column) => column.isSelected));
 const hasSelectionRows = computed(
   () => Object.keys(selectedRecordsById.value).length > 0 && numSelectedColumns.value == 0,
 );
-const numSelectedColumns = computed(() => Object.keys(selectedFieldsByCk.value).length);
+const numSelectedColumns = computed(
+  () => Object.keys(selectedFieldsByCk.value).length + Object.keys(selectedPropertiesById.value).length,
+);
 const hasSelectionRegion = computed(() => numSelectedRows.value > 0 && numSelectedColumns.value > 0);
 const numSelectedRows = computed(() => Object.keys(selectedRecordsById.value).length);
 const isAllSelectedRows = computed(() => numSelectedRows.value >= records.value.length);
@@ -441,14 +460,17 @@ function isSelectedRow(record: RecordData) {
   return selectedRecordsById.value[record.id] != null;
 }
 
-function isSelectedColumn(field: FieldData) {
-  return selectedFieldsByCk.value[field.ck] != null;
+function isSelectedColumn(column: ColumnView) {
+  return (
+    (column.kind == "field" && selectedFieldsByCk.value[column.field.ck] != null) ||
+    (column.kind == "property" && selectedPropertiesById.value[column.property.id] != null)
+  );
 }
 
 function isSelectedCell(record: RecordData, column: ColumnView) {
   if (!isSelectedRow(record)) return false;
-  if ((selection.value?.fieldsPtr?.length ?? 0) == 0) return true;
-  return column.kind == "field" && isSelectedColumn(column.field);
+  if ((selection.value?.fieldsPtr?.length ?? 0) == 0 && (selection.value?.propertiesPtr?.length ?? 0) == 0) return true;
+  return isSelectedColumn(column);
 }
 
 function addSelectionRow(record: RecordData) {
@@ -487,6 +509,7 @@ function selectAll() {
     metatype: ObjectType.SELECTION,
     nodesPtr: records.value.map(toNodeRef),
     fieldsPtr: [],
+    propertiesPtr: [],
   });
 }
 
@@ -522,6 +545,10 @@ function updateSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number
       .slice(region.x1, region.x2 + 1)
       .filter((column) => column.kind == "field")
       .map((column) => toNodeRef(column.field)),
+    propertiesPtr: columns.value
+      .slice(region.x1, region.x2 + 1)
+      .filter((column) => column.kind == "property")
+      .map((column) => toPropertyRef(column.property)),
   };
   state.setSelection(selection);
 }
@@ -914,7 +941,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-1 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
               column.isInspected || column.isHighlighted ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
@@ -960,7 +987,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   },
                 })
               "
-              class="mr-1.5 rounded p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+              class="mr-1.5 w-5 rounded p-0.5 text-center text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
               v-bind="column.icon"
             />
             <NativeInput
@@ -1075,16 +1102,20 @@ defineExpose<ViewExposed>({ self, id, actions });
                   ? (cellWrapperRefs[getCellId(record, column)] = ref)
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
-            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 px-2 text-gray-900"
-            :class="[x > 0 ? 'border-l' : '', isSelectedCell(record, column) ? 'bg-gray-100' : '']"
+            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900"
+            :class="[
+              x > 0 ? 'border-l' : '',
+              isSelectedCell(record, column) ? 'bg-gray-100' : '',
+              column.isTitle ? 'flex flex-row items-center gap-x-1.5 pl-1 pr-2' : 'px-2',
+            ]"
             :style="{
               width: `${column.width}px`,
               minHeight: `${ROW_HEIGHT_MIN}px`,
               maxHeight: `${ROW_HEIGHT_MAX}px`,
               paddingTop: `${column.paddingTop}px`,
               paddingBottom: `${column.paddingBottom + (y == records.length - 1 ? (props.paddingY ?? 0) : 0)}px`,
-              paddingLeft: x == 0 ? `${paddingX ?? 8}px` : undefined,
-              paddingRight: x == columns.length - 1 ? `${paddingX ?? 8}px` : undefined,
+              paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,
+              paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
             }"
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
             @click="
@@ -1100,6 +1131,25 @@ defineExpose<ViewExposed>({ self, id, actions });
             @mousedown="(e) => beginSelectRegion(e, y, record, x, column)"
             @mousemove="(e) => updateSelectRegion(e, y, record, x, column)"
           >
+            <!-- Inline title icon -->
+            <IconInline
+              v-if="column.isTitle"
+              ref="iconRef"
+              v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
+              v-menu="
+                (): PopoverInfoIn => ({
+                  component: Icon,
+                  placement: 'bottom-right',
+                  offset: '-referenceWidth',
+                  props: { modelValue: (record as any)!.icon, isInput: true },
+                  isEnabled: isInput,
+                  onApply: (newIcon) => recordConnection.tx.update(record, { icon: newIcon }),
+                })
+              "
+              v-bind="getNodeIcon(record)"
+              class="w-5 rounded text-center transition-colors duration-75 hover:bg-gray-100"
+              :class="record.icon != null ? 'text-gray-700 hover:text-gray-900' : 'text-gray-400 hover:text-gray-500'"
+            />
             <!-- Inner column view -->
             <component
               :is="column.viewComponent"
@@ -1112,7 +1162,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     : delete cellComponentRefs[getCellId(record, column)]
               "
               v-bind="column.viewProps"
-              class="cursor-pointer select-none"
+              class="flex-1 cursor-pointer select-none"
               :model-value="readColumnValue(record, column)"
               :variant="Variant.STEALTH"
               :size="{ width: column.width, height: ROW_HEIGHT_MAX }"

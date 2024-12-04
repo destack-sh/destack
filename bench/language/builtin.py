@@ -3,7 +3,7 @@ from uuid import UUID, uuid5
 
 from bench.language.action import Agency
 from bench.language.block import Block
-from bench.language.const import UUID_NAMESPACE, VERSION, BlockType
+from bench.language.const import UUID_NAMESPACE, BlockType
 from bench.language.field import Field
 from bench.language.flow import StepType
 from bench.language.graph import NodeGraph
@@ -57,8 +57,8 @@ COMPUTER = Block.new(BlockType.PAGE, "Computer")
 BUILTINS.blocks.append(COMPUTER)
 
 
-# nocheckin: assign builtin ids/cks (path+version?)
 def _assign_builtin_ids(graph: NodeGraph):
+    """Assign deterministic ids to the Nodes in the graph."""
     assigned_ptrs_by_node: dict[UUID, NodeReference] = {}
 
     # set deterministic ids
@@ -66,7 +66,7 @@ def _assign_builtin_ids(graph: NodeGraph):
         assert isinstance(node, SourceNode), f"unexpected {node!r}"
         old_node_id = node.id
         node.ck = uuid5(namespace=UUID_NAMESPACE, name=node.absolute_path)
-        node.id = uuid5(namespace=node.ck, name=VERSION)
+        node.id = uuid5(namespace=node.ck, name="")
         assigned_ptrs_by_node[old_node_id] = node.to_ref()
 
     # update references & reindex

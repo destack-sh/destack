@@ -18,7 +18,7 @@ import {
   type AnyTypeMapping,
   type NodeTypeMapping,
   type PropertyInfo,
-  type StructTypeMapping
+  type StructTypeMapping,
 } from "@/proto/wire";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
@@ -191,6 +191,14 @@ export function typeNodeReferenceMaybe<T extends NodeType>(
 
 export function propertyReference(metatype: ObjectType | NodeType | StructType, id: number): PropertyReferenceData {
   return { metatype: ObjectType.PROPERTY_REFERENCE, type: metatype as unknown as ObjectType, id };
+}
+
+export function toPropertyRef(property: PropertyInfo | PropertyReferenceData): PropertyReferenceData {
+  if (isStruct(property, StructType.PROPERTY_REFERENCE)) {
+    return property;
+  } else {
+    return propertyReference(property.component, property.id);
+  }
 }
 
 export function propertyInfo(metatype: ObjectType | NodeType | StructType, id: number): PropertyInfo {
