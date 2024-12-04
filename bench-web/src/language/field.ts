@@ -4,6 +4,7 @@ import {
   NAME_CONSTRAINT,
   padCkFromTkB64,
   RUNNABLE_BLOCK_TYPES,
+  TITLE_CONSTRAINT,
   toCamelName,
   TYPE_BLOCK_TYPES,
 } from "@/language/const";
@@ -136,7 +137,7 @@ export const NAME_TYPE = makeTypeInfo({
 export const TITLE_TYPE = makeTypeInfo({
   kind: TypeKind.PRIMITIVE,
   primitiveType: PrimitiveType.STRING,
-  constraint: makeTypeConstraint(NAME_CONSTRAINT),
+  constraint: makeTypeConstraint(TITLE_CONSTRAINT),
 });
 
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};

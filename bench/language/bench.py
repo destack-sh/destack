@@ -151,7 +151,7 @@ class Bench(BenchNode[BenchData]):
         return main_package
 
     @property
-    def main_package_ptr(self) -> NodeReference:
+    def main_package_ptr(self) -> "NodeReference":
         return self.main_package.to_ref()
 
 

@@ -17,7 +17,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Block, CustomObject, Text
+    from bench.language import Block, CustomObject, Icon, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,10 +40,11 @@ class Record(StateNode[RecordData], HasNodeBase):
     parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
     # type: RecordType?
     title: Optional[str] = p_regular(32, default=None)
+    order_key: str | None = p_internal(33, default=INTEGER_ZERO)
+    icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
     text: Optional["Text"] = p_regular(
-        33, default=None, require=False, array=False, struct=StructType.TEXT
+        35, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    order_key: str | None = p_internal(34, default=INTEGER_ZERO)
     block: "Block" = p_system(36, require=True, references=NodeType.BLOCK)
 
     # value

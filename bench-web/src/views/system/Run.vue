@@ -346,7 +346,8 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
       <!-- ... -->
     </div>
   </div>
-  <div v-else class="flex h-full w-full flex-col justify-center text-center">
+  <div v-else class="h-full w-full px-5">
     <!-- Empty state -->
+    <span class="text-gray-400">You can't run this.</span>
   </div>
 </template>

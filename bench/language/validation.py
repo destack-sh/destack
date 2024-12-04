@@ -120,7 +120,7 @@ URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
 EMOJI_REGEX = r"\p{Emoji_Presentation}"
 NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=128)
-TITLE_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=256)
+TITLE_CONSTRAINT = TypeConstraintIn(min_length=0, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
 URL_CONSTRAINT = TypeConstraintIn(regex=URL_REGEX)

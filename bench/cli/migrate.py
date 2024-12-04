@@ -145,7 +145,7 @@ async def make(
     logger.info("migrate.make", duration=time.time() - start)
 
 
-@app.command(help="apply global OR local SQL migrations")
+@app.command(help="apply global / local SQL migrations")
 @async_to_sync_blocking
 async def apply(
     target: Optional[str] = typer.Option(
