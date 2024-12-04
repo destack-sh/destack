@@ -6,7 +6,7 @@ import { HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
-import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
+import { canvas, inspectionPtr } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
@@ -16,7 +16,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Inspect from "@/views/system/Detail.vue";
 import Start from "@/views/system/Run.vue";
-import { computed, nextTick, ref, Ref, toRef, watchEffect } from "vue";
+import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_BAR_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;

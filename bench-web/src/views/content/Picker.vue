@@ -1,12 +1,14 @@
 <script lang="ts" setup>
+import { isEnumType, isNodeType, toCamelName } from "@/language/const";
+import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
 import {
   BenchType,
-  RectangleData,
   IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
+  RectangleData,
   TypeKind,
   Variant,
   ViewData,
@@ -14,17 +16,16 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
-import { isEnumType, isNodeType, toCamelName } from "@/language/const";
-import type { NodeItem, SearchItem, TypeItem } from "@/ui/search";
-import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
+import { supergraph } from "@/system/connection";
 import { canvas, pkgGraph } from "@/system/space";
+import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
+import type { NodeItem, SearchItem, TypeItem } from "@/ui/search";
+import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
-import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 400;
@@ -52,7 +53,7 @@ const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH));
 
-const baseType = pkgGraph.getRef(
+const baseType = supergraph.getRef(
   computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined),
 );
 const facetIcon = computed(() => {
@@ -66,7 +67,7 @@ const facetIcon = computed(() => {
     return null;
   }
 });
-const facetName = computed(() => { 
+const facetName = computed(() => {
   if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return baseType.value.name;
   } else if (props.valueType?.benchType != null) {

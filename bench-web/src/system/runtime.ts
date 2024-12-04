@@ -69,12 +69,12 @@ export class RunTree {
   baseByCkRef: Ref<Record<string, RunnableNode>>;
   interruptsRef: Ref<InterruptData[]>;
 
-  constructor(pkgGraph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
+  constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
     this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
     const { graph: runGraph, connection: runConnection } = useGetConnection(
       { name: "runtime.run." + this.id, live: true },
       computed(() => ({
-        scope: pkgGraph.scope,
+        scope: graph.scope,
         roots: [this.runPtr.value!],
         ancestorTypes: [NodeType.RUN],
         descendantTypes: [NodeType.RUN, NodeType.INTERRUPT],
@@ -88,7 +88,7 @@ export class RunTree {
     this.runBasePtr = computedValue(
       () => (this.runRef.value?.stepPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<RunnableNodeType>,
     );
-    this.runBaseRef = pkgGraph.getRef(this.runBasePtr);
+    this.runBaseRef = graph.getRef(this.runBasePtr);
     this.runConnection = runConnection;
     this.runsByBaseCk = computed(() => {
       const runByBaseCk: Record<string, RunData[]> = {};
@@ -115,7 +115,7 @@ export class RunTree {
       }
       return basePtrs;
     });
-    this.basesRef = pkgGraph.getManyRef(this.basesPtrs);
+    this.basesRef = graph.getManyRef(this.basesPtrs);
     this.baseByCkRef = computed(() => {
       const basesByCk: Record<string, RunnableNode> = {};
       for (const base of this.basesRef.value) {

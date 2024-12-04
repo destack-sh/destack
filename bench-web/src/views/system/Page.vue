@@ -20,8 +20,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire/";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { PACKAGE_SCOPE } from "@/system/client";
-import { useExistingConnection, useGetConnection } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { bench, canvas } from "@/system/space";
 import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
@@ -33,9 +32,9 @@ import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
@@ -60,20 +59,10 @@ const id = toRef(props, "id");
 const nodePtr = computed(() => props.nodePtr);
 const state = canvas.registerView(self, id);
 
-const { graph: spaceGraph } = useExistingConnection(self);
-const selfView = spaceGraph.getRef(self);
-const preparedPkgConnection = useGetConnection(
-  { name: `page.${nodePtr.value?.id}` },
-  computed(() => ({
-    scope: PACKAGE_SCOPE.value,
-    roots: [nodePtr.value!],
-    descendantTypes: [NodeType.BLOCK],
-    isEnabled: nodePtr.value != null,
-  })),
-);
-const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
-const page = pkgGraph.getRef(nodePtr) as Ref<BlockData | undefined>;
-const blocks = pkgGraph.getChildrenRef(nodePtr, NodeType.BLOCK);
+const preparedConnection = useExistingConnection(nodePtr);
+const { graph, connection } = preparedConnection;
+const page = graph.getRef(nodePtr) as Ref<BlockData | undefined>;
+const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
@@ -115,13 +104,13 @@ const { activeDropZone } = useMultiDropZone({
   metatypes: [NodeType.BLOCK],
   fallbackToClosest: true,
   allowDrop: (dragged, anchor, targetId) => {
-    const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
+    const target = targetId != null ? graph.get({ id: targetId }) : null;
     return (
       dragged.kind == "file" ||
       (dragged.kind == "node" &&
         target != null &&
         target.id != page.value?.id && // page block is also a block, but 'dropping' there is confusing (moves block outside of page)
-        !isDescendantOf(pkgGraph, target, dragged.node))
+        !isDescendantOf(graph, target, dragged.node))
     );
   },
   onDrop: (dragged, anchor, targetId) => {
@@ -129,14 +118,14 @@ const { activeDropZone } = useMultiDropZone({
     if (dragged.kind == "file") {
       // create variable with file
       if (!dragged.files) return;
-      const target = pkgGraph.getOrError({ id: targetId });
+      const target = graph.getOrError({ id: targetId });
       if (!isNode(target, NodeType.BLOCK)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
       Array.from(dragged.files).forEach(async (file) => {
         if (bench.value == null) throw new Error("no current bench");
-        const upload = uploadFile(() => pkgConnection.tx, file, { bench: bench.value });
+        const upload = uploadFile(() => connection.tx, file, { bench: bench.value });
         await upload.completion.wait();
         const variableType = makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.FILE });
-        const block = createBlock(pkgConnection.tx, pkgGraph, {
+        const block = createBlock(connection.tx, graph, {
           block: {
             type: BlockType.VALUE,
             subnode: {
@@ -151,8 +140,8 @@ const { activeDropZone } = useMultiDropZone({
       });
     } else if (dragged.kind == "node") {
       // move node
-      const target = pkgGraph.getOrError({ id: targetId });
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
+      const target = graph.getOrError({ id: targetId });
+      moveNode(connection.tx, graph, dragged.node, { anchor, target });
     }
   },
 });
@@ -186,13 +175,13 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   "common.edit.duplicate": (action, context) => {
     const { block } = getBlockFromContext(context);
     if (block == null) return false;
-    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, block, { includeChildren: true });
+    const duplicate = cloneNode(connection.tx, graph, block, { includeChildren: true });
     nextTick(() => focus(duplicate));
   },
   "common.edit.delete": (action, context) => {
     const { block } = getBlockFromContext(context);
     if (block == null) return false;
-    pkgConnection.tx.delete(block);
+    connection.tx.delete(block);
   },
   // navigation
   "common.navigate.up": (action, context) => {
@@ -215,8 +204,8 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   },
   // move
   ...useFlatNodeMoveActions({
-    graph: pkgGraph,
-    txFactory: () => pkgConnection.tx,
+    graph: graph,
+    txFactory: () => connection.tx,
     getNodeFromContext: (context) => {
       const { block, idx } = getBlockFromContext(context);
       return { node: block, idx };
@@ -234,7 +223,7 @@ function createAndFocusBlock(
   anchor: "before" | "after" | "inside",
   target: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
 ) {
-  const block = createBlock(pkgConnection.tx, pkgGraph, { block: blockIn, anchor, target });
+  const block = createBlock(connection.tx, graph, { block: blockIn, anchor, target });
   nextTick(() => focus(block));
 }
 
@@ -282,7 +271,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         :container="nodePtr"
         :focus="$props.focus?.nodesPtr[0]"
         :self="nodePtr"
-        :graph="pkgGraph"
+        :graph="graph"
       />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
@@ -330,7 +319,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           }"
         >
           <!-- Icon -->
-          <NodeReference ref="NodeReferenceRef" size="title" :node="page" is-input :tx="() => pkgConnection.tx" />
+          <NodeReference ref="NodeReferenceRef" size="title" :node="page" is-input :tx="() => connection.tx" />
         </div>
 
         <!-- Blocks -->
@@ -376,7 +365,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               "
               class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               :draggable="true"
-              @dragstart.stop="(e) => startDraggingIfAllowed(e, pkgGraph, block)"
+              @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
             >
               <i class="fas fa-grip-vertical w-5 text-center" />
             </button>
@@ -410,10 +399,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
               class="w-full"
               :class="isDragging(block) ? 'opacity-50' : ''"
               :node-ptr="toNodeRef(block)"
-              :prepared-connection="preparedPkgConnection"
+              :prepared-connection="preparedConnection"
               v-bind="state.getChildState(block.id)"
               :draggable="block.type == BlockType.PAGE"
-              @dragstart.stop="(e) => startDraggingIfAllowed(e, pkgGraph, block)"
+              @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
             />
           </div>
         </div>
@@ -444,6 +433,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
         </div>
       </div>
     </Scroll>
-    <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
+    <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
   </div>
 </template>

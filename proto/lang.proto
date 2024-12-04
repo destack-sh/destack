@@ -157,7 +157,7 @@ enum StructType {
   STRUCT_TYPE_CLIENT_ORIGIN = 10009;
   STRUCT_TYPE_NODE_REFERENCE = 10010;
   STRUCT_TYPE_PROPERTY_REFERENCE = 10011;
-  STRUCT_TYPE_TREE = 10012;
+  STRUCT_TYPE_NODE_PARTIAL = 10012;
   STRUCT_TYPE_POLICY = 10500;
   STRUCT_TYPE_POLICY_RULE = 10501;
   STRUCT_TYPE_SUBJECT = 10502;
@@ -265,7 +265,7 @@ enum ObjectType {
   OBJECT_TYPE_CLIENT_ORIGIN = 10009;
   OBJECT_TYPE_NODE_REFERENCE = 10010;
   OBJECT_TYPE_PROPERTY_REFERENCE = 10011;
-  OBJECT_TYPE_TREE = 10012;
+  OBJECT_TYPE_NODE_PARTIAL = 10012;
   OBJECT_TYPE_POLICY = 10500;
   OBJECT_TYPE_POLICY_RULE = 10501;
   OBJECT_TYPE_SUBJECT = 10502;
@@ -459,7 +459,7 @@ enum BenchType {
   BENCH_TYPE_CLIENT_ORIGIN = 10009;
   BENCH_TYPE_NODE_REFERENCE = 10010;
   BENCH_TYPE_PROPERTY_REFERENCE = 10011;
-  BENCH_TYPE_TREE = 10012;
+  BENCH_TYPE_NODE_PARTIAL = 10012;
   BENCH_TYPE_POLICY = 10500;
   BENCH_TYPE_POLICY_RULE = 10501;
   BENCH_TYPE_SUBJECT = 10502;
@@ -1640,9 +1640,9 @@ message PropertyReferenceData {
   optional string references_meta = 33;
 }
 
-message TreeData {
+message NodePartialData {
   ObjectType metatype = 1;
-  repeated SomeNodeData nodes = 35;
+  NodeType node_type = 30;
 }
 
 message VariableObjectData {
@@ -2367,8 +2367,8 @@ message DependencyData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
-  repeated NodeReferenceData scopes_ptr = 30;
   NodeReferenceData dependency_ptr = 40;
+  NodeReferenceData dependency_version_ptr = 41;
   NodeMode mode = 90;
 }
 

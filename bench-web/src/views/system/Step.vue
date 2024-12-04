@@ -9,7 +9,7 @@ import {
   STEP_SIZE,
   useFlowContext,
 } from "@/language/flow";
-import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/session";
+import { isRunActive } from "@/language/session";
 import {
   ColorShade,
   FailStepData,
@@ -23,7 +23,7 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
-import { canvas, pkgConnection } from "@/system/space";
+import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
@@ -137,7 +137,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             offset: '-referenceWidth',
             props: { modelValue: step?.icon, isInput: true },
             isEnabled: true,
-            onApply: (newIcon) => pkgConnection.tx.update(step!, { icon: newIcon }),
+            onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
           })
         "
         v-tooltip="{ small: true, text: `Change icon` }"
@@ -168,7 +168,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :variant="Variant.STEALTH"
             :model-value="step.name"
             @update:model-value="
-              (newValue) => pkgConnection.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
+              (newValue) => flowCtx.tx.update(step!, { name: newValue as string }, { debounce: 'long' })
             "
           />
           <!-- Link (if delegate) -->
