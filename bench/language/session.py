@@ -286,8 +286,8 @@ class Session(RuntimeNode[SessionData]):
 
     def _get_scope_for_query(self, query: "QueryBuilder") -> GraphScopeData:
         """Get the scope for a query in this session."""
-        if query._block is not None:
-            return self._get_scope_for_node(query._block)
+        if query._base_block is not None:
+            return self._get_scope_for_node(query._base_block)
         else:
             return self._default_scope
 

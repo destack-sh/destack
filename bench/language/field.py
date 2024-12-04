@@ -204,8 +204,7 @@ class TypeConstraint(Struct):
     # node-ish
     node_types: list["NodeType"] = p_regular(70, array=True)
     node_scope: list["Node"] = p_regular(71, require=False, array=True, references="any")
-    node_is_attached: Optional[bool] = p_regular(72, require=False, default=None)
-    node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
+    node_max_depth: Optional[int] = p_regular(72, require=False, default=None)
     # specific node-ish
     block_types: list["BlockType"] = p_regular(80, array=True)
     step_types: list["StepType"] = p_regular(81, array=True)
@@ -223,20 +222,21 @@ class TypeBase(BuiltinObject):
     A Type describes the properties and shape of a value.
 
     A Type is of one of:
-       1. Primitive (= column type, value is scalar, like int32, string, bool, datetime, ...)
-       2. Struct (Struct like Expression, File, Path, Text, Code, ...)
-       3. Node (NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
-       4. Enum (builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType, ...)
+       1. Primitive (= column type, value is scalar, like int32, string, bool, datetime)
+       2. Struct (Struct like Expression, File, Path, Text, Code)
+       3. Node (NodeReference, like Package, Block, Field, Record, Run, Signal)
+       4. Enum (builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType)
        5. Based Node (NodeReference,  an 'instance' of the block)
-       6. Object (value is CustomObject value of classy type, like Step outputs, Record value, ...)
-       7. Literal (only allowable value is the type itself / or some constant value)
-       8. Union (type is union of Field children with oneof=self)
+       6. Object (value is CustomObject, like Step outputs, Record value)
+       7. Partial Node (value is a CustomObject + partial Node, like for CreateStep or Steps generally)
+       8. Literal (only allowable value is the type itself / or some constant value)
+       9. Union (type is union of Field children with oneof=self)
 
     Types may also specify:
        - field type, narrowing the fields included from the base type (if any)
        - condition which instances must satisfy
        - constraints (simple conditions the value must satisfy)
-       - combination flags for arrays, optionals, ...
+       - combination flags for arrays, optionals
     """
 
     # type identity

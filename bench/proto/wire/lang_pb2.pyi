@@ -168,7 +168,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_CLIENT_ORIGIN: _ClassVar[StructType]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructType]
-    STRUCT_TYPE_TREE: _ClassVar[StructType]
     STRUCT_TYPE_POLICY: _ClassVar[StructType]
     STRUCT_TYPE_POLICY_RULE: _ClassVar[StructType]
     STRUCT_TYPE_SUBJECT: _ClassVar[StructType]
@@ -276,7 +275,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_CLIENT_ORIGIN: _ClassVar[ObjectType]
     OBJECT_TYPE_NODE_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_PROPERTY_REFERENCE: _ClassVar[ObjectType]
-    OBJECT_TYPE_TREE: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY_RULE: _ClassVar[ObjectType]
     OBJECT_TYPE_SUBJECT: _ClassVar[ObjectType]
@@ -465,7 +463,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CLIENT_ORIGIN: _ClassVar[BenchType]
     BENCH_TYPE_NODE_REFERENCE: _ClassVar[BenchType]
     BENCH_TYPE_PROPERTY_REFERENCE: _ClassVar[BenchType]
-    BENCH_TYPE_TREE: _ClassVar[BenchType]
     BENCH_TYPE_POLICY: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_RULE: _ClassVar[BenchType]
     BENCH_TYPE_SUBJECT: _ClassVar[BenchType]
@@ -850,6 +847,7 @@ class TypeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TYPE_KIND_ENUM: _ClassVar[TypeKind]
     TYPE_KIND_BASED_NODE: _ClassVar[TypeKind]
     TYPE_KIND_OBJECT: _ClassVar[TypeKind]
+    TYPE_KIND_PARTIAL_NODE: _ClassVar[TypeKind]
     TYPE_KIND_LITERAL: _ClassVar[TypeKind]
     TYPE_KIND_UNION: _ClassVar[TypeKind]
 
@@ -1277,8 +1275,13 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_COMPLETE: _ClassVar[StepType]
     STEP_TYPE_FAIL: _ClassVar[StepType]
     STEP_TYPE_TRIGGER: _ClassVar[StepType]
-    STEP_TYPE_ACTION: _ClassVar[StepType]
+    STEP_TYPE_GET: _ClassVar[StepType]
+    STEP_TYPE_SEARCH: _ClassVar[StepType]
     STEP_TYPE_CREATE: _ClassVar[StepType]
+    STEP_TYPE_UPDATE: _ClassVar[StepType]
+    STEP_TYPE_DELETE: _ClassVar[StepType]
+    STEP_TYPE_RESTORE: _ClassVar[StepType]
+    STEP_TYPE_ACTION: _ClassVar[StepType]
     STEP_TYPE_YIELD: _ClassVar[StepType]
     STEP_TYPE_LOOP: _ClassVar[StepType]
     STEP_TYPE_TEXT: _ClassVar[StepType]
@@ -1746,7 +1749,6 @@ STRUCT_TYPE_GRAPH_SCOPE: StructType
 STRUCT_TYPE_CLIENT_ORIGIN: StructType
 STRUCT_TYPE_NODE_REFERENCE: StructType
 STRUCT_TYPE_PROPERTY_REFERENCE: StructType
-STRUCT_TYPE_TREE: StructType
 STRUCT_TYPE_POLICY: StructType
 STRUCT_TYPE_POLICY_RULE: StructType
 STRUCT_TYPE_SUBJECT: StructType
@@ -1851,7 +1853,6 @@ OBJECT_TYPE_GRAPH_SCOPE: ObjectType
 OBJECT_TYPE_CLIENT_ORIGIN: ObjectType
 OBJECT_TYPE_NODE_REFERENCE: ObjectType
 OBJECT_TYPE_PROPERTY_REFERENCE: ObjectType
-OBJECT_TYPE_TREE: ObjectType
 OBJECT_TYPE_POLICY: ObjectType
 OBJECT_TYPE_POLICY_RULE: ObjectType
 OBJECT_TYPE_SUBJECT: ObjectType
@@ -2010,7 +2011,6 @@ BENCH_TYPE_GRAPH_SCOPE: BenchType
 BENCH_TYPE_CLIENT_ORIGIN: BenchType
 BENCH_TYPE_NODE_REFERENCE: BenchType
 BENCH_TYPE_PROPERTY_REFERENCE: BenchType
-BENCH_TYPE_TREE: BenchType
 BENCH_TYPE_POLICY: BenchType
 BENCH_TYPE_POLICY_RULE: BenchType
 BENCH_TYPE_SUBJECT: BenchType
@@ -2353,6 +2353,7 @@ TYPE_KIND_NODE: TypeKind
 TYPE_KIND_ENUM: TypeKind
 TYPE_KIND_BASED_NODE: TypeKind
 TYPE_KIND_OBJECT: TypeKind
+TYPE_KIND_PARTIAL_NODE: TypeKind
 TYPE_KIND_LITERAL: TypeKind
 TYPE_KIND_UNION: TypeKind
 TYPE_FORMAT_UNSPECIFIED: TypeFormat
@@ -2657,8 +2658,13 @@ STEP_TYPE_START: StepType
 STEP_TYPE_COMPLETE: StepType
 STEP_TYPE_FAIL: StepType
 STEP_TYPE_TRIGGER: StepType
-STEP_TYPE_ACTION: StepType
+STEP_TYPE_GET: StepType
+STEP_TYPE_SEARCH: StepType
 STEP_TYPE_CREATE: StepType
+STEP_TYPE_UPDATE: StepType
+STEP_TYPE_DELETE: StepType
+STEP_TYPE_RESTORE: StepType
+STEP_TYPE_ACTION: StepType
 STEP_TYPE_YIELD: StepType
 STEP_TYPE_LOOP: StepType
 STEP_TYPE_TEXT: StepType
@@ -2968,14 +2974,6 @@ class PropertyReferenceData(_message.Message):
     references_meta: str
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., references_node: _Optional[_Union[NodeType, str]] = ..., references_meta: _Optional[str] = ...) -> None: ...
 
-class TreeData(_message.Message):
-    __slots__ = ("metatype", "nodes")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    NODES_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    nodes: _containers.RepeatedCompositeFieldContainer[SomeNodeData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., nodes: _Optional[_Iterable[_Union[SomeNodeData, _Mapping]]] = ...) -> None: ...
-
 class VariableObjectData(_message.Message):
     __slots__ = ("metatype",)
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3071,7 +3069,7 @@ class AggregationResultData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., op: _Optional[_Union[AggregationType, str]] = ..., exists: bool = ..., count: _Optional[int] = ..., scalar: _Optional[float] = ...) -> None: ...
 
 class TypeConstraintData(_message.Message):
-    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_types", "node_scope_ptr", "node_is_attached", "node_max_depth", "block_types", "step_types", "file_types", "file_formats", "view_types")
+    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_types", "node_scope_ptr", "node_max_depth", "block_types", "step_types", "file_types", "file_formats", "view_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
     MAX_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -3083,7 +3081,6 @@ class TypeConstraintData(_message.Message):
     ENDS_WITH_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
     NODE_SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    NODE_IS_ATTACHED_FIELD_NUMBER: _ClassVar[int]
     NODE_MAX_DEPTH_FIELD_NUMBER: _ClassVar[int]
     BLOCK_TYPES_FIELD_NUMBER: _ClassVar[int]
     STEP_TYPES_FIELD_NUMBER: _ClassVar[int]
@@ -3101,14 +3098,13 @@ class TypeConstraintData(_message.Message):
     ends_with: str
     node_types: _containers.RepeatedScalarFieldContainer[NodeType]
     node_scope_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    node_is_attached: bool
     node_max_depth: int
     block_types: _containers.RepeatedScalarFieldContainer[BlockType]
     step_types: _containers.RepeatedScalarFieldContainer[StepType]
     file_types: _containers.RepeatedScalarFieldContainer[FileType]
     file_formats: _containers.RepeatedScalarFieldContainer[FileFormat]
     view_types: _containers.RepeatedScalarFieldContainer[ViewType]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_scope_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., node_is_attached: bool = ..., node_max_depth: _Optional[int] = ..., block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ..., step_types: _Optional[_Iterable[_Union[StepType, str]]] = ..., file_types: _Optional[_Iterable[_Union[FileType, str]]] = ..., file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ..., view_types: _Optional[_Iterable[_Union[ViewType, str]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_scope_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., node_max_depth: _Optional[int] = ..., block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ..., step_types: _Optional[_Iterable[_Union[StepType, str]]] = ..., file_types: _Optional[_Iterable[_Union[FileType, str]]] = ..., file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ..., view_types: _Optional[_Iterable[_Union[ViewType, str]]] = ...) -> None: ...
 
 class TypeInfoData(_message.Message):
     __slots__ = ("metatype", "kind", "primitive_type", "bench_type", "base_type_ptr", "base_field_type", "oneof_ptr", "default_packed", "format", "condition", "constraint", "is_required", "is_list", "is_secret")
@@ -4249,7 +4245,7 @@ class PackageData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., is_snapshot: bool = ..., is_overlay: bool = ...) -> None: ...
 
 class DependencyData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "scopes_ptr", "dependency_ptr", "mode")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "dependency_ptr", "dependency_version_ptr", "mode")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -4266,8 +4262,8 @@ class DependencyData(_message.Message):
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    SCOPES_PTR_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCY_VERSION_PTR_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
@@ -4285,10 +4281,10 @@ class DependencyData(_message.Message):
     updated_epoch: int
     deleted_at: _timestamp_pb2.Timestamp
     subnode_packed: _struct_pb2.Value
-    scopes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     dependency_ptr: NodeReferenceData
+    dependency_version_ptr: NodeReferenceData
     mode: NodeMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., scopes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., dependency_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., dependency_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., dependency_version_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class ServerData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "name", "text", "region", "status", "current_status", "version", "current_version", "min_cpu", "max_cpu", "min_ram", "max_ram", "active_at", "bumped_at", "mode")
@@ -4803,7 +4799,7 @@ class BadgeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., delegated_policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[str] = ..., key_hash: _Optional[str] = ..., password: _Optional[str] = ..., password_hash: _Optional[str] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class QueryData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "node_type", "block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip", "mode")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "node_type", "base_block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip", "mode")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -4824,7 +4820,7 @@ class QueryData(_message.Message):
     NAME_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    BASE_BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     ROOTS_PTR_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     SORT_FIELD_NUMBER: _ClassVar[int]
@@ -4856,7 +4852,7 @@ class QueryData(_message.Message):
     name: str
     order_key: str
     node_type: NodeType
-    block_ptr: NodeReferenceData
+    base_block_ptr: NodeReferenceData
     roots_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     filter: ExpressionData
     sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
@@ -4868,7 +4864,7 @@ class QueryData(_message.Message):
     first: int
     skip: int
     mode: NodeMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[QueryType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., roots_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[ExpressionData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., select: _Optional[_Union[SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., first: _Optional[int] = ..., skip: _Optional[int] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[QueryType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., base_block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., roots_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[ExpressionData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., select: _Optional[_Union[SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., first: _Optional[int] = ..., skip: _Optional[int] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class BlockData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "icon", "text", "variables_packed", "run_options", "policies", "delegated_policies", "roles_ptr", "identity_ptr", "mode")
@@ -5356,13 +5352,53 @@ class FailStepData(_message.Message):
     error_text: TextData
     def __init__(self, error_title: _Optional[str] = ..., error_text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
 
-class CreateStepData(_message.Message):
-    __slots__ = ("node_type", "block_base_ptr")
+class GetStepData(_message.Message):
+    __slots__ = ("node_type", "base_block_ptr", "filter")
     NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_BASE_PTR_FIELD_NUMBER: _ClassVar[int]
+    BASE_BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
     node_type: NodeType
-    block_base_ptr: NodeReferenceData
-    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., block_base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    base_block_ptr: NodeReferenceData
+    filter: ExpressionData
+    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., base_block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ...) -> None: ...
+
+class SearchStepData(_message.Message):
+    __slots__ = ("node_type", "base_block_ptr", "filter", "sort")
+    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    BASE_BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    SORT_FIELD_NUMBER: _ClassVar[int]
+    node_type: NodeType
+    base_block_ptr: NodeReferenceData
+    filter: ExpressionData
+    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
+    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., base_block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...) -> None: ...
+
+class CreateStepData(_message.Message):
+    __slots__ = ("node_partial_packed",)
+    NODE_PARTIAL_PACKED_FIELD_NUMBER: _ClassVar[int]
+    node_partial_packed: _struct_pb2.Value
+    def __init__(self, node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+
+class UpdateStepData(_message.Message):
+    __slots__ = ("node_ptr", "node_partial_packed")
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    NODE_PARTIAL_PACKED_FIELD_NUMBER: _ClassVar[int]
+    node_ptr: NodeReferenceData
+    node_partial_packed: _struct_pb2.Value
+    def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+
+class DeleteStepData(_message.Message):
+    __slots__ = ("node_ptr",)
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    node_ptr: NodeReferenceData
+    def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
+class RestoreStepData(_message.Message):
+    __slots__ = ("node_ptr",)
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    node_ptr: NodeReferenceData
+    def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class LoopStepData(_message.Message):
     __slots__ = ("for_field_ptr",)

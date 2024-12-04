@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.04.2"
+VERSION = "2024.12.04.5"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -731,8 +731,6 @@ DEPENDENCY_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -751,11 +749,9 @@ DEPENDENCY_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("scopes_id", PrimitiveType.UUID, is_array=True),
-        Column("scopes_ck", PrimitiveType.UUID, is_array=True),
-        Column("scopes_bench_id", PrimitiveType.UUID, is_array=True),
         Column("dependency_id", PrimitiveType.UUID),
-        Column("dependency_bench_id", PrimitiveType.UUID),
+        Column("dependency_version_id", PrimitiveType.UUID),
+        Column("dependency_version_bench_id", PrimitiveType.UUID),
         Column("mode", PrimitiveType.INT16, default="1"),
     ),
 )
@@ -982,9 +978,9 @@ QUERY_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("node_type", PrimitiveType.INT16),
-        Column("block_id", PrimitiveType.UUID, is_nullable=True),
-        Column("block_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("base_block_id", PrimitiveType.UUID, is_nullable=True),
+        Column("base_block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("base_block_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("roots_id", PrimitiveType.UUID, is_array=True),
         Column("roots_ck", PrimitiveType.UUID, is_array=True),
         Column("roots_type", PrimitiveType.INT16, is_array=True),
