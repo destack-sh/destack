@@ -254,12 +254,12 @@ class Dependency(SourceNode[DependencyData]):
     If scopes are given, only those blocks are included.
     """
 
-    # dependent
-    parent: Union[Package, "Block", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
-    scopes: list["Block"] = p_regular(30, require=True, array=True, references=NodeType.BLOCK)
+    parent: Union[Package, None] = p_node_parent(4, NodeType.PACKAGE)
 
-    # dependency
-    dependency: Package = p_regular(40, require=True, array=False, references=NodeType.PACKAGE)
+    dependency: Bench = p_regular(40, require=True, array=False, references=NodeType.BENCH)
+    dependency_version: Package = p_regular(
+        41, require=True, array=False, references=NodeType.PACKAGE
+    )
 
 
 @enum_(EnumType.RESOURCE_STATUS)

@@ -24,7 +24,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.04.2"
+VERSION = "2024.12.04.5"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -356,7 +356,6 @@ class StructType(IdEnum):
     CLIENT_ORIGIN = 10009
     NODE_REFERENCE = 10010
     PROPERTY_REFERENCE = 10011
-    TREE = 10012
 
     # access (10500-10999)
     POLICY = 10500
@@ -963,8 +962,9 @@ class TypeKind(IdEnum):
     ENUM = 4
     BASED_NODE = 5
     OBJECT = 6
-    LITERAL = 7
-    UNION = 8
+    PARTIAL_NODE = 7
+    LITERAL = 8
+    UNION = 9
 
 
 @enum_(EnumType.FIELD_ZONE)

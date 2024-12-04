@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from asyncio import Event
-from typing import Any, ClassVar, Literal, Sequence, assert_never, cast, override
+from typing import ClassVar, Literal, Sequence, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -400,14 +400,9 @@ class CompleteStepRunner(StepRunnerBase):
 class FailStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        title = (
-            cast(Any, self.inputs).title or cast(FailStep, self.node).error_title or "Flow failed"
-        )
-        text = (
-            cast(Any, self.inputs).text
-            or cast(FailStep, self.node).error_text
-            or Text.plain(f"Flow failed at {self.node!r}")
-        )
+        inputs = cast(FailStep, self.inputs)
+        title = inputs.error_title or "Flow failed"
+        text = inputs.error_text or Text.plain(f"Flow failed at {self.node!r}")
         if self.flow is not None:
             e = RetryableError(title=title, text=text)
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)

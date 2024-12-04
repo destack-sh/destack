@@ -226,7 +226,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         "_after",
         "_aggregation",
         "_ancestor_types",
-        "_block",
+        "_base_block",
         "_descendant_types",
         "_filter",
         "_first",
@@ -245,7 +245,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         # root
         type: QueryType,
         node_type: NodeType,
-        block: Optional["Block"] = None,
+        base_block: Optional["Block"] = None,
         roots: Optional[list["NodeReference"]] = None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
@@ -265,7 +265,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         self._type = type
         self._node_type = node_type
         self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
-        self._block = block
+        self._base_block = base_block
         self._roots = roots
         self._filter = filter
         self._sort = sort
@@ -281,8 +281,8 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def __str__(self):
         content_parts = []
-        if self._block:
-            content_parts.append(self._block.absolute_path)
+        if self._base_block:
+            content_parts.append(self._base_block.absolute_path)
         if self._roots is not None:
             content_parts.append(f"roots=[{', '.join(str(r) for r in self._roots)}]")
         for k in ("filter", "sort", "first", "skip", "aggregation"):
@@ -302,8 +302,8 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return ", ".join(content_parts) if content_parts else "<empty>"
 
     def __repr__(self):
-        if self._block is not None:
-            return f"<{self._block.code_name}Query {self}>"
+        if self._base_block is not None:
+            return f"<{self._base_block.code_name}Query {self}>"
         else:
             return f"<{self._node_type.bench_name}Query {self}>"
 
@@ -312,7 +312,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             # root
             self._type,
             self._node_type,
-            self._block._stable_hash() if self._block is not None else None,
+            self._base_block._stable_hash() if self._base_block is not None else None,
             tuple(r._stable_hash() for r in self._roots) if self._roots is not None else None,
             self._filter._stable_hash() if self._filter is not None else None,
             tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
@@ -333,8 +333,8 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     @property
     def block(self) -> "Block":
-        assert self._block is not None, f"missing block in {self!r}"
-        return self._block
+        assert self._base_block is not None, f"missing block in {self!r}"
+        return self._base_block
 
     @property
     def include_deleted(self) -> bool:
@@ -350,7 +350,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             # root
             type=self._type,
             node_type=self._node_type,
-            block=self._block,
+            base_block=self._base_block,
             roots=self._roots,
             filter=self._filter,
             sort=self._sort,
@@ -385,7 +385,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(
-            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+            node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         clone = self.clone()
         clone._filter = (
@@ -404,7 +404,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.expression import coerce_sort
 
         clone = self.clone()
-        clone._sort = coerce_sort(node_cls=self._node_cls, block=self._block, expr=sort, args=args)
+        clone._sort = coerce_sort(
+            node_cls=self._node_cls, block=self._base_block, expr=sort, args=args
+        )
         return clone
 
     def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
@@ -452,8 +454,8 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.select_all_properties = True
-        if self._block is not None:
-            clone._select.select_fields = list(self._block.fields)
+        if self._base_block is not None:
+            clone._select.select_fields = list(self._base_block.fields)
         else:
             clone._select.select_fields = []
         return clone
@@ -567,7 +569,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         else:
             # search which should only have one result
             filter = coerce_conditional(
-                node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+                node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
             )
             query = self.where(filter) if filter is not None else self.clone()
             results = await query.search()
@@ -590,7 +592,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.connection import SearchOptions
 
         filter = coerce_conditional(
-            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+            node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
@@ -605,7 +607,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.connection import SearchOptions
 
         filter = coerce_conditional(
-            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+            node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
@@ -624,7 +626,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
         # prepare
         filter = coerce_conditional(
-            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+            node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationType.COUNT))
@@ -647,7 +649,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
         # prepare
         filter = coerce_conditional(
-            node_cls=self._node_cls, block=self._block, expr=filter, kwargs=kwargs
+            node_cls=self._node_cls, block=self._base_block, expr=filter, kwargs=kwargs
         )
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationType.EXISTS))
@@ -717,7 +719,7 @@ class Query(SourceNode[QueryData]):
     order_key: str = p_regular(32, default=INTEGER_ZERO)
 
     node_type: NodeType = p_regular(41)
-    block: Optional["Block"] = p_regular(
+    base_block: Optional["Block"] = p_regular(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     roots: list[Node] = p_regular(43, require=True, array=True, references="any")
@@ -752,7 +754,7 @@ class Query(SourceNode[QueryData]):
             # root
             type=self.type,
             node_type=self.node_type,
-            block=self.block,
+            base_block=self.base_block,
             filter=self.filter,
             sort=self.sort,
             first=None,

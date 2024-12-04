@@ -10,6 +10,7 @@ from bench.language.const import (
     EnumType,
     FieldType,
     NodeType,
+    ObjectKind,
     RunType,
     StructType,
     TypeKind,
@@ -18,6 +19,7 @@ from bench.language.const import (
 from bench.language.field import TypeBase
 from bench.language.list import LocalNodeList
 from bench.language.node import (
+    Node,
     NodeSubtypeStub,
     SourceNode,
     Struct,
@@ -30,6 +32,8 @@ from bench.language.property import (
     p_node_children,
     p_node_parent,
     p_regular,
+    p_value_packed,
+    p_value_runtime,
 )
 from bench.language.run import RunOptions
 from bench.language.validation import (
@@ -225,9 +229,19 @@ class StepType(IdEnum):
     TRIGGER = 4  # source or intermediary :RichBuiltin
     # ABORT?
 
+    # read
+    GET = 40
+    SEARCH = 41
+    # AGGREGATE?
+
+    # write
+    CREATE = 50
+    UPDATE = 51
+    DELETE = 52
+    RESTORE = 53
+
     # run
     ACTION = 60
-    CREATE = 61  # create a new node :RichBuiltin
     YIELD = 62  # to something
 
     # state
@@ -406,6 +420,11 @@ class Step(SourceNode[StepData]):
         return Step(type=typ, name=name, **kwargs)  # type: ignore
 
 
+#
+# Action
+#
+
+
 @node_subtype_(StepType.ACTION)
 class ActionStep(Step, ActionBase):
     # ...ActionBase[100-129]
@@ -420,18 +439,67 @@ class FailStep(Step):
     )
 
 
+#
+# Read
+#
+
+
+@node_subtype_(StepType.GET)
+class GetStep(Step):
+    """Get a single Node."""
+
+    node_type: NodeType = p_regular(100)
+    base_block: Optional["Block"] = p_regular(
+        101, array=False, require=False, default=None, references=NodeType.BLOCK
+    )
+    filter: Optional["Expression"] = p_regular(102, default=None, struct=StructType.EXPRESSION)
+
+
+@node_subtype_(StepType.SEARCH)
+class SearchStep(Step):
+    """Search for Nodes."""
+
+    node_type: NodeType = p_regular(100)
+    base_block: Optional["Block"] = p_regular(
+        101, array=False, require=False, default=None, references=NodeType.BLOCK
+    )
+    filter: Optional["Expression"] = p_regular(102, default=None, struct=StructType.EXPRESSION)
+    sort: Optional[list["Expression"]] = p_regular(
+        103, default=None, array=True, struct=StructType.EXPRESSION
+    )
+
+
+#
+# Write
+#
+
+
 @node_subtype_(StepType.CREATE)
 class CreateStep(Step):
-    node_type: NodeType = p_regular(100)
-    block_base: Optional["Block"] = p_regular(
-        102,
-        require=False,
-        array=False,
-        references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.DATABASE, BlockType.MESSAGE]),
-    )
-    if TYPE_CHECKING:
-        block_base_ptr: Optional["NodeReference"] = None
+    node_partial_packed = p_value_packed(100)
+    node_partial = p_value_runtime(100, kind=ObjectKind.BUILTIN, typ=None)
+
+
+@node_subtype_(StepType.UPDATE)
+class UpdateStep(Step):
+    node: Node = p_regular(100, require=True, references="any")
+    node_partial_packed = p_value_packed(101)
+    node_partial = p_value_runtime(101, kind=ObjectKind.BUILTIN, typ=None)
+
+
+@node_subtype_(StepType.DELETE)
+class DeleteStep(Step):
+    node: Node = p_regular(100, require=True, references="any")
+
+
+@node_subtype_(StepType.RESTORE)
+class RestoreStep(Step):
+    node: Node = p_regular(100, require=True, references="any")
+
+
+#
+# Container
+#
 
 
 @node_subtype_(StepType.LOOP)

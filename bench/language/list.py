@@ -285,7 +285,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         query = QueryBuilder(
             type=QueryType.SEARCH,
             node_type=self._child_node_type,
-            block=self._node,
+            base_block=self._node,
             # select all fields by default
             select=SelectOptions(select_fields=list(self._node.fields)),
         )

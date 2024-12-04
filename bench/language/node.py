@@ -2644,19 +2644,6 @@ class PropertyReference(Struct):
         return prop
 
 
-@struct_(StructType.TREE)
-class Tree(Struct):
-    """A tree of (detached) Nodes with a single root Node. For internal use."""
-
-    nodes: list[AnyNodeData] = p_regular(
-        35,
-        primitive_type=None,
-        is_node_data=True,
-        array=True,
-        description="The entire Nodes in the Tree.",
-    )
-
-
 @local_node_(NodeType.SKIP, stored=False)
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""

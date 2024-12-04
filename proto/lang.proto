@@ -157,7 +157,6 @@ enum StructType {
   STRUCT_TYPE_CLIENT_ORIGIN = 10009;
   STRUCT_TYPE_NODE_REFERENCE = 10010;
   STRUCT_TYPE_PROPERTY_REFERENCE = 10011;
-  STRUCT_TYPE_NODE_PARTIAL = 10012;
   STRUCT_TYPE_POLICY = 10500;
   STRUCT_TYPE_POLICY_RULE = 10501;
   STRUCT_TYPE_SUBJECT = 10502;
@@ -265,7 +264,6 @@ enum ObjectType {
   OBJECT_TYPE_CLIENT_ORIGIN = 10009;
   OBJECT_TYPE_NODE_REFERENCE = 10010;
   OBJECT_TYPE_PROPERTY_REFERENCE = 10011;
-  OBJECT_TYPE_NODE_PARTIAL = 10012;
   OBJECT_TYPE_POLICY = 10500;
   OBJECT_TYPE_POLICY_RULE = 10501;
   OBJECT_TYPE_SUBJECT = 10502;
@@ -459,7 +457,6 @@ enum BenchType {
   BENCH_TYPE_CLIENT_ORIGIN = 10009;
   BENCH_TYPE_NODE_REFERENCE = 10010;
   BENCH_TYPE_PROPERTY_REFERENCE = 10011;
-  BENCH_TYPE_NODE_PARTIAL = 10012;
   BENCH_TYPE_POLICY = 10500;
   BENCH_TYPE_POLICY_RULE = 10501;
   BENCH_TYPE_SUBJECT = 10502;
@@ -854,8 +851,9 @@ enum TypeKind {
   TYPE_KIND_ENUM = 4;
   TYPE_KIND_BASED_NODE = 5;
   TYPE_KIND_OBJECT = 6;
-  TYPE_KIND_LITERAL = 7;
-  TYPE_KIND_UNION = 8;
+  TYPE_KIND_PARTIAL_NODE = 7;
+  TYPE_KIND_LITERAL = 8;
+  TYPE_KIND_UNION = 9;
 }
 
 // The fine-grained format of some Type.
@@ -1287,8 +1285,13 @@ enum StepType {
   STEP_TYPE_COMPLETE = 2;
   STEP_TYPE_FAIL = 3;
   STEP_TYPE_TRIGGER = 4;
+  STEP_TYPE_GET = 40;
+  STEP_TYPE_SEARCH = 41;
+  STEP_TYPE_CREATE = 50;
+  STEP_TYPE_UPDATE = 51;
+  STEP_TYPE_DELETE = 52;
+  STEP_TYPE_RESTORE = 53;
   STEP_TYPE_ACTION = 60;
-  STEP_TYPE_CREATE = 61;
   STEP_TYPE_YIELD = 62;
   STEP_TYPE_LOOP = 501;
   STEP_TYPE_TEXT = 900;
@@ -1640,11 +1643,6 @@ message PropertyReferenceData {
   optional string references_meta = 33;
 }
 
-message NodePartialData {
-  ObjectType metatype = 1;
-  NodeType node_type = 30;
-}
-
 message VariableObjectData {
   ObjectType metatype = 1;
 }
@@ -1712,8 +1710,7 @@ message TypeConstraintData {
   optional string ends_with = 62;
   repeated NodeType node_types = 70;
   repeated NodeReferenceData node_scope_ptr = 71;
-  optional bool node_is_attached = 72;
-  optional int32 node_max_depth = 73;
+  optional int32 node_max_depth = 72;
   repeated BlockType block_types = 80;
   repeated StepType step_types = 81;
   repeated FileType file_types = 82;
@@ -2661,7 +2658,7 @@ message QueryData {
   string name = 31;
   string order_key = 32;
   NodeType node_type = 41;
-  optional NodeReferenceData block_ptr = 42;
+  optional NodeReferenceData base_block_ptr = 42;
   repeated NodeReferenceData roots_ptr = 43;
   optional ExpressionData filter = 44;
   repeated ExpressionData sort = 45;
@@ -2943,10 +2940,40 @@ message FailStepData {
   optional TextData error_text = 101;
 }
 
+// Get a single Node.
+message GetStepData {
+  NodeType node_type = 100;
+  optional NodeReferenceData base_block_ptr = 101;
+  optional ExpressionData filter = 102;
+}
+
+// Search for Nodes.
+message SearchStepData {
+  NodeType node_type = 100;
+  optional NodeReferenceData base_block_ptr = 101;
+  optional ExpressionData filter = 102;
+  repeated ExpressionData sort = 103;
+}
+
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message CreateStepData {
-  NodeType node_type = 100;
-  optional NodeReferenceData block_base_ptr = 102;
+  optional google.protobuf.Value node_partial_packed = 100;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message UpdateStepData {
+  NodeReferenceData node_ptr = 100;
+  optional google.protobuf.Value node_partial_packed = 101;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message DeleteStepData {
+  NodeReferenceData node_ptr = 100;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message RestoreStepData {
+  NodeReferenceData node_ptr = 100;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.

@@ -89,9 +89,12 @@ ValueParentKey = Union["Property", "Field"]
 
 class CustomObject(Mapping[str, Any]):
     """
-    A custom Object with Fields; the user defined equivalent of our built-in Objects (Structs/Nodes).
-    Objects can be 'partial' and include values for only a specific subset of Fields
+    A custom Object; generally the user defined equivalent of our built-in Objects (Structs/Nodes).
+    Basic Objects  include values for a specific subset of Fields and the common builtin Object ones
       (e.g., Block variable, Run inputs, Class instance).
+    Partial Nodes are a CustomObject + a partial Node, they include the Node, its subtype (if any),
+      and values for a specific subset of its value Fields (if any).
+      (e.g., CreateStep input, Step inputs generally)
     """
 
     __slots__ = (
@@ -1075,7 +1078,7 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> Scalar
 
 def pack_builtin_object_data(
     value: AnyStructData | AnyNodeData,
-    only: Sequence[Property] | None = None,
+    only: Collection[Property] | None = None,
 ) -> dict[str, JsonValue]:
     """Packs a single struct/node data value using typed proto ids as keys and enum values."""
     value_packed: dict[str, JsonValue] = {}

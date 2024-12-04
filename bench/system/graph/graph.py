@@ -337,7 +337,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     query = QueryBuilder(
                         type=QueryType.GET,
                         node_type=node_type,
-                        block=block,
+                        base_block=block,
                         roots=node_references,
                         include_deleted=include_deleted,
                         select=select,
@@ -490,7 +490,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     type=QueryType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
                     roots=roots,
-                    block=block,
+                    base_block=block,
                     ancestor_types=ancestor_types,
                     descendant_types=descendant_types,
                     include_deleted=request.include_deleted,
@@ -624,7 +624,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 query = QueryBuilder(
                     type=QueryType.SEARCH,
                     node_type=node_type,
-                    block=block,
+                    base_block=block,
                     filter=filter,
                     sort=sort,
                     ancestor_types=ancestor_types,

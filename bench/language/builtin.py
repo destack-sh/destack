@@ -11,8 +11,6 @@ from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, Node, NodeReference, SourceNode
 from bench.language.session import Session
 from bench.language.setup import _complete_bench_setup
-from bench.language.text import Text
-from bench.language.validation import constraint
 from bench.utils.oracle import REAL_ORACLE
 
 _complete_bench_setup()
@@ -68,28 +66,37 @@ Builtins.blocks.append(Stubs)
 Steps = Block.new(BlockType.PAGE, "Steps")
 Stubs.blocks.append(Steps)
 STUB_BY_STEP_TYPE: Mapping[StepType, Block] = {
+    # read
+    StepType.GET: Block.new(
+        BlockType.ACTION,
+        "Get",
+        agency=Agency.CODE,
+        fields=(Field.output("Node", Node, is_required=True),),
+    ),
+    StepType.SEARCH: Block.new(
+        BlockType.ACTION,
+        "Search",
+        agency=Agency.CODE,
+        fields=(Field.output("Nodes", Node, is_list=True, is_required=True),),
+    ),
+    # write
     StepType.CREATE: Block.new(
         BlockType.ACTION,
         "Create",
         agency=Agency.CODE,
-        fields=(
-            Field.input(
-                "Input", Node, is_required=True, constraint=constraint(node_is_attached=False)
-            ),
-            Field.output(
-                "Node", Node, is_required=True, constraint=constraint(node_is_attached=True)
-            ),
-        ),
+        fields=(Field.output("Node", Node, is_required=True),),
     ),
-    StepType.FAIL: Block.new(
+    StepType.UPDATE: Block.new(
         BlockType.ACTION,
-        "Fail",
+        "Update",
         agency=Agency.CODE,
-        fields=(
-            Field.input("title", str),
-            Field.input("text", Text),
-            Field.input("node", Node),
-        ),
+        fields=(Field.output("Node", Node, is_required=True),),
+    ),
+    StepType.RESTORE: Block.new(
+        BlockType.ACTION,
+        "Restore",
+        agency=Agency.CODE,
+        fields=(Field.output("Node", Node, is_required=True),),
     ),
 }
 Steps.blocks.extend(*STUB_BY_STEP_TYPE.values())

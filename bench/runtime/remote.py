@@ -184,7 +184,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
         request = wire.GetNodesRequest(
             scope=engine.scope,
             roots=roots_ptr,
-            block_ptr=query._block._to_ref_data() if query._block else None,
+            block_ptr=query._base_block._to_ref_data() if query._base_block else None,
             ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
             descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
             select=query._select._to_data() if query._select else None,
@@ -236,7 +236,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
         request = wire.SearchNodesRequest(
             scope=engine.scope,
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            block_ptr=query._block._to_ref_data() if query._block else None,
+            block_ptr=query._base_block._to_ref_data() if query._base_block else None,
             filter=wiring.pack_object_maybe(query._filter, ExpressionData),
             sort=(
                 [wiring.pack_object(s, ExpressionData) for s in query._sort] if query._sort else []
