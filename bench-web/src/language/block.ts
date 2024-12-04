@@ -18,7 +18,6 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { pkgGraph } from "@/system/space";
 import type { ActionBuiltinId, ActionContext, ActionMapImplementation } from "@/ui/action";
 import { generateOrderKey } from "@/utils/fractional";
 import type { Ref } from "vue";
@@ -74,9 +73,9 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
   /** Moves the item one level to the left */
   function moveNodeLeft(tx: Transaction, item: ItemT, idx: number) {
     if (!isNode(item.node, NodeType.BLOCK)) throw new Error(`can't move hierarchically: ${describeNode(item.node)}`);
-    const parent = pkgGraph.getMaybe(item?.node.parentPtr);
+    const parent = graph.getMaybe(item?.node.parentPtr);
     if (item == null || !isNode(parent, NodeType.BLOCK) || parent.id == basePtr.value?.id) return false;
-    moveNode(tx, pkgGraph, item.node, { anchor: "after", target: parent });
+    moveNode(tx, graph, item.node, { anchor: "after", target: parent });
   }
 
   return {
@@ -89,7 +88,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         if (item == null || prev == null) return false;
         const tx = txFactory();
         if (prev.node.parentPtr?.id == item.node.parentPtr?.id || prev.node?.id == item.node.parentPtr?.id) {
-          moveNode(tx, pkgGraph, item.node, { anchor: "before", target: prev.node });
+          moveNode(tx, graph, item.node, { anchor: "before", target: prev.node });
           return true;
         } else if (!isNode(item.node, NodeType.BLOCK)) {
           return false;
@@ -113,9 +112,9 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         const tx = txFactory();
         if (next.node.parentPtr?.id == item.node.parentPtr?.id) {
           if (nextnext && nextnext.depth > next!.depth) {
-            moveNode(tx, pkgGraph, item.node, { anchor: "before", target: nextnext.node });
+            moveNode(tx, graph, item.node, { anchor: "before", target: nextnext.node });
           } else {
-            moveNode(tx, pkgGraph, item.node, { anchor: "after", target: next.node });
+            moveNode(tx, graph, item.node, { anchor: "after", target: next.node });
           }
           return true;
         } else if (!isNode(item.node, NodeType.BLOCK)) {
@@ -168,7 +167,7 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
         const prev = siblings[siblings.indexOf(node) - 1];
         if (prev == null) return false;
         const tx = txFactory();
-        moveNode(tx, pkgGraph, node, { anchor: "before", target: prev });
+        moveNode(tx, graph, node, { anchor: "before", target: prev });
         return true;
       },
     },
@@ -182,7 +181,7 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
         const next = siblings[siblings.indexOf(node) + 1];
         if (next == null) return false;
         const tx = txFactory();
-        moveNode(tx, pkgGraph, node, { anchor: "after", target: next });
+        moveNode(tx, graph, node, { anchor: "after", target: next });
         return true;
       },
     },

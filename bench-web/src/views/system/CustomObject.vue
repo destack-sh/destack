@@ -54,16 +54,16 @@ const facetName = computed(() => base.value?.name);
 const basePtr = computed(
   () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | undefined,
 );
-const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(basePtr);
-const base = pkgGraph.getRef(basePtr);
-const baseFields = pkgGraph.getChildrenRef(base, NodeType.FIELD);
+const { graph } = props.preparedConnection ?? useExistingConnection(basePtr);
+const base = graph.getRef(basePtr);
+const baseFields = graph.getChildrenRef(base, NodeType.FIELD);
 const fields = computed(() =>
   props.valueType?.baseFieldType != null
     ? baseFields.value.filter((f) => f.type == props.valueType!.baseFieldType)
     : baseFields.value,
 );
 const titleField = computed(() => getTitleField(fields.value));
-const fieldViews = computed(() => getFieldViews(fields.value, pkgGraph, { isInput: props.isInput }));
+const fieldViews = computed(() => getFieldViews(fields.value, graph, { isInput: props.isInput }));
 const hasValue = computed(() => {
   if (props.modelValue == null) return false;
   if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
@@ -271,7 +271,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
               fieldView.field.kind == TypeKind.OBJECT
                 ? focusedValue?.[fieldView.storageKey]
                 : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.field, {
-                    graph: pkgGraph,
+                    graph: graph,
                     wrapScalar: false,
                     recurseCustomObject: false,
                   })
@@ -282,7 +282,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
                   fieldView.field.kind == TypeKind.OBJECT
                     ? value
                     : packValue(value, fieldView.field, {
-                        graph: pkgGraph,
+                        graph: graph,
                         wrapScalar: false,
                         recurseCustomObject: false,
                       });

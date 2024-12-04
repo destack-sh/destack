@@ -3,15 +3,7 @@ import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS } from "@/language/field";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
-import {
-  BlockType,
-  FieldType,
-  NodeType,
-  Orientation,
-  Variant,
-  ViewData,
-  type FieldData
-} from "@/proto/wire";
+import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -40,16 +32,16 @@ const containerRef = ref<HTMLElement | null>(null);
 const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
-const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
-const allFields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
+const { graph, connection } = props.preparedConnection ?? useExistingConnection(nodePtr);
+const block = graph.getRef(nodePtr, { ignoreAncestors: props.self == null });
+const allFields = graph.getChildrenRef(block, NodeType.FIELD);
 const fields = computed(() => allFields.value.filter((f) => f.type == props.fieldType));
 
 // dragging :TypeDragAndDrop
 // NOTE: we have separate drop types for left/right (for function types)
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
   if (dragged.kind != "node") return false;
-  const node = pkgGraph.get(dragged.node);
+  const node = graph.get(dragged.node);
   if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (block.value?.type == BlockType.CHOICE)) {
     return true;
   } else if (
@@ -64,19 +56,19 @@ function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: strin
 }
 function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
   if (dragged.kind != "node") return;
-  const node = pkgGraph.getOrError(dragged.node);
-  const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
+  const node = graph.getOrError(dragged.node);
+  const target = targetId != null ? graph.get({ id: targetId }) : null;
   if (isNode(node, NodeType.FIELD)) {
     // move field
     if (target != null) {
       if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
+      moveNode(connection.tx, graph, dragged.node, { anchor, target });
     } else {
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
+      moveNode(connection.tx, graph, dragged.node, { anchor: "center", target: block.value! });
     }
     if (node.type != props.fieldType) {
-      pkgConnection.tx.update(node, { type: props.fieldType ?? undefined }, { debounce: "tick" });
-      onNodeMorphed(pkgConnection.tx, pkgGraph, node);
+      connection.tx.update(node, { type: props.fieldType ?? undefined }, { debounce: "tick" });
+      onNodeMorphed(connection.tx, graph, node);
     }
   } else if (isNode(node, NodeType.BLOCK)) {
     // add field with block type
@@ -84,9 +76,9 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
     const fieldIn = { ...type, type: props.fieldType! };
     if (target != null) {
       if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor, target });
+      createField(connection.tx, graph, { field: fieldIn, anchor, target });
     } else {
-      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor: "inside", target: block.value! });
+      createField(connection.tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
     }
   }
 }
@@ -114,22 +106,22 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.create.above": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
-    createField(pkgConnection.tx, pkgGraph, { anchor: "before", target: field, field: { type: props.fieldType } });
+    createField(connection.tx, graph, { anchor: "before", target: field, field: { type: props.fieldType } });
   },
   "common.create.below": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
-    createField(pkgConnection.tx, pkgGraph, { anchor: "after", target: field, field: { type: props.fieldType } });
+    createField(connection.tx, graph, { anchor: "after", target: field, field: { type: props.fieldType } });
   },
   "common.edit.duplicate": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
-    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, field, { includeChildren: true });
+    const duplicate = cloneNode(connection.tx, graph, field, { includeChildren: true });
   },
   "common.edit.delete": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
-    pkgConnection.tx.delete(field);
+    connection.tx.delete(field);
   },
 };
 
@@ -191,7 +183,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         :node-ptr="toNodeRef(field)"
         :variant="variant"
         :draggable="true"
-        @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, field)"
+        @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, graph, field)"
       />
     </li>
     <!-- Add button -->
@@ -199,7 +191,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       v-if="variant != Variant.STEALTH || fields.length == 0"
       class="h-[26px] rounded px-1 text-left text-gray-400 hover:text-gray-700"
       :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
-      @click="(e) => onAddFieldAction(e, fieldType, block!, pkgGraph, () => pkgConnection.tx)"
+      @click="(e) => onAddFieldAction(e, fieldType, block!, graph, () => connection.tx)"
     >
       <i class="fas fa-plus mr-1.5" />
       <span> {{ toCamelName(FieldType, props.fieldType) }} </span>

@@ -36,10 +36,10 @@ const NodeReferenceRef: Ref<InstanceType<typeof NodeReference> | null> = ref(nul
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
-const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
-const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
-const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
+const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
+const { graph, connection } = preparedConnection;
+const block = graph.getRef(nodePtr, { ignoreAncestors: props.self == null });
+const fields = graph.getChildrenRef(block, NodeType.FIELD);
 
 const isPage = computed(() => block.value?.type == BlockType.PAGE);
 const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(block.value?.type!));
@@ -67,7 +67,7 @@ const value = computed(() => {
     return valuePacked;
   } else {
     return unpackValue(valuePacked!, valueType.value, {
-      graph: pkgGraph,
+      graph: graph,
       wrapScalar: true,
       recurseCustomObject: false,
     });
@@ -79,15 +79,15 @@ function updateValue(value: any) {
   const valuePacked =
     valueType?.kind == TypeKind.OBJECT
       ? value
-      : packValue(value, valueType!, { graph: pkgGraph, wrapScalar: true, recurseCustomObject: false });
+      : packValue(value, valueType!, { graph: graph, wrapScalar: true, recurseCustomObject: false });
   if (valuePacked != null) {
-    pkgConnection.tx.update(
+    connection.tx.update(
       block.value,
       makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked } }),
       { debounce: "short" },
     );
   } else {
-    pkgConnection.tx.update(
+    connection.tx.update(
       block.value,
       makeEdit(block.value, { metatype: NodeType.BLOCK, type: BlockType.VALUE, subnode: { valuePacked: undefined } }),
       { debounce: "short" },
@@ -136,7 +136,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :underline="block.type == BlockType.PAGE"
         :node="block"
         :is-input="block.type != BlockType.PAGE"
-        :tx="() => pkgConnection.tx"
+        :tx="() => connection.tx"
       />
       <!-- Open in its own page -->
       <button
@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       :variant="Variant.STEALTH"
       :model-value="block.text"
       v-bind="state.getChildState('text')"
-      @update:model-value="(newText) => pkgConnection.tx.update(block!, { text: newText }, { debounce: 'long' })"
+      @update:model-value="(newText) => connection.tx.update(block!, { text: newText }, { debounce: 'long' })"
     />
     <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200">
       <!-- Types -->
@@ -165,7 +165,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
         id="type"
         :node="block"
-        :prepared-connection="pkgGetConnection"
+        :prepared-connection="preparedConnection"
         :node-ptr="props.nodePtr"
         :field-type="block.type == BlockType.CHOICE ? FieldType.OPTION : FieldType.MEMBER"
       />
@@ -177,7 +177,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             id="type.input"
             class=""
             :node="block"
-            :prepared-connection="pkgGetConnection"
+            :prepared-connection="preparedConnection"
             :node-ptr="props.nodePtr"
             :field-type="FieldType.INPUT"
           />
@@ -189,7 +189,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             id="type.output"
             class=""
             :node="block"
-            :prepared-connection="pkgGetConnection"
+            :prepared-connection="preparedConnection"
             :node-ptr="props.nodePtr"
             :field-type="FieldType.OUTPUT"
           />
@@ -198,7 +198,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             id="type.input"
             class="ml"
             :node="block"
-            :prepared-connection="pkgGetConnection"
+            :prepared-connection="preparedConnection"
             :node-ptr="props.nodePtr"
             :field-type="FieldType.VARIABLE"
           />
@@ -211,7 +211,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-bind="state.getChildState('flow')"
           :node-ptr="props.nodePtr"
           :variant="Variant.COMPACT"
-          :prepared-connection="pkgGetConnection"
+          :prepared-connection="preparedConnection"
         />
       </template>
       <!-- State -->
@@ -235,5 +235,5 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       />
     </div>
   </div>
-  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
+  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
 </template>

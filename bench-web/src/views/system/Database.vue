@@ -8,7 +8,6 @@ import { DebounceLevel, newChangeId, Transaction } from "@/language/transaction"
 import { packValue, unpackValue } from "@/language/value";
 import {
   BenchType,
-  ChangeCategory,
   EditOperationData,
   EditOperationType,
   ExpressionData,
@@ -48,6 +47,7 @@ import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone }
 import { getNodeIcon, getTypeIcon, ICON_BY_EXPRESSION_OP as ICON_BY_EXPRESSION_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, PopoverContext, PopoverInfoIn, pushPopover } from "@/ui/popover";
+import { TooltipInfo } from "@/ui/tooltip";
 import {
   collapseSelection,
   expandSelection,
@@ -58,18 +58,17 @@ import {
 } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
+import Toggle from "@/views/content/Toggle.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
-import { TooltipInfo } from "@/ui/tooltip";
-import Toggle from "@/views/content/Toggle.vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -86,19 +85,17 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
-const spaceTx = () => spaceConnection.tx.with({ category: ChangeCategory.SPACE });
 const state = canvas.registerView(self, id);
 
 // NOTE :UX: Database view should be factored out into Table/Feed/etc. query views (?)
 
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const preparedPkgConnection = useExistingConnection(nodePtr);
-const { graph: pkgGraph, graphRaw: pkgGraphRaw, connection: pkgConnection } = preparedPkgConnection;
-const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: true });
-const blockRaw = pkgGraphRaw.getRef(nodePtr);
-const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
-const fieldsRaw = pkgGraphRaw.getChildrenRef(blockRaw, NodeType.FIELD);
+const preparedConnection = useExistingConnection(nodePtr);
+const { graph: graph, graphRaw: graphRaw, connection: connection } = preparedConnection;
+const block = graph.getRef(nodePtr, { ignoreAncestors: true });
+const blockRaw = graphRaw.getRef(nodePtr);
+const fields = graph.getChildrenRef(block, NodeType.FIELD);
+const fieldsRaw = graphRaw.getChildrenRef(blockRaw, NodeType.FIELD);
 
 //
 // Search/filter
@@ -618,20 +615,20 @@ function deleteSelection() {
 
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
   if (dragged.kind != "node") return false;
-  const node = pkgGraph.getOrError(dragged.node);
+  const node = graph.getOrError(dragged.node);
   return isNode(node, NodeType.FIELD) || (isNode(node, NodeType.BLOCK) && TYPE_BLOCK_TYPES.includes(node.type));
 }
 function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
   if (dragged.kind != "node") return;
-  const node = pkgGraph.getOrError(dragged.node);
-  const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
+  const node = graph.getOrError(dragged.node);
+  const target = targetId != null ? graph.get({ id: targetId }) : null;
   if (isNode(node, NodeType.FIELD)) {
     // move field
     if (target != null) {
       if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
+      moveNode(connection.tx, graph, dragged.node, { anchor, target });
     } else {
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
+      moveNode(connection.tx, graph, dragged.node, { anchor: "center", target: block.value! });
     }
   } else if (isNode(node, NodeType.BLOCK)) {
     // add field with block type
@@ -639,9 +636,9 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
     const fieldIn = { ...type, zone: FieldType.MEMBER };
     if (target != null) {
       if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor, target });
+      createField(connection.tx, graph, { field: fieldIn, anchor, target });
     } else {
-      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor: "inside", target: block.value! });
+      createField(connection.tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
     }
   }
 }
@@ -677,7 +674,7 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
     } else {
       const { node } = getNodeFromContext(ctx);
       if (node != null) {
-        pkgConnection.tx.delete(node);
+        connection.tx.delete(node);
       }
     }
   },
@@ -689,7 +686,7 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
     } else {
       const { node } = getNodeFromContext(ctx);
       if (node != null) {
-        const tx = pkgConnection.tx.with({ change: { key: newChangeId(), title: "Duplicate record" } });
+        const tx = connection.tx.with({ change: { key: newChangeId(), title: "Duplicate record" } });
         cloneNode(tx, recordGraph, node);
       }
     }
@@ -731,7 +728,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- History -->
       <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
-      <NodePath :container="nodePtr" :self="nodePtr" :graph="pkgGraph" />
+      <NodePath :container="nodePtr" :self="nodePtr" :graph="graph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- ... -->
@@ -754,7 +751,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           class="mb-2 mt-5 px-0.5"
           size="title"
           :node="block"
-          :tx="() => pkgConnection.tx"
+          :tx="() => connection.tx"
         />
       </div>
 
@@ -846,7 +843,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     offset: 'referenceWidth',
                     props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
                     onApply: (typeInfo: TypeIdentity) => {
-                      createField(pkgConnection.tx, pkgGraph, { anchor: 'inside', target: block!, field: typeInfo });
+                      createField(connection.tx, graph, { anchor: 'inside', target: block!, field: typeInfo });
                     },
                   },
                 });
@@ -954,7 +951,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-1.5 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
               column.isInspected || column.isHighlighted ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
@@ -968,9 +965,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
             :data-node-type="column.kind == 'field' ? column.field.metatype : undefined"
             :draggable="column.kind == 'field'"
-            @dragstart.stop="
-              (e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, pkgGraph, column.field)
-            "
+            @dragstart.stop="(e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, graph, column.field)"
             @mousedown="
               (e) => {
                 if (column.kind == 'field') {
@@ -996,7 +991,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   props: { modelValue: column.kind == 'field' ? column.field.icon : undefined },
                   onApply: (newIcon) => {
                     if (column.kind != 'field') return;
-                    pkgConnection.tx.update(column.field, { icon: newIcon });
+                    connection.tx.update(column.field, { icon: newIcon });
                   },
                 })
               "
@@ -1013,7 +1008,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               :variant="Variant.STEALTH"
               is-input
               @update:model-value="
-                (newValue) => pkgConnection.tx.update(column.field, { name: newValue as string }, { debounce: 'long' })
+                (newValue) => connection.tx.update(column.field, { name: newValue as string }, { debounce: 'long' })
               "
             />
             <span v-else class="truncate font-medium">{{ column.title }}</span>
@@ -1027,7 +1022,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               width: variant == Variant.COMPACT ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
             }"
             @click="
-              createField(pkgConnection.tx, pkgGraph, {
+              createField(connection.tx, graph, {
                 anchor: 'inside',
                 target: block!,
                 field: { type: FieldType.MEMBER, kind: TypeKind.STRUCT, benchType: BenchType.TEXT, name: 'Text' },
@@ -1126,7 +1121,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :class="[
               x > 0 ? 'border-l' : '',
               isSelectedCell(record, column) ? 'bg-gray-100' : '',
-              column.isTitle ? 'flex flex-row items-center gap-x-1.5 pl-1.5 pr-2' : 'px-1.5',
+              column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{
               width: `${column.width}px`,
@@ -1153,7 +1148,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           >
             <!-- Inline title icon -->
             <IconInline
-              v-if="column.isTitle"
+              v-if="column.isTitle && record.icon != null"
               ref="iconRef"
               v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
               v-menu="
@@ -1167,7 +1162,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 })
               "
               v-bind="getNodeIcon(record)"
-              class="w-5 rounded text-center transition-colors duration-75 hover:bg-gray-100"
+              class="w-5 rounded py-0.5 text-center transition-colors duration-75 hover:bg-gray-100"
               :class="record.icon != null ? 'text-gray-700 hover:text-gray-900' : 'text-gray-400 hover:text-gray-500'"
             />
             <!-- Inner column view -->
@@ -1203,6 +1198,6 @@ defineExpose<ViewExposed>({ self, id, actions });
       </div>
     </Scroll>
 
-    <Inaccessible v-if="!block" :connection="pkgConnection" :node="nodePtr" class="h-full w-full" />
+    <Inaccessible v-if="!block" :connection="connection" :node="nodePtr" class="h-full w-full" />
   </div>
 </template>

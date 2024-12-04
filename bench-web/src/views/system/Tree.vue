@@ -18,12 +18,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import {
-  isNode,
-  toNodeRef,
-  unwrapProtoOneOf,
-  type TypedNodeReferenceData,
-} from "@/proto/wiring";
+import { isNode, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
@@ -102,7 +97,7 @@ const focusPtr = computedValue(() => {
   }
 });
 
-const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(rootPtr, {
+const { graph, connection } = useExistingConnection(rootPtr, {
   match: {
     predicate: (c) => {
       // NOTE: hack to exclude Bench connection (which also contains package) :ConnectionMatching
@@ -157,7 +152,7 @@ function isIncludedChildren(node: AnyNodeData) {
   }
 }
 const { items: expandedItems } = walkDescendantsRef({
-  graph: pkgGraph,
+  graph: graph,
   rootPtr,
   nodeTypes: inspectedNodeTypes,
   isExpanded,
@@ -280,8 +275,8 @@ const { activeDropZone } = useMultiDropZone({
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
     if (dragged.kind != "node") return false;
-    const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
-    if (target == null || isDescendantOf(pkgGraph, target, dragged.node)) {
+    const target = targetId != null ? graph.get({ id: targetId }) : null;
+    if (target == null || isDescendantOf(graph, target, dragged.node)) {
       return false; // circular
     }
     const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.nodeType;
@@ -300,8 +295,8 @@ const { activeDropZone } = useMultiDropZone({
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
-      const target = pkgGraph.getOrError({ id: targetId });
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
+      const target = graph.getOrError({ id: targetId });
+      moveNode(connection.tx, graph, dragged.node, { anchor, target });
     }
   },
 });
@@ -332,18 +327,18 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.edit.duplicate": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
-    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, node, { includeChildren: true });
+    const duplicate = cloneNode(connection.tx, graph, node, { includeChildren: true });
     nextTick(() => focus(duplicate));
   },
   "common.edit.delete": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
-    pkgConnection.tx.delete(node);
+    connection.tx.delete(node);
   },
   ...useHierarchicalNodeMoveActions({
-    graph: pkgGraph,
+    graph: graph,
     basePtr: rootPtr,
-    txFactory: () => pkgConnection.tx,
+    txFactory: () => connection.tx,
     expandedItems,
     getItemFromContext,
   }),
@@ -431,7 +426,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           role="treeitem"
           :draggable="true"
           @click.stop="fire(node)"
-          @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, node)"
+          @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, graph, node)"
         >
           <!-- Drop indicator -->
           <div
@@ -472,7 +467,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             @keydown.enter.stop.prevent="cancelRename"
             @keydown.escape.stop.prevent="cancelRename"
             @update:model-value="
-              (newValue) => pkgConnection.tx.update(node, { name: newValue as string }, { debounce: 'long' })
+              (newValue) => connection.tx.update(node, { name: newValue as string }, { debounce: 'long' })
             "
           />
           <!-- Name otherwise -->
@@ -490,7 +485,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
               @click.stop="
                 () => {
-                  const block = createBlock(pkgConnection.tx, pkgGraph, {
+                  const block = createBlock(connection.tx, graph, {
                     anchor: 'inside',
                     target: node,
                     block: { type: BlockType.PAGE },

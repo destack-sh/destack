@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { ReadNodeGraph } from "@/language/graph";
 import { getRunBasePtr, getRunDurationMs, isRunTerminal } from "@/language/session";
 import {
   AnyNodeData,
@@ -14,7 +15,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { RunTree } from "@/system/runtime";
-import { canvas, pkgGraph } from "@/system/space";
+import { canvas } from "@/system/space";
 import { getNodeIcon, ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import { getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
@@ -29,7 +30,7 @@ const BAR_PADDING = 4;
 const MIN_SPAN_WIDTH = 2;
 const BASE_TYPES = [NodeType.BLOCK, NodeType.STEP]; // NOTE :Incomplete: RunTimeline should be configurable
 
-const props = defineProps<{ nodePtr: NodeReferenceData } & Pick<ViewData, "size">>();
+const props = defineProps<{ graph: ReadNodeGraph; nodePtr: NodeReferenceData } & Pick<ViewData, "size">>();
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
 
 const containerRef = ref<HTMLElement | null>(null);
@@ -48,7 +49,7 @@ onMounted(() => {
 // Run
 //
 
-const runTree = new RunTree(pkgGraph, nodePtr);
+const runTree = new RunTree(props.graph, nodePtr);
 
 //
 // Spans / Events
@@ -104,13 +105,13 @@ function makeTimeline(now: DateTime, root: RunData): Timeline {
 
     // context
     const basePtr = getRunBasePtr(run);
-    const baseNode = basePtr != null ? pkgGraph.get(basePtr) : null;
+    const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
     const color = getColorHex(COLOR_BY_RUN_STATUS[run.status], ColorShade.S500)!;
 
     // span
     let offsetRelative: number;
     let widthRelative: number;
-    if (rootDurationMs != 0) {
+    if (rootDurationMs != 0) {  
       offsetRelative = Math.max(0, Math.min(1, (startedAtMs - rootStartedAtMs) / rootDurationMs));
       if (durationMs != 0) {
         widthRelative = Math.max(0, Math.min(1 - offsetRelative, durationMs / rootDurationMs));

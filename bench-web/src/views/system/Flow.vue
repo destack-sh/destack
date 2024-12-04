@@ -29,21 +29,17 @@ import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import {
-  fireAction,
-  fireActionById,
-  getAction,
-  type ActionBuiltinId,
   type ActionContext,
-  type ActionMapImplementation,
+  type ActionMapImplementation
 } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
@@ -68,8 +64,8 @@ const state = canvas.registerView(self, id);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self, { isRequired: false });
 const selfView = spaceGraph.getRef(self);
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
-const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
-const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
+const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
+const { graph, connection } = preparedConnection;
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
@@ -81,8 +77,8 @@ const headerSize = useElementSize(headerRef);
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
   spaceTx: () => spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
-  graph: pkgGraph,
-  tx: () => pkgConnection.tx,
+  graph: graph,
+  tx: () => connection.tx,
   update: state.update,
   view: selfView,
   transform: toRef(props, "transform"),
@@ -155,7 +151,7 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   // create
   "common.create.step": (action, context) => {
     if (flow.value == null) return false;
-    createStep(pkgConnection.tx, pkgGraph, {
+    createStep(connection.tx, graph, {
       parent: flow.value,
       step: { type: StepType.ACTION },
       near: flowCtx.centerVec,
@@ -186,12 +182,12 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   "common.edit.duplicate": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, thing, { includeChildren: true });
+    const duplicate = cloneNode(connection.tx, graph, thing, { includeChildren: true });
   },
   "common.edit.delete": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    pkgConnection.tx.delete(thing);
+    connection.tx.delete(thing);
   },
   // navigate
   "common.navigate.left": () => flowCtx.pan({ x: -FLOW_GRID_STEP, y: 0 }),
@@ -238,7 +234,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <!-- History -->
       <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
-      <NodePath :container="nodePtr" :self="nodePtr" :graph="pkgGraph" />
+      <NodePath :container="nodePtr" :self="nodePtr" :graph="graph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- ... -->
@@ -254,7 +250,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       }"
     >
       <!-- Title -->
-      <NodeReference v-if="flow" class="mb-2 mt-5" size="title" is-input :node="flow" :tx="() => pkgConnection.tx" />
+      <NodeReference v-if="flow" class="mb-2 mt-5" size="title" is-input :node="flow" :tx="() => connection.tx" />
       <div class="flex flex-row flex-wrap items-center">
         <!-- Signature -->
         <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
@@ -262,7 +258,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             id="type.input"
             class=""
             :node="flow"
-            :prepared-connection="pkgGetConnection"
+            :prepared-connection="preparedConnection"
             :node-ptr="props.nodePtr"
             :field-type="FieldType.INPUT"
           />
@@ -274,7 +270,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             id="type.output"
             class=""
             :node="flow"
-            :prepared-connection="pkgGetConnection"
+            :prepared-connection="preparedConnection"
             :node-ptr="props.nodePtr"
             :field-type="FieldType.OUTPUT"
           />
@@ -282,7 +278,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <Type
             id="type.input"
             :node="flow"
-            :prepared-connection="pkgGetConnection"
+            :prepared-connection="preparedConnection"
             :node-ptr="props.nodePtr"
             :field-type="FieldType.VARIABLE"
           />
@@ -532,7 +528,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             "
             @click="
               flow &&
-                createStep(pkgConnection.tx, pkgGraph, {
+                createStep(connection.tx, graph, {
                   step: { type: stepType },
                   parent: flow,
                   near: flowCtx.centerVec,
@@ -552,6 +548,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         </div>
       </div>
     </div>
-    <Inaccessible v-else :connection="pkgConnection" :node="nodePtr" class="h-full w-full" />
+    <Inaccessible v-else :connection="connection" :node="nodePtr" class="h-full w-full" />
   </div>
 </template>

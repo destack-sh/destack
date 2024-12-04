@@ -158,7 +158,7 @@ export class StepState {
           return this.stepFields.value;
         }
       } else if (stepType == StepType.CREATE) {
-        // nocheckin: builtin fields
+        // TODO :Incomplete: builtin stub fields
         return [];
       } else if (stepType == StepType.YIELD) {
         return this.stepFields.value;
