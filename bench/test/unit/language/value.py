@@ -232,7 +232,7 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.INPUT_OBJECT,
     StructType.OUTPUT_OBJECT,
     # nodes have special handling
-    StructType.NODE_TREE,
+    StructType.TREE,
     StructType.NODE_REFERENCE,
     StructType.PROPERTY_REFERENCE,
     # contain required references

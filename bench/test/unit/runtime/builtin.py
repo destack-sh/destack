@@ -1,12 +1,35 @@
+import pytest
+
 from bench.language.action import Agency
 from bench.language.block import Block
+from bench.language.builtin import Builtins
 from bench.language.code import code
 from bench.language.const import BlockType
 from bench.language.field import Field
-from bench.language.node import Node
+from bench.language.node import Node, sync_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
+async def test_sync_builtins(local_runtime: RuntimeHandle) -> None:
+    """Sync the Builtins page."""
+    sync_node(
+        parent=local_runtime.package,
+        old_root=local_runtime.package.blocks.get("Builtins"),
+        new_root=Builtins,
+    )
+    assert local_runtime.session.tx.has_edits
+    await local_runtime.commit()
+
+    sync_node(
+        parent=local_runtime.package,
+        old_root=local_runtime.package.blocks.get("Builtins"),
+        new_root=Builtins,
+    )
+    assert not local_runtime.session.tx.has_edits
+    await local_runtime.commit()
+
+
+@pytest.mark.skip("nocheckin: detached node")
 async def test_detached_node(local_runtime: RuntimeHandle) -> None:
     """Pack/unpack a detached Node (tree)."""
     # action that takes a node, renames it and returns it
@@ -41,7 +64,6 @@ return Input1
     assert runner.outputs.Output1.name == "ChoiceAttached"
 
     # run with detached node
-    # nocheckin: detached node?
     Choice = Block.new(
         BlockType.CHOICE, "Choice", fields=(Field.option("Option1"), Field.option("Option2"))
     )

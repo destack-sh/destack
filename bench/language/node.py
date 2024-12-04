@@ -1198,6 +1198,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 or prop.is_encrypted
                 or prop.is_value_packed  # compared in runtime value
                 or prop.name == "order_key"  # implicitly checked in lists
+                or prop.name in HasTracingContext.__properties__
             ):
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
@@ -1319,7 +1320,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         __getattr__ = _do_get
         __setattr__ = _do_set
 
-    def clone(self) -> Self:
+    def clone(self, *, reset: bool = True) -> Self:
         """
         Create a clone of this object and its descendants (structs/nodes) with the same content.
         NOTE :Broken: node clone should keep inner references consistent :CloneNodeReferences
@@ -1327,7 +1328,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         copy_kwargs = {}
         for prop in self.__wired_properties__.values():
             prop_value = getattr(self, prop.name)
-            if prop.id < 30:
+            if reset and prop.id < 30:
                 continue  # ignore tracking/autoset properties
             if prop.is_struct:
                 if prop.is_list:
@@ -1783,24 +1784,38 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def is_attached(self) -> bool:
         return True
 
-    @override
-    def clone(self, detach: bool = False) -> Self:
-        # clone self
-        clone = super().clone()
-
-        # clone children and append to self (recursive)
+    def iter_descendants(self, recursive: bool = False):
+        """Iterate over all descendants of this node."""
         for child_prop in self.__node_child_properties__.values():
-            if child_prop.reference_list_type is not LocalNodeList:
-                continue  # only clone local lists
             child_list = getattr(self, child_prop.name)
-            clone_list = getattr(clone, child_prop.name)
+            if type(child_list) is not LocalNodeList:
+                continue  # only iterate over local lists
             for child in child_list:
-                child_clone = child.clone(detach=True)
-                clone_list.append(child_clone)  # re-attach
+                yield child
+                if recursive:
+                    yield from child.iter_descendants(recursive=True)
+
+    @override
+    def clone(self, *, reset: bool = True, recursive: bool = True, detach: bool = False) -> Self:
+        # clone self
+        clone = super().clone(reset=reset)
+
+        if recursive:
+            # clone children and append to self (recursive)
+            for child_prop in self.__node_child_properties__.values():
+                if child_prop.reference_list_type is not LocalNodeList:
+                    continue  # only clone local lists
+                child_list = getattr(self, child_prop.name)
+                clone_list = getattr(clone, child_prop.name)
+                for child in child_list:
+                    child_clone = child.clone(recursive=True, detach=True)
+                    clone_list.append(child_clone)  # re-attach
 
         # append to our parent to re-attach
         parent = self.parent
-        if not detach and parent:
+        if detach:
+            clone.parent_ptr = None
+        elif parent:
             parent_child_prop = parent.get_node_child_property(self.metatype)
             parent_list = getattr(parent, parent_child_prop.name)
             parent_list.append(clone)
@@ -2121,8 +2136,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Wipe this node from this universe forever."""
         self.active_session._erase(self)
 
+    def append(self, node: "Node"):
+        """Append a node as a child of this node."""
+        assert node.parent is None, f"{node!r} already has a parent"
+        child_prop = self.get_node_child_property(node.metatype)
+        child_list = getattr(self, child_prop.name)
+        child_list.append(node)
+
     @classmethod
     def get_node_child_property(cls, node_type: NodeType) -> Property:
+        """Gets the child property for the given node type."""
         for prop in cls.__node_child_properties__.values():
             if (
                 prop.reference_nodes
@@ -2131,7 +2154,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             ):
                 return prop
         else:
-            raise ValueError(f"no child property for {node_type} in {cls}")
+            raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
 
     #
     # Querying
@@ -2621,8 +2644,8 @@ class PropertyReference(Struct):
         return prop
 
 
-@struct_(StructType.NODE_TREE)
-class NodeTree(Struct):
+@struct_(StructType.TREE)
+class Tree(Struct):
     """A tree of (detached) Nodes with a single root Node. For internal use."""
 
     nodes: list[AnyNodeData] = p_regular(
@@ -2632,6 +2655,20 @@ class NodeTree(Struct):
         array=True,
         description="The entire Nodes in the Tree.",
     )
+
+
+@local_node_(NodeType.SKIP, stored=False)
+class Skip(Node):
+    """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
+
+    parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
+    reference: Optional[Node] = p_regular(30, array=False, references="any", require=True)
+    order_key: str | None = p_internal(31, default=None)
+
+
+#
+# Utilities
+#
 
 
 # NOTE: import from .value later to avoid circular import
@@ -2646,10 +2683,92 @@ from bench.language.value import (  # noqa: E402
 )
 
 
-@local_node_(NodeType.SKIP, stored=False)
-class Skip(Node):
-    """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
+def extract_name_id(name: str) -> Optional[int]:
+    """Extracts the last (potentially multi-digit) characters as an integer."""
+    for i in range(len(name), 0, -1):
+        if not name[i - 1].isdigit():
+            return None if i == len(name) else int(name[i:])
+    return int(name)
 
-    parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
-    reference: Optional[Node] = p_regular(30, array=False, references="any", require=True)
-    order_key: str | None = p_internal(31, default=None)
+
+def generate_node_name(
+    metatype: NodeType, type: Optional[Any], siblings: Collection["Node"]
+) -> str:
+    """Generates a new name for the given node based on its siblings. :AutoNaming"""
+    if metatype == NodeType.BLOCK or metatype == NodeType.VIEW or metatype == NodeType.STEP:
+        assert isinstance(type, IdEnum), f"expected type for {metatype!r}, got {type!r}"
+        base_name = to_casing(type.name, Casing.CAMEL)
+        type_siblings = tuple(n for n in siblings if getattr(n, "type") == type)
+    else:
+        base_name = to_casing(metatype.name, Casing.CAMEL)
+        type_siblings = tuple(n for n in siblings if n.metatype == metatype)
+
+    if len(type_siblings) == 0:
+        max_id = 0
+    else:
+        max_id = max((extract_name_id(getattr(n, "name")) or 0) for n in type_siblings)
+    return f"{base_name}{max_id + 1}"
+
+
+def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
+    """Patches the old graph *in place* from the new graph."""
+    for existing_node in tuple(old_graph.nodes):
+        if existing_node.id not in new_graph:
+            # node removed: leave as is, remove from existing graph
+            old_graph.remove(existing_node)
+            continue
+        else:
+            # node updated: patch in place
+            patch_node = new_graph[existing_node.id]
+            for prop in existing_node.__wired_properties__.values():
+                if prop.is_computed:
+                    continue  # ignore computed properties
+                prop_value = getattr(existing_node, prop.name)
+                existing_node._do_set(prop.name, prop_value, track=False, validate=False)
+    for patch_node in tuple(new_graph.nodes):
+        if patch_node.id not in old_graph:
+            # node added: add to existing graph
+            old_graph.add(patch_node)
+
+
+def sync_node(*, parent: Node, old_root: SourceNode | None, new_root: SourceNode) -> None:
+    """Patches the old node *in place* from the new node (recursively)."""
+
+    def _copy(node: SourceNode, *, detach: bool) -> SourceNode:
+        """Copy the node (exact non-recursive clone with preserved identity)."""
+        return node.clone(recursive=False, reset=False, detach=detach)
+
+    def _sync(old: SourceNode, new: SourceNode) -> None:
+        """Sync the old node *in place* from the new node."""
+        for prop in old.__wired_properties__.values():
+            if prop.id < 30 or prop.is_computed or prop.name == "order_key":
+                continue  # ignore internal properties
+            old_value = getattr(old, prop.name)
+            new_value = getattr(new, prop.name)
+            if old_value != new_value:
+                old._do_set(prop.name, new_value, track=True, validate=False)
+
+    if old_root is None:
+        old_root = _copy(new_root, detach=False)
+        parent.append(old_root)
+
+    # create/update new nodes
+    _sync(old_root, new_root)
+    for new in new_root.iter_descendants(recursive=True):
+        old = old_root._graph.get(new.id)
+        if old is None:
+            new_copy = _copy(new, detach=True)
+            if new.parent_ptr is None:
+                old_parent = new_copy
+            else:
+                old_parent = old_root._graph.get(new.parent_ptr.id)
+                assert isinstance(old_parent, SourceNode), f"unexpected {old_parent!r} for {new!r}"
+            old_parent.append(new_copy)
+        else:
+            assert isinstance(old, SourceNode), f"unexpected {old!r} for {new!r}"
+            _sync(old, new)
+
+    # remove old nodes
+    for old in parent.iter_descendants(recursive=True):
+        if old.id not in new_root._graph:
+            old.delete()

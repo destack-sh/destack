@@ -72,7 +72,7 @@ async def test_trace_edits(hosted_runtime: RuntimeHandle):
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,
         str(StepType.ACTION),
-        ActionStep.get_property("mode").key,
+        ActionStep.get_property("agency").key,
     ]
 
     # subtype clear (indirect via computed property)

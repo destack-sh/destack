@@ -206,6 +206,8 @@ def get_naive_object_strategy(object_type: ObjectType):
             or (prop.reference_source is not None)
             # ignore autoset properties (ids, timestamps)
             or prop.is_autoset
+            # ignore node data properties
+            or prop.reference_is_node_data
         ):
             continue  # :IgnoredGeneratedProperties
         elif (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:

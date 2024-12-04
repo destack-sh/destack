@@ -168,7 +168,7 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_CLIENT_ORIGIN: _ClassVar[StructType]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructType]
     STRUCT_TYPE_PROPERTY_REFERENCE: _ClassVar[StructType]
-    STRUCT_TYPE_NODE_TREE: _ClassVar[StructType]
+    STRUCT_TYPE_TREE: _ClassVar[StructType]
     STRUCT_TYPE_POLICY: _ClassVar[StructType]
     STRUCT_TYPE_POLICY_RULE: _ClassVar[StructType]
     STRUCT_TYPE_SUBJECT: _ClassVar[StructType]
@@ -276,7 +276,7 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_CLIENT_ORIGIN: _ClassVar[ObjectType]
     OBJECT_TYPE_NODE_REFERENCE: _ClassVar[ObjectType]
     OBJECT_TYPE_PROPERTY_REFERENCE: _ClassVar[ObjectType]
-    OBJECT_TYPE_NODE_TREE: _ClassVar[ObjectType]
+    OBJECT_TYPE_TREE: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY: _ClassVar[ObjectType]
     OBJECT_TYPE_POLICY_RULE: _ClassVar[ObjectType]
     OBJECT_TYPE_SUBJECT: _ClassVar[ObjectType]
@@ -465,7 +465,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_CLIENT_ORIGIN: _ClassVar[BenchType]
     BENCH_TYPE_NODE_REFERENCE: _ClassVar[BenchType]
     BENCH_TYPE_PROPERTY_REFERENCE: _ClassVar[BenchType]
-    BENCH_TYPE_NODE_TREE: _ClassVar[BenchType]
+    BENCH_TYPE_TREE: _ClassVar[BenchType]
     BENCH_TYPE_POLICY: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_RULE: _ClassVar[BenchType]
     BENCH_TYPE_SUBJECT: _ClassVar[BenchType]
@@ -1310,6 +1310,8 @@ class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_MODE_PRODUCTION: _ClassVar[NodeMode]
     NODE_MODE_DEVELOPMENT: _ClassVar[NodeMode]
     NODE_MODE_TEST: _ClassVar[NodeMode]
+    NODE_MODE_PREVIEW: _ClassVar[NodeMode]
+    NODE_MODE_BUILTIN: _ClassVar[NodeMode]
 
 class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1744,7 +1746,7 @@ STRUCT_TYPE_GRAPH_SCOPE: StructType
 STRUCT_TYPE_CLIENT_ORIGIN: StructType
 STRUCT_TYPE_NODE_REFERENCE: StructType
 STRUCT_TYPE_PROPERTY_REFERENCE: StructType
-STRUCT_TYPE_NODE_TREE: StructType
+STRUCT_TYPE_TREE: StructType
 STRUCT_TYPE_POLICY: StructType
 STRUCT_TYPE_POLICY_RULE: StructType
 STRUCT_TYPE_SUBJECT: StructType
@@ -1849,7 +1851,7 @@ OBJECT_TYPE_GRAPH_SCOPE: ObjectType
 OBJECT_TYPE_CLIENT_ORIGIN: ObjectType
 OBJECT_TYPE_NODE_REFERENCE: ObjectType
 OBJECT_TYPE_PROPERTY_REFERENCE: ObjectType
-OBJECT_TYPE_NODE_TREE: ObjectType
+OBJECT_TYPE_TREE: ObjectType
 OBJECT_TYPE_POLICY: ObjectType
 OBJECT_TYPE_POLICY_RULE: ObjectType
 OBJECT_TYPE_SUBJECT: ObjectType
@@ -2008,7 +2010,7 @@ BENCH_TYPE_GRAPH_SCOPE: BenchType
 BENCH_TYPE_CLIENT_ORIGIN: BenchType
 BENCH_TYPE_NODE_REFERENCE: BenchType
 BENCH_TYPE_PROPERTY_REFERENCE: BenchType
-BENCH_TYPE_NODE_TREE: BenchType
+BENCH_TYPE_TREE: BenchType
 BENCH_TYPE_POLICY: BenchType
 BENCH_TYPE_POLICY_RULE: BenchType
 BENCH_TYPE_SUBJECT: BenchType
@@ -2676,6 +2678,8 @@ NODE_MODE_UNSPECIFIED: NodeMode
 NODE_MODE_PRODUCTION: NodeMode
 NODE_MODE_DEVELOPMENT: NodeMode
 NODE_MODE_TEST: NodeMode
+NODE_MODE_PREVIEW: NodeMode
+NODE_MODE_BUILTIN: NodeMode
 SPACE_TYPE_UNSPECIFIED: SpaceType
 SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
@@ -2964,7 +2968,7 @@ class PropertyReferenceData(_message.Message):
     references_meta: str
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., references_node: _Optional[_Union[NodeType, str]] = ..., references_meta: _Optional[str] = ...) -> None: ...
 
-class NodeTreeData(_message.Message):
+class TreeData(_message.Message):
     __slots__ = ("metatype", "nodes")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     NODES_FIELD_NUMBER: _ClassVar[int]

@@ -112,9 +112,9 @@ export interface PropertyReferenceData {
     referencesMeta?: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.NodeTreeData
+ * @generated from protobuf message symbolx.bench.TreeData
  */
-export interface NodeTreeData {
+export interface TreeData {
     /**
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
@@ -6815,9 +6815,9 @@ export enum StructType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_TREE = 10012;
+     * @generated from protobuf enum value: STRUCT_TYPE_TREE = 10012;
      */
-    NODE_TREE = 10012,
+    TREE = 10012,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 10500;
      */
@@ -7240,9 +7240,9 @@ export enum ObjectType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NODE_TREE = 10012;
+     * @generated from protobuf enum value: OBJECT_TYPE_TREE = 10012;
      */
-    NODE_TREE = 10012,
+    TREE = 10012,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 10500;
      */
@@ -7936,9 +7936,9 @@ export enum BenchType {
      */
     PROPERTY_REFERENCE = 10011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_TREE = 10012;
+     * @generated from protobuf enum value: BENCH_TYPE_TREE = 10012;
      */
-    NODE_TREE = 10012,
+    TREE = 10012,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_POLICY = 10500;
      */
@@ -10933,7 +10933,15 @@ export enum NodeMode {
     /**
      * @generated from protobuf enum value: NODE_MODE_TEST = 3;
      */
-    TEST = 3
+    TEST = 3,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_PREVIEW = 4;
+     */
+    PREVIEW = 4,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_BUILTIN = 10;
+     */
+    BUILTIN = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.SpaceType
@@ -12282,22 +12290,22 @@ class PropertyReferenceData$Type extends MessageType$<PropertyReferenceData> {
  */
 export const PropertyReferenceData = new PropertyReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class NodeTreeData$Type extends MessageType$<NodeTreeData> {
+class TreeData$Type extends MessageType$<TreeData> {
     constructor() {
-        super("symbolx.bench.NodeTreeData", [
+        super("symbolx.bench.TreeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 35, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
         ]);
     }
-    create(value?: PartialMessage<NodeTreeData>): NodeTreeData {
+    create(value?: PartialMessage<TreeData>): TreeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.nodes = [];
         if (value !== undefined)
-            reflectionMergePartial<NodeTreeData>(this, message, value);
+            reflectionMergePartial<TreeData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NodeTreeData): NodeTreeData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TreeData): TreeData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -12319,7 +12327,7 @@ class NodeTreeData$Type extends MessageType$<NodeTreeData> {
         }
         return message;
     }
-    internalBinaryWrite(message: NodeTreeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: TreeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -12333,9 +12341,9 @@ class NodeTreeData$Type extends MessageType$<NodeTreeData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.NodeTreeData
+ * @generated MessageType for protobuf message symbolx.bench.TreeData
  */
-export const NodeTreeData = new NodeTreeData$Type();
+export const TreeData = new TreeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class VariableObjectData$Type extends MessageType$<VariableObjectData> {
     constructor() {
@@ -27144,9 +27152,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | DriveData | VaultData | CacheData | MachineData | BrowserData | FileData | StreamData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | InterruptData | LogData | SkipData
-export type AnyStructData = RuntimeContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | NodeTreeData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathTokenData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ObjectMappingData | FieldMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyStructData = RuntimeContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | TreeData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeInfoData | TypeConstraintData | VariableObjectData | MemberObjectData | InputObjectData | OutputObjectData | ScheduleData | FileInfoData | IconData | TextData | TextLineData | TextSpanData | CodeData | CodeLineData | PathData | PathTokenData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ObjectMappingData | FieldMappingData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ContinueData | CallData | ContextData | BreakpointData | LogInfoData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof DriveData | typeof VaultData | typeof CacheData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof InterruptData | typeof LogData | typeof SkipData
-export type AnyStructDataType = typeof RuntimeContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof NodeTreeData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathTokenData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyStructDataType = typeof RuntimeContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TreeData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeInfoData | typeof TypeConstraintData | typeof VariableObjectData | typeof MemberObjectData | typeof InputObjectData | typeof OutputObjectData | typeof ScheduleData | typeof FileInfoData | typeof IconData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathTokenData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ObjectMappingData | typeof FieldMappingData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ContinueData | typeof CallData | typeof ContextData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -27359,7 +27367,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.NODE_TREE]: NodeTreeData,
+  [ObjectType.TREE]: TreeData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
@@ -27466,7 +27474,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ClientOriginData"]: ObjectType.CLIENT_ORIGIN,
   ["symbolx.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
   ["symbolx.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
-  ["symbolx.bench.NodeTreeData"]: ObjectType.NODE_TREE,
+  ["symbolx.bench.TreeData"]: ObjectType.TREE,
   ["symbolx.bench.PolicyData"]: ObjectType.POLICY,
   ["symbolx.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
   ["symbolx.bench.SubjectData"]: ObjectType.SUBJECT,
@@ -27634,7 +27642,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.CLIENT_ORIGIN]: ClientOriginData,
   [StructType.NODE_REFERENCE]: NodeReferenceData,
   [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [StructType.NODE_TREE]: NodeTreeData,
+  [StructType.TREE]: TreeData,
   [StructType.POLICY]: PolicyData,
   [StructType.POLICY_RULE]: PolicyRuleData,
   [StructType.SUBJECT]: SubjectData,
@@ -27823,7 +27831,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.NODE_TREE]: NodeTreeData,
+  [ObjectType.TREE]: TreeData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
   [ObjectType.SUBJECT]: SubjectData,
@@ -29184,7 +29192,7 @@ export enum PropertyReferenceProperty {
   referencesMeta = 33,
 }
 
-export enum NodeTreeProperty {
+export enum TreeProperty {
   metatype = 1,
   nodes = 35,
 }
@@ -29679,11 +29687,11 @@ export enum RectangleConstraintProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructProperty = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof NodeTreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructProperty = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof NodeTreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof NodeTreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructPropertyType = typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof InterruptProperty | typeof LogProperty | typeof SkipProperty | typeof RuntimeContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TreeProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof VariableObjectProperty | typeof MemberObjectProperty | typeof InputObjectProperty | typeof OutputObjectProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof IconProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathTokenProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ObjectMappingProperty | typeof FieldMappingProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ContinueProperty | typeof CallProperty | typeof ContextProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -29735,7 +29743,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.NODE_TREE]: NodeTreeProperty,
+  [ObjectType.TREE]: TreeProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
@@ -29842,7 +29850,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.NODE_TREE]: NodeTreeProperty,
+  [ObjectType.TREE]: TreeProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
   [ObjectType.SUBJECT]: SubjectProperty,
@@ -30114,7 +30122,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.04.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.04.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], nodeScopePtr: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], nodeScopePtr: [], blockTypes: [], stepTypes: [], fileTypes: [], fileFormats: [], viewTypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30142,7 +30150,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.04.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.04.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30228,7 +30236,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.04.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.04.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -31122,9 +31130,9 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
   [PropertyReferenceProperty.referencesNode]: { id: 32, name: 'references_node', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.referencesMeta]: { id: 33, name: 'references_meta', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
-export const NodeTreeDataInfo: Record<NodeTreeProperty, PropertyInfo> = {
-  [NodeTreeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NODE_TREE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [NodeTreeProperty.nodes]: { id: 35, name: 'nodes', component: ObjectType.NODE_TREE, kind: 'primitive', isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+export const TreeDataInfo: Record<TreeProperty, PropertyInfo> = {
+  [TreeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TREE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TreeProperty.nodes]: { id: 35, name: 'nodes', component: ObjectType.TREE, kind: 'primitive', isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -31608,7 +31616,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.CLIENT_ORIGIN]: ClientOriginDataInfo,
   [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
-  [ObjectType.NODE_TREE]: NodeTreeDataInfo,
+  [ObjectType.TREE]: TreeDataInfo,
   [ObjectType.POLICY]: PolicyDataInfo,
   [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,
   [ObjectType.SUBJECT]: SubjectDataInfo,

@@ -15,8 +15,10 @@ from bench.language import Bench, Drive, NodeReference, Package, Run, Server, St
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Branch
 from bench.language.block import Block
+from bench.language.builtin import Builtins
 from bench.language.connection import GraphEngine, MemoryEngine
 from bench.language.const import (
+    BENCH_SLUG,
     CLOUD,
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
@@ -30,9 +32,9 @@ from bench.language.const import (
 )
 from bench.language.expression import C
 from bench.language.file import File, FileBase, FileKind
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph, patch_graph
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.log import Log
-from bench.language.node import GraphScope
+from bench.language.node import GraphScope, patch_graph, sync_node
 from bench.language.property import Property
 from bench.language.session import RuntimeContext, Session
 from bench.language.transaction import edit_data_graph, edit_graph
@@ -407,6 +409,15 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             plugins=self._plugins,
             memory=HOST_MEMORY_ENGINE_ENABLED,
         )
+
+        # synchronize bench builtins
+        if self._bench.slug == BENCH_SLUG:
+            async with self.session(readonly=False, commit=True):
+                sync_node(
+                    parent=self._main_package,
+                    old_root=self._main_package.blocks.get("Builtins"),
+                    new_root=Builtins,
+                )
 
     def close(self) -> None:
         super().close()
