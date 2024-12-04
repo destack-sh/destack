@@ -69,6 +69,7 @@ import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 import { TooltipInfo } from "@/ui/tooltip";
+import Toggle from "@/views/content/Toggle.vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -190,13 +191,20 @@ const shiftKey = useKeyModifier("Shift");
 const containerSize = useElementSize(containerRef);
 const rowBodyWidth = computed(() => {
   if (props.variant == Variant.COMPACT) {
-    return containerSize.width.value;
+    return containerSize.width.value; // row actions are floating to the left
   } else {
     return containerSize.width.value - ROW_ACTIONS_WIDTH;
   }
 });
 const bodySize = computed(() => {
-  return { width: rowBodyWidth.value, height: containerSize.height.value - ACTION_HEADER_HEIGHT };
+  if (props.variant == Variant.COMPACT) {
+    return {
+      width: containerSize.width.value + ROW_ACTIONS_WIDTH,
+      height: containerSize.height.value - ACTION_HEADER_HEIGHT,
+    };
+  } else {
+    return { width: rowBodyWidth.value, height: containerSize.height.value - ACTION_HEADER_HEIGHT };
+  }
 });
 
 function getCellId(record: RecordData, column: ColumnView) {
@@ -559,7 +567,7 @@ function endSelectRegion() {
 }
 
 useEventListener(window, "mouseup", endSelectRegion);
-useEventListener(containerRef, "mousedown", (e) => {
+useEventListener(containerRef, "click", (e) => {
   // clear selection if we're not inside a row or the header
   if (selection.value == null) return;
   const node = canvas.getNodeAt(e.target as HTMLElement);
@@ -870,7 +878,11 @@ defineExpose<ViewExposed>({ self, id, actions });
       :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
+      :style="{
+        marginLeft: variant == Variant.COMPACT ? `${-ROW_ACTIONS_WIDTH}px` : undefined,
+      }"
     >
+      <!-- Body wrapper -->
       <div
         class="flex flex-col border-gray-200"
         :style="{
@@ -882,7 +894,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Column headers (sticky) -->
         <div
           ref="headerRef"
-          class="z-20 flex flex-row items-center border-gray-200"
+          class="group/header z-20 flex flex-row items-center border-gray-200"
           :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
             height: `${ROW_HEIGHT_MIN}px`,
@@ -890,8 +902,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <!-- Composite actions -->
           <div
-            v-if="variant != Variant.COMPACT"
-            class="group sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
+            class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
             :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
@@ -899,12 +910,14 @@ defineExpose<ViewExposed>({ self, id, actions });
             }"
           >
             <!-- Selection checkbox -->
-            <input
-              type="checkbox"
-              class="h-4 w-4 rounded border-gray-200 transition-colors duration-150 focus:ring-0"
-              :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover:opacity-100']"
-              :checked="isAllSelectedRows"
-              @change="(e) => ((e.target as HTMLInputElement).checked ? selectAll() : selectNone())"
+            <Toggle
+              id="select-all"
+              :variant="Variant.COMPACT"
+              is-input
+              class="transition-colors duration-150"
+              :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
+              :model-value="isAllSelectedRows"
+              @update:model-value="(value) => (value ? selectAll() : selectNone())"
             />
           </div>
 
@@ -1076,7 +1089,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <!-- Row actions -->
           <div
-            v-if="variant != Variant.COMPACT"
             class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
             :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
@@ -1084,12 +1096,14 @@ defineExpose<ViewExposed>({ self, id, actions });
             }"
           >
             <!-- Selection checkbox -->
-            <input
-              type="checkbox"
-              class="h-4 w-4 rounded border-gray-200 transition-colors duration-150 focus:ring-0"
-              :class="[hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100']"
-              :checked="hasSelectionRows && isSelectedRow(record)"
-              @change="(e) => setSelectionRow(record, (e.target as HTMLInputElement).checked, shiftKey ?? false)"
+            <Toggle
+              id="select-row"
+              :variant="Variant.COMPACT"
+              is-input
+              class="transition-colors duration-150"
+              :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'"
+              :model-value="hasSelectionRows && isSelectedRow(record)"
+              @update:model-value="(value) => setSelectionRow(record, value, shiftKey ?? false)"
             />
           </div>
 
