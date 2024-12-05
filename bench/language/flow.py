@@ -380,7 +380,7 @@ class Step(SourceNode[StepData]):
         return pipe
 
     @cachetools.cached({})  # :CachedTypeInfo
-    def to_type(
+    def to_type_maybe(
         self,
         of: Literal["instance", "value"] = "instance",
         field_type: FieldType | None = None,
@@ -425,13 +425,21 @@ class Step(SourceNode[StepData]):
         else:
             assert_never(of)
 
+    def to_type(
+        self, *, of: Literal["instance", "value"] = "instance", field_type: FieldType | None = None
+    ) -> "TypeBase":
+        typ = self.to_type_maybe(of=of, field_type=field_type)
+        if typ is None:
+            raise ValueError(f"{self!r} does not have a type")
+        return typ
+
     @property
     def input_type(self) -> "TypeBase | None":
-        return self.to_type(of="value", field_type=FieldType.INPUT)
+        return self.to_type_maybe(of="value", field_type=FieldType.INPUT)
 
     @property
     def output_type(self) -> "TypeBase | None":
-        return self.to_type(of="value", field_type=FieldType.OUTPUT)
+        return self.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
 
     @staticmethod
     def new[StepT: "Step" = "Step"](

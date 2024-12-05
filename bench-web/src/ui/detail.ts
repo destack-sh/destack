@@ -354,7 +354,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       section("Options", [{ type: "fields", fieldType: FieldType.OPTION }], {
         actions: [actionAddField(FieldType.OPTION)],
       });
-    } else if (node.type == BlockType.DATABASE || node.type == BlockType.CLASS || node.type == BlockType.MESSAGE) {
+    } else if (node.type == BlockType.DATABASE || node.type == BlockType.MESSAGE) {
       section("Members", [{ type: "fields", fieldType: FieldType.MEMBER }], {
         actions: [actionAddField(FieldType.MEMBER)],
       });

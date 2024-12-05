@@ -40,44 +40,6 @@ from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 
 
-def test_coerce_nested_value(session: Session, package: Package) -> None:
-    """Coerce a nested Object value."""
-
-    # choice block
-    Choice1 = Block(type=BlockType.CHOICE, name="Choice1")
-    Choice1.fields.extend(
-        Field.option(name="Option1"), Field.option(name="Option2"), Field.option(name="Option3")
-    )
-    Option1 = Choice1("Option1")
-    assert Option1 == Choice1.fields.Option1
-    with pytest.raises(ValueError):
-        Choice1("Option17")
-
-    # inner class
-    ClassInner = Block(type=BlockType.CLASS, name="ClassInner")
-    ClassInner.fields.extend(
-        Field.member("Field1", Choice1), Field.member("Field2", NodeType.BLOCK)
-    )
-    object_inner = ClassInner(Field1=Option1)
-    assert object_inner.Field1 is Option1
-
-    # outer class
-    ClassOuter = Block(type=BlockType.CLASS, name="ClassOuter")
-    ClassOuter.fields.extend(
-        Field.member("Field1", Choice1),
-        Field.member("Field2", bool),
-        Field.member("Field3", Text),
-        Field.member("Field4", ClassInner),
-    )
-    object_outer = ClassOuter(
-        Field1=Option1, Field2=False, Field3=[Text.plain("hello bench!")], Field4=object_inner
-    )
-    assert object_outer.Field1 is Option1
-    assert object_outer.Field2 is False
-    assert object_outer.Field3 == [Text.plain("hello bench!")]
-    assert object_outer.Field4 == object_inner
-
-
 def test_custom_object_with_builtin_properties(session: Session, package: Package) -> None:
     """Coerce, pack & unpack custom object with builtin properties."""
     Action1 = Block.new(
@@ -91,7 +53,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     )
 
     # coerce
-    Action1Output = Action1.to_type(of="value", field_type=FieldType.OUTPUT)
+    Action1Output = Action1.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
     assert Action1Output is not None
     obj = coerce_custom_object(
         ObjectKind.OUTPUT,
@@ -260,56 +222,54 @@ def test_roundtrip_nested_value(session: Session, package: Package):
     choice1.fields.append(Field.option("Option2"))
     choice1.fields.append(Field.option("Option3"))
 
-    # inner class
-    class2 = Block(type=BlockType.CLASS, name="Class2")
-    class2.fields.create(
+    # inner message
+    message2 = Block(type=BlockType.MESSAGE, name="Message2")
+    message2.fields.create(
         type=FieldType.MEMBER,
         name="Field1",
         bench_type=NodeType.FIELD,
         base_type=choice1,
         kind=TypeKind.BASED_NODE,
     )
-    class2.fields.create(name="Field2", bench_type=NodeType.BLOCK, kind=TypeKind.NODE)
+    message2.fields.create(name="Field2", bench_type=NodeType.BLOCK, kind=TypeKind.NODE)
 
-    # outer class
-    class1 = Block(type=BlockType.CLASS, name="Class1")
-    class1.fields.create(
+    # outer message
+    message1 = Block(type=BlockType.MESSAGE, name="Message1")
+    message1.fields.create(
         type=FieldType.MEMBER,
         name="Field1",
         bench_type=NodeType.FIELD,
         base_type=choice1,
         kind=TypeKind.BASED_NODE,
     )
-    class1.fields.create(
+    message1.fields.create(
         type=FieldType.MEMBER,
         name="Field2",
         primitive_type=PrimitiveType.INT32,
         kind=TypeKind.PRIMITIVE,
         is_list=True,
     )
-    class1.fields.create(
+    message1.fields.create(
         type=FieldType.MEMBER, name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT
     )
-    class1.fields.create(
+    message1.fields.create(
         type=FieldType.MEMBER,
         name="Field4",
-        base_type=class2,
+        base_type=message2,
         base_field_type=FieldType.MEMBER,
         kind=TypeKind.CUSTOM_OBJECT,
     )
 
     # outer value
-    value = cast(CustomObject, class1())
+    value = CustomObject.new(ObjectKind.MEMBER, {}, message1.to_type(of="value"))
     value.Field1 = choice1.fields.Option1
     assert value.Field1 is choice1.fields.Option1
     value.Field2 = [24]
     value.Field3 = Text.plain("hello bench!")
-    value.Field4 = cast(CustomObject, class2())
+    value.Field4 = CustomObject.new(ObjectKind.MEMBER, {}, message2.to_type(of="value"))
 
-    class1_type = class1.to_type(of="value")
-    assert class1_type is not None, f"{class1!r} has no type"
-    value_packed = pack_value(value, class1_type, wrap_scalar=True)
-    unpacked_value = unpack_value(value_packed, class1_type, wrap_scalar=True)
+    value_packed = pack_value(value, message1.to_type(of="value"), wrap_scalar=True)
+    unpacked_value = unpack_value(value_packed, message1.to_type(of="value"), wrap_scalar=True)
     assert unpacked_value == value
 
 
@@ -389,7 +349,7 @@ def test_sample_choice_block(session: Session, package: Package):
         fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
     )
     page.blocks.append(choice)
-    typ = choice.to_type(of="instance")
+    typ = choice.to_type_maybe(of="instance")
     assert typ is not None, f"{choice!r} has no type"
     sampled_field = sample_value(typ)
     assert sampled_field in choice.fields

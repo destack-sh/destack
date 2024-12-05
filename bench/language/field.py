@@ -127,7 +127,7 @@ def encode_type_identity(typ: "TypeBase") -> str:
     elif typ.kind == TypeKind.PARTIAL_NODE:
         value = encode_b64vlq(typ.bench_type.id) if typ.bench_type else ""
     else:
-        raise ValueError(f"unsupported type kind {typ.kind} for {typ!r}")
+        raise ValueError(f"unsupported type kind {typ.kind.bench_name} for {typ!r}")
 
     prefix: str
     prefix = LETTER_BY_TYPE_KIND[typ.kind].upper() if typ.is_list else LETTER_BY_TYPE_KIND[typ.kind]
@@ -502,7 +502,7 @@ def to_type_scalar(
     if isinstance(typ, TypeBase):
         return cast("TypeInfo", typ)
     elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.STEP):
-        type_info = cast("Block|Step", typ).to_type(of=of, field_type=field_type)
+        type_info = cast("Block|Step", typ).to_type_maybe(of=of, field_type=field_type)
         if type_info is not None:
             assert isinstance(type_info, TypeInfo), f"expected TypeInfo, got {type_info!r}"
             return type_info

@@ -162,7 +162,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200">
       <!-- Types -->
       <Type
-        v-if="[BlockType.CLASS, BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
+        v-if="[BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
         id="type"
         :node="block"
         :prepared-connection="preparedConnection"

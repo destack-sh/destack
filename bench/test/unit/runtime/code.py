@@ -5,7 +5,6 @@ from bench.language.action import Agency
 from bench.language.const import RunStatus
 from bench.language.node import Node
 from bench.language.run import Run, RunErrorType, RunOptions, RunType
-from bench.language.value import CustomObject
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.runtime.core import ATTEMPT_ONCE
 from bench.runtime.runner import make_run_from_node
@@ -347,7 +346,7 @@ async def test_run_code_function_output_object_raw(local_runtime: RuntimeHandle)
         code=code("""\
 return coerce_custom_object(
     kind=ObjectKind.OUTPUT, 
-    typ=self.to_type(as_object=True, field_type=FieldType.OUTPUT), 
+    typ=self.to_type(of='value', field_type=FieldType.OUTPUT), 
     value_raw={"Input1": 1, "Input2": 2},
 )
 """),
@@ -404,47 +403,6 @@ return [self]
 
     runner = await local_runtime.run(Function)
     assert runner.outputs
-
-
-async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
-    """Run a code function with a nested object."""
-    subpage = local_runtime.page().blocks.append(Block.new(BlockType.PAGE, "Subpage"))
-    ShapeKind = Block.new(
-        BlockType.CHOICE,
-        "ShapeKind",
-        fields=[
-            Field.option("Rectangle"),
-            Field.option("Circle"),
-            Field.option("Triangle"),
-            Field.option("Square"),
-        ],
-    )
-    Shape = Block.new(
-        BlockType.CLASS,
-        "Shape",
-        fields=[Field.member("Kind", ShapeKind)],
-    )
-    subpage.blocks.extend(ShapeKind, Shape)
-    await local_runtime.commit()
-
-    Function = Block.new(
-        BlockType.ACTION,
-        "Function",
-        code=code("""\
-assert ShapeKind is not None
-assert ShapeKind.fields.Circle is not None
-assert ShapeKind.Rectangle is not None
-return Shape(Kind=ShapeKind.Square)
-"""),
-        fields=[Field.output("Result", Shape)],
-        agency=Agency.CODE,
-    )
-    subpage.blocks.append(Function)
-    await local_runtime.commit()
-
-    runner = await local_runtime.run(Function)
-    assert runner.outputs and isinstance(runner.outputs.Result, CustomObject)
-    assert runner.outputs.Result.Kind == ShapeKind.fields.Square
 
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):

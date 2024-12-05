@@ -9553,10 +9553,6 @@ export enum BlockType {
      */
     TEXT = 2,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CLASS = 10;
-     */
-    CLASS = 10,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_CHOICE = 11;
      */
     CHOICE = 11,
@@ -31040,7 +31036,7 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.updatedEpoch]: { id: 15, name: 'updated_epoch', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.deletedAt]: { id: 16, name: 'deleted_at', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StepProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.icon]: { id: 35, name: 'icon', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },

@@ -49,7 +49,7 @@ const width = computed(() =>
   props.variant == Variant.STEALTH ? null : Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH),
 );
 
-const facetIcon = computed(() => base.value?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]);
+const facetIcon = computed(() => base.value?.icon);
 const facetName = computed(() => base.value?.name);
 const basePtr = computed(
   () => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | undefined,

@@ -128,7 +128,6 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
   [BlockType.DATABASE]: ColorType.SKY,
   [BlockType.VALUE]: ColorType.SKY,
   // types
-  [BlockType.CLASS]: ColorType.GREEN,
   [BlockType.CHOICE]: ColorType.GREEN,
   [BlockType.MESSAGE]: ColorType.GREEN,
   // runnables

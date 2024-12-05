@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Mapping, Optional, TypeGuard, cast
 from uuid import UUID, uuid4, uuid5
 
-from bench.utils.func import IdEnum, bittuple, cyrb53a
+from bench.utils.func import IdEnum, bittuple
 from bench.utils.utils import frozendict, get_from_env
 
 if typing.TYPE_CHECKING:
@@ -24,7 +24,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.05.3"
+VERSION = "2024.12.05.4"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -625,7 +625,6 @@ class BlockType(IdEnum):
     # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     # types
-    CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
     MESSAGE = 12  # define a signal type with fields
     # RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
@@ -665,30 +664,7 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 class BlockTypes:
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 20 <= t.id < 30))
-    CLASSES = bittuple(
-        BlockType.CLASS, BlockType.MESSAGE, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE
-    )
-
-
-DYNAMIC_NODE_KEY_LENGTH = 8
-
-
-def new_dynamic_node_key(ck_or_id: UUID) -> str:
-    """
-    Gets a 'random' alphabetic key as a persistent but self-directed identity key for a node.
-    Used for storing dynamic field values, dynamic database identities (versioned/un-versioned).
-    (short key length alphabetic characters)
-    """
-    hash_value = cyrb53a(str(ck_or_id))
-    key_parts = []
-    for _ in range(DYNAMIC_NODE_KEY_LENGTH):
-        hash_value, remainder = divmod(hash_value, 52)
-        if remainder < 26:
-            key_parts.append(chr(ord("a") + remainder))
-        else:
-            key_parts.append(chr(ord("A") + remainder - 26))
-    key = "".join(key_parts)
-    return key
+    CLASSES = bittuple(BlockType.MESSAGE, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE)
 
 
 class ReferenceKind(IdEnum):
