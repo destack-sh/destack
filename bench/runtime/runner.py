@@ -62,7 +62,7 @@ class Interrupted(Exception):  # noqa: N818
         self.interrupt = interrupt
 
 
-RunnerHook = Callable[["Runner", Exception | None], None]
+RunnerHook = Callable[["Runner", BaseException | None], None]
 
 
 class Runner[N: RunnableNode = RunnableNode](abc.ABC):

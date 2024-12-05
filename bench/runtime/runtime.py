@@ -351,7 +351,7 @@ class Runtime:
                     await self._do_run_tracked(runner)
                 else:
                     await self._do_run(runner)
-            except Exception as e:
+            except BaseException as e:
                 exc = e
                 raise
             finally:

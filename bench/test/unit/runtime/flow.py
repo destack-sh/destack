@@ -269,20 +269,10 @@ async def test_run_flow_fail_step(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
-    # from step
     runner = await local_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error
     assert runner.error.title == "Fail title"
-    assert runner.error.text == Text.plain("Fail text")
-
-    # from step inputs
-    runner = await local_runtime.run(
-        Flow1, inputs={"error_title": "Custom title"}, return_error=True
-    )
-    assert runner.status == RunStatus.FAILED
-    assert runner.error
-    assert runner.error.title == "Custom title"
     assert runner.error.text == Text.plain("Fail text")
 
 

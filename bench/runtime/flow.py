@@ -177,7 +177,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         self.runtime.schedule_runner(cast(Runner, runner), on_stop=self._on_stopped)
         return runner.tracked_run
 
-    def _on_stopped(self, runner: Runner, exc: Exception | None) -> None:
+    def _on_stopped(self, runner: Runner, exc: BaseException | None) -> None:
         """Tick this Flow when a Step or Pipe stops."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.stopped", flow=self.node, node=runner.node, runner=runner, exc=exc)
@@ -423,9 +423,12 @@ class FailStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
         if self.flow is not None:
+            step = cast(FailStep, self.node)
             inputs = cast(FailStep, self.inputs)
-            title = inputs.error_title or "Flow failed"
-            text = inputs.error_text or Text.plain(f"Flow failed at {self.node!r}")
+            title = inputs.error_title or step.error_title or "Flow failed"
+            text = (
+                inputs.error_text or step.error_text or Text.plain(f"Flow failed at {self.node!r}")
+            )
             e = RetryableError(title=title, text=text)
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             self.flow._fail(error=error)
@@ -462,8 +465,10 @@ class SearchStepRunner(StepRunnerBase):
 class CreateStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
+        step = cast(CreateStep, self.node)
         inputs = cast(CreateStep, self.inputs)
-        node_partial = inputs.node_partial
+        node_partial = inputs.node_partial or step.node_partial
+
         assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r} in {self!r}"
         node = make_node_from_partial(node_partial)
         if node.parent is None:
@@ -481,8 +486,9 @@ class CreateStepRunner(StepRunnerBase):
 class CloneStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
+        step = cast(CloneStep, self.node)
         inputs = cast(CloneStep, self.inputs)
-        node = inputs.node
+        node = inputs.node or step.node
         node_partial = inputs.node_partial
         assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r} in {self!r}"
         node.clone(recursive=inputs.recursive)
@@ -491,12 +497,13 @@ class CloneStepRunner(StepRunnerBase):
 class UpdateStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
+        step = cast(UpdateStep, self.node)
         inputs = cast(UpdateStep, self.inputs)
-        node_partial = inputs.node_partial
+        node_partial = inputs.node_partial or step.node_partial
         assert isinstance(
             node_partial, CustomObject
         ), f"unexpected {inputs.node_partial!r} in {self!r}"
-        node = inputs.node
+        node = inputs.node or step.node
         patch_node_from_partial(node, node_partial)
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
@@ -505,15 +512,18 @@ class UpdateStepRunner(StepRunnerBase):
 class DeleteStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
+        step = cast(DeleteStep, self.node)
         inputs = cast(DeleteStep, self.inputs)
-        self.session._delete(inputs.node)
+        node = inputs.node or step.node
+        self.session._delete(node)
 
 
 class RestoreStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
+        step = cast(RestoreStep, self.node)
         inputs = cast(RestoreStep, self.inputs)
-        node = inputs.node
+        node = inputs.node or step.node
         self.session._restore(node)
 
 
