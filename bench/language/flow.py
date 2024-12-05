@@ -17,7 +17,7 @@ from bench.language.const import (
     TypeKind,
     enum_,
 )
-from bench.language.field import TypeBase, TypeInfo
+from bench.language.field import TypeBase, TypeConstraint, TypeInfo
 from bench.language.list import LocalNodeList
 from bench.language.node import (
     Node,
@@ -57,7 +57,6 @@ if TYPE_CHECKING:
         NodeReference,
         Rectangle,
         Text,
-        TypeConstraint,
         Vector2,
     )
 
