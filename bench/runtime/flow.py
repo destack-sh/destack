@@ -170,7 +170,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             # feed forward connected Pipes/Steps
             outgoing: list[Run] = []
             if isinstance(runner.node, Step):
-                if runner.outputs is not None and runner.outputs.kind == ObjectKind.OUTPUT:
+                if runner.outputs is not None and runner.outputs._kind == ObjectKind.OUTPUT:
                     continuations = cast(OutputObject, runner.outputs).continuations
                 else:
                     continuations = ()
@@ -364,7 +364,7 @@ class StepRunnerBase(Runner[Step], ABC):
         if (
             self.flow is not None
             and self.outputs is not None
-            and self.outputs.kind == ObjectKind.OUTPUT
+            and self.outputs._kind == ObjectKind.OUTPUT
             and cast(OutputObject, self.outputs).continuations
         ):
             continuations = cast(OutputObject, self.outputs).continuations

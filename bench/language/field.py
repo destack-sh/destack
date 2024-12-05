@@ -306,8 +306,6 @@ class TypeBase(BuiltinObject):
         flags = []
         if self.is_list:
             flags.append("is_list")
-        else:
-            flags.append("is_scalar")
         if self.is_required:
             flags.append("is_required")
         if self.is_secret:

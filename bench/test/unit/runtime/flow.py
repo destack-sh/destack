@@ -278,7 +278,7 @@ async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_fail(local_runtime: RuntimeHandle):
+async def test_run_flow_fail_step(local_runtime: RuntimeHandle):
     """Run a Flow with a Fail step."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
@@ -296,6 +296,9 @@ async def test_run_flow_fail(local_runtime: RuntimeHandle):
     assert runner.error
     assert runner.error.title == "Fail title"
     assert runner.error.text == Text.plain("Fail text")
+
+    # from step inputs
+    # nocheckin
 
 
 async def test_run_flow_race(local_runtime: RuntimeHandle):

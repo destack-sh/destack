@@ -115,11 +115,11 @@ class CustomObject(Mapping[str, Any]):
     """
 
     __slots__ = (
+        "_kind",
         "_supergraph",
         "_type",
         "_value",
         "ancestor_prop",
-        "kind",
         "parent",
         "parent_id",
         "parent_key",
@@ -134,7 +134,7 @@ class CustomObject(Mapping[str, Any]):
         parent_key: ValueParentKey | None = None,
         supergraph: NodeSuperGraph | None = None,
     ):
-        self.kind = kind
+        self._kind = kind
         self._type = typ
         self._value = value  # unpacked value
         self.parent = parent
@@ -144,7 +144,7 @@ class CustomObject(Mapping[str, Any]):
 
     def __str__(self) -> str:
         set_fields: list[str] = []
-        for prop in _get_custom_object_properties(self.kind, self._type, self._value):
+        for prop in _get_custom_object_properties(self._kind, self._type, self._value):
             if prop.id is None or prop.id < 30:
                 continue  # ignore tracking properties
             prop_value = self._do_get(prop)
@@ -182,7 +182,7 @@ class CustomObject(Mapping[str, Any]):
         """Checks if all fields of the two Values are equal (recursively)."""
         if other is None or type(other) is not CustomObject:
             return False
-        for prop in _get_custom_object_properties(self.kind, self._type, self._value):
+        for prop in _get_custom_object_properties(self._kind, self._type, self._value):
             if self._value.get(prop.key) != other._value.get(prop.key):
                 return False
         for field in self._type._base_fields:
@@ -196,7 +196,7 @@ class CustomObject(Mapping[str, Any]):
         return True  # always True
 
     def _get_key(self, item: str) -> "Field | Property | None":
-        prop = _get_custom_object_property(self.kind, self._type, self._value, item)
+        prop = _get_custom_object_property(self._kind, self._type, self._value, item)
         if prop is not None:
             return prop
         else:
@@ -326,7 +326,7 @@ class CustomObject(Mapping[str, Any]):
         """Copy this object into the given parent/prop."""
         value_packed = pack_custom_object(self, self._type)
         copy = unpack_custom_object(
-            self.kind,
+            self._kind,
             value_packed,
             typ=self._type,
             supergraph=self._supergraph,
@@ -338,7 +338,7 @@ class CustomObject(Mapping[str, Any]):
     def clone(self) -> "CustomObject":
         """Clones this object."""
         return CustomObject.new(
-            self.kind,
+            self._kind,
             {**self._value} if self._value is not None else None,
             self._type,
             supergraph=self._supergraph,
@@ -362,7 +362,7 @@ class CustomObject(Mapping[str, Any]):
     def to_node(self, **kwargs) -> "Node":
         """Converts this partial Node into a full Node."""
         assert (
-            self.kind == ObjectKind.BUILTIN and self._type.kind == TypeKind.PARTIAL_NODE
+            self._kind == ObjectKind.BUILTIN and self._type.kind == TypeKind.PARTIAL_NODE
         ), f"cannot convert non-partial {self!r} to Node"
 
         # figure out node type
@@ -376,7 +376,7 @@ class CustomObject(Mapping[str, Any]):
 
         # assemble kwargs
         node_kwargs: dict[str, Any] = {}
-        for prop in _get_custom_object_properties(self.kind, self._type, self._value):
+        for prop in _get_custom_object_properties(self._kind, self._type, self._value):
             prop_value = self._do_get(prop)
             if prop_value is not None:
                 node_kwargs[prop.name] = prop_value
@@ -400,7 +400,7 @@ class CustomObject(Mapping[str, Any]):
                     break
             assert (
                 value_prop is not None
-            ), f"no {self.kind.bench_name} value property for {self!r} in {node_cls.__name__!r}"
+            ), f"no {self._kind.bench_name} value property for {self!r} in {node_cls.__name__!r}"
             value_wired_prop = value_prop.value_packed_ptr
             assert type(value_wired_prop) is Property, f"no wired prop for {value_prop!r}"
             node_kwargs[value_wired_prop.name] = value
@@ -438,21 +438,22 @@ def _get_custom_object_properties(
     """Gets all the custom object properties available in this value."""
     custom_object_cls = CUSTOM_OBJECT_CLASS_BY_KIND.get(kind)
     custom_properties = (
-        custom_object_cls.__properties__.values() if custom_object_cls is not None else ()
+        custom_object_cls.__original_properties__.values() if custom_object_cls is not None else ()
     )
     if typ.kind == TypeKind.PARTIAL_NODE:
         # figure out actual node type
         if typ.bench_type is not None:
             bench_type = cast(NodeType, typ.bench_type)
+            node_cls = NODE_CLASS_BY_TYPE[bench_type]
         elif "1" in value_packed:  # generic partial
             bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
+            node_cls = NODE_CLASS_BY_TYPE[bench_type]
         else:
             # no known node type, so we can't resolve subtype properties
-            return custom_properties
+            node_cls = Node
 
         # check subtype
-        node_cls = NODE_CLASS_BY_TYPE[bench_type]
-        node_properties = node_cls.__properties__.values()
+        node_properties = node_cls.__original_properties__.values()
         subtype_properties = ()
         if node_cls.__subtype_base_property__ is not None:
             subtype = value_packed.get(node_cls.__subtype_base_property__.key)
@@ -483,25 +484,26 @@ def _get_custom_object_property(
         # figure out actual node type
         if typ.bench_type is not None:
             bench_type = cast(NodeType, typ.bench_type)
+            node_cls = NODE_CLASS_BY_TYPE[bench_type]
         elif "1" in value_packed:  # generic partial
             bench_type = cast(NodeType, int(value_packed["1"]))  # type: ignore
+            node_cls = NODE_CLASS_BY_TYPE[bench_type]
         else:
-            return None  # no known node type, so we can't resolve subtype properties
+            node_cls = Node  # just base node properties
 
         # check node
-        node_cls = NODE_CLASS_BY_TYPE[bench_type]
-        prop = node_cls.__properties__.get(name)
+        prop = node_cls.__original_properties__.get(name)
         if prop is not None:
             return prop
         elif node_cls.__subtype_base_property__ is not None:
             subtype = value_packed.get(node_cls.__subtype_base_property__.key)
             if subtype is not None:
                 subtype_cls = node_cls.__subclass_by_subtype__[cast(IdEnum, subtype)]
-                return subtype_cls.__properties__.get(name)
+                return subtype_cls.__original_properties__.get(name)
 
     custom_object_cls = CUSTOM_OBJECT_CLASS_BY_KIND.get(kind)
     if custom_object_cls is not None:
-        return custom_object_cls.__properties__.get(name)
+        return custom_object_cls.__original_properties__.get(name)
     else:
         return None
 
@@ -1317,7 +1319,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
             ]
 
     # properties
-    for prop in _get_custom_object_properties(value.kind, typ, _value):
+    for prop in _get_custom_object_properties(value._kind, typ, _value):
         storage_key = prop.key
         prop_value = cast(SomeValue, _value.get(storage_key))
         if prop_value is None:
