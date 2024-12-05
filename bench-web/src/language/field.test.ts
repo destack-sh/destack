@@ -19,7 +19,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind; identityK
   { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sg7C" },
   { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!ek4E" },
   {
-    kind: TypeKind.OBJECT,
+    kind: TypeKind.CUSTOM_OBJECT,
     baseTypePtr: {
       metatype: ObjectType.NODE_REFERENCE,
       nodeType: NodeType.BLOCK,
@@ -28,6 +28,12 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind; identityK
     isSecret: false,
     isList: false,
     identityKey: "oEjRWeP//AAA=",
+  },
+  {
+    kind: TypeKind.PARTIAL_NODE,
+    isSecret: false,
+    isList: false,
+    identityKey: "r",
   },
 ];
 

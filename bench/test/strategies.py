@@ -25,7 +25,11 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypeBase, TypeConstraint, TypeInfo
 from bench.language.node import BuiltinObject
-from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
+from bench.language.setup import (
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
+    ENUM_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+)
 from bench.language.validation import ValidationError
 from bench.language.value import MAX_VALUE_BY_PRIMITIVE_TYPE, MIN_VALUE_BY_PRIMITIVE_TYPE
 from bench.language.view import Icon, IconKind
@@ -37,7 +41,7 @@ logger = structlog.get_logger(__name__)
 ALL_DECLARED_PROPERTIES = tuple(
     more_itertools.flatten(
         (p for p in object_cls.__declared_properties__.values() if p.id is not None)
-        for object_cls in OBJECT_CLASS_BY_TYPE.values()
+        for object_cls in BUILTIN_OBJECT_CLASS_BY_TYPE.values()
     )
 )
 
@@ -97,7 +101,7 @@ def properties(object_type: ObjectType | None = None):
     if object_type is None:
         return PROPERTY_STRATEGY
     else:
-        object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+        object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
         return st.sampled_from(
             tuple(p for p in object_cls.__declared_properties__.values() if p.id is not None)
         )
@@ -194,7 +198,7 @@ def from_type_info(typ: TypeBase) -> st.SearchStrategy[Any]:
 @cached({})
 def get_naive_object_strategy(object_type: ObjectType):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
-    object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     object_kwargs: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__runtime_properties__.values():
         if (
@@ -260,7 +264,7 @@ def from_object_type(
     elif object_type == StructType.ICON:
         return cast(st.SearchStrategy[BuiltinObject], icons())
 
-    object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     object_dict = get_naive_object_strategy(object_type)
     if custom_strategies:
         object_dict = {**object_dict}

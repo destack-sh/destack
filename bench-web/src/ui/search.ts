@@ -1,7 +1,7 @@
 import { blockToType } from "@/language/block";
-import { isStructType, TYPE_BLOCK_TYPES } from "@/language/const";
+import { isNodeType, isStructType, TYPE_BLOCK_TYPES } from "@/language/const";
 import { EnumOption, getEnumOptions } from "@/language/enum";
-import { makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
+import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
@@ -331,27 +331,11 @@ export function typeIndex(idx: {
       }
       const option = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
       if (option != null) return mapFromIntrinsicOption(EnumType.PRIMITIVE_TYPE, option);
-    } else if (value.benchType != null) {
-      if (value.constraint?.fileTypes?.length == 1) {
-        const option = getEnumOptions(EnumType.FILE_TYPE).find(
-          (option) => option.value == value.constraint!.fileTypes[0],
-        );
-        if (option != null) return mapFromIntrinsicOption(EnumType.FILE_TYPE, option);
-      } else if (value.constraint?.blockTypes?.length == 1) {
-        const option = getEnumOptions(EnumType.BLOCK_TYPE).find(
-          (option) => option.value == value.constraint!.blockTypes[0],
-        );
-        if (option != null) return mapFromIntrinsicOption(EnumType.BLOCK_TYPE, option);
-      } else if (value.constraint?.stepTypes?.length == 1) {
-        const option = getEnumOptions(EnumType.STEP_TYPE).find(
-          (option) => option.value == value.constraint!.stepTypes[0],
-        );
-        if (option != null) return mapFromIntrinsicOption(EnumType.STEP_TYPE, option);
-      } else if (value.constraint?.viewTypes?.length == 1) {
-        const option = getEnumOptions(EnumType.VIEW_TYPE).find(
-          (option) => option.value == value.constraint!.viewTypes[0],
-        );
-        if (option != null) return mapFromIntrinsicOption(EnumType.VIEW_TYPE, option);
+    } else if (isNodeType(value.benchType)) {
+      const subtypeEnum = getSubtypeEnum(value.benchType);
+      if (subtypeEnum != null && value.constraint?.nodeSubtypes?.length == 1) {
+        const option = getEnumOptions(subtypeEnum).find((option) => option.value == value.constraint!.nodeSubtypes[0]);
+        if (option != null) return mapFromIntrinsicOption(subtypeEnum, option);
       }
       const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
       if (option != null) return mapFromIntrinsicOption(EnumType.BENCH_TYPE, option);
@@ -389,22 +373,22 @@ export function typeIndex(idx: {
       item.title = option.title + " File";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.FILE;
-      item.constraint = makeTypeConstraint({ fileTypes: [option.value as FileType] });
+      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as FileType] });
     } else if (enumType == EnumType.BLOCK_TYPE) {
       item.title = option.title + " Block";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.BLOCK;
-      item.constraint = makeTypeConstraint({ blockTypes: [option.value as BlockType] });
+      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as BlockType] });
     } else if (enumType == EnumType.STEP_TYPE) {
       item.title = option.title + " Step";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.STEP;
-      item.constraint = makeTypeConstraint({ stepTypes: [option.value as StepType] });
+      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as StepType] });
     } else if (enumType == EnumType.VIEW_TYPE) {
       item.title = option.title + " View";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.VIEW;
-      item.constraint = makeTypeConstraint({ viewTypes: [option.value as ViewType] });
+      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as ViewType] });
     } else {
       throw new Error(`unexpected enum type: ${enumType} (${option.value})`);
     }

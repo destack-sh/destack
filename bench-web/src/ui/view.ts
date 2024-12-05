@@ -27,13 +27,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import {
-  isNodeRef,
-  makeStruct,
-  toNodeRef,
-  typeNodeReferenceMaybe,
-  type TypedNodeReferenceData
-} from "@/proto/wiring";
+import { isNodeRef, makeStruct, toNodeRef, typeNodeReferenceMaybe, type TypedNodeReferenceData } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { isFocusableElement } from "@/utils/element";
 import { getViewTypeByComponentName, type ViewComponent, type ViewProps } from "@/views/common";
@@ -227,21 +221,23 @@ export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, Vi
 export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 
 export function getView(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
-  if (type.kind == TypeKind.OBJECT) {
+  if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_NODE) {
     // object
     return { type: ViewType.OBJECT, valueType: type as TypeInfoData };
   } else if (type.benchType != null || type.kind == TypeKind.NODE) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType!] != null) {
       if (
         type.benchType == BenchType.FILE &&
-        type.constraint?.fileTypes?.length == 1 &&
-        VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileTypes[0]] != null
+        type.constraint?.nodeSubtypes?.length == 1 &&
+        VIEW_TYPE_BY_FILE_TYPE[type.constraint.nodeSubtypes[0] as FileType] != null
       ) {
         // specific file type view
         return {
-          type: VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileTypes[0]]!,
+          type: VIEW_TYPE_BY_FILE_TYPE[type.constraint.nodeSubtypes[0] as FileType]!,
           valueType: makeTypeInfo(type),
-          isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(type.constraint.fileTypes[0]),
+          isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(
+            type.constraint.nodeSubtypes[0] as FileType,
+          ),
         };
       } else if (type.benchType == BenchType.FILE) {
         // generic file type view
@@ -332,6 +328,7 @@ export function makeSelection(
     metatype: ObjectType.SELECTION,
     nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
     fieldsPtr: [],
+    propertiesPtr: [],
   };
 }
 
@@ -350,6 +347,7 @@ export function expandSelection(
     ...(selection ?? { metatype: ObjectType.SELECTION }),
     nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
     fieldsPtr: [],
+    propertiesPtr: [],
   };
 }
 

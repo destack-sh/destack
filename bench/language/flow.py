@@ -295,13 +295,13 @@ class Step(SourceNode[StepData]):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.ROLE]),
+        constraint=constraint(node_subtypes=[BlockType.ROLE]),
     )
     identity: Optional["Block"] = p_regular(
         43,
         require=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.IDENTITY]),
+        constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
     )
     if TYPE_CHECKING:
         roles_ptr: tuple["NodeReference", ...] = ()
@@ -397,7 +397,9 @@ class Step(SourceNode[StepData]):
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
                 assert field_type is not None, f"missing field_type for object {self!r}"
-                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
+                typ = TypeInfo(
+                    kind=TypeKind.CUSTOM_OBJECT, base_type=self, base_field_type=field_type
+                )
             return typ
 
     @property

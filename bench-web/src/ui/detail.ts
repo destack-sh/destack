@@ -20,8 +20,8 @@ import { makeEditFromSubnode, Transaction, TransactionOptions } from "@/language
 import {
   ActionBlockData,
   ActionBlockProperty,
-  Agency,
   ActionStepData,
+  Agency,
   AnyNodeData,
   BenchType,
   BlockData,
@@ -29,6 +29,7 @@ import {
   BlockType,
   EditOperationData,
   EditOperationType,
+  FailStepProperty,
   FieldData,
   FieldProperty,
   FieldType,
@@ -37,6 +38,7 @@ import {
   NodeType,
   ObjectType,
   PipeProperty,
+  PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_SUBTYPE,
@@ -46,14 +48,10 @@ import {
   RunOptionsProperty,
   StepProperty,
   StepType,
+  TypeConstraintProperty,
   TypeKind,
   Variant,
   ViewType,
-  CreateStepData,
-  CreateStepProperty,
-  TypeConstraintProperty,
-  PrimitiveType,
-  FailStepProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
@@ -62,34 +60,34 @@ import { FULL_WIDTH_VIEW_TYPES, getView } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { ViewProps } from "@/views/common";
 
-export type InspectLayout = {
-  sections: InspectSection[];
+export type DetailLayout = {
+  sections: DetailSection[];
 };
 
-export type InspectAction = {
+export type DetailAction = {
   title: string;
   icon: IconData;
   action: (e: MouseEvent) => void;
 };
-export type InspectSection = {
+export type DetailSection = {
   title?: string;
   subtitle?: string;
-  rows: InspectRow[];
+  rows: DetailRow[];
   isDefaultCollapsed?: boolean;
   summary?: string;
-  actions?: InspectAction[];
+  actions?: DetailAction[];
 };
 
-type InspectRowBase = {
+type DetailRowBase = {
   title?: string;
   subtitle?: string;
 };
-export type InspectFieldsRow = InspectRowBase & {
+export type DetailFieldsRow = DetailRowBase & {
   type: "fields";
   fieldType: FieldType;
   delegatePtr?: NodeReferenceData;
 };
-export type InspectViewRow = InspectRowBase & {
+export type DetailViewRow = DetailRowBase & {
   type: "view";
   isFullWidth: boolean;
   viewType: ViewType;
@@ -97,22 +95,18 @@ export type InspectViewRow = InspectRowBase & {
   read: () => any;
   write: (value: any, path?: any) => void;
 };
-export type InspectIconRow = InspectRowBase & {
+export type DetailIconRow = DetailRowBase & {
   type: "icon";
   icon: IconData;
 };
-export type InspectTextRow = InspectRowBase & {
+export type DetailTextRow = DetailRowBase & {
   type: "text";
   text: string;
 };
-export type InspectRow = InspectFieldsRow | InspectViewRow | InspectIconRow | InspectTextRow;
+export type DetailRow = DetailFieldsRow | DetailViewRow | DetailIconRow | DetailTextRow;
 
-export function makeInspectLayout(
-  node: AnyNodeData,
-  graph: ReadNodeGraph,
-  txFactory: () => Transaction,
-): InspectLayout {
-  const sections: InspectSection[] = [];
+export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFactory: () => Transaction): DetailLayout {
+  const sections: DetailSection[] = [];
 
   const metatype = node.metatype as unknown as NodeType;
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[node.metatype]!;
@@ -128,8 +122,8 @@ export function makeInspectLayout(
   /** Make a Section */
   function section(
     title: string | undefined,
-    rows: InspectRow[],
-    options?: { isDefaultCollapsed?: boolean; subtitle?: string; summary?: string; actions?: InspectAction[] },
+    rows: DetailRow[],
+    options?: { isDefaultCollapsed?: boolean; subtitle?: string; summary?: string; actions?: DetailAction[] },
   ) {
     sections.push({
       title,
@@ -171,7 +165,7 @@ export function makeInspectLayout(
       default?: any;
       props?: Partial<ViewProps>;
     },
-  ): InspectViewRow {
+  ): DetailViewRow {
     if (typeof path == "number") path = [path];
 
     const { prop: rootProp, propKey: rootPropKey, isSubnode } = property(path[0]);
@@ -193,10 +187,10 @@ export function makeInspectLayout(
     }
 
     const title = options?.title ?? getPropertyTitle(prop);
-    const propType = getPropertyType(prop);
+    const propType = options?.props?.valueType ?? getPropertyType(prop);
     const view = getView(propType);
     if (view == null) throw new Error(`no view for property type: ${title}`);
-    const row: InspectViewRow = {
+    const row: DetailViewRow = {
       type: "view",
       title: title === false ? undefined : title,
       subtitle: options?.subtitle,
@@ -256,8 +250,8 @@ export function makeInspectLayout(
   }
 
   /** Type row */
-  function rowType(): InspectViewRow {
-    const row: InspectViewRow = {
+  function rowType(): DetailViewRow {
+    const row: DetailViewRow = {
       type: "view",
       title: "Type",
       viewType: ViewType.PICKER,
@@ -275,7 +269,7 @@ export function makeInspectLayout(
     fieldType: FieldType,
     icon: IconData | string = "fas fa-plus",
     options?: { delegatePtr?: NodeReferenceData },
-  ): InspectAction {
+  ): DetailAction {
     return {
       title: `Add ${toCamelName(FieldType, fieldType)}`,
       icon: makeIcon(icon),
@@ -304,10 +298,10 @@ export function makeInspectLayout(
     );
   }
 
-  function actionRows(): InspectRow[] {
+  function actionRows(): DetailRow[] {
     const action = subnode as ActionStepData | ActionBlockData | undefined;
     const agency: Agency = action?.agency ?? Agency.GENERATE;
-    const rows: InspectRow[] = [rowProperty(ActionBlockProperty.agency, { title: false, isFullWidth: true })];
+    const rows: DetailRow[] = [rowProperty(ActionBlockProperty.agency, { title: false, isFullWidth: true })];
     if (agency == Agency.CODE) {
       rows.push(rowProperty(ActionBlockProperty.code, { title: false, isFullWidth: true }));
     } else if (agency == Agency.DELEGATE) {
@@ -350,7 +344,7 @@ export function makeInspectLayout(
   //
 
   if (isNode(node, NodeType.BLOCK)) {
-    const commonRows: InspectRow[] = [];
+    const commonRows: DetailRow[] = [];
     section(undefined, commonRows);
     if (node.type != BlockType.TEXT) {
       commonRows.push(rowProperty(BlockProperty.text, { title: false, props: { placeholder: "Text..." } }));
@@ -382,7 +376,7 @@ export function makeInspectLayout(
   // Fields
   //
   else if (isNode(node, NodeType.FIELD)) {
-    const commonRows: InspectRow[] = [
+    const commonRows: DetailRow[] = [
       rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
     ];
     section(undefined, commonRows);
@@ -391,38 +385,46 @@ export function makeInspectLayout(
     } else {
       commonRows.push(rowType());
       if (node.type != FieldType.VARIABLE) {
-        commonRows.push(rowProperty(FieldProperty.isRequired));
-        commonRows.push(rowProperty(FieldProperty.isList));
+        commonRows.push(rowProperty(FieldProperty.isRequired, { title: "Required" }));
+        commonRows.push(rowProperty(FieldProperty.isList, { title: "List" }));
 
-        const constraintRows: InspectRow[] = [];
+        const constraintRows: DetailRow[] = [];
+        // list
         if (node.isList || node.primitiveType == PrimitiveType.STRING) {
           constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength]));
           constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength]));
-          if (node.primitiveType == PrimitiveType.STRING) {
-            constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith]));
-            constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith]));
-            constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex]));
-          }
         }
+        // stringy
+        if (node.primitiveType == PrimitiveType.STRING) {
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith]));
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith]));
+          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex]));
+        }
+        // number
         if (typeIsNumeric(node)) {
           constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue]));
           constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue]));
           constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue]));
         }
-        if (node.benchType == BenchType.BLOCK) {
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.blockTypes]));
-        } else if (node.benchType == BenchType.STEP) {
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepTypes]));
-        } else if (node.benchType == BenchType.FILE) {
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.fileTypes]));
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.fileFormats]));
-        } else if (node.benchType == BenchType.VIEW) {
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.viewTypes]));
-        }
+        // node
         if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeIsAttached], { title: "Is Attached" }),
-          );
+          const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
+          const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
+          const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
+          if (subtypeProperty?.enumType != null) {
+            constraintRows.push(
+              rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
+                title: `${toCamelName(BenchType, node.benchType)} Type`,
+                props: {
+                  valueType: makeTypeInfo({
+                    kind: TypeKind.ENUM,
+                    benchType: subtypeProperty.enumType as unknown as BenchType,
+                    isList: true,
+                  }),
+                },
+              }),
+            );
+          }
           constraintRows.push(
             rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
               title: "Scope",
@@ -444,7 +446,7 @@ export function makeInspectLayout(
   // Steps
   //
   else if (isNode(node, NodeType.STEP)) {
-    const commonRows: InspectRow[] = [];
+    const commonRows: DetailRow[] = [];
     section(undefined, commonRows);
     commonRows.push(rowProperty(StepProperty.text, { title: false, props: { placeholder: "Text..." } }));
 
@@ -462,19 +464,6 @@ export function makeInspectLayout(
         sectionSchema();
       }
       sectionAction();
-    } else if (node.type == StepType.CREATE) {
-      // only 'input' schema from delegate
-      commonRows.push(rowProperty(CreateStepProperty.blockBasePtr, { title: "Block" }));
-      const create = subnode as CreateStepData | undefined;
-      const fieldType = FieldType.MEMBER;
-      if (create?.blockBasePtr != null) {
-        section("Schema", [{ type: "fields", fieldType: fieldType, delegatePtr: create.blockBasePtr }], {
-          actions: [actionAddField(fieldType, "fas fa-plus", { delegatePtr: create.blockBasePtr })],
-          subtitle: "(Create)",
-        });
-      } else {
-        section("Schema", [{ type: "text", text: "No type set." }]);
-      }
     } else if (node.type == StepType.FAIL) {
       section("Error", [
         rowProperty(FailStepProperty.errorTitle, { title: "Title" }),
@@ -514,7 +503,7 @@ export function makeInspectLayout(
         viewProps: {
           variant: Variant.STEALTH,
           valueType: makeTypeInfo({
-            kind: TypeKind.OBJECT,
+            kind: TypeKind.CUSTOM_OBJECT,
             baseFieldType: FieldType.MEMBER,
             baseTypePtr: node.blockPtr,
           }),
@@ -544,7 +533,7 @@ export function makeInspectLayout(
     ]);
   }
 
-  const layout: InspectLayout = { sections };
+  const layout: DetailLayout = { sections };
   return layout;
 }
 

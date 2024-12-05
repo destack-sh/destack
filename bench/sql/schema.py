@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.04.5"
+VERSION = "2024.12.05.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -938,6 +938,7 @@ FIELD_TABLE = Table(
         Column("oneof_ck", PrimitiveType.UUID, is_nullable=True),
         Column("oneof_type", PrimitiveType.INT16, is_nullable=True),
         Column("oneof_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("partial_scope", PrimitiveType.INT16, is_nullable=True),
         Column("default_packed", PrimitiveType.JSON, is_nullable=True),
         Column("format", PrimitiveType.INT16, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),

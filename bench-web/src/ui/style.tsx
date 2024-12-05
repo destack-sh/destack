@@ -142,14 +142,24 @@ export const COLOR_BY_BLOCK_TYPE: Partial<Record<BlockType, ColorType>> = {
 };
 
 export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
+  // boundary
   [StepType.START]: ColorType.YELLOW,
   [StepType.COMPLETE]: ColorType.YELLOW,
   [StepType.TRIGGER]: ColorType.YELLOW,
+  // read
+  [StepType.GET]: ColorType.EMERALD,
+  [StepType.SEARCH]: ColorType.EMERALD,
+  // write
+  [StepType.CREATE]: ColorType.SKY,
+  [StepType.UPDATE]: ColorType.SKY,
+  [StepType.DELETE]: ColorType.SKY,
+  [StepType.RESTORE]: ColorType.SKY,
+  // run
   [StepType.ACTION]: ColorType.ORANGE,
-  [StepType.CREATE]: ColorType.YELLOW,
   [StepType.YIELD]: ColorType.PINK,
   [StepType.FAIL]: ColorType.DANGER,
   [StepType.TEXT]: ColorType.GRAY,
+  // containers
   [StepType.LOOP]: ColorType.YELLOW,
 };
 

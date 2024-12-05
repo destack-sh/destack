@@ -4,18 +4,14 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict
 
 import regex
 
-from bench.language.const import BenchError, BlockType, NodeType, TypeFormat
+from bench.language.const import BenchError, NodeType, TypeFormat
 
 if TYPE_CHECKING:
     from bench.language import (
-        FileFormat,
-        FileType,
         Node,
         Property,
-        StepType,
         TypeBase,
         TypeConstraint,
-        ViewType,
     )
     from bench.language.value import SomeValue
 
@@ -79,12 +75,7 @@ class TypeConstraintIn:
     node_types: "list[NodeType]" = dataclasses.field(default_factory=list)
     node_scope: "list[Node]" = dataclasses.field(default_factory=list)
     node_max_depth: Optional[int] = None
-    # specific node-ish
-    block_types: "list[BlockType]" = dataclasses.field(default_factory=list)
-    step_types: "list[StepType]" = dataclasses.field(default_factory=list)
-    file_types: "list[FileType]" = dataclasses.field(default_factory=list)
-    file_formats: "list[FileFormat]" = dataclasses.field(default_factory=list)
-    view_types: "list[ViewType]" = dataclasses.field(default_factory=list)
+    node_subtypes: "list[int]" = dataclasses.field(default_factory=list)
 
     def into(self) -> "TypeConstraint":
         from bench.language.field import TypeConstraint
@@ -101,10 +92,7 @@ class TypeConstraintIn:
             node_types=self.node_types,
             node_scope=self.node_scope,
             node_max_depth=self.node_max_depth,
-            block_types=self.block_types,
-            step_types=self.step_types,
-            file_types=self.file_types,
-            file_formats=self.file_formats,
+            node_subtypes=self.node_subtypes,
         )
 
 
@@ -141,11 +129,7 @@ def constraint(
     starts_with: str | None = None,
     ends_with: str | None = None,
     node_types: "list[NodeType] | None" = None,
-    block_types: "list[BlockType] | None" = None,
-    step_types: "list[StepType] | None" = None,
-    file_types: "list[FileType] | None" = None,
-    file_formats: "list[FileFormat] | None" = None,
-    view_types: "list[ViewType] | None" = None,
+    node_subtypes: "list[int] | None" = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -157,11 +141,7 @@ def constraint(
         starts_with=starts_with,
         ends_with=ends_with,
         node_types=node_types if node_types is not None else [],
-        block_types=block_types if block_types is not None else [],
-        step_types=step_types if step_types is not None else [],
-        file_types=file_types if file_types is not None else [],
-        file_formats=file_formats if file_formats is not None else [],
-        view_types=view_types if view_types is not None else [],
+        node_subtypes=node_subtypes if node_subtypes is not None else [],
     )
 
 

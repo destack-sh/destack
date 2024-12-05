@@ -249,7 +249,7 @@ export function blockToType(block: BlockData): TypeInfoData {
     kind = TypeKind.BASED_NODE;
     baseFieldType = FieldType.OPTION;
   } else if (block.type == BlockType.CLASS) {
-    kind = TypeKind.OBJECT;
+    kind = TypeKind.CUSTOM_OBJECT;
   } else if (block.type == BlockType.MESSAGE) {
     benchType = BenchType.MESSAGE;
     kind = TypeKind.BASED_NODE;

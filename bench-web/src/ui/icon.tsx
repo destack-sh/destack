@@ -276,9 +276,16 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.COMPLETE]: "fas fa-flag-checkered",
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.TRIGGER]: "fas fa-bolt-lightning",
+  // read
+  [StepType.GET]: "fas fa-file-arrow-down",
+  [StepType.SEARCH]: "fas fa-magnifying-glass",
+  // write
+  [StepType.CREATE]: "fas fa-plus",
+  [StepType.UPDATE]: "fas fa-pencil",
+  [StepType.DELETE]: "fas fa-trash",
+  [StepType.RESTORE]: "fas fa-trash-undo",
   // run
   [StepType.ACTION]: "fas fa-code",
-  [StepType.CREATE]: "fas fa-plus",
   [StepType.YIELD]: "fas fa-hand",
   // control
   // ...
@@ -438,7 +445,7 @@ export const ICON_BY_TYPE_KIND: Partial<Record<TypeKind, IconData>> = _makeIcons
   [TypeKind.NODE]: "fas fa-circle-nodes",
   [TypeKind.BASED_NODE]: "fas fa-circle-nodes",
   [TypeKind.ENUM]: "fas fa-list-ul",
-  [TypeKind.OBJECT]: "fas fa-shapes",
+  [TypeKind.CUSTOM_OBJECT]: "fas fa-shapes",
   [TypeKind.LITERAL]: "fas fa-circle-dot",
   [TypeKind.UNION]: "fas fa-circle-dot",
 });
@@ -566,7 +573,7 @@ export const ICON_BY_EXPRESSION_OP: Partial<Record<ExpressionType, IconData>> = 
   [ExpressionType.DESCENDING]: "fas fa-arrow-down",
 });
 
-export const ICON_BY_RUNTIME_MODE: Partial<Record<NodeMode, IconData>> = _makeIcons<NodeMode>({
+export const ICON_BY_NODE_MODE: Partial<Record<NodeMode, IconData>> = _makeIcons<NodeMode>({
   [NodeMode.PRODUCTION]: "fas fa-globe",
   [NodeMode.DEVELOPMENT]: "fas fa-bug",
   [NodeMode.TEST]: "fas fa-flask",
@@ -631,7 +638,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_TYPE,
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
-  [EnumType.RUNTIME_MODE]: ICON_BY_RUNTIME_MODE,
+  [EnumType.NODE_MODE]: ICON_BY_NODE_MODE,
   [EnumType.REGION_AREA]: ICON_BY_REGION_AREA,
   [EnumType.REGION]: ICON_BY_REGION,
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
@@ -651,7 +658,7 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
     if (icon != null) return icon;
   } else if (node.kind == TypeKind.BASED_NODE && node.benchType == BenchType.FIELD) {
     return ICON_BY_BLOCK_TYPE[BlockType.CHOICE];
-  } else if (node.kind == TypeKind.OBJECT) {
+  } else if (node.kind == TypeKind.CUSTOM_OBJECT) {
     return ICON_BY_BLOCK_TYPE[BlockType.CLASS];
   } else if (node.benchType != null) {
     const icon = ICON_BY_BENCH_TYPE[node.benchType];

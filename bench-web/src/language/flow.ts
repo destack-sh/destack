@@ -129,14 +129,6 @@ export class StepState {
           "delegatePtr",
         );
         return delegatePtr as TypedNodeReferenceData<NodeType.BLOCK> | null;
-      } else if (this.step.value?.type == StepType.CREATE) {
-        const blockBasePtr = unpackSubnodeProperty(
-          NodeType.STEP,
-          StepType.CREATE,
-          this.step.value?.subnodePacked,
-          "blockBasePtr",
-        );
-        return blockBasePtr as TypedNodeReferenceData<NodeType.BLOCK> | null;
       } else {
         return null;
       }
@@ -1131,12 +1123,12 @@ export function getStepFields(
   } else if (step.type == StepType.ACTION) {
     // from block
     if (related.node == null) return null;
-    const zone = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
-    return { type: zone, fields: related.nodeFields.filter((f) => f.type == zone), fieldParent: related.node };
+    const type = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
+    return { type: type, fields: related.nodeFields.filter((f) => f.type == type), fieldParent: related.node };
   } else {
     // step itself
-    const zone = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
-    return { type: zone, fields: related.stepFields.filter((f) => f.type == zone), fieldParent: step };
+    const type = side == PortSide.INCOMING ? FieldType.INPUT : FieldType.OUTPUT;
+    return { type: type, fields: related.stepFields.filter((f) => f.type == type), fieldParent: step };
   }
 }
 

@@ -6,7 +6,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { InspectSection, makeInspectLayout } from "@/ui/detail";
+import { DetailSection, makeInspectLayout } from "@/ui/detail";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
@@ -45,12 +45,12 @@ const collapsedSections = useSubnodeProperty(
   toRef(props, "subnodePacked"),
   "collapsedSections",
 );
-function isSectionExpanded(section: InspectSection) {
+function isSectionExpanded(section: DetailSection) {
   if (section.title == null) return true;
   if (section.isDefaultCollapsed) return expandedSections.value?.includes(section.title);
   else return !collapsedSections.value?.includes(section.title);
 }
-function toggleSection(section: InspectSection) {
+function toggleSection(section: DetailSection) {
   if (section.title == null) throw new Error("cannot toggle a section without a title");
   if (section.isDefaultCollapsed) {
     let newExpandedSections;

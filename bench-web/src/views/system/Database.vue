@@ -816,7 +816,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
               @click.stop="deleteSelection"
             >
-              <i class="fas fa-trash-can" />
+              <i class="fas fa-trash" />
             </button>
           </div>
 

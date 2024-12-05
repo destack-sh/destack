@@ -92,13 +92,13 @@ class Block(SourceNode[BlockData]):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.ROLE]),
+        constraint=constraint(node_subtypes=[BlockType.ROLE]),
     )
     identity: Optional["Block"] = p_regular(
         45,
         require=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.IDENTITY]),
+        constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
     )
     if TYPE_CHECKING:
         roles_ptr: tuple["NodeReference", ...] = ()
@@ -170,7 +170,9 @@ class Block(SourceNode[BlockData]):
         if self.type == BlockType.CLASS:
             # NOTE: we turn Class Blocks into Alias Types here for correctness, but that means
             #  we have to resolve them again (unnecessarily) before instantiating.
-            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=FieldType.MEMBER)
+            typ = TypeInfo(
+                kind=TypeKind.CUSTOM_OBJECT, base_type=self, base_field_type=FieldType.MEMBER
+            )
         elif self.type == BlockType.CHOICE:
             typ = TypeInfo(
                 kind=TypeKind.BASED_NODE,
@@ -185,7 +187,7 @@ class Block(SourceNode[BlockData]):
                 )
             else:
                 typ = TypeInfo(
-                    kind=TypeKind.OBJECT,
+                    kind=TypeKind.CUSTOM_OBJECT,
                     base_type=self,
                     base_field_type=field_type or FieldType.MEMBER,
                 )
@@ -194,7 +196,7 @@ class Block(SourceNode[BlockData]):
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
             else:
                 typ = TypeInfo(
-                    kind=TypeKind.OBJECT,
+                    kind=TypeKind.CUSTOM_OBJECT,
                     base_type=self,
                     base_field_type=field_type or FieldType.MEMBER,
                 )
@@ -208,7 +210,9 @@ class Block(SourceNode[BlockData]):
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
                 assert field_type is not None, f"missing field_type for object {self!r}"
-                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_type=field_type)
+                typ = TypeInfo(
+                    kind=TypeKind.CUSTOM_OBJECT, base_type=self, base_field_type=field_type
+                )
         else:
             return None
         return typ
