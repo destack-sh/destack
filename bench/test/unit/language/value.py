@@ -5,17 +5,20 @@ from hypothesis import given
 
 from bench.language.action import Agency, Call, Continue
 from bench.language.bench import Package
-from bench.language.block import Block, ValueBlock
+from bench.language.block import ActionBlock, Block, ValueBlock
+from bench.language.code import Code
 from bench.language.const import (
     STRUCT_TYPES,
     BlockType,
     FieldType,
     NodeType,
     ObjectKind,
+    PartialNodeScope,
     PrimitiveType,
     StructType,
 )
 from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
+from bench.language.message import Message, MessageType
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.text import Text
@@ -115,9 +118,96 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     assert obj_unpacked.equals(obj)
 
 
-#
-# Packing/unpacking
-#
+def test_partial_node_message(session: Session, package: Package) -> None:
+    """Create, update, pack/unpack a partial Message node."""
+    message_type = Block.new(
+        BlockType.MESSAGE,
+        "MyMessage",
+        fields=(
+            Field.member("Field1", int),
+            Field.member("Field2", Block),
+            Field.member("Field3", bool),
+            Field.member("title", Text),
+        ),
+    )
+    typ = TypeInfo(
+        kind=TypeKind.PARTIAL_NODE,
+        bench_type=NodeType.MESSAGE,
+        base_type=message_type,
+        partial_scope=PartialNodeScope.FULL,
+    )
+    obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
+
+    # should be init to empty/default values
+    assert obj.id is None
+    assert obj.type is Message.get_property("type").default
+    assert obj.block is None
+    assert obj.Field1 is None
+
+    # set/get values on value and properties
+    obj.Field1 = 42
+    obj.type = MessageType.NATIVE
+    obj.title = "My New Message"
+    obj.block = message_type
+    assert obj.Field1 == 42
+    assert obj.type == MessageType.NATIVE
+    assert obj.block == message_type
+    assert obj.title == "My New Message"
+
+    # pack/unpack
+    obj_packed = pack_custom_object(obj, typ)
+    obj_unpacked = unpack_custom_object(
+        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
+    )
+    assert obj_unpacked.equals(obj)
+
+    # turn into full node
+    full_obj = Message.from_partial(obj)
+    assert full_obj.id is not None
+    assert full_obj.type == MessageType.NATIVE
+    assert full_obj.title == "My New Message"
+    assert full_obj.value
+    assert full_obj.value.Field1 == 42
+
+
+def test_partial_node_block(session: Session, package: Package) -> None:
+    """Create, update, pack/unpack a partial Block node with subtypes."""
+    typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=NodeType.BLOCK)
+    obj = Block.partial(type=BlockType.ACTION, name="Action1")
+
+    # should be init to set/empty/default values
+    assert obj.type == BlockType.ACTION
+    assert obj.name == "Action1"
+    assert obj.agency == ActionBlock.get_property("agency").default
+    assert obj.text is None
+
+    # set/get values on properties and subnode properties
+    obj.agency = Agency.CODE
+    obj.text = Text.plain("hello bench!")
+    obj.code = Code.from_string("print('hello bench!')")
+    assert obj.agency == Agency.CODE
+    assert obj.text == Text.plain("hello bench!")
+    assert obj.code == Code.from_string("print('hello bench!')")
+
+    # pack/unpack
+    obj_packed = pack_custom_object(obj, typ)
+    obj_unpacked = unpack_custom_object(
+        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
+    )
+    assert obj_unpacked.equals(obj)
+
+    # turn into full node
+    full_obj = ActionBlock.from_partial(obj)
+    assert full_obj.id is not None
+    assert full_obj.agency == Agency.CODE
+    assert full_obj.text == Text.plain("hello bench!")
+    assert full_obj.code == Code.from_string("print('hello bench!')")
+
+
+def test_partial_node_generic(session: Session, package: Package) -> None:
+    """Create, update, pack/unpack a partial generic node."""
+    typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=NodeType.MESSAGE)
+    # nocheckin
 
 
 def test_roundtrip_scalar_value(session: Session, package: Package) -> None:

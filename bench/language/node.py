@@ -47,11 +47,13 @@ from bench.language.const import (
     EditOperationType,
     NodeMode,
     NodeType,
+    ObjectKind,
     ObjectType,
     PrimitiveType,
     QueryType,
     ReferenceKind,
     StructType,
+    TypeKind,
     _active_session,
 )
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
@@ -1628,6 +1630,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_type: NodeType | None = None
 
     # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
+    # NOTE :Architecture: obviously, a better system would store subnode directly
+    #  (but we can't do that yet because we're tying top-level properties to Postgres columns,
+    #   so we can't have crazy numbers of subtype-properties unless we pack them like this)
     subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(NODE_SUBTYPE_PACKED_ID)
 
     # 30-89 for 'user' node/struct properties
@@ -2155,6 +2160,22 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 return prop
         else:
             raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
+
+    @classmethod
+    def partial(cls, **kwargs: Any) -> "CustomObject":
+        """Creates a new partial Node of this type."""
+        from bench.language.field import TypeInfo
+        from bench.language.value import coerce_custom_object_scalar
+
+        typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=cls.metatype)
+        return coerce_custom_object_scalar(ObjectKind.BUILTIN, kwargs, typ)
+
+    @classmethod
+    def from_partial(cls, partial: "CustomObject", **kwargs) -> Self:
+        """Creates a new full Node from a partial Node."""
+        node = partial.to_node(**kwargs)
+        assert isinstance(node, cls), f"unexpected node {node!r} from partial {partial!r}"
+        return node
 
     #
     # Querying

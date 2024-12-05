@@ -1119,6 +1119,9 @@ function useConnectionGraphRaw<T extends NodeType>(
  * Gets the current connection for the given scope. Does not acquire any new connections.
  * NOTE: for performance the graph/connection proxies are 'lazy' (just regular refs, so they get batch-processed per tick).
  *  That means changing 'node' will change connection/graph only on the next tick.
+ * NOTE :Architecture: the graphs and the current bench/pkg/space pointers are not atomically updated,
+ *  so sometimes it can happen that we need a new connection but the new graph isn't loaded yet.
+ *  For those cases it's useful to just default to not required and keeping previous connections.
  */
 export function useExistingConnection<T extends NodeType = any>(
   node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null | undefined>,
@@ -1132,10 +1135,7 @@ export function useExistingConnection<T extends NodeType = any>(
   graphRaw: ReadNodeGraph;
   connection: Connection<"get", T>;
 } {
-  // NOTE :Architecture: the graphs and the current bench/pkg/space pointers are not atomically updated,
-  //  so sometimes it can happen that we need a new connection but the new graph isn't loaded yet.
-  //  For those cases it's useful to just default to not required and keeping previous connections.
-
+  // TODO :Performance: don't use separate overlay graphs for every useExistingConnection?
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
   const graph = useConnectionGraphWithOverlay(connection);

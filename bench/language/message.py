@@ -78,7 +78,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
     type: MessageType = p_regular(30, require=True, default=MessageType.NATIVE)
     status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
-    origin: BenchNode | None = p_regular(35, require=True, references="any")
+    origin: BenchNode | None = p_regular(35, require=False, references="any")
     block: "Block | None" = p_internal(
         36,
         require=False,

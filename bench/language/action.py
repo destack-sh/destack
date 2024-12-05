@@ -9,7 +9,7 @@ from bench.language.value import coerce_custom_object
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, Field, ObjectMapping, Pipe, Step, Text
+    from bench.language import Block, Code, Field, ObjectMapping, Pipe, Step
 
 
 @enum_(EnumType.AGENCY)
@@ -26,14 +26,6 @@ class ActionBase(BuiltinObject):
     agency: Agency = p_regular(100, default=Agency.GENERATE)
     is_dynamic: bool = p_regular(
         101, default=False, description="Whether this action is dynamic w.r.t. its inputs."
-    )
-    text: Optional["Text"] = p_regular(
-        110,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.TEXT,
-        description="Text description of this action.",
     )
     code: Optional["Code"] = p_regular(
         111,
