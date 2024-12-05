@@ -19,7 +19,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
 from bench.language.message import Message, MessageType
-from bench.language.node import BuiltinObject
+from bench.language.node import BuiltinObject, Node
 from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.validation import constraint, on_invalid_raise
@@ -138,7 +138,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     )
     obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
 
-    # should be init to empty/default values
+    # should be init to empty/default values for Message
     assert obj.id is None
     assert obj.type is Message.get_property("type").default
     assert obj.block is None
@@ -175,7 +175,7 @@ def test_partial_node_block(session: Session, package: Package) -> None:
     typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=NodeType.BLOCK)
     obj = Block.partial(type=BlockType.ACTION, name="Action1")
 
-    # should be init to set/empty/default values
+    # should be init to set/empty/default values for ActionBlock
     assert obj.type == BlockType.ACTION
     assert obj.name == "Action1"
     assert obj.agency == ActionBlock.get_property("agency").default
@@ -197,7 +197,7 @@ def test_partial_node_block(session: Session, package: Package) -> None:
     assert obj_unpacked.equals(obj)
 
     # turn into full node
-    full_obj = ActionBlock.from_partial(obj)
+    full_obj = cast(ActionBlock, Block.from_partial(obj))
     assert full_obj.id is not None
     assert full_obj.agency == Agency.CODE
     assert full_obj.text == Text.plain("hello bench!")
@@ -206,8 +206,34 @@ def test_partial_node_block(session: Session, package: Package) -> None:
 
 def test_partial_node_generic(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial generic node."""
-    typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=NodeType.MESSAGE)
-    # nocheckin
+    typ = TypeInfo(kind=TypeKind.PARTIAL_NODE)
+    obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
+
+    # should be init to empty/default values for Node
+    assert obj.id is None
+    assert obj.parent is None
+    # shouldn't have any sub-properties yet
+    with pytest.raises(AttributeError):
+        _ = obj.text  # doesn't exist on Node
+
+    # set metatype, then set properties for Field
+    obj.metatype = NodeType.FIELD
+    obj.type = FieldType.OPTION
+    obj.kind = TypeKind.LITERAL
+    obj.name = "Option1"
+    assert obj.name == "Option1"
+
+    # pack/unpack
+    obj_packed = pack_custom_object(obj, typ)
+    obj_unpacked = unpack_custom_object(
+        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
+    )
+    assert obj_unpacked.equals(obj)
+
+    # turn into full node
+    full_obj = cast(Field, Node.from_partial(obj))
+    assert full_obj.id is not None
+    assert full_obj.name == "Option1"
 
 
 def test_roundtrip_scalar_value(session: Session, package: Package) -> None:

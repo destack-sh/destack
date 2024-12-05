@@ -217,7 +217,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     static_components.append(grandparent)
 
     # collect properties from this class
-    own_properties: dict[str, Property] = {}
+    declared_properties: dict[str, Property] = {}
     for name, prop in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -234,8 +234,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
         prop.component = cls
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
-        own_properties[name] = prop
-    cls.__declared_properties__ = frozendict(own_properties)
+        declared_properties[name] = prop
+    cls.__declared_properties__ = frozendict(declared_properties)
     cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
     # collect properties from all parent components
@@ -343,6 +343,9 @@ def _process_object_cls[ObjectT: BuiltinObject](
     # register components and index properties
     cls.__components__ = tuple(static_components)  # type: ignore
     cls.__properties__ = frozendict(properties_by_name)
+    cls.__original_properties__ = frozendict(
+        {p.name: p for p in cls.__properties__.values() if p.reference_source is None}
+    )
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
         if prop.id is not None and prop.id is not UNSET and not prop.reference_source:
@@ -946,10 +949,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     __parent_property__: ClassVar[Property] = UNSET
     __properties__: ClassVar[dict[str, Property]] = {}
-    __own_properties__: ClassVar[dict[str, Property]] = {}
-    __declared_properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
     __properties_name_by_id__: ClassVar[dict[int, str]] = {}
+    __original_properties__: ClassVar[dict[str, Property]] = {}  # excl. contributed
+    __own_properties__: ClassVar[dict[str, Property]] = {}
+    __declared_properties__: ClassVar[dict[str, Property]] = {}
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __node_reference_properties__: ClassVar[dict[str, Property]] = {}
