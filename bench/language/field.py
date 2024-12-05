@@ -35,7 +35,6 @@ from bench.language.const import (
     is_struct_type,
 )
 from bench.language.expression import _TypeQueryBuilder
-from bench.language.list import LocalNodeList
 from bench.language.node import (
     BuiltinObject,
     HasNodeBase,
@@ -299,6 +298,8 @@ class TypeBase(BuiltinObject):
             info_str = self.primitive_type.bench_name
         else:
             info_str = kind_str
+        if self.kind == TypeKind.PARTIAL_NODE:
+            info_str = f"Partial{info_str} [{self.partial_scope.bench_name if self.partial_scope else 'Full'}]"
         if self.condition is not None:
             info_str += f" [{self.condition}]"
 
@@ -417,12 +418,16 @@ class TypeBase(BuiltinObject):
         return encode_type_identity(self)
 
     @property
-    def _base_fields(self) -> LocalNodeList["Field"]:
-        assert self.base_type is not None, f"missing base type {self!r}"
-        return self.base_type.fields
+    def _base_fields(self) -> Sequence["Field"]:
+        if self.base_type_ptr is not None:
+            base_type = self.base_type
+            assert base_type is not None, f"missing base type {self!r}"
+            return base_type.fields
+        else:
+            return ()
 
     @property
-    def _fields(self) -> LocalNodeList["Field"] | Sequence["Field"]:
+    def _fields(self) -> Sequence["Field"]:
         if self.base_field_type is None:
             return self._base_fields
         else:

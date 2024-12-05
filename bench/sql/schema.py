@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.05.1"
+VERSION = "2024.12.05.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1231,10 +1231,10 @@ MESSAGE_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("status", PrimitiveType.INT16, default="4"),
-        Column("origin_id", PrimitiveType.UUID),
-        Column("origin_ck", PrimitiveType.UUID),
-        Column("origin_type", PrimitiveType.INT16),
-        Column("origin_bench_id", PrimitiveType.UUID),
+        Column("origin_id", PrimitiveType.UUID, is_nullable=True),
+        Column("origin_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("origin_type", PrimitiveType.INT16, is_nullable=True),
+        Column("origin_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("origin_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("origin_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),

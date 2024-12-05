@@ -3166,7 +3166,7 @@ message MessageData {
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   MessageStatus status = 31;
-  NodeReferenceData origin_ptr = 35;
+  optional NodeReferenceData origin_ptr = 35;
   optional NodeReferenceData block_ptr = 36;
   optional NodeReferenceData reply_to_ptr = 37;
   optional string title = 40;
