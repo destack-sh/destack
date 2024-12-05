@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional, Type, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Type, Union, cast
 from uuid import UUID
 
 import cachetools
@@ -16,7 +16,7 @@ from bench.language.const import (
     TypeKind,
     enum_,
 )
-from bench.language.field import TypeBase
+from bench.language.field import TypeBase, TypeInfo
 from bench.language.list import LocalNodeList
 from bench.language.node import (
     Node,
@@ -236,13 +236,19 @@ class StepType(IdEnum):
 
     # write
     CREATE = 50
-    UPDATE = 51
-    DELETE = 52
-    RESTORE = 53
+    CLONE = 51
+    UPDATE = 52
+    DELETE = 53
+    RESTORE = 54
 
     # run
     ACTION = 60
     YIELD = 62  # to something
+
+    # session
+    PAUSE = 70
+    RESUME = 71
+    STOP = 72
 
     # state
     # ...
@@ -385,17 +391,16 @@ class Step(SourceNode[StepData]):
         elif self.type == StepType.COMPLETE:
             parent = self.parent
             return parent.output_type if parent is not None else None
-        elif self.type == StepType.ACTION and cast(ActionStep, self).delegate_ptr:
+        elif self.type == StepType.ACTION and cast(ActionStep, self).delegate_ptr and as_object:
             delegate = cast(ActionStep, self).delegate
             return (
                 delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
             )
-        elif self.type in STUB_BY_STEP_TYPE:
-            return STUB_BY_STEP_TYPE[self.type].to_type(as_object=as_object, field_type=field_type)
         else:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
             else:
+                base = STUB_BY_STEP_TYPE.get(self.type) or self
                 assert field_type is not None, f"missing field_type for object {self!r}"
                 typ = TypeInfo(
                     kind=TypeKind.CUSTOM_OBJECT, base_type=self, base_field_type=field_type
@@ -479,14 +484,43 @@ class SearchStep(Step):
 @node_subtype_(StepType.CREATE)
 class CreateStep(Step):
     node_partial_packed = p_value_packed(100)
-    node_partial = p_value_runtime(100, kind=ObjectKind.BUILTIN, typ=None)
+    node_partial: Any = p_value_runtime(
+        100, kind=ObjectKind.BUILTIN, typ=lambda self: CreateStep._node_partial_type()
+    )
+
+    @classmethod
+    @cachetools.cached({})  # :CachedTypeInfo
+    def _node_partial_type(cls) -> "TypeBase":
+        return TypeInfo(kind=TypeKind.PARTIAL_NODE)
+
+
+@node_subtype_(StepType.CLONE)
+class CloneStep(Step):
+    node: Node = p_regular(100, require=True, references="any")
+    node_partial_packed = p_value_packed(101)
+    node_partial = p_value_runtime(
+        101, kind=ObjectKind.BUILTIN, typ=lambda self: CloneStep._node_partial_type()
+    )
+    recursive: bool = p_regular(110, default=True)
+
+    @classmethod
+    @cachetools.cached({})  # :CachedTypeInfo
+    def _node_partial_type(cls) -> "TypeBase":
+        return TypeInfo(kind=TypeKind.PARTIAL_NODE)
 
 
 @node_subtype_(StepType.UPDATE)
 class UpdateStep(Step):
     node: Node = p_regular(100, require=True, references="any")
     node_partial_packed = p_value_packed(101)
-    node_partial = p_value_runtime(101, kind=ObjectKind.BUILTIN, typ=None)
+    node_partial = p_value_runtime(
+        101, kind=ObjectKind.BUILTIN, typ=lambda self: UpdateStep._node_partial_type()
+    )
+
+    @classmethod
+    @cachetools.cached({})  # :CachedTypeInfo
+    def _node_partial_type(cls) -> "TypeBase":
+        return TypeInfo(kind=TypeKind.PARTIAL_NODE)
 
 
 @node_subtype_(StepType.DELETE)

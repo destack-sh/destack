@@ -263,10 +263,10 @@ export class Runtime {
   }
 
   /** Stop a Run. */
-  kill(run: RunData) {
+  stop(run: RunData) {
     if (!isRunActive(run)) return;
-    log.trace("runtime.kill", run);
-    this.tx.update(run, { killedAt: Timestamp.now() });
+    log.trace("runtime.stop", run);
+    this.tx.update(run, { stoppedAt: Timestamp.now() });
   }
 
   /** Complete an Interrupt */
@@ -368,7 +368,7 @@ export function getRunActions(run: RunData): RuntimeAction[] {
       title: "Stop",
       icon: makeIcon("fas fa-stop"),
       action: () => {
-        runtime.kill(run);
+        runtime.stop(run);
       },
     });
   } else if (isRunTerminal(run)) {

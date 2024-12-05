@@ -60,7 +60,7 @@ class Machine(AnonymousResourceNode[MachineData]):
     current_ram: Optional[float] = p_system(53, default=None, description="GB")
 
     started_at: Optional[datetime] = p_system(60, default=None)
-    killed_at: Optional[datetime] = p_internal(61, default=None)
+    stopped_at: Optional[datetime] = p_internal(61, default=None)
     terminated_at: Optional[datetime] = p_system(62, default=None)
     active_at: Optional[datetime] = p_system(63, default=None)
     restarted_at: Optional[datetime] = p_internal(64, default=None)

@@ -445,7 +445,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     scheduled_epoch: Optional[int] = p_system(47, default=None)
     started_at: Optional[datetime] = p_internal(48, default=None)
     started_epoch: Optional[int] = p_internal(49, default=None)
-    killed_at: Optional[datetime] = p_internal(50, default=None)
+    stopped_at: Optional[datetime] = p_internal(50, default=None)
     interrupted_at: Optional[datetime] = p_internal(51, default=None)
     interrupt: Optional["Interrupt"] = p_internal(
         52, require=False, array=False, references=NodeType.INTERRUPT, same_bench=True
@@ -595,16 +595,16 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         if thread:
             thread.resume(self)
 
-    def kill(self):
-        """Mark this Run as killed."""
+    def stop(self):
+        """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
-        self.killed_at = self._session._oracle.utc()
+        self.stopped_at = self._session._oracle.utc()
         thread = self.thread
         if thread:
-            thread.kill(self)
+            thread.stop(self)
 
-    def _mark_killed(self):
-        """Mark this Run as killed."""
+    def _mark_stopped(self):
+        """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
         if self.status.is_terminal:
             return  # already terminated
@@ -627,4 +627,4 @@ class Run(RuntimeNode[RunData], HasNodeBase):
                 RunStatus.ABORTED if last_attempt.status.is_active else RunStatus.CANCELLED
             )
 
-    cancel = abort = kill
+    cancel = abort = stop

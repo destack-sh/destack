@@ -86,18 +86,6 @@ STUB_BY_STEP_TYPE: Mapping[StepType, Block] = {
         agency=Agency.CODE,
         fields=(Field.output("Node", Node, is_required=True),),
     ),
-    StepType.UPDATE: Block.new(
-        BlockType.ACTION,
-        "Update",
-        agency=Agency.CODE,
-        fields=(Field.output("Node", Node, is_required=True),),
-    ),
-    StepType.RESTORE: Block.new(
-        BlockType.ACTION,
-        "Restore",
-        agency=Agency.CODE,
-        fields=(Field.output("Node", Node, is_required=True),),
-    ),
 }
 Steps.blocks.extend(*STUB_BY_STEP_TYPE.values())
 

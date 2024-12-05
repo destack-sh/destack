@@ -28,10 +28,7 @@ import {
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import {
-  type ActionContext,
-  type ActionMapImplementation
-} from "@/ui/action";
+import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -44,7 +41,7 @@ import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
 import Type from "@/views/system/Type.vue";
-import { useElementSize } from "@vueuse/core";
+import { useElementSize, useScroll } from "@vueuse/core";
 import { computed, onMounted, provide, ref, toRef, type Ref } from "vue";
 
 const BACKGROUND_STYLE: "checker" | "dots" = "dots";
@@ -73,6 +70,7 @@ const containerRef: Ref<HTMLElement | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const headerSize = useElementSize(headerRef);
+const containerScroll = useScroll(containerRef);
 
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
@@ -134,7 +132,9 @@ onMounted(() => {
     isInitialRender.value = false;
   }, 100);
 });
-const shouldAnimateTransform = computed(() => !isInitialRender.value && !flowCtx.isDragging);
+const shouldAnimateTransform = computed(
+  () => !isInitialRender.value && !flowCtx.isDragging && !containerScroll.isScrolling.value,
+);
 
 // actions
 const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData | PipeData | null; idx: number } => {

@@ -359,56 +359,6 @@ class CustomObject(Mapping[str, Any]):
         for key, v in kwargs.items():
             self._do_set(key, v, validate=True)
 
-    def to_node(self, **kwargs) -> "Node":
-        """Converts this partial Node into a full Node."""
-        assert (
-            self._kind == ObjectKind.BUILTIN and self._type.kind == TypeKind.PARTIAL_NODE
-        ), f"cannot convert non-partial {self!r} to Node"
-
-        # figure out node type
-        if self._type.bench_type is not None:
-            bench_type = cast(NodeType, self._type.bench_type)
-        elif "1" in self._value:
-            bench_type = cast(NodeType, int(self._value["1"]))  # type: ignore
-        else:
-            raise ValueError(f"no set node type for {self!r}")
-        node_cls = NODE_CLASS_BY_TYPE[bench_type]
-
-        # assemble kwargs
-        node_kwargs: dict[str, Any] = {}
-        for prop in _get_custom_object_properties(self._kind, self._type, self._value):
-            prop_value = self._do_get(prop)
-            if prop_value is not None:
-                node_kwargs[prop.name] = prop_value
-        node_kwargs.update(kwargs)  # override with given kwargs
-
-        # assemble value
-        value: dict[str, SomeValue] = {}
-        for field in self._type._base_fields:
-            key = field.storage_key
-            field_value = self._value.get(key)
-            if field_value is not None:
-                value[key] = field_value
-        if value:
-            value_prop = None
-            for p in node_cls.__properties__.values():
-                if p.is_value_runtime and (
-                    self._type.base_field_type is None
-                    or p.value_object_kind == self._type.base_field_type
-                ):
-                    value_prop = p
-                    break
-            assert (
-                value_prop is not None
-            ), f"no {self._kind.bench_name} value property for {self!r} in {node_cls.__name__!r}"
-            value_wired_prop = value_prop.value_packed_ptr
-            assert type(value_wired_prop) is Property, f"no wired prop for {value_prop!r}"
-            node_kwargs[value_wired_prop.name] = value
-
-        # make node
-        node = node_cls(**node_kwargs)
-        return node
-
     @staticmethod
     def new(
         kind: ObjectKind,
@@ -430,6 +380,64 @@ class CustomObject(Mapping[str, Any]):
             parent_key=parent_property,
             supergraph=supergraph,
         )
+
+
+def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
+    """Converts the partial Node into a full Node."""
+    assert (
+        partial_node._kind == ObjectKind.BUILTIN
+        and partial_node._type.kind == TypeKind.PARTIAL_NODE
+    ), f"cannot convert non-partial {partial_node!r} to Node"
+
+    # figure out node type
+    if partial_node._type.bench_type is not None:
+        bench_type = cast(NodeType, partial_node._type.bench_type)
+    elif "1" in partial_node._value:
+        bench_type = cast(NodeType, int(partial_node._value["1"]))  # type: ignore
+    else:
+        raise ValueError(f"no set node type for {partial_node!r}")
+    node_cls = NODE_CLASS_BY_TYPE[bench_type]
+
+    # assemble kwargs
+    node_kwargs: dict[str, Any] = {}
+    for prop in _get_custom_object_properties(
+        partial_node._kind, partial_node._type, partial_node._value
+    ):
+        prop_value = partial_node._do_get(prop)
+        if prop_value is not None:
+            node_kwargs[prop.name] = prop_value
+    node_kwargs.update(kwargs)  # override with given kwargs
+
+    # assemble value
+    value: dict[str, SomeValue] = {}
+    for field in partial_node._type._base_fields:
+        key = field.storage_key
+        field_value = partial_node._value.get(key)
+        if field_value is not None:
+            value[key] = field_value
+    if value:
+        value_prop = None
+        for p in node_cls.__properties__.values():
+            if p.is_value_runtime and (
+                partial_node._type.base_field_type is None
+                or p.value_object_kind == partial_node._type.base_field_type
+            ):
+                value_prop = p
+                break
+        assert (
+            value_prop is not None
+        ), f"no {partial_node._kind.bench_name} value property for {partial_node!r} in {node_cls.__name__!r}"
+        value_wired_prop = value_prop.value_packed_ptr
+        assert type(value_wired_prop) is Property, f"no wired prop for {value_prop!r}"
+        node_kwargs[value_wired_prop.name] = value
+
+    # make node
+    node = node_cls(**node_kwargs)
+    return node
+
+
+def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
+    raise NotImplementedError  # nocheckin
 
 
 def _get_custom_object_properties(

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.05.2"
+VERSION = "2024.12.05.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -461,7 +461,7 @@ MACHINE_TABLE = Table(
         Column("ram", PrimitiveType.FLOAT32),
         Column("current_ram", PrimitiveType.FLOAT32, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("killed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("stopped_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("restarted_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -1357,7 +1357,7 @@ RUN_TABLE = Table(
         Column("scheduled_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_epoch", PrimitiveType.INT32, is_nullable=True),
-        Column("killed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("stopped_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupt_id", PrimitiveType.UUID, is_nullable=True),
         Column("interrupt_ck", PrimitiveType.UUID, is_nullable=True),

@@ -7,13 +7,30 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import FlowBlock
-from bench.language.const import ObjectKind, RunErrorKind, RunStatus
+from bench.language.const import NodeType, ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
-from bench.language.flow import FailStep, Pipe, PipeType, PortSide, Step, StepType
+from bench.language.flow import (
+    CloneStep,
+    CreateStep,
+    DeleteStep,
+    FailStep,
+    Pipe,
+    PipeType,
+    PortSide,
+    RestoreStep,
+    Step,
+    StepType,
+    UpdateStep,
+)
 from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptType
 from bench.language.run import Run, RunError, RunErrorType, RunnableNode, RunOptions, RunType
 from bench.language.text import Text
-from bench.language.value import CustomObject, OutputObject
+from bench.language.value import (
+    CustomObject,
+    OutputObject,
+    make_node_from_partial,
+    patch_node_from_partial,
+)
 from bench.runtime.action import ActionRunnerBase
 from bench.runtime.core import RetryableError
 from bench.runtime.runner import Context, Interrupted, Runner, get_run_options, restore_runner
@@ -77,7 +94,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
             if not runner.options.suppress_abort and not (
                 isinstance(runner.node, Step) and runner.node.type.is_boundary
             ):
-                runner.kill()
+                runner.stop()
                 if runner.tracked_run is not None:
                     self.runtime.close(runner.tracked_run, resume=not self.is_root)
 
@@ -383,6 +400,11 @@ class StepRunnerBase(Runner[Step], ABC):
                 raise RetryableError(title=None, error=error)
 
 
+#
+# Boundary Steps
+#
+
+
 class StartStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
@@ -400,10 +422,10 @@ class CompleteStepRunner(StepRunnerBase):
 class FailStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        inputs = cast(FailStep, self.inputs)
-        title = inputs.error_title or "Flow failed"
-        text = inputs.error_text or Text.plain(f"Flow failed at {self.node!r}")
         if self.flow is not None:
+            inputs = cast(FailStep, self.inputs)
+            title = inputs.error_title or "Flow failed"
+            text = inputs.error_text or Text.plain(f"Flow failed at {self.node!r}")
             e = RetryableError(title=title, text=text)
             error = RunError.from_exception(RunErrorKind.RUNTIME, e)
             self.flow._fail(error=error)
@@ -415,17 +437,96 @@ class TriggerStepRunner(StepRunnerBase):
         raise NotImplementedError
 
 
-class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
+#
+# Read Steps
+#
+
+
+class GetStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        await super().run()
-        self._check_step_outputs()
+        raise NotImplementedError
+
+
+class SearchStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
+
+
+#
+# Write Steps
+#
 
 
 class CreateStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        raise NotImplementedError("nocheckin: CreateStepRunner")
+        inputs = cast(CreateStep, self.inputs)
+        node_partial = inputs.node_partial
+        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r} in {self!r}"
+        node = make_node_from_partial(node_partial)
+        if node.parent is None:
+            parent_types = node.__parent_property__.reference_nodes or ()
+            if parent_types == "any" or NodeType.PACKAGE in parent_types:
+                node.parent = self.session.package
+            elif NodeType.BENCH in parent_types:
+                node.parent = self.session.bench
+        assert node.is_attached, f"node {node!r} must be attached in {self!r}"
+        self.session._create(node)
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+
+
+class CloneStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        inputs = cast(CloneStep, self.inputs)
+        node = inputs.node
+        node_partial = inputs.node_partial
+        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r} in {self!r}"
+        node.clone(recursive=inputs.recursive)
+
+
+class UpdateStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        inputs = cast(UpdateStep, self.inputs)
+        node_partial = inputs.node_partial
+        assert isinstance(
+            node_partial, CustomObject
+        ), f"unexpected {inputs.node_partial!r} in {self!r}"
+        node = inputs.node
+        patch_node_from_partial(node, node_partial)
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
+
+
+class DeleteStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        inputs = cast(DeleteStep, self.inputs)
+        self.session._delete(inputs.node)
+
+
+class RestoreStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        inputs = cast(RestoreStep, self.inputs)
+        node = inputs.node
+        self.session._restore(node)
+
+
+#
+# Run Steps
+#
+
+
+class ActionStepRunner(ActionRunnerBase[Step], StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        await super().run()
+        self._check_step_outputs()
 
 
 class YieldStepRunner(StepRunnerBase):
@@ -437,11 +538,21 @@ class YieldStepRunner(StepRunnerBase):
 
 
 STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
+    # boundary
     StepType.START: StartStepRunner,
     StepType.COMPLETE: CompleteStepRunner,
     StepType.FAIL: FailStepRunner,
-    StepType.ACTION: ActionStepRunner,
+    # read
+    StepType.GET: GetStepRunner,
+    StepType.SEARCH: SearchStepRunner,
+    # write
     StepType.CREATE: CreateStepRunner,
+    StepType.CLONE: CloneStepRunner,
+    StepType.UPDATE: UpdateStepRunner,
+    StepType.DELETE: DeleteStepRunner,
+    StepType.RESTORE: RestoreStepRunner,
+    # run
+    StepType.ACTION: ActionStepRunner,
     StepType.YIELD: YieldStepRunner,
 }
 

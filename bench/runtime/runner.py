@@ -82,7 +82,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "id",
         "input_type",
         "inputs",
-        "is_killed",
+        "is_stopped",
         "kind",
         "logs",
         "mode",
@@ -139,7 +139,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.tracked_run = run
         self.task: asyncio.Task | None = None
         self.outer_task: asyncio.Task | None = None
-        self.is_killed = False
+        self.is_stopped = False
 
         # determine mode
         if mode is not None:
@@ -331,17 +331,17 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.should_pause:
             self._trap_interrupt(InterruptType.PAUSE)
 
-    def kill(self):
-        """Kill this Runner/Run."""
+    def stop(self):
+        """Stop this Runner/Run."""
         if self.status.is_terminal:
             return
-        self.is_killed = True
+        self.is_stopped = True
         if self.outer_task is not None:
             self.outer_task.cancel()
         if self.task is not None:
             self.task.cancel()
         if self.tracked_run is not None and not self.is_active:
-            self.tracked_run._mark_killed()
+            self.tracked_run._mark_stopped()
             self.status = self.tracked_run.status
 
     @abc.abstractmethod

@@ -146,20 +146,21 @@ export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
   [StepType.START]: ColorType.YELLOW,
   [StepType.COMPLETE]: ColorType.YELLOW,
   [StepType.TRIGGER]: ColorType.YELLOW,
+  [StepType.FAIL]: ColorType.DANGER,
   // read
   [StepType.GET]: ColorType.EMERALD,
   [StepType.SEARCH]: ColorType.EMERALD,
   // write
   [StepType.CREATE]: ColorType.SKY,
+  [StepType.CLONE]: ColorType.SKY,
   [StepType.UPDATE]: ColorType.SKY,
   [StepType.DELETE]: ColorType.SKY,
   [StepType.RESTORE]: ColorType.SKY,
   // run
   [StepType.ACTION]: ColorType.ORANGE,
   [StepType.YIELD]: ColorType.PINK,
-  [StepType.FAIL]: ColorType.DANGER,
-  [StepType.TEXT]: ColorType.GRAY,
   // containers
+  [StepType.TEXT]: ColorType.GRAY,
   [StepType.LOOP]: ColorType.YELLOW,
 };
 

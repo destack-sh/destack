@@ -75,8 +75,8 @@ class RunHandle:
             if isinstance(node, Run):
                 if node.status.is_terminal:
                     continue  # nothing to do anymore
-                if node.killed_at:
-                    self.kill(node)
+                if node.stopped_at:
+                    self.stop(node)
                 elif node.paused_at and (not node.resumed_at or node.paused_at > node.resumed_at):
                     self.pause(node)
                 elif node.resumed_at and (not node.paused_at or node.resumed_at > node.paused_at):
@@ -101,11 +101,11 @@ class RunHandle:
         # nothing to do? (pause is trapped automatically if active)
         self.log.debug("run.pause", run=run)
 
-    def kill(self, run: Run):
-        """Kill an owned Run."""
+    def stop(self, run: Run):
+        """Stop an owned Run."""
         if self.is_active:
             # kill active Run
-            self.runtime.kill(run)
+            self.runtime.stop(run)
         else:
             # mark inner Runs/Interrupts as killed
             for node in chain(
@@ -113,14 +113,14 @@ class RunHandle:
             ):
                 node = cast(Run, node)
                 if not node.status.is_terminal:
-                    node._mark_killed()
+                    node._mark_stopped()
                     self.runtime.close(run, resume=False)
             if run.id == self.root.id:
                 self.close()
             else:
                 self.run()  # not active, start running again
             self.runtime.session.commit_optimistic()
-        self.log.debug("thread.kill", run=run)
+        self.log.debug("thread.stop", run=run)
 
     def close(self):
         """Close this RunHandle."""
@@ -281,11 +281,11 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         handle.run()
         self.runtime.resume(run)
 
-    def kill(self, run: Run):
-        """Kill an owned Run."""
+    def stop(self, run: Run):
+        """Stop an owned Run."""
         handle = self._owned_runs.get(run.root_id or run.id)
         assert handle is not None, f"no handle for {run!r} in {self!r}"
-        handle.kill(run)
+        handle.stop(run)
 
     @override
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
