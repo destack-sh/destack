@@ -25,14 +25,13 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS_BY_TYPE, BUILTIN_OBJECTS_OF
 
 
 @given(obj=builtin_objects())
-@examples(
-    # NOTE: rendering Access doesn't work for some reason (issue with empty object),
-    #  but we're going to overhaul the auth system soon anyway, so, whatever.
-    [{"obj": obj} for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE if obj.metatype != StructType.ACCESS]
-)
+@examples([{"obj": obj} for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE])
 def test_render_builtin_object_expr(
     obj: BuiltinObject, shared_session: Session, shared_package: Package
 ):
+    # NOTE: rendering Access doesn't work for some reason (issue with empty object),
+    #  but we're going to overhaul the auth system soon anyway, so, whatever.
+    assume(obj.metatype != StructType.ACCESS)
     assume(obj.metatype != StructType.TEXT)  # :CrummyMarkdown
     assume(obj.metatype != StructType.TYPE_CONSTRAINT)  # coerced to TypeConstraintIn (incomparable)
 
@@ -125,7 +124,7 @@ def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
 @_render_as_stmt
 def test_render_bad_names(shared_session: Session, shared_package: Package):
     _F_1 = Field.variable("-F_1", str)
-    Block_with_Spa_se = Block.new(BlockType.CLASS, "Block with Spa'se")
+    Block_with_Spa_se = Block.new(BlockType.MESSAGE, "Block with Spa'se")
     return {"_F_1": _F_1, "Block_with_Spa_se": Block_with_Spa_se}
 
 
@@ -140,14 +139,14 @@ def test_render_choice_block(shared_session: Session, shared_package: Package):
 
 
 @_render_as_stmt
-def test_render_class_block(shared_session: Session, shared_package: Package):
+def test_render_message_block(shared_session: Session, shared_package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
         "ShapeType",
         fields=[Field.option("Circle"), Field.option("Square"), Field.option("Triangle")],
     )
     Shape = Block.new(
-        BlockType.CLASS,
+        BlockType.MESSAGE,
         "Shape",
         fields=[Field.member("kind", ShapeType), Field.member("is_cool", bool)],
     )

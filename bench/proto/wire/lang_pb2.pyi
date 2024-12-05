@@ -876,7 +876,6 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_UNSPECIFIED: _ClassVar[BlockType]
     BLOCK_TYPE_PAGE: _ClassVar[BlockType]
     BLOCK_TYPE_TEXT: _ClassVar[BlockType]
-    BLOCK_TYPE_CLASS: _ClassVar[BlockType]
     BLOCK_TYPE_CHOICE: _ClassVar[BlockType]
     BLOCK_TYPE_MESSAGE: _ClassVar[BlockType]
     BLOCK_TYPE_ACTION: _ClassVar[BlockType]
@@ -2386,7 +2385,6 @@ OBJECT_KIND_BUILTIN: ObjectKind
 BLOCK_TYPE_UNSPECIFIED: BlockType
 BLOCK_TYPE_PAGE: BlockType
 BLOCK_TYPE_TEXT: BlockType
-BLOCK_TYPE_CLASS: BlockType
 BLOCK_TYPE_CHOICE: BlockType
 BLOCK_TYPE_MESSAGE: BlockType
 BLOCK_TYPE_ACTION: BlockType

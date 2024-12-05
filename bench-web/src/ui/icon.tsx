@@ -253,7 +253,6 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.PAGE]: "fas fa-memo",
   [BlockType.TEXT]: "fas fa-align-left",
   // class
-  [BlockType.CLASS]: "fas fa-shapes",
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.MESSAGE]: "fas fa-envelope",
   // runnable
@@ -665,8 +664,6 @@ export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData |
     if (icon != null) return icon;
   } else if (node.kind == TypeKind.BASED_NODE && node.benchType == BenchType.FIELD) {
     return ICON_BY_BLOCK_TYPE[BlockType.CHOICE];
-  } else if (node.kind == TypeKind.CUSTOM_OBJECT) {
-    return ICON_BY_BLOCK_TYPE[BlockType.CLASS];
   } else if (node.benchType != null) {
     const icon = ICON_BY_BENCH_TYPE[node.benchType];
     if (icon != null) return icon;

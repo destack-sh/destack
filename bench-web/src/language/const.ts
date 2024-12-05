@@ -79,15 +79,9 @@ export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 200 && nt < 3
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
 export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
-export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.MESSAGE, BlockType.DATABASE];
+export const TYPE_BLOCK_TYPES = [BlockType.CHOICE, BlockType.MESSAGE, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.ACTION, BlockType.FLOW];
-export const CLASSY_BLOCK_TYPES = [
-  BlockType.CLASS,
-  BlockType.MESSAGE,
-  ...RUNNABLE_BLOCK_TYPES,
-  BlockType.VALUE,
-  BlockType.DATABASE,
-];
+export const CLASSY_BLOCK_TYPES = [BlockType.MESSAGE, ...RUNNABLE_BLOCK_TYPES, BlockType.VALUE, BlockType.DATABASE];
 
 // step
 export const STEP_TYPES = Object.values(StepType).filter((v) => typeof v == "number" && v > 0) as StepType[];
@@ -224,7 +218,6 @@ export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
 export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [
   BlockType.PAGE,
-  BlockType.CLASS,
   BlockType.CHOICE,
   BlockType.TEXT,
   BlockType.ACTION,
