@@ -2177,7 +2177,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     def from_partial(cls, partial: "CustomObject", **kwargs) -> Self:
         """Creates a new full Node from a partial Node."""
-        node = partial.to_node(**kwargs)
+        from bench.language.value import make_node_from_partial
+
+        node = make_node_from_partial(partial, **kwargs)
         assert isinstance(node, cls), f"unexpected node {node!r} from partial {partial!r}"
         return node
 

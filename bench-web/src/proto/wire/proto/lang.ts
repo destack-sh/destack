@@ -4192,9 +4192,9 @@ export interface RunData {
      */
     startedEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp killed_at = 50;
+     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 50;
      */
-    killedAt?: Timestamp;
+    stoppedAt?: Timestamp;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 51;
      */
@@ -4636,6 +4636,25 @@ export interface CreateStepData {
      * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 100;
      */
     nodePartialPacked?: JsonValue;
+}
+/**
+ * A data or control flow node in a Flow. Steps are connected by Pipes.
+ *
+ * @generated from protobuf message symbolx.bench.CloneStepData
+ */
+export interface CloneStepData {
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 100;
+     */
+    nodePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 101;
+     */
+    nodePartialPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: bool recursive = 110;
+     */
+    recursive: boolean;
 }
 /**
  * A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -5192,9 +5211,9 @@ export interface MachineData {
      */
     startedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp killed_at = 61;
+     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 61;
      */
-    killedAt?: Timestamp;
+    stoppedAt?: Timestamp;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 62;
      */
@@ -10914,17 +10933,21 @@ export enum StepType {
      */
     CREATE = 50,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_UPDATE = 51;
+     * @generated from protobuf enum value: STEP_TYPE_CLONE = 51;
      */
-    UPDATE = 51,
+    CLONE = 51,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_DELETE = 52;
+     * @generated from protobuf enum value: STEP_TYPE_UPDATE = 52;
      */
-    DELETE = 52,
+    UPDATE = 52,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_RESTORE = 53;
+     * @generated from protobuf enum value: STEP_TYPE_DELETE = 53;
      */
-    RESTORE = 53,
+    DELETE = 53,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_RESTORE = 54;
+     */
+    RESTORE = 54,
     /**
      * @generated from protobuf enum value: STEP_TYPE_ACTION = 60;
      */
@@ -10933,6 +10956,18 @@ export enum StepType {
      * @generated from protobuf enum value: STEP_TYPE_YIELD = 62;
      */
     YIELD = 62,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_PAUSE = 70;
+     */
+    PAUSE = 70,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_RESUME = 71;
+     */
+    RESUME = 71,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_STOP = 72;
+     */
+    STOP = 72,
     /**
      * @generated from protobuf enum value: STEP_TYPE_LOOP = 501;
      */
@@ -22475,7 +22510,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 47, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 48, name: "started_at", kind: "message", T: () => Timestamp },
             { no: 49, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 50, name: "killed_at", kind: "message", T: () => Timestamp },
+            { no: 50, name: "stopped_at", kind: "message", T: () => Timestamp },
             { no: 51, name: "interrupted_at", kind: "message", T: () => Timestamp },
             { no: 52, name: "interrupt_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 53, name: "paused_at", kind: "message", T: () => Timestamp },
@@ -22614,8 +22649,8 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional int32 started_epoch */ 49:
                     message.startedEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp killed_at */ 50:
-                    message.killedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.killedAt);
+                case /* optional google.protobuf.Timestamp stopped_at */ 50:
+                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
                     break;
                 case /* optional google.protobuf.Timestamp interrupted_at */ 51:
                     message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
@@ -22785,9 +22820,9 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional int32 started_epoch = 49; */
         if (message.startedEpoch !== undefined)
             writer.tag(49, WireType.Varint).int32(message.startedEpoch);
-        /* optional google.protobuf.Timestamp killed_at = 50; */
-        if (message.killedAt)
-            Timestamp.internalBinaryWrite(message.killedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp stopped_at = 50; */
+        if (message.stoppedAt)
+            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp interrupted_at = 51; */
         if (message.interruptedAt)
             Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
@@ -23714,6 +23749,67 @@ class CreateStepData$Type extends MessageType$<CreateStepData> {
  * @generated MessageType for protobuf message symbolx.bench.CreateStepData
  */
 export const CreateStepData = new CreateStepData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CloneStepData$Type extends MessageType$<CloneStepData> {
+    constructor() {
+        super("symbolx.bench.CloneStepData", [
+            { no: 100, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 101, name: "node_partial_packed", kind: "message", T: () => Value },
+            { no: 110, name: "recursive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
+    }
+    create(value?: PartialMessage<CloneStepData>): CloneStepData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.recursive = false;
+        if (value !== undefined)
+            reflectionMergePartial<CloneStepData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CloneStepData): CloneStepData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.NodeReferenceData node_ptr */ 100:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* optional google.protobuf.Value node_partial_packed */ 101:
+                    message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* bool recursive */ 110:
+                    message.recursive = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CloneStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.NodeReferenceData node_ptr = 100; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value node_partial_packed = 101; */
+        if (message.nodePartialPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* bool recursive = 110; */
+        if (message.recursive !== false)
+            writer.tag(110, WireType.Varint).bool(message.recursive);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.CloneStepData
+ */
+export const CloneStepData = new CloneStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UpdateStepData$Type extends MessageType$<UpdateStepData> {
     constructor() {
@@ -24741,7 +24837,7 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 52, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 53, name: "current_ram", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 60, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 61, name: "killed_at", kind: "message", T: () => Timestamp },
+            { no: 61, name: "stopped_at", kind: "message", T: () => Timestamp },
             { no: 62, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 63, name: "active_at", kind: "message", T: () => Timestamp },
             { no: 64, name: "restarted_at", kind: "message", T: () => Timestamp },
@@ -24859,8 +24955,8 @@ class MachineData$Type extends MessageType$<MachineData> {
                 case /* optional google.protobuf.Timestamp started_at */ 60:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
                     break;
-                case /* optional google.protobuf.Timestamp killed_at */ 61:
-                    message.killedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.killedAt);
+                case /* optional google.protobuf.Timestamp stopped_at */ 61:
+                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
                     break;
                 case /* optional google.protobuf.Timestamp terminated_at */ 62:
                     message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
@@ -24973,9 +25069,9 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* optional google.protobuf.Timestamp started_at = 60; */
         if (message.startedAt)
             Timestamp.internalBinaryWrite(message.startedAt, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp killed_at = 61; */
-        if (message.killedAt)
-            Timestamp.internalBinaryWrite(message.killedAt, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp stopped_at = 61; */
+        if (message.stoppedAt)
+            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp terminated_at = 62; */
         if (message.terminatedAt)
             Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
@@ -28007,13 +28103,14 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.ICON]: IconViewData,
 }
 
-export type StepSubtype = ActionStepData | FailStepData | GetStepData | SearchStepData | CreateStepData | UpdateStepData | DeleteStepData | RestoreStepData | LoopStepData | TextStepData;
+export type StepSubtype = ActionStepData | FailStepData | GetStepData | SearchStepData | CreateStepData | CloneStepData | UpdateStepData | DeleteStepData | RestoreStepData | LoopStepData | TextStepData;
 export interface StepSubtypeMapping extends Record<StepType, StepSubtype> {
   [StepType.ACTION]: ActionStepData,
   [StepType.FAIL]: FailStepData,
   [StepType.GET]: GetStepData,
   [StepType.SEARCH]: SearchStepData,
   [StepType.CREATE]: CreateStepData,
+  [StepType.CLONE]: CloneStepData,
   [StepType.UPDATE]: UpdateStepData,
   [StepType.DELETE]: DeleteStepData,
   [StepType.RESTORE]: RestoreStepData,
@@ -28502,7 +28599,7 @@ export enum MachineProperty {
   ram = 52,
   currentRam = 53,
   startedAt = 60,
-  killedAt = 61,
+  stoppedAt = 61,
   terminatedAt = 62,
   activeAt = 63,
   restartedAt = 64,
@@ -29124,7 +29221,7 @@ export enum RunProperty {
   scheduledEpoch = 47,
   startedAt = 48,
   startedEpoch = 49,
-  killedAt = 50,
+  stoppedAt = 50,
   interruptedAt = 51,
   interruptPtr = 52,
   pausedAt = 53,
@@ -29333,6 +29430,12 @@ export enum SearchStepProperty {
 
 export enum CreateStepProperty {
   nodePartialPacked = 100,
+}
+
+export enum CloneStepProperty {
+  nodePtr = 100,
+  nodePartialPacked = 101,
+  recursive = 110,
 }
 
 export enum UpdateStepProperty {
@@ -30200,6 +30303,7 @@ export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
   [StepType.GET]: GetStepProperty,
   [StepType.SEARCH]: SearchStepProperty,
   [StepType.CREATE]: CreateStepProperty,
+  [StepType.CLONE]: CloneStepProperty,
   [StepType.UPDATE]: UpdateStepProperty,
   [StepType.DELETE]: DeleteStepProperty,
   [StepType.RESTORE]: RestoreStepProperty,
@@ -30392,7 +30496,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], nodeScopePtr: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, nodeTypes: [], nodeScopePtr: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30420,7 +30524,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30506,7 +30610,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30517,7 +30621,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.ram]: { id: 52, name: 'ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, nodeTypes: [], nodeScopePtr: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentRam]: { id: 53, name: 'current_ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.startedAt]: { id: 60, name: 'started_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.killedAt]: { id: 61, name: 'killed_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.stoppedAt]: { id: 61, name: 'stopped_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.terminatedAt]: { id: 62, name: 'terminated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 63, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.restartedAt]: { id: 64, name: 'restarted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -31117,7 +31221,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.scheduledEpoch]: { id: 47, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.startedAt]: { id: 48, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.startedEpoch]: { id: 49, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.killedAt]: { id: 50, name: 'killed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.stoppedAt]: { id: 50, name: 'stopped_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.interruptedAt]: { id: 51, name: 'interrupted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.interruptPtr]: { id: 52, name: 'interrupt_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPT], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.pausedAt]: { id: 53, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -31304,6 +31408,11 @@ export const SearchStepDataInfo: Record<SearchStepProperty, PropertyInfo> = {
 }
 export const CreateStepDataInfo: Record<CreateStepProperty, PropertyInfo> = {
   [CreateStepProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+}
+export const CloneStepDataInfo: Record<CloneStepProperty, PropertyInfo> = {
+  [CloneStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [CloneStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [CloneStepProperty.recursive]: { id: 110, name: 'recursive', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const UpdateStepDataInfo: Record<UpdateStepProperty, PropertyInfo> = {
   [UpdateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -31981,6 +32090,7 @@ export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, Prope
   [StepType.GET]: GetStepDataInfo,
   [StepType.SEARCH]: SearchStepDataInfo,
   [StepType.CREATE]: CreateStepDataInfo,
+  [StepType.CLONE]: CloneStepDataInfo,
   [StepType.UPDATE]: UpdateStepDataInfo,
   [StepType.DELETE]: DeleteStepDataInfo,
   [StepType.RESTORE]: RestoreStepDataInfo,

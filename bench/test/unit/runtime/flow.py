@@ -3,7 +3,7 @@ import asyncio
 from bench.language import Agency, BlockType, RunStatus
 from bench.language.block import Block
 from bench.language.code import code
-from bench.language.const import FieldType, NodeMode, NodeType
+from bench.language.const import NodeMode
 from bench.language.field import Field
 from bench.language.flow import ActionStep, PipeType, Step, StepType
 from bench.language.interrupt import Breakpoint, BreakpointScope, Interrupt, InterruptStatus
@@ -29,27 +29,6 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(Code)
     _ = await local_runtime.run(Complete)
     _ = await local_runtime.run(Fail)
-
-
-async def test_run_step_create(local_runtime: RuntimeHandle):
-    """Run a CreateStep to create a Message."""
-    MessageType1 = Block.new(BlockType.MESSAGE, "Message", fields=(Field.member("Rating", int),))
-    Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Create = Step.new(
-        StepType.CREATE,
-        "Create",
-        node_type=NodeType.MESSAGE,
-        field_type=FieldType.MEMBER,
-        block_base=MessageType1,
-    )
-    Flow1.steps.append(Create)
-    local_runtime.page().blocks.extend(MessageType1, Flow1)
-    await local_runtime.commit()
-
-    runner = await local_runtime.run(Create, inputs={"Rating": 1})
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 1
-    assert runner.outputs and isinstance(runner.outputs, Message)
-    assert runner.outputs.Rating == 1
 
 
 async def test_run_pipe_directly(local_runtime: RuntimeHandle):
@@ -207,7 +186,7 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
-async def test_run_flow_code(local_runtime: RuntimeHandle):
+async def test_run_flow_code_step(local_runtime: RuntimeHandle):
     """Run a code step with values."""
     Flow1 = Block.new(
         BlockType.FLOW,
@@ -298,7 +277,39 @@ async def test_run_flow_fail_step(local_runtime: RuntimeHandle):
     assert runner.error.text == Text.plain("Fail text")
 
     # from step inputs
-    # nocheckin
+    runner = await local_runtime.run(
+        Flow1, inputs={"error_title": "Custom title"}, return_error=True
+    )
+    assert runner.status == RunStatus.FAILED
+    assert runner.error
+    assert runner.error.title == "Custom title"
+    assert runner.error.text == Text.plain("Fail text")
+
+
+async def test_run_flow_create_step(local_runtime: RuntimeHandle):
+    """Run a CreateStep to create a Message."""
+    MessageType1 = Block.new(BlockType.MESSAGE, "Message", fields=(Field.member("Rating", int),))
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Create = Step.new(
+        StepType.CREATE,
+        "Create",
+        node_partial=Message.partial(title="My message", block_base=MessageType1, Rating=2),
+    )
+    Flow1.steps.append(Create)
+    local_runtime.page().blocks.extend(MessageType1, Flow1)
+    await local_runtime.commit()
+
+    # run from step
+    runner = await local_runtime.run(Create)
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 1
+    assert runner.outputs and isinstance(runner.outputs, Message)
+    assert runner.outputs.Rating == 2
+
+    # run from step inputs
+    runner = await local_runtime.run(Create, inputs={"Rating": 3})
+    assert runner.tracked_run and len(runner.tracked_run.runs) == 1
+    assert runner.outputs and isinstance(runner.outputs, Message)
+    assert runner.outputs.Rating == 3
 
 
 async def test_run_flow_race(local_runtime: RuntimeHandle):
@@ -442,7 +453,7 @@ async def test_run_flow_abort(local_runtime: RuntimeHandle):
     run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)
-    local_runtime.runtime.kill(run)
+    local_runtime.runtime.stop(run)
     runner = await run_task
     # flow should be aborted
     assert runner.status == RunStatus.ABORTED

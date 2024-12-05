@@ -21,7 +21,7 @@ import {
   ResourceStatus,
   Struct,
   TypeConstraintData,
-  UploadFilesResponse_UploadHandle
+  UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
 import { isNode, isNodeOrRef, makeScope, newNodeId, nodeReference, toNodeRef } from "@/proto/wiring";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/ui/icon";
@@ -401,10 +401,7 @@ export function downloadFiles(
 }
 
 /** Download a single file from the Host. Returns as soon as the download starts. */
-export function downloadFile(
-  file: NodeReferenceData | FileData,
-  options?: { includeContent?: boolean },
-): FileDownload {
+export function downloadFile(file: NodeReferenceData | FileData, options?: { includeContent?: boolean }): FileDownload {
   const download = downloadFiles([file], options)[0];
   return download;
 }
@@ -540,8 +537,7 @@ async function sha256(content: File): Promise<string> {
 /** Gets the icon for the given file. */
 export function getFileIcon(file: FileData): IconData | null {
   if (file.format != null && ICON_BY_FILE_FORMAT[file.format] != null) return ICON_BY_FILE_FORMAT[file.format]!;
-  else if (file.type != null && ICON_BY_FILE_TYPE[file.type] != null)
-    return ICON_BY_FILE_TYPE[file.type]!;
+  else if (file.type != null && ICON_BY_FILE_TYPE[file.type] != null) return ICON_BY_FILE_TYPE[file.type]!;
   else return null;
 }
 
@@ -595,5 +591,5 @@ export function getFileAcceptFromConstraint(
   constraint: TypeConstraintData | undefined,
 ): string | undefined {
   if (type == FileType.GENERIC) return undefined;
-  return getFileAccept({ allowedTypes: [type], allowedFormats: constraint?.fileFormats });
+  return getFileAccept({ allowedTypes: [type] });
 }

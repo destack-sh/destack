@@ -119,7 +119,7 @@ class Runtime:
         started_at: datetime | None = None
         terminated_at: datetime | None = None
         try:
-            if runner.is_killed:
+            if runner.is_stopped:
                 raise asyncio.CancelledError()
             with tracer.start_as_current_span("runtime.attempt.run"):
                 if attempt.started_at is None:
@@ -444,17 +444,17 @@ class Runtime:
             if parent_runner is not None:
                 parent_runner.resume(child_runs)
 
-    def kill(self, run: Run):
+    def stop(self, run: Run):
         """Kill a Run that is currently active in this Runtime (and any inside it)."""
         root_runner = self._active_runners_by_id.get(run.id)
         if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
         for runner in reversed(list(root_runner.walk())):
             if not runner.status.is_terminal:
-                runner.kill()
+                runner.stop()
                 if runner.tracked_run is not None:
                     self.close(runner.tracked_run, resume=not runner.is_root)
-                logger.debug("runtime.run.kill", runner=runner)
+                logger.debug("runtime.run.stop", runner=runner)
 
     def close(self, run: Run, resume: bool = True):
         """Close the Interrupts in a Run."""

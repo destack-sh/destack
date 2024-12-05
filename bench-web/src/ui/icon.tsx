@@ -281,12 +281,17 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.SEARCH]: "fas fa-magnifying-glass",
   // write
   [StepType.CREATE]: "fas fa-plus",
+  [StepType.CLONE]: "fas fa-clone",
   [StepType.UPDATE]: "fas fa-pencil",
   [StepType.DELETE]: "fas fa-trash",
   [StepType.RESTORE]: "fas fa-trash-undo",
   // run
   [StepType.ACTION]: "fas fa-code",
   [StepType.YIELD]: "fas fa-hand",
+  // session
+  [StepType.PAUSE]: "fas fa-pause",
+  [StepType.RESUME]: "fas fa-play",
+  [StepType.STOP]: "fas fa-stop",
   // control
   // ...
   // containers

@@ -1298,11 +1298,15 @@ enum StepType {
   STEP_TYPE_GET = 40;
   STEP_TYPE_SEARCH = 41;
   STEP_TYPE_CREATE = 50;
-  STEP_TYPE_UPDATE = 51;
-  STEP_TYPE_DELETE = 52;
-  STEP_TYPE_RESTORE = 53;
+  STEP_TYPE_CLONE = 51;
+  STEP_TYPE_UPDATE = 52;
+  STEP_TYPE_DELETE = 53;
+  STEP_TYPE_RESTORE = 54;
   STEP_TYPE_ACTION = 60;
   STEP_TYPE_YIELD = 62;
+  STEP_TYPE_PAUSE = 70;
+  STEP_TYPE_RESUME = 71;
+  STEP_TYPE_STOP = 72;
   STEP_TYPE_LOOP = 501;
   STEP_TYPE_TEXT = 900;
 }
@@ -2837,7 +2841,7 @@ message RunData {
   optional int32 scheduled_epoch = 47;
   optional google.protobuf.Timestamp started_at = 48;
   optional int32 started_epoch = 49;
-  optional google.protobuf.Timestamp killed_at = 50;
+  optional google.protobuf.Timestamp stopped_at = 50;
   optional google.protobuf.Timestamp interrupted_at = 51;
   optional NodeReferenceData interrupt_ptr = 52;
   optional google.protobuf.Timestamp paused_at = 53;
@@ -2966,6 +2970,13 @@ message SearchStepData {
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message CreateStepData {
   optional google.protobuf.Value node_partial_packed = 100;
+}
+
+// A data or control flow node in a Flow. Steps are connected by Pipes.
+message CloneStepData {
+  NodeReferenceData node_ptr = 100;
+  optional google.protobuf.Value node_partial_packed = 101;
+  bool recursive = 110;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
@@ -3123,7 +3134,7 @@ message MachineData {
   float ram = 52;
   optional float current_ram = 53;
   optional google.protobuf.Timestamp started_at = 60;
-  optional google.protobuf.Timestamp killed_at = 61;
+  optional google.protobuf.Timestamp stopped_at = 61;
   optional google.protobuf.Timestamp terminated_at = 62;
   optional google.protobuf.Timestamp active_at = 63;
   optional google.protobuf.Timestamp restarted_at = 64;

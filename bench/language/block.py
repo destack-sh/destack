@@ -200,7 +200,7 @@ class Block(SourceNode[BlockData]):
                     base_type=self,
                     base_field_type=field_type or FieldType.MEMBER,
                 )
-        elif self.type == BlockType.ACTION and cast(ActionBlock, self).delegate_ptr:
+        elif self.type == BlockType.ACTION and cast(ActionBlock, self).delegate_ptr and as_object:
             delegate = cast(ActionBlock, self).delegate
             return (
                 delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
