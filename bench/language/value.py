@@ -437,7 +437,7 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
 
 
 def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
-    raise NotImplementedError  # nocheckin
+    raise NotImplementedError
 
 
 def _get_custom_object_properties(
@@ -464,7 +464,10 @@ def _get_custom_object_properties(
         node_properties = node_cls.__original_properties__.values()
         subtype_properties = ()
         if node_cls.__subtype_base_property__ is not None:
-            subtype = value_packed.get(node_cls.__subtype_base_property__.key)
+            if typ.constraint is not None and typ.constraint.node_subtypes:
+                subtype = typ.constraint.node_subtypes[0]
+            else:
+                subtype = value_packed.get(node_cls.__subtype_base_property__.key)
             if subtype is not None:
                 subtype_cls = node_cls.__subclass_by_subtype__[cast(IdEnum, subtype)]
                 subtype_properties = subtype_cls.__subtype_extra_properties__.values()
@@ -504,7 +507,10 @@ def _get_custom_object_property(
         if prop is not None:
             return prop
         elif node_cls.__subtype_base_property__ is not None:
-            subtype = value_packed.get(node_cls.__subtype_base_property__.key)
+            if typ.constraint is not None and typ.constraint.node_subtypes:
+                subtype = typ.constraint.node_subtypes[0]
+            else:
+                subtype = value_packed.get(node_cls.__subtype_base_property__.key)
             if subtype is not None:
                 subtype_cls = node_cls.__subclass_by_subtype__[cast(IdEnum, subtype)]
                 return subtype_cls.__original_properties__.get(name)

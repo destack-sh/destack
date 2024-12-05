@@ -125,7 +125,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     @property
     def value_type(self) -> "TypeBase | None":
         block = self.block
-        return block.to_type(as_object=True) if block is not None else None
+        return block.to_type(of="value") if block is not None else None
 
     @staticmethod
     def new(

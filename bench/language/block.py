@@ -1,4 +1,14 @@
-from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Literal,
+    Optional,
+    Type,
+    Union,
+    assert_never,
+    cast,
+)
 
 import cachetools
 
@@ -162,79 +172,43 @@ class Block(SourceNode[BlockData]):
 
     @cachetools.cached({})  # :CachedTypeInfo
     def to_type(
-        self, *, as_object: bool = False, field_type: FieldType | None = None
+        self, *, of: Literal["instance", "value"] = "instance", field_type: FieldType | None = None
     ) -> "TypeBase | None":
         """Get a type represented by this Block (if any)"""
         from bench.language.field import TypeInfo
 
-        if self.type == BlockType.CLASS:
-            # NOTE: we turn Class Blocks into Alias Types here for correctness, but that means
-            #  we have to resolve them again (unnecessarily) before instantiating.
-            typ = TypeInfo(
-                kind=TypeKind.CUSTOM_OBJECT, base_type=self, base_field_type=FieldType.MEMBER
-            )
-        elif self.type == BlockType.CHOICE:
-            typ = TypeInfo(
-                kind=TypeKind.BASED_NODE,
+        if of == "instance":
+            if self.type == BlockType.CHOICE:
+                instance_type = NodeType.FIELD
+            elif self.type == BlockType.MESSAGE:
+                instance_type = NodeType.MESSAGE
+            elif self.type == BlockType.DATABASE:
+                instance_type = NodeType.RECORD
+            elif self.type.is_runnable:
+                instance_type = NodeType.RUN
+            else:
+                return None  # no 'instance' type
+            return TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=instance_type)
+        elif of == "value":
+            return TypeInfo(
+                kind=TypeKind.CUSTOM_OBJECT,
                 base_type=self,
-                bench_type=NodeType.FIELD,
-                base_field_type=FieldType.OPTION,
+                base_field_type=field_type or FieldType.MEMBER,
             )
-        elif self.type == BlockType.MESSAGE:
-            if not as_object:
-                typ = TypeInfo(
-                    kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.MESSAGE
-                )
-            else:
-                typ = TypeInfo(
-                    kind=TypeKind.CUSTOM_OBJECT,
-                    base_type=self,
-                    base_field_type=field_type or FieldType.MEMBER,
-                )
-        elif self.type == BlockType.DATABASE:
-            if not as_object:
-                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RECORD)
-            else:
-                typ = TypeInfo(
-                    kind=TypeKind.CUSTOM_OBJECT,
-                    base_type=self,
-                    base_field_type=field_type or FieldType.MEMBER,
-                )
-        elif self.type == BlockType.ACTION and cast(ActionBlock, self).delegate_ptr and as_object:
-            delegate = cast(ActionBlock, self).delegate
-            return (
-                delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
-            )
-        elif self.type.is_runnable:
-            if not as_object:
-                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
-            else:
-                assert field_type is not None, f"missing field_type for object {self!r}"
-                typ = TypeInfo(
-                    kind=TypeKind.CUSTOM_OBJECT, base_type=self, base_field_type=field_type
-                )
         else:
-            return None
-        return typ
-
-    @property
-    def as_type(self) -> "TypeBase":
-        """Gets a type represented by this Block (if any)"""
-        typ = self.to_type(as_object=True)
-        assert typ is not None, f"{self!r} has no type"
-        return typ
+            assert_never(of)
 
     @property
     def variable_type(self) -> "TypeBase | None":
-        return self.to_type(as_object=True, field_type=FieldType.VARIABLE)
+        return self.to_type(of="value", field_type=FieldType.VARIABLE)
 
     @property
     def input_type(self) -> "TypeBase | None":
-        return self.to_type(as_object=True, field_type=FieldType.INPUT)
+        return self.to_type(of="value", field_type=FieldType.INPUT)
 
     @property
     def output_type(self) -> "TypeBase | None":
-        return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
+        return self.to_type(of="value", field_type=FieldType.OUTPUT)
 
     @staticmethod
     def new[BlockT: "Block" = "Block"](

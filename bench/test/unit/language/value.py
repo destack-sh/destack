@@ -91,7 +91,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     )
 
     # coerce
-    Action1Output = Action1.to_type(as_object=True, field_type=FieldType.OUTPUT)
+    Action1Output = Action1.to_type(of="value", field_type=FieldType.OUTPUT)
     assert Action1Output is not None
     obj = coerce_custom_object(
         ObjectKind.OUTPUT,
@@ -306,7 +306,7 @@ def test_roundtrip_nested_value(session: Session, package: Package):
     value.Field3 = Text.plain("hello bench!")
     value.Field4 = cast(CustomObject, class2())
 
-    class1_type = class1.to_type(as_object=True)
+    class1_type = class1.to_type(of="value")
     assert class1_type is not None, f"{class1!r} has no type"
     value_packed = pack_value(value, class1_type, wrap_scalar=True)
     unpacked_value = unpack_value(value_packed, class1_type, wrap_scalar=True)
@@ -389,5 +389,7 @@ def test_sample_choice_block(session: Session, package: Package):
         fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
     )
     page.blocks.append(choice)
-    sampled_field = sample_value(choice.as_type)
+    typ = choice.to_type(of="instance")
+    assert typ is not None, f"{choice!r} has no type"
+    sampled_field = sample_value(typ)
     assert sampled_field in choice.fields

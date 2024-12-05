@@ -3,6 +3,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Collection,
+    Literal,
     Optional,
     Sequence,
     Type,
@@ -286,39 +287,41 @@ class TypeBase(BuiltinObject):
     _from_property: Optional["Property"] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
-        kind_str = self.kind.bench_name if self.kind else "<no type>"
         base_type = self.base_type
         if base_type is not None:
             if self.bench_type is not None:
                 info_str = f"{self.bench_type.bench_name}->{base_type.absolute_path}"
             else:
-                info_str = f"{kind_str}->{base_type.absolute_path}"
+                info_str = f"{self.kind.bench_name}->{base_type.absolute_path}"
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:
             info_str = self.primitive_type.bench_name
         else:
-            info_str = kind_str
-        if self.kind == TypeKind.PARTIAL_NODE:
-            info_str = f"Partial{info_str} [{self.partial_scope.bench_name if self.partial_scope else 'Full'}]"
-        if self.condition is not None:
-            info_str += f" [{self.condition}]"
+            info_str = self.kind.bench_name
 
-        flags = []
+        clauses = []
+        if self.kind == TypeKind.PARTIAL_NODE:
+            if not info_str.startswith("Partial"):
+                info_str = f"Partial{info_str}"
+            clauses.append(self.partial_scope.bench_name if self.partial_scope else "Full")
+        if self.condition is not None:
+            clauses.append(repr(self.condition))
         if self.is_list:
-            flags.append("is_list")
+            clauses.append("is_list")
         if self.is_required:
-            flags.append("is_required")
+            clauses.append("is_required")
         if self.is_secret:
-            flags.append("is_secret")
-        if len(flags) > 0:
-            info_str += f", {', '.join(flags)}"
+            clauses.append("is_secret")
         if self.base_field_type:
-            info_str += f" [{self.base_field_type.bench_name}]"
+            clauses.append(self.base_field_type.bench_name)
         if self.constraint is not None:
             constraint_str = self.constraint.__content_str__()
             if constraint_str:
-                info_str += f" [{constraint_str}]"
+                clauses.append(constraint_str)
+
+        if clauses:
+            info_str += f" [{', '.join(clauses)}]"
         if self._from_property:
             info_str += f" from {self._from_property!s}"
 
@@ -327,8 +330,8 @@ class TypeBase(BuiltinObject):
     def morph_to(
         self,
         typ: "TypeIn",
-        as_object: bool = False,
-        type: FieldType | None = None,
+        of: Literal["instance", "value"] = "instance",
+        field_type: FieldType | None = None,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         is_required: bool = False,
         is_list: bool = False,
@@ -336,8 +339,8 @@ class TypeBase(BuiltinObject):
         """Change this type to another type."""
         typ = to_type(
             typ,
-            as_object=as_object,
-            type=type,
+            of=of,
+            field_type=field_type,
             constraint=constraint,
             is_required=is_required,
             is_list=is_list,
@@ -488,7 +491,10 @@ TypeIn = Union[
 
 
 def to_type_scalar(
-    typ: TypeIn, *, as_object: bool = False, field_type: FieldType | None = None
+    typ: TypeIn,
+    *,
+    of: Literal["instance", "value"] = "instance",
+    field_type: FieldType | None = None,
 ) -> "TypeInfo":
     """Converts a type-like object to a TypeInfo."""
     from bench.language.file import FileType
@@ -496,7 +502,7 @@ def to_type_scalar(
     if isinstance(typ, TypeBase):
         return cast("TypeInfo", typ)
     elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.STEP):
-        type_info = cast("Block|Step", typ).to_type(as_object=as_object, field_type=field_type)
+        type_info = cast("Block|Step", typ).to_type(of=of, field_type=field_type)
         if type_info is not None:
             assert isinstance(type_info, TypeInfo), f"expected TypeInfo, got {type_info!r}"
             return type_info
@@ -538,14 +544,14 @@ def to_type_scalar(
 def to_type(
     typ: TypeIn,
     *,
-    as_object: bool = False,
-    type: FieldType | None = None,
+    of: Literal["instance", "value"] = "instance",
+    field_type: FieldType | None = None,
     constraint: TypeConstraintIn | TypeConstraint | None = None,
     is_required: bool = False,
     is_list: bool = False,
 ) -> TypeInfo:
     """Converts a TypeIn into a TypeBase."""
-    type_scalar = to_type_scalar(typ, as_object=as_object, field_type=type)
+    type_scalar = to_type_scalar(typ, of=of, field_type=field_type)
     if isinstance(constraint, TypeConstraintIn):
         constraint = constraint.into()
     type_scalar.constraint = constraint
