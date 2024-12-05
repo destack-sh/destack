@@ -18,7 +18,7 @@ from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph, NodeReference
 from bench.language.property import Property
 from bench.language.session import Session
-from bench.language.setup import OBJECT_CLASS_BY_TYPE
+from bench.language.setup import BUILTIN_OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.language.value import (
     CustomObject,
@@ -46,7 +46,7 @@ OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], Object
     cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()
 }
 BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[BuiltinObject]] = {
-    cls: OBJECT_CLASS_BY_TYPE[object_type]
+    cls: BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
 }
 
@@ -122,7 +122,7 @@ def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> A
         #  (here we force unpack and then repack the value even if it wasn't unpacked before)
         typ = prop.value_type_info_getter(obj)
         assert typ is not None, f"no type for {prop!r}"
-        if typ.kind == TypeKind.OBJECT:
+        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
             assert prop.value_runtime_ptr is not None, f"no value_runtime_ptr for {prop!r}"
             value = getattr(obj, prop.value_runtime_ptr.name)
             assert (
@@ -298,7 +298,7 @@ def unpack_object[T: BuiltinObject](
     """Unpack a builtin object and any contained structs without validating."""
     supergraph = supergraph or NULL_SUPERGRAPH
     assert obj_data.metatype, f"missing metatype for {type(obj_data)}: {obj_data!r}"
-    object_cls = OBJECT_CLASS_BY_TYPE[obj_data.metatype]  # type: ignore
+    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[obj_data.metatype]  # type: ignore
     if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")
     object_kwargs = {}

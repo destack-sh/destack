@@ -22,13 +22,14 @@ TEST_TYPE_IDENTITIES: tuple[tuple[TypeInfo, str], ...] = (
     (TypeInfo(kind=TypeKind.ENUM, bench_type=EnumType.OBJECT_TYPE, is_secret=True), "!ek4E"),
     (
         TypeInfo(
-            kind=TypeKind.OBJECT,
+            kind=TypeKind.CUSTOM_OBJECT,
             base_type_ptr=NodeReference(
                 node_type=NodeType.BLOCK, ck=UUID("12345678-ffff-0000-0000-000000000000")
             ),
         ),
         "oEjRWeP//AAA=",
     ),
+    (TypeInfo(kind=TypeKind.PARTIAL_NODE), "r"),
 )
 
 

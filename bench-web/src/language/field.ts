@@ -1,6 +1,7 @@
 import {
   getTkB64FromCk,
   getTkB64FromPtr,
+  isNodeType,
   NAME_CONSTRAINT,
   padCkFromTkB64,
   RUNNABLE_BLOCK_TYPES,
@@ -26,6 +27,8 @@ import {
   NodeType,
   ObjectType,
   PrimitiveType,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
   PropertyReferenceData,
   StepData,
   StepType,
@@ -106,12 +109,7 @@ export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
     } else if ((a.constraint != null) != (b.constraint != null)) {
       return false;
     } else if (a.constraint != null && b.constraint != null) {
-      return (
-        deepValueEquals(a.constraint.blockTypes, b.constraint.blockTypes) &&
-        deepValueEquals(a.constraint.stepTypes, b.constraint.stepTypes) &&
-        deepValueEquals(a.constraint.fileTypes, b.constraint.fileTypes) &&
-        deepValueEquals(a.constraint.fileFormats, b.constraint.fileFormats)
-      );
+      return deepValueEquals(a.constraint.nodeSubtypes, b.constraint.nodeSubtypes);
     } else {
       return true;
     }
@@ -154,7 +152,7 @@ export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): Typ
     let primitiveType: PrimitiveType | undefined;
     if ((prop.referenceNodes?.length ?? 0) > 0) {
       kind = TypeKind.NODE;
-      if (prop.referenceNodes == 'any') {
+      if (prop.referenceNodes == "any") {
         benchType = undefined;
       } else {
         benchType = prop.referenceNodes![0] as unknown as BenchType;
@@ -205,14 +203,16 @@ const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
   [TypeKind.NODE]: "n",
   [TypeKind.ENUM]: "e",
   [TypeKind.BASED_NODE]: "n", // shared with node
-  [TypeKind.OBJECT]: "o",
+  [TypeKind.CUSTOM_OBJECT]: "o",
+  [TypeKind.PARTIAL_NODE]: "r",
 };
 const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
   p: TypeKind.PRIMITIVE,
   s: TypeKind.STRUCT,
   n: TypeKind.NODE,
   e: TypeKind.ENUM,
-  o: TypeKind.OBJECT,
+  o: TypeKind.CUSTOM_OBJECT,
+  r: TypeKind.PARTIAL_NODE,
 };
 
 /**
@@ -228,8 +228,10 @@ export function encodeTypeIdentity(type: TypeIdentity): string {
     value = ""; // joint identity for nodes
   } else if (type.kind == TypeKind.STRUCT || type.kind == TypeKind.ENUM) {
     value = encodeB64VLQ(type.benchType!);
-  } else if (type.kind == TypeKind.OBJECT) {
+  } else if (type.kind == TypeKind.CUSTOM_OBJECT) {
     value = getTkB64FromPtr(type.baseTypePtr!);
+  } else if (type.kind == TypeKind.PARTIAL_NODE) {
+    value = type.benchType != null ? encodeB64VLQ(type.benchType) : "";
   } else {
     throw new Error(`unsupported type kind ${type?.kind} in ${describeTypeIdentity(type)}`);
   }
@@ -265,9 +267,17 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
     return { kind, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
     return { kind, benchType: decodeB64VLQ(value) as BenchType, isRequired: false, isList, isSecret };
-  } else if (kind === TypeKind.OBJECT) {
+  } else if (kind === TypeKind.CUSTOM_OBJECT) {
     const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, ck: padCkFromTkB64(value) };
     return { kind, baseTypePtr, isRequired: false, isList, isSecret };
+  } else if (kind == TypeKind.PARTIAL_NODE) {
+    return {
+      kind,
+      benchType: value != "" ? (decodeB64VLQ(value) as BenchType) : undefined,
+      isRequired: false,
+      isList,
+      isSecret,
+    };
   } else {
     throw new Error(`unsupported type kind ${kind}`);
   }
@@ -280,42 +290,10 @@ export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): strin
   return `${getTkB64FromCk(field.ck)}${encodeTypeIdentity(fieldType)}`;
 }
 
-/** Gets the implied subtype node name  */
-export function getConstrainedTypeName(type: TypeIdentity): string | null {
-  const metatypeName = toCamelName(BenchType, type.benchType);
-  if (type.constraint?.blockTypes?.length == 1) {
-    const typeName = toCamelName(BlockType, type.constraint!.blockTypes[0]);
-    return `${typeName} ${metatypeName}`;
-  } else if (type.constraint?.stepTypes?.length == 1) {
-    const typeName = toCamelName(StepType, type.constraint!.stepTypes[0]);
-    return `${typeName} ${metatypeName}`;
-  } else if (type.constraint?.viewTypes?.length == 1) {
-    const typeName = toCamelName(ViewType, type.constraint!.viewTypes[0]);
-    return `${typeName} ${metatypeName}`;
-  } else if (type.constraint?.fileTypes?.length == 1) {
-    const typeName = toCamelName(FileType, type.constraint!.fileTypes[0]);
-    return `${typeName} ${metatypeName}`;
-  } else {
-    return metatypeName;
-  }
-}
-
 /** Whether the value meets the type constraints */
 export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstraintData): boolean {
-  if (constraint.blockTypes.length > 0) {
-    return isNode(node, NodeType.BLOCK) && constraint.blockTypes.includes(node.type);
-  } else if (constraint.stepTypes.length > 0) {
-    return isNode(node, NodeType.STEP) && constraint.stepTypes.includes(node.type);
-  } else if (constraint.viewTypes.length > 0) {
-    return isNode(node, NodeType.VIEW) && constraint.viewTypes.includes(node.type);
-  } else if (constraint.fileTypes.length > 0 && isNode(node, NodeType.FILE)) {
-    if (constraint.fileFormats.length > 0 && node.format != null && !constraint.fileFormats.includes(node.format)) {
-      return false;
-    } else if (constraint.fileTypes.length > 0 && !constraint.fileTypes.includes(node.type)) {
-      return false;
-    } else {
-      return true;
-    }
+  if (constraint.nodeSubtypes.length > 0) {
+    return constraint.nodeSubtypes.includes((node as any).type);
   } else {
     return true; // no constraint
   }
@@ -323,7 +301,12 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
 
 /** Whether the given type supports lists :ListableTypes. */
 export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
-  if ([TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.OBJECT].includes(type.kind)) return true;
+  if (
+    [TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.CUSTOM_OBJECT, TypeKind.PARTIAL_NODE].includes(
+      type.kind,
+    )
+  )
+    return true;
   else if (
     [
       PrimitiveType.INT32,
@@ -354,7 +337,31 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
   else return fields.filter((f) => f.type == type.baseFieldType);
 }
 
-function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): string {
+/** Gets the Node.type enum type */
+export function getSubtypeEnum(metatype: NodeType): EnumType | null {
+  const nodeProperties = PROPERTY_INFOS_BY_TYPE[metatype];
+  const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[metatype];
+  const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
+  return subtypeProperty?.enumType ?? null;
+}
+
+/** Gets the implied subtype node name  */
+export function getConstrainedTypeName(type: TypeIdentity): string | null {
+  const metatypeName = toCamelName(BenchType, type.benchType);
+  if (isNodeType(type.benchType) && type.constraint?.nodeSubtypes?.length == 1) {
+    const enumType = getSubtypeEnum(type.benchType);
+    if (enumType != null) {
+      return getEnumTitle(enumType, type.constraint.nodeSubtypes[0]);
+    } else {
+      return metatypeName;
+    }
+  } else {
+    return metatypeName;
+  }
+}
+
+/** Gets the default Field name from a type  */
+function getTypeName(graph: ReadNodeGraph, field: Partial<TypeInfoData>): string {
   if (field == null) throw new Error(`missing type for field in ${describeNode(field)}`);
   if (field.kind == TypeKind.PRIMITIVE) {
     if (field.format != null) {
@@ -362,16 +369,19 @@ function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): 
     }
     return getEnumTitle(EnumType.PRIMITIVE_TYPE, field.primitiveType!);
   } else if (field.kind == TypeKind.STRUCT || field.kind == TypeKind.NODE || field.kind == TypeKind.ENUM) {
-    if (field.benchType == BenchType.FILE && field.constraint?.fileFormats?.length == 1) {
-      return getEnumTitle(EnumType.FILE_FORMAT, field.constraint.fileFormats[0]);
-    } else if (field.benchType == BenchType.FILE && field.constraint?.fileTypes?.length == 1) {
-      return getEnumTitle(EnumType.FILE_TYPE, field.constraint.fileTypes[0]);
+    if (isNodeType(field.benchType)) {
+      const subtypeEnum = getSubtypeEnum(field.benchType);
+      if (subtypeEnum != null && field.constraint?.nodeSubtypes?.length == 1) {
+        return getEnumTitle(subtypeEnum, field.constraint.nodeSubtypes[0]);
+      } else {
+        return getEnumTitle(EnumType.BENCH_TYPE, field.benchType);
+      }
     } else if (field.benchType != null) {
       return getEnumTitle(EnumType.BENCH_TYPE, field.benchType);
     } else {
       return getEnumTitle(EnumType.TYPE_KIND, field.kind);
     }
-  } else if (field.kind == TypeKind.BASED_NODE || field.kind == TypeKind.OBJECT) {
+  } else if (field.kind == TypeKind.BASED_NODE || field.kind == TypeKind.CUSTOM_OBJECT) {
     if (field?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(field)}`);
     const baseType = graph.getOrError(field.baseTypePtr);
     if ((baseType as any).name != null) {
@@ -379,6 +389,8 @@ function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): 
     } else {
       return getEnumTitle(EnumType.BENCH_TYPE, field.benchType!);
     }
+  } else if (field.kind == TypeKind.PARTIAL_NODE) {
+    return field.benchType != null ? `${getEnumTitle(EnumType.BENCH_TYPE, field.benchType)} Partial` : "Partial";
   } else {
     throw new Error(`unexpected type kind: ${field.kind}`);
   }
@@ -427,7 +439,7 @@ export function createField(
       type = FieldType.VARIABLE;
     }
   } else if (isNode(target, NodeType.STEP)) {
-    if (fieldIn?.type == null) throw new Error(`missing zone for step field: ${describeNode(target)}`);
+    if (fieldIn?.type == null) throw new Error(`missing type for step field: ${describeNode(target)}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toNodeRef(target);
     if (anchor == "start") {
@@ -463,7 +475,7 @@ export function createField(
     name = fieldIn.name;
   } else if (type != FieldType.OPTION) {
     // make name unique (bumping number if needed)
-    name = getFieldNameFromType(graph, fieldIn!);
+    name = getTypeName(graph, fieldIn!);
     const siblings = graph.getChildren(parentPtr, NodeType.FIELD);
     let i = 2;
     while (siblings.some((s) => s.name == name)) {
@@ -522,10 +534,10 @@ export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: Fi
 
   if (type != null) {
     // update name if it was generated
-    const oldName = getFieldNameFromType(graph, field);
+    const oldName = getTypeName(graph, field);
     if (field.name.startsWith(oldName)) {
       // make it unique (bumping number if needed)
-      update.name = getFieldNameFromType(graph, type);
+      update.name = getTypeName(graph, type);
       const siblings = graph.getChildren(field.parentPtr!, NodeType.FIELD);
       let i = 2;
       while (siblings.some((s) => s.name == update.name)) {

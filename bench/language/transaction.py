@@ -35,7 +35,7 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import p_internal, p_system, p_value_packed
-from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
+from bench.language.setup import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.value import (
     CustomObject,
     pack_proto_json,
@@ -654,7 +654,7 @@ def apply_edit_operation_data(
         if is_property:
             # builtin object property
             assert type(obj) is not ProtoStruct, f"unexpected object: {obj} for {op!r}"
-            obj_type = OBJECT_CLASS_BY_TYPE[obj.metatype]  # type: ignore
+            obj_type = BUILTIN_OBJECT_CLASS_BY_TYPE[obj.metatype]  # type: ignore
             prop_id = int(key)
             prop = obj_type.__properties_by_id__.get(prop_id)
             if prop is None:

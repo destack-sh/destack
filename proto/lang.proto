@@ -43,6 +43,7 @@ enum EnumType {
   ENUM_TYPE_OBJECT_KIND = 21505;
   ENUM_TYPE_BLOCK_TYPE = 21506;
   ENUM_TYPE_AGENCY = 21507;
+  ENUM_TYPE_PARTIAL_NODE_SCOPE = 21508;
   ENUM_TYPE_SCHEDULE_TYPE = 22001;
   ENUM_TYPE_TIME_INTERVAL = 22002;
   ENUM_TYPE_DAY = 22003;
@@ -83,7 +84,7 @@ enum EnumType {
   ENUM_TYPE_PORT_SIDE = 23021;
   ENUM_TYPE_PIPE_TYPE = 23022;
   ENUM_TYPE_NOTIFICATION_LEVEL = 23023;
-  ENUM_TYPE_NodeMode = 23024;
+  ENUM_TYPE_NODE_MODE = 23024;
   ENUM_TYPE_SPACE_TYPE = 23501;
   ENUM_TYPE_VIEW_TYPE = 23502;
   ENUM_TYPE_VARIANT = 23503;
@@ -545,6 +546,7 @@ enum BenchType {
   BENCH_TYPE_OBJECT_KIND = 21505;
   BENCH_TYPE_BLOCK_TYPE = 21506;
   BENCH_TYPE_AGENCY = 21507;
+  BENCH_TYPE_PARTIAL_NODE_SCOPE = 21508;
   BENCH_TYPE_SCHEDULE_TYPE = 22001;
   BENCH_TYPE_TIME_INTERVAL = 22002;
   BENCH_TYPE_DAY = 22003;
@@ -585,7 +587,7 @@ enum BenchType {
   BENCH_TYPE_PORT_SIDE = 23021;
   BENCH_TYPE_PIPE_TYPE = 23022;
   BENCH_TYPE_NOTIFICATION_LEVEL = 23023;
-  BENCH_TYPE_NodeMode = 23024;
+  BENCH_TYPE_NODE_MODE = 23024;
   BENCH_TYPE_SPACE_TYPE = 23501;
   BENCH_TYPE_VIEW_TYPE = 23502;
   BENCH_TYPE_VARIANT = 23503;
@@ -850,7 +852,7 @@ enum TypeKind {
   TYPE_KIND_NODE = 3;
   TYPE_KIND_ENUM = 4;
   TYPE_KIND_BASED_NODE = 5;
-  TYPE_KIND_OBJECT = 6;
+  TYPE_KIND_CUSTOM_OBJECT = 6;
   TYPE_KIND_PARTIAL_NODE = 7;
   TYPE_KIND_LITERAL = 8;
   TYPE_KIND_UNION = 9;
@@ -898,6 +900,14 @@ enum Agency {
   AGENCY_CODE = 1;
   AGENCY_DELEGATE = 2;
   AGENCY_GENERATE = 3;
+}
+
+// The scope of properties in a partial Node object.
+enum PartialNodeScope {
+  PARTIAL_NODE_SCOPE_UNSPECIFIED = 0;
+  PARTIAL_NODE_SCOPE_FULL = 1;
+  PARTIAL_NODE_SCOPE_BASE = 2;
+  PARTIAL_NODE_SCOPE_SUBTYPE = 3;
 }
 
 enum ScheduleType {
@@ -1711,11 +1721,7 @@ message TypeConstraintData {
   repeated NodeType node_types = 70;
   repeated NodeReferenceData node_scope_ptr = 71;
   optional int32 node_max_depth = 72;
-  repeated BlockType block_types = 80;
-  repeated StepType step_types = 81;
-  repeated FileType file_types = 82;
-  repeated FileFormat file_formats = 83;
-  repeated ViewType view_types = 84;
+  repeated int32 node_subtypes = 73;
 }
 
 message TypeInfoData {
@@ -1726,6 +1732,7 @@ message TypeInfoData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldType base_field_type = 44;
   optional NodeReferenceData oneof_ptr = 45;
+  optional PartialNodeScope partial_scope = 46;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
   optional ExpressionData condition = 54;
@@ -2262,6 +2269,7 @@ message FieldData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldType base_field_type = 44;
   optional NodeReferenceData oneof_ptr = 45;
+  optional PartialNodeScope partial_scope = 46;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
   optional ExpressionData condition = 54;

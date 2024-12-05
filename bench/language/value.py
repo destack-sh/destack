@@ -1,7 +1,17 @@
 import base64
 from collections.abc import Mapping
 from datetime import date, datetime, time, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, TypeGuard, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Iterable,
+    Optional,
+    Sequence,
+    TypeGuard,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import pytz
@@ -36,7 +46,10 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import ENUM_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
+from bench.language.setup import (
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
+    ENUM_CLASS_BY_TYPE,
+)
 from bench.language.validation import NAME_CONSTRAINT, TYPE_CONSTRAINT_BY_FORMAT, on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData, Date, TimeOfDay
 from bench.utils.fractional import INTEGER_ZERO
@@ -111,26 +124,23 @@ class CustomObject(Mapping[str, Any]):
     def __init__(
         self,
         kind: ObjectKind,
-        type: "TypeBase",
-        value: dict[str, SomeValue] | None = None,
+        typ: "TypeBase",
+        value: dict[str, SomeValue],
         parent: ValueParent | None = None,
         parent_key: ValueParentKey | None = None,
         supergraph: NodeSuperGraph | None = None,
     ):
         self.kind = kind
-        self._type = type
+        self._type = typ
         self._value = value  # unpacked value
         self.parent = parent
         self.parent_key = parent_key
-        self._supergraph = supergraph or type._supergraph
+        self._supergraph = supergraph or typ._supergraph
         assert self._supergraph != NULL_SUPERGRAPH, f"missing supergraph for {self!r}"
 
     def __str__(self) -> str:
-        if self._value is None:
-            return ""
         set_fields: list[str] = []
-        object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[self.kind]
-        for prop in object_cls.__properties__.values():
+        for prop in _get_custom_object_properties(self.kind, self._type, self._value):
             prop_value = self._do_get(prop)
             if prop_value:
                 if type(prop_value) is list:
@@ -157,15 +167,10 @@ class CustomObject(Mapping[str, Any]):
         """Checks if all fields of the two Values are equal (recursively)."""
         if other is None or type(other) is not CustomObject:
             return False
-        elif self._value is None:
-            return other._value is None
-        elif other._value is None:
-            return False
-        object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[self.kind]
         for field in self._type._base_fields:
             if self._value.get(field.storage_key) != other._value.get(field.storage_key):
                 return False
-        for prop in object_cls.__properties__.values():
+        for prop in _get_custom_object_properties(self.kind, self._type, self._value):
             if self._value.get(prop.key) != other._value.get(prop.key):
                 return False
         return True
@@ -176,8 +181,7 @@ class CustomObject(Mapping[str, Any]):
         return True  # always True
 
     def _get_key(self, item: str) -> "Field | Property | None":
-        object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[self.kind]
-        prop = object_cls.__properties__.get(item)
+        prop = _get_custom_object_property(self.kind, self._type, self._value, item)
         if prop is not None:
             return prop
         else:
@@ -199,8 +203,6 @@ class CustomObject(Mapping[str, Any]):
     __getattr__ = __getitem__
 
     def _do_get(self, key: "Field | Property") -> SomeValue:
-        if self._value is None:
-            return key.default
         value = self._value.get(key.key)
         if value is None:
             return key.default
@@ -236,8 +238,6 @@ class CustomObject(Mapping[str, Any]):
         new_value = coerce_value(new_value, key_typ, as_packed=True, parent=self, parent_key=key)
         if validate:
             check_value(new_value, key_typ, invalid=on_invalid_raise)
-        if self._value is None:
-            self._value = {}
         storage_key = key.key
         old_value = self._value.get(storage_key)
         self._value[storage_key] = new_value
@@ -250,7 +250,7 @@ class CustomObject(Mapping[str, Any]):
 
     def __setattr__(self, item: str, value: SomeValue) -> None:
         # NOTE: __setattr__ is also called for slots so we have to bypass those
-        if item in CustomObject.__slots__:
+        if item in CustomObject.__slots__:  # this might be slow?
             object.__setattr__(self, item, value)
         self.__setitem__(item, value)
 
@@ -350,11 +350,13 @@ class CustomObject(Mapping[str, Any]):
         supergraph: NodeSuperGraph | None = None,
     ) -> "CustomObject":
         """Creates a new Object of the given Object type, coercing the given value."""
-        assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object type"
+        assert (
+            typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE
+        ), f"{typ!r} is not an Object type"
         return CustomObject(
             kind=kind,
-            type=typ,
-            value=value,
+            typ=typ,
+            value=value if value is not None else {},
             parent=parent,
             parent_key=parent_property,
             supergraph=supergraph,
@@ -362,13 +364,36 @@ class CustomObject(Mapping[str, Any]):
 
     @property
     def _type_name(self) -> str:
-        if self._type.kind != TypeKind.OBJECT or self._type.base_type is None:
-            if self._type.kind is not None:
-                return self._type.kind.bench_name
-            else:
-                return "?Object"
+        if self._type.kind != TypeKind.CUSTOM_OBJECT or self._type.base_type is None:
+            return self._type.kind.bench_name
         else:
             return self._type.base_type.absolute_path
+
+
+def _get_custom_object_properties(
+    kind: ObjectKind, typ: "TypeBase", value_packed: Mapping[str, JsonValue | SomeValue]
+) -> "Iterable[Property, ...]":
+    """Gets all the custom object properties available in this value."""
+    custom_object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[kind]
+    if kind == TypeKind.PARTIAL_NODE:
+        if typ.bench_type is not None:
+            bench_type = typ.bench_type
+        elif "1" in value_packed:
+            bench_type = int(value_packed["1"])  # type: ignore
+        else:
+            return custom_object_cls.__properties__.values()
+    else:
+        return custom_object_cls.__properties__.values()
+
+
+def _get_custom_object_property(
+    kind: ObjectKind,
+    typ: "TypeBase",
+    value_packed: Mapping[str, JsonValue | SomeValue] | None,
+    name: str,
+) -> "Property | None":
+    """Gets the property with the given name from the custom object."""
+    raise NotImplementedError  # nocheckin
 
 
 def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
@@ -377,7 +402,9 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
     assert type(wired_prop) is Property, f"no wired prop for {prop!r}"
     value_packed = getattr(obj, wired_prop.name)
     value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
-    if value_type is not None and value_type.kind == TypeKind.OBJECT:
+    if value_type is not None and (
+        value_type.kind == TypeKind.CUSTOM_OBJECT or value_type.kind == TypeKind.PARTIAL_NODE
+    ):
         if value_packed is None:
             # init custom objects to empty value object instead of None
             #  (so we can track modifications properly)
@@ -566,7 +593,7 @@ def coerce_value(
     Returns value as is if already of correct type, raises TypeError if coercion is not possible.
     NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """
-    if typ.kind == TypeKind.OBJECT:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
         assert typ.base_field_type is not None, f"missing base field type for {typ!r}"
         object_kind = ObjectKind(typ.base_field_type)
         if not typ.is_list:
@@ -777,7 +804,7 @@ def check_value(value: Any, typ: "TypeBase", invalid: "ValidationHandler") -> No
             invalid(value, "missing required value", typ)
         else:
             return
-    if typ.kind == TypeKind.OBJECT:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
         if not typ.is_list:
             check_custom_object_scalar(value, typ, invalid)
         elif _check_is_list(value, typ, invalid):
@@ -864,10 +891,10 @@ def sample_scalar_value(typ: "TypeBase") -> ScalarValue | None:
 
 def sample_builtin_object_scalar(typ: "TypeBase") -> "BuiltinObject":
     """Samples a representative object value for the given type (recursively)."""
-    object_cls = OBJECT_CLASS_BY_TYPE.get(cast(ObjectType, typ.bench_type))
-    assert object_cls is not None, f"missing object class for {typ!r}"
+    builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE.get(cast(ObjectType, typ.bench_type))
+    assert builtin_object_cls is not None, f"missing object class for {typ!r}"
     object_kwargs = {}
-    for prop in object_cls.__runtime_properties__.values():
+    for prop in builtin_object_cls.__runtime_properties__.values():
         if (
             # ignore runtime-only properties
             prop.id is None
@@ -895,14 +922,16 @@ def sample_builtin_object_scalar(typ: "TypeBase") -> "BuiltinObject":
     if typ.bench_type == StructType.TYPE_INFO:
         # many types don't support lists, so just make it a scalar
         object_kwargs["is_list"] = False
-    return object_cls(**object_kwargs)
+    return builtin_object_cls(**object_kwargs)
 
 
 def sample_custom_object_scalar(
     kind: ObjectKind, typ: "TypeBase", recurse_objects: bool = True
 ) -> CustomObject:
     """Samples a representative object value for the given type (recursively)."""
-    assert typ.kind == TypeKind.OBJECT, f"expected object type, got {typ!r}"
+    assert (
+        typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE
+    ), f"expected object type, got {typ!r}"
     value = {}
     for field in typ._base_fields:
         if field.is_list:
@@ -915,9 +944,11 @@ def sample_custom_object_scalar(
 @tracer.start_as_current_span(name="value.sample")
 def sample_value(typ: "TypeBase", recurse_objects: bool = True) -> SomeValue:
     """Samples a representative value for the given type (recursively)."""
-    if typ.kind == TypeKind.OBJECT:
-        assert typ.base_field_type is not None, f"missing base field type for {typ!r}"
-        object_kind = ObjectKind(typ.base_field_type)
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+        if typ.base_field_type is not None:
+            object_kind = ObjectKind(typ.base_field_type)
+        else:
+            object_kind = ObjectKind.BUILTIN
         if not typ.is_list:
             return sample_custom_object_scalar(object_kind, typ, recurse_objects)
         else:
@@ -1082,8 +1113,8 @@ def pack_builtin_object_data(
 ) -> dict[str, JsonValue]:
     """Packs a single struct/node data value using typed proto ids as keys and enum values."""
     value_packed: dict[str, JsonValue] = {}
-    object_cls = OBJECT_CLASS_BY_TYPE[value.metatype]  # type: ignore
-    for prop in only if only is not None else object_cls.__wired_properties__.values():
+    builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]  # type: ignore
+    for prop in only if only is not None else builtin_object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
         prop_name = prop.name
@@ -1117,11 +1148,11 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
         object_type = cast(ObjectType, int(object_type))
     else:
         object_type = wiring.OBJECT_TYPE_BY_PROTO_CLASS[expect]
-    object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+    builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[object_type]
 
     value = into if into is not None else proto_cls(metatype=object_type)  # type: ignore
-    for prop in only if only is not None else object_cls.__wired_properties__.values():
+    for prop in only if only is not None else builtin_object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
         prop_value_packed = value_packed.get(prop.key)
@@ -1152,7 +1183,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
         field_value = cast(SomeValue, _value.get(storage_key))
         if field_value is None:
             continue
-        elif field.kind == TypeKind.OBJECT:
+        elif field.kind == TypeKind.CUSTOM_OBJECT or field.kind == TypeKind.PARTIAL_NODE:
             value_packed[storage_key] = pack_value(field_value, field, wrap_scalar=False)
         elif not field.is_list:
             value_packed[storage_key] = pack_value_scalar(cast(ScalarValue, field_value), field)
@@ -1165,8 +1196,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
             ]
 
     # properties
-    object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[value.kind]
-    for prop in object_cls.__properties__.values():
+    for prop in _get_custom_object_properties(value.kind, typ, _value):
         storage_key = prop.key
         prop_value = cast(SomeValue, _value.get(storage_key))
         if prop_value is None:
@@ -1205,7 +1235,7 @@ def unpack_custom_object(
         field_value_packed = value_packed.get(storage_key)
         if field_value_packed is None:
             continue
-        elif field.kind == TypeKind.OBJECT:
+        elif field.kind == TypeKind.CUSTOM_OBJECT or field.kind == TypeKind.PARTIAL_NODE:
             field_value = unpack_value(field_value_packed, field, wrap_scalar=False)
             if field_value is None:
                 continue
@@ -1222,8 +1252,7 @@ def unpack_custom_object(
         value[storage_key] = field_value
 
     # properties
-    object_cls = CUSTOM_OBJECT_CLASS_BY_KIND[kind]
-    for prop in object_cls.__properties__.values():
+    for prop in _get_custom_object_properties(kind, typ, value_packed):
         storage_key = prop.key
         prop_value_packed = value_packed.get(storage_key)
         if prop_value_packed is None:
@@ -1258,7 +1287,7 @@ def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap_scalar: bool) -
     Packs a value into a JSON representation.
     """
 
-    if typ.kind == TypeKind.OBJECT:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
         # nested object
         if not typ.is_list:
             if type(value) is not CustomObject:
@@ -1288,7 +1317,10 @@ def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap_scalar: bool) -
 
 def pack_value_data(value: SomeValueData, typ: "TypeBase", wrap_scalar: bool = True) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
-    assert typ.kind != TypeKind.OBJECT, f"cannot pack data for {typ!r}"
+    assert typ.kind not in (
+        TypeKind.CUSTOM_OBJECT,
+        TypeKind.PARTIAL_NODE,
+    ), f"cannot pack data for {typ!r}"
     # wrap scalar
     value_packed: JsonValue
     if value is None:
@@ -1314,9 +1346,12 @@ def unpack_value(
     """
     Unpacks a value from its JSON representation.
     """
-    if typ.kind == TypeKind.OBJECT:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
         # nested object
-        kind = ObjectKind(typ.base_field_type)
+        if typ.base_field_type is not None:
+            kind = ObjectKind(typ.base_field_type)
+        else:
+            kind = ObjectKind.BUILTIN
         if not typ.is_list:
             if not isinstance(value_packed, dict):
                 raise TypeError(f"{value_packed!r} is not a dict, expected {typ!r}")
@@ -1364,7 +1399,7 @@ def unpack_value_data(
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
     """
-    if typ.kind == TypeKind.OBJECT:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
         # nested object
         return value_packed
     else:
@@ -1552,7 +1587,7 @@ def coerce_custom_object(kind: ObjectKind, typ: "TypeBase", value_raw: Any) -> C
     If this doesn't work, we raise ValueError/TypeError accordingly.
     """
 
-    assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object"
+    assert typ.kind == TypeKind.CUSTOM_OBJECT, f"{typ!r} is not an Object"
 
     fields = typ._fields
     properties = CUSTOM_OBJECT_CLASS_BY_KIND[kind].__properties__.values()

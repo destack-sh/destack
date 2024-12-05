@@ -73,12 +73,12 @@ const runTree = computed(() => runtime.focusedRunTree);
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
 const inputType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.INPUT })
+    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.INPUT })
     : undefined,
 );
 const outputType = computed(() =>
   runBasePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.OUTPUT })
+    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.OUTPUT })
     : undefined,
 );
 
@@ -99,12 +99,12 @@ const interrupts = computed(() => {
     if (!INTERRUPT_TYPES.includes(interrupt.type)) continue;
     const base = runTree.value.getBase(getInterruptBasePtr(interrupt)!)!;
     const inputType = makeTypeInfo({
-      kind: TypeKind.OBJECT,
+      kind: TypeKind.CUSTOM_OBJECT,
       baseTypePtr: getInterruptBasePtr(interrupt)!,
       baseFieldType: FieldType.INPUT,
     });
     const outputType = makeTypeInfo({
-      kind: TypeKind.OBJECT,
+      kind: TypeKind.CUSTOM_OBJECT,
       baseTypePtr: getInterruptBasePtr(interrupt)!,
       baseFieldType: FieldType.OUTPUT,
     });
@@ -122,12 +122,7 @@ function setContinuations(interrupt: InterruptInfo, value: ContinueData[]) {
   const continuationsPacked = packCustomObjectProperty(ObjectType.OUTPUT_OBJECT, value, "continuations");
   runTree.value.tx.update(
     interrupt.interrupt,
-    {
-      outputsPacked: {
-        ...(interrupt.interrupt.outputsPacked as any),
-        ...((continuationsPacked as any) ?? {}),
-      },
-    },
+    { outputsPacked: { ...(interrupt.interrupt.outputsPacked as any), ...((continuationsPacked as any) ?? {}) } },
     { debounce: "tick" },
   );
 }
@@ -271,9 +266,9 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
               <!-- Node -->
               <span>{{ interrupt.base?.name ?? "???" }}</span>
               <!-- Duration -->
-              <span class="ml-0.5 text-gray-400">{{
-                getInterruptDurationString(interrupt.interrupt, { minUnit: "s" })
-              }}</span>
+              <span class="ml-0.5 text-gray-400">
+                {{ getInterruptDurationString(interrupt.interrupt, { minUnit: "s" }) }}
+              </span>
               <!-- Meta/Controls -->
               <div class="ml-auto flex flex-row items-center gap-x-1">
                 <!-- Actions -->

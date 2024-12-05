@@ -55,25 +55,16 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 
 const fileType = computed(() => {
-  if (props.valueType?.constraint?.fileTypes?.length == 1) return props.valueType.constraint.fileTypes[0];
+  if (props.valueType?.constraint?.nodeSubtypes?.length == 1)
+    return props.valueType.constraint.nodeSubtypes[0] as FileType;
   else if (props.type != null) return FILE_TYPE_BY_VIEW_TYPE[props.type] ?? FileType.GENERIC;
   else return FileType.GENERIC;
 });
-const fileFormat = computed(() => {
-  if (props.valueType?.constraint?.fileFormats?.length == 1) return props.valueType.constraint.fileFormats[0];
-  else return undefined;
-});
 const facetIcon = computed(() => {
-  if (fileFormat.value != null && ICON_BY_FILE_FORMAT[fileFormat.value] != null) {
-    return ICON_BY_FILE_FORMAT[fileFormat.value];
-  } else {
-    return ICON_BY_FILE_TYPE[fileType.value];
-  }
+  return ICON_BY_FILE_TYPE[fileType.value];
 });
 const facetName = computed(() => {
-  if (fileFormat.value != null) {
-    return `${toCamelName(FileFormat, fileFormat.value)} ${toCamelName(FileType, fileType.value)}`;
-  } else if (fileType.value != FileType.GENERIC) {
+  if (fileType.value != FileType.GENERIC) {
     return toCamelName(FileType, fileType.value);
   } else {
     return "File";
@@ -124,7 +115,6 @@ async function onFileSelected(files: File[]) {
     upload.value = uploadFile(() => pkgConnection.tx, content, {
       bench: bench.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
-      allowedFormats: fileFormat.value != null ? [fileFormat.value] : undefined,
     });
     await upload.value.completion.wait();
     if (upload.value.file.value == null) throw new Error("missing file in upload");

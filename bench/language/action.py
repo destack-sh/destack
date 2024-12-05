@@ -48,7 +48,7 @@ class ActionBase(BuiltinObject):
         require=False,
         array=True,
         references=(NodeType.BLOCK, NodeType.FIELD),
-        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+        constraint=constraint(node_subtypes=[BlockType.ACTION, BlockType.FLOW]),
         description="Available implementations and tools for this action.",
     )
     delegate: Optional["Block"] = p_regular(
@@ -56,7 +56,7 @@ class ActionBase(BuiltinObject):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+        constraint=constraint(node_subtypes=[BlockType.ACTION, BlockType.FLOW]),
         description="Current implementation for this action.",
     )
     if TYPE_CHECKING:
@@ -72,7 +72,7 @@ class Call(Struct):
         30,
         require=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+        constraint=constraint(node_subtypes=[BlockType.ACTION, BlockType.FLOW]),
     )
     inputs_packed: Any = p_value_packed(31)
     inputs: Any = p_value_runtime(
@@ -115,7 +115,7 @@ class Continue(Struct):
         30,
         require=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.ACTION, BlockType.FLOW]),
+        constraint=constraint(node_subtypes=[BlockType.ACTION, BlockType.FLOW]),
     )
     inputs_packed: Any = p_value_packed(31)
     inputs: Any = p_value_runtime(

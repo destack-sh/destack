@@ -71,11 +71,11 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.setup import (
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
     DESCENDANT_NODE_TYPES,
     HAS_CHILD_NODE_TYPES,
     NODE_CLASS_BY_NAME,
     NODE_CLASS_BY_TYPE,
-    OBJECT_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.language.validation import (
@@ -2371,7 +2371,7 @@ class HasRuntimeContext(BuiltinObject):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.IDENTITY]),
+        constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
     )
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
@@ -2562,7 +2562,7 @@ class NodeReference(Struct[NodeReferenceData]):
     def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         from bench.proto import wire
 
-        node_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
+        node_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
         reference = NodeReferenceData(
             metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
             node_type=cast(wire.NodeType, node_data.metatype),
@@ -2601,7 +2601,7 @@ class PropertyReference(Struct):
     references_meta: Optional[str] = p_internal(33, default=None)
 
     def __content_str__(self):
-        object_cls = Node if self.type is None else OBJECT_CLASS_BY_TYPE.get(self.type)
+        object_cls = Node if self.type is None else BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.type)
         if object_cls is None:
             if self.type is None:
                 return f"Node.??? [id={self.id}]"
@@ -2619,7 +2619,7 @@ class PropertyReference(Struct):
         if self.type is None:
             return Node
         else:
-            return OBJECT_CLASS_BY_TYPE.get(self.type)
+            return BUILTIN_OBJECT_CLASS_BY_TYPE.get(self.type)
 
     def resolve(self) -> Property:
         resolved = self.resolve_maybe()

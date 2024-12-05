@@ -63,7 +63,7 @@ const value = computed(() => {
   const valuePacked = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valuePacked");
   if (valueType == null) {
     return undefined;
-  } else if (valueType.value.kind == TypeKind.OBJECT) {
+  } else if (valueType.value.kind == TypeKind.CUSTOM_OBJECT || valueType.value.kind == TypeKind.PARTIAL_NODE) {
     return valuePacked;
   } else {
     return unpackValue(valuePacked!, valueType.value, {
@@ -77,7 +77,7 @@ function updateValue(value: any) {
   if (block.value?.type != BlockType.VALUE) throw new Error(`no value block`);
   const valueType = unpackSubnodeProperty(NodeType.BLOCK, BlockType.VALUE, block.value.subnodePacked, "valueType");
   const valuePacked =
-    valueType?.kind == TypeKind.OBJECT
+    valueType?.kind == TypeKind.CUSTOM_OBJECT || valueType?.kind == TypeKind.PARTIAL_NODE
       ? value
       : packValue(value, valueType!, { graph: graph, wrapScalar: true, recurseCustomObject: false });
   if (valuePacked != null) {

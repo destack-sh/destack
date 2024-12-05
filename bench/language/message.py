@@ -84,7 +84,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.MESSAGE]),
+        constraint=constraint(node_subtypes=[BlockType.MESSAGE]),
     )
     reply_to: Optional["Message"] = p_regular(
         37, require=False, array=False, references=NodeType.MESSAGE

@@ -160,5 +160,5 @@ class Invite(BenchNode[InviteData]):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.ROLE]),
+        constraint=constraint(node_subtypes=[BlockType.ROLE]),
     )

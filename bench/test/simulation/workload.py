@@ -310,7 +310,7 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
     """Write a random tree of blocks."""
 
     def __str__(self):
-        return f"pkg={self.pkg!r}, block_types={repr_enums(self.spec.block_types)}, edit_types={repr_enums(self.spec.edit_types)}"
+        return f"pkg={self.pkg!r}, node_subtypes={repr_enums(self.spec.block_types)}, edit_types={repr_enums(self.spec.edit_types)}"
 
     @override
     def _do_init(self):

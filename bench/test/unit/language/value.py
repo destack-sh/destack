@@ -179,7 +179,7 @@ def test_roundtrip_nested_value(session: Session, package: Package):
         name="Field4",
         base_type=class2,
         base_field_type=FieldType.MEMBER,
-        kind=TypeKind.OBJECT,
+        kind=TypeKind.CUSTOM_OBJECT,
     )
 
     # outer value

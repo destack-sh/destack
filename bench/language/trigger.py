@@ -85,7 +85,7 @@ class TriggerBase(BuiltinObject):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_types=[BlockType.MESSAGE]),
+        constraint=constraint(node_subtypes=[BlockType.MESSAGE]),
     )
     condition: Optional["Expression"] = p_regular(
         52, default=None, require=False, array=False, struct=StructType.EXPRESSION

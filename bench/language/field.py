@@ -20,11 +20,11 @@ from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     TK_LENGTH_B64,
     BenchType,
-    BlockType,
     EnumType,
     FieldType,
     NodeType,
     ObjectKind,
+    PartialNodeScope,
     PrimitiveType,
     PrimitiveValue,
     StructType,
@@ -74,13 +74,10 @@ if typing.TYPE_CHECKING:
     from bench.language import (
         Block,
         Expression,
-        FileFormat,
         FileType,
         Icon,
         Step,
-        StepType,
         Text,
-        ViewType,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -95,14 +92,16 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.NODE: "n",
     TypeKind.BASED_NODE: "n",  # overlap with TypeKind.NODE
     TypeKind.ENUM: "e",
-    TypeKind.OBJECT: "o",
+    TypeKind.CUSTOM_OBJECT: "o",
+    TypeKind.PARTIAL_NODE: "r",
 }
 TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
     "p": TypeKind.PRIMITIVE,
     "s": TypeKind.STRUCT,
     "n": TypeKind.NODE,
     "e": TypeKind.ENUM,
-    "o": TypeKind.OBJECT,
+    "o": TypeKind.CUSTOM_OBJECT,
+    "r": TypeKind.PARTIAL_NODE,
 }
 
 
@@ -122,9 +121,11 @@ def encode_type_identity(typ: "TypeBase") -> str:
     elif typ.kind == TypeKind.STRUCT or typ.kind == TypeKind.ENUM:
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         value = encode_b64vlq(typ.bench_type.id)
-    elif typ.kind == TypeKind.OBJECT:
+    elif typ.kind == TypeKind.CUSTOM_OBJECT:
         assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
         value = get_tk_b64_from_ptr(typ.base_type_ptr)
+    elif typ.kind == TypeKind.PARTIAL_NODE:
+        value = encode_b64vlq(typ.bench_type.id) if typ.bench_type else ""
     else:
         raise ValueError(f"unsupported type kind {typ.kind} for {typ!r}")
 
@@ -167,12 +168,20 @@ def decode_type_identity(key: str) -> "TypeBase":
         )
     elif kind == TypeKind.NODE or kind == TypeKind.BASED_NODE.value:
         return TypeInfo(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
-    elif kind == TypeKind.OBJECT.value:
+    elif kind == TypeKind.CUSTOM_OBJECT.value:
         base_type_ptr = NodeReference(
             node_type=NodeType.BLOCK, ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64])
         )
         return TypeInfo(
-            kind=TypeKind.OBJECT, base_type_ptr=base_type_ptr, is_list=is_list, is_secret=is_secret
+            kind=TypeKind.CUSTOM_OBJECT,
+            base_type_ptr=base_type_ptr,
+            is_list=is_list,
+            is_secret=is_secret,
+        )
+    elif kind == TypeKind.PARTIAL_NODE.value:
+        bench_type = BenchType(decode_b64vlq(value)) if value else None  # type: ignore
+        return TypeInfo(
+            kind=TypeKind.PARTIAL_NODE, bench_type=bench_type, is_list=is_list, is_secret=is_secret
         )
 
     raise ValueError(f"unsupported type kind {kind}")
@@ -205,12 +214,9 @@ class TypeConstraint(Struct):
     node_types: list["NodeType"] = p_regular(70, array=True)
     node_scope: list["Node"] = p_regular(71, require=False, array=True, references="any")
     node_max_depth: Optional[int] = p_regular(72, require=False, default=None)
+    node_subtypes: list[int] = p_regular(73, array=True)
     # specific node-ish
-    block_types: list["BlockType"] = p_regular(80, array=True)
-    step_types: list["StepType"] = p_regular(81, array=True)
-    file_types: list["FileType"] = p_regular(82, array=True)
-    file_formats: list["FileFormat"] = p_regular(83, array=True)
-    view_types: list["ViewType"] = p_regular(84, array=True)
+    # ...?
 
 
 constraint = TypeConstraint
@@ -233,7 +239,7 @@ class TypeBase(BuiltinObject):
        9. Union (type is union of Field children with oneof=self)
 
     Types may also specify:
-       - field type, narrowing the fields included from the base type (if any)
+       - field type, narrowing the Fields included from the base type (if any)
        - condition which instances must satisfy
        - constraints (simple conditions the value must satisfy)
        - combination flags for arrays, optionals
@@ -258,6 +264,7 @@ class TypeBase(BuiltinObject):
         references=(NodeType.FIELD, NodeType.BLOCK),
         same_bench=True,
     )
+    partial_scope: Optional[PartialNodeScope] = p_regular(46, default=None)
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
@@ -363,9 +370,11 @@ class TypeBase(BuiltinObject):
                 if field is None:
                     raise ValueError(f"no field {args!r} in {self.base_type!r}")
                 return field
-        elif self.kind == TypeKind.OBJECT:
-            assert self.base_field_type is not None, f"missing base field type for {self!r}"
-            object_kind = ObjectKind(self.base_field_type)
+        elif self.kind == TypeKind.CUSTOM_OBJECT or self.kind == TypeKind.PARTIAL_NODE:
+            if self.base_field_type is not None:
+                object_kind = ObjectKind(self.base_field_type)
+            else:
+                object_kind = ObjectKind.BUILTIN
             return coerce_custom_object_scalar(object_kind, kwargs, self, as_packed=True)
 
         raise ValueError(f"cannot create {self!r} (resolved={self!r}) directly")
@@ -377,7 +386,8 @@ class TypeBase(BuiltinObject):
             TypeKind.NODE,
             TypeKind.BASED_NODE,
             TypeKind.ENUM,
-            TypeKind.OBJECT,
+            TypeKind.CUSTOM_OBJECT,
+            TypeKind.PARTIAL_NODE,
         ):
             return True
         elif self.primitive_type in (  # noqa: SIM103
@@ -467,7 +477,6 @@ TypeIn = Union[
     "BenchType",
     "TypeFormat",
     "FileType",
-    "FileFormat",
     Type[Struct],
     Type[Node],
     Type[PrimitiveValue],
@@ -478,7 +487,7 @@ def to_type_scalar(
     typ: TypeIn, *, as_object: bool = False, field_type: FieldType | None = None
 ) -> "TypeInfo":
     """Converts a type-like object to a TypeInfo."""
-    from bench.language.file import FileFormat, FileType
+    from bench.language.file import FileType
 
     if isinstance(typ, TypeBase):
         return cast("TypeInfo", typ)
@@ -502,13 +511,7 @@ def to_type_scalar(
         return TypeInfo(
             kind=TypeKind.NODE,
             bench_type=NodeType.FILE,
-            constraint=TypeConstraint(file_types=[typ]),
-        )
-    elif isinstance(typ, FileFormat):
-        return TypeInfo(
-            kind=TypeKind.NODE,
-            bench_type=NodeType.FILE,
-            constraint=TypeConstraint(file_formats=[typ]),
+            constraint=TypeConstraint(node_subtypes=[typ]),
         )
     elif isinstance(typ, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
@@ -560,10 +563,8 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
             return typ.primitive_type
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
         if typ.constraint is not None:
-            if len(typ.constraint.file_formats) == 1:
-                return typ.constraint.file_formats[0]
-            elif len(typ.constraint.file_types) == 1:
-                return typ.constraint.file_types[0]
+            if len(typ.constraint.node_subtypes) == 1:
+                return cast(TypeIn, typ.constraint.node_subtypes[0])
         if typ.kind == TypeKind.NODE and typ.bench_type is None:
             return Node
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
