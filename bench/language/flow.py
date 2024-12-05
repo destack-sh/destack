@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Optional, Type, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Type, Union, assert_never, cast
 from uuid import UUID
 
 import cachetools
@@ -11,6 +11,7 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
+    PartialNodeScope,
     RunType,
     StructType,
     TypeKind,
@@ -32,6 +33,7 @@ from bench.language.property import (
     p_node_children,
     p_node_parent,
     p_regular,
+    p_system,
     p_value_packed,
     p_value_runtime,
 )
@@ -282,7 +284,7 @@ class Step(SourceNode[StepData]):
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
 
     # common
-    type: StepType = p_internal(30)
+    type: StepType = p_system(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
@@ -379,41 +381,57 @@ class Step(SourceNode[StepData]):
 
     @cachetools.cached({})  # :CachedTypeInfo
     def to_type(
-        self, as_object: bool = True, field_type: FieldType | None = None
+        self,
+        of: Literal["instance", "value"] = "instance",
+        field_type: FieldType | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Step (if any)"""
         from bench.language.builtin import STUB_BY_STEP_TYPE
         from bench.language.field import TypeInfo
 
-        if self.type == StepType.START:
-            parent = self.parent
-            return parent.input_type if parent is not None else None
-        elif self.type == StepType.COMPLETE:
-            parent = self.parent
-            return parent.output_type if parent is not None else None
-        elif self.type == StepType.ACTION and cast(ActionStep, self).delegate_ptr and as_object:
-            delegate = cast(ActionStep, self).delegate
-            return (
-                delegate.to_type(as_object=as_object, field_type=field_type) if delegate else None
-            )
-        else:
-            if not as_object:
-                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
-            else:
-                base = STUB_BY_STEP_TYPE.get(self.type) or self
-                assert field_type is not None, f"missing field_type for object {self!r}"
+        if of == "instance":
+            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
+            return typ
+        elif of == "value":
+            if self.type == StepType.START:
+                parent = self.parent
+                return parent.input_type if parent is not None else None
+            elif self.type == StepType.COMPLETE:
+                parent = self.parent
+                return parent.output_type if parent is not None else None
+
+            base = self
+            if self.type == StepType.ACTION and cast(ActionStep, self).delegate_ptr:
+                delegate = cast(ActionStep, self).delegate
+                base = delegate or self
+            elif self.type in STUB_BY_STEP_TYPE:
+                base = STUB_BY_STEP_TYPE[self.type]
+            assert field_type is not None, f"missing field_type for object {self!r}"
+
+            if field_type == FieldType.INPUT:
                 typ = TypeInfo(
-                    kind=TypeKind.CUSTOM_OBJECT, base_type=self, base_field_type=field_type
+                    kind=TypeKind.PARTIAL_NODE,
+                    base_type=base,
+                    bench_type=NodeType.STEP,
+                    base_field_type=field_type,
+                    partial_scope=PartialNodeScope.SUBTYPE,
+                    constraint=TypeConstraint(node_subtypes=[self.type]),
+                )
+            else:
+                typ = TypeInfo(
+                    kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_type=field_type
                 )
             return typ
+        else:
+            assert_never(of)
 
     @property
     def input_type(self) -> "TypeBase | None":
-        return self.to_type(as_object=True, field_type=FieldType.INPUT)
+        return self.to_type(of="value", field_type=FieldType.INPUT)
 
     @property
     def output_type(self) -> "TypeBase | None":
-        return self.to_type(as_object=True, field_type=FieldType.OUTPUT)
+        return self.to_type(of="value", field_type=FieldType.OUTPUT)
 
     @staticmethod
     def new[StepT: "Step" = "Step"](
