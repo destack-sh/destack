@@ -34,7 +34,7 @@ from bench.proto.wire import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Icon, NodeReference, Text
+    from bench.language import Bench, Block, Icon, NodeReference, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -96,8 +96,6 @@ class User(Node[UserData]):
 
     # flags
     is_staff: bool = p_system(90, default=False)
-
-    clients: LocalNodeList["Client"] = p_node_children(NodeType.CLIENT)
 
     @property
     def bench(self) -> "Bench":

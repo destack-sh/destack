@@ -23,6 +23,7 @@ from bench.language.flow import (
     UpdateStep,
 )
 from bench.language.interrupt import BreakpointScope, BreakpointSite, Interrupt, InterruptType
+from bench.language.node import HasNodeBase
 from bench.language.run import Run, RunError, RunErrorType, RunnableNode, RunOptions, RunType
 from bench.language.text import Text
 from bench.language.value import (
@@ -472,8 +473,16 @@ class CreateStepRunner(StepRunnerBase):
                 node.parent = self.session.package
             elif NodeType.BENCH in parent_types:
                 node.parent = self.session.bench
+            elif (
+                isinstance(node, HasNodeBase)
+                and node.base is not None
+                and (parent_types == "any" or node.base.metatype in parent_types)
+            ):
+                node.parent = node.base
         assert node.is_attached, f"node {node!r} must be attached in {self!r}"
         self.session._create(node)
+        logger.debug("step.create", step=self.node, node=node)
+
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
 
@@ -486,7 +495,11 @@ class CloneStepRunner(StepRunnerBase):
         node = inputs.node or step.node
         node_partial = inputs.node_partial
         assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r} in {self!r}"
-        node.clone(recursive=inputs.recursive)
+        cloned_node = node.clone(recursive=inputs.recursive)
+        logger.debug("step.clone", step=self.node, node=cloned_node, partial=node_partial)
+
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": cloned_node}, self.output_type)
 
 
 class UpdateStepRunner(StepRunnerBase):
@@ -500,6 +513,8 @@ class UpdateStepRunner(StepRunnerBase):
         ), f"unexpected {inputs.node_partial!r} in {self!r}"
         node = inputs.node or step.node
         patch_node_from_partial(node, node_partial)
+        logger.debug("step.update", step=self.node, node=node, partial=node_partial)
+
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
 
@@ -511,6 +526,7 @@ class DeleteStepRunner(StepRunnerBase):
         inputs = cast(DeleteStep, self.inputs)
         node = inputs.node or step.node
         self.session._delete(node)
+        logger.debug("step.delete", step=self.node, node=node)
 
 
 class RestoreStepRunner(StepRunnerBase):
@@ -520,6 +536,7 @@ class RestoreStepRunner(StepRunnerBase):
         inputs = cast(RestoreStep, self.inputs)
         node = inputs.node or step.node
         self.session._restore(node)
+        logger.debug("step.restore", step=self.node, node=node)
 
 
 #

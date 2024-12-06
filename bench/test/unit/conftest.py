@@ -6,6 +6,7 @@ from typing import Mapping
 import pytest
 import uvloop
 
+from bench.language.machine import Machine
 from bench.language.validation import clean_name
 from bench.runtime.cache import MemoryCache
 from bench.runtime.remote import RemoteEngine
@@ -34,6 +35,7 @@ from bench.language.const import (
     BlockType,
     ClientType,
     NodeMode,
+    NodeType,
     ObjectType,
     Region,
     UserStatus,
@@ -328,9 +330,9 @@ def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
 async def hosted_bench(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         user = User(
-            slug="test",
-            name="Test",
-            email="test@symbolx.com",
+            slug="user",
+            name="User",
+            email="user@symbolx.com",
             status=UserStatus.REGISTERED,
             last_logged_in_at=REAL_ORACLE.utc(),
             is_staff=True,
@@ -338,15 +340,15 @@ async def hosted_bench(global_store: Store):
         )
         session._create(user)
         await session.flush(optimistic=True)
-        client = Client(
+        user_client = Client(
             parent=user,
-            title="Test",
+            title="User",
             type=ClientType.BENCH_WEB,
             seen_at=REAL_ORACLE.utc(),
-            access_token="test",
+            access_token="user",
             _is_new=True,  # force create
         )
-        session._create(client)
+        session._create(user_client)
         await session.flush(optimistic=True)
         user.main_handle = user.handles.create(slug=user.slug)
 
@@ -357,13 +359,25 @@ async def hosted_bench(global_store: Store):
             global_store=global_store,
             session=session,
         )
+        server = bench.main_server
+        assert server is not None, f"no main server for {bench!r}"
+        server_client = Client(
+            parent=server,
+            title="Server",
+            type=ClientType.BENCH_MACHINE,
+            access_token="server",
+            _is_new=True,  # force create
+        )
+        session._create(server_client)
+        machine = Machine(parent=server, title="Machine1", cpu=0.5, ram=0.5, client=server_client)
+        session._create(machine)
         await session.flush(optimistic=True)
         user.main_bench = bench
         await session.commit()
 
         bench._untrack_rec()
         user._untrack_rec()
-        client._untrack_rec()
+        user_client._untrack_rec()
 
     return bench
 
@@ -394,13 +408,22 @@ async def host(host_service: HostService):
 async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     user = hosted_bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
-    client = user.clients[0]
+    server = hosted_bench.main_server
+    assert server is not None, f"no main server for {hosted_bench!r}"
+    machine = next(iter(server._graph.get_descendants(server, NodeType.MACHINE)))
+    assert isinstance(machine, Machine), f"unexpected machine: {machine!r}"
+
+    # get server client
+    client = next(iter(server._graph.get_descendants(server, NodeType.CLIENT)))
+    assert isinstance(client, Client), f"unexpected client: {client!r}"
     client_data = client._to_data()
+    assert client_data.access_token, f"no access token for {client!r}"
+
     rpc_metadata = RpcMetadata(
         client_type=client_data.type,
         client_id=client_data.id,
         client_nonce=client_data.id,
-        client_access_token="test",
+        client_access_token=client_data.access_token,
     )
     engines = (
         RemoteEngine(
@@ -413,7 +436,8 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     )
     session = Session(
         parent=hosted_bench.main_package,
-        user=user,
+        server=server,
+        machine=machine,
         client=client,
         _is_readonly=False,
         _default_scope=GraphScope(bench_id=hosted_bench.id)._to_data(),
@@ -422,7 +446,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _supergraph=hosted_bench._supergraph,
         _split_read=True,
         _oracle=REAL_ORACLE,
-        _subject=user,
+        _subject=server,
         _host=host,
         _origin=client.to_origin(nonce=None)._to_data(),
     )

@@ -115,8 +115,8 @@ defineExpose<ViewExposed>({ self });
             class="rounded px-0.5 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
             @click.stop="action.action()"
           >
-            <span v-if="action.isPrimary" class="mr-1">{{ action.title }}</span>
             <IconInline class="w-5 text-center" v-bind="action.icon" />
+            <span v-if="action.isPrimary" class="ml-1">{{ action.title }}</span>
           </button>
         </div>
       </div>

@@ -47,6 +47,7 @@ from bench.language.const import (
     BlockType,
     ClientType,
     EditOperationType,
+    FieldType,
     NodeMode,
     NodeType,
     ObjectKind,
@@ -2199,12 +2200,21 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
 
     @classmethod
-    def partial(cls, **kwargs: Any) -> "CustomObject":
+    def partial(cls, block: "Block | None" = None, **kwargs: Any) -> "CustomObject":
         """Creates a new partial Node of this type."""
         from bench.language.field import TypeInfo
         from bench.language.value import coerce_custom_object_scalar
 
-        typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=cls.metatype)
+        if block is not None:
+            kwargs["block"] = block
+            typ = TypeInfo(
+                kind=TypeKind.PARTIAL_NODE,
+                base_type=block,
+                base_field_type=FieldType.MEMBER,
+                bench_type=cls.metatype,
+            )
+        else:
+            typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=cls.metatype)
         return coerce_custom_object_scalar(ObjectKind.BUILTIN, kwargs, typ)
 
     @classmethod

@@ -8,7 +8,6 @@ import structlog
 from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
-from bench.language.builtin import Builtins
 from bench.language.const import (
     BenchError,
     NodeMode,
@@ -86,9 +85,6 @@ class Runtime:
         self.session._runtime = self
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
-
-        # tie builtins to session since we don't have :Dependencies yet
-        self.session._supergraph.add_graph(Builtins._graph)
 
     def __str__(self):
         return f"{len(self._active_runners_by_id)} active, {self.session!r}"

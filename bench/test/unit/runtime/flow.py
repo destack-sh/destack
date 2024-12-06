@@ -4,10 +4,10 @@ from bench.language import Agency, BlockType, RunStatus
 from bench.language.block import Block
 from bench.language.code import code
 from bench.language.const import NodeMode
+from bench.language.database import Record
 from bench.language.field import Field
 from bench.language.flow import ActionStep, PipeType, Step, StepType
 from bench.language.interrupt import Breakpoint, BreakpointScope, Interrupt, InterruptStatus
-from bench.language.message import Message
 from bench.language.run import RunErrorType, RunOptions
 from bench.language.text import Text
 from bench.runtime.runner import Interrupted, make_run_from_node, make_runner
@@ -286,30 +286,30 @@ async def test_run_flow_fail_step(local_runtime: RuntimeHandle):
     assert runner.error.text == Text.plain("Custom text")
 
 
-async def test_run_flow_create_step(local_runtime: RuntimeHandle):
-    """Run a CreateStep to create a Message."""
-    MessageType1 = Block.new(BlockType.MESSAGE, "Message", fields=(Field.member("Rating", int),))
+async def test_run_flow_create_step(hosted_runtime: RuntimeHandle):
+    """Run a CreateStep to create a Record."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Create = Step.new(
         StepType.CREATE,
         "Create",
-        node_partial=Message.partial(title="My message", block_base=MessageType1, Rating=2),
+        node_partial=Record.partial(block=Database1, Rating=2),
     )
     Flow1.steps.append(Create)
-    local_runtime.page().blocks.extend(MessageType1, Flow1)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.extend(Database1, Flow1)
+    await hosted_runtime.commit()
 
     # run from step
-    runner = await local_runtime.run(Create)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 1
-    assert runner.outputs and isinstance(runner.outputs, Message)
-    assert runner.outputs.Rating == 2
+    runner = await hosted_runtime.run(Create)
+    assert runner.status == RunStatus.COMPLETED
+    record = await Database1.records.get(Rating=2)
+    assert record is not None
 
     # run from step inputs
-    runner = await local_runtime.run(Create, inputs={"Rating": 3})
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 1
-    assert runner.outputs and isinstance(runner.outputs, Message)
-    assert runner.outputs.Rating == 3
+    runner = await hosted_runtime.run(Create, inputs={"Rating": 3})
+    assert runner.status == RunStatus.COMPLETED
+    record = await Database1.records.get(Rating=3)
+    assert record is not None
 
 
 async def test_run_flow_race(local_runtime: RuntimeHandle):

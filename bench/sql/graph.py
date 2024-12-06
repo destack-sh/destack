@@ -925,6 +925,8 @@ async def pg_graph_select(
         ]
         selected_fields = select.get_selected_fields(block)
         for field in selected_fields:
+            if field.type != FieldType.MEMBER:
+                continue
             column = node_table.get_column(field)
             columns.append(column)
     filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
