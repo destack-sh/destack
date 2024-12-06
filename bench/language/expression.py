@@ -16,6 +16,7 @@ from bench.language.const import (
     ConditionalType,
     ExpressionKind,
     ExpressionType,
+    FieldType,
     NodeType,
     ObjectKind,
     PrimitiveType,
@@ -496,20 +497,34 @@ def _get_node_prop_expression_value(node: Node | AnyNodeData, prop: Property) ->
     return _lower_expression_value(prop.type_info, value)
 
 
+NODE_PROPERTY_KEY_BY_FIELD_TYPE: dict[FieldType, str] = {
+    FieldType.INPUT: "inputs_packed",
+    FieldType.OUTPUT: "outputs_packed",
+    FieldType.MEMBER: "value_packed",
+    FieldType.VARIABLE: "variables_packed",
+}
+
+
 def _get_node_field_expression_value(node: Node | AnyNodeData, field: "Field") -> Any:
     if isinstance(node, Node):
         value = getattr(node, field.name)
     else:
-        value_packed = getattr(node, "value_packed")
-        value_packed = unpack_proto_json(value_packed)
-        value = value_packed.get(field.name) if type(value_packed) is dict else None
+        field_key = NODE_PROPERTY_KEY_BY_FIELD_TYPE.get(field.type)
+        if field_key is None:
+            return None
+        value_packed = getattr(node, field_key, None)
+        if value_packed is not None:
+            value_packed = unpack_proto_json(value_packed)
+            value = value_packed.get(field.name) if type(value_packed) is dict else None
+        else:
+            return None
     return _lower_expression_value(field, value)
 
 
 def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     """Evaluates the conditional expression on a Node / packed node data."""
     assert cond.kind == ExpressionKind.CONDITIONAL, f"expected Conditional, got {cond!r}"
-    # logical
+    # decompose compound expressions
     if cond.type in ExpressionTypes.COMPOUND:
         if not cond.clauses:
             return True  # empty compound is True :EmptyCompoundConditional
@@ -520,14 +535,23 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
         elif cond.type == ConditionalType.OR:
             return any(evaluate_conditional(clause, node) for clause in cond.clauses)
 
-    # some property-based comparison
+    # get target and value
     prop = cond.property
-    assert prop is not None, f"expected Conditional with property, got {cond!r}"
-    if prop.reference_wired_ptr is not None:
-        prop = prop.reference_wired_ptr
-    node_value = _get_node_prop_expression_value(node, prop)
+    field = cond.field
+    if prop is not None:
+        if prop.reference_wired_ptr is not None:
+            prop = prop.reference_wired_ptr
+        typ = prop.type_info
+        node_value = _get_node_prop_expression_value(node, prop)
+    elif field is not None:
+        typ = field
+        node_value = _get_node_field_expression_value(node, field)
+    else:
+        raise RuntimeError(f"expected Conditional with property or field, got {cond!r}")
+
     cond_value = cond.value
-    cond_value = _lower_expression_value(prop.type_info, cond_value)
+    cond_value = _lower_expression_value(typ, cond_value)
+
     # basic comparison
     if cond.type == ConditionalType.EQUALS:
         return node_value == cond_value
@@ -575,12 +599,11 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
         raise RuntimeError(f"unsupported conditional {cond!r}")
 
 
-def _compare_sort_key(
-    sorts: Sequence[Expression], a: Node | AnyNodeData, b: Node | AnyNodeData
-) -> int:
+def evaluate_sort(sorts: Sequence[Expression], a: Node | AnyNodeData, b: Node | AnyNodeData) -> int:
     """Compares the two values based on the given sort expressions."""
     for sort in sorts:
         prop = sort.property
+        field = sort.field
         typ = None
         if prop is not None:
             if prop.reference_wired_ptr is not None:
@@ -588,13 +611,13 @@ def _compare_sort_key(
             typ = prop.type_info
             a_value = _get_node_prop_expression_value(a, prop)
             b_value = _get_node_prop_expression_value(b, prop)
-        else:
-            field = sort.field
-            if field is None:
-                continue  # invalid sort
+        elif field is not None:
             typ = field
             a_value = _get_node_field_expression_value(a, field)
             b_value = _get_node_field_expression_value(b, field)
+        else:
+            continue  # invalid sort
+
         if a_value == b_value:
             continue
         if typ is not None and typ.primitive_type is not None:
@@ -612,7 +635,7 @@ def apply_sort[T: AnyNodeData | Node](sorts: Sequence[Expression], values: list[
     if not sorts:
         return values  # nothing to do
     assert all(sort.kind == ExpressionKind.SORT for sort in sorts), f"expected Sorts, got {sorts!r}"
-    values.sort(key=functools.cmp_to_key(lambda a, b: _compare_sort_key(sorts, a, b)))
+    values.sort(key=functools.cmp_to_key(lambda a, b: evaluate_sort(sorts, a, b)))
     return values
 
 
