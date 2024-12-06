@@ -5,6 +5,7 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Collection,
     Iterable,
     Optional,
@@ -48,7 +49,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import (
+from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -114,7 +115,7 @@ class CustomObject(Mapping[str, Any]):
       (e.g., CreateStep input, Step inputs generally)
     """
 
-    __slots__ = (
+    OWN_PROPERTIES: ClassVar[set[str]] = {
         "_kind",
         "_supergraph",
         "_type",
@@ -123,7 +124,7 @@ class CustomObject(Mapping[str, Any]):
         "parent",
         "parent_id",
         "parent_key",
-    )
+    }
 
     def __init__(
         self,
@@ -242,7 +243,7 @@ class CustomObject(Mapping[str, Any]):
         track: bool = True,
         validate: bool = True,
     ) -> None:
-        if type(item) is str and item in self.__slots__:
+        if type(item) is str and item in self.OWN_PROPERTIES:
             return object.__setattr__(self, item, new_value)
         if isinstance(item, str):
             key = self._get_key(item)
@@ -269,9 +270,10 @@ class CustomObject(Mapping[str, Any]):
 
     def __setattr__(self, item: str, value: SomeValue) -> None:
         # NOTE: __setattr__ is also called for slots so we have to bypass those
-        if item in CustomObject.__slots__:  # this might be slow?
+        if item in self.OWN_PROPERTIES:
             object.__setattr__(self, item, value)
-        self.__setitem__(item, value)
+        else:
+            self.__setitem__(item, value)
 
     def __delitem__(self, item: str) -> None:
         # delete field value if it's not required

@@ -32,7 +32,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.list import LocalNodeList, NodeList, ValueList
-from bench.language.setup import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
+from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, parse_py_annotation
 from bench.utils.utils import frozendict

@@ -39,7 +39,7 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.graph import NodeGraph, NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE, BuiltinObject, GraphScope
+from bench.language.node import EMPTY_SCOPE_DATA, BuiltinObject, GraphScope
 from bench.language.run import Run, RunnableNode
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata
@@ -65,7 +65,7 @@ def create_omni_session(omni_store: Store, oracle: Oracle):
     global_pg_engine = pg_engine_from_store(omni_store, node_types=NODE_TYPES)
     session = Session(
         parent=None,
-        _default_scope=EMPTY_SCOPE._to_data(),
+        _default_scope=EMPTY_SCOPE_DATA,
         _engines=(global_pg_engine,),
         _local_epoch=0,
         _oracle=oracle,
@@ -89,9 +89,9 @@ def omni_session(omni_store: Store):
 def make_session(name: str):
     """Make a 'fake' session for context"""
     supergraph = NodeSuperGraph(root_ptr=None)
-    graph = NodeGraph(scope=EMPTY_SCOPE._to_data(), node_types=NODE_TYPES, supergraph=supergraph)
+    graph = NodeGraph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
     session = Session(
-        _engines=(NullEngine(scope=EMPTY_SCOPE._to_data(), node_types=NODE_TYPES),),
+        _engines=(NullEngine(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
         _supergraph=supergraph,
         _graph=graph,
         _oracle=REAL_ORACLE,
@@ -189,7 +189,7 @@ def create_global_session(global_store: Store, oracle: Oracle):
     global_pg_engine = pg_engine_from_store(global_store)
     session = Session(
         parent=None,
-        _default_scope=EMPTY_SCOPE._to_data(),
+        _default_scope=EMPTY_SCOPE_DATA,
         _engines=(global_pg_engine,),
         _local_epoch=0,
         _oracle=oracle,

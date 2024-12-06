@@ -25,7 +25,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypeBase, TypeConstraint, TypeInfo
 from bench.language.node import BuiltinObject
-from bench.language.setup import (
+from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,

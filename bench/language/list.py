@@ -17,7 +17,7 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import NodeType, QueryType
-from bench.language.setup import NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import get_key_bounds, get_order_key
 

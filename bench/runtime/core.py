@@ -13,8 +13,8 @@ from bench.language.const import BenchError
 from bench.language.file import upload
 from bench.language.node import Node
 from bench.language.path import get_node
+from bench.language.registry import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
 from bench.language.run import RunError, RunErrorType, RunOptions, RunType
-from bench.language.setup import BENCH_CLASS_BY_NAME, NODE_CLASS_STUBS_BY_NAME
 from bench.language.text import Text
 from bench.runtime.capture import LogSink
 from bench.utils.func import get_subclasses

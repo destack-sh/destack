@@ -59,7 +59,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
+from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
 from bench.language.validation import (
     NAME_CONSTRAINT,
     TypeConstraintIn,
@@ -219,7 +219,7 @@ class TypeConstraint(Struct):
     # ...?
 
 
-constraint = TypeConstraint
+constraint = TypeConstraintIn
 
 
 @object_()

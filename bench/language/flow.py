@@ -2,8 +2,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, Optional, Type, Union, assert_never, cast
 from uuid import UUID
 
-import cachetools
-
 from bench.language.action import ActionBase
 from bench.language.const import (
     BlockType,
@@ -378,7 +376,7 @@ class Step(SourceNode[StepData]):
         parent.pipes.append(pipe)
         return pipe
 
-    @cachetools.cached({})  # :CachedTypeInfo
+    # @cachetools.cached({})  # :CachedTypeInfo # nocheckin
     def to_type_maybe(
         self,
         of: Literal["instance", "value"] = "instance",
@@ -408,6 +406,8 @@ class Step(SourceNode[StepData]):
             assert field_type is not None, f"missing field_type for object {self!r}"
 
             if field_type == FieldType.INPUT:
+                # steps also have their subtype as input type
+                #  (to enable dynamically setting step properties as inputs)
                 typ = TypeInfo(
                     kind=TypeKind.PARTIAL_NODE,
                     base_type=base,
@@ -514,7 +514,7 @@ class CreateStep(Step):
     )
 
     @classmethod
-    @cachetools.cached({})  # :CachedTypeInfo
+    # @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
         return TypeInfo(kind=TypeKind.PARTIAL_NODE)
 
@@ -529,7 +529,7 @@ class CloneStep(Step):
     recursive: bool = p_regular(110, default=True)
 
     @classmethod
-    @cachetools.cached({})  # :CachedTypeInfo
+    # @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
         return TypeInfo(kind=TypeKind.PARTIAL_NODE)
 
@@ -543,7 +543,7 @@ class UpdateStep(Step):
     )
 
     @classmethod
-    @cachetools.cached({})  # :CachedTypeInfo
+    # @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
         return TypeInfo(kind=TypeKind.PARTIAL_NODE)
 

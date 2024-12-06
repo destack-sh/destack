@@ -5,7 +5,7 @@ from bench.language import Bench, NodeReference, NodeType, Store
 from bench.language.connection import GraphEngine
 from bench.language.const import GLOBAL_NODE_TYPES, LOCAL_NODE_TYPES, VERSION, Region
 from bench.language.graph import NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE, GraphScope
+from bench.language.node import EMPTY_SCOPE_DATA, GraphScope
 from bench.language.session import Session
 from bench.proto.wire import GraphScopeData
 from bench.sql.graph import BenchSqlContext
@@ -55,7 +55,7 @@ def system_store_from_env() -> Store:
 def pg_engine_from_store(
     store: Store,
     *,
-    scope: GraphScopeData = EMPTY_SCOPE._to_data(),  # noqa: B008
+    scope: GraphScopeData | None = None,
     node_types: bittuple[NodeType] = GLOBAL_NODE_TYPES,
 ):
     """Get the postgres engine for a store"""
@@ -64,7 +64,7 @@ def pg_engine_from_store(
     return PostgresEngine(
         store=store,
         bench=bench,
-        scope=scope,
+        scope=scope or EMPTY_SCOPE_DATA,
         node_types=node_types,
         context=BenchSqlContext(bench),
     )
@@ -92,7 +92,7 @@ def global_session(
     assert store.parent is not None, f"missing parent for {store!r}"
     return Session(
         parent=None,
-        _default_scope=EMPTY_SCOPE._to_data(),
+        _default_scope=EMPTY_SCOPE_DATA,
         _engines=engines,
         _local_epoch=epoch,
         _supergraph=supergraph or store.parent._supergraph.instance(),

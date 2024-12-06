@@ -10,8 +10,6 @@ from typing import (
     cast,
 )
 
-import cachetools
-
 from bench.language.action import ActionBase
 from bench.language.const import (
     BenchError,
@@ -170,7 +168,7 @@ class Block(SourceNode[BlockData]):
         else:
             raise BenchError(f"{self!r} is not callable")
 
-    @cachetools.cached({})  # :CachedTypeInfo
+    # @cachetools.cached({})  # :CachedTypeInfo
     def to_type_maybe(
         self, *, of: Literal["instance", "value"] = "instance", field_type: FieldType | None = None
     ) -> "TypeBase | None":

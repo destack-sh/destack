@@ -35,7 +35,7 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import p_internal, p_system, p_value_packed
-from bench.language.setup import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.value import (
     CustomObject,
     pack_proto_json,

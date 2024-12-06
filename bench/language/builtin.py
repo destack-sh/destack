@@ -8,9 +8,9 @@ from bench.language.const import NODE_TYPES, UUID_NAMESPACE, BlockType, NodeMode
 from bench.language.field import Field
 from bench.language.flow import StepType
 from bench.language.graph import NodeGraph, NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE, Node, NodeReference, SourceNode
+from bench.language.node import EMPTY_SCOPE_DATA, Node, NodeReference, SourceNode
+from bench.language.registry import _complete_bench_setup
 from bench.language.session import Session
-from bench.language.setup import _complete_bench_setup
 from bench.utils.oracle import REAL_ORACLE
 
 _complete_bench_setup()
@@ -47,7 +47,7 @@ def _assign_builtin_ids(graph: NodeGraph):
 
 _supergraph = NodeSuperGraph(root_ptr=None)
 _session = Session(
-    _engines=(NullEngine(scope=EMPTY_SCOPE._to_data(), node_types=NODE_TYPES),),
+    _engines=(NullEngine(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
     _supergraph=_supergraph,
     _oracle=REAL_ORACLE,
 )

@@ -23,7 +23,6 @@ from bench.language.connection import AggregateOptions, ConnectMode, SearchConne
 from bench.language.const import (
     AggregationType,
     BenchError,
-    ConditionalType,
     ExpressionKind,
     FieldType,
     NodeType,
@@ -31,7 +30,7 @@ from bench.language.const import (
     StructType,
     active_session,
 )
-from bench.language.expression import C, Expression, coerce_conditional
+from bench.language.expression import Expression, coerce_conditional
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     Node,
@@ -42,7 +41,7 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
-from bench.language.setup import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
+from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
 from bench.language.validation import NAME_CONSTRAINT
 from bench.proto.wire import AnyNodeData, QueryData
 from bench.utils.fractional import INTEGER_ZERO
@@ -63,19 +62,22 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 # default read options
-FILTER_NOT_DELETED: Expression = C(ConditionalType.AND, clauses=[])
 SELECT_DEFAULT_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 SELECT_ALL_PROPERTIES: dict[NodeType, tuple[Property, ...]] = {}
 
 
 @_on_completing_setup
 def _init_default_query():
-    FILTER_NOT_DELETED.clauses = [C(ConditionalType.NOT_EXISTS, property=Node.deleted_at)]
+    # FILTER_NOT_DELETED.clauses = [C(ConditionalType.NOT_EXISTS, property=Node.deleted_at)]
     for node_t in NODE_CLASSES:
         SELECT_DEFAULT_PROPERTIES[node_t.metatype] = tuple(
             prop for prop in node_t.__stored_properties__.values() if not prop.is_deferred
         )
         SELECT_ALL_PROPERTIES[node_t.metatype] = tuple(node_t.__stored_properties__.values())
+
+
+def get_default_query_filter():
+    return Node.get_property("deleted_at").not_exists()
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -190,9 +192,6 @@ class SelectOptions(Struct):
     @staticmethod
     def all():
         return SelectOptions(select_all_properties=True)
-
-
-DEFAULT_SELECT_OPTIONS = SelectOptions.default()
 
 
 class QueryError(BenchError, ValueError):

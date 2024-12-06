@@ -58,7 +58,7 @@ from bench.language.property import (
     p_runtime,
     p_system,
 )
-from bench.language.setup import (
+from bench.language.registry import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     _on_completing_setup,

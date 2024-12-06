@@ -9,7 +9,7 @@ from opentelemetry import trace
 from bench.language import Bench, ResourceNode
 from bench.language.bench import ResourceStatus
 from bench.language.const import LOADED_BENCH_NODE_TYPES, VERSION, NodeType
-from bench.language.setup import NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.system.host.core import Commit, DeferredHostPlugin, Host
 from bench.utils.env import ENV, Env
 from bench.utils.utils import get_from_env_maybe
