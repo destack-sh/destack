@@ -880,8 +880,10 @@ def check_value_scalar_constraint(
             invalid(value, "too small", typ)
         if constraint.max_value is not None and value > constraint.max_value:
             invalid(value, "too large", typ)
-        if constraint.step_value is not None and abs(value % constraint.step_value) > FLOAT_EPSILON:
-            invalid(value, f"not a multiple of {constraint.step_value}", typ)
+        if constraint.step_value is not None:
+            delta = abs(value % constraint.step_value)
+            if delta > FLOAT_EPSILON and abs(delta - constraint.step_value) > FLOAT_EPSILON:
+                invalid(value, f"not a multiple of {constraint.step_value}", typ)
     elif type(value) is str:
         if constraint.min_length is not None and len(value) < constraint.min_length:
             invalid(value, "too short", typ)
