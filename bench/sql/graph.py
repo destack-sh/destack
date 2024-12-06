@@ -501,7 +501,7 @@ def _pg_compile_sorts(
 #
 
 
-def _pack_object_data_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
+def _pack_builtin_object_data_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
     """Packs the value of a BuiltinObject property for storage in Postgres."""
     if value is None:
         return None
@@ -524,17 +524,17 @@ def _pack_object_data_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
         return value
 
 
-def _pack_object_data_prop(prop: Property, value: Any) -> SqlPrimitive:
+def _pack_builtin_object_data_prop(prop: Property, value: Any) -> SqlPrimitive:
     """Packs the value of a BuiltinObject property for storage in Postgres."""
     if value is None:
         return None
     elif not prop.is_list:
-        return _pack_object_data_prop_scalar(prop, value)
+        return _pack_builtin_object_data_prop_scalar(prop, value)
     else:
-        return [_pack_object_data_prop_scalar(prop, v) for v in value]
+        return [_pack_builtin_object_data_prop_scalar(prop, v) for v in value]
 
 
-def _pack_object_value_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
+def _pack_builtin_object_value_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
     """Packs the JSON-value-packed value of a BuiltinObject for storage in Postgres."""
     if prop.is_struct:
         return Jsonb(value)
@@ -554,17 +554,17 @@ def _pack_object_value_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
         return value
 
 
-def _pack_object_value_prop(prop: Property, value: Any) -> SqlPrimitive:
+def _pack_builtin_object_value_prop(prop: Property, value: Any) -> SqlPrimitive:
     """Packs the JSON-value-packed value of a BuiltinObject for storage in Postgres."""
     if value is None:
         return None
     elif not prop.is_list:
-        return _pack_object_value_prop_scalar(prop, value)
+        return _pack_builtin_object_value_prop_scalar(prop, value)
     else:
-        return [_pack_object_value_prop_scalar(prop, v) for v in value]
+        return [_pack_builtin_object_value_prop_scalar(prop, v) for v in value]
 
 
-def _unpack_object_data_prop_scalar(
+def _unpack_builtin_object_data_prop_scalar(
     prop: Property, value_packed: Any, into: Any | None = None
 ) -> Any:
     """Unpacks the value of a BuiltinObject property from Postgres."""
@@ -779,7 +779,7 @@ def _pg_pack_node_data_row(
                     value = None
                 else:
                     value = getattr(node, name)
-                row[name] = _pack_object_data_prop(prop, value)
+                row[name] = _pack_builtin_object_data_prop(prop, value)
             else:
                 # unravel stored node reference :StoredPointers
                 wired_name = cast(Property, prop.reference_source.reference_wired_ptr).name
@@ -843,7 +843,7 @@ def _pg_unpack_node_data_row(
             if value is None:
                 continue
             if not prop.is_list:  # scalar
-                packed_value = _unpack_object_data_prop_scalar(prop, value)
+                packed_value = _unpack_builtin_object_data_prop_scalar(prop, value)
                 if isinstance(packed_value, ProtoMessage):
                     getattr(obj_data, name).CopyFrom(packed_value)
                 elif prop.is_struct:
@@ -858,10 +858,10 @@ def _pg_unpack_node_data_row(
                 if prop.is_struct:
                     for item in value:
                         packed_item = packed_value.add()
-                        _ = _unpack_object_data_prop_scalar(prop, item, into=packed_item)
+                        _ = _unpack_builtin_object_data_prop_scalar(prop, item, into=packed_item)
                 else:
                     for item in value:
-                        packed_item = _unpack_object_data_prop_scalar(prop, item)
+                        packed_item = _unpack_builtin_object_data_prop_scalar(prop, item)
                         packed_value.append(packed_item)
 
         # ravel value-packed fields
@@ -1234,7 +1234,7 @@ async def pg_graph_search(
         if not roots:
             return roots, visited_graph, total
         roots_ptrs = [
-            wiring.unpack_object(
+            wiring.unpack_builtin_object(
                 NodeReference._ref_data_from_node_data(r), expect=NodeReference, supergraph=None
             )
             for r in roots
@@ -1562,7 +1562,7 @@ async def _pg_edit_batch(
                         row[column.name] = _pack_field_value(field, field_value)
                 elif not prop.is_node_reference:
                     # regular non-ref property
-                    value = _pack_object_value_prop(prop, new_value_packed)
+                    value = _pack_builtin_object_value_prop(prop, new_value_packed)
                     row[prop.name] = value
                 else:
                     # unravel stored node reference :StoredPointers

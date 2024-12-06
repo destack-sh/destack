@@ -330,7 +330,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     setattr(cls, name, _object_property_ref(prop))
                 # computed node property
                 elif prop.reference_kind in (
-                    # NOTE :Performance: maybe Node.parent shouldn't be computed?
                     ReferenceKind.NODE_PARENT,
                     ReferenceKind.NODE_REGULAR,
                     ReferenceKind.NODE_TEMPLATE,
@@ -1441,9 +1440,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     @final
     def _to_data(self) -> ObjectDataT:
         """Convert to wire format"""
-        from bench.proto.wiring import pack_object
+        from bench.proto.wiring import pack_builtin_object
 
-        return pack_object(self)  # type: ignore
+        return pack_builtin_object(self)  # type: ignore
 
     @classmethod
     def get_property(cls, key: str | Property) -> Property:
@@ -2130,13 +2129,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @property
     def absolute_path(self) -> str:
         if self.__parent_property__ is None or not self.__parent_property__.reference_nodes:
+            # this is a root node
             ident = self._ident
             assert ident is not None, f"no bench ident for {self!r}"
             return ident
-        elif self._supergraph is None or self.parent is None:
-            return f"<detached>/{self._path_key}"
         else:
-            # this is a mini version of Path.render
+            # assemble path (like in Path.render)
             path_parts: list[str] = [self._path_key]
             parent = self.parent
             while parent is not None:
@@ -2144,7 +2142,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     parent = cast("Branch | Package", parent).bench
                     continue
                 path_parts.append(parent._path_key)
-                parent = parent.parent
+                next_parent = parent.parent
+                if next_parent is None and parent.metatype in self.__roots__:
+                    break  # reached the root
+                parent = next_parent
+            else:
+                path_parts.append("<detached>")
             return "/".join(reversed(path_parts))
 
     def to_ref(self) -> "NodeReference":

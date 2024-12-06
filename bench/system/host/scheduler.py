@@ -89,7 +89,7 @@ class RunPlugin(HostPlugin[Run]):
         log = logger.bind(host=self, run=run, server=self.bench.main_server, retry=op.retry)
 
         # select machines to process run on
-        # NOTE :Performance: maybe not re-fetch available Machines in RunPlugin every time?
+        # NOTE :Performance: maybe not re-load available Machines in RunPlugin every time?
         available_machines = (
             await Machine.where(
                 Machine.get_property("parent").eq(self.bench.main_server)

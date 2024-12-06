@@ -398,7 +398,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         assert subject.client is not None, f"no client for {subject!r}"
 
         # figure out context
-        context = wiring.unpack_object_validate_maybe(
+        context = wiring.unpack_builtin_object_validate_maybe(
             request.context, supergraph=subject._supergraph, expect=RuntimeContext
         )
         if context is None:
@@ -454,7 +454,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             # build the query
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = [
-                    wiring.unpack_object_validate(r, supergraph=None, expect=NodeReference)
+                    wiring.unpack_builtin_object_validate(r, supergraph=None, expect=NodeReference)
                     for r in request.roots
                 ]
                 if not roots:
@@ -462,7 +462,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                 if any(not r.id for r in roots):
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "root nodes must have an id")
                 if request.block_ptr.metatype:
-                    block_ptr = wiring.unpack_object(
+                    block_ptr = wiring.unpack_builtin_object(
                         request.block_ptr, supergraph=None, expect=NodeReference
                     )
                     block = self.resolve_request_block(block_ptr)
@@ -475,7 +475,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     wiring.unpack_enum(NodeType, t) for t in request.descendant_types
                 ]
                 select = (
-                    wiring.unpack_object_validate_maybe(
+                    wiring.unpack_builtin_object_validate_maybe(
                         request.select, supergraph=None, expect=SelectOptions
                     )
                     or SelectOptions.default()
@@ -594,7 +594,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 if request.block_ptr.metatype:
-                    block_ptr = wiring.unpack_object(
+                    block_ptr = wiring.unpack_builtin_object(
                         request.block_ptr, supergraph=None, expect=NodeReference
                     )
                     block = self.resolve_request_block(block_ptr)
@@ -602,11 +602,11 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                         raise NodeNotFoundError(block_ptr)
                 else:
                     block = None
-                filter = wiring.unpack_object_validate_maybe(
+                filter = wiring.unpack_builtin_object_validate_maybe(
                     request.filter, supergraph=session._supergraph, expect=Expression
                 )
                 sort = [
-                    wiring.unpack_object_validate(
+                    wiring.unpack_builtin_object_validate(
                         s, supergraph=session._supergraph, expect=Expression
                     )
                     for s in request.sort
@@ -616,7 +616,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
                     wiring.unpack_enum(NodeType, t) for t in request.descendant_types
                 ]
                 select = (
-                    wiring.unpack_object_validate_maybe(
+                    wiring.unpack_builtin_object_validate_maybe(
                         request.select, supergraph=None, expect=SelectOptions
                     )
                     or SelectOptions.default()
@@ -726,10 +726,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.aggregate.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-                filter = wiring.unpack_object_validate_maybe(
+                filter = wiring.unpack_builtin_object_validate_maybe(
                     request.filter, supergraph=session._supergraph, expect=Expression
                 )
-                aggregation = wiring.unpack_object_validate(
+                aggregation = wiring.unpack_builtin_object_validate(
                     request.aggregation, supergraph=session._supergraph, expect=Expression
                 )
                 query = QueryBuilder(
@@ -847,7 +847,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
             graph_scopes[graph_scope_hash] = graph_scope
 
     node_scopes: dict[UUID, NodeReference] = {
-        UUID(k): wiring.unpack_object(v, supergraph=None, expect=NodeReference)
+        UUID(k): wiring.unpack_builtin_object(v, supergraph=None, expect=NodeReference)
         for k, v in node_scopes_by_id.items()
     }
     node_scopes_by_type = group_by(node_scopes.values(), lambda n: (n.base_ck, n.node_type))

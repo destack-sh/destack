@@ -52,8 +52,8 @@ from bench.proto.wire import (
 )
 from bench.proto.wire.common_pb2 import RpcMetadata
 from bench.proto.wiring import (
+    unpack_builtin_object_validate,
     unpack_node_graph,
-    unpack_object_validate,
 )
 from bench.system.graph.graph import (
     GraphIoServiceBase,
@@ -693,7 +693,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # get files
         async with self.session(readonly=True):
             files_refs = [
-                unpack_object_validate(ref, supergraph=None, expect=NodeReference)
+                unpack_builtin_object_validate(ref, supergraph=None, expect=NodeReference)
                 for ref in request.files
             ]
             files = await File.search(

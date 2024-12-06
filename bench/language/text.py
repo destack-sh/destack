@@ -344,7 +344,7 @@ def _split_parse_spans(md_line: str) -> list[TextSpan]:
     """
     'Recursively' parse and split markdown line into spans.
     This is a single line, so we only need to parse out marks & mentions.
-    TODO :Performance :Robustness: improve markdown parsing :CrummyMarkdown
+    TODO :Robustness: improve markdown parsing :CrummyMarkdown
     """
     current_options = {}
     cur_pos = 0

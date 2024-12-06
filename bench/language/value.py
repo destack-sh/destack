@@ -50,6 +50,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.registry import (
+    BENCH_TYPE_BY_CLASS,
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -67,6 +68,7 @@ if TYPE_CHECKING:
         Continue,
         Field,
         Node,
+        Session,
         Text,
         TypeBase,
         TypeConstraint,
@@ -471,8 +473,9 @@ def _get_custom_object_properties(
             else:
                 subtype = value_packed.get(node_cls.__subtype_base_property__.key)
             if subtype is not None:
-                subtype_cls = node_cls.__subclass_by_subtype__[cast(IdEnum, subtype)]
-                subtype_properties = subtype_cls.__subtype_extra_properties__.values()
+                subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
+                if subtype_cls is not None:
+                    subtype_properties = subtype_cls.__subtype_extra_properties__.values()
 
         # assemble properties
         if typ.partial_scope == PartialNodeScope.BASE:
@@ -660,6 +663,61 @@ def _coerce_value_scalar(
         return value
     except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not coerce {value!r} ({type(value)}) as {typ!r}") from e
+
+
+def coerce_custom_object(kind: ObjectKind, value_raw: Any, typ: "TypeBase") -> CustomObject:
+    """
+    Tries to coerce a custom object from a given raw value.
+    We support 4 coercions:
+     1. Tuple of return values if there are multiple fields (with same length)
+     2. Dict of return values with { FieldName: Value }
+     3. CustomObject of same shape
+     4. Single return value if there is one field.
+
+    If this doesn't work, we raise ValueError/TypeError accordingly.
+    NOTE :Cleanup: coerce_custom_object/coerce_custom_object_scalar seem eerily similar
+    """
+
+    assert (
+        typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE
+    ), f"{typ!r} is not an Object"
+
+    fields = typ._fields
+    properties = _get_custom_object_properties(kind, typ, value_raw)
+    if isinstance(value_raw, tuple):
+        coerced = CustomObject(kind, typ, value={})
+        if len(value_raw) != len(fields):
+            raise ValueError(
+                f"got {len(value_raw)} values for {typ!r}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
+            )
+        for i, field in enumerate(fields):
+            coerced[field] = value_raw[i]
+    elif isinstance(value_raw, dict):
+        coerced = CustomObject(kind, typ, value={})
+        for prop in properties:
+            prop_value_raw = value_raw.get(prop.name, UNSET)
+            if prop_value_raw is not UNSET:
+                coerced[prop] = prop_value_raw
+        for field in fields:
+            field_value_raw = value_raw.get(field.name)
+            if field_value_raw is None:
+                field_value_raw = value_raw.get(field.code_name)
+            coerced[field] = field_value_raw
+    elif isinstance(value_raw, CustomObject) and value_raw._type == typ:
+        coerced = value_raw
+    else:
+        coerced = CustomObject(kind, typ, value={})
+        if len(fields) == 0:
+            if value_raw is not None:
+                raise ValueError(f"got value for {typ!r}, expected None")
+        else:
+            if len(fields) > 1:
+                raise ValueError(
+                    f"got single value for {typ!r}, need {len(fields)}: {', '.join(f.name for f in fields)}"
+                )
+            coerced[fields[0]] = value_raw
+
+    return coerced
 
 
 def coerce_custom_object_scalar(
@@ -1161,12 +1219,12 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
         return int(cast(int, value))
     elif typ.kind == TypeKind.STRUCT:
         if isinstance(value, BuiltinObject):
-            value = value._to_data()
+            return pack_builtin_object(value)
         else:
             assert hasattr(
                 value, "metatype"
             ), f"unexpected value {value!r} ({type(value).__name__ }) for {typ!r}"
-        return pack_builtin_object_data(cast(AnyStructData | AnyNodeData, value))
+            return pack_builtin_object_data(cast(AnyStructData | AnyNodeData, value))
     else:
         raise TypeError(f"cannot pack value of type {typ!r}")
 
@@ -1198,11 +1256,8 @@ def unpack_value_scalar(
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
         return enum_cls(cast(int, value_packed))
     elif typ.kind in (TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.STRUCT):
-        from bench.proto import wiring
-
         assert isinstance(value_packed, dict), f"{value_packed!r} is not a dict, expected {typ!r}"
-        value_struct = unpack_builtin_object_data(value_packed)
-        return wiring.unpack_object(cast(AnyStructData, value_struct), supergraph=supergraph)
+        return unpack_builtin_object(value_packed, supergraph=supergraph)
     else:
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
@@ -1246,11 +1301,74 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeBase") -> Scalar
         raise TypeError(f"cannot unpack value of type {typ!r}")
 
 
+def pack_builtin_object(
+    value: "BuiltinObject", only: Collection[Property] | None = None
+) -> dict[str, JsonValue]:
+    """Packs a BuiltinObject into a JSON representation."""
+    value_packed: dict[str, JsonValue] = {}
+    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]
+    for prop in only if only is not None else object_cls.__wired_properties__.values():
+        if prop.reference_wired_ptr is not None:
+            prop = prop.reference_wired_ptr
+        prop_name = prop.name
+        prop_value = getattr(value, prop_name)
+        if prop_value is None or (prop.is_list and len(prop_value) == 0):
+            continue
+        elif prop.is_list:
+            prop_type = prop.type_info
+            prop_value_packed = [pack_value_scalar(e, prop_type) for e in prop_value]
+        else:
+            prop_value_packed = pack_value_scalar(prop_value, prop.type_info)
+        value_packed[prop.key] = prop_value_packed
+    return value_packed
+
+
+def unpack_builtin_object[T: BuiltinObject = BuiltinObject](
+    value_packed: dict[str, Any],
+    *,
+    supergraph: NodeSuperGraph | None,
+    expect: type[T] | None = None,
+    session: "Session | None" = None,
+) -> T:
+    """Unpacks a BuiltinObject from a JSON representation."""
+
+    if expect is None:
+        object_type = value_packed.get("1")
+        assert object_type is not None, f"{value_packed!r} has no object type and none given"
+        object_type = cast(ObjectType, int(object_type))  # type: ignore
+    else:
+        object_type = BENCH_TYPE_BY_CLASS[expect]
+    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[cast(ObjectType, object_type)]
+    assert not object_cls.__is_node__, f"cannot unpack {object_cls.__name__} from value"
+
+    object_kwargs = {}
+    for prop in object_cls.__wired_properties__.values():
+        if prop.reference_wired_ptr is not None:
+            prop = prop.reference_wired_ptr
+        prop_value_packed = value_packed.get(prop.key)
+        if prop_value_packed is None:
+            continue
+        elif prop.is_list:
+            prop_type = prop.type_info
+            object_kwargs[prop.name] = [
+                unpack_value_scalar(e, prop_type, supergraph=supergraph) for e in prop_value_packed
+            ]
+        else:
+            object_kwargs[prop.name] = unpack_value_scalar(
+                prop_value_packed, prop.type_info, supergraph=supergraph
+            )
+    if session is not None:
+        object_kwargs["_session"] = session
+
+    obj = object_cls(**object_kwargs)
+    return cast(T, obj)
+
+
 def pack_builtin_object_data(
     value: AnyStructData | AnyNodeData,
     only: Collection[Property] | None = None,
 ) -> dict[str, JsonValue]:
-    """Packs a single struct/node data value using typed proto ids as keys and enum values."""
+    """Packs a single struct/node data value into a JSON representation."""
     value_packed: dict[str, JsonValue] = {}
     builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[value.metatype]  # type: ignore
     for prop in only if only is not None else builtin_object_cls.__wired_properties__.values():
@@ -1263,9 +1381,8 @@ def pack_builtin_object_data(
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
             continue
         elif prop.is_list:
-            prop_value_packed = [
-                pack_value_scalar(element, prop.type_info) for element in prop_value
-            ]
+            prop_type = prop.type_info
+            prop_value_packed = [pack_value_scalar(element, prop_type) for element in prop_value]
         else:
             prop_value_packed = pack_value_scalar(prop_value, prop.type_info)
         value_packed[prop.key] = prop_value_packed
@@ -1275,10 +1392,9 @@ def pack_builtin_object_data(
 def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     value_packed: dict[str, Any],
     expect: type[T] | None = None,
-    only: Collection[Property | Any] | None = None,
     into: T | None = None,
 ) -> AnyStructData | AnyNodeData:
-    """Unpacks a single struct/node data value using typed proto ids as keys and enum values."""
+    """Unpacks a single struct/node data value from a JSON representation."""
     from bench.proto import wiring
 
     if expect is None:
@@ -1287,23 +1403,24 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
         object_type = cast(ObjectType, int(object_type))
     else:
         object_type = wiring.OBJECT_TYPE_BY_PROTO_CLASS[expect]
-    builtin_object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
+    object_cls = BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[object_type]
 
     value = into if into is not None else proto_cls(metatype=object_type)  # type: ignore
-    for prop in only if only is not None else builtin_object_cls.__wired_properties__.values():
+    for prop in object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
         prop_value_packed = value_packed.get(prop.key)
         if prop_value_packed is None or (prop.is_list and len(prop_value_packed) == 0):
             continue
         elif prop.is_list:
+            prop_type = prop.type_info
             prop_value = [
-                unpack_value_scalar_data(element, prop.type_info) for element in prop_value_packed
+                unpack_value_scalar_data(element, prop_type) for element in prop_value_packed
             ]
         else:
             prop_value = unpack_value_scalar_data(prop_value_packed, prop.type_info)
-        wiring.set_object_prop(value, prop, prop_value)
+        wiring.set_builtin_object_prop(value, prop, prop_value)
     return value
 
 
@@ -1712,55 +1829,3 @@ class Value(Struct):
     value: Any = p_value_runtime(
         35, kind=ObjectKind.MEMBER, typ=lambda self: cast("Value", self).type
     )
-
-
-def coerce_custom_object(kind: ObjectKind, typ: "TypeBase", value_raw: Any) -> CustomObject:
-    """
-    Tries to coerce a custom object from a given raw value.
-    We support 4 coercions:
-     1. Tuple of return values if there are multiple fields (with same length)
-     2. Dict of return values with { FieldName: Value }
-     3. CustomObject of same shape
-     4. Single return value if there is one field.
-
-    If this doesn't work, we raise ValueError/TypeError accordingly.
-    """
-
-    assert typ.kind == TypeKind.CUSTOM_OBJECT, f"{typ!r} is not an Object"
-
-    fields = typ._fields
-    properties = _get_custom_object_properties(kind, typ, value_raw)
-    if isinstance(value_raw, tuple):
-        coerced = CustomObject(kind, typ, value={})
-        if len(value_raw) != len(fields):
-            raise ValueError(
-                f"got {len(value_raw)} values for {typ!r}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
-            )
-        for i, field in enumerate(fields):
-            coerced[field] = value_raw[i]
-    elif isinstance(value_raw, dict):
-        coerced = CustomObject(kind, typ, value={})
-        for field in fields:
-            field_value_raw = value_raw.get(field.name)
-            if field_value_raw is None:
-                field_value_raw = value_raw.get(field.code_name)
-            coerced[field] = field_value_raw
-        for prop in properties:
-            prop_value_raw = value_raw.get(prop.name, UNSET)
-            if prop_value_raw is not UNSET:
-                coerced[prop] = prop_value_raw
-    elif isinstance(value_raw, CustomObject) and value_raw._type == typ:
-        coerced = value_raw
-    else:
-        coerced = CustomObject(kind, typ, value={})
-        if len(fields) == 0:
-            if value_raw is not None:
-                raise ValueError(f"got value for {typ!r}, expected None")
-        else:
-            if len(fields) > 1:
-                raise ValueError(
-                    f"got single value for {typ!r}, need {len(fields)}: {', '.join(f.name for f in fields)}"
-                )
-            coerced[fields[0]] = value_raw
-
-    return coerced

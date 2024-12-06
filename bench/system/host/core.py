@@ -148,7 +148,9 @@ def unpack_commit(
         else:
             raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
         # cascaded nodes may also be regularly edited nodes, so we add/update them
-        node = wiring.unpack_object(node, supergraph=supergraph, session=session, expect=Node)
+        node = wiring.unpack_builtin_object(
+            node, supergraph=supergraph, session=session, expect=Node
+        )
         if node.id not in graph:
             graph.add(node)
         else:

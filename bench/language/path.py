@@ -245,7 +245,7 @@ def render_path(path: Path) -> str:
     return "/".join(path_parts)
 
 
-# NOTE :Performance: should probably index some of the path lookups in the graph?
+# NOTE :Performance: index some of the path lookups in the graph somehow?
 
 
 def _normalize_node(scope: Node) -> Node:

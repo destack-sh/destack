@@ -343,7 +343,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.PERMISSION_DENIED, "cannot create bench for waitlisted user")
         region = wiring.unpack_enum(Region, request.region)
 
-        owner_ptr = wiring.unpack_object(request.owner, supergraph=None, expect=NodeReference)
+        owner_ptr = wiring.unpack_builtin_object(
+            request.owner, supergraph=None, expect=NodeReference
+        )
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
         ) as session:

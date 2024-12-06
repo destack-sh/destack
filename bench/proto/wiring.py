@@ -17,8 +17,8 @@ from bench.language.const import NodeType, ObjectType, PrimitiveType, TypeKind
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph, NodeReference
 from bench.language.property import Property
-from bench.language.session import Session
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
+from bench.language.session import Session
 from bench.language.validation import on_invalid_raise
 from bench.language.value import (
     CustomObject,
@@ -100,11 +100,11 @@ def unpack_subnode(node_cls: type[Node], subnode_packed: dict) -> dict[str, Any]
     return subnode_unpacked
 
 
-def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> Any:
+def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> Any:
     if value is None:
         return None
     elif prop.is_struct:
-        return pack_object(value)
+        return pack_builtin_object(value)
     elif prop.reference_is_node_data:
         return wrap_some_node(value)
     elif prop.is_enum:
@@ -152,12 +152,14 @@ def pack_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> A
         return value
 
 
-def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
+def unpack_builtin_object_prop_scalar(
+    prop: Property, value: Any, *, supergraph: NodeSuperGraph
+) -> Any:
     try:
         if value is None:
             return None
         elif prop.is_struct:
-            return unpack_object(value, supergraph=supergraph)
+            return unpack_builtin_object(value, supergraph=supergraph)
         elif prop.reference_is_node_data:
             return unwrap_some_node(value)
         elif prop.is_enum:
@@ -191,13 +193,13 @@ def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSup
         ) from e
 
 
-def unpack_object_prop(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
+def unpack_builtin_object_prop(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
     if value is None:
         return None
     elif not prop.is_list:
-        return unpack_object_prop_scalar(prop, value, supergraph=supergraph)
+        return unpack_builtin_object_prop_scalar(prop, value, supergraph=supergraph)
     else:
-        return [unpack_object_prop_scalar(prop, v, supergraph=supergraph) for v in value]
+        return [unpack_builtin_object_prop_scalar(prop, v, supergraph=supergraph) for v in value]
 
 
 def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> Any:
@@ -215,7 +217,7 @@ def pack_and_set_object_prop(
 ):
     """Pack and set the given property on the given data object."""
     if not prop.is_list:  # scalar
-        packed_value = pack_object_prop_scalar(obj, prop, value)
+        packed_value = pack_builtin_object_prop_scalar(obj, prop, value)
         if isinstance(packed_value, ProtoMessage):  # message field
             getattr(obj_data, prop.name).CopyFrom(packed_value)
         elif prop.is_struct:  # empty message field
@@ -230,14 +232,14 @@ def pack_and_set_object_prop(
         if prop.is_struct:
             for item in value:
                 packed_item = packed_value.add()
-                _ = pack_object(item, into=packed_item)
+                _ = pack_builtin_object(item, into=packed_item)
         else:
             for item in value:
-                packed_item = pack_object_prop_scalar(obj, prop, item)
+                packed_item = pack_builtin_object_prop_scalar(obj, prop, item)
                 packed_value.append(packed_item)
 
 
-def set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
+def set_builtin_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
     """Set the packed property on the given data object."""
     if not prop.is_list:  # scalar
         if isinstance(value, ProtoMessage):  # message field
@@ -253,7 +255,7 @@ def set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value
         getattr(obj_data, prop.name).extend(value)
 
 
-def pack_object[T: AnyStructData | AnyNodeData](
+def pack_builtin_object[T: AnyStructData | AnyNodeData](
     obj: BuiltinObject, expect: type[T] | None = None, into: T | None = None
 ) -> T:
     """Pack a struct and any contained structs."""
@@ -273,16 +275,16 @@ def pack_object[T: AnyStructData | AnyNodeData](
         raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e
 
 
-def pack_object_maybe[T: AnyStructData | AnyNodeData](
+def pack_builtin_object_maybe[T: AnyStructData | AnyNodeData](
     obj: BuiltinObject | None, expect: type[T] | None = None
 ) -> T | None:
     if obj is None:
         return None
     else:
-        return pack_object(obj, expect)
+        return pack_builtin_object(obj, expect)
 
 
-def unpack_object[T: BuiltinObject](
+def unpack_builtin_object[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
     expect: type[T] | None = None,
@@ -309,7 +311,9 @@ def unpack_object[T: BuiltinObject](
             if prop.is_optional_scalar and not obj_data.HasField(prop.name):
                 continue
             value = getattr(obj_data, prop.name)
-            object_kwargs[prop.name] = unpack_object_prop(prop, value, supergraph=supergraph)
+            object_kwargs[prop.name] = unpack_builtin_object_prop(
+                prop, value, supergraph=supergraph
+            )
         object_kwargs["_supergraph"] = supergraph
         if session is not None:
             object_kwargs["_session"] = session
@@ -327,7 +331,7 @@ def unpack_object[T: BuiltinObject](
         raise ValueError(f"could not unpack {type(obj_data).__name__}: {obj_data!r}") from e
 
 
-def unpack_object_validate[T: BuiltinObject](
+def unpack_builtin_object_validate[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
     supergraph: NodeSuperGraph | None,
@@ -336,14 +340,14 @@ def unpack_object_validate[T: BuiltinObject](
     session: Session | None = None,
 ) -> T:
     """Unpack a builtin object and validate it."""
-    obj = unpack_object(
+    obj = unpack_builtin_object(
         obj_data, supergraph=supergraph, graph=graph, expect=expect, session=session
     )
     obj._validate_rec(invalid=on_invalid_raise)
     return obj
 
 
-def unpack_object_validate_maybe[T: BuiltinObject](
+def unpack_builtin_object_validate_maybe[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData | None,
     *,
     supergraph: NodeSuperGraph | None,
@@ -353,7 +357,7 @@ def unpack_object_validate_maybe[T: BuiltinObject](
     if obj_data is None or obj_data.metatype is None or obj_data.metatype == 0:
         return None
     else:
-        return unpack_object_validate(
+        return unpack_builtin_object_validate(
             obj_data,
             supergraph=supergraph,
             expect=expect,
@@ -388,7 +392,7 @@ def unpack_node_graph(
         ):
             if node_data.metatype in exclude:
                 continue
-            node = unpack_object(
+            node = unpack_builtin_object(
                 node_data,
                 graph=graph,
                 supergraph=supergraph,

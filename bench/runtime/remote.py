@@ -237,9 +237,11 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
             scope=engine.scope,
             node_type=wiring.pack_enum(NodeType, query._node_type),
             block_ptr=query._base_block._to_ref_data() if query._base_block else None,
-            filter=wiring.pack_object_maybe(query._filter, ExpressionData),
+            filter=wiring.pack_builtin_object_maybe(query._filter, ExpressionData),
             sort=(
-                [wiring.pack_object(s, ExpressionData) for s in query._sort] if query._sort else []
+                [wiring.pack_builtin_object(s, ExpressionData) for s in query._sort]
+                if query._sort
+                else []
             ),
             ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
             descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
@@ -301,7 +303,7 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
         assert query._aggregation is not None, f"{query!r} has no aggregation"
         request = wire.AggregateNodesRequest(
             node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_object_maybe(query._filter, expect=ExpressionData),
+            filter=wiring.pack_builtin_object_maybe(query._filter, ExpressionData),
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
             scope=engine.scope,
         )

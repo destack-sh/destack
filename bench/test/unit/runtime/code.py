@@ -346,14 +346,11 @@ async def test_run_code_function_output_object_raw(local_runtime: RuntimeHandle)
         code=code("""\
 return coerce_custom_object(
     kind=ObjectKind.OUTPUT, 
-    typ=self.to_type(of='value', field_type=FieldType.OUTPUT), 
     value_raw={"Input1": 1, "Input2": 2},
+    typ=self.to_type(of='value', field_type=FieldType.OUTPUT), 
 )
 """),
-        fields=[
-            Field.output("Input1", int),
-            Field.output("Input2", int),
-        ],
+        fields=[Field.output("Input1", int), Field.output("Input2", int)],
         agency=Agency.CODE,
     )
     local_runtime.page().blocks.append(Function)

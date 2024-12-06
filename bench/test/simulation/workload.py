@@ -25,7 +25,7 @@ from bench.language.node import EMPTY_SCOPE_DATA, GraphScope
 from bench.language.session import Session
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata, SupervisorClient
-from bench.proto.wiring import unpack_object
+from bench.proto.wiring import unpack_builtin_object
 from bench.runtime.remote import RemoteEngine
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
@@ -216,14 +216,14 @@ async def make_remote_session(
         _oracle=oracle,
         _supergraph=supergraph,
     )
-    session.user = unpack_object(
+    session.user = unpack_builtin_object(
         client.user.user_data,
         session=session,
         supergraph=supergraph,
         expect=User,
         skip_add_self=False,
     )
-    session.client = unpack_object(
+    session.client = unpack_builtin_object(
         client.client_data,
         session=session,
         supergraph=supergraph,

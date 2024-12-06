@@ -15,7 +15,7 @@ from bench.language.node import BuiltinObject
 from bench.language.registry import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.session import Session
 from bench.language.text import md
-from bench.proto.wiring import unpack_object
+from bench.proto.wiring import unpack_builtin_object
 from bench.test.strategies import structs
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -96,7 +96,7 @@ def test_node_subtype_pack_unpack(session: "Session"):
     # pack/unpack wiring
     block_data = block._to_data()
     unpacked_block = cast(
-        ActionBlock, unpack_object(block_data, expect=Block, supergraph=session._supergraph)
+        ActionBlock, unpack_builtin_object(block_data, expect=Block, supergraph=session._supergraph)
     )
     assert unpacked_block.equals(block)
     assert unpacked_block.text is not None and unpacked_block.text.to_markdown() == "Hello!"
