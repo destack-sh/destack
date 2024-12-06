@@ -1,5 +1,6 @@
 import abc
 import base64
+import contextvars
 import functools
 import inspect
 from collections import defaultdict
@@ -959,6 +960,9 @@ def _trace_edit_operation(
     node._session._update(node, operation)
 
 
+_HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
+
+
 @object_()
 class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
@@ -1273,10 +1277,15 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     return attr
 
         # attribute error
-        try:
-            self_str = repr(self)
-        except Exception:
-            self_str = self.__class__.__name__
+        # NOTE: we only try to repr once in a call chain to prevent recursive repr errors
+        #  (this is rare, but can happen for instance when an init partially fails)
+        self_str = self.__class__.__name__
+        if not _HANDLING_ATTRIBUTE_ERROR.get():
+            _handling_token = _HANDLING_ATTRIBUTE_ERROR.set(True)
+            try:
+                self_str = repr(self)
+            finally:
+                _HANDLING_ATTRIBUTE_ERROR.reset(_handling_token)
         raise AttributeError(f"{self_str} has no attribute '{key}'")
 
     def _do_set(self, key: str, new_value: Any, *, track: bool = True, validate: bool = True):
