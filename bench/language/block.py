@@ -1,7 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    Collection,
     Literal,
     Optional,
     Type,
@@ -36,7 +35,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.query import Query
-from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
+from bench.language.validation import NAME_CONSTRAINT, constraint
 from bench.proto.wire import BlockData
 from bench.proto.wire.lang_pb2 import RecordData
 from bench.utils.fractional import INTEGER_ZERO
@@ -50,7 +49,6 @@ if TYPE_CHECKING:
         Package,
         Pipe,
         Policy,
-        Property,
         Record,
         RunOptions,
         Step,
@@ -127,11 +125,6 @@ class Block(SourceNode[BlockData]):
     records: RemoteNodeList["Record", RecordData] = p_node_children(
         NodeType.RECORD, list=RemoteNodeList
     )
-
-    def _validate_component(
-        self, properties: Collection["Property"], invalid: "ValidationHandler"
-    ) -> None:
-        pass
 
     def __content_str__(self):
         return ""

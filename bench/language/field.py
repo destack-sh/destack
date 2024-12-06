@@ -2,14 +2,12 @@ import typing
 from typing import (
     TYPE_CHECKING,
     Any,
-    Collection,
     Literal,
     Optional,
     Sequence,
     Type,
     Union,
     cast,
-    override,
 )
 from uuid import UUID
 
@@ -63,7 +61,6 @@ from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
 from bench.language.validation import (
     NAME_CONSTRAINT,
     TypeConstraintIn,
-    ValidationHandler,
 )
 from bench.language.value import SomeValue, coerce_custom_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
@@ -351,13 +348,6 @@ class TypeBase(BuiltinObject):
             if new_typ_value != old_typ_value:
                 setattr(self, prop.name, new_typ_value)
 
-    @override
-    def _validate_component(
-        self, properties: Collection[Property], invalid: "ValidationHandler"
-    ) -> None:
-        if self.is_list and not self.supports_list:
-            invalid(self, "list type is not supported", None)
-
     def __call__(self, *args, **kwargs) -> "SomeValue":
         """Converts the given value to this type."""
         # TODO :Cleanup :Architecture: TypeInfo.__call__ feels a lot like coerce_value
@@ -623,12 +613,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
     __hash__ = SourceNode.__hash__  # type: ignore
     # (not entirely sure why we need to override Field.__hash__ but not for any other node, maybe
     #  one of the base structs takes precende for some reason (but SourceNode is first in MRO...))
-
-    def _validate_component(
-        self, properties: Collection[Property], invalid: ValidationHandler
-    ) -> None:
-        if (self.type == FieldType.OPTION) != (self.kind == TypeKind.LITERAL):
-            invalid(self, "option field must be literal", None)
 
     @property
     def base(self) -> Optional[Node]:

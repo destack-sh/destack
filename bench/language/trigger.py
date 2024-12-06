@@ -1,8 +1,7 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Collection, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import pytz
-from croniter import croniter
 
 from bench.language.const import (
     BlockType,
@@ -20,11 +19,10 @@ from bench.language.node import (
     object_,
     struct_,
 )
-from bench.language.property import Property, p_node_parent, p_regular
+from bench.language.property import p_node_parent, p_regular
 from bench.language.validation import (
     NAME_CONSTRAINT,
     TypeConstraintIn,
-    ValidationHandler,
     constraint,
 )
 from bench.proto.wire import TriggerData
@@ -60,18 +58,6 @@ class Schedule(Struct):
             return self.cron or "???"
         else:
             return "<unknown>"
-
-    def _validate_component(
-        self, properties: Collection[Property], invalid: "ValidationHandler"
-    ) -> None:
-        if self.type == ScheduleType.CRON:
-            if not self.cron or not croniter.is_valid(self.cron):
-                invalid(self, f"invalid cron ('{self.cron}')", (Schedule.cron,))
-        if self.offset is not None:
-            if self.offset.days < 0:
-                invalid(self, "negative offset ('{self.offset}')", (Schedule.offset,))
-            elif self.offset.days > 7:
-                invalid(self, "offset too large ('{self.offset}')", (Schedule.offset,))
 
 
 @object_()
