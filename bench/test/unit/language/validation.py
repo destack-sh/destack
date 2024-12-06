@@ -3,7 +3,7 @@ import pytest
 from bench.language.field import to_type
 from bench.language.session import Session
 from bench.language.validation import NAME_CONSTRAINT, on_invalid_raise
-from bench.language.value import check_value
+from bench.language.value import DEFAULT_CHECK_OPTIONS, check_value
 
 
 @pytest.mark.parametrize(
@@ -41,4 +41,4 @@ from bench.language.value import check_value
 )
 def test_validate_international_names(shared_session: Session, name: str):
     name_type = to_type(str, constraint=NAME_CONSTRAINT)
-    check_value(name, name_type, on_invalid_raise)
+    check_value(name, name_type, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)

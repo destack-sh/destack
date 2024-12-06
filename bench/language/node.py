@@ -1313,7 +1313,12 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                             parent=cast("Struct | Node", self),
                             parent_key=prop,
                         )
-                        check_value(new_value, prop._type_info, invalid=on_invalid_raise)
+                        check_value(
+                            new_value,
+                            prop._type_info,
+                            options=DEFAULT_CHECK_OPTIONS,
+                            invalid=on_invalid_raise,
+                        )
                     object.__setattr__(self, key, new_value)
                     try:
                         self._validate_self((prop,), invalid=on_invalid_raise)
@@ -1420,7 +1425,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             # NOTE: references may be unloaded and there's not much to validate, so we don't
             if prop._type_info is not None and prop.reference_kind is None:
                 value = getattr(self, prop.name)
-                check_value(value, prop._type_info, invalid=invalid)
+                check_value(value, prop._type_info, options=DEFAULT_CHECK_OPTIONS, invalid=invalid)
 
     @final
     def _validate_rec(self, invalid: "ValidationHandler"):
@@ -1973,7 +1978,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                                 parent=self,
                                 parent_key=prop,
                             )
-                            check_value(new_value, prop._type_info, invalid=on_invalid_raise)
+                            check_value(
+                                new_value,
+                                prop._type_info,
+                                options=DEFAULT_CHECK_OPTIONS,
+                                invalid=on_invalid_raise,
+                            )
 
                     # set
                     # short-circuit to subclass 'property' if it exists
@@ -2740,6 +2750,7 @@ class Skip(Node):
 
 
 from bench.language.value import (  # noqa: E402
+    DEFAULT_CHECK_OPTIONS,
     check_value,
     coerce_value,
     pack_proto_json,

@@ -2,16 +2,18 @@ import asyncio
 
 from bench.language import Block, BlockType, Field, code
 from bench.language.action import Agency
+from bench.language.block import ActionBlock
 from bench.language.const import RunStatus
 from bench.language.node import Node
 from bench.language.run import Run, RunErrorType, RunOptions, RunType
+from bench.language.text import Text
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.runtime.core import ATTEMPT_ONCE
 from bench.runtime.runner import make_run_from_node
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_run_code_function_empty(local_runtime: RuntimeHandle):
+async def test_run_code_empty(local_runtime: RuntimeHandle):
     """Empty Code with optional input/output Fields should work."""
     Code1 = Block.new(
         BlockType.ACTION,
@@ -144,7 +146,7 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
     assert runner.logs[0].text_plain and "truncate" in runner.logs[0].text_plain
 
 
-async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
+async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
     """Code block with invalid inputs should fail immediately (no attempts)."""
     Code1 = Block.new(
         BlockType.ACTION,
@@ -164,7 +166,7 @@ async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
     assert runner.tracked_run and runner.tracked_run.duration is not None
 
 
-async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
+async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
     """Code block with invalid outputs should fail."""
     Code1 = Block.new(
         BlockType.ACTION,
@@ -182,12 +184,12 @@ async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
-async def test_run_code_function_coerce_inputs(local_runtime: RuntimeHandle):
+async def test_run_code_coerce_inputs(local_runtime: RuntimeHandle):
     """All the input fields values should be coerced to the correct type."""
     Function = Block.new(
         BlockType.ACTION,
         "Function",
-        code=code("return Input1, Input2"),
+        code=code("return {'Output1': Input1, 'Output2': Input2}"),
         fields=(
             Field.input("Input1", int),
             Field.input("Input2", int),
@@ -203,7 +205,7 @@ async def test_run_code_function_coerce_inputs(local_runtime: RuntimeHandle):
     assert runner.outputs and runner.outputs.Output1 == 3 and runner.outputs.Output2 == 4
 
 
-async def test_run_code_function_inputs_in_context(local_runtime: RuntimeHandle):
+async def test_run_code_inputs_in_context(local_runtime: RuntimeHandle):
     """All the input fields values should be in context (even if not used and unset)."""
     Function = Block.new(
         BlockType.ACTION,
@@ -230,7 +232,7 @@ assert Very_WEIRD__THER_Input == 7
     )
 
 
-async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
+async def test_run_code_output_none(local_runtime: RuntimeHandle):
     """A noop code function should work and return None."""
     Function = Block.new(
         BlockType.ACTION,
@@ -245,7 +247,7 @@ async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(Function)
 
 
-async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
+async def test_run_code_output_scalar(hosted_runtime: RuntimeHandle):
     """
     Run a code function with a scalar, should coerce into object.
     NOTE: we use the hosted_runtime here as we edit the node subtype property ActionBlock.code
@@ -292,7 +294,7 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
     assert runner.status == RunStatus.FAILED
 
 
-async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
+async def test_run_code_output_tuple(local_runtime: RuntimeHandle):
     """Run a code function with a tuple, should coerce into object."""
     Function = Block.new(
         BlockType.ACTION,
@@ -318,7 +320,7 @@ async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
     )
 
 
-async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
+async def test_run_code_output_dict(local_runtime: RuntimeHandle):
     """Run a code function with a dict, should coerce into object."""
     Function = Block.new(
         BlockType.ACTION,
@@ -338,29 +340,7 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
     assert runner.outputs and runner.outputs.Result1 is False and runner.outputs.Result2 == 12
 
 
-async def test_run_code_function_output_object_raw(local_runtime: RuntimeHandle):
-    """Run a code function and return the output object directly."""
-    Function = Block.new(
-        BlockType.ACTION,
-        "Function",
-        code=code("""\
-return coerce_custom_object(
-    kind=ObjectKind.OUTPUT, 
-    value_raw={"Input1": 1, "Input2": 2},
-    typ=self.to_type(of='value', field_type=FieldType.OUTPUT), 
-)
-"""),
-        fields=[Field.output("Input1", int), Field.output("Input2", int)],
-        agency=Agency.CODE,
-    )
-    local_runtime.page().blocks.append(Function)
-    await local_runtime.commit()
-
-    runner = await local_runtime.run(Function, inputs={})
-    assert runner.outputs and runner.outputs.Input1 == 1 and runner.outputs.Input2 == 2
-
-
-async def test_run_code_function_output_choice(local_runtime: RuntimeHandle):
+async def test_run_code_output_choice(local_runtime: RuntimeHandle):
     """Run a code function with a dict and a Choice type, should coerce into object."""
     Color = Block.new(
         BlockType.CHOICE,
@@ -384,7 +364,7 @@ return {"Color": Color.Red}
     assert runner.outputs and runner.outputs.Color == Color.fields.Red
 
 
-async def test_run_code_function_output_generic_node(local_runtime: RuntimeHandle):
+async def test_run_code_output_generic_node(local_runtime: RuntimeHandle):
     """Run a code function that outputs a generic node field."""
     Function = Block.new(
         BlockType.ACTION,
@@ -400,6 +380,36 @@ return {"Output": [self]}
 
     runner = await local_runtime.run(Function)
     assert runner.outputs
+
+
+async def test_run_code_return_detached_node(hosted_runtime: RuntimeHandle):
+    """Run a code function that returns a detached Node. Should error."""
+    Function = Block.new(
+        ActionBlock,
+        "Function",
+        fields=[Field.output("Output", Block), Field.output("Text", Text)],
+        agency=Agency.CODE,
+    )
+    hosted_runtime.page().blocks.append(Function)
+    await hosted_runtime.commit()
+
+    # detached top-level node
+    Function.code = code("return {'Output': Block.new(BlockType.TEXT, 'Detached')}")
+    await hosted_runtime.commit()
+    runner = await hosted_runtime.run(Function, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+
+    # detached nested node
+    Function.code = code("""\
+Detached = Block.new(BlockType.TEXT, 'Detached')
+text = Text(lines=[TextLine.plain('line1'), TextLine.new(TextLineType.PLAIN, TextSpan.new(node=Detached))])
+return {'Text': text}
+""")
+    await hosted_runtime.commit()
+    runner = await hosted_runtime.run(Function, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):

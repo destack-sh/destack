@@ -21,7 +21,7 @@ from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSit
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
 from bench.language.session import Session
 from bench.language.validation import ValidationError, on_invalid_raise
-from bench.language.value import CustomObject, check_value
+from bench.language.value import DEFAULT_CHECK_OPTIONS, CheckOptions, CustomObject, check_value
 from bench.runtime.cache import Cache
 from bench.runtime.core import (
     DYNAMIC_CODE_GLOBALS,
@@ -127,6 +127,8 @@ class Runtime:
                 runner.task = asyncio.create_task(runner.run())
                 await runner.task
                 terminated_at = self.oracle.utc()
+
+            # check outputs
             if runner.output_type is not None:
                 with tracer.start_as_current_span("runtime.check_outputs"):
                     if runner.outputs is None:
@@ -136,7 +138,13 @@ class Runtime:
                             runner.output_type,
                             supergraph=self.session._supergraph,
                         )
-                    check_value(runner.outputs, runner.output_type, on_invalid_raise)
+                    check_value(
+                        runner.outputs,
+                        runner.output_type,
+                        # raise on detached nodes
+                        options=CheckOptions(detached_is="invalid"),
+                        invalid=on_invalid_raise,
+                    )
             attempt._do_set("status", RunStatus.COMPLETED, validate=False)
             log.debug("runtime.attempt.completed", attempt=attempt, span="current")
         except asyncio.CancelledError as e:
@@ -186,7 +194,12 @@ class Runtime:
                     ObjectKind.INPUT, {}, runner.input_type, supergraph=self.session._supergraph
                 )
                 try:
-                    check_value(inputs, runner.input_type, on_invalid_raise)
+                    check_value(
+                        inputs,
+                        runner.input_type,
+                        options=DEFAULT_CHECK_OPTIONS,
+                        invalid=on_invalid_raise,
+                    )
                 except ValidationError as e:
                     runner.status = RunStatus.FAILED
                     runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
