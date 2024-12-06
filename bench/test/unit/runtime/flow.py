@@ -316,6 +316,47 @@ async def test_run_flow_create_step(hosted_runtime: RuntimeHandle):
     assert record is not None
 
 
+async def test_run_flow_clone_step(hosted_runtime: RuntimeHandle):
+    """Run a CloneStep to clone a Record."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
+    Record1 = Database1.records.create(Rating=1)
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Clone = Step.new(StepType.CLONE, "Clone")
+    Flow1.steps.append(Clone)
+    hosted_runtime.page().blocks.extend(Database1, Flow1)
+    await hosted_runtime.commit()
+
+    runner = await hosted_runtime.run(
+        Clone, inputs={"node": Record1, "node_partial": Record.partial(block=Database1, Rating=3)}
+    )
+    assert runner.status == RunStatus.COMPLETED
+    record = await Database1.records.get(Rating=3)
+    assert record is not None
+
+
+async def test_run_flow_update_step(hosted_runtime: RuntimeHandle):
+    """Run an UpdateStep to update a Record."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
+    Record1 = Database1.records.create(title="Record1", Rating=1)
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Update = Step.new(StepType.UPDATE, "Update")
+    Flow1.steps.append(Update)
+    hosted_runtime.page().blocks.extend(Database1, Flow1)
+    await hosted_runtime.commit()
+
+    runner = await hosted_runtime.run(
+        Update,
+        inputs={
+            "node": Record1,
+            "node_partial": Record.partial(block=Database1, title="Record1.1", Rating=3),
+        },
+    )
+    assert runner.status == RunStatus.COMPLETED
+    record = await Database1.records.get(Rating=3)
+    assert record is not None
+    assert record.title == "Record1.1"
+
+
 async def test_run_flow_race(local_runtime: RuntimeHandle):
     """Run multiple steps in parallel, losers should be aborted on completion of winner."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")

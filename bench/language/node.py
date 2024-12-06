@@ -15,6 +15,7 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
+    Literal,
     Mapping,
     Optional,
     Self,
@@ -654,6 +655,9 @@ def node_subtype_(
             p.name: p for p in cls.__properties__.values() if p.name not in base_cls.__properties__
         }
         cls.__subtype_extra_properties__ = frozendict(subtype_extra_properties)
+        cls.__subtype_extra_original_properties__ = frozendict(
+            {p.name: p for p in subtype_extra_properties.values() if p.reference_source is None}
+        )
 
         return cls
 
@@ -1614,6 +1618,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __subtype_base_property__: ClassVar["Property | None"] = None
     __subtype__: ClassVar[IdEnum | None] = None
     __subtype_extra_properties__: ClassVar[dict[str, Property]] = frozendict()
+    __subtype_extra_original_properties__: ClassVar[dict[str, Property]] = frozendict()
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET
     __is_struct__: ClassVar[bool] = False
@@ -1860,7 +1865,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if detach:
             clone.parent_ptr = None
         elif parent:
-            parent_child_prop = parent.get_node_child_property(self.metatype)
+            parent_child_prop = parent.get_child_property(self.metatype)
             parent_list = getattr(parent, parent_child_prop.name)
             parent_list.append(clone)
         return clone
@@ -1891,7 +1896,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 self_subnode = self_subnode_packed.get(str(subtype)) or EMPTY_DICT
                 other_subnode_packed = other.__dict__.get("subnode_packed") or EMPTY_DICT
                 other_subnode = other_subnode_packed.get(str(subtype)) or EMPTY_DICT
-                for prop in subtype_cls.__subtype_extra_properties__.values():
+                for prop in subtype_cls.__subtype_extra_original_properties__.values():
                     self_value = self_subnode.get(prop.name)
                     other_value = other_subnode.get(prop.name)
                     if not self._prop_value_equals(prop, self_value, other_value):
@@ -1899,7 +1904,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return True
 
     @override
-    def _do_get(self, key):
+    def _do_get(self, key: str):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
 
         if self.__has_subtypes__:
@@ -2192,12 +2197,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def append(self, node: "Node"):
         """Append a node as a child of this node."""
         assert node.parent is None, f"{node!r} already has a parent"
-        child_prop = self.get_node_child_property(node.metatype)
+        child_prop = self.get_child_property(node.metatype)
         child_list = getattr(self, child_prop.name)
         child_list.append(node)
 
     @classmethod
-    def get_node_child_property(cls, node_type: NodeType) -> Property:
+    def get_child_property(cls, node_type: NodeType) -> Property:
         """Gets the child property for the given node type."""
         for prop in cls.__node_child_properties__.values():
             if (
@@ -2208,6 +2213,25 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 return prop
         else:
             raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
+
+    @classmethod
+    def get_value_property(
+        cls, object_kind: ObjectKind | None = None, of: Literal["runtime", "packed"] = "runtime"
+    ) -> Property:
+        """Gets the (runtime) value property for the given object kind."""
+        for prop in cls.__properties__.values():
+            if prop.is_value_runtime and (
+                object_kind is None or prop.value_object_kind == object_kind
+            ):
+                if of == "runtime":
+                    return prop
+                elif of == "packed":
+                    assert type(prop.value_packed_ptr) is Property, f"no wired prop for {prop!r}"
+                    return prop.value_packed_ptr
+        else:
+            raise ValueError(
+                f"no value property for {object_kind.bench_name if object_kind else 'any'} object kind in {cls.__name__}"
+            )
 
     @classmethod
     def partial(

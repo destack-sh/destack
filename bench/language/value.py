@@ -424,7 +424,7 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
     elif "1" in partial_node._value:
         bench_type = cast(NodeType, int(partial_node._value["1"]))  # type: ignore
     else:
-        raise ValueError(f"no set node type for {partial_node!r}")
+        raise ValueError(f"no concrete set node type for {partial_node!r}")
     node_cls = NODE_CLASS_BY_TYPE[bench_type]
 
     # assemble kwargs
@@ -445,20 +445,10 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
         if field_value is not None:
             value[key] = field_value
     if value:
-        value_prop = None
-        for p in node_cls.__properties__.values():
-            if p.is_value_runtime and (
-                partial_node._type.base_field_type is None
-                or p.value_object_kind == partial_node._type.base_field_type
-            ):
-                value_prop = p
-                break
-        assert (
-            value_prop is not None
-        ), f"no {partial_node._kind.bench_name} value property for {partial_node!r} in {node_cls.__name__!r}"
-        value_wired_prop = value_prop.value_packed_ptr
-        assert type(value_wired_prop) is Property, f"no wired prop for {value_prop!r}"
-        node_kwargs[value_wired_prop.name] = value
+        value_prop = node_cls.get_value_property(
+            cast(ObjectKind | None, partial_node._type.base_field_type), "packed"
+        )
+        node_kwargs[value_prop.name] = value
 
     # make node
     node = node_cls(**node_kwargs)
@@ -466,7 +456,36 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
 
 
 def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
-    raise NotImplementedError
+    """Applies the set Properties/Fields from the partial Node to the Node."""
+    assert (
+        partial_node._kind == ObjectKind.BUILTIN
+        and partial_node._type.kind == TypeKind.PARTIAL_NODE
+    ), f"cannot convert non-partial {partial_node!r} to Node"
+
+    # apply properties
+    for prop in _get_custom_object_properties(
+        partial_node._kind, partial_node._type, partial_node._value
+    ):
+        if (
+            prop.id is None
+            or prop.id < 30
+            or prop.is_computed
+            or prop.name == "order_key"
+            or prop.is_system
+        ):
+            continue  # ignore internal
+        new_prop_value = partial_node._do_get(prop)
+        if new_prop_value is not None:
+            node._do_set(prop.name, new_prop_value, track=True, validate=False)
+
+    # apply value
+    # NOTE :nocheckin: patching partial node value only works for passthrough values
+    #  (so this works for Record.value or Message.value but not for Block.variables or Run.inputs
+    #    .. should fix this, see make_node_from_partial above)
+    for field in partial_node._type._base_fields:
+        new_field_value = partial_node._do_get(field)
+        if new_field_value is not None:
+            node._do_set(field.name, new_field_value, track=True, validate=False)
 
 
 def _get_custom_object_properties(
@@ -500,7 +519,7 @@ def _get_custom_object_properties(
             if subtype is not None:
                 subtype_cls = node_cls.__subclass_by_subtype__.get(cast(IdEnum, subtype))
                 if subtype_cls is not None:
-                    subtype_properties = subtype_cls.__subtype_extra_properties__.values()
+                    subtype_properties = subtype_cls.__subtype_extra_original_properties__.values()
 
         # assemble properties
         if typ.partial_scope == PartialNodeScope.BASE:
@@ -543,7 +562,7 @@ def _get_custom_object_property(
                 subtype = value_packed.get(node_cls.__subtype_base_property__.key)
             if subtype is not None:
                 subtype_cls = node_cls.__subclass_by_subtype__[cast(IdEnum, subtype)]
-                return subtype_cls.__original_properties__.get(name)
+                return subtype_cls.__subtype_extra_original_properties__.get(name)
 
     custom_object_cls = CUSTOM_OBJECT_CLASS_BY_KIND.get(kind)
     if custom_object_cls is not None:
@@ -1204,7 +1223,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeBase") -> 
             ref = ref._to_data()
         return pack_builtin_object_data(ref)
     elif typ.kind == TypeKind.ENUM:
-        return int(cast(int, value))
+        return int(cast(Any, value))
     elif typ.kind == TypeKind.STRUCT:
         if isinstance(value, BuiltinObject):
             return pack_builtin_object(value)

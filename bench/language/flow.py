@@ -240,7 +240,6 @@ class StepType(IdEnum):
     CLONE = 51
     UPDATE = 52
     DELETE = 53
-    RESTORE = 54
 
     # run
     ACTION = 60
@@ -520,7 +519,7 @@ class CreateStep(Step):
 
 @node_subtype_(StepType.CLONE)
 class CloneStep(Step):
-    node: Node = p_regular(100, require=True, references="any")
+    node: Node | None = p_regular(100, require=False, references="any")
     node_partial_packed = p_value_packed(101)
     node_partial = p_value_runtime(
         101, kind=ObjectKind.BUILTIN, typ=lambda self: CloneStep._node_partial_type()
@@ -535,7 +534,7 @@ class CloneStep(Step):
 
 @node_subtype_(StepType.UPDATE)
 class UpdateStep(Step):
-    node: Node = p_regular(100, require=True, references="any")
+    node: Node | None = p_regular(100, require=False, references="any")
     node_partial_packed = p_value_packed(101)
     node_partial = p_value_runtime(
         101, kind=ObjectKind.BUILTIN, typ=lambda self: UpdateStep._node_partial_type()
@@ -549,12 +548,7 @@ class UpdateStep(Step):
 
 @node_subtype_(StepType.DELETE)
 class DeleteStep(Step):
-    node: Node = p_regular(100, require=True, references="any")
-
-
-@node_subtype_(StepType.RESTORE)
-class RestoreStep(Step):
-    node: Node = p_regular(100, require=True, references="any")
+    node: Node | None = p_regular(100, require=False, references="any")
 
 
 #
