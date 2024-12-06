@@ -17,7 +17,6 @@ from bench.language.flow import (
     Pipe,
     PipeType,
     PortSide,
-    RestoreStep,
     Step,
     StepType,
     UpdateStep,
@@ -493,13 +492,15 @@ class CloneStepRunner(StepRunnerBase):
         inputs = cast(CloneStep, self.inputs)
         node = inputs.node or step.node
         node_partial = inputs.node_partial
+        assert node is not None, "no node to clone"
         assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
 
         # clone node with partial override
         cloned_node = node.clone(recursive=inputs.recursive, detach=True)
         patch_node_from_partial(cloned_node, node_partial)
-        assert cloned_node.parent is not None, f"cloned node {cloned_node!r} must be attached"
-        cloned_node.parent.append(cloned_node)
+        cloned_node_parent = cloned_node.parent or node.parent
+        assert cloned_node_parent is not None, f"cloned node {cloned_node!r} must be attached"
+        cloned_node_parent.append(cloned_node)
         logger.debug("step.clone", step=self.node, node=cloned_node, partial=node_partial)
 
         assert self.output_type is not None, f"no output type for {self!r}"
@@ -512,9 +513,11 @@ class UpdateStepRunner(StepRunnerBase):
         step = cast(UpdateStep, self.node)
         inputs = cast(UpdateStep, self.inputs)
         node_partial = inputs.node_partial or step.node_partial
+        node = inputs.node or step.node
+        assert node is not None, "no node to update"
         assert isinstance(node_partial, CustomObject), f"unexpected {inputs.node_partial!r}"
 
-        node = inputs.node or step.node
+        # update with partial patch
         patch_node_from_partial(node, node_partial)
         logger.debug("step.update", step=self.node, node=node, partial=node_partial)
 
@@ -528,18 +531,11 @@ class DeleteStepRunner(StepRunnerBase):
         step = cast(DeleteStep, self.node)
         inputs = cast(DeleteStep, self.inputs)
         node = inputs.node or step.node
+        assert node is not None, "no node to delete"
+
+        # delete
         self.session._delete(node)
         logger.debug("step.delete", step=self.node, node=node)
-
-
-class RestoreStepRunner(StepRunnerBase):
-    @override
-    async def run(self) -> None:
-        step = cast(RestoreStep, self.node)
-        inputs = cast(RestoreStep, self.inputs)
-        node = inputs.node or step.node
-        self.session._restore(node)
-        logger.debug("step.restore", step=self.node, node=node)
 
 
 #
@@ -575,7 +571,6 @@ STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
     StepType.CLONE: CloneStepRunner,
     StepType.UPDATE: UpdateStepRunner,
     StepType.DELETE: DeleteStepRunner,
-    StepType.RESTORE: RestoreStepRunner,
     # run
     StepType.ACTION: ActionStepRunner,
     StepType.YIELD: YieldStepRunner,
