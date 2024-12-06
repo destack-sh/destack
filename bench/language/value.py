@@ -1760,6 +1760,9 @@ from bench.language.node import (  # noqa: E402
     struct_,
 )
 
+# NOTE :Architecture: custom objects properties start at 900 to avoid interference
+#  (when used for partial nodes, especially when they have subtypes)
+
 
 @object_()
 class CustomObjectBase(BuiltinObject):
@@ -1793,7 +1796,7 @@ class InputObject(Struct, CustomObjectBase):
     """An input object."""
 
     text: Optional["Text"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.TEXT
+        900, default=None, require=False, array=False, struct=StructType.TEXT
     )
 
 
@@ -1802,11 +1805,11 @@ class OutputObject(Struct, CustomObjectBase):
     """An output object."""
 
     text: Optional["Text"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.TEXT
+        900, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    call: "Call | None" = p_regular(110, require=False, struct=StructType.CALL)
+    call: "Call | None" = p_regular(910, require=False, struct=StructType.CALL)
     continuations: list["Continue"] = p_regular(
-        111, default=[], array=True, struct=StructType.CONTINUE
+        911, default=[], array=True, struct=StructType.CONTINUE
     )
 
 
