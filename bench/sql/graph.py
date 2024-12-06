@@ -27,7 +27,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 from pydantic import JsonValue
 
-from bench.language import Block, ConditionalType, NodeReference, Property
+from bench.language import Block, ConditionalType, NodeReference, Property, SelectOptions
 from bench.language.bench import Bench
 from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
@@ -51,12 +51,8 @@ from bench.language.expression import C, Expression, ExpressionTypes
 from bench.language.field import Field
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
-from bench.language.query import (
-    DEFAULT_SELECT_OPTIONS,
-    FILTER_NOT_DELETED,
-    QueryBuilder,
-)
-from bench.language.setup import (
+from bench.language.query import QueryBuilder, get_default_query_filter
+from bench.language.registry import (
     DESCENDANT_NODE_TYPES_IN_STORE,
     HAS_CHILD_NODE_TYPES,
     NODE_CLASSES,
@@ -897,9 +893,9 @@ def _combine_filter(*, include_deleted: bool, filter: Expression | None) -> Expr
         return filter
     else:
         if filter is None:
-            return FILTER_NOT_DELETED
+            return get_default_query_filter()
         else:
-            return filter & FILTER_NOT_DELETED
+            return filter & get_default_query_filter()
 
 
 @_trace_pg_span
@@ -911,7 +907,7 @@ async def pg_graph_select(
     Only the given node type is selected, no joins are performed (up/down or sideways).
     """
     # compile
-    select = query._select or DEFAULT_SELECT_OPTIONS
+    select = query._select or SelectOptions.default()
     node_type = query._node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     block = query._base_block
@@ -1195,7 +1191,7 @@ async def pg_graph_get(
             ctx=ctx,
             roots=root_nodes,
             descendant_types=query._descendant_types,
-            extra_filter=FILTER_NOT_DELETED if not query.include_deleted else None,
+            extra_filter=get_default_query_filter() if not query.include_deleted else None,
         )
         descendant_node_ptrs_by_type = group_by(descendant_node_ptrs, lambda ptr: ptr.node_type)
         for wire_node_type, node_ptrs in descendant_node_ptrs_by_type.items():
@@ -1385,7 +1381,7 @@ async def _pg_edit_cascade(
         extra_filter = None
     else:
         # only cascade to visible
-        extra_filter = FILTER_NOT_DELETED
+        extra_filter = get_default_query_filter()
 
     # select cascaded nodes from graph
     _, cascaded_nodes_by_root_id = await _pg_graph_walk_down(

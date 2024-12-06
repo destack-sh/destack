@@ -21,7 +21,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeSuperGraph
 from bench.language.log import Log
-from bench.language.node import EMPTY_SCOPE, GraphScope
+from bench.language.node import EMPTY_SCOPE_DATA, GraphScope
 from bench.language.session import Session
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata, SupervisorClient
@@ -172,7 +172,7 @@ def _make_remote_engines(
     engines = (
         # global engine
         RemoteEngine(
-            scope=EMPTY_SCOPE._to_data(),
+            scope=EMPTY_SCOPE_DATA,
             node_types=PUBLIC_NODE_TYPES,
             remote=supervisor_client,
             write_retry=RETRY_GRPC_FOREVER,

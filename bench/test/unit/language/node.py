@@ -12,8 +12,8 @@ from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field, to_type
 from bench.language.flow import ActionStep, Step
 from bench.language.node import BuiltinObject
+from bench.language.registry import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.session import Session
-from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.text import md
 from bench.proto.wiring import unpack_object
 from bench.test.strategies import structs

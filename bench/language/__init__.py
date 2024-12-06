@@ -109,6 +109,7 @@ from .query import (
     QueryBuilder,
     SelectOptions,
 )
+from .registry import _complete_bench_setup
 from .render import render, render_expr, render_stmt
 from .run import (
     AudioOptions,
@@ -128,7 +129,6 @@ from .run import (
 )
 from .secret import Secret
 from .session import EditContext, RuntimeContext, Session
-from .setup import _complete_bench_setup
 from .stream import Stream
 from .text import Text, TextSpan, md, text
 from .transaction import (

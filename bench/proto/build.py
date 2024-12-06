@@ -16,7 +16,7 @@ from bench.language.field import TypeConstraint
 from bench.language.file import FILE_FORMAT_BY_EXTENSION, FILE_FORMAT_BY_MIME_TYPE
 from bench.language.node import Node
 from bench.language.property import Property
-from bench.language.setup import (
+from bench.language.registry import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,

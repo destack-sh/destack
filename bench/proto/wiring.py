@@ -18,7 +18,7 @@ from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph, NodeReference
 from bench.language.property import Property
 from bench.language.session import Session
-from bench.language.setup import BUILTIN_OBJECT_CLASS_BY_TYPE
+from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.language.value import (
     CustomObject,

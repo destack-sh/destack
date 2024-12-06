@@ -2,8 +2,8 @@ from typing import Any, Sequence, cast, override
 
 from bench.language.const import RUNTIME_NODE_TYPES, NodeType
 from bench.language.node import NodeReference
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.session import Session
-from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.value import pack_builtin_object_data, pack_proto_json
 from bench.proto import wire
 from bench.proto.wire.lang_pb2 import EditData, LogData, RuntimeContextData

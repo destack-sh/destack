@@ -5,7 +5,7 @@ import pytest
 from grpclib import Status as GRPCStatus
 
 from bench.language import NodeReference, SelectOptions, User
-from bench.language.node import GraphScope
+from bench.language.node import EMPTY_SCOPE_DATA
 from bench.language.property import Property
 from bench.proto import wire
 from bench.proto.wire import (
@@ -91,7 +91,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     # read user with sensitive data, authorized -> success
     select = SelectOptions(include_properties=[cast(Property, User.email)])._to_data()
     read_user_req = GetNodesRequest(
-        scope=GraphScope()._to_data(),
+        scope=EMPTY_SCOPE_DATA,
         roots=[NodeReference._ref_data_from_node_data(signup_rep.user)],
         descendant_types=[wire.NodeType.NODE_TYPE_CLIENT, wire.NodeType.NODE_TYPE_HANDLE],
         select=select,

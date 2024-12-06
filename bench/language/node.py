@@ -5,6 +5,7 @@ import inspect
 from collections import defaultdict
 from dataclasses import InitVar
 from datetime import datetime
+from enum import IntEnum
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -72,7 +73,7 @@ from bench.language.property import (
     p_subnode_packed,
     p_system,
 )
-from bench.language.setup import (
+from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
     DESCENDANT_NODE_TYPES,
     HAS_CHILD_NODE_TYPES,
@@ -129,6 +130,29 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+class _SetupStage(IntEnum):
+    INITIALIZING = 1
+    FINALIZING = 2
+    COMPLETED = 3
+
+
+_SETUP_STAGE = _SetupStage.INITIALIZING
+
+
+def _is_setup_complete() -> bool:
+    return _SETUP_STAGE == _SetupStage.COMPLETED
+
+
+def _set_setup_finalizing():
+    global _SETUP_STAGE
+    _SETUP_STAGE = _SetupStage.FINALIZING
+
+
+def _set_setup_complete():
+    global _SETUP_STAGE
+    _SETUP_STAGE = _SetupStage.COMPLETED
 
 
 def get_tk_from_ck(ck: UUID) -> str:
@@ -982,6 +1006,10 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def __init__(
         self, *, _skip_validate_self: bool = False, _skip_extra_kwargs: bool = False, **kwargs
     ):
+        assert (
+            _SETUP_STAGE >= _SetupStage.FINALIZING
+        ), f"{self.__class__.__name__} requires completed setup"
+
         self_dict = self.__dict__
 
         # init session / supergraph context (first)
@@ -1693,7 +1721,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             # if we're not in a graph, start a new one
             # NOTE :Cleanup: NodeGraph definition "depends on itself", causing pyright errors
             graph = NodeGraph(  # type: ignore
-                scope=GraphScope()._to_data(),
+                scope=EMPTY_SCOPE_DATA,
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
                 supergraph=self._supergraph,
             )
@@ -2474,7 +2502,7 @@ class GraphScope(Struct[GraphScopeData]):
     package_id: Optional[UUID] = p_internal(31, default=None)
 
 
-EMPTY_SCOPE = GraphScope()
+EMPTY_SCOPE_DATA = GraphScopeData(metatype=lang_pb2.OBJECT_TYPE_GRAPH_SCOPE)
 
 
 @struct_(StructType.CLIENT_ORIGIN)

@@ -23,7 +23,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeSuperGraph
 from bench.language.machine import Machine
-from bench.language.node import EMPTY_SCOPE, GraphScope, NodeReference
+from bench.language.node import EMPTY_SCOPE_DATA, GraphScope, NodeReference
 from bench.language.session import Session
 from bench.language.user import User
 from bench.proto import wire
@@ -152,7 +152,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._engines = (
             # global engine
             RemoteEngine(
-                scope=EMPTY_SCOPE._to_data(),
+                scope=EMPTY_SCOPE_DATA,
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
                 write_retry=RETRY_GRPC_FOREVER,

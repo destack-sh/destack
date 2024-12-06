@@ -35,7 +35,7 @@ from bench.language.const import (
 from bench.language.expression import C
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node, patch_graph
-from bench.language.setup import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
+from bench.language.registry import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AggregationResultData,
     AnyNodeData,

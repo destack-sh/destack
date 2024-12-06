@@ -16,7 +16,6 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.field import TypeConstraint
 from bench.language.list import LocalNodeList
 from bench.language.node import (
     BenchNode,
@@ -35,7 +34,12 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT, TITLE_CONSTRAINT
+from bench.language.validation import (
+    NAME_CONSTRAINT,
+    SLUG_CONSTRAINT,
+    TITLE_CONSTRAINT,
+    constraint,
+)
 from bench.proto.wire import (
     AnyNodeData,
     BenchData,
@@ -365,11 +369,8 @@ class AnonymousResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
     pass
 
 
-CPU_CONSTRAINT = TypeConstraint(
-    min_value=0.1,
-    max_value=16.0,
-)
-RAM_CONSTRAINT = TypeConstraint(min_value=0.1, max_value=256.0)
+CPU_CONSTRAINT = constraint(min_value=0.1, max_value=16.0, step_value=0.1)
+RAM_CONSTRAINT = constraint(min_value=0.2, max_value=256.0, step_value=0.2)
 
 
 @node_(NodeType.SERVER)

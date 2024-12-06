@@ -40,7 +40,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
-    EMPTY_SCOPE,
+    EMPTY_SCOPE_DATA,
     BenchNode,
     EditSubject,
     HasRuntimeContext,
@@ -146,7 +146,7 @@ class Session(RuntimeNode[SessionData]):
     _flush_counter: int = p_runtime(default=0)
     _commit_queue: asyncio.Queue[_CommitEvent] = p_runtime(default_factory=lambda: asyncio.Queue())
     _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
-    _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
+    _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE_DATA)
     _local_epoch: int | None = p_runtime(default=None)
     _on_commit_prepare: (
         Callable[

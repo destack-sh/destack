@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Collection, Sequence, Union, cast
 
 from bench.language.const import EnumType, PrimitiveType
 from bench.language.node import BuiltinObject, Node
-from bench.language.setup import (
+from bench.language.registry import (
     BENCH_CLASS_BY_TYPE,
     FINAL_BENCH_CLASSES,
     NODE_CLASS_BY_TYPE,

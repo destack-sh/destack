@@ -32,10 +32,10 @@ from bench.language.const import (
     QueryType,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
-from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE, Node
+from bench.language.node import EDIT_SUBJECT_TYPES, EMPTY_SCOPE_DATA, Node
 from bench.language.query import NodeNotFoundError, QueryBuilder
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.session import RuntimeContext
-from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import edit_data_graph
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.language.value import unpack_proto_json, unpack_value_scalar_data
@@ -173,7 +173,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
     def _validate_request(self, request: ProtoMessage) -> None:
         """Validate a request message for this service."""
-        scope: GraphScopeData = getattr(request, "scope", EMPTY_SCOPE._to_data())
+        scope: GraphScopeData = getattr(request, "scope", None) or EMPTY_SCOPE_DATA
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"

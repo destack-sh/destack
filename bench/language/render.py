@@ -28,7 +28,7 @@ from bench.language.flow import Step
 from bench.language.node import BuiltinObject, HasTracingContext, Node, NodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
-from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
+from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import CustomObject, ScalarValue, SomeValue
 from bench.language.view import Icon, View, reverse_icon

@@ -1,5 +1,5 @@
 from bench.language.const import VERSION, NodeType
-from bench.language.setup import NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.sql.graph import map_builtin_object_to_table
 from bench.utils.utils import format_python
 
