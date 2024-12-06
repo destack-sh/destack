@@ -44,7 +44,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 )
                 session._create(client)
                 await session.flush(optimistic=True)
-                machine = Machine(parent=server, title="Machine1", cpu=0.25, ram=0.5, client=client)
+                machine = Machine(parent=server, title="Machine1", cpu=0.5, ram=0.5, client=client)
                 session._create(machine)
                 client.machine = machine
 

@@ -1404,10 +1404,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 for item in cast(list, value):
                     yield from cast(Struct, item)._walk_struct()
 
-    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):  # noqa: B027
-        """Check the integrity of the component."""
-        pass  # do nothing by default
-
     @final
     def _validate_self(
         self, properties: tuple[Property, ...], invalid: "ValidationHandler"
@@ -1424,9 +1420,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             if prop._type_info is not None and prop.reference_kind is None:
                 value = getattr(self, prop.name)
                 check_value(value, prop._type_info, invalid=invalid)
-        # check components
-        for component in self.__components__:
-            component._validate_component(self, properties, invalid)
 
     @final
     def _validate_rec(self, invalid: "ValidationHandler"):
@@ -2577,11 +2570,6 @@ class NodeReference(Struct[NodeReferenceData]):
             content_parts.append(f"base_bench_id={self.base_bench_id}")
         selector_str = ", ".join(content_parts)
         return f"{self.node_type.bench_name}:[{selector_str}]"
-
-    def _validate_component(
-        self, properties: Collection[Property], invalid: "ValidationHandler"
-    ) -> None:
-        pass  # NOTE :Robustness: we used to require bench_id for sub-bench types here
 
     @staticmethod
     def _ref_from_node(node: Node) -> "NodeReference":
