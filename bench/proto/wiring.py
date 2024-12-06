@@ -295,6 +295,7 @@ def unpack_builtin_object[T: BuiltinObject](
     graph: NodeGraph | None = None,
     # NOTE: by default new Nodes add themselves to their graph, but during
     #  unpacking we almost never want this (because we manage unpacking manually).
+    validate: bool = False,
     skip_add_self: bool = True,
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
@@ -323,7 +324,7 @@ def unpack_builtin_object[T: BuiltinObject](
             if connection is not None:
                 object_kwargs["_connection"] = connection
             object_kwargs["_skip_add_self"] = skip_add_self
-        obj = object_cls(**object_kwargs)
+        obj = object_cls(**object_kwargs, _skip_validate_self=not validate)
         if session is not None and isinstance(obj, Node):
             obj._track_self(session)
         return cast(T, obj)

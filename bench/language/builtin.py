@@ -29,15 +29,15 @@ def _assign_builtin_ids(graph: NodeGraph):
     # update references & reindex
     for node in graph.nodes:
         for prop in node.__wired_properties__.values():
-            if not prop.is_node_reference:
+            if not prop.is_node_reference or prop.is_computed:
                 continue
             prop_value = getattr(node, prop.name)
             if not prop_value:
                 continue
             if prop.is_list:
-                new_value = [assigned_ptrs_by_node[v.id] for v in prop_value]
+                new_value = [assigned_ptrs_by_node.get(v.id, v) for v in prop_value]
             else:
-                new_value = assigned_ptrs_by_node[prop_value.id]
+                new_value = assigned_ptrs_by_node.get(prop_value.id, prop_value)
             setattr(node, prop.name, new_value)
 
     graph._reindex()

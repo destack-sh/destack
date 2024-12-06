@@ -2200,11 +2200,20 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
 
     @classmethod
-    def partial(cls, block: "Block | None" = None, **kwargs: Any) -> "CustomObject":
+    def partial(
+        cls, *, type: int | None = None, block: "Block | None" = None, **kwargs: Any
+    ) -> "CustomObject":
         """Creates a new partial Node of this type."""
-        from bench.language.field import TypeInfo
+        from bench.language.field import TypeConstraint, TypeInfo
         from bench.language.value import coerce_custom_object_scalar
 
+        if cls is not Node:
+            kwargs["metatype"] = cls.metatype
+        if type is not None:
+            kwargs["type"] = type
+            constraint = TypeConstraint(node_subtypes=[type])
+        else:
+            constraint = None
         if block is not None:
             kwargs["block"] = block
             typ = TypeInfo(
@@ -2212,9 +2221,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 base_type=block,
                 base_field_type=FieldType.MEMBER,
                 bench_type=cls.metatype,
+                constraint=constraint,
             )
         else:
-            typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=cls.metatype)
+            typ = TypeInfo(
+                kind=TypeKind.PARTIAL_NODE, bench_type=cls.metatype, constraint=constraint
+            )
         return coerce_custom_object_scalar(ObjectKind.BUILTIN, kwargs, typ)
 
     @classmethod

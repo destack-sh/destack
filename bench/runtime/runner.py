@@ -374,7 +374,7 @@ def make_run_from_node(
 ) -> "Run":
     """Creates a Run from a runnable Node."""
     from bench.language import Block, Step
-    from bench.language.value import coerce_custom_object
+    from bench.language.value import coerce_custom_object_scalar
 
     if isinstance(node, Block):
         block = node
@@ -408,7 +408,7 @@ def make_run_from_node(
     if inputs is None:
         inputs = {}
     if run.input_type is not None:
-        inputs = coerce_custom_object(ObjectKind.INPUT, inputs, run.input_type)
+        inputs = coerce_custom_object_scalar(ObjectKind.INPUT, inputs, run.input_type)
         run.inputs = inputs
     return run
 

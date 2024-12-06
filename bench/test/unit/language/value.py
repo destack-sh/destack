@@ -17,7 +17,9 @@ from bench.language.const import (
     PrimitiveType,
     StructType,
 )
+from bench.language.database import Record
 from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
+from bench.language.flow import CreateStep, Step, StepType
 from bench.language.message import Message, MessageType
 from bench.language.node import BuiltinObject, Node
 from bench.language.session import Session
@@ -26,7 +28,7 @@ from bench.language.validation import constraint, on_invalid_raise
 from bench.language.value import (
     CustomObject,
     check_value,
-    coerce_custom_object,
+    coerce_custom_object_scalar,
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
@@ -57,7 +59,7 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     # coerce
     Action1Output = Action1.to_type_maybe(of="value", field_type=FieldType.OUTPUT)
     assert Action1Output is not None
-    obj = coerce_custom_object(
+    obj = coerce_custom_object_scalar(
         ObjectKind.OUTPUT,
         {
             "Output1": 42,
@@ -198,6 +200,38 @@ def test_partial_node_generic(session: Session, package: Package) -> None:
     full_obj = cast(Field, Node.from_partial(obj))
     assert full_obj.id is not None
     assert full_obj.name == "Option1"
+
+
+def test_partial_node_with_nested_value_packed(session: Session, package: Package) -> None:
+    """Create, update, pack/unpack a partial node with a nested value packed property (CreateStep)."""
+    obj = Step.partial(type=StepType.CREATE)
+    typ = obj._type
+
+    # should be init to given/empty values
+    assert obj.id is None
+    assert obj.parent is None
+    assert obj.type == StepType.CREATE
+    assert obj.node_partial is None
+
+    # set/get nested value
+    node_partial = Record.partial(block=Block.new(BlockType.DATABASE, "Database1"))
+    obj.node_partial = node_partial
+    assert obj.node_partial == node_partial
+
+    # pack/unpack
+    obj_packed = pack_custom_object(obj, typ)
+    obj_unpacked = unpack_custom_object(
+        ObjectKind.BUILTIN, obj_packed, typ, supergraph=session._supergraph
+    )
+    assert obj.equals(obj_unpacked)
+    assert obj_unpacked.node_partial is not node_partial  # should be a different object instance
+
+    # turn into full node
+    full_obj = cast(CreateStep, Step.from_partial(obj, name="CreateStep1"))
+    assert full_obj.id is not None
+    assert full_obj.name == "CreateStep1"
+    assert full_obj.type == StepType.CREATE
+    assert full_obj.node_partial == node_partial
 
 
 def test_roundtrip_scalar_value(session: Session, package: Package) -> None:

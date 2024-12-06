@@ -211,9 +211,7 @@ class CustomObject(Mapping[str, Any]):
         if type(item) is str:
             key = self._get_key(item)
             if key is None:
-                raise AttributeError(
-                    f"{self._type!r} has no Field or Property with identifier '{item}'"
-                )
+                raise AttributeError(f"{self!r} has no Field or Property with identifier '{item}'")
         else:
             key = item
         return self._do_get(key)  # type: ignore
@@ -221,6 +219,14 @@ class CustomObject(Mapping[str, Any]):
     __getattr__ = __getitem__
 
     def _do_get(self, key: "Field | Property") -> SomeValue:
+        if type(key) is Property:
+            if key.is_value_packed:
+                return None
+            if key.is_value_runtime:
+                assert isinstance(
+                    key.value_packed_ptr, Property
+                ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
+                key = key.value_packed_ptr
         value = self._value.get(key.key)
         if value is None:
             default = key.default
@@ -247,26 +253,43 @@ class CustomObject(Mapping[str, Any]):
     ) -> None:
         if type(item) is str and item in self.OWN_PROPERTIES:
             return object.__setattr__(self, item, new_value)
+
+        # figure out key
         if isinstance(item, str):
             key = self._get_key(item)
             if key is None:
-                raise AttributeError(
-                    f"{self._type!r} has no Field or Property with identifier '{item}'"
-                )
+                raise AttributeError(f"{self!r} has no Field or Property with identifier '{item}'")
         else:
             key = item
-        # coerce
-        key_typ = key.type_info if isinstance(key, Property) else key
-        new_value = coerce_value(new_value, key_typ, as_packed=True, parent=self, parent_key=key)
-        if validate:
-            check_value(new_value, key_typ, invalid=on_invalid_raise)
+
+        # check/coerce
+        coerce = True
+        if isinstance(key, Property):
+            assert not key.is_value_packed, f"cannot set {key!r} directly in {self!r}"
+            if key.is_value_runtime:
+                assert (
+                    type(key.value_packed_ptr) is Property
+                ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
+                key = key.value_packed_ptr
+                coerce = False
+        if coerce:
+            key_typ = key.type_info if isinstance(key, Property) else key
+            new_value = coerce_value(
+                new_value, key_typ, as_packed=True, parent=self, parent_key=key
+            )
+            if validate:
+                check_value(new_value, key_typ, invalid=on_invalid_raise)
+
+        # set/track
         storage_key = key.key
-        old_value = self._value.get(storage_key)
-        self._value[storage_key] = new_value
         if track:
             from bench.language.node import _trace_edit_operation
 
+            old_value = self._value.get(storage_key)
+            self._value[storage_key] = new_value
             _trace_edit_operation(self, key, new_value=new_value, old_value=old_value, subtype=None)
+        else:
+            self._value[storage_key] = new_value
 
     __setitem__ = _do_set
 
@@ -281,9 +304,7 @@ class CustomObject(Mapping[str, Any]):
         # delete field value if it's not required
         field = self._type._get_field(item)
         if field is None:
-            raise AttributeError(
-                f"{self._type!r} has no Field or Property with identifier '{item}'"
-            )
+            raise AttributeError(f"{self!r} has no Field or Property with identifier '{item}'")
         if field.is_required:
             raise AttributeError(f"{field!r} is required")
         if self._value is not None:
@@ -665,64 +686,9 @@ def _coerce_value_scalar(
         raise ValueError(f"could not coerce {value!r} ({type(value)}) as {typ!r}") from e
 
 
-def coerce_custom_object(kind: ObjectKind, value_raw: Any, typ: "TypeBase") -> CustomObject:
-    """
-    Tries to coerce a custom object from a given raw value.
-    We support 4 coercions:
-     1. Tuple of return values if there are multiple fields (with same length)
-     2. Dict of return values with { FieldName: Value }
-     3. CustomObject of same shape
-     4. Single return value if there is one field.
-
-    If this doesn't work, we raise ValueError/TypeError accordingly.
-    NOTE :Cleanup: coerce_custom_object/coerce_custom_object_scalar seem eerily similar
-    """
-
-    assert (
-        typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE
-    ), f"{typ!r} is not an Object"
-
-    fields = typ._fields
-    properties = _get_custom_object_properties(kind, typ, value_raw)
-    if isinstance(value_raw, tuple):
-        coerced = CustomObject(kind, typ, value={})
-        if len(value_raw) != len(fields):
-            raise ValueError(
-                f"got {len(value_raw)} values for {typ!r}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
-            )
-        for i, field in enumerate(fields):
-            coerced[field] = value_raw[i]
-    elif isinstance(value_raw, dict):
-        coerced = CustomObject(kind, typ, value={})
-        for prop in properties:
-            prop_value_raw = value_raw.get(prop.name, UNSET)
-            if prop_value_raw is not UNSET:
-                coerced[prop] = prop_value_raw
-        for field in fields:
-            field_value_raw = value_raw.get(field.name)
-            if field_value_raw is None:
-                field_value_raw = value_raw.get(field.code_name)
-            coerced[field] = field_value_raw
-    elif isinstance(value_raw, CustomObject) and value_raw._type == typ:
-        coerced = value_raw
-    else:
-        coerced = CustomObject(kind, typ, value={})
-        if len(fields) == 0:
-            if value_raw is not None:
-                raise ValueError(f"got value for {typ!r}, expected None")
-        else:
-            if len(fields) > 1:
-                raise ValueError(
-                    f"got single value for {typ!r}, need {len(fields)}: {', '.join(f.name for f in fields)}"
-                )
-            coerced[fields[0]] = value_raw
-
-    return coerced
-
-
 def coerce_custom_object_scalar(
     kind: ObjectKind,
-    value: dict | CustomObject,
+    value: Mapping[str, Any] | CustomObject | None,
     typ: "TypeBase",
     as_packed: bool = False,
     *,
@@ -730,7 +696,7 @@ def coerce_custom_object_scalar(
     parent_prop: ValueParentKey | None = None,
     supergraph: NodeSuperGraph | None = None,
 ) -> CustomObject:
-    """Coerces a single object from a dict representation or existing Object (recursively)."""
+    """Coerces a single object from its dict representation or existing CustomObject."""
     if type(value) is CustomObject:
         # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
         if parent is not None:
@@ -739,41 +705,38 @@ def coerce_custom_object_scalar(
         else:
             return value
     else:
-        # coerce
-        if not isinstance(value, dict):
+        if value is None:
+            value = {}
+        if not isinstance(value, Mapping):
             raise TypeError(f"{value!r} is a {type(value).__name__}, expected {typ!r}")
-        value_coerced = {}
-        properties = _get_custom_object_properties(kind, typ, value)
-        for prop in properties:
-            prop_value = value.get(prop.name)
-            if prop_value is not None:
-                value_coerced[prop.key] = coerce_value(
-                    prop_value,
-                    prop.type_info,
-                    as_packed=as_packed,
-                    parent=parent,
-                    parent_key=parent_prop,
-                )
-        for field in typ._base_fields:
-            # try getting value by storage key, name and ident
-            field_value = value.get(field.storage_key)
-            if field_value is None:
-                field_value = value.get(field.name)
-            if field_value is None:
-                field_value = value.get(field.code_name)
-            if field_value is None:
-                continue
-            value_coerced[field.storage_key] = coerce_value(
-                field_value, field, as_packed=as_packed, parent=parent, parent_key=parent_prop
-            )
-        return CustomObject.new(
-            kind=kind,
-            value=value_coerced,
-            typ=typ,
-            parent=parent,
-            parent_property=parent_prop,
-            supergraph=supergraph,
-        )
+
+    # coerce
+    obj = CustomObject.new(
+        kind=kind,
+        value={},
+        typ=typ,
+        parent=parent,
+        parent_property=parent_prop,
+        supergraph=supergraph,
+    )
+    properties = _get_custom_object_properties(kind, typ, value)
+    for prop in properties:
+        prop_value = value.get(prop.name)
+        if prop_value is not None:
+            obj._do_set(prop, prop_value, track=False)
+    for field in typ._base_fields:
+        # try getting value by storage key, name and ident
+        field_value = value.get(field.storage_key)
+        if field_value is None:
+            field_value = value.get(field.name)
+        if field_value is None:
+            code_name = field.code_name
+            if code_name is not None:
+                field_value = value.get(code_name)
+        if field_value is not None:
+            obj._do_set(field, field_value, track=False)
+
+    return obj
 
 
 def coerce_value(
@@ -1459,6 +1422,11 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
         prop_value = cast(SomeValue, _value.get(storage_key))
         if prop_value is None:
             continue
+        elif prop.is_value_packed:
+            assert (
+                type(prop_value) is CustomObject
+            ), f"unexpected {prop_value!r} for {prop!r} in {value!r}"
+            value_packed[storage_key] = pack_custom_object(prop_value, prop_value._type)
         elif not prop.is_list:
             value_packed[storage_key] = pack_value_scalar(
                 cast(ScalarValue, prop_value), prop.type_info
@@ -1515,6 +1483,20 @@ def unpack_custom_object(
         prop_value_packed = value_packed.get(storage_key)
         if prop_value_packed is None:
             continue
+        elif prop.is_value_packed:
+            # nested value_packed
+            assert prop.value_runtime_ptr is not None, f"unexpected {prop!r} in {value!r}"
+            prop = prop.value_runtime_ptr
+            assert prop.value_object_kind is not None, f"unexpected {prop!r} in {value!r}"
+            assert prop.value_type_info_getter is not None, f"unexpected {prop!r} in {value!r}"
+            prop_type = prop.value_type_info_getter(None)  # type: ignore
+            assert prop_type is not None, f"missing type from {prop!r} in {value!r}"
+            prop_value = unpack_custom_object(
+                kind=prop.value_object_kind,
+                value_packed=cast(dict[str, JsonValue], prop_value_packed),
+                typ=prop_type,
+                supergraph=supergraph,
+            )
         elif not prop.is_list:
             prop_value = unpack_value_scalar(
                 prop_value_packed, prop.type_info, supergraph=supergraph
