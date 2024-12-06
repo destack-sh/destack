@@ -93,7 +93,7 @@ async def test_run_flow_create_test_mode(local_runtime: RuntimeHandle):
         "Create",
         agency=Agency.CODE,
         code=code("""\
-return Block.new(BlockType.TEXT, "Test")
+return {'Block': Block.new(BlockType.TEXT, "Test")}
 """),
         fields=(Field.output("Block", Block, is_required=True),),
     )
@@ -199,7 +199,7 @@ async def test_run_flow_code_step(local_runtime: RuntimeHandle):
         StepType.ACTION,
         "Code1",
         agency=Agency.CODE,
-        code=code("return 2 * Input1"),
+        code=code("return {'Output1': 2 * Input1}"),
         fields=(
             Field.input("Input1", int, is_required=True),
             Field.output("Output1", int, is_required=True),
@@ -306,7 +306,9 @@ async def test_run_flow_create_step(hosted_runtime: RuntimeHandle):
     assert record is not None
 
     # run from step inputs
-    runner = await hosted_runtime.run(Create, inputs={"Rating": 3})
+    runner = await hosted_runtime.run(
+        Create, inputs={"node_partial": Record.partial(block=Database1, Rating=3)}
+    )
     assert runner.status == RunStatus.COMPLETED
     record = await Database1.records.get(Rating=3)
     assert record is not None

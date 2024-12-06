@@ -248,13 +248,13 @@ async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
 async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
     """
     Run a code function with a scalar, should coerce into object.
-    NOTE: we use the hosted_runtime here as we edit the node subtype property CodeBlock.code
+    NOTE: we use the hosted_runtime here as we edit the node subtype property ActionBlock.code
      (and the local runtime works directly in the SQL engine, which can't do hierarchical edits)
     """
     Function = Block.new(
         BlockType.ACTION,
         "Function",
-        code=code("""return Input1 * 4"""),
+        code=code("""return {"Result1": Input1 * 4}"""),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
         agency=Agency.CODE,
     )
@@ -269,7 +269,7 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
     Function = Block.new(
         BlockType.ACTION,
         "Function",
-        code=code("return Input1 * 1.7"),
+        code=code("return {'Result1': Input1 * 1.7}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
         agency=Agency.CODE,
     )
@@ -282,7 +282,7 @@ async def test_run_code_function_output_scalar(hosted_runtime: RuntimeHandle):
     Function = Block.new(
         BlockType.ACTION,
         "Function",
-        code=code("return 'stringy'"),
+        code=code("return {'Result1': 'stringy'}"),
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
         agency=Agency.CODE,
     )
@@ -297,7 +297,7 @@ async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
     Function = Block.new(
         BlockType.ACTION,
         "Function",
-        code=code("""return Input1 > 10, Input1 * 4, None"""),
+        code=code("""return {"Result1": Input1 > 10, "Result2": Input1 * 4, "Result3": None}"""),
         fields=(
             Field.input("Input1", int),
             Field.output("Result1", bool, is_required=True),
@@ -323,7 +323,7 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
     Function = Block.new(
         BlockType.ACTION,
         "Function",
-        code=code("""return dict(Result1=Input1 > 10, Result2=Input1 * 4)"""),
+        code=code("""return {"Result1": Input1 > 10, "Result2": Input1 * 4}"""),
         fields=(
             Field.input("Input1", int),
             Field.output("Result1", bool),
@@ -390,7 +390,7 @@ async def test_run_code_function_output_generic_node(local_runtime: RuntimeHandl
         BlockType.ACTION,
         "Function",
         code=code("""\
-return [self]
+return {"Output": [self]}
 """),
         fields=[Field.output("Output", Node, is_list=True)],
         agency=Agency.CODE,

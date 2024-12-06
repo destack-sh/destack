@@ -13,7 +13,7 @@ from bench.language.file import upload
 from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
 from bench.language.run import Run, RunnableNode, RunOptions, RunType
-from bench.language.value import CustomObject, coerce_custom_object
+from bench.language.value import CustomObject, coerce_custom_object_scalar
 from bench.runtime.capture import (
     MAX_LOG_LINE_LENGTH,
     MAX_LOGS_PER_CAPTURE,
@@ -154,7 +154,7 @@ class CodeRunnerBase(Runner):
     def _coerce_outputs(self, outputs_raw: Any) -> CustomObject:
         """Coerves raw outputs into the output type for this run."""
         assert self.output_type, f"no output type for {self!r}"
-        outputs = coerce_custom_object(ObjectKind.OUTPUT, outputs_raw, self.output_type)
+        outputs = coerce_custom_object_scalar(ObjectKind.OUTPUT, outputs_raw, self.output_type)
         return outputs
 
 

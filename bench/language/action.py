@@ -5,7 +5,7 @@ from bench.language.field import TypeBase
 from bench.language.node import BuiltinObject, NodeReference, Struct, object_, struct_
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import constraint
-from bench.language.value import coerce_custom_object
+from bench.language.value import coerce_custom_object_scalar
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -95,7 +95,9 @@ class Call(Struct):
         input_type = node.input_type
         assert input_type is not None, f"no input type for {node!r}"
         return Call(
-            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, inputs, input_type), **kwargs
+            node=node,
+            inputs=coerce_custom_object_scalar(ObjectKind.INPUT, inputs or {}, input_type),
+            **kwargs,
         )
 
 
@@ -138,7 +140,9 @@ class Continue(Struct):
         input_type = node.input_type
         assert input_type is not None, f"no input type for {node!r}"
         return Continue(
-            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, inputs, input_type), **kwargs
+            node=node,
+            inputs=coerce_custom_object_scalar(ObjectKind.INPUT, inputs or {}, input_type),
+            **kwargs,
         )
 
     at = new
