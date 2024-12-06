@@ -80,8 +80,8 @@ async def test_run_flow_trivial(local_runtime: RuntimeHandle):
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
-async def test_run_flow_create_test_mode(local_runtime: RuntimeHandle):
-    """Flow with Start->Complete in test mode, creating a simple Node."""
+async def test_run_flow_create_in_test_mode(local_runtime: RuntimeHandle):
+    """Flow with Start->Complete in test mode, creating a simple Node. Should be in same node."""
     Flow1 = Block.new(
         BlockType.FLOW,
         "Flow1",
@@ -93,7 +93,9 @@ async def test_run_flow_create_test_mode(local_runtime: RuntimeHandle):
         "Create",
         agency=Agency.CODE,
         code=code("""\
-return {'Block': Block.new(BlockType.TEXT, "Test")}
+block = Block.new(BlockType.TEXT, "Test")
+Flow1.parent.append(block)
+return {'Block': block}
 """),
         fields=(Field.output("Block", Block, is_required=True),),
     )

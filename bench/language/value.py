@@ -8,6 +8,8 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
+    Literal,
+    NamedTuple,
     Optional,
     Sequence,
     TypeGuard,
@@ -278,7 +280,9 @@ class CustomObject(Mapping[str, Any]):
                 new_value, key_typ, as_packed=True, parent=self, parent_key=key
             )
             if validate:
-                check_value(new_value, key_typ, invalid=on_invalid_raise)
+                check_value(
+                    new_value, key_typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise
+                )
 
         # set/track
         storage_key = key.key
@@ -831,10 +835,21 @@ MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
 }
 
 
+class CheckOptions(NamedTuple):
+    """Options for checking a value."""
+
+    detached_is: Literal["none", "invalid"] = "none"
+
+
+DEFAULT_CHECK_OPTIONS = CheckOptions()
+
+
 def check_value_scalar_constraint(
     value: SomeValue,
     typ: "TypeBase",
     constraint: "TypeConstraint | TypeConstraintIn",
+    *,
+    options: CheckOptions,
     invalid: "ValidationHandler",
 ) -> None:
     """Checks whether the given value satisfies the given scalar constraint."""  # :TypeChecking
@@ -860,7 +875,9 @@ def check_value_scalar_constraint(
             invalid(value, f"does not end with {constraint.ends_with}", typ)
 
 
-def check_value_scalar(value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler") -> None:
+def check_value_scalar(
+    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
+) -> None:
     """Checks whether the given scalar value has the expected type."""  # :TypeChecking
     if typ.kind == TypeKind.PRIMITIVE:
         expected_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
@@ -871,10 +888,12 @@ def check_value_scalar(value: SomeValue, typ: "TypeBase", invalid: "ValidationHa
             return  # also nothing to do
         # check constraint
         if typ.constraint is not None:
-            check_value_scalar_constraint(value, typ, typ.constraint, invalid)
+            check_value_scalar_constraint(
+                value, typ, typ.constraint, options=options, invalid=invalid
+            )
         if typ.format is not None:
             check_value_scalar_constraint(
-                value, typ, TYPE_CONSTRAINT_BY_FORMAT[typ.format], invalid
+                value, typ, TYPE_CONSTRAINT_BY_FORMAT[typ.format], options=options, invalid=invalid
             )
         # strings cannot be empty (because of protobuf we must disambiguate unset from empty)
         if type(value) is str and len(value) == 0:
@@ -897,7 +916,9 @@ def check_value_scalar(value: SomeValue, typ: "TypeBase", invalid: "ValidationHa
             allowed_types = None
 
         if isinstance(value, Node):
-            if allowed_types and value.metatype not in allowed_types:
+            if options.detached_is == "invalid" and not value.is_attached:
+                invalid(value, "detached node", typ)
+            elif allowed_types and value.metatype not in allowed_types:
                 invalid(value, f"not of type, is {value.metatype}", typ)
         elif isinstance(value, NodeReference):
             if allowed_types and value.node_type not in allowed_types:
@@ -924,7 +945,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeBase", invalid: "ValidationHa
 
 
 def _check_is_list(
-    value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler"
+    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
 ) -> TypeGuard[list]:
     """Checks whether the given value is a list of the expected dimensions."""
     if not isinstance(value, (list, tuple)):
@@ -939,7 +960,7 @@ def _check_is_list(
 
 
 def _check_is_object(
-    value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler"
+    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
 ) -> TypeGuard[CustomObject]:
     if not isinstance(value, CustomObject):
         invalid(value, "not an object", typ)
@@ -948,16 +969,18 @@ def _check_is_object(
 
 
 def check_custom_object_scalar(
-    value: SomeValue, typ: "TypeBase", invalid: "ValidationHandler"
+    value: SomeValue, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
-    if _check_is_object(value, typ, invalid):
+    if _check_is_object(value, typ, options=options, invalid=invalid):
         for field in typ._fields:
             field_value = value._do_get(field)
-            check_value(field_value, field, invalid)
+            check_value(field_value, field, options=options, invalid=invalid)
 
 
-def check_value(value: Any, typ: "TypeBase", invalid: "ValidationHandler") -> None:
+def check_value(
+    value: Any, typ: "TypeBase", *, options: CheckOptions, invalid: "ValidationHandler"
+) -> None:
     """
     Checks whether the given value has the expected type (recursively).
     """
@@ -968,16 +991,16 @@ def check_value(value: Any, typ: "TypeBase", invalid: "ValidationHandler") -> No
             return
     if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
         if not typ.is_list:
-            check_custom_object_scalar(value, typ, invalid)
-        elif _check_is_list(value, typ, invalid):
+            check_custom_object_scalar(value, typ, options=options, invalid=invalid)
+        elif _check_is_list(value, typ, options=options, invalid=invalid):
             for element in value:
-                check_custom_object_scalar(element, typ, invalid)
+                check_custom_object_scalar(element, typ, options=options, invalid=invalid)
     else:
         if not typ.is_list:
-            check_value_scalar(value, typ, invalid)
-        elif _check_is_list(value, typ, invalid):
+            check_value_scalar(value, typ, options=options, invalid=invalid)
+        elif _check_is_list(value, typ, options=options, invalid=invalid):
             for element in value:
-                check_value_scalar(element, typ, invalid)
+                check_value_scalar(element, typ, options=options, invalid=invalid)
 
 
 #

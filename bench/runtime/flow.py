@@ -137,12 +137,12 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         if isinstance(node, Step):
             runner_cls = STEP_RUNNER_BY_STEP_TYPE.get(node.type)
             if runner_cls is None:
-                raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
+                raise NotImplementedError(f"no supported runner for {node!r}")
             run_options = get_run_options(RunType.STEP, node.run_options)
         elif isinstance(node, Pipe):
             runner_cls = PIPE_RUNNER_BY_PIPE_TYPE.get(node.type)
             if runner_cls is None:
-                raise NotImplementedError(f"no supported runner for {node!r} in {self!r}")
+                raise NotImplementedError(f"no supported runner for {node!r}")
             run_options = get_run_options(RunType.PIPE, node.run_options)
         else:
             assert_never(node)
@@ -168,9 +168,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         runner = run if isinstance(run, Runner) else restore_runner(self.runtime, run)
         if runner in self._interrupted_runners:
             self._interrupted_runners.remove(runner)
-        assert isinstance(
-            runner, (StepRunnerBase, PipeRunnerBase)
-        ), f"unexpected {runner!r} in {self!r}"
+        assert isinstance(runner, (StepRunnerBase, PipeRunnerBase)), f"unexpected {runner!r}"
         runner.flow = self
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.tick.resume", flow=self.node, node=runner.node, runner=runner)
@@ -234,7 +232,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
                 )
                 outgoing.append(next_run)
             else:
-                raise RuntimeError(f"unexpected {runner!r} in {self!r}")
+                raise RuntimeError(f"unexpected {runner!r}")
             runner.tracked_run.outgoing = outgoing
         elif runner.status.is_interrupted:
             self._interrupted_runners.append(runner)
@@ -246,7 +244,7 @@ class FlowRunnerBase[N: RunnableNode = RunnableNode](Runner[N], ABC):
         elif runner.status in (RunStatus.ABORTED, RunStatus.CANCELLED):
             pass  # ignore
         else:
-            raise RuntimeError(f"unexpected stopped {runner!r} in {self!r}")
+            raise RuntimeError(f"unexpected stopped {runner!r}")
 
         self._stop_if_needed()
 
@@ -464,8 +462,9 @@ class CreateStepRunner(StepRunnerBase):
         step = cast(CreateStep, self.node)
         inputs = cast(CreateStep, self.inputs)
         node_partial = inputs.node_partial or step.node_partial
+        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
 
-        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r} in {self!r}"
+        # create node from partial
         node = make_node_from_partial(node_partial)
         if node.parent is None:
             parent_types = node.__parent_property__.reference_nodes or ()
@@ -479,7 +478,7 @@ class CreateStepRunner(StepRunnerBase):
                 and (parent_types == "any" or node.base.metatype in parent_types)
             ):
                 node.parent = node.base
-        assert node.is_attached, f"node {node!r} must be attached in {self!r}"
+        assert node.is_attached, f"node {node!r} must be attached"
         self.session._create(node)
         logger.debug("step.create", step=self.node, node=node)
 
@@ -494,8 +493,13 @@ class CloneStepRunner(StepRunnerBase):
         inputs = cast(CloneStep, self.inputs)
         node = inputs.node or step.node
         node_partial = inputs.node_partial
-        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r} in {self!r}"
-        cloned_node = node.clone(recursive=inputs.recursive)
+        assert isinstance(node_partial, CustomObject), f"unexpected {node_partial!r}"
+
+        # clone node with partial override
+        cloned_node = node.clone(recursive=inputs.recursive, detach=True)
+        patch_node_from_partial(cloned_node, node_partial)
+        assert cloned_node.parent is not None, f"cloned node {cloned_node!r} must be attached"
+        cloned_node.parent.append(cloned_node)
         logger.debug("step.clone", step=self.node, node=cloned_node, partial=node_partial)
 
         assert self.output_type is not None, f"no output type for {self!r}"
@@ -508,9 +512,8 @@ class UpdateStepRunner(StepRunnerBase):
         step = cast(UpdateStep, self.node)
         inputs = cast(UpdateStep, self.inputs)
         node_partial = inputs.node_partial or step.node_partial
-        assert isinstance(
-            node_partial, CustomObject
-        ), f"unexpected {inputs.node_partial!r} in {self!r}"
+        assert isinstance(node_partial, CustomObject), f"unexpected {inputs.node_partial!r}"
+
         node = inputs.node or step.node
         patch_node_from_partial(node, node_partial)
         logger.debug("step.update", step=self.node, node=node, partial=node_partial)

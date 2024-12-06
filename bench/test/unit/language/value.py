@@ -26,6 +26,7 @@ from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.validation import constraint, on_invalid_raise
 from bench.language.value import (
+    DEFAULT_CHECK_OPTIONS,
     CustomObject,
     check_value,
     coerce_custom_object_scalar,
@@ -369,13 +370,13 @@ UNGENERATABLE_STRUCT_TYPES = [
 def test_sample_value_scalar(session: Session, package: Package):
     typ = TypeInfo.from_type(bool)
     val = sample_value(typ)
-    check_value(val, typ, on_invalid_raise)
+    check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
 
 
 def test_sample_value_scalar_constrained(session: Session, package: Package):
     typ = TypeInfo.from_type(int, constraint=constraint(min_value=10.0, max_value=20.0))
     val = sample_value(typ)
-    check_value(val, typ, on_invalid_raise)
+    check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
 
 
 @pytest.mark.parametrize(
@@ -386,7 +387,7 @@ def test_sample_value_scalar_constrained(session: Session, package: Package):
 def test_sample_value_struct(struct_type: StructType, session: Session, package: Package):
     typ = TypeInfo(kind=TypeKind.STRUCT, bench_type=struct_type)
     val = sample_value(typ)
-    check_value(val, typ, on_invalid_raise)
+    check_value(val, typ, options=DEFAULT_CHECK_OPTIONS, invalid=on_invalid_raise)
 
 
 def test_sample_choice_block(session: Session, package: Package):
