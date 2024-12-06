@@ -370,7 +370,7 @@ class AnonymousResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
 
 
 CPU_CONSTRAINT = constraint(min_value=0.1, max_value=16.0, step_value=0.1)
-RAM_CONSTRAINT = constraint(min_value=0.2, max_value=256.0, step_value=0.2)
+RAM_CONSTRAINT = constraint(min_value=0.1, max_value=256.0, step_value=0.1)
 
 
 @node_(NodeType.SERVER)
