@@ -385,7 +385,6 @@ class Step(SourceNode[StepData]):
         field_type: FieldType | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Step (if any)"""
-        from bench.language.builtin import STUB_BY_STEP_TYPE
         from bench.language.field import TypeInfo
 
         if of == "instance":
@@ -403,8 +402,6 @@ class Step(SourceNode[StepData]):
             if self.type == StepType.ACTION and cast(ActionStep, self).delegate_ptr:
                 delegate = cast(ActionStep, self).delegate
                 base = delegate or self
-            elif self.type in STUB_BY_STEP_TYPE:
-                base = STUB_BY_STEP_TYPE[self.type]
             assert field_type is not None, f"missing field_type for object {self!r}"
 
             if field_type == FieldType.INPUT:

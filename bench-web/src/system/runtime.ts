@@ -374,6 +374,7 @@ export function getRunActions(run: RunData): RuntimeAction[] {
   } else if (isRunTerminal(run)) {
     actions.push({
       title: "Restart",
+      isPrimary: true,
       icon: makeIcon("fas fa-redo"),
       action: () => {
         const basePtr = getRunBasePtr(run);

@@ -15,7 +15,7 @@ from bench.language import Bench, Drive, NodeReference, Package, Run, Server, St
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Branch
 from bench.language.block import Block
-from bench.language.builtin import Builtins
+from bench.language.builtin import make_builtins
 from bench.language.connection import GraphEngine, MemoryEngine
 from bench.language.const import (
     BENCH_SLUG,
@@ -413,6 +413,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # synchronize bench builtins
         if self._bench.slug == BENCH_SLUG:
             async with self.session(readonly=False, commit=True):
+                Builtins = make_builtins(self._session)
                 sync_node(
                     parent=self._main_package,
                     old_root=self._main_package.blocks.get("Builtins"),

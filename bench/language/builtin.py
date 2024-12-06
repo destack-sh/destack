@@ -3,15 +3,13 @@ from uuid import UUID, uuid5
 
 from bench.language.action import Agency
 from bench.language.block import Block
-from bench.language.connection import NullEngine
-from bench.language.const import NODE_TYPES, UUID_NAMESPACE, BlockType, NodeMode, _active_session
+from bench.language.const import UUID_NAMESPACE, BlockType, NodeMode
 from bench.language.field import Field
 from bench.language.flow import StepType
-from bench.language.graph import NodeGraph, NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE_DATA, Node, NodeReference, SourceNode
+from bench.language.graph import NodeGraph
+from bench.language.node import Node, NodeReference, SourceNode
 from bench.language.registry import _complete_bench_setup
 from bench.language.session import Session
-from bench.utils.oracle import REAL_ORACLE
 
 _complete_bench_setup()
 
@@ -45,68 +43,61 @@ def _assign_builtin_ids(graph: NodeGraph):
     graph._reindex()
 
 
-_supergraph = NodeSuperGraph(root_ptr=None)
-_session = Session(
-    _engines=(NullEngine(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
-    _supergraph=_supergraph,
-    _oracle=REAL_ORACLE,
-)
-_token = _active_session.set(_session)
+def make_builtins(session: Session) -> Block:
+    """
+    Create the Builtins (detached).
+    NOTE :Incomplete: we can't really use Builtins (until we have :Dependencies)
+    """
+    Builtins = Block.new(BlockType.PAGE, "Builtins")
 
-Builtins = Block.new(BlockType.PAGE, "Builtins")
+    #
+    # Stubs (schemas and the like for :RichBuiltin implementations)
+    #
 
-#
-# Stubs (schemas and the like for :RichBuiltin implementations)
-#
+    Stubs = Block.new(BlockType.PAGE, "Stubs")
+    Builtins.blocks.append(Stubs)
 
-Stubs = Block.new(BlockType.PAGE, "Stubs")
-Builtins.blocks.append(Stubs)
+    # step
+    Steps = Block.new(BlockType.PAGE, "Steps")
+    Stubs.blocks.append(Steps)
+    STUB_BY_STEP_TYPE: Mapping[StepType, Block] = {
+        # read
+        StepType.GET: Block.new(
+            BlockType.ACTION,
+            "Get",
+            agency=Agency.CODE,
+            fields=(Field.output("Node", Node, is_required=True),),
+        ),
+        StepType.SEARCH: Block.new(
+            BlockType.ACTION,
+            "Search",
+            agency=Agency.CODE,
+            fields=(Field.output("Nodes", Node, is_list=True, is_required=True),),
+        ),
+        # write
+        StepType.CREATE: Block.new(
+            BlockType.ACTION,
+            "Create",
+            agency=Agency.CODE,
+            fields=(Field.output("Node", Node, is_required=True),),
+        ),
+    }
+    Steps.blocks.extend(*STUB_BY_STEP_TYPE.values())
 
-# step
-Steps = Block.new(BlockType.PAGE, "Steps")
-Stubs.blocks.append(Steps)
-STUB_BY_STEP_TYPE: Mapping[StepType, Block] = {
-    # read
-    StepType.GET: Block.new(
-        BlockType.ACTION,
-        "Get",
-        agency=Agency.CODE,
-        fields=(Field.output("Node", Node, is_required=True),),
-    ),
-    StepType.SEARCH: Block.new(
-        BlockType.ACTION,
-        "Search",
-        agency=Agency.CODE,
-        fields=(Field.output("Nodes", Node, is_list=True, is_required=True),),
-    ),
-    # write
-    StepType.CREATE: Block.new(
-        BlockType.ACTION,
-        "Create",
-        agency=Agency.CODE,
-        fields=(Field.output("Node", Node, is_required=True),),
-    ),
-}
-Steps.blocks.extend(*STUB_BY_STEP_TYPE.values())
+    #
+    # Computer
+    #
 
+    Computer = Block.new(BlockType.PAGE, "Computer")
+    Builtins.blocks.append(Computer)
 
-#
-# Computer
-#
+    #
+    # Finalize
+    #
 
-Computer = Block.new(BlockType.PAGE, "Computer")
-Builtins.blocks.append(Computer)
+    for node in Builtins._graph.nodes:
+        assert isinstance(node, SourceNode), f"unexpected {node!r}"
+        node.mode = NodeMode.BUILTIN
+    _assign_builtin_ids(Builtins._graph)
 
-#
-# Finalize
-#
-
-
-for node in Builtins._graph.nodes:
-    assert isinstance(node, SourceNode), f"unexpected {node!r}"
-    node.mode = NodeMode.BUILTIN
-_assign_builtin_ids(Builtins._graph)
-Builtins._graph.supergraph.remove_graph(Builtins._graph)
-Builtins._graph.supergraph = None
-
-_active_session.reset(_token)
+    return Builtins

@@ -427,12 +427,12 @@ class NodeSuperGraph:
 
     def __repr__(self):
         if self._root_ptr is None:
-            return f"<{self.__class__.__name__} <NULL!>>"
+            return f"<{self.__class__.__name__} <detached>>"
         else:
             root = self.get(self._root_ptr)
             root_str = repr(root) if root is not None else f"{self._root_ptr!r}"
             base_str = f", base={self._base!r}" if self._base is not None else ""
-            return f"<{self.__class__.__name__} from {root_str} ({self!s}{base_str})>"
+            return f"<{self.__class__.__name__} {root_str} ({self!s}{base_str})>"
 
     def has(self, other: "NodeSuperGraph"):
         return self is other or (self._base is not None and self._base.has(other))
