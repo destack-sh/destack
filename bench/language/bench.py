@@ -256,6 +256,7 @@ class Dependency(SourceNode[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).
     If scopes are given, only those blocks are included.
+    NOTE :Incomplete: Dependency doesn't work yet :Dependencies
     """
 
     parent: Union[Package, None] = p_node_parent(4, NodeType.PACKAGE)

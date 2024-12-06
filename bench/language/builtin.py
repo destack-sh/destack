@@ -97,10 +97,16 @@ Steps.blocks.extend(*STUB_BY_STEP_TYPE.values())
 Computer = Block.new(BlockType.PAGE, "Computer")
 Builtins.blocks.append(Computer)
 
-# complete builtins
+#
+# Finalize
+#
+
+
 for node in Builtins._graph.nodes:
     assert isinstance(node, SourceNode), f"unexpected {node!r}"
     node.mode = NodeMode.BUILTIN
 _assign_builtin_ids(Builtins._graph)
+Builtins._graph.supergraph.remove_graph(Builtins._graph)
+Builtins._graph.supergraph = None
 
 _active_session.reset(_token)

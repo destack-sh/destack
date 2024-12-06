@@ -1666,14 +1666,14 @@ message MemberObjectData {
 
 message InputObjectData {
   ObjectType metatype = 1;
-  optional TextData text = 100;
+  optional TextData text = 900;
 }
 
 message OutputObjectData {
   ObjectType metatype = 1;
-  optional TextData text = 100;
-  optional CallData call = 110;
-  repeated ContinueData continuations = 111;
+  optional TextData text = 900;
+  optional CallData call = 910;
+  repeated ContinueData continuations = 911;
 }
 
 message ValueData {
@@ -1682,67 +1682,6 @@ message ValueData {
   optional string name = 32;
   optional TextData text = 34;
   optional google.protobuf.Value value_packed = 35;
-}
-
-message SelectionData {
-  ObjectType metatype = 1;
-  repeated NodeReferenceData nodes_ptr = 40;
-  repeated NodeReferenceData fields_ptr = 41;
-  repeated PropertyReferenceData properties_ptr = 42;
-}
-
-message ExpressionData {
-  ObjectType metatype = 1;
-  ExpressionType type = 30;
-  optional PropertyReferenceData property_ptr = 31;
-  optional NodeReferenceData field_ptr = 32;
-  optional NodeReferenceData block_ptr = 33;
-  repeated ExpressionData clauses = 40;
-  optional google.protobuf.Value value_packed = 46;
-  optional SortMode sort_mode = 48;
-  optional float tolerance = 49;
-}
-
-message AggregationResultData {
-  ObjectType metatype = 1;
-  AggregationType op = 30;
-  optional bool exists = 31;
-  optional int32 count = 32;
-  optional float scalar = 33;
-}
-
-message TypeConstraintData {
-  ObjectType metatype = 1;
-  optional float min_value = 40;
-  optional float max_value = 41;
-  optional float step_value = 42;
-  optional int32 min_length = 50;
-  optional int32 max_length = 51;
-  optional string regex = 60;
-  optional string starts_with = 61;
-  optional string ends_with = 62;
-  repeated NodeType node_types = 70;
-  repeated NodeReferenceData node_scope_ptr = 71;
-  optional int32 node_max_depth = 72;
-  repeated int32 node_subtypes = 73;
-}
-
-message TypeInfoData {
-  ObjectType metatype = 1;
-  TypeKind kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional BenchType bench_type = 42;
-  optional NodeReferenceData base_type_ptr = 43;
-  optional FieldType base_field_type = 44;
-  optional NodeReferenceData oneof_ptr = 45;
-  optional PartialNodeScope partial_scope = 46;
-  optional google.protobuf.Value default_packed = 50;
-  optional TypeFormat format = 53;
-  optional ExpressionData condition = 54;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
 }
 
 message TextSpanData {
@@ -1841,6 +1780,67 @@ message AccessData {
   AccessType verb = 32;
   NodeType node_type = 33;
   repeated PropertyReferenceData allowed_properties_ptr = 34;
+}
+
+message SelectionData {
+  ObjectType metatype = 1;
+  repeated NodeReferenceData nodes_ptr = 40;
+  repeated NodeReferenceData fields_ptr = 41;
+  repeated PropertyReferenceData properties_ptr = 42;
+}
+
+message ExpressionData {
+  ObjectType metatype = 1;
+  ExpressionType type = 30;
+  optional PropertyReferenceData property_ptr = 31;
+  optional NodeReferenceData field_ptr = 32;
+  optional NodeReferenceData block_ptr = 33;
+  repeated ExpressionData clauses = 40;
+  optional google.protobuf.Value value_packed = 46;
+  optional SortMode sort_mode = 48;
+  optional float tolerance = 49;
+}
+
+message AggregationResultData {
+  ObjectType metatype = 1;
+  AggregationType op = 30;
+  optional bool exists = 31;
+  optional int32 count = 32;
+  optional float scalar = 33;
+}
+
+message TypeConstraintData {
+  ObjectType metatype = 1;
+  optional float min_value = 40;
+  optional float max_value = 41;
+  optional float step_value = 42;
+  optional int32 min_length = 50;
+  optional int32 max_length = 51;
+  optional string regex = 60;
+  optional string starts_with = 61;
+  optional string ends_with = 62;
+  repeated NodeType node_types = 70;
+  repeated NodeReferenceData node_scope_ptr = 71;
+  optional int32 node_max_depth = 72;
+  repeated int32 node_subtypes = 73;
+}
+
+message TypeInfoData {
+  ObjectType metatype = 1;
+  TypeKind kind = 40;
+  optional PrimitiveType primitive_type = 41;
+  optional BenchType bench_type = 42;
+  optional NodeReferenceData base_type_ptr = 43;
+  optional FieldType base_field_type = 44;
+  optional NodeReferenceData oneof_ptr = 45;
+  optional PartialNodeScope partial_scope = 46;
+  optional google.protobuf.Value default_packed = 50;
+  optional TypeFormat format = 53;
+  optional ExpressionData condition = 54;
+  optional TypeConstraintData constraint = 55;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
 }
 
 message CallData {
@@ -2244,45 +2244,6 @@ message SkipData {
   optional string order_key = 31;
 }
 
-message FieldData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  FieldType type = 30;
-  string name = 31;
-  string order_key = 32;
-  optional TextData text = 33;
-  optional IconData icon = 34;
-  TypeKind kind = 40;
-  optional PrimitiveType primitive_type = 41;
-  optional BenchType bench_type = 42;
-  optional NodeReferenceData base_type_ptr = 43;
-  optional FieldType base_field_type = 44;
-  optional NodeReferenceData oneof_ptr = 45;
-  optional PartialNodeScope partial_scope = 46;
-  optional google.protobuf.Value default_packed = 50;
-  optional TypeFormat format = 53;
-  optional ExpressionData condition = 54;
-  optional TypeConstraintData constraint = 55;
-  bool is_required = 60;
-  bool is_list = 61;
-  bool is_secret = 62;
-  NodeMode mode = 90;
-}
-
 message BenchData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2645,6 +2606,45 @@ message BadgeData {
   optional string key_hash = 41;
   optional string password = 42;
   optional string password_hash = 43;
+  NodeMode mode = 90;
+}
+
+message FieldData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData package_ptr = 5;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData template_ptr = 7;
+  optional int64 templated_epoch = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  FieldType type = 30;
+  string name = 31;
+  string order_key = 32;
+  optional TextData text = 33;
+  optional IconData icon = 34;
+  TypeKind kind = 40;
+  optional PrimitiveType primitive_type = 41;
+  optional BenchType bench_type = 42;
+  optional NodeReferenceData base_type_ptr = 43;
+  optional FieldType base_field_type = 44;
+  optional NodeReferenceData oneof_ptr = 45;
+  optional PartialNodeScope partial_scope = 46;
+  optional google.protobuf.Value default_packed = 50;
+  optional TypeFormat format = 53;
+  optional ExpressionData condition = 54;
+  optional TypeConstraintData constraint = 55;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
   NodeMode mode = 90;
 }
 
