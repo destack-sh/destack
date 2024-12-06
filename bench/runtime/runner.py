@@ -408,7 +408,7 @@ def make_run_from_node(
     if inputs is None:
         inputs = {}
     if run.input_type is not None:
-        inputs = coerce_custom_object(ObjectKind.INPUT, run.input_type, inputs)
+        inputs = coerce_custom_object(ObjectKind.INPUT, inputs, run.input_type)
         run.inputs = inputs
     return run
 
@@ -420,7 +420,7 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
         raise RunImpossibleError(f"no node for {run!r}")
     if run.inputs is None and run.input_type is not None:
         inputs = CustomObject.new(
-            ObjectKind.INPUT, {}, run.input_type, supergraph=runtime.session._supergraph
+            ObjectKind.INPUT, {}, typ=run.input_type, supergraph=runtime.session._supergraph
         )
     else:
         inputs = run.inputs

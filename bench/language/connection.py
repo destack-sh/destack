@@ -834,7 +834,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
             result_data.graph.remove(node_data)
         if result is not None:  # and update unpacked result
             for node_data in update.added_nodes:
-                node = wiring.unpack_object(
+                node = wiring.unpack_builtin_object(
                     node_data,
                     supergraph=self.session._supergraph,
                     session=self.session,
@@ -894,7 +894,7 @@ class AggregateConnection[ChannelT: Channel](
         from bench.language import AggregationResult
         from bench.proto import wiring
 
-        aggregation = wiring.unpack_object(
+        aggregation = wiring.unpack_builtin_object(
             result_data.aggregation, supergraph=self.session._supergraph, expect=AggregationResult
         )
         return AggregateResult(aggregation=aggregation)
@@ -918,7 +918,7 @@ class AggregateConnection[ChannelT: Channel](
         if result_data is not None:
             result_data.aggregation = update.aggregation
         if result is not None:
-            result.aggregation = wiring.unpack_object(
+            result.aggregation = wiring.unpack_builtin_object(
                 update.aggregation, supergraph=self.session._supergraph, expect=AggregationResult
             )
 
@@ -1165,7 +1165,7 @@ class SplitConnection(Connection):
                     type=QueryType.GET,
                     node_type=parent_type,
                     roots=[
-                        wiring.unpack_object(p, supergraph=None, expect=NodeReference)
+                        wiring.unpack_builtin_object(p, supergraph=None, expect=NodeReference)
                         for p in parents
                     ],
                     ancestor_types=remaining_ancestors_types,

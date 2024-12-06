@@ -292,7 +292,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         # TODO :Robustness: Run.created_epoch may be ahead of our own epoch if the sync takes longer to
         #  arrive than the request from the scheduler (both from our Host). This means the caller/user
         #  may expect a different current state than we actually have (so we may be behind).
-        run_ptr = wiring.unpack_object_validate(
+        run_ptr = wiring.unpack_builtin_object_validate(
             request.run_ptr, supergraph=None, expect=NodeReference
         )
         handle = await self._load(run_ptr)

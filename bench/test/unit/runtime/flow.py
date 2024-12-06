@@ -20,7 +20,6 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Code = Step.new(StepType.ACTION, "Code", agency=Agency.CODE, code=code("pass"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Fail = Step.new(StepType.FAIL, "Fail")
     Flow1.steps.extend(Start, Code, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
@@ -28,7 +27,6 @@ async def test_run_step_directly(local_runtime: RuntimeHandle):
     _ = await local_runtime.run(Start)
     _ = await local_runtime.run(Code)
     _ = await local_runtime.run(Complete)
-    _ = await local_runtime.run(Fail)
 
 
 async def test_run_pipe_directly(local_runtime: RuntimeHandle):
@@ -269,11 +267,23 @@ async def test_run_flow_fail_step(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
+    # flow
     runner = await local_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error
     assert runner.error.title == "Fail title"
     assert runner.error.text == Text.plain("Fail text")
+
+    # run directly with custom inputs
+    runner = await local_runtime.run(
+        Fail,
+        inputs={"error_title": "Custom title", "error_text": Text.plain("Custom text")},
+        return_error=True,
+    )
+    assert runner.status == RunStatus.FAILED
+    assert runner.error
+    assert runner.error.title == "Custom title"
+    assert runner.error.text == Text.plain("Custom text")
 
 
 async def test_run_flow_create_step(local_runtime: RuntimeHandle):

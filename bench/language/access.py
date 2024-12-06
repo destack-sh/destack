@@ -742,7 +742,7 @@ def generate_access_matrix(
                 new_policies: list[Policy] = getattr(node, "policies")
             else:
                 new_policies: list[Policy] = [
-                    wiring.unpack_object_validate(p, supergraph=supergraph)
+                    wiring.unpack_builtin_object_validate(p, supergraph=supergraph)
                     for p in getattr(node_data, "policies")
                 ]
             for policy in new_policies:

@@ -859,7 +859,7 @@ async def download_batch(
     if session is None:
         session = active_session()
 
-    from bench.proto.wiring import unpack_object
+    from bench.proto.wiring import unpack_builtin_object
 
     # get download URLs
     with tracer.start_as_current_span("file.prepare_download"):
@@ -883,7 +883,9 @@ async def download_batch(
             if isinstance(file_ref, File):
                 file = file_ref
             else:
-                file = unpack_object(handle.file, supergraph=session._supergraph, expect=File)
+                file = unpack_builtin_object(
+                    handle.file, supergraph=session._supergraph, expect=File
+                )
             files_by_id[file.id] = file
             file._cached_get_url = handle.get_url
 

@@ -154,7 +154,7 @@ class CodeRunnerBase(Runner):
     def _coerce_outputs(self, outputs_raw: Any) -> CustomObject:
         """Coerves raw outputs into the output type for this run."""
         assert self.output_type, f"no output type for {self!r}"
-        outputs = coerce_custom_object(ObjectKind.OUTPUT, self.output_type, outputs_raw)
+        outputs = coerce_custom_object(ObjectKind.OUTPUT, outputs_raw, self.output_type)
         return outputs
 
 

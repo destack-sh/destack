@@ -12,7 +12,7 @@ from bench.proto.wire import (
     SupervisorClient,
     UserData,
 )
-from bench.proto.wiring import pack_enum, pack_rpc_headers, unpack_object
+from bench.proto.wiring import pack_enum, pack_rpc_headers, unpack_builtin_object
 from bench.test.simulation.spec import ClientSpec
 
 if TYPE_CHECKING:
@@ -66,7 +66,7 @@ class UserHandle:
         )
         signup_rep = await supervisor_client.signup_user(signup_req)
         self._user_data = signup_rep.user
-        self._user_ptr = unpack_object(
+        self._user_ptr = unpack_builtin_object(
             NodeReference._ref_data_from_node_data(self._user_data),
             expect=NodeReference,
             supergraph=None,

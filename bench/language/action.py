@@ -95,7 +95,7 @@ class Call(Struct):
         input_type = node.input_type
         assert input_type is not None, f"no input type for {node!r}"
         return Call(
-            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, input_type, inputs), **kwargs
+            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, inputs, input_type), **kwargs
         )
 
 
@@ -138,7 +138,7 @@ class Continue(Struct):
         input_type = node.input_type
         assert input_type is not None, f"no input type for {node!r}"
         return Continue(
-            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, input_type, inputs), **kwargs
+            node=node, inputs=coerce_custom_object(ObjectKind.INPUT, inputs, input_type), **kwargs
         )
 
     at = new

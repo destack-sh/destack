@@ -696,12 +696,12 @@ def apply_edit_operation_data(
                     else:
                         old_value = getattr(cast(AnyObjectData, obj), prop.name)
                     old_value_packed = pack_value_data(old_value, value_type, wrap_scalar=False)
-                    wiring.set_object_prop(
+                    wiring.set_builtin_object_prop(
                         op,
                         EditOperation.get_property("old_value_packed"),
                         wiring.pack_proto_json(old_value_packed),
                     )
-                wiring.set_object_prop(cast(AnyObjectData, obj), prop, new_value)
+                wiring.set_builtin_object_prop(cast(AnyObjectData, obj), prop, new_value)
             else:
                 # custom object field
                 new_value_packed = unpack_proto_json(op.new_value_packed)
@@ -748,7 +748,9 @@ def edit_graph(
                 node_data.created_by_ptr.CopyFrom(edit.subject_ptr)
                 node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
             # unpack
-            node = wiring.unpack_object(node_data, graph=graph, supergraph=supergraph, expect=Node)
+            node = wiring.unpack_builtin_object(
+                node_data, graph=graph, supergraph=supergraph, expect=Node
+            )
             if edit_type == EditType.CREATE or node.id not in graph:
                 graph.add(node)
             else:
@@ -772,7 +774,7 @@ def edit_graph(
                 node._do_set("updated_epoch", edit.epoch, track=False, validate=False)
             node._do_set(
                 "updated_by_ptr",
-                wiring.unpack_object_prop(
+                wiring.unpack_builtin_object_prop(
                     Node.get_property("updated_by"), edit.subject_ptr, supergraph=supergraph
                 ),
                 track=False,

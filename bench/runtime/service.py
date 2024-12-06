@@ -345,7 +345,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         #   i.e. never commit the 'mark as queued' after it already ran and mess up the status)
 
         # process it (queue and run)
-        run_ptr = wiring.unpack_object_validate(
+        run_ptr = wiring.unpack_builtin_object_validate(
             request.run_ptr, supergraph=None, expect=NodeReference
         )
         managed_run = RunHandle(service=self, run_ptr=run_ptr, run=None)

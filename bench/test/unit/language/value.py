@@ -27,17 +27,19 @@ from bench.language.value import (
     CustomObject,
     check_value,
     coerce_custom_object,
+    pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
     pack_value,
     sample_value,
+    unpack_builtin_object,
     unpack_builtin_object_data,
     unpack_custom_object,
     unpack_value,
 )
 from bench.proto import wiring
-from bench.test.strategies import builtin_objects, examples
-from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
+from bench.test.strategies import builtin_objects, examples, structs
+from bench.test.unit.conftest import BUILTIN_OBJECTS, STRUCTS
 
 
 def test_custom_object_with_builtin_properties(session: Session, package: Package) -> None:
@@ -57,12 +59,12 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     assert Action1Output is not None
     obj = coerce_custom_object(
         ObjectKind.OUTPUT,
-        Action1Output,
         {
             "Output1": 42,
             "Output 2 with a Space": Text.plain("hello bench!"),
             "call": Call(node=Action1),
         },
+        Action1Output,
     )
     assert obj.call == Call(node=Action1)
 
@@ -274,18 +276,30 @@ def test_roundtrip_nested_value(session: Session, package: Package):
 
 
 @given(obj=builtin_objects())
-@examples([{"obj": obj} for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE])
-def test_roundtrip_builtin_object_value(
+@examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
+def test_roundtrip_builtin_object_value_data(
     obj: BuiltinObject, shared_session: Session, shared_package: Package
 ):
-    packed_wire_obj = wiring.pack_object(obj)
+    packed_wire_obj = wiring.pack_builtin_object(obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)
-    unpacked_obj = wiring.unpack_object(
+    unpacked_obj = wiring.unpack_builtin_object(
         unpacked_wire_obj,
         supergraph=shared_session._supergraph,
         graph=shared_session._graph,
         session=shared_session,
+    )
+    assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
+
+
+@given(obj=structs)
+@examples([{"obj": obj} for obj in STRUCTS])
+def test_roundtrip_builtin_object_value(
+    obj: BuiltinObject, shared_session: Session, shared_package: Package
+):
+    packed_json = pack_builtin_object(obj)
+    unpacked_obj = unpack_builtin_object(
+        packed_json, session=shared_session, supergraph=shared_session._supergraph
     )
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
 

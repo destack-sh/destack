@@ -21,11 +21,11 @@ from bench.language.view import View, ViewType
 from bench.runtime.compiler import BUILTIN_GLOBALS
 from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
-from bench.test.unit.conftest import BUILTIN_OBJECTS_BY_TYPE, BUILTIN_OBJECTS_OF_EVERY_TYPE
+from bench.test.unit.conftest import BUILTIN_OBJECTS, BUILTIN_OBJECTS_BY_TYPE
 
 
 @given(obj=builtin_objects())
-@examples([{"obj": obj} for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE])
+@examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 def test_render_builtin_object_expr(
     obj: BuiltinObject, shared_session: Session, shared_package: Package
 ):

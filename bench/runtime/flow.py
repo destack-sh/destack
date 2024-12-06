@@ -422,16 +422,11 @@ class CompleteStepRunner(StepRunnerBase):
 class FailStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        if self.flow is not None:
-            step = cast(FailStep, self.node)
-            inputs = cast(FailStep, self.inputs)
-            title = inputs.error_title or step.error_title or "Flow failed"
-            text = (
-                inputs.error_text or step.error_text or Text.plain(f"Flow failed at {self.node!r}")
-            )
-            e = RetryableError(title=title, text=text)
-            error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-            self.flow._fail(error=error)
+        step = cast(FailStep, self.node)
+        inputs = cast(FailStep, self.inputs)
+        title = inputs.error_title or step.error_title or "Flow failed"
+        text = inputs.error_text or step.error_text or Text.plain(f"Flow failed at {self.node!r}")
+        raise RetryableError(title=title, text=text)
 
 
 class TriggerStepRunner(StepRunnerBase):
