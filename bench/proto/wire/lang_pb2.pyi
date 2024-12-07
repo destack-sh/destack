@@ -54,7 +54,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_OBJECT_KIND: _ClassVar[EnumType]
     ENUM_TYPE_BLOCK_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_AGENCY: _ClassVar[EnumType]
-    ENUM_TYPE_PARTIAL_NODE_SCOPE: _ClassVar[EnumType]
+    ENUM_TYPE_PARTIAL_OBJECT_SCOPE: _ClassVar[EnumType]
     ENUM_TYPE_SCHEDULE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TIME_INTERVAL: _ClassVar[EnumType]
     ENUM_TYPE_DAY: _ClassVar[EnumType]
@@ -552,7 +552,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_OBJECT_KIND: _ClassVar[BenchType]
     BENCH_TYPE_BLOCK_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_AGENCY: _ClassVar[BenchType]
-    BENCH_TYPE_PARTIAL_NODE_SCOPE: _ClassVar[BenchType]
+    BENCH_TYPE_PARTIAL_OBJECT_SCOPE: _ClassVar[BenchType]
     BENCH_TYPE_SCHEDULE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_TIME_INTERVAL: _ClassVar[BenchType]
     BENCH_TYPE_DAY: _ClassVar[BenchType]
@@ -849,7 +849,7 @@ class TypeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TYPE_KIND_ENUM: _ClassVar[TypeKind]
     TYPE_KIND_BASED_NODE: _ClassVar[TypeKind]
     TYPE_KIND_CUSTOM_OBJECT: _ClassVar[TypeKind]
-    TYPE_KIND_PARTIAL_NODE: _ClassVar[TypeKind]
+    TYPE_KIND_PARTIAL_OBJECT: _ClassVar[TypeKind]
     TYPE_KIND_LITERAL: _ClassVar[TypeKind]
     TYPE_KIND_UNION: _ClassVar[TypeKind]
 
@@ -894,12 +894,12 @@ class Agency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AGENCY_DELEGATE: _ClassVar[Agency]
     AGENCY_GENERATE: _ClassVar[Agency]
 
-class PartialNodeScope(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class PartialObjectScope(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    PARTIAL_NODE_SCOPE_UNSPECIFIED: _ClassVar[PartialNodeScope]
-    PARTIAL_NODE_SCOPE_FULL: _ClassVar[PartialNodeScope]
-    PARTIAL_NODE_SCOPE_BASE: _ClassVar[PartialNodeScope]
-    PARTIAL_NODE_SCOPE_SUBTYPE: _ClassVar[PartialNodeScope]
+    PARTIAL_OBJECT_SCOPE_UNSPECIFIED: _ClassVar[PartialObjectScope]
+    PARTIAL_OBJECT_SCOPE_FULL: _ClassVar[PartialObjectScope]
+    PARTIAL_OBJECT_SCOPE_BASE: _ClassVar[PartialObjectScope]
+    PARTIAL_OBJECT_SCOPE_SUBTYPE: _ClassVar[PartialObjectScope]
 
 class ScheduleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1289,7 +1289,6 @@ class StepType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STEP_TYPE_CLONE: _ClassVar[StepType]
     STEP_TYPE_UPDATE: _ClassVar[StepType]
     STEP_TYPE_DELETE: _ClassVar[StepType]
-    STEP_TYPE_RESTORE: _ClassVar[StepType]
     STEP_TYPE_ACTION: _ClassVar[StepType]
     STEP_TYPE_YIELD: _ClassVar[StepType]
     STEP_TYPE_PAUSE: _ClassVar[StepType]
@@ -1653,7 +1652,7 @@ ENUM_TYPE_TYPE_FORMAT: EnumType
 ENUM_TYPE_OBJECT_KIND: EnumType
 ENUM_TYPE_BLOCK_TYPE: EnumType
 ENUM_TYPE_AGENCY: EnumType
-ENUM_TYPE_PARTIAL_NODE_SCOPE: EnumType
+ENUM_TYPE_PARTIAL_OBJECT_SCOPE: EnumType
 ENUM_TYPE_SCHEDULE_TYPE: EnumType
 ENUM_TYPE_TIME_INTERVAL: EnumType
 ENUM_TYPE_DAY: EnumType
@@ -2112,7 +2111,7 @@ BENCH_TYPE_TYPE_FORMAT: BenchType
 BENCH_TYPE_OBJECT_KIND: BenchType
 BENCH_TYPE_BLOCK_TYPE: BenchType
 BENCH_TYPE_AGENCY: BenchType
-BENCH_TYPE_PARTIAL_NODE_SCOPE: BenchType
+BENCH_TYPE_PARTIAL_OBJECT_SCOPE: BenchType
 BENCH_TYPE_SCHEDULE_TYPE: BenchType
 BENCH_TYPE_TIME_INTERVAL: BenchType
 BENCH_TYPE_DAY: BenchType
@@ -2367,7 +2366,7 @@ TYPE_KIND_NODE: TypeKind
 TYPE_KIND_ENUM: TypeKind
 TYPE_KIND_BASED_NODE: TypeKind
 TYPE_KIND_CUSTOM_OBJECT: TypeKind
-TYPE_KIND_PARTIAL_NODE: TypeKind
+TYPE_KIND_PARTIAL_OBJECT: TypeKind
 TYPE_KIND_LITERAL: TypeKind
 TYPE_KIND_UNION: TypeKind
 TYPE_FORMAT_UNSPECIFIED: TypeFormat
@@ -2399,10 +2398,10 @@ AGENCY_UNSPECIFIED: Agency
 AGENCY_CODE: Agency
 AGENCY_DELEGATE: Agency
 AGENCY_GENERATE: Agency
-PARTIAL_NODE_SCOPE_UNSPECIFIED: PartialNodeScope
-PARTIAL_NODE_SCOPE_FULL: PartialNodeScope
-PARTIAL_NODE_SCOPE_BASE: PartialNodeScope
-PARTIAL_NODE_SCOPE_SUBTYPE: PartialNodeScope
+PARTIAL_OBJECT_SCOPE_UNSPECIFIED: PartialObjectScope
+PARTIAL_OBJECT_SCOPE_FULL: PartialObjectScope
+PARTIAL_OBJECT_SCOPE_BASE: PartialObjectScope
+PARTIAL_OBJECT_SCOPE_SUBTYPE: PartialObjectScope
 SCHEDULE_TYPE_UNSPECIFIED: ScheduleType
 SCHEDULE_TYPE_INTERVAL: ScheduleType
 SCHEDULE_TYPE_CRON: ScheduleType
@@ -2681,7 +2680,6 @@ STEP_TYPE_CREATE: StepType
 STEP_TYPE_CLONE: StepType
 STEP_TYPE_UPDATE: StepType
 STEP_TYPE_DELETE: StepType
-STEP_TYPE_RESTORE: StepType
 STEP_TYPE_ACTION: StepType
 STEP_TYPE_YIELD: StepType
 STEP_TYPE_PAUSE: StepType
@@ -3321,7 +3319,7 @@ class TypeInfoData(_message.Message):
     base_type_ptr: NodeReferenceData
     base_field_type: FieldType
     oneof_ptr: NodeReferenceData
-    partial_scope: PartialNodeScope
+    partial_scope: PartialObjectScope
     default_packed: _struct_pb2.Value
     format: TypeFormat
     condition: ExpressionData
@@ -3329,7 +3327,7 @@ class TypeInfoData(_message.Message):
     is_required: bool
     is_list: bool
     is_secret: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_type: _Optional[_Union[FieldType, str]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., partial_scope: _Optional[_Union[PartialNodeScope, str]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_type: _Optional[_Union[FieldType, str]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., partial_scope: _Optional[_Union[PartialObjectScope, str]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ...) -> None: ...
 
 class CallData(_message.Message):
     __slots__ = ("metatype", "node_ptr", "inputs_packed", "mapping", "mapping_code")
@@ -4804,7 +4802,7 @@ class FieldData(_message.Message):
     base_type_ptr: NodeReferenceData
     base_field_type: FieldType
     oneof_ptr: NodeReferenceData
-    partial_scope: PartialNodeScope
+    partial_scope: PartialObjectScope
     default_packed: _struct_pb2.Value
     format: TypeFormat
     condition: ExpressionData
@@ -4813,7 +4811,7 @@ class FieldData(_message.Message):
     is_list: bool
     is_secret: bool
     mode: NodeMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[FieldType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_type: _Optional[_Union[FieldType, str]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., partial_scope: _Optional[_Union[PartialNodeScope, str]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[FieldType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_type: _Optional[_Union[FieldType, str]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., partial_scope: _Optional[_Union[PartialObjectScope, str]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class QueryData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "node_type", "base_block_ptr", "roots_ptr", "filter", "sort", "aggregation", "ancestor_types", "descendant_types", "select", "include_deleted", "first", "skip", "mode")
@@ -5416,12 +5414,6 @@ class UpdateStepData(_message.Message):
     def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_partial_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class DeleteStepData(_message.Message):
-    __slots__ = ("node_ptr",)
-    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    node_ptr: NodeReferenceData
-    def __init__(self, node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
-
-class RestoreStepData(_message.Message):
     __slots__ = ("node_ptr",)
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     node_ptr: NodeReferenceData

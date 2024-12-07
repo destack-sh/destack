@@ -122,7 +122,7 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
         #  (here we force unpack and then repack the value even if it wasn't unpacked before)
         typ = prop.value_type_info_getter(obj)
         assert typ is not None, f"no type for {prop!r}"
-        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
             assert prop.value_runtime_ptr is not None, f"no value_runtime_ptr for {prop!r}"
             value = getattr(obj, prop.value_runtime_ptr.name)
             assert (

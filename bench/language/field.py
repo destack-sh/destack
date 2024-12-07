@@ -23,7 +23,7 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
-    PartialNodeScope,
+    PartialObjectScope,
     PrimitiveType,
     PrimitiveValue,
     StructType,
@@ -90,7 +90,7 @@ LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
     TypeKind.BASED_NODE: "n",  # overlap with TypeKind.NODE
     TypeKind.ENUM: "e",
     TypeKind.CUSTOM_OBJECT: "o",
-    TypeKind.PARTIAL_NODE: "r",
+    TypeKind.PARTIAL_OBJECT: "r",
 }
 TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
     "p": TypeKind.PRIMITIVE,
@@ -98,7 +98,7 @@ TYPE_KIND_BY_LETTER: dict[str, TypeKind] = {
     "n": TypeKind.NODE,
     "e": TypeKind.ENUM,
     "o": TypeKind.CUSTOM_OBJECT,
-    "r": TypeKind.PARTIAL_NODE,
+    "r": TypeKind.PARTIAL_OBJECT,
 }
 
 
@@ -121,7 +121,7 @@ def encode_type_identity(typ: "TypeBase") -> str:
     elif typ.kind == TypeKind.CUSTOM_OBJECT:
         assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
         value = get_tk_b64_from_ptr(typ.base_type_ptr)
-    elif typ.kind == TypeKind.PARTIAL_NODE:
+    elif typ.kind == TypeKind.PARTIAL_OBJECT:
         value = encode_b64vlq(typ.bench_type.id) if typ.bench_type else ""
     else:
         raise ValueError(f"unsupported type kind {typ.kind.bench_name} for {typ!r}")
@@ -175,10 +175,13 @@ def decode_type_identity(key: str) -> "TypeBase":
             is_list=is_list,
             is_secret=is_secret,
         )
-    elif kind == TypeKind.PARTIAL_NODE.value:
+    elif kind == TypeKind.PARTIAL_OBJECT.value:
         bench_type = BenchType(decode_b64vlq(value)) if value else None  # type: ignore
         return TypeInfo(
-            kind=TypeKind.PARTIAL_NODE, bench_type=bench_type, is_list=is_list, is_secret=is_secret
+            kind=TypeKind.PARTIAL_OBJECT,
+            bench_type=bench_type,
+            is_list=is_list,
+            is_secret=is_secret,
         )
 
     raise ValueError(f"unsupported type kind {kind}")
@@ -230,8 +233,8 @@ class TypeBase(BuiltinObject):
        3. Node (NodeReference, like Package, Block, Field, Record, Run, Signal)
        4. Enum (builtin IdEnum, like FieldKind, NodeType, BenchType, EnumType)
        5. Based Node (NodeReference,  an 'instance' of the block)
-       6. Object (value is CustomObject, like Step outputs, Record value)
-       7. Partial Node (value is a CustomObject + partial Node, like for CreateStep or Steps generally)
+       6. Custom Object (value is CustomObject, like Step outputs, Record value)
+       7. Partial Object (value is a CustomObject + partial Node, like Record partials, CreateSteps)
        8. Literal (only allowable value is the type itself / or some constant value)
        9. Union (type is union of Field children with oneof=self)
 
@@ -261,7 +264,7 @@ class TypeBase(BuiltinObject):
         references=(NodeType.FIELD, NodeType.BLOCK),
         same_bench=True,
     )
-    partial_scope: Optional[PartialNodeScope] = p_regular(46, default=None)
+    partial_scope: Optional[PartialObjectScope] = p_regular(46, default=None)
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
@@ -298,7 +301,7 @@ class TypeBase(BuiltinObject):
             info_str = self.kind.bench_name
 
         clauses = []
-        if self.kind == TypeKind.PARTIAL_NODE:
+        if self.kind == TypeKind.PARTIAL_OBJECT:
             if not info_str.startswith("Partial"):
                 info_str = f"Partial{info_str}"
             clauses.append(self.partial_scope.bench_name if self.partial_scope else "Full")
@@ -363,7 +366,7 @@ class TypeBase(BuiltinObject):
                 if field is None:
                     raise ValueError(f"no field {args!r} in {self.base_type!r}")
                 return field
-        elif self.kind == TypeKind.CUSTOM_OBJECT or self.kind == TypeKind.PARTIAL_NODE:
+        elif self.kind == TypeKind.CUSTOM_OBJECT or self.kind == TypeKind.PARTIAL_OBJECT:
             if self.base_field_type is not None:
                 object_kind = ObjectKind(self.base_field_type)
             else:
@@ -380,7 +383,7 @@ class TypeBase(BuiltinObject):
             TypeKind.BASED_NODE,
             TypeKind.ENUM,
             TypeKind.CUSTOM_OBJECT,
-            TypeKind.PARTIAL_NODE,
+            TypeKind.PARTIAL_OBJECT,
         ):
             return True
         elif self.primitive_type in (  # noqa: SIM103

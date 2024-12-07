@@ -43,7 +43,7 @@ enum EnumType {
   ENUM_TYPE_OBJECT_KIND = 21505;
   ENUM_TYPE_BLOCK_TYPE = 21506;
   ENUM_TYPE_AGENCY = 21507;
-  ENUM_TYPE_PARTIAL_NODE_SCOPE = 21508;
+  ENUM_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
   ENUM_TYPE_SCHEDULE_TYPE = 22001;
   ENUM_TYPE_TIME_INTERVAL = 22002;
   ENUM_TYPE_DAY = 22003;
@@ -546,7 +546,7 @@ enum BenchType {
   BENCH_TYPE_OBJECT_KIND = 21505;
   BENCH_TYPE_BLOCK_TYPE = 21506;
   BENCH_TYPE_AGENCY = 21507;
-  BENCH_TYPE_PARTIAL_NODE_SCOPE = 21508;
+  BENCH_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
   BENCH_TYPE_SCHEDULE_TYPE = 22001;
   BENCH_TYPE_TIME_INTERVAL = 22002;
   BENCH_TYPE_DAY = 22003;
@@ -853,7 +853,7 @@ enum TypeKind {
   TYPE_KIND_ENUM = 4;
   TYPE_KIND_BASED_NODE = 5;
   TYPE_KIND_CUSTOM_OBJECT = 6;
-  TYPE_KIND_PARTIAL_NODE = 7;
+  TYPE_KIND_PARTIAL_OBJECT = 7;
   TYPE_KIND_LITERAL = 8;
   TYPE_KIND_UNION = 9;
 }
@@ -902,11 +902,11 @@ enum Agency {
 }
 
 // The scope of properties in a partial Node object.
-enum PartialNodeScope {
-  PARTIAL_NODE_SCOPE_UNSPECIFIED = 0;
-  PARTIAL_NODE_SCOPE_FULL = 1;
-  PARTIAL_NODE_SCOPE_BASE = 2;
-  PARTIAL_NODE_SCOPE_SUBTYPE = 3;
+enum PartialObjectScope {
+  PARTIAL_OBJECT_SCOPE_UNSPECIFIED = 0;
+  PARTIAL_OBJECT_SCOPE_FULL = 1;
+  PARTIAL_OBJECT_SCOPE_BASE = 2;
+  PARTIAL_OBJECT_SCOPE_SUBTYPE = 3;
 }
 
 enum ScheduleType {
@@ -1300,7 +1300,6 @@ enum StepType {
   STEP_TYPE_CLONE = 51;
   STEP_TYPE_UPDATE = 52;
   STEP_TYPE_DELETE = 53;
-  STEP_TYPE_RESTORE = 54;
   STEP_TYPE_ACTION = 60;
   STEP_TYPE_YIELD = 62;
   STEP_TYPE_PAUSE = 70;
@@ -1833,7 +1832,7 @@ message TypeInfoData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldType base_field_type = 44;
   optional NodeReferenceData oneof_ptr = 45;
-  optional PartialNodeScope partial_scope = 46;
+  optional PartialObjectScope partial_scope = 46;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
   optional ExpressionData condition = 54;
@@ -2637,7 +2636,7 @@ message FieldData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldType base_field_type = 44;
   optional NodeReferenceData oneof_ptr = 45;
-  optional PartialNodeScope partial_scope = 46;
+  optional PartialObjectScope partial_scope = 46;
   optional google.protobuf.Value default_packed = 50;
   optional TypeFormat format = 53;
   optional ExpressionData condition = 54;
@@ -2973,25 +2972,20 @@ message CreateStepData {
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message CloneStepData {
-  NodeReferenceData node_ptr = 100;
+  optional NodeReferenceData node_ptr = 100;
   optional google.protobuf.Value node_partial_packed = 101;
   bool recursive = 110;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message UpdateStepData {
-  NodeReferenceData node_ptr = 100;
+  optional NodeReferenceData node_ptr = 100;
   optional google.protobuf.Value node_partial_packed = 101;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.
 message DeleteStepData {
-  NodeReferenceData node_ptr = 100;
-}
-
-// A data or control flow node in a Flow. Steps are connected by Pipes.
-message RestoreStepData {
-  NodeReferenceData node_ptr = 100;
+  optional NodeReferenceData node_ptr = 100;
 }
 
 // A data or control flow node in a Flow. Steps are connected by Pipes.

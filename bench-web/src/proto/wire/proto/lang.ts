@@ -694,9 +694,9 @@ export interface TypeInfoData {
      */
     oneofPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.PartialNodeScope partial_scope = 46;
+     * @generated from protobuf field: optional symbolx.bench.PartialObjectScope partial_scope = 46;
      */
-    partialScope?: PartialNodeScope;
+    partialScope?: PartialObjectScope;
     /**
      * @generated from protobuf field: optional google.protobuf.Value default_packed = 50;
      */
@@ -3469,9 +3469,9 @@ export interface FieldData {
      */
     oneofPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.PartialNodeScope partial_scope = 46;
+     * @generated from protobuf field: optional symbolx.bench.PartialObjectScope partial_scope = 46;
      */
-    partialScope?: PartialNodeScope;
+    partialScope?: PartialObjectScope;
     /**
      * @generated from protobuf field: optional google.protobuf.Value default_packed = 50;
      */
@@ -4644,7 +4644,7 @@ export interface CreateStepData {
  */
 export interface CloneStepData {
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 100;
      */
     nodePtr?: NodeReferenceData;
     /**
@@ -4663,7 +4663,7 @@ export interface CloneStepData {
  */
 export interface UpdateStepData {
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 100;
      */
     nodePtr?: NodeReferenceData;
     /**
@@ -4678,18 +4678,7 @@ export interface UpdateStepData {
  */
 export interface DeleteStepData {
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 100;
-     */
-    nodePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Steps are connected by Pipes.
- *
- * @generated from protobuf message symbolx.bench.RestoreStepData
- */
-export interface RestoreStepData {
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 100;
      */
     nodePtr?: NodeReferenceData;
 }
@@ -6442,9 +6431,9 @@ export enum EnumType {
      */
     AGENCY = 21507,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PARTIAL_NODE_SCOPE = 21508;
+     * @generated from protobuf enum value: ENUM_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
      */
-    PARTIAL_NODE_SCOPE = 21508,
+    PARTIAL_OBJECT_SCOPE = 21508,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 22001;
      */
@@ -8353,9 +8342,9 @@ export enum BenchType {
      */
     AGENCY = 21507,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PARTIAL_NODE_SCOPE = 21508;
+     * @generated from protobuf enum value: BENCH_TYPE_PARTIAL_OBJECT_SCOPE = 21508;
      */
-    PARTIAL_NODE_SCOPE = 21508,
+    PARTIAL_OBJECT_SCOPE = 21508,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 22001;
      */
@@ -9462,9 +9451,9 @@ export enum TypeKind {
      */
     CUSTOM_OBJECT = 6,
     /**
-     * @generated from protobuf enum value: TYPE_KIND_PARTIAL_NODE = 7;
+     * @generated from protobuf enum value: TYPE_KIND_PARTIAL_OBJECT = 7;
      */
-    PARTIAL_NODE = 7,
+    PARTIAL_OBJECT = 7,
     /**
      * @generated from protobuf enum value: TYPE_KIND_LITERAL = 8;
      */
@@ -9617,23 +9606,23 @@ export enum Agency {
 /**
  * The scope of properties in a partial Node object.
  *
- * @generated from protobuf enum symbolx.bench.PartialNodeScope
+ * @generated from protobuf enum symbolx.bench.PartialObjectScope
  */
-export enum PartialNodeScope {
+export enum PartialObjectScope {
     /**
-     * @generated from protobuf enum value: PARTIAL_NODE_SCOPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: PARTIAL_OBJECT_SCOPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PARTIAL_NODE_SCOPE_FULL = 1;
+     * @generated from protobuf enum value: PARTIAL_OBJECT_SCOPE_FULL = 1;
      */
     FULL = 1,
     /**
-     * @generated from protobuf enum value: PARTIAL_NODE_SCOPE_BASE = 2;
+     * @generated from protobuf enum value: PARTIAL_OBJECT_SCOPE_BASE = 2;
      */
     BASE = 2,
     /**
-     * @generated from protobuf enum value: PARTIAL_NODE_SCOPE_SUBTYPE = 3;
+     * @generated from protobuf enum value: PARTIAL_OBJECT_SCOPE_SUBTYPE = 3;
      */
     SUBTYPE = 3
 }
@@ -10940,10 +10929,6 @@ export enum StepType {
      * @generated from protobuf enum value: STEP_TYPE_DELETE = 53;
      */
     DELETE = 53,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_RESTORE = 54;
-     */
-    RESTORE = 54,
     /**
      * @generated from protobuf enum value: STEP_TYPE_ACTION = 60;
      */
@@ -14028,7 +14013,7 @@ class TypeInfoData$Type extends MessageType$<TypeInfoData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 46, name: "partial_scope", kind: "enum", opt: true, T: () => ["symbolx.bench.PartialNodeScope", PartialNodeScope, "PARTIAL_NODE_SCOPE_"] },
+            { no: 46, name: "partial_scope", kind: "enum", opt: true, T: () => ["symbolx.bench.PartialObjectScope", PartialObjectScope, "PARTIAL_OBJECT_SCOPE_"] },
             { no: 50, name: "default_packed", kind: "message", T: () => Value },
             { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
@@ -14075,7 +14060,7 @@ class TypeInfoData$Type extends MessageType$<TypeInfoData> {
                 case /* optional symbolx.bench.NodeReferenceData oneof_ptr */ 45:
                     message.oneofPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.oneofPtr);
                     break;
-                case /* optional symbolx.bench.PartialNodeScope partial_scope */ 46:
+                case /* optional symbolx.bench.PartialObjectScope partial_scope */ 46:
                     message.partialScope = reader.int32();
                     break;
                 case /* optional google.protobuf.Value default_packed */ 50:
@@ -14132,7 +14117,7 @@ class TypeInfoData$Type extends MessageType$<TypeInfoData> {
         /* optional symbolx.bench.NodeReferenceData oneof_ptr = 45; */
         if (message.oneofPtr)
             NodeReferenceData.internalBinaryWrite(message.oneofPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.PartialNodeScope partial_scope = 46; */
+        /* optional symbolx.bench.PartialObjectScope partial_scope = 46; */
         if (message.partialScope !== undefined)
             writer.tag(46, WireType.Varint).int32(message.partialScope);
         /* optional google.protobuf.Value default_packed = 50; */
@@ -20898,7 +20883,7 @@ class FieldData$Type extends MessageType$<FieldData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 45, name: "oneof_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 46, name: "partial_scope", kind: "enum", opt: true, T: () => ["symbolx.bench.PartialNodeScope", PartialNodeScope, "PARTIAL_NODE_SCOPE_"] },
+            { no: 46, name: "partial_scope", kind: "enum", opt: true, T: () => ["symbolx.bench.PartialObjectScope", PartialObjectScope, "PARTIAL_OBJECT_SCOPE_"] },
             { no: 50, name: "default_packed", kind: "message", T: () => Value },
             { no: 53, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.TypeFormat", TypeFormat, "TYPE_FORMAT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
@@ -21014,7 +20999,7 @@ class FieldData$Type extends MessageType$<FieldData> {
                 case /* optional symbolx.bench.NodeReferenceData oneof_ptr */ 45:
                     message.oneofPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.oneofPtr);
                     break;
-                case /* optional symbolx.bench.PartialNodeScope partial_scope */ 46:
+                case /* optional symbolx.bench.PartialObjectScope partial_scope */ 46:
                     message.partialScope = reader.int32();
                     break;
                 case /* optional google.protobuf.Value default_packed */ 50:
@@ -21134,7 +21119,7 @@ class FieldData$Type extends MessageType$<FieldData> {
         /* optional symbolx.bench.NodeReferenceData oneof_ptr = 45; */
         if (message.oneofPtr)
             NodeReferenceData.internalBinaryWrite(message.oneofPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.PartialNodeScope partial_scope = 46; */
+        /* optional symbolx.bench.PartialObjectScope partial_scope = 46; */
         if (message.partialScope !== undefined)
             writer.tag(46, WireType.Varint).int32(message.partialScope);
         /* optional google.protobuf.Value default_packed = 50; */
@@ -23766,7 +23751,7 @@ class CloneStepData$Type extends MessageType$<CloneStepData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 100:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 100:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 case /* optional google.protobuf.Value node_partial_packed */ 101:
@@ -23787,7 +23772,7 @@ class CloneStepData$Type extends MessageType$<CloneStepData> {
         return message;
     }
     internalBinaryWrite(message: CloneStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.NodeReferenceData node_ptr = 100; */
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 100; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value node_partial_packed = 101; */
@@ -23825,7 +23810,7 @@ class UpdateStepData$Type extends MessageType$<UpdateStepData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 100:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 100:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 case /* optional google.protobuf.Value node_partial_packed */ 101:
@@ -23843,7 +23828,7 @@ class UpdateStepData$Type extends MessageType$<UpdateStepData> {
         return message;
     }
     internalBinaryWrite(message: UpdateStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.NodeReferenceData node_ptr = 100; */
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 100; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value node_partial_packed = 101; */
@@ -23877,7 +23862,7 @@ class DeleteStepData$Type extends MessageType$<DeleteStepData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 100:
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 100:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
                 default:
@@ -23892,7 +23877,7 @@ class DeleteStepData$Type extends MessageType$<DeleteStepData> {
         return message;
     }
     internalBinaryWrite(message: DeleteStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.NodeReferenceData node_ptr = 100; */
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 100; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
@@ -23905,52 +23890,6 @@ class DeleteStepData$Type extends MessageType$<DeleteStepData> {
  * @generated MessageType for protobuf message symbolx.bench.DeleteStepData
  */
 export const DeleteStepData = new DeleteStepData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RestoreStepData$Type extends MessageType$<RestoreStepData> {
-    constructor() {
-        super("symbolx.bench.RestoreStepData", [
-            { no: 100, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<RestoreStepData>): RestoreStepData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RestoreStepData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestoreStepData): RestoreStepData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.NodeReferenceData node_ptr */ 100:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RestoreStepData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.NodeReferenceData node_ptr = 100; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RestoreStepData
- */
-export const RestoreStepData = new RestoreStepData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class LoopStepData$Type extends MessageType$<LoopStepData> {
     constructor() {
@@ -27904,7 +27843,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.OBJECT_KIND]: ObjectKind,
   [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.AGENCY]: Agency,
-  [EnumType.PARTIAL_NODE_SCOPE]: PartialNodeScope,
+  [EnumType.PARTIAL_OBJECT_SCOPE]: PartialObjectScope,
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.TIME_INTERVAL]: TimeInterval,
   [EnumType.DAY]: Day,
@@ -28099,7 +28038,7 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.ICON]: IconViewData,
 }
 
-export type StepSubtype = ActionStepData | FailStepData | GetStepData | SearchStepData | CreateStepData | CloneStepData | UpdateStepData | DeleteStepData | RestoreStepData | LoopStepData | TextStepData;
+export type StepSubtype = ActionStepData | FailStepData | GetStepData | SearchStepData | CreateStepData | CloneStepData | UpdateStepData | DeleteStepData | LoopStepData | TextStepData;
 export interface StepSubtypeMapping extends Record<StepType, StepSubtype> {
   [StepType.ACTION]: ActionStepData,
   [StepType.FAIL]: FailStepData,
@@ -28109,7 +28048,6 @@ export interface StepSubtypeMapping extends Record<StepType, StepSubtype> {
   [StepType.CLONE]: CloneStepData,
   [StepType.UPDATE]: UpdateStepData,
   [StepType.DELETE]: DeleteStepData,
-  [StepType.RESTORE]: RestoreStepData,
   [StepType.LOOP]: LoopStepData,
   [StepType.TEXT]: TextStepData,
 }
@@ -28266,7 +28204,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.OBJECT_KIND]: ObjectKind,
   [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.AGENCY]: Agency,
-  [EnumType.PARTIAL_NODE_SCOPE]: PartialNodeScope,
+  [EnumType.PARTIAL_OBJECT_SCOPE]: PartialObjectScope,
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.TIME_INTERVAL]: TimeInterval,
   [EnumType.DAY]: Day,
@@ -29443,10 +29381,6 @@ export enum DeleteStepProperty {
   nodePtr = 100,
 }
 
-export enum RestoreStepProperty {
-  nodePtr = 100,
-}
-
 export enum LoopStepProperty {
   forFieldPtr = 100,
 }
@@ -30302,7 +30236,6 @@ export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
   [StepType.CLONE]: CloneStepProperty,
   [StepType.UPDATE]: UpdateStepProperty,
   [StepType.DELETE]: DeleteStepProperty,
-  [StepType.RESTORE]: RestoreStepProperty,
   [StepType.LOOP]: LoopStepProperty,
   [StepType.TEXT]: TextStepProperty,
 }
@@ -30492,7 +30425,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.06.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30520,7 +30453,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.06.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30606,7 +30539,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.05.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.06.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30931,7 +30864,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.baseFieldType]: { id: 44, name: 'base_field_type', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.oneofPtr]: { id: 45, name: 'oneof_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.partialScope]: { id: 46, name: 'partial_scope', component: ObjectType.FIELD, enumType: EnumType.PARTIAL_NODE_SCOPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.partialScope]: { id: 46, name: 'partial_scope', component: ObjectType.FIELD, enumType: EnumType.PARTIAL_OBJECT_SCOPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [FieldProperty.format]: { id: 53, name: 'format', component: ObjectType.FIELD, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.condition]: { id: 54, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -31406,19 +31339,16 @@ export const CreateStepDataInfo: Record<CreateStepProperty, PropertyInfo> = {
   [CreateStepProperty.nodePartialPacked]: { id: 100, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const CloneStepDataInfo: Record<CloneStepProperty, PropertyInfo> = {
-  [CloneStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [CloneStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [CloneStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [CloneStepProperty.recursive]: { id: 110, name: 'recursive', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const UpdateStepDataInfo: Record<UpdateStepProperty, PropertyInfo> = {
-  [UpdateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [UpdateStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [UpdateStepProperty.nodePartialPacked]: { id: 101, name: 'node_partial_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const DeleteStepDataInfo: Record<DeleteStepProperty, PropertyInfo> = {
-  [DeleteStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-}
-export const RestoreStepDataInfo: Record<RestoreStepProperty, PropertyInfo> = {
-  [RestoreStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [DeleteStepProperty.nodePtr]: { id: 100, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LoopStepDataInfo: Record<LoopStepProperty, PropertyInfo> = {
   [LoopStepProperty.forFieldPtr]: { id: 100, name: 'for_field_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
@@ -31600,7 +31530,7 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [TypeInfoProperty.baseFieldType]: { id: 44, name: 'base_field_type', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.oneofPtr]: { id: 45, name: 'oneof_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TypeInfoProperty.partialScope]: { id: 46, name: 'partial_scope', component: ObjectType.TYPE_INFO, enumType: EnumType.PARTIAL_NODE_SCOPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.partialScope]: { id: 46, name: 'partial_scope', component: ObjectType.TYPE_INFO, enumType: EnumType.PARTIAL_OBJECT_SCOPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TypeInfoProperty.format]: { id: 53, name: 'format', component: ObjectType.TYPE_INFO, enumType: EnumType.TYPE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -32089,7 +32019,6 @@ export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, Prope
   [StepType.CLONE]: CloneStepDataInfo,
   [StepType.UPDATE]: UpdateStepDataInfo,
   [StepType.DELETE]: DeleteStepDataInfo,
-  [StepType.RESTORE]: RestoreStepDataInfo,
   [StepType.LOOP]: LoopStepDataInfo,
   [StepType.TEXT]: TextStepDataInfo,
 }

@@ -339,7 +339,7 @@ class Renderer:
 
         if value is None:
             return "None"
-        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
             # nested object
             if not typ.is_list:
                 return self.render_custom_object_scalar_expr(cast(CustomObject, value), typ)

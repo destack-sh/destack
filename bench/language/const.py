@@ -109,7 +109,7 @@ class EnumType(IdEnum):
     OBJECT_KIND = 21505
     BLOCK_TYPE = 21506
     AGENCY = 21507
-    PARTIAL_NODE_SCOPE = 21508
+    PARTIAL_OBJECT_SCOPE = 21508
 
     # basic (22000-22499)
     SCHEDULE_TYPE = 22001
@@ -939,13 +939,13 @@ class TypeKind(IdEnum):
     ENUM = 4
     BASED_NODE = 5
     CUSTOM_OBJECT = 6
-    PARTIAL_NODE = 7
+    PARTIAL_OBJECT = 7
     LITERAL = 8
     UNION = 9
 
 
-@enum_(EnumType.PARTIAL_NODE_SCOPE)
-class PartialNodeScope(IdEnum):
+@enum_(EnumType.PARTIAL_OBJECT_SCOPE)
+class PartialObjectScope(IdEnum):
     """The scope of properties in a partial Node object."""
 
     FULL = 1

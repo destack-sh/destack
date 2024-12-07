@@ -30,7 +30,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind; identityK
     identityKey: "oEjRWeP//AAA=",
   },
   {
-    kind: TypeKind.PARTIAL_NODE,
+    kind: TypeKind.PARTIAL_OBJECT,
     isSecret: false,
     isList: false,
     identityKey: "r",

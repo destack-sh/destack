@@ -38,7 +38,7 @@ from bench.language.const import (
     NodeType,
     ObjectKind,
     ObjectType,
-    PartialNodeScope,
+    PartialObjectScope,
     PrimitiveType,
     PrimitiveValue,
     StructType,
@@ -176,7 +176,7 @@ class CustomObject(Mapping[str, Any]):
 
     @property
     def _type_name(self) -> str:
-        if self._type.kind == TypeKind.PARTIAL_NODE and self._type.bench_type is not None:
+        if self._type.kind == TypeKind.PARTIAL_OBJECT and self._type.bench_type is not None:
             return f"Partial{self._type.bench_type.bench_name}"
         elif self._type.base_type is not None:
             return self._type.base_type.absolute_path
@@ -399,7 +399,7 @@ class CustomObject(Mapping[str, Any]):
     ) -> "CustomObject":
         """Creates a new Object of the given Object type, coercing the given value."""
         assert (
-            typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE
+            typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT
         ), f"{typ!r} is not an Object type"
         return CustomObject(
             kind=kind,
@@ -415,7 +415,7 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
     """Converts the partial Node into a full Node."""
     assert (
         partial_node._kind == ObjectKind.BUILTIN
-        and partial_node._type.kind == TypeKind.PARTIAL_NODE
+        and partial_node._type.kind == TypeKind.PARTIAL_OBJECT
     ), f"cannot convert non-partial {partial_node!r} to Node"
 
     # figure out node type
@@ -460,7 +460,7 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
     """Applies the set Properties/Fields from the partial Node to the Node."""
     assert (
         partial_node._kind == ObjectKind.BUILTIN
-        and partial_node._type.kind == TypeKind.PARTIAL_NODE
+        and partial_node._type.kind == TypeKind.PARTIAL_OBJECT
     ), f"cannot convert non-partial {partial_node!r} to Node"
 
     # apply properties
@@ -500,7 +500,7 @@ def _get_custom_object_properties(
     custom_properties = (
         custom_object_cls.__original_properties__.values() if custom_object_cls is not None else ()
     )
-    if typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.PARTIAL_OBJECT:
         # figure out actual node type
         if typ.bench_type is not None:
             bench_type = cast(NodeType, typ.bench_type)
@@ -526,9 +526,9 @@ def _get_custom_object_properties(
                     subtype_properties = subtype_cls.__subtype_extra_original_properties__.values()
 
         # assemble properties
-        if typ.partial_scope == PartialNodeScope.BASE:
+        if typ.partial_scope == PartialObjectScope.BASE:
             return chain(node_properties, custom_properties)
-        elif typ.partial_scope == PartialNodeScope.SUBTYPE:
+        elif typ.partial_scope == PartialObjectScope.SUBTYPE:
             return chain(subtype_properties, custom_properties)
         else:
             return chain(subtype_properties, node_properties, custom_properties)
@@ -544,7 +544,7 @@ def _get_custom_object_property(
     name: str,
 ) -> "Property | None":
     """Gets the property with the given name from the custom object."""
-    if typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.PARTIAL_OBJECT:
         # figure out actual node type
         if typ.bench_type is not None:
             bench_type = cast(NodeType, typ.bench_type)
@@ -582,7 +582,7 @@ def _do_get_value_runtime(obj: "Struct | Node", prop: Property):
     value_packed = getattr(obj, wired_prop.name)
     value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
     if value_type is not None and (
-        value_type.kind == TypeKind.CUSTOM_OBJECT or value_type.kind == TypeKind.PARTIAL_NODE
+        value_type.kind == TypeKind.CUSTOM_OBJECT or value_type.kind == TypeKind.PARTIAL_OBJECT
     ):
         if value_packed is None:
             # init custom objects to empty value object instead of None
@@ -780,7 +780,7 @@ def coerce_value(
     Returns value as is if already of correct type, raises TypeError if coercion is not possible.
     NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """
-    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         assert typ.base_field_type is not None, f"missing base field type for {typ!r}"
         object_kind = ObjectKind(typ.base_field_type)
         if not typ.is_list:
@@ -1012,7 +1012,7 @@ def check_value(
             invalid(value, "missing required value", typ)
         else:
             return
-    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         if not typ.is_list:
             check_custom_object_scalar(value, typ, options=options, invalid=invalid)
         elif _check_is_list(value, typ, options=options, invalid=invalid):
@@ -1138,7 +1138,7 @@ def sample_custom_object_scalar(
 ) -> CustomObject:
     """Samples a representative object value for the given type (recursively)."""
     assert (
-        typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE
+        typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT
     ), f"expected object type, got {typ!r}"
     value = {}
     for field in typ._base_fields:
@@ -1152,7 +1152,7 @@ def sample_custom_object_scalar(
 @tracer.start_as_current_span(name="value.sample")
 def sample_value(typ: "TypeBase", recurse_objects: bool = True) -> SomeValue:
     """Samples a representative value for the given type (recursively)."""
-    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         if typ.base_field_type is not None:
             object_kind = ObjectKind(typ.base_field_type)
         else:
@@ -1450,7 +1450,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase") -> dict[str, JsonVa
         field_value = cast(SomeValue, _value.get(storage_key))
         if field_value is None:
             continue
-        elif field.kind == TypeKind.CUSTOM_OBJECT or field.kind == TypeKind.PARTIAL_NODE:
+        elif field.kind == TypeKind.CUSTOM_OBJECT or field.kind == TypeKind.PARTIAL_OBJECT:
             value_packed[storage_key] = pack_value(field_value, field, wrap_scalar=False)
         elif not field.is_list:
             value_packed[storage_key] = pack_value_scalar(cast(ScalarValue, field_value), field)
@@ -1507,7 +1507,7 @@ def unpack_custom_object(
         field_value_packed = value_packed.get(storage_key)
         if field_value_packed is None:
             continue
-        elif field.kind == TypeKind.CUSTOM_OBJECT or field.kind == TypeKind.PARTIAL_NODE:
+        elif field.kind == TypeKind.CUSTOM_OBJECT or field.kind == TypeKind.PARTIAL_OBJECT:
             field_value = unpack_value(field_value_packed, field, wrap_scalar=False)
             if field_value is None:
                 continue
@@ -1573,7 +1573,7 @@ def pack_value(value: SomeValue | None, typ: "TypeBase", *, wrap_scalar: bool) -
     Packs a value into a JSON representation.
     """
 
-    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         # nested object
         if not typ.is_list:
             if type(value) is not CustomObject:
@@ -1605,7 +1605,7 @@ def pack_value_data(value: SomeValueData, typ: "TypeBase", wrap_scalar: bool = T
     """Packs a data value into a JSON representation. See above."""
     assert typ.kind not in (
         TypeKind.CUSTOM_OBJECT,
-        TypeKind.PARTIAL_NODE,
+        TypeKind.PARTIAL_OBJECT,
     ), f"cannot pack data for {typ!r}"
     # wrap scalar
     value_packed: JsonValue
@@ -1632,7 +1632,7 @@ def unpack_value(
     """
     Unpacks a value from its JSON representation.
     """
-    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         # nested object
         if typ.base_field_type is not None:
             kind = ObjectKind(typ.base_field_type)
@@ -1685,7 +1685,7 @@ def unpack_value_data(
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
     """
-    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+    if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         # nested object
         return value_packed
     else:
