@@ -1,16 +1,16 @@
 <script lang="ts" setup>
-import { CANVAS_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES } from "@/language/const";
+import { CANVAS_BLOCK_TYPES } from "@/language/const";
 import { unpackSubnodeProperty } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import { BlockType, FieldType, NodeReferenceData, NodeType, TypeKind, Variant, ViewData } from "@/proto/wire";
-import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";

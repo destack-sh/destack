@@ -306,8 +306,8 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
           >
             <span class="">Unset</span>
           </div>
-          <div v-else class="ml-auto flex-shrink-0 text-warning-600" :class="fieldView.isFullWidth ? '' : 'text-right'">
-            {{ fieldView.viewType != null ? ViewType[fieldView.viewType] : "No View for Type" }}
+          <div v-else class="ml-auto flex-shrink-0 text-danger-600" :class="fieldView.isFullWidth ? '' : 'text-right'">
+            {{ fieldView.viewType != null ? ViewType[fieldView.viewType] : "No View" }}
           </div>
         </li>
       </ul>

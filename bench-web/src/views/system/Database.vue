@@ -874,352 +874,341 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
 
     <!-- Body outer wrapper (scroll horizontally, and vertically if not compact) -->
-    <div
-      class=""
+    <Scroll
+      v-if="block"
+      id="body"
+      ref="bodyRef"
+      :size="bodySize"
+      :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
+      :track-width="ScrollbarWidth.md"
+      track-is-overlay
       :style="{
-        // width: bodySize.width + 'px',
         marginLeft: containerGutterWidth != null ? `${-containerGutterWidth}px` : undefined,
       }"
     >
-      <Scroll
-        v-if="block"
-        id="body"
-        ref="bodyRef"
-        :size="bodySize"
-        :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
-        :track-width="ScrollbarWidth.md"
-        track-is-overlay
-        :style="{}"
+      <!-- Body inner wrapper -->
+      <div
+        class="min-w-fit"
+        :style="{
+          marginLeft:
+            variant != Variant.COMPACT
+              ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`
+              : `${(containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`,
+          marginRight:
+            variant != Variant.COMPACT
+              ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
+              : `${containerGutterWidth ?? 0}px`,
+        }"
       >
-        <!-- Body inner wrapper -->
+        <!-- Column headers (sticky) -->
         <div
-          class="min-w-fit"
+          ref="headerRef"
+          class="group/header z-20 flex flex-row items-center border-gray-200"
+          :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
-            marginLeft:
-              variant != Variant.COMPACT
-                ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`
-                : `${(containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`,
-            marginRight:
-              variant != Variant.COMPACT
-                ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
-                : `${containerGutterWidth ?? 0}px`,
-            marginBottom: variant != Variant.COMPACT ? `200px` : undefined,
+            height: `${ROW_HEIGHT_MIN}px`,
           }"
         >
-          <!-- Column headers (sticky) -->
+          <!-- Composite actions -->
           <div
-            ref="headerRef"
-            class="group/header z-20 flex flex-row items-center border-gray-200"
-            :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
+            class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
+            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
             :style="{
+              width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
           >
-            <!-- Composite actions -->
-            <div
-              class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
-              :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
-              :style="{
-                width: `${ROW_ACTIONS_WIDTH}px`,
-                height: `${ROW_HEIGHT_MIN}px`,
-              }"
-            >
-              <!-- Selection checkbox -->
-              <Toggle
-                id="select-all"
-                :variant="Variant.COMPACT"
-                is-input
-                class="transition-colors duration-150"
-                :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
-                :model-value="isAllSelectedRows"
-                @update:model-value="(value) => (value ? selectAll() : selectNone())"
-              />
-            </div>
-
-            <!-- Column header -->
-            <div
-              v-for="(column, x) in columns"
-              :key="column.id"
-              :ref="
-                (ref: any) => (ref != null ? (columnHeaderRefs[column.id] = ref) : delete columnHeaderRefs[column.id])
-              "
-              v-contextmenu="
-                (context: PopoverContext): PopoverInfoIn => {
-                  context = { ...context, triggerNode: column.kind == 'field' ? column.field : undefined };
-                  const items = [
-                    ...menuActionsLike(
-                      [
-                        'common.edit.rename',
-                        'common.edit.duplicate',
-                        'common.edit.delete',
-                        'database.column.sortAscending',
-                        'database.column.sortDescending',
-                        'database.column.filter',
-                      ],
-                      {
-                        context,
-                      },
-                    ),
-                  ];
-                  return {
-                    kind: 'menu',
-                    placement: 'bottom-right',
-                    items,
-                    context,
-                  };
-                }
-              "
-              class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 data-[dragging=true]:opacity-50"
-              :class="[
-                x > 0 ? 'border-l' : '',
-                column.isInspected || column.isHighlighted ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
-              ]"
-              :style="{
-                paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,
-                paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
-                width: `${column.width}px`,
-              }"
-              :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
-              :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
-              :data-node-type="column.kind == 'field' ? column.field.metatype : undefined"
-              :draggable="column.kind == 'field'"
-              @dragstart.stop="
-                (e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, graph, column.field)
-              "
-              @mousedown="
-                (e) => {
-                  if (column.kind == 'field') {
-                    canvas.inspect({ node: column.field, view: e.target as HTMLElement });
-                  }
-                }
-              "
-            >
-              <!-- Drop indicator -->
-              <div
-                v-if="column.kind == 'field' && activeHeaderDropZone?.targetId == column.field.id"
-                class="absolute z-10 h-full w-1 rounded bg-gray-700"
-                :class="[
-                  activeHeaderDropZone?.anchor == 'start' ? (x == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]',
-                ]"
-              />
-              <!-- Icon/Name -->
-              <IconInline
-                v-menu="
-                  (): PopoverInfoIn => ({
-                    component: Icon,
-                    isEnabled: column.kind == 'field',
-                    placement: 'bottom-right',
-                    offset: '-referenceWidth',
-                    props: { modelValue: column.kind == 'field' ? column.field.icon : undefined },
-                    onApply: (newIcon) => {
-                      if (column.kind != 'field') return;
-                      connection.tx.update(column.field, { icon: newIcon });
-                    },
-                  })
-                "
-                class="mr-1.5 w-5 rounded p-0.5 text-center text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-                v-bind="column.icon"
-              />
-              <NativeInput
-                v-if="column.kind == 'field'"
-                :id="column.id + '.name'"
-                class="truncate font-medium"
-                placeholder="Name..."
-                :model-value="column.title"
-                :value-type="NAME_TYPE"
-                :variant="Variant.STEALTH"
-                is-input
-                @update:model-value="
-                  (newValue) => connection.tx.update(column.field, { name: newValue as string }, { debounce: 'long' })
-                "
-              />
-              <span v-else class="truncate font-medium">{{ column.title }}</span>
-            </div>
-            <!-- Empty columns -->
-            <button
-              v-if="columns.length == 0"
-              class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
-              :style="{
-                height: `${ROW_HEIGHT_MIN}px`,
-                width: variant == Variant.COMPACT ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
-              }"
-              @click="
-                createField(connection.tx, graph, {
-                  anchor: 'inside',
-                  target: block!,
-                  field: { type: FieldType.MEMBER, kind: TypeKind.STRUCT, benchType: BenchType.TEXT, name: 'Text' },
-                })
-              "
-            >
-              No columns. Click to add.
-            </button>
+            <!-- Selection checkbox -->
+            <Toggle
+              id="select-all"
+              :variant="Variant.COMPACT"
+              is-input
+              class="transition-colors duration-150"
+              :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
+              :model-value="isAllSelectedRows"
+              @update:model-value="(value) => (value ? selectAll() : selectNone())"
+            />
           </div>
 
-          <!-- Status (if not connected or empty) -->
+          <!-- Column header -->
           <div
-            v-if="!isConnected"
-            class="flex w-full flex-row items-center justify-center text-center"
-            :style="{ height: `${ROW_HEIGHT_MIN}px` }"
-          >
-            <!-- Loading -->
-            <Transition
-              enter-from-class="opacity-0"
-              enter-active-class="transition-opacity duration-200"
-              enter-to-class="opacity-100"
-              appear
-              mode="out-in"
-            >
-              <i class="fas fa-spinner-third animate-spin text-gray-400" />
-            </Transition>
-          </div>
-          <!-- No rows -->
-          <div
-            v-else-if="records.length == 0"
-            class="flex w-full flex-row items-center justify-center text-center"
-            :style="{ height: `${ROW_HEIGHT_MIN}px` }"
-          >
-            <!-- Loading -->
-            <span v-if="recordConnection.isConnecting.value">
-              <i class="fas fa-spinner-third animate-spin text-gray-400" />
-            </span>
-            <!-- Nothing here -->
-            <button v-else class="h-full w-full text-center text-gray-400 hover:bg-gray-100" @click="createRecord()">
-              <i class="fas fa-empty-set mr-1.5" />
-              <span class="">No records. Click to add.</span>
-            </button>
-          </div>
-
-          <!-- Row -->
-          <div
-            v-for="(record, y) in records"
-            :key="record.id"
+            v-for="(column, x) in columns"
+            :key="column.id"
+            :ref="
+              (ref: any) => (ref != null ? (columnHeaderRefs[column.id] = ref) : delete columnHeaderRefs[column.id])
+            "
             v-contextmenu="
               (context: PopoverContext): PopoverInfoIn => {
-                context = { ...context, triggerNode: record };
+                context = { ...context, triggerNode: column.kind == 'field' ? column.field : undefined };
+                const items = [
+                  ...menuActionsLike(
+                    [
+                      'common.edit.rename',
+                      'common.edit.duplicate',
+                      'common.edit.delete',
+                      'database.column.sortAscending',
+                      'database.column.sortDescending',
+                      'database.column.filter',
+                    ],
+                    {
+                      context,
+                    },
+                  ),
+                ];
                 return {
                   kind: 'menu',
                   placement: 'bottom-right',
-                  items: menuActionsLike(['common.edit.duplicate', 'common.edit.delete'], { context }),
+                  items,
                   context,
                 };
               }
             "
-            class="group/row flex flex-row border-gray-200"
-            :class="[]"
-            :data-node-id="record.id"
-            :data-node-ck="record.id"
-            :data-node-type="record.metatype"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 data-[dragging=true]:opacity-50"
+            :class="[
+              x > 0 ? 'border-l' : '',
+              column.isInspected || column.isHighlighted ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
+            ]"
+            :style="{
+              paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,
+              paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
+              width: `${column.width}px`,
+            }"
+            :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
+            :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
+            :data-node-type="column.kind == 'field' ? column.field.metatype : undefined"
+            :draggable="column.kind == 'field'"
+            @dragstart.stop="(e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, graph, column.field)"
+            @mousedown="
+              (e) => {
+                if (column.kind == 'field') {
+                  canvas.inspect({ node: column.field, view: e.target as HTMLElement });
+                }
+              }
+            "
           >
-            <!-- Row actions -->
+            <!-- Drop indicator -->
             <div
-              class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
-              :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
-              :style="{
-                width: `${ROW_ACTIONS_WIDTH}px`,
-              }"
-            >
-              <!-- Selection checkbox -->
-              <Toggle
-                id="select-row"
-                :variant="Variant.COMPACT"
-                is-input
-                class="transition-colors duration-150"
-                :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'"
-                :model-value="hasSelectionRows && isSelectedRow(record)"
-                @update:model-value="(value) => setSelectionRow(record, value, shiftKey ?? false)"
-              />
-            </div>
+              v-if="column.kind == 'field' && activeHeaderDropZone?.targetId == column.field.id"
+              class="absolute z-10 h-full w-1 rounded bg-gray-700"
+              :class="[activeHeaderDropZone?.anchor == 'start' ? (x == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
+            />
+            <!-- Icon/Name -->
+            <IconInline
+              v-menu="
+                (): PopoverInfoIn => ({
+                  component: Icon,
+                  isEnabled: column.kind == 'field',
+                  placement: 'bottom-right',
+                  offset: '-referenceWidth',
+                  props: { modelValue: column.kind == 'field' ? column.field.icon : undefined },
+                  onApply: (newIcon) => {
+                    if (column.kind != 'field') return;
+                    connection.tx.update(column.field, { icon: newIcon });
+                  },
+                })
+              "
+              class="mr-1.5 w-5 rounded p-0.5 text-center text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+              v-bind="column.icon"
+            />
+            <NativeInput
+              v-if="column.kind == 'field'"
+              :id="column.id + '.name'"
+              class="truncate font-medium"
+              placeholder="Name..."
+              :model-value="column.title"
+              :value-type="NAME_TYPE"
+              :variant="Variant.STEALTH"
+              is-input
+              @update:model-value="
+                (newValue) => connection.tx.update(column.field, { name: newValue as string }, { debounce: 'long' })
+              "
+            />
+            <span v-else class="truncate font-medium">{{ column.title }}</span>
+          </div>
+          <!-- Empty columns -->
+          <button
+            v-if="columns.length == 0"
+            class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
+            :style="{
+              height: `${ROW_HEIGHT_MIN}px`,
+              width: variant == Variant.COMPACT ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
+            }"
+            @click="
+              createField(connection.tx, graph, {
+                anchor: 'inside',
+                target: block!,
+                field: { type: FieldType.MEMBER, kind: TypeKind.STRUCT, benchType: BenchType.TEXT, name: 'Text' },
+              })
+            "
+          >
+            No columns. Click to add.
+          </button>
+        </div>
 
-            <!-- Cells -->
-            <div
-              v-for="(column, x) in columns"
+        <!-- Status (if not connected or empty) -->
+        <div
+          v-if="!isConnected"
+          class="flex w-full flex-row items-center justify-center text-center"
+          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+        >
+          <!-- Loading -->
+          <Transition
+            enter-from-class="opacity-0"
+            enter-active-class="transition-opacity duration-200"
+            enter-to-class="opacity-100"
+            appear
+            mode="out-in"
+          >
+            <i class="fas fa-spinner-third animate-spin text-gray-400" />
+          </Transition>
+        </div>
+        <!-- No rows -->
+        <div
+          v-else-if="records.length == 0"
+          class="flex w-full flex-row items-center justify-center text-center"
+          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+        >
+          <!-- Loading -->
+          <span v-if="recordConnection.isConnecting.value">
+            <i class="fas fa-spinner-third animate-spin text-gray-400" />
+          </span>
+          <!-- Nothing here -->
+          <button v-else class="h-full w-full text-center text-gray-400 hover:bg-gray-100" @click="createRecord()">
+            <i class="fas fa-empty-set mr-1.5" />
+            <span class="">No records. Click to add.</span>
+          </button>
+        </div>
+
+        <!-- Row -->
+        <div
+          v-for="(record, y) in records"
+          :key="record.id"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfoIn => {
+              context = { ...context, triggerNode: record };
+              return {
+                kind: 'menu',
+                placement: 'bottom-right',
+                items: menuActionsLike(['common.edit.duplicate', 'common.edit.delete'], { context }),
+                context,
+              };
+            }
+          "
+          class="group/row flex flex-row border-gray-200"
+          :class="[]"
+          :data-node-id="record.id"
+          :data-node-ck="record.id"
+          :data-node-type="record.metatype"
+        >
+          <!-- Row actions -->
+          <div
+            class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
+            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
+            :style="{
+              width: `${ROW_ACTIONS_WIDTH}px`,
+            }"
+          >
+            <!-- Selection checkbox -->
+            <Toggle
+              id="select-row"
+              :variant="Variant.COMPACT"
+              is-input
+              class="transition-colors duration-150"
+              :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'"
+              :model-value="hasSelectionRows && isSelectedRow(record)"
+              @update:model-value="(value) => setSelectionRow(record, value, shiftKey ?? false)"
+            />
+          </div>
+
+          <!-- Cells -->
+          <div
+            v-for="(column, x) in columns"
+            :ref="
+              (ref: any) =>
+                ref != null
+                  ? (cellWrapperRefs[getCellId(record, column)] = ref)
+                  : delete cellWrapperRefs[getCellId(record, column)]
+            "
+            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900"
+            :class="[
+              x > 0 ? 'border-l' : '',
+              isSelectedCell(record, column) ? 'bg-gray-100' : '',
+              column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
+            ]"
+            :style="{
+              width: `${column.width}px`,
+              minHeight: `${ROW_HEIGHT_MIN}px`,
+              maxHeight: `${ROW_HEIGHT_MAX}px`,
+              paddingTop: `${column.paddingTop}px`,
+              paddingBottom: `${column.paddingBottom + (y == records.length - 1 ? (props.paddingY ?? 0) : 0)}px`,
+              paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,
+              paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
+            }"
+            :data-column-id="column.id /* used to mark this as a column for click handler below */"
+            @click="
+              (event) => {
+                // interact with / focus cell component
+                const componentEl = cellComponentRefs[getCellId(record, column)];
+                if (componentEl != null) {
+                  if (componentEl?.interact != null) componentEl.interact();
+                  else focusInElement(componentEl as unknown as MaybeElement);
+                }
+              }
+            "
+            @mousedown="(e) => beginSelectRegion(e, y, record, x, column)"
+            @mousemove="(e) => updateSelectRegion(e, y, record, x, column)"
+          >
+            <!-- Inline title icon -->
+            <IconInline
+              v-if="column.isTitle && record.icon != null"
+              ref="iconRef"
+              v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
+              v-menu="
+                (): PopoverInfoIn => ({
+                  component: Icon,
+                  placement: 'bottom-right',
+                  offset: '-referenceWidth',
+                  props: { modelValue: (record as any)!.icon, isInput: true },
+                  isEnabled: isInput,
+                  onApply: (newIcon) => recordConnection.tx.update(record, { icon: newIcon }),
+                })
+              "
+              v-bind="getNodeIcon(record)"
+              class="w-5 rounded py-0.5 text-center transition-colors duration-75 hover:bg-gray-100"
+              :class="record.icon != null ? 'text-gray-700 hover:text-gray-900' : 'text-gray-400 hover:text-gray-500'"
+            />
+            <!-- Inner column view -->
+            <component
+              :is="column.viewComponent"
+              v-if="column.viewComponent != null"
+              :id="getCellId(record, column)"
               :ref="
                 (ref: any) =>
                   ref != null
-                    ? (cellWrapperRefs[getCellId(record, column)] = ref)
-                    : delete cellWrapperRefs[getCellId(record, column)]
+                    ? (cellComponentRefs[getCellId(record, column)] = ref)
+                    : delete cellComponentRefs[getCellId(record, column)]
               "
-              class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900"
-              :class="[
-                x > 0 ? 'border-l' : '',
-                isSelectedCell(record, column) ? 'bg-gray-100' : '',
-                column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
-              ]"
-              :style="{
-                width: `${column.width}px`,
-                minHeight: `${ROW_HEIGHT_MIN}px`,
-                maxHeight: `${ROW_HEIGHT_MAX}px`,
-                paddingTop: `${column.paddingTop}px`,
-                paddingBottom: `${column.paddingBottom + (y == records.length - 1 ? (props.paddingY ?? 0) : 0)}px`,
-                paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,
-                paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
-              }"
-              :data-column-id="column.id /* used to mark this as a column for click handler below */"
-              @click="
-                (event) => {
-                  // interact with / focus cell component
-                  const componentEl = cellComponentRefs[getCellId(record, column)];
-                  if (componentEl != null) {
-                    if (componentEl?.interact != null) componentEl.interact();
-                    else focusInElement(componentEl as unknown as MaybeElement);
-                  }
-                }
-              "
-              @mousedown="(e) => beginSelectRegion(e, y, record, x, column)"
-              @mousemove="(e) => updateSelectRegion(e, y, record, x, column)"
-            >
-              <!-- Inline title icon -->
-              <IconInline
-                v-if="column.isTitle && record.icon != null"
-                ref="iconRef"
-                v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
-                v-menu="
-                  (): PopoverInfoIn => ({
-                    component: Icon,
-                    placement: 'bottom-right',
-                    offset: '-referenceWidth',
-                    props: { modelValue: (record as any)!.icon, isInput: true },
-                    isEnabled: isInput,
-                    onApply: (newIcon) => recordConnection.tx.update(record, { icon: newIcon }),
-                  })
-                "
-                v-bind="getNodeIcon(record)"
-                class="w-5 rounded py-0.5 text-center transition-colors duration-75 hover:bg-gray-100"
-                :class="record.icon != null ? 'text-gray-700 hover:text-gray-900' : 'text-gray-400 hover:text-gray-500'"
-              />
-              <!-- Inner column view -->
-              <component
-                :is="column.viewComponent"
-                v-if="column.viewComponent != null"
-                :id="getCellId(record, column)"
-                :ref="
-                  (ref: any) =>
-                    ref != null
-                      ? (cellComponentRefs[getCellId(record, column)] = ref)
-                      : delete cellComponentRefs[getCellId(record, column)]
-                "
-                v-bind="column.viewProps"
-                class="flex-1 cursor-pointer select-none"
-                :model-value="readColumnValue(record, column)"
-                :variant="Variant.STEALTH"
-                :size="{ width: column.width, height: ROW_HEIGHT_MAX }"
-                @update:model-value="(value: any) => writeColumnValue(record, column, value)"
-              />
-              <!-- No view available (internal bug / missing feature) -->
-              <span v-else class="text-danger-600">
-                {{ column.viewType != null ? ViewType[column.viewType] : "???" }}
-              </span>
-            </div>
-            <!-- No columns -->
-            <div
-              v-if="columns.length == 0"
-              class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100"
-              :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+              v-bind="column.viewProps"
+              class="flex-1 cursor-pointer select-none"
+              :model-value="readColumnValue(record, column)"
+              :variant="Variant.STEALTH"
+              :size="{ width: column.width, height: ROW_HEIGHT_MAX }"
+              @update:model-value="(value: any) => writeColumnValue(record, column, value)"
             />
+            <!-- No view available (internal bug / missing feature) -->
+            <span v-else class="text-danger-600">
+              {{ column.viewType != null ? ViewType[column.viewType] : "No View" }}
+            </span>
           </div>
+          <!-- No columns -->
+          <div
+            v-if="columns.length == 0"
+            class="w-full border-b border-gray-200 text-center text-gray-400 hover:bg-gray-100"
+            :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+          />
         </div>
-      </Scroll>
-    </div>
+      </div>
+    </Scroll>
 
     <Inaccessible v-if="!block" :connection="connection" :node="nodePtr" class="h-full w-full" />
   </div>

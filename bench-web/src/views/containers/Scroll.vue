@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import { RectangleData, NodeType, Orientation, ViewData } from "@/proto/wire/";
+import { NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire/";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { ScrollbarWidth, useScrollArea } from "@/ui/layout";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import { useMouseInElement } from "@vueuse/core";
-import { computed, ref, toRef, watch, watchEffect, type Ref } from "vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const props = defineProps<
   {
@@ -25,8 +24,6 @@ const id = toRef(props, "id");
 
 const containerRef = ref<HTMLElement | null>(null);
 const innerRef = ref<HTMLElement | null>(null);
-const areaMouse = useMouseInElement(containerRef);
-const isMouseInArea = computed(() => !areaMouse.isOutside.value);
 const trackWidth = computed(() => props.trackWidth ?? ScrollbarWidth.sm);
 const horizontalScrollArea = useScrollArea({
   container: containerRef,
@@ -56,11 +53,13 @@ const sizeStyles = computed(() => {
     return {
       [props.sizeIsDynamic ? "maxWidth" : "width"]: width + "px",
     };
-  } else {
+  } else if (props.orientation == Orientation.VERTICAL) {
     const height = props.trackIsOverlay ? props.size.height : (props.size.height ?? 0) - trackWidth.value;
     return {
       [props.sizeIsDynamic ? "maxHeight" : "height"]: height + "px",
     };
+  } else {
+    return {};
   }
 });
 
@@ -116,23 +115,21 @@ defineExpose<
 });
 </script>
 <template>
-  <div class="relative">
-    <!-- TODO :UX: Scroll view captures scroll in both directions, not just its own orientation -->
-    <!-- (so if we have a horizontal Scroll, it will prevent vertical scrolling, sometimes annoying) -->
+  <div class="group/scroll relative">
     <!-- Scroll area -->
     <div
       ref="containerRef"
-      class="scrollbar-none relative"
+      class="scrollbar-none overscroll-auto relative"
       :class="[
-        orientation == Orientation.HORIZONTAL ? 'touch-pan-x overflow-x-scroll' : '',
-        orientation == Orientation.VERTICAL ? 'touch-pan-y overflow-y-scroll' : '',
-        orientation == null ? 'touch-pan-xy overflow-scroll' : '',
+        orientation == Orientation.HORIZONTAL ? 'overflow-y-hidden overflow-x-scroll' : '',
+        orientation == Orientation.VERTICAL ? 'overflow-x-hidden overflow-y-scroll' : '',
+        orientation == null ? 'overflow-scroll' : '',
         $attrs.class,
       ]"
       :style="{ ...sizeStyles }"
     >
       <!-- Inner wrapper -->
-      <div ref="innerRef" class="min-w-fit min-h-fit" :class="$attrs.class">
+      <div ref="innerRef" class="min-h-fit min-w-fit" :class="$attrs.class">
         <slot />
       </div>
     </div>
@@ -150,7 +147,7 @@ defineExpose<
             { orientation: Orientation.VERTICAL, area: verticalScrollArea },
           ]"
       :class="[
-        'group absolute z-30',
+        'group/track absolute z-30',
         orientation == Orientation.HORIZONTAL ? 'bottom-0 left-0 w-full' : 'right-0 top-0 h-full',
       ]"
       :style="
@@ -159,16 +156,14 @@ defineExpose<
     >
       <div
         v-if="area.isOverflown.value"
-        class="absolute z-40 rounded transition-colors duration-300"
+        class="absolute z-40 rounded transition-colors duration-150"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
-          showScrolling ? 'bg-gray-400 opacity-100' : '',
-          !showScrolling && trackIsAlwaysVisible ? 'bg-gray-300 opacity-100' : '',
-          !showScrolling && !trackIsAlwaysVisible
-            ? isMouseInArea
-              ? 'bg-gray-300 opacity-80'
-              : 'bg-gray-300 opacity-0'
-            : '',
+          trackIsAlwaysVisible
+            ? 'bg-gray-300 opacity-100'
+            : 'bg-gray-300 hover:opacity-100 group-hover/track:opacity-80',
+          !trackIsAlwaysVisible && !showScrolling ? 'opacity-0' : '',
+          !trackIsAlwaysVisible && showScrolling ? 'opacity-100' : '',
         ]"
         :style="{
           left: area.thumb.value.left + 'px',
@@ -179,6 +174,5 @@ defineExpose<
         @mousedown="area.isThumbScrolling.value = true"
       />
     </div>
-    <!-- Scroll track (horizontal) -->
   </div>
 </template>
