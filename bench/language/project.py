@@ -167,7 +167,7 @@ class Projection:
         """Collects a specific value (recursively)."""
         if value is None:
             return
-        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_NODE:
+        if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
             if typ.is_list:
                 for item in cast(list, value):
                     self._collect_custom_object_scalar(cast(CustomObject, item))

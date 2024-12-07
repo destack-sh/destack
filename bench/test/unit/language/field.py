@@ -29,7 +29,7 @@ TEST_TYPE_IDENTITIES: tuple[tuple[TypeInfo, str], ...] = (
         ),
         "oEjRWeP//AAA=",
     ),
-    (TypeInfo(kind=TypeKind.PARTIAL_NODE), "r"),
+    (TypeInfo(kind=TypeKind.PARTIAL_OBJECT), "r"),
 )
 
 

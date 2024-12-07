@@ -268,7 +268,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
             :style="{ width: fieldView.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="fieldView.viewProps"
             :model-value="
-              fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_NODE
+              fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_OBJECT
                 ? focusedValue?.[fieldView.storageKey]
                 : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.field, {
                     graph: graph,
@@ -279,7 +279,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
             @update:model-value="
               (value: any) => {
                 const valuePacked =
-                  fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_NODE
+                  fieldView.field.kind == TypeKind.CUSTOM_OBJECT || fieldView.field.kind == TypeKind.PARTIAL_OBJECT
                     ? value
                     : packValue(value, fieldView.field, {
                         graph: graph,

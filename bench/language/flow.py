@@ -11,7 +11,7 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
-    PartialNodeScope,
+    PartialObjectScope,
     RunType,
     StructType,
     TypeKind,
@@ -407,11 +407,11 @@ class Step(SourceNode[StepData]):
                 # steps also have their subtype as input type
                 #  (to enable dynamically setting step properties as inputs)
                 typ = TypeInfo(
-                    kind=TypeKind.PARTIAL_NODE,
+                    kind=TypeKind.PARTIAL_OBJECT,
                     base_type=base,
                     bench_type=NodeType.STEP,
                     base_field_type=field_type,
-                    partial_scope=PartialNodeScope.SUBTYPE,
+                    partial_scope=PartialObjectScope.SUBTYPE,
                     constraint=TypeConstraint(node_subtypes=[self.type]),
                 )
             else:
@@ -514,7 +514,7 @@ class CreateStep(Step):
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
-        return TypeInfo(kind=TypeKind.PARTIAL_NODE)
+        return TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
 
 
 @node_subtype_(StepType.CLONE)
@@ -529,7 +529,7 @@ class CloneStep(Step):
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
-        return TypeInfo(kind=TypeKind.PARTIAL_NODE)
+        return TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
 
 
 @node_subtype_(StepType.UPDATE)
@@ -543,7 +543,7 @@ class UpdateStep(Step):
     @classmethod
     @cachetools.cached({})  # :CachedTypeInfo
     def _node_partial_type(cls) -> "TypeBase":
-        return TypeInfo(kind=TypeKind.PARTIAL_NODE)
+        return TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
 
 
 @node_subtype_(StepType.DELETE)

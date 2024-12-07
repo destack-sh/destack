@@ -204,7 +204,7 @@ const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
   [TypeKind.ENUM]: "e",
   [TypeKind.BASED_NODE]: "n", // shared with node
   [TypeKind.CUSTOM_OBJECT]: "o",
-  [TypeKind.PARTIAL_NODE]: "r",
+  [TypeKind.PARTIAL_OBJECT]: "r",
 };
 const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
   p: TypeKind.PRIMITIVE,
@@ -212,7 +212,7 @@ const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
   n: TypeKind.NODE,
   e: TypeKind.ENUM,
   o: TypeKind.CUSTOM_OBJECT,
-  r: TypeKind.PARTIAL_NODE,
+  r: TypeKind.PARTIAL_OBJECT,
 };
 
 /**
@@ -230,7 +230,7 @@ export function encodeTypeIdentity(type: TypeIdentity): string {
     value = encodeB64VLQ(type.benchType!);
   } else if (type.kind == TypeKind.CUSTOM_OBJECT) {
     value = getTkB64FromPtr(type.baseTypePtr!);
-  } else if (type.kind == TypeKind.PARTIAL_NODE) {
+  } else if (type.kind == TypeKind.PARTIAL_OBJECT) {
     value = type.benchType != null ? encodeB64VLQ(type.benchType) : "";
   } else {
     throw new Error(`unsupported type kind ${type?.kind} in ${describeTypeIdentity(type)}`);
@@ -270,7 +270,7 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   } else if (kind === TypeKind.CUSTOM_OBJECT) {
     const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, ck: padCkFromTkB64(value) };
     return { kind, baseTypePtr, isRequired: false, isList, isSecret };
-  } else if (kind == TypeKind.PARTIAL_NODE) {
+  } else if (kind == TypeKind.PARTIAL_OBJECT) {
     return {
       kind,
       benchType: value != "" ? (decodeB64VLQ(value) as BenchType) : undefined,
@@ -302,7 +302,7 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
 /** Whether the given type supports lists :ListableTypes. */
 export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
   if (
-    [TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.CUSTOM_OBJECT, TypeKind.PARTIAL_NODE].includes(
+    [TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.CUSTOM_OBJECT, TypeKind.PARTIAL_OBJECT].includes(
       type.kind,
     )
   )
@@ -389,7 +389,7 @@ function getTypeName(graph: ReadNodeGraph, field: Partial<TypeInfoData>): string
     } else {
       return getEnumTitle(EnumType.BENCH_TYPE, field.benchType!);
     }
-  } else if (field.kind == TypeKind.PARTIAL_NODE) {
+  } else if (field.kind == TypeKind.PARTIAL_OBJECT) {
     return field.benchType != null ? `${getEnumTitle(EnumType.BENCH_TYPE, field.benchType)} Partial` : "Partial";
   } else {
     throw new Error(`unexpected type kind: ${field.kind}`);

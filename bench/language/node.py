@@ -2251,7 +2251,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if block is not None:
             kwargs["block"] = block
             typ = TypeInfo(
-                kind=TypeKind.PARTIAL_NODE,
+                kind=TypeKind.PARTIAL_OBJECT,
                 base_type=block,
                 base_field_type=FieldType.MEMBER,
                 bench_type=cls.metatype,
@@ -2259,7 +2259,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             )
         else:
             typ = TypeInfo(
-                kind=TypeKind.PARTIAL_NODE, bench_type=cls.metatype, constraint=constraint
+                kind=TypeKind.PARTIAL_OBJECT, bench_type=cls.metatype, constraint=constraint
             )
         return coerce_custom_object_scalar(ObjectKind.BUILTIN, kwargs, typ)
 

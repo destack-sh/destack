@@ -601,7 +601,7 @@ def _pack_field_value(field: Field, value: JsonValue) -> SqlPrimitive:
         TypeKind.BASED_NODE,
         TypeKind.STRUCT,
         TypeKind.CUSTOM_OBJECT,
-        TypeKind.PARTIAL_NODE,
+        TypeKind.PARTIAL_OBJECT,
     ):
         if field.is_list:
             return [Jsonb(v) for v in value]  # type: ignore
@@ -622,7 +622,7 @@ def _unpack_field_value(field: Field, value_packed: Any) -> JsonValue:
         TypeKind.BASED_NODE,
         TypeKind.STRUCT,
         TypeKind.CUSTOM_OBJECT,
-        TypeKind.PARTIAL_NODE,
+        TypeKind.PARTIAL_OBJECT,
     ):
         return value_packed
     elif field.kind == TypeKind.PRIMITIVE or field.kind == TypeKind.ENUM:

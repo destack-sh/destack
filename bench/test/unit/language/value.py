@@ -13,7 +13,7 @@ from bench.language.const import (
     FieldType,
     NodeType,
     ObjectKind,
-    PartialNodeScope,
+    PartialObjectScope,
     PrimitiveType,
     StructType,
 )
@@ -98,10 +98,10 @@ def test_partial_node_message(session: Session, package: Package) -> None:
         ),
     )
     typ = TypeInfo(
-        kind=TypeKind.PARTIAL_NODE,
+        kind=TypeKind.PARTIAL_OBJECT,
         bench_type=NodeType.MESSAGE,
         base_type=message_type,
-        partial_scope=PartialNodeScope.FULL,
+        partial_scope=PartialObjectScope.FULL,
     )
     obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
 
@@ -139,7 +139,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
 def test_partial_node_block(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial Block node with subtypes."""
-    typ = TypeInfo(kind=TypeKind.PARTIAL_NODE, bench_type=NodeType.BLOCK)
+    typ = TypeInfo(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.BLOCK)
     obj = Block.partial(type=BlockType.ACTION, name="Action1")
 
     # should be init to set/empty/default values for ActionBlock
@@ -173,7 +173,7 @@ def test_partial_node_block(session: Session, package: Package) -> None:
 
 def test_partial_node_generic(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial generic node."""
-    typ = TypeInfo(kind=TypeKind.PARTIAL_NODE)
+    typ = TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
     obj = CustomObject.new(ObjectKind.BUILTIN, {}, typ)
 
     # should be init to empty/default values for Node

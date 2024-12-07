@@ -264,7 +264,7 @@ export function packCustomObject(
     const fieldValue = (value as any)[fieldStorageKey];
     if (fieldValue == null) {
       continue;
-    } else if (field.kind == TypeKind.CUSTOM_OBJECT || field.kind == TypeKind.PARTIAL_NODE) {
+    } else if (field.kind == TypeKind.CUSTOM_OBJECT || field.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
         valuePacked[fieldStorageKey] = packValue(fieldValue, field, {
           graph: options.graph,
@@ -318,7 +318,7 @@ export function unpackCustomObject(
     const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
     if (fieldValuePacked == null) {
       continue;
-    } else if (field.kind == TypeKind.CUSTOM_OBJECT || field.kind == TypeKind.PARTIAL_NODE) {
+    } else if (field.kind == TypeKind.CUSTOM_OBJECT || field.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
         const fieldValue = unpackValue(fieldValuePacked, field, {
           graph: options.graph,
@@ -418,7 +418,7 @@ export function packValue(
     recurseCustomObject: true,
   },
 ): JsonValue {
-  if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_NODE) {
+  if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // nested custom object
     const objectKind = type.baseFieldType == null ? ObjectKind.BUILTIN : OBJECT_KIND_BY_FIELD_TYPE[type.baseFieldType];
     if (objectKind == null) throw new Error(`unknown object kind for field type ${describeTypeIdentity(type)}`);
@@ -470,7 +470,7 @@ export function unpackValue(
     recurseCustomObject: true,
   },
 ): any {
-  if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_NODE) {
+  if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // nested custom object
     const objectKind = type.baseFieldType == null ? ObjectKind.BUILTIN : OBJECT_KIND_BY_FIELD_TYPE[type.baseFieldType];
     if (objectKind == null) throw new Error(`unknown object kind for field type ${describeTypeIdentity(type)}`);

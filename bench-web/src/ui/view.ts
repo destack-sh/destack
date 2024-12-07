@@ -221,7 +221,7 @@ export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, Vi
 export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 
 export function getView(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
-  if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_NODE) {
+  if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // object
     return { type: ViewType.OBJECT, valueType: type as TypeInfoData };
   } else if (type.benchType != null || type.kind == TypeKind.NODE) {
