@@ -21,10 +21,8 @@ import {
   Orientation,
   PrimitiveType,
   PropertyInfo,
-  PropertyReferenceData,
   RecordData,
   RecordProperty,
-  SelectionData,
   Timestamp,
   TypeKind,
   Variant,
@@ -37,14 +35,20 @@ import {
   propertyInfo,
   propertyReference,
   toNodeRef,
-  toPropertyRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
+import {
+  DragContent,
+  MultiAnchor,
+  startDraggingIfAllowed,
+  startSelectingIfAllowed,
+  useMultiDropZone,
+  useSelectionZone,
+} from "@/ui/drag";
 import { getNodeIcon, getTypeIcon, ICON_BY_EXPRESSION_OP as ICON_BY_EXPRESSION_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, PopoverContext, PopoverInfo, PopoverInfoIn, pushPopover } from "@/ui/popover";
@@ -62,12 +66,13 @@ import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { getViewComponent } from "@/views/registry";
-import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
+import { MaybeElement, useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
@@ -90,6 +95,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
+const isSelected = computed(() => state.isSelected(nodePtr.value));
 
 // NOTE :UX: Database view should be factored out into Table/Feed/etc. query views (?)
 
@@ -183,7 +189,7 @@ const {
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const headerRef: Ref<HTMLDivElement | null> = ref(null);
-const bodyRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
+const bodyRef: Ref<HTMLDivElement | null> = ref(null);
 const columnHeaderRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellComponentRefs: Ref<Record<string, ViewExposed>> = ref({});
@@ -324,7 +330,6 @@ const columns: Ref<ColumnView[]> = computed(() => {
       paddingBottom: padding.paddingBottom,
       isSelected: false,
     };
-    column.isSelected = isSelectedColumn(column);
     columns.push(column);
   }
 
@@ -419,6 +424,13 @@ function writeColumnValue(
 // Selection
 //
 
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionZone = useSelectionZone({
+  containerEl: bodyRef,
+  overlayEl: selectionOverlayRef,
+  selection: state.selection,
+  select: state.select,
+});
 const selection = state.selection;
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
   const selectedRecords = new Set(selection.value?.nodesPtr?.map((ptr) => ptr.id));
@@ -432,73 +444,29 @@ const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
       {} as Record<string, RecordData>,
     );
 });
-const selectedFieldsByCk: Ref<Record<string, FieldData>> = computed(() => {
-  const selectedFields = new Set(selection.value?.fieldsPtr?.map((ptr) => ptr.ck));
-  return fields.value
-    .filter((field) => selectedFields.has(field.ck))
-    .reduce(
-      (acc, field) => {
-        acc[field.ck] = field;
-        return acc;
-      },
-      {} as Record<string, FieldData>,
-    );
-});
-const selectedPropertiesById: Ref<Record<number, PropertyReferenceData>> = computed(() => {
-  const selectedProperties = selection.value?.propertiesPtr?.map((ptr) => ptr.id);
-  if (selectedProperties == null) return {};
-  return selectedProperties.reduce(
-    (acc, id) => {
-      acc[id] = toPropertyRef(propertyInfo(NodeType.RECORD, id));
-      return acc;
-    },
-    {} as Record<number, PropertyReferenceData>,
-  );
-});
-const selectedColumns = computed(() => columns.value.filter((column) => column.isSelected));
-const hasSelectionRows = computed(
-  () => Object.keys(selectedRecordsById.value).length > 0 && numSelectedColumns.value == 0,
-);
-const numSelectedColumns = computed(
-  () => Object.keys(selectedFieldsByCk.value).length + Object.keys(selectedPropertiesById.value).length,
-);
-const hasSelectionRegion = computed(() => numSelectedRows.value > 0 && numSelectedColumns.value > 0);
+const hasSelectionRows = computed(() => Object.keys(selectedRecordsById.value).length > 0);
 const numSelectedRows = computed(() => Object.keys(selectedRecordsById.value).length);
 const isAllSelectedRows = computed(() => numSelectedRows.value >= records.value.length);
-const isAllSelectedColumns = computed(() => numSelectedColumns.value == 0);
 const lastSelectedRow: Ref<RecordData | null> = ref(null);
 
 function isSelectedRow(record: RecordData) {
   return selectedRecordsById.value[record.id] != null;
 }
 
-function isSelectedColumn(column: ColumnView) {
-  return (
-    (column.kind == "field" && selectedFieldsByCk.value[column.field.ck] != null) ||
-    (column.kind == "property" && selectedPropertiesById.value[column.property.id] != null)
-  );
-}
-
 function isSelectedCell(record: RecordData, column: ColumnView) {
-  if (!isSelectedRow(record)) return false;
-  if ((selection.value?.fieldsPtr?.length ?? 0) == 0 && (selection.value?.propertiesPtr?.length ?? 0) == 0) return true;
-  return isSelectedColumn(column);
+  return isSelectedRow(record);
 }
 
 function addSelectionRow(record: RecordData) {
-  state.setSelection(expandSelection(selection.value, [record]));
+  state.select(expandSelection(selection.value, [record]));
 }
 
 function removeSelectionRow(record: RecordData) {
   if (selection.value == null) return;
-  state.setSelection(collapseSelection(selection.value, [record]));
+  state.select(collapseSelection(selection.value, [record]));
 }
 
 function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: boolean) {
-  if (hasSelectionRegion.value) {
-    // clear selection first
-    selectNone();
-  }
   if (selected) {
     const lastSelectedY = records.value.findIndex((r) => r.id == lastSelectedRow.value?.id);
     const currentY = records.value.findIndex((r) => r.id == record.id);
@@ -506,7 +474,7 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
       const from = Math.min(lastSelectedY, currentY);
       const to = Math.max(lastSelectedY, currentY);
       const newSelection = records.value.slice(from, to + 1);
-      state.setSelection(expandSelection(selection.value, newSelection));
+      state.select(expandSelection(selection.value, newSelection));
     } else {
       addSelectionRow(record);
     }
@@ -515,73 +483,6 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
     removeSelectionRow(record);
   }
 }
-
-function selectAll() {
-  state.setSelection({
-    metatype: ObjectType.SELECTION,
-    nodesPtr: records.value.map(toNodeRef),
-    fieldsPtr: [],
-    propertiesPtr: [],
-  });
-}
-
-function selectNone() {
-  lastSelectedRow.value = null;
-  state.setSelection(undefined);
-}
-
-// local selection region
-const selectedRegionOrigin = ref<{ x: number; y: number } | null>(null);
-const selectedRegionEnd = ref<{ x: number; y: number } | null>(null);
-
-function beginSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number, column: ColumnView) {
-  selectedRegionOrigin.value = { x, y };
-  updateSelectRegion(e, y, row, x, column);
-}
-
-function updateSelectRegion(e: MouseEvent, y: number, row: RecordData, x: number, column: ColumnView) {
-  if (selectedRegionOrigin.value == null) return; // not selecting
-  if (selectedRegionEnd.value != null && y == selectedRegionEnd.value.y && x == selectedRegionEnd.value.x) return; // no change
-  selectedRegionEnd.value = { x, y };
-  const region = {
-    x1: Math.min(selectedRegionOrigin.value.x, selectedRegionEnd.value.x),
-    x2: Math.max(selectedRegionOrigin.value.x, selectedRegionEnd.value.x),
-    y1: Math.min(selectedRegionOrigin.value.y, selectedRegionEnd.value.y),
-    y2: Math.max(selectedRegionOrigin.value.y, selectedRegionEnd.value.y),
-  };
-
-  const selection: SelectionData = {
-    metatype: ObjectType.SELECTION,
-    nodesPtr: records.value.slice(region.y1, region.y2 + 1).map(toNodeRef),
-    fieldsPtr: columns.value
-      .slice(region.x1, region.x2 + 1)
-      .filter((column) => column.kind == "field")
-      .map((column) => toNodeRef(column.field)),
-    propertiesPtr: columns.value
-      .slice(region.x1, region.x2 + 1)
-      .filter((column) => column.kind == "property")
-      .map((column) => toPropertyRef(column.property)),
-  };
-  state.setSelection(selection);
-}
-
-function endSelectRegion() {
-  selectedRegionOrigin.value = null;
-  selectedRegionEnd.value = null;
-}
-
-useEventListener(window, "mouseup", endSelectRegion);
-useEventListener(containerRef, "click", (e) => {
-  // clear selection if we're not inside a row or the header
-  // nocheckin: general selection handling
-  if (selection.value == null) return;
-  const node = canvas.getNodeAt(e.target as HTMLElement);
-  if (node?.nodeType != NodeType.RECORD && !headerRef.value?.contains(e.target as HTMLElement)) {
-    selectNone();
-  }
-});
-
-// working with selection
 
 function duplicateSelection(): RecordData[] {
   if (!hasSelectionRows.value) throw new Error("no row selection to duplicate");
@@ -602,16 +503,6 @@ function deleteSelection() {
     for (const record of Object.values(selectedRecordsById.value)) {
       tx.delete(record);
     }
-  } else if (hasSelectionRegion.value) {
-    // clear selected fields
-    const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Clear cells" } });
-    for (const record of Object.values(selectedRecordsById.value)) {
-      for (const column of selectedColumns.value) {
-        if (column.kind == "field") {
-          writeColumnValue(record, column, undefined, { tx });
-        }
-      }
-    }
   } else {
     throw new Error("no selection to delete");
   }
@@ -621,12 +512,12 @@ function deleteSelection() {
 // Drag & drop :TypeDragAndDrop
 //
 
-function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
+function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
   if (dragged.kind != "node") return false;
   const node = graph.getOrError(dragged.node);
   return isNode(node, NodeType.FIELD) || (isNode(node, NodeType.BLOCK) && TYPE_BLOCK_TYPES.includes(node.type));
 }
-function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
+function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
   if (dragged.kind != "node") return;
   const node = graph.getOrError(dragged.node);
   const target = targetId != null ? graph.get({ id: targetId }) : null;
@@ -687,7 +578,7 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
   // common
   "common.create.record": () => createRecord(),
   "common.edit.delete": (action, ctx) => {
-    if (hasSelectionRows.value || hasSelectionRegion.value) {
+    if (hasSelectionRows.value) {
       deleteSelection();
     } else {
       const { node } = getNodeFromContext(ctx);
@@ -698,9 +589,7 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
     }
   },
   "common.edit.duplicate": (action, ctx) => {
-    if (hasSelectionRegion.value) {
-      return false; // can't duplicate region selection
-    } else if (hasSelectionRows.value) {
+    if (hasSelectionRows.value) {
       duplicateSelection();
     } else {
       const { node } = getNodeFromContext(ctx);
@@ -820,8 +709,11 @@ defineExpose<ViewExposed>({ self, id, actions });
           </Transition>
 
           <!-- Selection -->
-          <div v-if="hasSelectionRows" class="flex flex-row items-center rounded border">
-            <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="selectNone">
+          <div
+            class="flex flex-row items-center rounded border transition-colors duration-150"
+            :class="numSelectedRows > 0 ? 'opacity-100' : 'opacity-0'"
+          >
+            <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
               {{ numSelectedRows }} selected
             </button>
             <button
@@ -889,8 +781,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Body outer wrapper (scroll horizontally, and vertically if not compact) -->
     <Scroll
       v-if="block"
-      id="body"
-      ref="bodyRef"
+      id="scroll"
       :size="bodySize"
       :orientation="variant == Variant.COMPACT ? Orientation.HORIZONTAL : undefined"
       :track-width="ScrollbarWidth.md"
@@ -898,16 +789,17 @@ defineExpose<ViewExposed>({ self, id, actions });
       :style="{
         marginLeft: containerGutterWidth != null ? `${-containerGutterWidth}px` : undefined,
       }"
+      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
       <!-- Body inner wrapper -->
       <div
-        class="min-w-fit"
+        ref="bodyRef"
         :style="{
-          marginLeft:
+          paddingLeft:
             variant != Variant.COMPACT
               ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`
               : `${(containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`,
-          marginRight:
+          paddingRight:
             variant != Variant.COMPACT
               ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
               : `${containerGutterWidth ?? 0}px`,
@@ -930,12 +822,13 @@ defineExpose<ViewExposed>({ self, id, actions });
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
+            data-suppress-drag="true"
           >
             <!-- Selection checkbox -->
             <button
               class="flex h-4 w-4 items-center rounded border border-gray-200 bg-white px-[1px] transition-colors duration-150"
               :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
-              @click="() => (isAllSelectedRows ? selectNone() : selectAll())"
+              @click="() => (isAllSelectedRows ? state.deselect() : state.select(records))"
             >
               <span
                 class="inline-block h-3 w-3 rounded transition-colors duration-75"
@@ -1109,7 +1002,6 @@ defineExpose<ViewExposed>({ self, id, actions });
             }
           "
           class="group/row flex flex-row border-gray-200"
-          :class="[]"
           :data-node-id="record.id"
           :data-node-ck="record.id"
           :data-node-type="record.metatype"
@@ -1122,6 +1014,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
+            data-suppress-drag="true"
           >
             <!-- Controls -->
             <button
@@ -1134,6 +1027,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 })
               "
               class="rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/row:opacity-100"
+              @click="() => (state.deselect(), setSelectionRow(record, true, false))"
             >
               <i class="fas fa-ellipsis-vertical w-5 text-center" />
             </button>
@@ -1162,7 +1056,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900"
             :class="[
               x > 0 ? 'border-l' : '',
-              isSelectedCell(record, column) ? 'bg-gray-100' : '',
+              isSelected || isSelectedCell(record, column) ? 'bg-gray-100' : '',
               column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{
@@ -1185,8 +1079,6 @@ defineExpose<ViewExposed>({ self, id, actions });
                 }
               }
             "
-            @mousedown="(e) => beginSelectRegion(e, y, record, x, column)"
-            @mousemove="(e) => updateSelectRegion(e, y, record, x, column)"
           >
             <!-- Inline title icon -->
             <IconInline
@@ -1237,6 +1129,9 @@ defineExpose<ViewExposed>({ self, id, actions });
             :style="{ height: `${ROW_HEIGHT_MIN}px` }"
           />
         </div>
+
+        <!-- Selection -->
+        <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
       </div>
     </Scroll>
 

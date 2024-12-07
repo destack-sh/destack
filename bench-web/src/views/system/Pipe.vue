@@ -22,11 +22,12 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const pipePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.PIPE>);
 const flowCtx = useFlowContext();
-const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
-const { pipe, source, target, path } = state;
+const pipeState = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
+const { pipe, source, target, path } = pipeState;
 const pathColorHex = computed(() => {
   const color = pipe.value?.color?.type ?? ColorType.GRAY;
   if (color == ColorType.GRAY) {
@@ -41,6 +42,7 @@ const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: pip
 
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
+const isSelected = computed(() => state.isSelected(pipePtr.value));
 const isHidden = computed(() => pipe.value?.isHidden && !isInspected.value && !isHighlighted.value);
 const isGeneratedName = computed(() => pipe.value != null && isGeneratedNodeName(pipe.value.metatype, pipe.value.name));
 const showPipeMeta = computed(() => !pipe.value?.isNameHidden || pipe.value?.type != PipeType.PASS);
@@ -52,7 +54,6 @@ const showPipeMeta = computed(() => !pipe.value?.isNameHidden || pipe.value?.typ
 // actions
 const actions: Partial<ActionMapImplementation<"common" | "pipe">> = {};
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
@@ -100,7 +101,11 @@ defineExpose<ViewExposed>({ self, id, actions });
         :marker-end="'url(#arrowhead-background-' + pipe.id + ')'"
         :d="pathToSvg(path)"
         class="transition-colors duration-150"
-        :class="isInspected || isHighlighted ? 'stroke-current' : 'stroke-transparent group-hover:stroke-current'"
+        :class="
+          isInspected || isHighlighted || isSelected
+            ? 'stroke-current'
+            : 'stroke-transparent group-hover:stroke-current'
+        "
       />
 
       <!-- Main Path -->
@@ -122,7 +127,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded-2xl border transition-colors duration-150"
       :class="[
         showPipeMeta
-          ? [isInspected || isHighlighted ? 'border-gray-300 bg-gray-100' : 'border-gray-200 bg-white']
+          ? [isInspected || isHighlighted || isSelected ? 'border-gray-300 bg-gray-100' : 'border-gray-200 bg-white']
           : 'border-transparent bg-transparent',
         pipe.isNameHidden ? 'px-0.5' : 'px-2',
       ]"
@@ -146,7 +151,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         class="ml-1.5 mr-1.5 flex-shrink-0 transition-colors duration-150"
         :class="[
           pipe.isNameHidden && !isInspected && !isHighlighted ? 'opacity-0' : 'opacity-100',
-          isInspected || isHighlighted || !pipe.isNameHidden ? 'text-gray-700' : 'text-gray-400',
+          isInspected || isHighlighted || isSelected || !pipe.isNameHidden ? 'text-gray-700' : 'text-gray-400',
         ]"
         is-input
         placeholder="Name..."

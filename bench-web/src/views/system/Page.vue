@@ -24,17 +24,24 @@ import { useExistingConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { bench, canvas } from "@/system/space";
 import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
-import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
+import {
+  isDragging,
+  startDraggingIfAllowed,
+  startSelectingIfAllowed,
+  useMultiDropZone,
+  useSelectionZone,
+} from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { makeSelection, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
@@ -68,6 +75,7 @@ const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 
 // size block/gutter horizontally (try to fit both until min block width)
 const widths = computed(() => {
@@ -93,6 +101,14 @@ function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, ancho
 //
 // Interaction
 //
+
+// selecting
+const selectionZone = useSelectionZone({
+  containerEl: contentRef,
+  overlayEl: selectionOverlayRef,
+  selection: state.selection,
+  select: state.select,
+});
 
 // dragging
 const { activeDropZone } = useMultiDropZone({
@@ -281,7 +297,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           "
           class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
         >
-          <i class="fas fa-ellipsis w-5 text-center" />
+          <i class="fas fa-ellipsis-vertical w-5 text-center" />
         </button>
       </div>
     </div>
@@ -303,6 +319,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
+      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
       <div ref="contentRef" class="mb-[320px] flex min-h-full flex-col">
         <!-- Page header (title) -->
@@ -347,7 +364,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             >
               <i class="fas fa-plus" />
             </button>
-            <!-- Drag -->
+            <!-- Controls/Drag -->
             <button
               v-menu="
                 (): PopoverInfo => ({
@@ -359,6 +376,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
               "
               class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               :draggable="true"
+              data-suppress-drag="true"
+              @mousedown="() => state.select(makeSelection([block]), { debounce: 'long' })"
               @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
             >
               <i class="fas fa-grip-vertical w-5 text-center" />
@@ -427,6 +446,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
           </button>
         </div>
       </div>
+
+      <!-- Selection -->
+      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
     </Scroll>
     <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
   </div>

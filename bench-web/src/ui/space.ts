@@ -37,6 +37,7 @@ import {
   describeScope,
   isNode,
   isNodeRef,
+  isStruct,
   makeStruct,
   propertyInfo,
   toNodeRef,
@@ -642,20 +643,43 @@ export class SpaceCanvas {
     }
 
     //
-    // Selection (from base view.. might want to move it even further up, like root?)
+    // Selection (from base view.. might want to move selection owner even further up, like next root view?)
     //
 
     const selection = computed(() => baseViewRef?.value?.selection);
+    const selectionById = computed(() => {
+      if (selection.value == null) return {};
+      return selection.value.nodesPtr.reduce((acc: Record<string, NodeReferenceData>, ptr) => {
+        acc[ptr.id!] = ptr;
+        return acc;
+      }, {});
+    });
 
-    function setSelection(selection: SelectionData | undefined, options?: TransactionOptions) {
+    function select(
+      selection: SelectionData | AnyNodeData[] | NodeReferenceData[] | undefined,
+      options?: TransactionOptions,
+    ) {
+      if (selection != null && !isStruct(selection, StructType.SELECTION)) {
+        selection = makeSelection(selection.map(toNodeRef));
+      }
       if (baseViewRef?.value != null) {
         tx()
           .with({ category: ChangeCategory.SPACE })
           .update(baseViewRef.value, { selection }, { debounce: "long", ...options });
+      } else {
+        throw new Error("no base view");
       }
     }
 
-    return { getState, getChildState, update, selection, setSelection };
+    function deselect(options?: TransactionOptions) {
+      select(undefined, options);
+    }
+
+    function isSelected(node: NodeKey<any>): boolean {
+      return selectionById.value[node.id!] != null;
+    }
+
+    return { getState, getChildState, update, selection, select: select, deselect: deselect, isSelected };
   }
 
   /** Gets the containing root view (or self, if any) for a view */
