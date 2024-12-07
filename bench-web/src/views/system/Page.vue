@@ -266,13 +266,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <!-- History -->
       <HistoryNavigator ref="historyRef" :self="self" />
       <!-- Breadcrumb -->
-      <NodePath
-        v-if="nodePtr"
-        :container="nodePtr"
-        :focus="$props.focus?.nodesPtr[0]"
-        :self="nodePtr"
-        :graph="graph"
-      />
+      <NodePath v-if="nodePtr" :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :self="nodePtr" :graph="graph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- ... -->

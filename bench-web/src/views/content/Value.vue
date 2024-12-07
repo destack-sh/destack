@@ -43,9 +43,9 @@ defineExpose<ViewExposed>({ self, id });
       @update:model-value="$emit('update:modelValue', $event)"
       @apply="$emit('apply', $event)"
     />
-    <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
+    <div v-else class="flex flex-row items-center px-1 py-0.5 text-danger-600">
       <i class="fas fa-empty-set" />
-      <span class="ml-1.5">No View for Type {{ valueType }}</span>
+      <span class="ml-1.5">No View</span>
     </div>
   </ViewContentWrapper>
 </template>
