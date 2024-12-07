@@ -400,6 +400,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :class="isDragging(block) ? 'opacity-50' : ''"
               :node-ptr="toNodeRef(block)"
               :prepared-connection="preparedConnection"
+              :containerGutterWidth="widths.gutter"
               v-bind="state.getChildState(block.id)"
               :draggable="block.type == BlockType.PAGE"
               @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
