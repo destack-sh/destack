@@ -438,17 +438,18 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
     node_kwargs.update(kwargs)  # override with given kwargs
 
     # assemble value
-    value: dict[str, SomeValue] = {}
-    for field in partial_node._type._base_fields:
-        key = field.storage_key
-        field_value = partial_node._value.get(key)
-        if field_value is not None:
-            value[key] = field_value
-    if value:
-        value_prop = node_cls.get_value_property(
-            cast(ObjectKind | None, partial_node._type.base_field_type), "packed"
-        )
-        node_kwargs[value_prop.name] = value
+    if node_cls.__value_runtime_properties__:
+        value_packed: dict[str, SomeValue] = {}
+        for field in partial_node._type._base_fields:
+            key = field.storage_key
+            field_value = partial_node._value.get(key)
+            if field_value is not None:
+                value_packed[key] = field_value
+        if value_packed:
+            value_prop = node_cls.get_value_property(
+                cast(ObjectKind | None, partial_node._type.base_field_type), "packed"
+            )
+            node_kwargs[value_prop.name] = value_packed
 
     # make node
     node = node_cls(**node_kwargs)
@@ -479,13 +480,16 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
             node._do_set(prop.name, new_prop_value, track=True, validate=False)
 
     # apply value
-    # NOTE :nocheckin: patching partial node value only works for passthrough values
-    #  (so this works for Record.value or Message.value but not for Block.variables or Run.inputs
-    #    .. should fix this, see make_node_from_partial above)
-    for field in partial_node._type._base_fields:
-        new_field_value = partial_node._do_get(field)
-        if new_field_value is not None:
-            node._do_set(field.name, new_field_value, track=True, validate=False)
+    if node.__value_runtime_properties__:
+        value_prop = node.get_value_property(
+            cast(ObjectKind | None, partial_node._type.base_field_type), "runtime"
+        )
+        value = getattr(node, value_prop.name)
+        assert type(value) is CustomObject, f"unexpected {value!r} for {value_prop!r} in {node!r}"
+        for field in partial_node._type._base_fields:
+            new_field_value = partial_node._do_get(field)
+            if new_field_value is not None:
+                value._do_set(field, new_field_value, track=True, validate=False)
 
 
 def _get_custom_object_properties(
