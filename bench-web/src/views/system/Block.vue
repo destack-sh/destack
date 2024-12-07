@@ -24,6 +24,7 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     preparedConnection?: PreparedGetConnection;
+    containerGutterWidth?: number;
   } & Pick<ViewData, "variant" | "nodePtr">
 >();
 const emit = defineEmits(viewEmits());
@@ -231,6 +232,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         v-bind="state.getChildState('database')"
         :node-ptr="props.nodePtr"
         :variant="Variant.COMPACT"
+        :containerGutterWidth="containerGutterWidth"
         is-input
       />
     </div>

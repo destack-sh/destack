@@ -132,7 +132,7 @@ defineExpose<
       :style="{ ...sizeStyles }"
     >
       <!-- Inner wrapper -->
-      <div ref="innerRef" class="" :class="$attrs.class">
+      <div ref="innerRef" class="min-w-fit min-h-fit" :class="$attrs.class">
         <slot />
       </div>
     </div>
