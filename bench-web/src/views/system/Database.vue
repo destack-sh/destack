@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
+import { RECORD_CONTEXT_ACTIONS } from "@/language/database";
 import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { cloneNode, moveNode } from "@/language/node";
@@ -46,7 +47,7 @@ import { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { DraggedContent, MultiAnchor, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { getNodeIcon, getTypeIcon, ICON_BY_EXPRESSION_OP as ICON_BY_EXPRESSION_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, PopoverContext, PopoverInfoIn, pushPopover } from "@/ui/popover";
+import { menuActionsLike, PopoverContext, PopoverInfo, PopoverInfoIn, pushPopover } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
 import {
   collapseSelection,
@@ -65,7 +66,6 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
-import Toggle from "@/views/content/Toggle.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useEventListener, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
@@ -74,7 +74,7 @@ const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
-const ROW_ACTIONS_WIDTH = 32;
+const ROW_ACTIONS_WIDTH = 50;
 const GUTTER_WIDTH = 60;
 
 const props = defineProps<
@@ -194,7 +194,7 @@ const rowWidth = computed(() => {
   if (props.variant == Variant.COMPACT) {
     return containerSize.width.value; // row actions are floating to the left
   } else {
-    return containerSize.width.value - ROW_ACTIONS_WIDTH;
+    return containerSize.width.value - GUTTER_WIDTH * 2;
   }
 });
 const bodySize = computed(() => {
@@ -573,6 +573,7 @@ function endSelectRegion() {
 useEventListener(window, "mouseup", endSelectRegion);
 useEventListener(containerRef, "click", (e) => {
   // clear selection if we're not inside a row or the header
+  // nocheckin: general selection handling
   if (selection.value == null) return;
   const node = canvas.getNodeAt(e.target as HTMLElement);
   if (node?.nodeType != NodeType.RECORD && !headerRef.value?.contains(e.target as HTMLElement)) {
@@ -665,13 +666,23 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 // Actions
 //
 
-const getNodeFromContext = (ctx: ActionContext | undefined): { node: FieldData | RecordData | null } => {
+function getNodeFromContext(ctx: ActionContext | undefined): { node: FieldData | RecordData | null } {
   const node = ctx?.triggerNode;
   if (isNode(node, NodeType.FIELD) || isNode(node, NodeType.RECORD)) {
     return { node };
   }
   return { node: null };
-};
+}
+function getConnectionFromNode(node: FieldData | RecordData) {
+  if (isNode(node, NodeType.FIELD)) {
+    return connection;
+  } else if (isNode(node, NodeType.RECORD)) {
+    return recordConnection;
+  } else {
+    assertNever(node);
+  }
+}
+
 const actions: Partial<ActionMapImplementation<"common" | "database">> = {
   // common
   "common.create.record": () => createRecord(),
@@ -681,6 +692,7 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
     } else {
       const { node } = getNodeFromContext(ctx);
       if (node != null) {
+        const connection = getConnectionFromNode(node);
         connection.tx.delete(node);
       }
     }
@@ -693,6 +705,7 @@ const actions: Partial<ActionMapImplementation<"common" | "database">> = {
     } else {
       const { node } = getNodeFromContext(ctx);
       if (node != null) {
+        const connection = getConnectionFromNode(node);
         const tx = connection.tx.with({ change: { key: newChangeId(), title: "Duplicate record" } });
         cloneNode(tx, recordGraph, node);
       }
@@ -911,23 +924,24 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <!-- Composite actions -->
           <div
-            class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-center border-b transition-colors duration-150"
-            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
+            class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-end px-1.5 transition-colors duration-150"
+            :class="[hasSelectionRows ? 'bg-white' : 'bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
           >
             <!-- Selection checkbox -->
-            <Toggle
-              id="select-all"
-              :variant="Variant.COMPACT"
-              is-input
-              class="transition-colors duration-150"
+            <button
+              class="flex h-4 w-4 items-center rounded border border-gray-200 bg-white px-[1px] transition-colors duration-150"
               :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
-              :model-value="isAllSelectedRows"
-              @update:model-value="(value) => (value ? selectAll() : selectNone())"
-            />
+              @click="() => (isAllSelectedRows ? selectNone() : selectAll())"
+            >
+              <span
+                class="inline-block h-3 w-3 rounded transition-colors duration-75"
+                :class="isAllSelectedRows ? 'bg-gray-700' : ''"
+              />
+            </button>
           </div>
 
           <!-- Column header -->
@@ -1102,22 +1116,38 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <!-- Row actions -->
           <div
-            class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-start justify-center border-b pt-[7px] transition-colors duration-150"
-            :class="[hasSelectionRows ? 'border-gray-200 bg-white' : 'border-transparent bg-transparent']"
+            class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-center justify-end gap-x-1 px-1.5 transition-colors duration-150"
+            :class="[hasSelectionRows ? 'bg-white' : 'bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
+              height: `${ROW_HEIGHT_MIN}px`,
             }"
           >
+            <!-- Controls -->
+            <button
+              v-menu="
+                (): PopoverInfo => ({
+                  kind: 'menu',
+                  placement: 'bottom-left',
+                  offset: 'referenceWidth',
+                  items: menuActionsLike(RECORD_CONTEXT_ACTIONS, { context: { triggerNode: record } }),
+                })
+              "
+              class="rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/row:opacity-100"
+            >
+              <i class="fas fa-ellipsis-vertical w-5 text-center" />
+            </button>
             <!-- Selection checkbox -->
-            <Toggle
-              id="select-row"
-              :variant="Variant.COMPACT"
-              is-input
-              class="transition-colors duration-150"
+            <button
+              class="flex h-4 w-4 items-center rounded border border-gray-200 bg-white px-[1px] transition-colors duration-150"
               :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'"
-              :model-value="hasSelectionRows && isSelectedRow(record)"
-              @update:model-value="(value) => setSelectionRow(record, value, shiftKey ?? false)"
-            />
+              @click="() => setSelectionRow(record, !isSelectedRow(record), shiftKey ?? false)"
+            >
+              <span
+                class="inline-block h-3 w-3 rounded transition-colors duration-75"
+                :class="hasSelectionRows && isSelectedRow(record) ? 'bg-gray-700' : ''"
+              />
+            </button>
           </div>
 
           <!-- Cells -->

@@ -357,7 +357,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
                 })
               "
-              class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               :draggable="true"
               @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
             >
