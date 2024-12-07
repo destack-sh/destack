@@ -45,6 +45,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const stepPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.STEP>);
 const flowCtx = useFlowContext();
@@ -52,6 +53,7 @@ const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
 const { step, subnode, fields, delegatePtr, delegate, delegateFields } = stepState;
 const isInspected = computed(() => canvas.isInspected(stepPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(stepPtr.value));
+const isSelected = computed(() => state.isSelected(stepPtr.value));
 const sides = computed(() => (step.value != null ? getStepSides(step.value) : []));
 
 const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
@@ -76,7 +78,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   },
 };
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
@@ -85,7 +86,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded border outline outline-1 transition-colors duration-150"
     :class="[
-      isInspected || isHighlighted ? 'border-gray-400 bg-gray-100' : 'border-gray-200 bg-white',
+      isInspected || isHighlighted || isSelected ? 'border-gray-400 bg-gray-100' : 'border-gray-200 bg-white',
       lastRun != null && isRunActive(lastRun) ? '' : 'outline-transparent',
     ]"
     :style="{
@@ -141,7 +142,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           })
         "
         v-tooltip="{ small: true, text: `Change icon` }"
-        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded"
+        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer"
         :style="{
           backgroundColor: getNodeColorHex(step, ColorShade.S300),
         }"
@@ -246,7 +247,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         "
         class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/step:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
       >
-        <i class="fas fa-grip-vertical w-5 text-center" />
+        <i class="fas fa-ellipsis-vertical w-5 text-center" />
       </button>
     </div>
 

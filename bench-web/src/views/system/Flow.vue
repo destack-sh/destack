@@ -29,6 +29,7 @@ import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -37,6 +38,7 @@ import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
@@ -135,6 +137,15 @@ onMounted(() => {
 const shouldAnimateTransform = computed(
   () => !isInitialRender.value && !flowCtx.isDragging && !containerScroll.isScrolling.value,
 );
+
+// selection
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionZone = useSelectionZone({
+  containerEl: containerRef,
+  overlayEl: selectionOverlayRef,
+  selection: state.selection,
+  select: state.select,
+});
 
 // actions
 const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData | PipeData | null; idx: number } => {
@@ -333,11 +344,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             ? `calc(100% - ${HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)`
             : undefined,
       }"
-      @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
-      @mousemove="(e: MouseEvent) => flowCtx.onDragging(e)"
-      @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
-      @mouseleave="(e) => flowCtx.cancelDragging()"
-      @wheel.prevent="(e) => flowCtx.onWheel(e)"
+      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+      @mousemove="(e) => flowCtx.onDragging(e)"
+      @mouseleave="flowCtx.cancelDragging()"
+      @mouseup="flowCtx.cancelDragging()"
+      @wheel="(e) => (variant != Variant.COMPACT ? flowCtx.onWheel(e) : undefined)"
     >
       <!-- Background grid (infinitely repeated) -->
       <div class="absolute h-full w-full overflow-hidden" :style="{}">
@@ -482,10 +493,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               top: (step.position?.y ?? 0) + 'px',
             }"
             :node-ptr="toNodeRef(step)"
-            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
+            @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step: step! })"
           />
         </div>
       </div>
+
+      <!-- Selection -->
+      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
 
       <!-- Overlay -->
       <div

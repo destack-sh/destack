@@ -21,6 +21,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const fieldRef = ref<HTMLElement | null>(null);
 const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
@@ -30,6 +31,7 @@ const { graph: graph, connection: connection } = props.preparedConnection ?? use
 const field = graph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
+const isSelected = computed(() => state.isSelected(nodePtr.value));
 
 // actions
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"type"> = {
@@ -63,7 +65,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
   },
 };
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
@@ -74,7 +75,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     :class="[
       variant != Variant.STEALTH ? 'w-fit border border-gray-200' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      isInspected || isHighlighted ? 'bg-gray-100' : 'hover:bg-gray-100',
+      isInspected || isHighlighted || isSelected ? 'bg-gray-100' : 'hover:bg-gray-100',
       field.type == FieldType.OPTION ? 'rounded-2xl pr-2.5' : '',
       field.type == FieldType.INPUT || field.type == FieldType.OUTPUT || field.type == FieldType.MEMBER
         ? 'rounded pr-2'

@@ -46,6 +46,7 @@ const isPage = computed(() => block.value?.type == BlockType.PAGE);
 const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(block.value?.type!));
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
+const isSelected = computed(() => state.isSelected(nodePtr.value));
 
 //
 // Interaction
@@ -123,7 +124,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     ref="blockRef"
     class="group/block relative select-none rounded transition-colors duration-150"
     :class="[
-      isInspected ? 'border-primary-700' : 'border-gray-200',
+      isSelected ? 'bg-gray-100' : '',
       isPage ? 'cursor-pointer hover:bg-gray-100' : '',
       hasCanvas ? 'mb-2' : '',
     ]"

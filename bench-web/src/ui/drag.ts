@@ -1,59 +1,60 @@
 import type { ReadNodeGraph } from "@/language/graph";
+import { TransactionOptions } from "@/language/transaction";
 import {
   FileFormat,
   FileType,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   Orientation,
   SelectionData,
   StructType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
+import { contentEquals, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
+import { makeSelection } from "@/ui/view";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
+import SelectionZone from "@/views/builtins/SelectionOverlay.vue";
+import { ViewComponent } from "@/views/common";
 import { tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, ref, shallowRef, toRef, unref, watch, type MaybeRef, type Ref } from "vue";
+import { computed, ref, shallowRef, toRef, triggerRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
-// NOTE :Architecture: we can probably generalise drag & selection targets into a single system?
-//  (also canvas.registerView, View.nodePtr and data-node-id annotations seem very relevant)
-// NOTE: for now the drag/drop system is only expected to work within a single bench-web instance
+//
+// Drag
+//
 
-const DRAGGED_KINDS = ["node", "selection", "file"] as const;
-export type DraggedKind = (typeof DRAGGED_KINDS)[number];
-export type DraggedContent =
+const DRAG_KINDS = ["node", "selection", "file"] as const;
+export type DragKind = (typeof DRAG_KINDS)[number];
+export type DragContent =
   | { kind: "node"; node: NodeReferenceData; nodes: AnyNodeData[] }
   | { kind: "selection"; selection: SelectionData; nodes: AnyNodeData[] }
   | {
       kind: "file"; // native browser file
       files: FileList | undefined; // only on drop
     };
-export type Dragged = {
+export type Drag = {
   trigger?: HTMLElement | undefined;
-} & DraggedContent;
+} & DragContent;
 
 // NOTE: we render the drag image globally in DragOverlay.vue
 const dragImageRef = ref<HTMLElement | null>(null);
-
 export function _setDragImage(image: HTMLElement | null) {
   dragImageRef.value = image;
 }
 
-export const activeDragged: Ref<Dragged | null> = shallowRef(null);
+export const activeDrag: Ref<Drag | null> = shallowRef(null);
 const lastDraggedAt: Ref<DateTime | null> = shallowRef(null);
-const dropZones: Ref<Record<number, DropZone>> = shallowRef({});
-const dropZonesByElement: Map<HTMLElement | SVGElement, DropZone> = new Map();
-const activeDropZone: Ref<DropZone | null> = ref(null);
 
 export const DRAG_DISALLOWED_ELEMENTS = new Set(["input", "textarea", "contenteditable"]);
 
 /** Checks whether the given node is currently being dragged */
 export function isDragging(node: AnyNodeData | NodeReferenceData) {
   return (
-    (activeDragged.value?.kind == "node" && activeDragged.value.node.id == node.id) ||
-    (activeDragged.value?.kind == "selection" && activeDragged.value.nodes.some((n) => n.id == node.id))
+    (activeDrag.value?.kind == "node" && activeDrag.value.node.id == node.id) ||
+    (activeDrag.value?.kind == "selection" && activeDrag.value.nodes.some((n) => n.id == node.id))
   );
 }
 
@@ -88,10 +89,10 @@ export function startDraggingIfAllowed(
 export function startDragging(
   event: DragEvent,
   graph: ReadNodeGraph,
-  data: AnyNodeData | NodeReferenceData | SelectionData | DraggedContent,
+  data: AnyNodeData | NodeReferenceData | SelectionData | DragContent,
 ): boolean {
   const trigger = event.target as HTMLElement;
-  let dragged: Dragged;
+  let dragged: Drag;
   if ("metatype" in data) {
     if (isNodeRef(data)) {
       dragged = {
@@ -125,8 +126,8 @@ export function startDragging(
   dt.setDragImage(dragImageRef.value!, -10, 0);
 
   trigger.dataset.dragging = "true";
-  if (activeDragged.value != null) log.warn("drag.alreadyExists", activeDragged);
-  activeDragged.value = dragged;
+  if (activeDrag.value != null) log.warn("drag.alreadyExists", activeDrag);
+  activeDrag.value = dragged;
   lastDraggedAt.value = DateTime.now();
   log.trace("drag.start", dragged);
   return true;
@@ -134,16 +135,16 @@ export function startDragging(
 
 /** Stops dragging the current thing. */
 function stopDragging() {
-  if (activeDragged.value?.trigger != null) {
-    delete activeDragged.value.trigger?.dataset.dragging;
+  if (activeDrag.value?.trigger != null) {
+    delete activeDrag.value.trigger?.dataset.dragging;
   }
-  activeDragged.value = null;
+  activeDrag.value = null;
   lastDraggedAt.value = null;
   activeDropZone.value = null;
 }
 
 /** Gets the current dragged thing. Must match 'activeDragged'. */
-function getDragged(event: DragEvent): DraggedContent | null {
+function getDragContent(event: DragEvent): DragContent | null {
   // get dragged metatype while dragging (can only read keys set in startDragging above)
   if (event.dataTransfer?.types == null) return null;
 
@@ -153,13 +154,22 @@ function getDragged(event: DragEvent): DraggedContent | null {
   }
 
   // check if it's one of our current dragged items
-  if (activeDragged.value != null) {
-    return activeDragged.value;
+  if (activeDrag.value != null) {
+    return activeDrag.value;
   }
 
   // something else
   return null;
 }
+
+//
+// Drop
+// NOTE: to handle hierarchical drop zones, we register them globally here and query against thee dropZones registry.
+//
+
+const dropZones: Ref<Record<number, DropZone>> = shallowRef({});
+const dropZonesByContainerEl: Map<HTMLElement | SVGElement, DropZone> = new Map();
+const activeDropZone: Ref<DropZone | null> = ref(null);
 
 /** General options for any drop zone. */
 type DropOptions = {
@@ -168,7 +178,7 @@ type DropOptions = {
   /** The top level container for the zone. */
   container: Ref<MaybeElement>;
   /** The kinds of supported drag kinds. */
-  kinds?: MaybeRef<DraggedKind[]>;
+  kinds?: MaybeRef<DragKind[]>;
   /** The metatypes of supported drag nodes (for Dragged with nodes). */
   metatypes?: MaybeRef<NodeType[]>;
   /** The allowed file types for file drops. */
@@ -177,16 +187,10 @@ type DropOptions = {
   /** Whether the drop zone is enabled. */
   isEnabled?: Ref<boolean>;
 };
-
-//
-// Drop zones
-// NOTE: to handle hierarchical drop zones, we register them globally here and query against thee dropZones registry.
-//
-
 type DropZone = DropOptions & {
   id: number;
   containerEl: Ref<HTMLElement | SVGElement | null>;
-  onDrop?: (dragged: DraggedContent, event: DragEvent) => void;
+  onDrop?: (dragged: DragContent, event: DragEvent) => void;
 };
 let dropZoneId = 0;
 function newDropZoneId(): number {
@@ -194,7 +198,7 @@ function newDropZoneId(): number {
 }
 
 /** Whether dropping the dragged thing into this zone is possible */
-function isDropCompatible(zone: DropZone, dragged: DraggedContent): boolean {
+function isDropCompatible(zone: DropZone, dragged: DragContent): boolean {
   if (dragged == null) return false;
   const kinds = unref(zone.kinds);
   if (kinds != null && !kinds.includes(dragged.kind)) return false;
@@ -204,9 +208,9 @@ function isDropCompatible(zone: DropZone, dragged: DraggedContent): boolean {
 }
 
 /** Traverses the event targets up to find a drop zone that can accept the dragged thing (if any). */
-function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: DraggedContent): DropZone | null {
+function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: DragContent): DropZone | null {
   while (el) {
-    const zone = dropZonesByElement.get(el);
+    const zone = dropZonesByContainerEl.get(el);
     if (zone && isDropCompatible(zone, dragged)) return zone;
     el = el.parentElement;
   }
@@ -215,7 +219,7 @@ function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: Dr
 
 /** Updates the active dragging on any drag event. */
 function updateDragging(event: DragEvent) {
-  const dragged = getDragged(event);
+  const dragged = getDragContent(event);
   if (dragged == null) {
     if (activeDropZone.value != null) {
       stopDragging();
@@ -225,8 +229,8 @@ function updateDragging(event: DragEvent) {
   event.preventDefault();
 
   // update dragged
-  if (activeDragged.value == null) {
-    activeDragged.value = dragged;
+  if (activeDrag.value == null) {
+    activeDrag.value = dragged;
     log.trace("drag.activeDragged", dragged);
   }
 
@@ -252,7 +256,7 @@ useEventListener("dragenter", updateDragging);
 useEventListener("dragover", updateDragging);
 useEventListener("dragleave", updateDragging);
 useEventListener("drop", (event) => {
-  const dragged = getDragged(event) ?? activeDragged.value;
+  const dragged = getDragContent(event) ?? activeDrag.value;
   if (dragged == null) return;
   const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone) {
@@ -268,7 +272,7 @@ useEventListener("dragend", stopDragging);
  */
 export function useDropZone(
   options: DropOptions & {
-    onDrop?: (dragged: DraggedContent, event: DragEvent) => void;
+    onDrop?: (dragged: DragContent, event: DragEvent) => void;
   },
 ): { isInDropZone: Ref<boolean> } {
   const isEnabled = options.isEnabled ?? ref(true);
@@ -284,14 +288,14 @@ export function useDropZone(
   watch(
     zone.containerEl,
     (newEl, oldEl) => {
-      if (oldEl) dropZonesByElement.delete(oldEl);
-      if (newEl) dropZonesByElement.set(newEl, zone);
+      if (oldEl) dropZonesByContainerEl.delete(oldEl);
+      if (newEl) dropZonesByContainerEl.set(newEl, zone);
     },
     { immediate: true },
   );
   tryOnBeforeUnmount(() => {
     delete dropZones.value[zone.id];
-    if (zone.containerEl.value) dropZonesByElement.delete(zone.containerEl.value);
+    if (zone.containerEl.value) dropZonesByContainerEl.delete(zone.containerEl.value);
   });
 
   return {
@@ -305,7 +309,7 @@ export function useDropZone(
 export function useSingleDropZone(
   options: DropOptions & {
     orientation: MaybeRef<Orientation>;
-    onDrop?: (dragged: DraggedContent, anchor: "start" | "end", event: DragEvent) => void;
+    onDrop?: (dragged: DragContent, anchor: "start" | "end", event: DragEvent) => void;
   },
 ): { activeDropZone: Ref<{ anchor: "start" | "end" } | null>; getActiveDropZone: () => { anchor: "start" | "end" } } {
   const { isInDropZone } = useDropZone({
@@ -339,8 +343,8 @@ export function useMultiDropZone(
     orientation: MaybeRef<Orientation>;
     fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
-    allowDrop?: (dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) => boolean;
-    onDrop?: (dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
+    allowDrop?: (dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) => boolean;
+    onDrop?: (dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
   },
 ): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> } {
   const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
@@ -395,8 +399,7 @@ export function useMultiDropZone(
   const activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> = computed(() => {
     if (singleDropZone.value == null) return null;
     const activeDropZone = getActiveDropZone();
-    if (options.allowDrop?.(activeDragged.value!, activeDropZone.anchor, activeDropZone.targetId) === false)
-      return null;
+    if (options.allowDrop?.(activeDrag.value!, activeDropZone.anchor, activeDropZone.targetId) === false) return null;
     return activeDropZone;
   });
 
@@ -420,7 +423,7 @@ export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
  */
 export function useSplitDropZone(
   options: DropOptions & {
-    onDrop?: (dragged: DraggedContent, anchor: SplitAnchor, event: DragEvent) => void;
+    onDrop?: (dragged: DragContent, anchor: SplitAnchor, event: DragEvent) => void;
   },
 ): {
   activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null>;
@@ -482,3 +485,285 @@ export function useSplitDropZone(
   );
   return { activeDropZone };
 }
+
+//
+// Selection
+//
+
+type SelectionZoneOptions = {
+  isEnabled?: Ref<boolean>;
+};
+
+export type SelectionZone = {
+  id: number;
+  containerEl: Ref<HTMLElement | SVGElement | null>;
+  overlayEl: Ref<InstanceType<typeof SelectionZone> | null>;
+  options: SelectionZoneOptions;
+  selection: Ref<SelectionData | undefined>;
+  select: (selection: SelectionData | undefined, options?: TransactionOptions) => void;
+};
+
+type SelectionTarget = {
+  clientX: number;
+  clientY: number;
+  element: HTMLElement | SVGElement;
+};
+
+let selectionZoneId = 0;
+function newSelectionZoneId() {
+  return selectionZoneId++;
+}
+
+const selectionZones: Ref<Record<number, SelectionZone>> = shallowRef({});
+const selectionZonesByContainerEl = new Map<HTMLElement | SVGElement, SelectionZone>();
+export const activeSelection: Ref<{
+  sourceZone: SelectionZone;
+  start: SelectionTarget;
+  end: SelectionTarget;
+  activeZone: SelectionZone | null;
+  activeOverlay: { x: number; y: number; width: number; height: number } | null;
+} | null> = shallowRef(null);
+
+export function isSelecting(zone?: SelectionZone) {
+  if (zone == null) {
+    return activeSelection.value != null;
+  } else {
+    return activeSelection.value?.activeZone?.id == zone.id;
+  }
+}
+
+/** Creates a selection zone. */
+export function useSelectionZone(
+  options: SelectionZoneOptions & {
+    containerEl: Ref<HTMLElement | SVGElement | null>;
+    overlayEl: Ref<InstanceType<typeof SelectionZone> | null>;
+    selection: Ref<SelectionData | undefined>;
+    select: (selection: SelectionData | undefined) => void;
+  },
+): SelectionZone {
+  const isEnabled = options?.isEnabled ?? ref(true);
+  const zone: SelectionZone = {
+    id: newSelectionZoneId(),
+    containerEl: options.containerEl,
+    overlayEl: options.overlayEl,
+    options: { ...options, isEnabled },
+    selection: options.selection,
+    select: options.select,
+  };
+
+  // register/deregister
+  selectionZones.value[zone.id] = zone;
+  triggerRef(selectionZones);
+  tryOnBeforeUnmount(() => {
+    delete selectionZones.value[zone.id];
+    triggerRef(selectionZones);
+  });
+  watch(zone.containerEl, (newEl, oldEl) => {
+    if (oldEl) selectionZonesByContainerEl.delete(oldEl);
+    if (newEl) selectionZonesByContainerEl.set(newEl, zone);
+  });
+
+  return zone;
+}
+
+function eventToTarget(event: MouseEvent): SelectionTarget {
+  return { clientX: event.clientX, clientY: event.clientY, element: event.target as HTMLElement | SVGElement };
+}
+
+/** Starts selecting at the given position. */
+export function startSelecting(zone: SelectionZone, event: MouseEvent) {
+  if (activeSelection.value != null) return;
+  activeSelection.value = {
+    sourceZone: zone,
+    start: eventToTarget(event),
+    end: eventToTarget(event),
+    activeZone: zone,
+    activeOverlay: null,
+  };
+  updateSelecting(event);
+  log.trace("select.start", activeSelection.value);
+}
+
+/** Starts selecting if allowed at the given position. */
+export function startSelectingIfAllowed(zone: SelectionZone, event: MouseEvent) {
+  if (isDraggingAllowed(event.target as HTMLElement | SVGElement | null)) {
+    startSelecting(zone, event);
+  }
+}
+
+/** Gets all elements intersecting the given rectangle. */
+function getIntersectingNodes(
+  containerEl: HTMLElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): NodeReferenceData[] {
+  const x2 = x + width;
+  const y2 = y + height;
+  const allElements = containerEl.querySelectorAll<HTMLElement>("*");
+  const nodesById: Record<string, NodeReferenceData> = {};
+
+  for (let i = 0; i < allElements.length; i++) {
+    const el = allElements[i];
+    const elBounding = el.getBoundingClientRect();
+
+    // check for intersecting nodes
+    if (elBounding.left <= x2 && elBounding.right >= x && elBounding.top <= y2 && elBounding.bottom >= y) {
+      let nodePtr: NodeReferenceData | null = null;
+      if (el.dataset?.["nodeId"] != null) {
+        nodePtr = {
+          metatype: ObjectType.NODE_REFERENCE,
+          nodeType: Number(el.dataset["nodeType"]),
+          id: el.dataset["nodeId"],
+          ck: el.dataset["nodeCk"],
+        };
+      } else if ((el as any).__viewComponent != null) {
+        const component = (el as any).__viewComponent as ViewComponent;
+        if (component.props.nodePtr != null) {
+          nodePtr = component.props.nodePtr;
+        }
+      }
+      if (nodePtr != null) {
+        nodesById[nodePtr.id!] = nodePtr;
+      }
+    }
+  }
+
+  return Object.values(nodesById);
+}
+// precedence for aggregating selection into higher precedence nodes
+const SELECTION_PRECEDENCE_DEFAULT = 0;
+const SELECTION_PRECEDENCE_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
+  [NodeType.FIELD]: 2,
+  [NodeType.VIEW]: 3,
+  [NodeType.STEP]: 5,
+  [NodeType.PIPE]: 5,
+  [NodeType.RECORD]: 5,
+  [NodeType.BLOCK]: 10,
+};
+
+const SELECTION_MIN_SIZE = 5;
+
+/** Updates selecting to the given position. */
+export function updateSelecting(event: MouseEvent) {
+  if (activeSelection.value == null) return;
+  activeSelection.value.end = eventToTarget(event);
+  const { sourceZone, start, end } = activeSelection.value;
+
+  // if start and end are too close, consider the selection empty
+  if (
+    Math.abs(start.clientX - end.clientX) < SELECTION_MIN_SIZE &&
+    Math.abs(start.clientY - end.clientY) < SELECTION_MIN_SIZE
+  ) {
+    activeSelection.value.activeZone = null;
+    activeSelection.value.activeOverlay = null;
+    triggerRef(activeSelection);
+    return;
+  }
+
+  // figure out active zone (common container of start and end element)
+  let activeZone: SelectionZone | null = null;
+  for (const zone of Object.values(selectionZones.value)) {
+    if (
+      zone.containerEl.value != null &&
+      zone.containerEl.value.contains(start.element) &&
+      zone.containerEl.value.contains(end.element)
+    ) {
+      activeZone = zone;
+      break;
+    }
+  }
+  if (activeSelection.value.activeZone != null && activeSelection.value.activeZone.id != activeZone?.id) {
+    // clear selection in inactive zone
+    activeSelection.value.activeZone.select(undefined, { debounce: "long" });
+  }
+  activeSelection.value.activeZone = activeZone;
+
+  // position overlay in active zone
+  if (activeZone != null && activeZone.containerEl.value != null) {
+    const containerRect = activeZone.containerEl.value!.getBoundingClientRect();
+    const overlay = {
+      x: Math.min(start.clientX, end.clientX) - containerRect.left,
+      y: Math.min(start.clientY, end.clientY) - containerRect.top,
+      width: Math.abs(start.clientX - end.clientX),
+      height: Math.abs(start.clientY - end.clientY),
+    };
+    activeSelection.value.activeOverlay = overlay;
+  }
+  triggerRef(activeSelection);
+
+  // figure out new selection
+  let selection: SelectionData | undefined = undefined;
+  if (activeZone?.containerEl.value != null) {
+    const overlay = {
+      x: Math.min(start.clientX, end.clientX),
+      y: Math.min(start.clientY, end.clientY),
+      width: Math.abs(start.clientX - end.clientX),
+      height: Math.abs(start.clientY - end.clientY),
+    };
+    const intersectingNodes = getIntersectingNodes(
+      activeZone.containerEl.value as HTMLElement,
+      overlay.x,
+      overlay.y,
+      overlay.width,
+      overlay.height,
+    );
+    // if there are any nodes with a non-default precedence, get the nodes with the highest precedence
+    //  (unless there is only one node with the highest precedence and multiple with a lower precedence)
+    let selectionNodes: NodeReferenceData[] = [];
+    if (intersectingNodes.some((n) => SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] != null)) {
+      const maxPrecedence = Math.max(
+        ...intersectingNodes.map((n) => SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] ?? SELECTION_PRECEDENCE_DEFAULT),
+      );
+      const highestPrecedenceNodes = intersectingNodes.filter(
+        (n) => SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] == maxPrecedence,
+      );
+      const lowerPrecedenceNodes = intersectingNodes.filter(
+        (n) => (SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] ?? SELECTION_PRECEDENCE_DEFAULT) < maxPrecedence,
+      );
+
+      // If there's only one highest precedence node but multiple lower precedence nodes,
+      // use the lower precedence nodes instead
+      if (highestPrecedenceNodes.length === 1 && lowerPrecedenceNodes.length > 1) {
+        selectionNodes = lowerPrecedenceNodes;
+      } else {
+        selectionNodes = highestPrecedenceNodes;
+      }
+    } else {
+      selectionNodes = intersectingNodes;
+    }
+    selection = makeSelection(selectionNodes);
+  }
+
+  // update selection (if any)
+  if (
+    activeZone != null &&
+    ((selection != null && activeZone.selection.value == null) ||
+      (selection == null && activeZone.selection.value != null) ||
+      (selection != null &&
+        activeZone.selection.value != null &&
+        !contentEquals(activeZone.selection.value, selection)))
+  ) {
+    // update selection in active zone
+    activeZone.select(selection, { debounce: "long" });
+  }
+}
+
+/** Stops selecting. */
+export function stopSelecting() {
+  activeSelection.value = null;
+  log.trace("select.stop");
+}
+
+export function clearSelection() {
+  // nocheckin clear selection
+  if (activeSelection.value != null) {
+    activeSelection.value.activeZone?.select(undefined, { debounce: "long" });
+    activeSelection.value = null;
+  }
+  log.trace("select.clear");
+}
+
+useEventListener("mousemove", updateSelecting);
+useEventListener("mouseup", stopSelecting);

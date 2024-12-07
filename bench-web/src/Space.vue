@@ -179,11 +179,11 @@ watch(
     </div>
 
     <!-- Overlays -->
+    <DragOverlay />
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
     <Omnibar ref="omnibarRef" :box="mainBox" />
     <TooltipOverlay />
     <PopoverOverlay />
-    <DragOverlay />
   </div>
 </template>
 <style>

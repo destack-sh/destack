@@ -8,7 +8,7 @@ import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { startDraggingIfAllowed, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
+import { startDraggingIfAllowed, useMultiDropZone, type DragContent, type MultiAnchor } from "@/ui/drag";
 import { onAddFieldAction } from "@/ui/detail";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -39,7 +39,7 @@ const fields = computed(() => allFields.value.filter((f) => f.type == props.fiel
 
 // dragging :TypeDragAndDrop
 // NOTE: we have separate drop types for left/right (for function types)
-function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
+function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
   if (dragged.kind != "node") return false;
   const node = graph.get(dragged.node);
   if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (block.value?.type == BlockType.CHOICE)) {
@@ -54,7 +54,7 @@ function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: strin
     return false;
   }
 }
-function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
+function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
   if (dragged.kind != "node") return;
   const node = graph.getOrError(dragged.node);
   const target = targetId != null ? graph.get({ id: targetId }) : null;

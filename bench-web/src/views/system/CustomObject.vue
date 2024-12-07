@@ -249,7 +249,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
         >
           <!-- Field -->
           <span class="w-[100px]">
-            <span class="max-w-full truncate py-1 text-gray-900">{{ fieldView.field.name }}</span>
+            <span class="max-w-full truncate py-1 font-medium text-gray-900">{{ fieldView.field.name }}</span>
           </span>
           <!-- Value -->
           <component
