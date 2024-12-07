@@ -357,6 +357,21 @@ async def test_run_flow_update_step(hosted_runtime: RuntimeHandle):
     assert record.title == "Record1.1"
 
 
+async def test_run_flow_delete_step(hosted_runtime: RuntimeHandle):
+    """Run a DeleteStep to delete a Record."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
+    Record1 = Database1.records.create(Rating=1)
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Delete = Step.new(StepType.DELETE, "Delete")
+    Flow1.steps.append(Delete)
+    hosted_runtime.page().blocks.extend(Database1, Flow1)
+    await hosted_runtime.commit()
+
+    runner = await hosted_runtime.run(Delete, inputs={"node": Record1})
+    assert runner.status == RunStatus.COMPLETED
+    assert await Database1.records.search() == []
+
+
 async def test_run_flow_race(local_runtime: RuntimeHandle):
     """Run multiple steps in parallel, losers should be aborted on completion of winner."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")

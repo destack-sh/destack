@@ -1466,6 +1466,25 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
             raise ValueError(f"invalid prop key {key}")
 
     @classmethod
+    def get_value_property(
+        cls, object_kind: ObjectKind | None = None, kind: Literal["runtime", "packed"] = "runtime"
+    ) -> Property:
+        """Gets the value property for the given object kind."""
+        for prop in cls.__properties__.values():
+            if prop.is_value_runtime and (
+                object_kind is None or prop.value_object_kind == object_kind
+            ):
+                if kind == "runtime":
+                    return prop
+                elif kind == "packed":
+                    assert type(prop.value_packed_ptr) is Property, f"no wired prop for {prop!r}"
+                    return prop.value_packed_ptr
+        else:
+            raise ValueError(
+                f"no value property for {object_kind.bench_name if object_kind else 'any'} object kind in {cls.__name__}"
+            )
+
+    @classmethod
     def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
         return tuple(cls.__properties_id_in_order__[i] for i in mask.search(True))
 
@@ -2213,25 +2232,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 return prop
         else:
             raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
-
-    @classmethod
-    def get_value_property(
-        cls, object_kind: ObjectKind | None = None, of: Literal["runtime", "packed"] = "runtime"
-    ) -> Property:
-        """Gets the (runtime) value property for the given object kind."""
-        for prop in cls.__properties__.values():
-            if prop.is_value_runtime and (
-                object_kind is None or prop.value_object_kind == object_kind
-            ):
-                if of == "runtime":
-                    return prop
-                elif of == "packed":
-                    assert type(prop.value_packed_ptr) is Property, f"no wired prop for {prop!r}"
-                    return prop.value_packed_ptr
-        else:
-            raise ValueError(
-                f"no value property for {object_kind.bench_name if object_kind else 'any'} object kind in {cls.__name__}"
-            )
 
     @classmethod
     def partial(
