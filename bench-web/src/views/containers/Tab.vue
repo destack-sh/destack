@@ -198,7 +198,7 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- Tabs header -->
     <Scroll
       id="tabHeader"
-      ref="headerRef"
+      ref="columnHeaderRef"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',

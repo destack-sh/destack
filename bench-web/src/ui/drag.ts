@@ -14,6 +14,7 @@ import {
 import { contentEquals, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
 import { makeSelection } from "@/ui/view";
 import { getElement, getElementRef } from "@/utils/element";
+import { groupByList } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
 import SelectionZone from "@/views/builtins/SelectionOverlay.vue";
@@ -487,7 +488,7 @@ export function useSplitDropZone(
 }
 
 //
-// Selection
+// Selection (drag to select)
 //
 
 type SelectionZoneOptions = {
@@ -632,9 +633,11 @@ function getIntersectingNodes(
 
   return Object.values(nodesById);
 }
-// precedence for aggregating selection into higher precedence nodes
-const SELECTION_PRECEDENCE_DEFAULT = 0;
-const SELECTION_PRECEDENCE_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
+
+// rank for aggregating selections into higher rank nodes (sometimes)
+// lower ranks are more specific, higher ranks are broader
+const SELECTION_RANK_DEFAULT = 1;
+const SELECTION_RANK_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
   [NodeType.FIELD]: 2,
   [NodeType.VIEW]: 3,
   [NodeType.STEP]: 5,
@@ -648,6 +651,7 @@ const SELECTION_MIN_SIZE = 5;
 /** Updates selecting to the given position. */
 export function updateSelecting(event: MouseEvent) {
   if (activeSelection.value == null) return;
+
   activeSelection.value.end = eventToTarget(event);
   const { sourceZone, start, end } = activeSelection.value;
 
@@ -709,26 +713,24 @@ export function updateSelecting(event: MouseEvent) {
       overlay.width,
       overlay.height,
     );
-    // if there are any nodes with a non-default precedence, get the nodes with the highest precedence
-    //  (unless there is only one node with the highest precedence and multiple with a lower precedence)
-    let selectionNodes: NodeReferenceData[] = [];
-    if (intersectingNodes.some((n) => SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] != null)) {
-      const maxPrecedence = Math.max(
-        ...intersectingNodes.map((n) => SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] ?? SELECTION_PRECEDENCE_DEFAULT),
+    let selectionNodes: NodeReferenceData[];
+    if (intersectingNodes.some((n) => SELECTION_RANK_BY_NODE_TYPE[n.nodeType] != null)) {
+      // pick the highest rank where there is more than one node
+      //  otherwise pick the most specific (lowest) rank
+      const nodesByRank = groupByList(
+        intersectingNodes,
+        (n) => SELECTION_RANK_BY_NODE_TYPE[n.nodeType] ?? SELECTION_RANK_DEFAULT,
       );
-      const highestPrecedenceNodes = intersectingNodes.filter(
-        (n) => SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] == maxPrecedence,
-      );
-      const lowerPrecedenceNodes = intersectingNodes.filter(
-        (n) => (SELECTION_PRECEDENCE_BY_NODE_TYPE[n.nodeType] ?? SELECTION_PRECEDENCE_DEFAULT) < maxPrecedence,
-      );
-
-      // If there's only one highest precedence node but multiple lower precedence nodes,
-      // use the lower precedence nodes instead
-      if (highestPrecedenceNodes.length === 1 && lowerPrecedenceNodes.length > 1) {
-        selectionNodes = lowerPrecedenceNodes;
+      const maxRankWithMultipleNodes = Object.keys(nodesByRank)
+        .map(Number)
+        .sort((a, b) => b - a)
+        .find((r) => nodesByRank[r].length > 1);
+      if (maxRankWithMultipleNodes != null) {
+        // pick the highest rank where there is more than one node
+        selectionNodes = nodesByRank[maxRankWithMultipleNodes];
       } else {
-        selectionNodes = highestPrecedenceNodes;
+        // pick the most specific (lowest) rank
+        selectionNodes = nodesByRank[Math.min(...Object.keys(nodesByRank).map(Number))];
       }
     } else {
       selectionNodes = intersectingNodes;
@@ -757,7 +759,7 @@ export function stopSelecting() {
 }
 
 export function clearSelection() {
-  // nocheckin clear selection
+  // nocheckin clear selection on (some?) clicks
   if (activeSelection.value != null) {
     activeSelection.value.activeZone?.select(undefined, { debounce: "long" });
     activeSelection.value = null;

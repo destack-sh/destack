@@ -135,7 +135,9 @@ onMounted(() => {
   }, 100);
 });
 const shouldAnimateTransform = computed(
-  () => !isInitialRender.value && !flowCtx.isDragging && !containerScroll.isScrolling.value,
+  // () => !isInitialRender.value && !flowCtx.isDragging && !containerScroll.isScrolling.value,
+  () =>
+    false /* NOTE :UX: animating Flow transform (offset/zoom) sometimes looks good, sometimes janky, so it's disabled */,
 );
 
 // selection
@@ -254,7 +256,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- Header -->
     <div
       v-if="flow && variant != Variant.COMPACT"
-      ref="headerRef"
+      ref="columnHeaderRef"
       :style="{
         marginLeft: `${GUTTER_WIDTH}px`,
         marginRight: `${GUTTER_WIDTH}px`,
@@ -493,6 +495,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               top: (step.position?.y ?? 0) + 'px',
             }"
             :node-ptr="toNodeRef(step)"
+            data-suppress-drag="true"
             @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step: step! })"
           />
         </div>
