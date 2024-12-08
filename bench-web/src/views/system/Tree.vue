@@ -23,13 +23,14 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
+import { startDraggingIfAllowed, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
 import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -179,6 +180,14 @@ const focusedNode = computed(() => focusedItem.value?.node);
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
 const editingNameRef: Ref<InstanceType<typeof NativeInput>[]> = ref([]);
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+
+const selectionZone = useSelectionZone({
+  containerEl: containerRef,
+  overlayEl: selectionOverlayRef,
+  select: state.select,
+  selection: state.selection,
+});
 
 function cancelRename() {
   editingNodePtr.value = null;
@@ -347,7 +356,11 @@ const actions: Partial<ActionMapImplementation<"common">> = {
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
-  <div ref="containerRef" :class="size == null ? '' : 'h-full w-full'">
+  <div
+    ref="containerRef"
+    :class="size == null ? '' : 'h-full w-full'"
+    @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+  >
     <!-- Magic floating query -->
     <!-- Captures focus for navigation & typing for search/highlight -->
     <div class="relative">
@@ -387,7 +400,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     >
       <!-- Nodes -->
       <!-- NOTE :UX: it would be neat to have hover/focused/selected nodes highlighted (everywhere) -->
-      <ul ref="listRef" class="group/list mb-1 flex flex-col text-gray-900">
+      <ul ref="listRef" class="group/list relative mb-1 flex flex-col text-gray-900">
         <!-- Node -->
         <li
           v-for="({ node, depth, hasChildren }, i) in expandedItems"
@@ -416,7 +429,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'
               : 'border-transparent',
-            isFocused(node) || (focusedNode?.id == node.id && isFocusAbsolute) ? 'bg-gray-100' : '',
+            isFocused(node) || state.isSelected(node) ? 'bg-gray-100' : '',
             (node as any).name != null ? '' : 'italic',
           ]"
           :style="{
@@ -424,6 +437,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             paddingRight: 8 + 'px',
           }"
           role="treeitem"
+          data-suppress-drag="true"
           :draggable="true"
           @click.stop="fire(node)"
           @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, graph, node)"
@@ -500,6 +514,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           </div>
           <!-- ... -->
         </li>
+
+        <!-- Selection overlay -->
+        <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
       </ul>
     </component>
     <div v-else class="flex h-full w-full flex-col justify-center text-center">

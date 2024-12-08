@@ -130,7 +130,7 @@ defineExpose<ViewExposed>({ self, id, focus });
     <!-- Inline Combobox -->
     <div v-else-if="isInline" :style="{ width: DEFAULT_WIDTH + 'px' }">
       <!-- Header -->
-      <div ref="headerRef" class="flex w-full flex-row items-center border-b border-gray-200 px-4 py-1.5">
+      <div ref="columnHeaderRef" class="flex w-full flex-row items-center border-b border-gray-200 px-4 py-1.5">
         <IconInline v-bind="icon ?? makeIcon({ faName: 'fas fa-magnifying-glass' })" class="mr-2 w-5" />
         <!-- Query -->
         <input

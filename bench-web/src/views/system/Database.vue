@@ -187,14 +187,17 @@ const {
 //
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
-const containerRef = ref<HTMLDivElement | null>(null);
 const headerRef: Ref<HTMLDivElement | null> = ref(null);
+const containerRef = ref<HTMLDivElement | null>(null);
+const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<HTMLDivElement | null> = ref(null);
 const columnHeaderRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellWrapperRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const cellComponentRefs: Ref<Record<string, ViewExposed>> = ref({});
 const shiftKey = useKeyModifier("Shift");
 
+const metaHeaderHeight = computed(() => (historyRef?.value?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT));
+const headerSize = useElementSize(headerRef);
 const containerSize = useElementSize(containerRef);
 const rowWidth = computed(() => {
   if (props.variant == Variant.COMPACT) {
@@ -543,7 +546,7 @@ function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | nu
 }
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   name: "database.header",
-  container: headerRef,
+  container: columnHeaderRef,
   targets: columnHeaderRefs,
   orientation: Orientation.HORIZONTAL,
   kinds: ["node"],
@@ -632,7 +635,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       v-if="variant != Variant.COMPACT"
       data-keep-inspection-in-base-view="true"
       class="group flex w-full max-w-full flex-row items-center px-2"
-      :style="{ height: (historyRef?.isActive ? VIEW_DEFAULT_BAR_HEADER_HEIGHT : HEADER_HEIGHT) + 'px' }"
+      :style="{ height: metaHeaderHeight + 'px' }"
     >
       <!-- History -->
       <HistoryNavigator ref="historyRef" :self="self" />
@@ -803,11 +806,15 @@ defineExpose<ViewExposed>({ self, id, actions });
             variant != Variant.COMPACT
               ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
               : `${containerGutterWidth ?? 0}px`,
+          minHeight:
+            variant != Variant.COMPACT
+              ? `${bodySize.height - headerSize.height.value - metaHeaderHeight - ACTION_HEADER_HEIGHT - 30}px`
+              : undefined,
         }"
       >
         <!-- Column headers (sticky) -->
         <div
-          ref="headerRef"
+          ref="columnHeaderRef"
           class="group/header z-20 flex flex-row items-center border-gray-200"
           :class="[variant != Variant.COMPACT ? 'sticky top-0' : '']"
           :style="{
@@ -1053,7 +1060,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   ? (cellWrapperRefs[getCellId(record, column)] = ref)
                   : delete cellWrapperRefs[getCellId(record, column)]
             "
-            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900"
+            class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900 transition-colors duration-150"
             :class="[
               x > 0 ? 'border-l' : '',
               isSelected || isSelectedCell(record, column) ? 'bg-gray-100' : '',

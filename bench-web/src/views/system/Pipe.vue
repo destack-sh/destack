@@ -106,6 +106,9 @@ defineExpose<ViewExposed>({ self, id, actions });
             ? 'stroke-current'
             : 'stroke-transparent group-hover:stroke-current'
         "
+        :data-node-type="pipe.metatype"
+        :data-node-id="pipe.id"
+        :data-node-ck="pipe.ck"
       />
 
       <!-- Main Path -->

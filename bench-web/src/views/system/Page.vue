@@ -321,7 +321,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
-      <div ref="contentRef" class="mb-[320px] flex min-h-full flex-col">
+      <div ref="contentRef" class="pb-[320px] flex min-h-full flex-col">
         <!-- Page header (title) -->
         <div
           class="mx-auto mb-2 mt-5 flex flex-row items-center"
@@ -427,6 +427,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :style="{
             width: widths.block + 'px',
           }"
+          data-suppress-drag="true"
         >
           <!-- Add blocks -->
           <button
@@ -445,10 +446,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <span>{{ toCamelName(BlockType, blockType) }}</span>
           </button>
         </div>
-      </div>
 
-      <!-- Selection -->
-      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
+        <!-- Selection -->
+        <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
+      </div>
     </Scroll>
     <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
   </div>

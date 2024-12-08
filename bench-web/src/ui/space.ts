@@ -644,16 +644,10 @@ export class SpaceCanvas {
 
     //
     // Selection (from base view.. might want to move selection owner even further up, like next root view?)
+    // nocheckin: move .selection into Space?
     //
 
     const selection = computed(() => baseViewRef?.value?.selection);
-    const selectionById = computed(() => {
-      if (selection.value == null) return {};
-      return selection.value.nodesPtr.reduce((acc: Record<string, NodeReferenceData>, ptr) => {
-        acc[ptr.id!] = ptr;
-        return acc;
-      }, {});
-    });
 
     function select(
       selection: SelectionData | AnyNodeData[] | NodeReferenceData[] | undefined,
@@ -676,7 +670,7 @@ export class SpaceCanvas {
     }
 
     function isSelected(node: NodeKey<any>): boolean {
-      return selectionById.value[node.id!] != null;
+      return selection.value?.nodesPtr?.some((n) => n.id == node.id) ?? false;
     }
 
     return { getState, getChildState, update, selection, select: select, deselect: deselect, isSelected };
