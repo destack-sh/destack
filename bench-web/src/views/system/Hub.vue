@@ -134,12 +134,7 @@ const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
 const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - footerHeight.value);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
-const selectionZone = useSelectionZone({
-  containerEl: bodyRef,
-  overlayEl: selectionOverlayRef,
-  select: state.select,
-  selection: state.selection,
-});
+const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 
 defineExpose<ViewExposed>({ self });
 </script>

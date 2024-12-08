@@ -75,7 +75,8 @@ defineExpose<ViewExposed>({ self, id, actions });
     :class="[
       variant != Variant.STEALTH ? 'w-fit border border-gray-200' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      isInspected || isHighlighted || isSelected ? 'bg-gray-100' : 'hover:bg-gray-100',
+      isSelected ? 'bg-orange-400/20' : '',
+      !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : 'hover:bg-gray-100',
       field.type == FieldType.OPTION ? 'rounded-2xl pr-2.5' : '',
       field.type == FieldType.INPUT || field.type == FieldType.OUTPUT || field.type == FieldType.MEMBER
         ? 'rounded pr-2'

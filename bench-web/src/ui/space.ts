@@ -19,11 +19,11 @@ import {
   HelpAspect,
   HubAspect,
   IconData,
+  NodeMode,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
-  NodeMode,
   SelectionData,
   SpaceData,
   StructType,
@@ -43,7 +43,7 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { inspectionBasePtr, inspectionPtr } from "@/system/space";
+import { canvas, inspectionBasePtr, inspectionPtr, space } from "@/system/space";
 import type { SplitAnchor } from "@/ui/drag";
 import { toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
@@ -116,6 +116,7 @@ export class SpaceCanvas {
 
   // selection
   highlightedPtr = ref<NodeReferenceData | null>(null);
+  selectedPtrById: Ref<Record<string, NodeReferenceData | null>> = shallowRef({});
 
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
@@ -155,10 +156,28 @@ export class SpaceCanvas {
         this.highlightedPtr.value = nodePtr;
       }
     });
+
+    // update selection with space selection
+    watch(
+      () => space.value?.selection,
+      () => {
+        if (space.value?.selection != null) {
+          this.selectedPtrById.value = space.value.selection.nodesPtr.reduce(
+            (acc, nodePtr) => {
+              acc[nodePtr.id!] = nodePtr;
+              return acc;
+            },
+            {} as Record<string, NodeReferenceData | null>,
+          );
+        } else {
+          this.selectedPtrById.value = {};
+        }
+      },
+    );
   }
 
   /** Whether the node is currently inspected. */
-  isInspected(node: AnyNodeData | NodeReferenceData | null | undefined): boolean {
+  isInspected(node: NodeKey<any> | null | undefined): boolean {
     return (
       node != null &&
       inspectionPtr.value != null &&
@@ -167,12 +186,22 @@ export class SpaceCanvas {
   }
 
   /** Whether the node is currently highlighted. */
-  isHighlighted(node: AnyNodeData | NodeReferenceData | null | undefined): boolean {
+  isHighlighted(node: NodeKey<any> | null | undefined): boolean {
     return (
       node != null &&
       this.highlightedPtr.value != null &&
       (this.highlightedPtr.value.id == node.id || this.highlightedPtr.value.ck == (node as any).ck)
     );
+  }
+
+  /** Whether the node is currently selected. */
+  isSelected(node: NodeKey<any> | null | undefined): boolean {
+    return node != null && this.selectedPtrById.value[node.id!] != null;
+  }
+
+  /** Gets the current Selection */
+  get selection(): SelectionData | null {
+    return space.value?.selection ?? null;
   }
 
   /** Gets the absolutely focused view components in bottom up order */
@@ -291,6 +320,18 @@ export class SpaceCanvas {
       focusedView?.focus?.nodesPtr[0]?.id != nodePtr?.id
     ) {
       this.focusInGraph({ view: this.focusedViewPtr.value, focus: makeSelectionMaybe(nodePtr) });
+    }
+  }
+
+  /** Selects this in the space. */
+  select(selection: SelectionData | AnyNodeData[] | NodeReferenceData[] | undefined, options?: TransactionOptions) {
+    if (selection != null && !isStruct(selection, StructType.SELECTION)) {
+      selection = makeSelection(selection.map(toNodeRef));
+    }
+    if (space?.value != null) {
+      this.tx().update(space.value, { selection }, { debounce: "long", ...options });
+    } else {
+      throw new Error("no base view");
     }
   }
 
@@ -643,26 +684,15 @@ export class SpaceCanvas {
     }
 
     //
-    // Selection (from base view.. might want to move selection owner even further up, like next root view?)
-    // nocheckin: move .selection into Space?
+    // Selection
+    // (just forward to/from space)
     //
-
-    const selection = computed(() => baseViewRef?.value?.selection);
 
     function select(
       selection: SelectionData | AnyNodeData[] | NodeReferenceData[] | undefined,
       options?: TransactionOptions,
     ) {
-      if (selection != null && !isStruct(selection, StructType.SELECTION)) {
-        selection = makeSelection(selection.map(toNodeRef));
-      }
-      if (baseViewRef?.value != null) {
-        tx()
-          .with({ category: ChangeCategory.SPACE })
-          .update(baseViewRef.value, { selection }, { debounce: "long", ...options });
-      } else {
-        throw new Error("no base view");
-      }
+      canvas.select(selection, options);
     }
 
     function deselect(options?: TransactionOptions) {
@@ -670,10 +700,10 @@ export class SpaceCanvas {
     }
 
     function isSelected(node: NodeKey<any>): boolean {
-      return selection.value?.nodesPtr?.some((n) => n.id == node.id) ?? false;
+      return canvas.isSelected(node);
     }
 
-    return { getState, getChildState, update, selection, select: select, deselect: deselect, isSelected };
+    return { getState, getChildState, update, select: select, deselect: deselect, isSelected };
   }
 
   /** Gets the containing root view (or self, if any) for a view */

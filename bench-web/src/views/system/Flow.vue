@@ -142,12 +142,7 @@ const shouldAnimateTransform = computed(
 
 // selection
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
-const selectionZone = useSelectionZone({
-  containerEl: containerRef,
-  overlayEl: selectionOverlayRef,
-  selection: state.selection,
-  select: state.select,
-});
+const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
 const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData | PipeData | null; idx: number } => {

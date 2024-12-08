@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.06.0"
+VERSION = "2024.12.08.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -788,6 +788,7 @@ SPACE_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
+        Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("inspection_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_ck", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_type", PrimitiveType.INT16, is_nullable=True),

@@ -182,12 +182,7 @@ const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
 const editingNameRef: Ref<InstanceType<typeof NativeInput>[]> = ref([]);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 
-const selectionZone = useSelectionZone({
-  containerEl: containerRef,
-  overlayEl: selectionOverlayRef,
-  select: state.select,
-  selection: state.selection,
-});
+const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 function cancelRename() {
   editingNodePtr.value = null;
@@ -424,12 +419,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
+          class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] transition-colors duration-150 hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'
               : 'border-transparent',
-            isFocused(node) || state.isSelected(node) ? 'bg-gray-100' : '',
+            canvas.isSelected(node) ? 'bg-orange-400/20' : isFocused(node) ? 'bg-gray-100' : '',
             (node as any).name != null ? '' : 'italic',
           ]"
           :style="{
