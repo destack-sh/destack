@@ -3298,6 +3298,7 @@ message SpaceData {
   string order_key = 33;
   repeated PolicyData policies = 34;
   optional SelectionData focus = 70;
+  optional SelectionData selection = 71;
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
   optional NodeReferenceData run_ptr = 77;

@@ -666,6 +666,9 @@ class Space(SourceNode[SpaceData]):
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION
     )
+    selection: Optional[Selection] = p_regular(
+        71, default=None, require=False, struct=StructType.SELECTION
+    )
     inspection: Optional[Node] = p_regular(
         75, default=None, require=False, array=False, references=tuple(NODE_TYPES)
     )

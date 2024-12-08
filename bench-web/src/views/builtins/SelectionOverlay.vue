@@ -6,7 +6,7 @@ const props = defineProps<{ zone: SelectionZone }>();
 <template>
   <div
     v-if="activeSelection?.activeZone?.id == zone.id && activeSelection.activeOverlay != null"
-    class="pointer-events-none absolute z-30 bg-orange-400/30"
+    class="pointer-events-none absolute z-30 rounded-sm bg-orange-400/20"
     :style="{
       left: `${activeSelection.activeOverlay.x}px`,
       top: `${activeSelection.activeOverlay.y}px`,

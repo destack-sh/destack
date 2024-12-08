@@ -873,7 +873,7 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
 
 //
 // Connection maintenance
-// NOTE :Performance: cache/store connections (results) locally for initial hydration?
+// NOTE :Performance :UX: cache/store connections (results) locally for initial hydration?
 //
 
 const INACTIVE_CONNECTION_TIMEOUT = 30 * 1000; // 30 seconds

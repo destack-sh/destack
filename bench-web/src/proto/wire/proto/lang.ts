@@ -5784,6 +5784,10 @@ export interface SpaceData {
      */
     focus?: SelectionData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 71;
+     */
+    selection?: SelectionData;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData inspection_ptr = 75;
      */
     inspectionPtr?: NodeReferenceData;
@@ -26231,6 +26235,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 70, name: "focus", kind: "message", T: () => SelectionData },
+            { no: 71, name: "selection", kind: "message", T: () => SelectionData },
             { no: 75, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 76, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 77, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26324,6 +26329,9 @@ class SpaceData$Type extends MessageType$<SpaceData> {
                 case /* optional symbolx.bench.SelectionData focus */ 70:
                     message.focus = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.focus);
                     break;
+                case /* optional symbolx.bench.SelectionData selection */ 71:
+                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
+                    break;
                 case /* optional symbolx.bench.NodeReferenceData inspection_ptr */ 75:
                     message.inspectionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.inspectionPtr);
                     break;
@@ -26414,6 +26422,9 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         /* optional symbolx.bench.SelectionData focus = 70; */
         if (message.focus)
             SelectionData.internalBinaryWrite(message.focus, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SelectionData selection = 71; */
+        if (message.selection)
+            SelectionData.internalBinaryWrite(message.selection, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData inspection_ptr = 75; */
         if (message.inspectionPtr)
             NodeReferenceData.internalBinaryWrite(message.inspectionPtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
@@ -28768,6 +28779,7 @@ export enum SpaceProperty {
   orderKey = 33,
   policies = 34,
   focus = 70,
+  selection = 71,
   inspectionPtr = 75,
   basePtr = 76,
   runPtr = 77,
@@ -30425,7 +30437,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.06.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30453,7 +30465,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.06.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30539,7 +30551,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.06.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.08.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30775,6 +30787,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.policies]: { id: 34, name: 'policies', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [SpaceProperty.selection]: { id: 71, name: 'selection', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.runPtr]: { id: 77, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },

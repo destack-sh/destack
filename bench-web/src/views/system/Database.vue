@@ -431,12 +431,9 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({
   containerEl: bodyRef,
   overlayEl: selectionOverlayRef,
-  selection: state.selection,
-  select: state.select,
 });
-const selection = state.selection;
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
-  const selectedRecords = new Set(selection.value?.nodesPtr?.map((ptr) => ptr.id));
+  const selectedRecords = new Set(canvas.selection?.nodesPtr?.map((ptr) => ptr.id));
   return records.value
     .filter((record) => selectedRecords.has(record.id))
     .reduce(
@@ -461,12 +458,12 @@ function isSelectedCell(record: RecordData, column: ColumnView) {
 }
 
 function addSelectionRow(record: RecordData) {
-  state.select(expandSelection(selection.value, [record]));
+  canvas.select(expandSelection(canvas.selection, [record]));
 }
 
 function removeSelectionRow(record: RecordData) {
-  if (selection.value == null) return;
-  state.select(collapseSelection(selection.value, [record]));
+  if (canvas.selection == null) return;
+  canvas.select(collapseSelection(canvas.selection, [record]));
 }
 
 function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: boolean) {
@@ -477,7 +474,7 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
       const from = Math.min(lastSelectedY, currentY);
       const to = Math.max(lastSelectedY, currentY);
       const newSelection = records.value.slice(from, to + 1);
-      state.select(expandSelection(selection.value, newSelection));
+      state.select(expandSelection(canvas.selection, newSelection));
     } else {
       addSelectionRow(record);
     }
@@ -1063,7 +1060,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900 transition-colors duration-150"
             :class="[
               x > 0 ? 'border-l' : '',
-              isSelected || isSelectedCell(record, column) ? 'bg-gray-100' : '',
+              isSelected || isSelectedCell(record, column) ? 'bg-orange-400/20' : '',
               column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{

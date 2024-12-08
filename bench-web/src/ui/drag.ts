@@ -1,5 +1,4 @@
 import type { ReadNodeGraph } from "@/language/graph";
-import { TransactionOptions } from "@/language/transaction";
 import {
   FileFormat,
   FileType,
@@ -15,6 +14,7 @@ import { contentEquals, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
 import { makeSelection } from "@/ui/view";
 import { getElement, getElementRef } from "@/utils/element";
 import { groupByList } from "@/utils/functools";
+import { canvas } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
 import SelectionZone from "@/views/builtins/SelectionOverlay.vue";
@@ -500,8 +500,6 @@ export type SelectionZone = {
   containerEl: Ref<HTMLElement | SVGElement | null>;
   overlayEl: Ref<InstanceType<typeof SelectionZone> | null>;
   options: SelectionZoneOptions;
-  selection: Ref<SelectionData | undefined>;
-  select: (selection: SelectionData | undefined, options?: TransactionOptions) => void;
 };
 
 type SelectionTarget = {
@@ -514,10 +512,15 @@ let selectionZoneId = 0;
 function newSelectionZoneId() {
   return selectionZoneId++;
 }
+let selectionId = 0;
+function newSelectionId() {
+  return selectionId++;
+}
 
 const selectionZones: Ref<Record<number, SelectionZone>> = shallowRef({});
 const selectionZonesByContainerEl = new Map<HTMLElement | SVGElement, SelectionZone>();
 export const activeSelection: Ref<{
+  id: number;
   sourceZone: SelectionZone;
   start: SelectionTarget;
   end: SelectionTarget;
@@ -538,8 +541,6 @@ export function useSelectionZone(
   options: SelectionZoneOptions & {
     containerEl: Ref<HTMLElement | SVGElement | null>;
     overlayEl: Ref<InstanceType<typeof SelectionZone> | null>;
-    selection: Ref<SelectionData | undefined>;
-    select: (selection: SelectionData | undefined) => void;
   },
 ): SelectionZone {
   const isEnabled = options?.isEnabled ?? ref(true);
@@ -548,8 +549,6 @@ export function useSelectionZone(
     containerEl: options.containerEl,
     overlayEl: options.overlayEl,
     options: { ...options, isEnabled },
-    selection: options.selection,
-    select: options.select,
   };
 
   // register/deregister
@@ -574,7 +573,11 @@ function eventToTarget(event: MouseEvent): SelectionTarget {
 /** Starts selecting at the given position. */
 export function startSelecting(zone: SelectionZone, event: MouseEvent) {
   if (activeSelection.value != null) return;
+  if (canvas.selection != null) {
+    clearSelection();
+  }
   activeSelection.value = {
+    id: newSelectionId(),
     sourceZone: zone,
     start: eventToTarget(event),
     end: eventToTarget(event),
@@ -678,10 +681,6 @@ export function updateSelecting(event: MouseEvent) {
       break;
     }
   }
-  if (activeSelection.value.activeZone != null && activeSelection.value.activeZone.id != activeZone?.id) {
-    // clear selection in inactive zone
-    activeSelection.value.activeZone.select(undefined, { debounce: "long" });
-  }
   activeSelection.value.activeZone = activeZone;
 
   // position overlay in active zone
@@ -741,14 +740,12 @@ export function updateSelecting(event: MouseEvent) {
   // update selection (if any)
   if (
     activeZone != null &&
-    ((selection != null && activeZone.selection.value == null) ||
-      (selection == null && activeZone.selection.value != null) ||
-      (selection != null &&
-        activeZone.selection.value != null &&
-        !contentEquals(activeZone.selection.value, selection)))
+    ((selection != null && canvas.selection == null) ||
+      (selection == null && canvas.selection != null) ||
+      (selection != null && canvas.selection != null && !contentEquals(canvas.selection, selection)))
   ) {
     // update selection in active zone
-    activeZone.select(selection, { debounce: "long" });
+    canvas.select(selection, { debounce: "long" });
   }
 }
 
@@ -759,9 +756,8 @@ export function stopSelecting() {
 }
 
 export function clearSelection() {
-  // nocheckin clear selection on (some?) clicks
-  if (activeSelection.value != null) {
-    activeSelection.value.activeZone?.select(undefined, { debounce: "long" });
+  if (canvas.selection != null) {
+    canvas.select(undefined, { debounce: "long" });
     activeSelection.value = null;
   }
   log.trace("select.clear");

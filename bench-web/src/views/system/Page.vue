@@ -103,12 +103,7 @@ function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, ancho
 //
 
 // selecting
-const selectionZone = useSelectionZone({
-  containerEl: contentRef,
-  overlayEl: selectionOverlayRef,
-  selection: state.selection,
-  select: state.select,
-});
+const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: selectionOverlayRef });
 
 // dragging
 const { activeDropZone } = useMultiDropZone({
@@ -321,7 +316,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
-      <div ref="contentRef" class="pb-[320px] flex min-h-full flex-col">
+      <div ref="contentRef" class="flex min-h-full flex-col pb-[320px]">
         <!-- Page header (title) -->
         <div
           class="mx-auto mb-2 mt-5 flex flex-row items-center"

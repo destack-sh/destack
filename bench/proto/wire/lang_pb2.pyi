@@ -5940,7 +5940,7 @@ class IconViewData(_message.Message):
     def __init__(self, include_color: bool = ...) -> None: ...
 
 class SpaceData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "text", "order_key", "policies", "focus", "inspection_ptr", "base_ptr", "run_ptr", "mode")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "text", "order_key", "policies", "focus", "selection", "inspection_ptr", "base_ptr", "run_ptr", "mode")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5963,6 +5963,7 @@ class SpaceData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     POLICIES_FIELD_NUMBER: _ClassVar[int]
     FOCUS_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
     INSPECTION_PTR_FIELD_NUMBER: _ClassVar[int]
     BASE_PTR_FIELD_NUMBER: _ClassVar[int]
     RUN_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5989,11 +5990,12 @@ class SpaceData(_message.Message):
     order_key: str
     policies: _containers.RepeatedCompositeFieldContainer[PolicyData]
     focus: SelectionData
+    selection: SelectionData
     inspection_ptr: NodeReferenceData
     base_ptr: NodeReferenceData
     run_ptr: NodeReferenceData
     mode: NodeMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[SpaceType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., order_key: _Optional[str] = ..., policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., inspection_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[SpaceType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., order_key: _Optional[str] = ..., policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., focus: _Optional[_Union[SelectionData, _Mapping]] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., inspection_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class SecretData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "title", "text", "region", "status", "current_status", "value_type", "value_packed", "mode")
