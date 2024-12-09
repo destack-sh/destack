@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
-import { RECORD_CONTEXT_ACTIONS } from "@/language/database";
 import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
 import { cloneNode, moveNode } from "@/language/node";
@@ -40,7 +39,7 @@ import {
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { ActionContext, ActionMapImplementation } from "@/ui/action";
+import { ActionContext, ActionMapImplementation, fireActionById, RECORD_CONTEXT_ACTIONS } from "@/ui/action";
 import {
   DragContent,
   MultiAnchor,
@@ -97,7 +96,7 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 const isSelected = computed(() => state.isSelected(nodePtr.value));
 
-// NOTE :UX: Database view should be factored out into Table/Feed/etc. query views (?)
+// TODO :UX :Architecture: Database view should be factored out into general Table/Feed/List/etc. query/collection views (?)
 
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const preparedConnection = useExistingConnection(nodePtr);
@@ -484,30 +483,6 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
   }
 }
 
-function duplicateSelection(): RecordData[] {
-  if (!hasSelectionRows.value) throw new Error("no row selection to duplicate");
-  const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Duplicate records" } });
-  const now = Timestamp.now();
-  const clonedRecords: RecordData[] = [];
-  for (const record of Object.values(selectedRecordsById.value)) {
-    const clonedRecord = cloneNode(tx, recordGraph, record, { now });
-    clonedRecords.push(clonedRecord);
-  }
-  return clonedRecords;
-}
-
-function deleteSelection() {
-  if (hasSelectionRows.value) {
-    // delete all selected records
-    const tx = recordConnection.tx.with({ change: { key: newChangeId(), title: "Delete records" } });
-    for (const record of Object.values(selectedRecordsById.value)) {
-      tx.delete(record);
-    }
-  } else {
-    throw new Error("no selection to delete");
-  }
-}
-
 //
 // Drag & drop :TypeDragAndDrop
 //
@@ -574,32 +549,9 @@ function getConnectionFromNode(node: FieldData | RecordData) {
   }
 }
 
-const actions: Partial<ActionMapImplementation<"common" | "database">> = {
-  // common
-  "common.create.record": () => createRecord(),
-  "common.edit.delete": (action, ctx) => {
-    if (hasSelectionRows.value) {
-      deleteSelection();
-    } else {
-      const { node } = getNodeFromContext(ctx);
-      if (node != null) {
-        const connection = getConnectionFromNode(node);
-        connection.tx.delete(node);
-      }
-    }
-  },
-  "common.edit.duplicate": (action, ctx) => {
-    if (hasSelectionRows.value) {
-      duplicateSelection();
-    } else {
-      const { node } = getNodeFromContext(ctx);
-      if (node != null) {
-        const connection = getConnectionFromNode(node);
-        const tx = connection.tx.with({ change: { key: newChangeId(), title: "Duplicate record" } });
-        cloneNode(tx, recordGraph, node);
-      }
-    }
-  },
+const actions: Partial<ActionMapImplementation<"space" | "database">> = {
+  // select
+  "space.select.all": () => canvas.select(records.value),
   // database
   "database.column.sortAscending": (action, ctx) => {
     const { node } = getNodeFromContext(ctx);
@@ -719,14 +671,14 @@ defineExpose<ViewExposed>({ self, id, actions });
             <button
               v-tooltip="{ title: 'Duplicate', small: true }"
               class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
-              @click.stop="duplicateSelection"
+              @click.stop="fireActionById('space.edit.duplicate')"
             >
               <i class="fas fa-clone" />
             </button>
             <button
               v-tooltip="{ title: 'Delete', small: true }"
               class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
-              @click.stop="deleteSelection"
+              @click.stop="fireActionById('space.edit.delete')"
             >
               <i class="fas fa-trash" />
             </button>
@@ -1060,7 +1012,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900 transition-colors duration-150"
             :class="[
               x > 0 ? 'border-l' : '',
-              isSelected || isSelectedCell(record, column) ? 'bg-orange-400/20' : '',
+              isSelectedCell(record, column) ? 'bg-orange-400/20' : '',
               column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{

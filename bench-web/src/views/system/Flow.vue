@@ -7,13 +7,10 @@ import {
   FLOW_GRID_STEP,
   FlowContext,
   pathToSvg,
-  PIPE_CONTEXT_ACTIONS,
   PIPE_WIDTH,
   PipePath,
-  STEP_CONTEXT_ACTIONS,
   STEP_SIZE,
 } from "@/language/flow";
-import { cloneNode } from "@/language/node";
 import {
   ChangeCategory,
   FieldType,
@@ -28,7 +25,7 @@ import {
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
@@ -155,56 +152,38 @@ const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData 
   const thing = stepsAndPipes.value[thingIdx];
   return { thing, idx: thingIdx };
 };
-const actions: Partial<ActionMapImplementation<"common" | "session">> = {
-  // create
-  "common.create.step": (action, context) => {
-    if (flow.value == null) return false;
-    createStep(connection.tx, graph, {
-      parent: flow.value,
-      step: { type: StepType.ACTION },
-      near: flowCtx.centerVec,
-    });
-  },
+const actions: Partial<ActionMapImplementation<"space" | "session">> = {
   // move
-  "common.move.up": (action, context) => {
+  "space.move.up": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP });
+    flowCtx.move(thing, { x: 0, y: -FLOW_GRID_STEP });
   },
-  "common.move.down": (action, context) => {
+  "space.move.down": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP });
+    flowCtx.move(thing, { x: 0, y: FLOW_GRID_STEP });
   },
-  "common.move.left": (action, context) => {
+  "space.move.left": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: -FLOW_GRID_STEP, y: 0 });
+    flowCtx.move(thing, { x: -FLOW_GRID_STEP, y: 0 });
   },
-  "common.move.right": (action, context) => {
+  "space.move.right": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: FLOW_GRID_STEP, y: 0 });
-  },
-  // edit
-  "common.edit.duplicate": (action, context) => {
-    const { thing } = getThingFromContext(context);
-    if (thing == null) return false;
-    const duplicate = cloneNode(connection.tx, graph, thing, { includeChildren: true });
-  },
-  "common.edit.delete": (action, context) => {
-    const { thing } = getThingFromContext(context);
-    if (thing == null) return false;
-    connection.tx.delete(thing);
+    flowCtx.move(thing, { x: FLOW_GRID_STEP, y: 0 });
   },
   // navigate
-  "common.navigate.left": () => flowCtx.pan({ x: -FLOW_GRID_STEP, y: 0 }),
-  "common.navigate.right": () => flowCtx.pan({ x: FLOW_GRID_STEP, y: 0 }),
-  "common.navigate.up": () => flowCtx.pan({ x: 0, y: -FLOW_GRID_STEP }),
-  "common.navigate.down": () => flowCtx.pan({ x: 0, y: FLOW_GRID_STEP }),
-  "common.navigate.zoomIn": () => flowCtx.zoom("in", "center", 10),
-  "common.navigate.zoomOut": () => flowCtx.zoom("out", "center", 10),
-  "common.navigate.reset": () => flowCtx.resetViewport(),
+  "space.navigate.left": () => flowCtx.pan({ x: -FLOW_GRID_STEP, y: 0 }),
+  "space.navigate.right": () => flowCtx.pan({ x: FLOW_GRID_STEP, y: 0 }),
+  "space.navigate.up": () => flowCtx.pan({ x: 0, y: -FLOW_GRID_STEP }),
+  "space.navigate.down": () => flowCtx.pan({ x: 0, y: FLOW_GRID_STEP }),
+  "space.navigate.zoomIn": () => flowCtx.zoom("in", "center", 10),
+  "space.navigate.zoomOut": () => flowCtx.zoom("out", "center", 10),
+  "space.navigate.reset": () => flowCtx.resetViewport(),
+  // select
+  "space.select.all": () => canvas.select(stepsAndPipes.value),
 };
 
 // focus

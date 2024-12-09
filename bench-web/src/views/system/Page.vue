@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { BLOCK_CONTEXT_ACTIONS, createBlock, useFlatNodeMoveActions } from "@/language/block";
+import { createBlock, useFlatNodeMoveActions } from "@/language/block";
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
-import { cloneNode, moveNode, NodeIn } from "@/language/node";
+import { moveNode, NodeIn } from "@/language/node";
 import { packValue } from "@/language/value";
 import {
   BenchType,
@@ -23,7 +23,7 @@ import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/
 import { useExistingConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
 import { bench, canvas } from "@/system/space";
-import { type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { BLOCK_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import {
   isDragging,
   startDraggingIfAllowed,
@@ -168,34 +168,22 @@ const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData
   const block = blocks.value[blockIdx];
   return { block, idx: blockIdx };
 };
-const actions: Partial<ActionMapImplementation<"common" | "session">> = {
+const actions: Partial<ActionMapImplementation<"space" | "session">> = {
   // create
-  "common.create.above": (action, context) => {
+  "space.create.above": (action, context) => {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[0];
     if (block == null) return false;
     createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
   },
-  "common.create.below": (action, context) => {
+  "space.create.below": (action, context) => {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[blocks.value.length - 1];
     if (block == null) return false;
     createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
   },
-  // edit
-  "common.edit.duplicate": (action, context) => {
-    const { block } = getBlockFromContext(context);
-    if (block == null) return false;
-    const duplicate = cloneNode(connection.tx, graph, block, { includeChildren: true });
-    nextTick(() => focus(duplicate));
-  },
-  "common.edit.delete": (action, context) => {
-    const { block } = getBlockFromContext(context);
-    if (block == null) return false;
-    connection.tx.delete(block);
-  },
   // navigation
-  "common.navigate.up": (action, context) => {
+  "space.navigate.up": (action, context) => {
     const { block, idx } = getBlockFromContext(context);
     let toFocus = blocks.value[idx - 1];
     if (block == null) {
@@ -204,7 +192,7 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
     }
     if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
   },
-  "common.navigate.down": (action, context) => {
+  "space.navigate.down": (action, context) => {
     const { block, idx } = getBlockFromContext(context);
     let toFocus = blocks.value[idx + 1];
     if (block == null) {
@@ -222,6 +210,8 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
       return { node: block, idx };
     },
   }),
+  // select
+  "space.select.all": () => canvas.select(blocks.value),
   // session
   "session.run.start": (action, context) => {
     const { block } = getBlockFromContext(context);

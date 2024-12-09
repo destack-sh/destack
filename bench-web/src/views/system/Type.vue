@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, FIELD_CONTEXT_ACTIONS } from "@/language/field";
-import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
+import { createField } from "@/language/field";
+import { moveNode, onNodeMorphed } from "@/language/node";
 import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { startDraggingIfAllowed, useMultiDropZone, type DragContent, type MultiAnchor } from "@/ui/drag";
+import { FIELD_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { onAddFieldAction } from "@/ui/detail";
+import { startDraggingIfAllowed, useMultiDropZone, type DragContent, type MultiAnchor } from "@/ui/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
@@ -101,27 +101,17 @@ const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData
   return { field };
 };
 // NOTE :Incomplete: Type.actions (move, navigate, ...)
-const actions: Partial<ActionMapImplementation<"common">> = {
-  // common
-  "common.create.above": (action, ctx) => {
+const actions: Partial<ActionMapImplementation<"space">> = {
+  // space
+  "space.create.above": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
     createField(connection.tx, graph, { anchor: "before", target: field, field: { type: props.fieldType } });
   },
-  "common.create.below": (action, ctx) => {
+  "space.create.below": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
     createField(connection.tx, graph, { anchor: "after", target: field, field: { type: props.fieldType } });
-  },
-  "common.edit.duplicate": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    const duplicate = cloneNode(connection.tx, graph, field, { includeChildren: true });
-  },
-  "common.edit.delete": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    connection.tx.delete(field);
   },
 };
 
@@ -139,7 +129,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ]"
   >
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
-        (since it's not a move, but a sort of 'copy', and that's how we signal it elsewhere) -->
+        (since it's not a move, but a sort of 'copy', and that's how we telegraph it elsewhere) -->
     <!-- Drop indicator -->
     <div v-if="activeDropZone" class="absolute right-1 top-1 text-gray-400">
       {{ toCamelName(FieldType, props.fieldType) }}

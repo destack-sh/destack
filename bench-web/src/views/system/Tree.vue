@@ -313,13 +313,15 @@ const getItemFromContext = (ctx: ActionContext | undefined): { item: NodeTreeIte
   const idx = expandedItems.value.indexOf(item);
   return { item, idx };
 };
-const actions: Partial<ActionMapImplementation<"common">> = {
-  "common.navigate.open": (action, ctx) => {
+const actions: Partial<ActionMapImplementation<"space">> = {
+  // navigate
+  "space.navigate.open": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
     canvas.goToNode(node, { skipSelf: preset.value == TreeViewPreset.OUTLINE });
   },
-  "common.edit.rename": (action, ctx) => {
+  // duplicate
+  "space.edit.rename": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
     editingNodePtr.value = toNodeRef(node);
@@ -328,17 +330,6 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       editingNameRef.value?.[0]?.select?.();
     });
   },
-  "common.edit.duplicate": (action, ctx) => {
-    const node = getItemFromContext(ctx).item?.node;
-    if (node == null) return false;
-    const duplicate = cloneNode(connection.tx, graph, node, { includeChildren: true });
-    nextTick(() => focus(duplicate));
-  },
-  "common.edit.delete": (action, ctx) => {
-    const node = getItemFromContext(ctx).item?.node;
-    if (node == null) return false;
-    connection.tx.delete(node);
-  },
   ...useHierarchicalNodeMoveActions({
     graph: graph,
     basePtr: rootPtr,
@@ -346,6 +337,8 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     expandedItems,
     getItemFromContext,
   }),
+  // select
+  "space.select.all": () => canvas.select(expandedItems.value.map((item) => item.node)),
 };
 
 defineExpose<ViewExposed>({ self, id, actions, focus });
