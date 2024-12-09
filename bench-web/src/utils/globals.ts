@@ -1,8 +1,9 @@
+import { NodeSuperGraph } from "@/language/graph";
 import { SpaceCanvas } from "@/ui/space";
 import { createDeferredProxy, pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
-export const VERSION = "2024.12.08.0";
+export const VERSION = "2024.12.09.0";
 
 // global environment variables :BenchWebEnv
 export const COMMIT = import.meta.env.VITE_COMMIT;
@@ -19,3 +20,4 @@ export const IS_DEV = ENV == null || ENV == "dev";
 // hoisted globals for safe importing
 export const isDeveloperMode = pretendReadonly(ref(IS_DEV));
 export const { proxy: canvas, setRealObject: setCanvas } = createDeferredProxy<SpaceCanvas>();
+export const { proxy: supergraph, setRealObject: setSupergraph } = createDeferredProxy<NodeSuperGraph>();

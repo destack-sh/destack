@@ -30,7 +30,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
   txFactory: () => Transaction;
   getItemFromContext(context: ActionContext | undefined): { item: NodeTreeItem<T> | null; idx: number };
   enabled?: Ref<boolean>;
-}): ActionMapImplementation<"space.move"> {
+}): Partial<ActionMapImplementation<"space.move">> {
   type ItemT = NodeTreeItem<T>;
 
   const { graph, basePtr, expandedItems, txFactory, getItemFromContext, enabled } = options;

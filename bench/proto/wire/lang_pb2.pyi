@@ -971,7 +971,8 @@ class IconKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MESSAGE_TYPE_UNSPECIFIED: _ClassVar[MessageType]
-    MESSAGE_TYPE_NATIVE: _ClassVar[MessageType]
+    MESSAGE_TYPE_INTERNAL: _ClassVar[MessageType]
+    MESSAGE_TYPE_FEDERATED: _ClassVar[MessageType]
     MESSAGE_TYPE_EMAIL: _ClassVar[MessageType]
     MESSAGE_TYPE_SMS: _ClassVar[MessageType]
 
@@ -1350,12 +1351,10 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_PIPE: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
-    VIEW_TYPE_TREE: _ClassVar[ViewType]
     VIEW_TYPE_DETAIL: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
     VIEW_TYPE_RUN: _ClassVar[ViewType]
-    VIEW_TYPE_FEED: _ClassVar[ViewType]
     VIEW_TYPE_TIMELINE: _ClassVar[ViewType]
     VIEW_TYPE_HUB: _ClassVar[ViewType]
     VIEW_TYPE_HELP: _ClassVar[ViewType]
@@ -1375,6 +1374,8 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_DIVIDER: _ClassVar[ViewType]
     VIEW_TYPE_LIST: _ClassVar[ViewType]
     VIEW_TYPE_TABLE: _ClassVar[ViewType]
+    VIEW_TYPE_TREE: _ClassVar[ViewType]
+    VIEW_TYPE_FEED: _ClassVar[ViewType]
     VIEW_TYPE_GALLERY: _ClassVar[ViewType]
     VIEW_TYPE_BOARD: _ClassVar[ViewType]
     VIEW_TYPE_BREADCRUMB: _ClassVar[ViewType]
@@ -2452,7 +2453,8 @@ ICON_KIND_EMOJI: IconKind
 ICON_KIND_FONT_AWESOME: IconKind
 ICON_KIND_VS_CODE: IconKind
 MESSAGE_TYPE_UNSPECIFIED: MessageType
-MESSAGE_TYPE_NATIVE: MessageType
+MESSAGE_TYPE_INTERNAL: MessageType
+MESSAGE_TYPE_FEDERATED: MessageType
 MESSAGE_TYPE_EMAIL: MessageType
 MESSAGE_TYPE_SMS: MessageType
 MESSAGE_STATUS_UNSPECIFIED: MessageStatus
@@ -2723,12 +2725,10 @@ VIEW_TYPE_STEP: ViewType
 VIEW_TYPE_PIPE: ViewType
 VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_OBJECT: ViewType
-VIEW_TYPE_TREE: ViewType
 VIEW_TYPE_DETAIL: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType
 VIEW_TYPE_RUN: ViewType
-VIEW_TYPE_FEED: ViewType
 VIEW_TYPE_TIMELINE: ViewType
 VIEW_TYPE_HUB: ViewType
 VIEW_TYPE_HELP: ViewType
@@ -2748,6 +2748,8 @@ VIEW_TYPE_SPACER: ViewType
 VIEW_TYPE_DIVIDER: ViewType
 VIEW_TYPE_LIST: ViewType
 VIEW_TYPE_TABLE: ViewType
+VIEW_TYPE_TREE: ViewType
+VIEW_TYPE_FEED: ViewType
 VIEW_TYPE_GALLERY: ViewType
 VIEW_TYPE_BOARD: ViewType
 VIEW_TYPE_BREADCRUMB: ViewType

@@ -5,6 +5,7 @@ import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
 import { moveNode, NodeIn } from "@/language/node";
+import { newChangeId } from "@/language/transaction";
 import { packValue } from "@/language/value";
 import {
   BenchType,
@@ -111,18 +112,21 @@ const { activeDropZone } = useMultiDropZone({
   container: contentRef,
   targets: blockRefs,
   orientation: Orientation.VERTICAL,
-  kinds: ["node", "file"],
+  kinds: ["node", "selection", "file"],
   metatypes: [NodeType.BLOCK],
   fallbackToClosest: true,
   allowDrop: (dragged, anchor, targetId) => {
+    if (dragged.kind == "file") return true;
     const target = targetId != null ? graph.get({ id: targetId }) : null;
-    return (
-      dragged.kind == "file" ||
-      (dragged.kind == "node" &&
+    if (dragged.kind == "node" || dragged.kind == "selection") {
+      return (
         target != null &&
         target.id != page.value?.id && // page block is also a block, but 'dropping' there is confusing (moves block outside of page)
-        !isDescendantOf(graph, target, dragged.node))
-    );
+        !dragged.nodes.some((node) => isDescendantOf(graph, target, node))
+      );
+    } else {
+      return false;
+    }
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId == null) return; // need target
@@ -153,6 +157,16 @@ const { activeDropZone } = useMultiDropZone({
       // move node
       const target = graph.getOrError({ id: targetId });
       moveNode(connection.tx, graph, dragged.node, { anchor, target });
+    } else if (dragged.kind == "selection") {
+      // move nodes 
+      const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
+      const target = graph.getOrError({ id: targetId });
+      for (let i = 0; i < dragged.nodes.length; i++) {
+        moveNode(tx, graph, dragged.nodes[i], {
+          anchor: i == 0 ? anchor : "after",
+          target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
+        });
+      }
     }
   },
 });
@@ -168,15 +182,15 @@ const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData
   const block = blocks.value[blockIdx];
   return { block, idx: blockIdx };
 };
-const actions: Partial<ActionMapImplementation<"space" | "session">> = {
-  // create
-  "space.create.above": (action, context) => {
+const actions: Partial<ActionMapImplementation<"list" | "space">> = {
+  // list
+  "list.create.above": (action, context) => {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[0];
     if (block == null) return false;
     createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
   },
-  "space.create.below": (action, context) => {
+  "list.create.below": (action, context) => {
     let { block } = getBlockFromContext(context);
     if (block == null) block = blocks.value[blocks.value.length - 1];
     if (block == null) return false;
@@ -212,12 +226,6 @@ const actions: Partial<ActionMapImplementation<"space" | "session">> = {
   }),
   // select
   "space.select.all": () => canvas.select(blocks.value),
-  // session
-  "session.run.start": (action, context) => {
-    const { block } = getBlockFromContext(context);
-    if (block == null) return false;
-    runtime.start(block);
-  },
 };
 function createAndFocusBlock(
   blockIn: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>,
@@ -295,7 +303,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(['common.create.above', 'common.create.below', 'common.edit.paste'], {
+          items: menuActionsLike(['space.create.above', 'space.create.below', 'space.edit.paste'], {
             context: { ...context, triggerNode: page },
           }),
         })
@@ -356,14 +364,23 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   kind: 'menu',
                   placement: 'bottom-left',
                   offset: 'referenceWidth',
-                  items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
+                  items: menuActionsLike([...BLOCK_CONTEXT_ACTIONS, 'list.create.above', 'list.create.below'], {
+                    context: { triggerNode: nodePtr },
+                  }),
                 })
               "
               class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               :draggable="true"
-              data-suppress-drag="both"
-              @mousedown="() => state.select(makeSelection([block]), { debounce: 'long' })"
-              @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
+              data-suppress-drag="select"
+              @mousedown="
+                () => {
+                  // select if not already selected
+                  if (!canvas.isSelected(block)) {
+                    state.select(makeSelection([block]), { debounce: 'long' });
+                  }
+                }
+              "
+              @dragstart.stop="(e) => startDraggingIfAllowed(e, block)"
             >
               <i class="fas fa-grip-vertical w-5 text-center" />
             </button>
@@ -401,7 +418,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :containerGutterWidth="widths.gutter"
               v-bind="state.getChildState(block.id)"
               :draggable="block.type == BlockType.PAGE"
-              @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
+              @dragstart.stop="(e) => startDraggingIfAllowed(e, block)"
             />
           </div>
         </div>

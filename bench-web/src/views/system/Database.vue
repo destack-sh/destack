@@ -162,7 +162,7 @@ const {
   isConnecting,
   page,
 } = useSearchConnection(
-  { name: "database.records", live: true },
+  { name: "table.records", live: true },
   computed(
     (): SearchConnectionParams<NodeType.RECORD> => ({
       scope: PACKAGE_SCOPE.value,
@@ -426,11 +426,10 @@ function writeColumnValue(
 // Selection
 //
 
-const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
-const selectionZone = useSelectionZone({
-  containerEl: bodyRef,
-  overlayEl: selectionOverlayRef,
-});
+const selectionOverlayContainerRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionOverlayBodyRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionZoneContainer = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayContainerRef });
+const selectionZoneBody = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayBodyRef });
 const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
   const selectedRecords = new Set(canvas.selection?.nodesPtr?.map((ptr) => ptr.id));
   return records.value
@@ -488,40 +487,45 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
 //
 
 function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) {
-  if (dragged.kind != "node") return false;
-  const node = graph.getOrError(dragged.node);
-  return isNode(node, NodeType.FIELD) || (isNode(node, NodeType.BLOCK) && TYPE_BLOCK_TYPES.includes(node.type));
+  if (dragged.kind != "node" && dragged.kind != "selection") return false;
+  return dragged.nodes.every((node) => {
+    node = graph.getOrError(node);
+    return isNode(node, NodeType.FIELD) || (isNode(node, NodeType.BLOCK) && TYPE_BLOCK_TYPES.includes(node.type));
+  });
 }
 function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
-  if (dragged.kind != "node") return;
-  const node = graph.getOrError(dragged.node);
-  const target = targetId != null ? graph.get({ id: targetId }) : null;
-  if (isNode(node, NodeType.FIELD)) {
-    // move field
-    if (target != null) {
-      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      moveNode(connection.tx, graph, dragged.node, { anchor, target });
-    } else {
-      moveNode(connection.tx, graph, dragged.node, { anchor: "center", target: block.value! });
-    }
-  } else if (isNode(node, NodeType.BLOCK)) {
-    // add field with block type
-    const type = blockToType(node);
-    const fieldIn = { ...type, zone: FieldType.MEMBER };
-    if (target != null) {
-      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      createField(connection.tx, graph, { field: fieldIn, anchor, target });
-    } else {
-      createField(connection.tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
+  if (dragged.kind != "node" && dragged.kind != "selection") return;
+  const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
+  for (let node of dragged.nodes) {
+    node = graph.getOrError(node);
+    const target = targetId != null ? graph.get({ id: targetId }) : null;
+    if (isNode(node, NodeType.FIELD)) {
+      // move field
+      if (target != null) {
+        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+        moveNode(tx, graph, node, { anchor, target });
+      } else {
+        moveNode(tx, graph, node, { anchor: "center", target: block.value! });
+      }
+    } else if (isNode(node, NodeType.BLOCK)) {
+      // add field with block type
+      const type = blockToType(node);
+      const fieldIn = { ...type, zone: FieldType.MEMBER };
+      if (target != null) {
+        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+        createField(tx, graph, { field: fieldIn, anchor, target });
+      } else {
+        createField(tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
+      }
     }
   }
 }
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
-  name: "database.header",
+  name: "table.header",
   container: columnHeaderRef,
   targets: columnHeaderRefs,
   orientation: Orientation.HORIZONTAL,
-  kinds: ["node"],
+  kinds: ["node", "selection"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],
   fallbackToClosest: true,
   allowDrop,
@@ -549,18 +553,18 @@ function getConnectionFromNode(node: FieldData | RecordData) {
   }
 }
 
-const actions: Partial<ActionMapImplementation<"space" | "database">> = {
+const actions: Partial<ActionMapImplementation<"space" | "table">> = {
   // select
   "space.select.all": () => canvas.select(records.value),
-  // database
-  "database.column.sortAscending": (action, ctx) => {
+  // table
+  "table.column.sortAscending": (action, ctx) => {
     const { node } = getNodeFromContext(ctx);
     if (!isNode(node, NodeType.FIELD)) return false;
     const column = columns.value.find((column) => column.kind == "field" && column.field == node);
     if (column == null) return false;
     addSort(column, ExpressionType.ASCENDING);
   },
-  "database.column.sortDescending": (action, ctx) => {
+  "table.column.sortDescending": (action, ctx) => {
     const { node } = getNodeFromContext(ctx);
     if (!isNode(node, NodeType.FIELD)) return false;
     const column = columns.value.find((column) => column.kind == "field" && column.field == node);
@@ -578,6 +582,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     :style="{
       marginBottom: variant == Variant.COMPACT ? '0' : `${GUTTER_WIDTH}px`,
     }"
+    @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Meta header -->
     <div
@@ -741,7 +746,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :style="{
         marginLeft: containerGutterWidth != null ? `${-containerGutterWidth}px` : undefined,
       }"
-      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+      @mousedown="(e) => startSelectingIfAllowed(selectionZoneBody, e)"
     >
       <!-- Body inner wrapper -->
       <div
@@ -806,12 +811,12 @@ defineExpose<ViewExposed>({ self, id, actions });
                 const items = [
                   ...menuActionsLike(
                     [
-                      'common.edit.rename',
-                      'common.edit.duplicate',
-                      'common.edit.delete',
-                      'database.column.sortAscending',
-                      'database.column.sortDescending',
-                      'database.column.filter',
+                      'space.edit.rename',
+                      'space.edit.duplicate',
+                      'space.edit.delete',
+                      'table.column.sortAscending',
+                      'table.column.sortDescending',
+                      'table.column.filter',
                     ],
                     {
                       context,
@@ -839,8 +844,9 @@ defineExpose<ViewExposed>({ self, id, actions });
             :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
             :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
             :data-node-type="column.kind == 'field' ? column.field.metatype : undefined"
+            data-suppress-drag="select"
             :draggable="column.kind == 'field'"
-            @dragstart.stop="(e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, graph, column.field)"
+            @dragstart.stop="(e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, column.field)"
             @mousedown="
               (e) => {
                 if (column.kind == 'field') {
@@ -952,7 +958,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               return {
                 kind: 'menu',
                 placement: 'bottom-right',
-                items: menuActionsLike(['common.edit.duplicate', 'common.edit.delete'], { context }),
+                items: menuActionsLike(['space.edit.duplicate', 'space.edit.delete'], { context }),
                 context,
               };
             }
@@ -1087,10 +1093,12 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
 
         <!-- Selection -->
-        <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
+        <SelectionOverlay ref="selectionOverlayBodyRef" :zone="selectionZoneBody" />
       </div>
     </Scroll>
 
+    <!-- Selection -->
+    <SelectionOverlay ref="selectionOverlayContainerRef" :zone="selectionZoneContainer" />
     <Inaccessible v-if="!block" :connection="connection" :node="nodePtr" class="h-full w-full" />
   </div>
 </template>

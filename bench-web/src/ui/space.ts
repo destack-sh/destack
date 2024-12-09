@@ -969,10 +969,11 @@ export class SpaceCanvas {
   moveView(
     graph: ReadNodeGraph,
     move: { self: ViewData; child: ViewData; anchor: "start" | "end"; referenceId?: string | null },
+    options?: { tx?: Transaction },
   ) {
     log.debug("canvas.move", { graph, ...move });
     const { self, child, anchor, referenceId } = move;
-    const tx = this.tx();
+    const tx = options?.tx ?? this.tx();
     // move & update order
     if (child.id != referenceId) {
       updateOrder({

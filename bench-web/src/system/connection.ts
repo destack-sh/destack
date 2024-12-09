@@ -46,7 +46,7 @@ import {
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent } from "@/utils/functools";
-import { IS_DEV } from "@/utils/globals";
+import { IS_DEV, setSupergraph } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
@@ -893,6 +893,7 @@ const _connections: Ref<ConnectionBase<any, any>[]> = shallowRef([localConnectio
 export const connections = pretendReadonly(_connections);
 export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
 export const supergraph = new NodeSuperGraph(connections);
+setSupergraph(supergraph);
 
 /** Adds a new connection to the connection set */
 function _addConnection(connection: ConnectionBase<any, any>): void {

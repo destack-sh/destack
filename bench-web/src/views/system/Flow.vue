@@ -25,7 +25,12 @@ import {
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import {
+  PIPE_CONTEXT_ACTIONS,
+  STEP_CONTEXT_ACTIONS,
+  type ActionContext,
+  type ActionMapImplementation,
+} from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
@@ -63,13 +68,14 @@ const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.
 const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 
+const containerRef = ref<HTMLElement | null>(null);
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
-const containerRef: Ref<HTMLElement | null> = ref(null);
+const bodyRef: Ref<HTMLElement | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const headerSize = useElementSize(headerRef);
-const containerScroll = useScroll(containerRef);
+const containerScroll = useScroll(bodyRef);
 
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
@@ -79,7 +85,7 @@ const flowCtx = new FlowContext({
   update: state.update,
   view: selfView,
   transform: toRef(props, "transform"),
-  containerRef,
+  containerRef: bodyRef,
   stepRefs: stepRefs,
   flowPtr: nodePtr,
 });
@@ -138,8 +144,10 @@ const shouldAnimateTransform = computed(
 );
 
 // selection
-const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
-const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
+const selectionOverlayContainerRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionOverlayBodyRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionZoneContainer = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayContainerRef });
+const selectionZoneBody = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayBodyRef });
 
 // actions
 const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData | PipeData | null; idx: number } => {
@@ -210,7 +218,11 @@ const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
-  <div :class="[variant == Variant.COMPACT ? '' : 'h-full']">
+  <div
+    ref="containerRef"
+    :class="[variant == Variant.COMPACT ? '' : 'h-full']"
+    @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
+  >
     <!-- Meta header -->
     <div
       v-if="variant != Variant.COMPACT"
@@ -304,12 +316,12 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- Canvas body -->
     <div
       v-if="flow"
-      ref="containerRef"
+      ref="bodyRef"
       v-contextmenu="
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(['common.create.step', 'common.create.pipe', 'common.edit.paste', 'flow.pipe.begin'], {
+          items: menuActionsLike(['space.create.step', 'space.create.pipe', 'space.edit.paste', 'flow.pipe.begin'], {
             context: { ...context, triggerNode: flow! },
           }),
         })
@@ -325,7 +337,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             ? `calc(100% - ${HEADER_HEIGHT + headerSize.height.value + 28 /* headerRef margin*/}px)`
             : undefined,
       }"
-      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+      @mousedown="(e) => startSelectingIfAllowed(selectionZoneBody, e)"
       @mousemove="(e) => flowCtx.onDragging(e)"
       @mouseleave="flowCtx.cancelDragging()"
       @mouseup="flowCtx.cancelDragging()"
@@ -480,9 +492,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         </div>
       </div>
 
-      <!-- Selection -->
-      <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
-
       <!-- Overlay -->
       <div
         v-if="flow"
@@ -543,7 +552,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           </button>
         </div>
       </div>
+
+      <!-- Selection -->
+      <SelectionOverlay ref="selectionOverlayBodyRef" :zone="selectionZoneBody" />
     </div>
     <Inaccessible v-else :connection="connection" :node="nodePtr" class="h-full w-full" />
+
+    <!-- Selection -->
+    <SelectionOverlay ref="selectionOverlayBodyRef" :zone="selectionZoneContainer" />
   </div>
 </template>

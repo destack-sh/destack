@@ -10,11 +10,11 @@ import {
   StructType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { contentEquals, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
+import { contentEquals, isNode, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
 import { makeSelection } from "@/ui/view";
 import { getElement, getElementRef } from "@/utils/element";
-import { groupByList } from "@/utils/functools";
-import { canvas } from "@/utils/globals";
+import { assertNever, groupByList } from "@/utils/functools";
+import { canvas, supergraph } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
 import SelectionZone from "@/views/builtins/SelectionOverlay.vue";
@@ -75,53 +75,41 @@ export function isDragAllowed(element: HTMLElement | SVGElement | null, what: "d
 }
 
 /** Start dragging the given thing if it's not a disallowed element (like an input). */
-export function startDraggingIfAllowed(
-  event: DragEvent,
-  graph: ReadNodeGraph,
-  data: AnyNodeData | NodeReferenceData,
-): boolean {
+export function startDraggingIfAllowed(event: DragEvent, data: AnyNodeData | NodeReferenceData): boolean {
   const trigger = event.target as HTMLElement;
   if (!isDragAllowed(trigger, "drag")) {
     log.trace("drag.start.disallowed", trigger);
+    event.preventDefault();
     return false;
   } else {
-    return startDragging(event, graph, data);
+    return startDragging(event, data);
   }
 }
 
-/** Start dragging the given thing. Sets 'activeDragged' (can only drag one thing at a time). */
-export function startDragging(
-  event: DragEvent,
-  graph: ReadNodeGraph,
-  data: AnyNodeData | NodeReferenceData | SelectionData | DragContent,
-): boolean {
+/**
+ * Start dragging the given thing.
+ * If we have an active selection and the thing is part of the selection, drag the selection.
+ * Sets 'activeDragged' (can only drag one thing at a time). */
+export function startDragging(event: DragEvent, data: AnyNodeData | NodeReferenceData | SelectionData): boolean {
   const trigger = event.target as HTMLElement;
   let dragged: Drag;
-  if ("metatype" in data) {
-    if (isNodeRef(data)) {
-      dragged = {
-        trigger,
-        kind: "node",
-        node: data,
-        nodes: [graph.getOrError(data)],
-      };
-    } else if (isStruct(data, StructType.SELECTION)) {
-      dragged = {
-        trigger,
-        kind: "selection",
-        selection: data,
-        nodes: data.nodesPtr.map((n) => graph.getOrError(n)),
-      };
+  if (isNodeRef(data)) {
+    data = supergraph.getOrError(data);
+  }
+  if (isNode(data)) {
+    if (canvas.isSelected(data)) {
+      // promote to selection
+      const nodes = supergraph.getManyMaybe(canvas.selection?.nodesPtr ?? []);
+      dragged = { trigger, kind: "selection", selection: canvas.selection!, nodes };
     } else {
-      dragged = {
-        trigger,
-        kind: "node",
-        node: toNodeRef(data),
-        nodes: [data],
-      };
+      // just drag the node
+      dragged = { trigger, kind: "node", node: toNodeRef(data), nodes: [data] };
     }
-  } /* DraggedContent */ else {
-    dragged = { trigger, ...data };
+  } else if (isStruct(data, StructType.SELECTION)) {
+    // already a selection
+    dragged = { trigger, kind: "selection", selection: data, nodes: supergraph.getManyMaybe(data.nodesPtr) };
+  } else {
+    throw new Error(`unsupported drag data: ${data}`);
   }
 
   const dt = event.dataTransfer;
@@ -187,7 +175,6 @@ type DropOptions = {
   metatypes?: MaybeRef<NodeType[]>;
   /** The allowed file types for file drops. */
   fileTypes?: MaybeRef<FileType[]>;
-  fileFormats?: MaybeRef<FileFormat[]>;
   /** Whether the drop zone is enabled. */
   isEnabled?: Ref<boolean>;
 };
