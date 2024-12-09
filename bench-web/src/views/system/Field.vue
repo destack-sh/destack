@@ -4,12 +4,9 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import { focusInElement } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
-import NativeInput from "@/views/content/NativeInput.vue";
-import { MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
@@ -24,7 +21,7 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const fieldRef = ref<HTMLElement | null>(null);
-const nameRef = ref<InstanceType<typeof NativeInput> | null>(null);
+const nameRef = ref<InstanceType<typeof NodeReference> | null>(null);
 
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.FIELD>);
 const { graph: graph, connection: connection } = props.preparedConnection ?? useExistingConnection(nodePtr);
@@ -38,7 +35,7 @@ const actions: Partial<ActionMapImplementation<"space">> = {
   // space
   "space.edit.rename": {
     action: () => {
-      nextTick(() => focusInElement(nameRef.value as MaybeElement));
+      nextTick(() => nameRef.value?.focusIdentifier());
     },
   },
 };
@@ -64,7 +61,15 @@ defineExpose<ViewExposed>({ self, id, actions });
     data-suppress-drag="select"
   >
     <!-- Icon -->
-    <NodeReference class="px-1 py-[3px]" :node="field" :tx="() => connection.tx" size="regular" light is-input />
+    <NodeReference
+      ref="nameRef"
+      class="px-1 py-[3px]"
+      :node="field"
+      :tx="() => connection.tx"
+      size="regular"
+      light
+      is-input
+    />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="connection" />
 </template>

@@ -1,5 +1,7 @@
 import { getEditStack } from "@/language/edit";
-import { getAllTransactionBuffers } from "@/language/transaction";
+import { ReadNodeGraph } from "@/language/graph";
+import { cloneNode, cloneNodes } from "@/language/node";
+import { getAllTransactionBuffers, newChangeId } from "@/language/transaction";
 import { NodeReferenceData, NodeType, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { ConnectionBase } from "@/system/connection";
@@ -9,7 +11,7 @@ import { keytrap, type KeySignature } from "@/ui/keymap";
 import { clearSpace, createDesktopDefaultSpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp } from "@/ui/view";
-import { type FilterPrefix } from "@/utils/functools";
+import { groupByList, type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV, supergraph } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
@@ -347,6 +349,7 @@ export function getImplementingAction(action: Action, context: ViewComponent[]):
       if (typeof impl == "function") return { action: impl };
       if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) return impl;
     }
+    if (action.action != null) return { action: action.action };
     return null;
   } else {
     throw new Error(`unexpected action kind: ${action.kind}`);
@@ -360,10 +363,10 @@ export function fireAction(
   context?: ActionContext,
 ) {
   if (action.isEnabled != null && !toValue(action.isEnabled)) return false;
-  if (action.action != null) {
+  if (action.kind == "static") {
     // static: just call callback directly
     log.trace("action.static", action.id);
-    const ret = action.action(action, context);
+    const ret = action.action!(action, context);
     return typeof ret === "boolean" ? ret : true;
   } else if (action.kind == "virtual") {
     // virtual: find first component implementing that action
@@ -377,7 +380,12 @@ export function fireAction(
         /** else: keep searching up */
       }
     }
-    log.trace("action.virtual", action.id, "no implementing view", viewsInOrder);
+    if (action.action != null) {
+      const ret = action.action(action, context);
+      if (typeof ret != "boolean" || ret === true) return true;
+    }
+
+    log.trace("action.virtual", action.id, "no implementing view", { context, viewsInOrder });
     if (isDeveloperMode.value) {
       toaster.debug({
         title: `Can't ${toValue(action.title)} Here`,
@@ -437,6 +445,7 @@ watch(
 /** Gets the nodes in the context of an Action. Only returns the nodes if they are part of tbe same connection. */
 function getNodesFromContext(ctx: ActionContext | undefined): {
   connection: ConnectionBase<any, any> | null;
+  graph: ReadNodeGraph | null;
   nodes: AnyNodeData[];
 } {
   let nodesPtr = [];
@@ -445,11 +454,11 @@ function getNodesFromContext(ctx: ActionContext | undefined): {
   } else if (ctx?.triggerNode != null) {
     nodesPtr = [ctx.triggerNode];
   } else {
-    return { connection: null, nodes: [] };
+    return { connection: null, graph: null, nodes: [] };
   }
   const { connection, graph } = supergraph.getLinkOrError(nodesPtr[0]);
   const nodes = graph.getManyMaybe(nodesPtr);
-  return { connection, nodes };
+  return { connection, graph, nodes };
 }
 
 // space
@@ -490,9 +499,11 @@ declareActionMap<"space">({
     text: "Duplicate this item",
     shortcuts: ["mod+d"],
     action: (action, ctx) => {
-      const { connection, nodes } = getNodesFromContext(ctx);
-      if (connection == null) return false;
-      // nocheckin
+      const { connection, graph, nodes } = getNodesFromContext(ctx);
+      if (connection == null || graph == null) return false;
+      const clonedNodes = cloneNodes(connection.tx, graph, nodes)
+      canvas.select(clonedNodes);
+      return true;
     },
   },
   "space.edit.delete": {
@@ -500,6 +511,15 @@ declareActionMap<"space">({
     title: "Delete",
     text: "Delete this item",
     shortcuts: ["del", "backspace"],
+    action: (action, ctx) => {
+      const { connection, graph, nodes } = getNodesFromContext(ctx);
+      if (connection == null || graph == null) return false;
+      const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
+      for (const node of nodes) {
+        tx.delete(node);
+      }
+      return true;
+    },
   },
   // navigate
   "space.navigate.open": {
@@ -622,7 +642,6 @@ declareActionMap<"space">({
     text: "Clear selection",
     shortcuts: ["esc"],
     action: (action, ctx) => {
-      // nocheckin: shortcut not working
       if (canvas.selection != null) {
         canvas.deselect();
       } else {
