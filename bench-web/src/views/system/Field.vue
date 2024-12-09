@@ -48,9 +48,9 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="fieldRef"
     class="flex items-center gap-x-1.5 transition-colors duration-75"
     :class="[
-      variant != Variant.STEALTH ? 'w-fit border border-gray-200' : '',
+      variant != Variant.STEALTH ? 'w-fit border' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      isSelected ? 'bg-orange-400/20' : 'hover:bg-gray-100',
+      isSelected ? 'border-gray-400 bg-orange-400/20' : 'border-gray-200 hover:bg-gray-100',
       !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
       field.type == FieldType.OPTION ? 'rounded-2xl pr-2.5' : '',
       field.type == FieldType.INPUT || field.type == FieldType.OUTPUT || field.type == FieldType.MEMBER

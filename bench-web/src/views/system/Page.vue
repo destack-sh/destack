@@ -52,7 +52,7 @@ const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 60;
-const BLOCK_GAP_Y = 8;
+const BLOCK_GAP_Y = 4;
 
 const props = defineProps<
   {

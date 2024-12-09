@@ -25,7 +25,7 @@ import {
   TypeKind,
   Variant,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -830,7 +830,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 };
               }
             "
-            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 data-[dragging=true]:opacity-50"
+            class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 transition-colors duration-150 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
               isSelected
