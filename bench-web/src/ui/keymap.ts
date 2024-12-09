@@ -74,6 +74,7 @@ export const CHAR_KEYS: Record<string, number> = {
   alt: 18,
   capslock: 20,
   esc: 27,
+  escape: 27,
   space: 32,
   pageup: 33,
   pagedown: 34,
@@ -84,9 +85,19 @@ export const CHAR_KEYS: Record<string, number> = {
   right: 39,
   down: 40,
   ins: 45,
+  insert: 45,
   del: 46,
+  delete: 46,
   plus: 187,
   minus: 189,
+  comma: 188,
+  period: 190,
+  slash: 191,
+  backquote: 192,
+  bracketleft: 219,
+  backslash: 220,
+  bracketright: 221,
+  quote: 222,
 };
 // a-z (lowercase only)
 for (let i = 0; i < 26; ++i) {
@@ -119,6 +130,9 @@ const KEY_ALIAS: Record<string, string> = {
   arrowdown: "down",
   arrowleft: "left",
   arrowright: "right",
+  escape: "esc",
+  delete: "del",
+  insert: "ins"
 };
 
 export function normalizeKeymapKey(key: string) {
@@ -172,8 +186,10 @@ export class Keytrap {
   }
 
   /** Tracks events in the given element */
-  track(element: HTMLElement | Document) {
-    element.addEventListener("keydown", this.onKeyDown.bind(this));
+  track(element: HTMLElement | Document): () => void {
+    const listener = this.onKeyDown.bind(this);
+    element.addEventListener("keydown", listener);
+    return () => element.removeEventListener("keydown", listener);
   }
 
   /** Binds the given key signature uniquely to some callback */

@@ -82,12 +82,14 @@ export interface ReadNodeGraph {
   /** Gets the current node with that key if present (not reactive) */
   get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
 
+  /** Gets many nodes with the given keys (not reactive) */
+  getMany<T extends NodeType>(nodes: NodeKey<T>[]): NodeTypeMapping[T][];
+
+  /** Gets many nodes with the given keys, filtering out missing nodes (not reactive) */
+  getManyMaybe<T extends NodeType>(nodes: NodeKey<T>[]): NodeTypeMapping[T][];
+
   /** Gets the children of the given parent with the given metatype (not reactive) */
   getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][];
-
-  //
-  // General helpers
-  //
 
   /** Gets the current node with that given key (error if not found) */
   getOrError<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T];
@@ -221,6 +223,14 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
     const node = this.get(key);
     if (node == null) throw new Error(`node ${describeNode(key)} not found in ${this.describeSelf()}`);
     return node;
+  }
+
+  getMany<T extends NodeType>(nodes: NodeKey<T>[]): NodeTypeMapping[T][] {
+    return nodes.map((key) => this.getOrError(key));
+  }
+
+  getManyMaybe<T extends NodeType>(nodes: NodeKey<T>[]): NodeTypeMapping[T][] {
+    return nodes.map((key) => this.get(key)).filter((n) => n != null);
   }
 
   getMaybe<T extends NodeType>(key: NodeKey<T> | undefined | null): NodeTypeMapping[T] | null {
@@ -1420,7 +1430,7 @@ export class NodeSuperGraph {
   }
 
   /**
-   * Gets the source from the supergraph.
+   * Gets the source connection/graph from the supergraph.
    */
   getLink<T extends NodeType>(
     key: NodeKey<T>,
@@ -1437,6 +1447,21 @@ export class NodeSuperGraph {
       }
     }
     return null;
+  }
+
+  /**
+   * Gets the source connection/graph from the supergraph or throws an error if it's not found.
+   */
+  getLinkOrError<T extends NodeType>(
+    key: NodeKey<T>,
+  ): {
+    node: NodeTypeMapping[T];
+    graph: ReadNodeGraph;
+    connection: ConnectionBase<any, any>;
+  } {
+    const link = this.getLink(key);
+    if (link == null) throw new Error(`node not found: ${key}`);
+    return link;
   }
 
   /**

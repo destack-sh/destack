@@ -3,7 +3,7 @@ import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
 import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
-import { cloneNode, moveNode } from "@/language/node";
+import { moveNode } from "@/language/node";
 import { DebounceLevel, newChangeId, Transaction } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
 import {
@@ -22,11 +22,10 @@ import {
   PropertyInfo,
   RecordData,
   RecordProperty,
-  Timestamp,
   TypeKind,
   Variant,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import {
   describeNode,
@@ -834,7 +833,11 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
-              column.isInspected || column.isHighlighted ? 'bg-gray-100' : 'bg-white hover:bg-gray-100',
+              isSelected
+                ? 'bg-transparent'
+                : column.isInspected || column.isHighlighted
+                  ? 'bg-gray-100'
+                  : 'bg-white hover:bg-gray-100',
             ]"
             :style="{
               paddingLeft: x == 0 && paddingX != null ? `${paddingX}px` : undefined,

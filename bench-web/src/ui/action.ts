@@ -2,6 +2,7 @@ import { getEditStack } from "@/language/edit";
 import { getAllTransactionBuffers } from "@/language/transaction";
 import { NodeReferenceData, NodeType, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
+import { ConnectionBase } from "@/system/connection";
 import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
@@ -9,12 +10,13 @@ import { clearSpace, createDesktopDefaultSpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp } from "@/ui/view";
 import { type FilterPrefix } from "@/utils/functools";
-import { DISCORD_URL, IS_DEV } from "@/utils/globals";
+import { DISCORD_URL, IS_DEV, supergraph } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
+import { AnyNode } from "postcss";
 import {
   computed,
   getCurrentInstance,
@@ -398,41 +400,59 @@ export const IMPLEMENTED_ACTIONS: Readonly<Ref<Action[]>> = computed(() =>
 watch(
   [DECLARED_ACTIONS, canvas.focusedViewComponentsById],
   () => {
-    const implemented: Record<string, Action> = {};
+    const implementedActions: Record<string, Action> = {};
 
     // static actions
     Object.values(DECLARED_ACTIONS.value)
-      .filter((a) => a.kind == "static")
-      .forEach((a) => (implemented[a.id] = a));
+      .filter((a) => a.kind == "static" || (a.kind == "virtual" && a.action != null))
+      .forEach((a) => (implementedActions[a.id] = a));
 
     // collect virtual actions bottom up
     for (const view of Object.values(canvas.focusedViewComponentsById.value)) {
       for (const [actionId, action] of Object.entries(view.exposed?.actions ?? {})) {
-        if (implemented[actionId] != null) continue; // already declared (either static or by lower view)
+        if (implementedActions[actionId] != null) continue; // already declared (either static or by lower view)
         const declaration = DECLARED_ACTIONS_BY_ID.value[actionId];
         if (declaration == null) throw new Error(`no declaration for virtual action: ${actionId}`);
-        implemented[actionId] = { ...declaration, ...action };
+        implementedActions[actionId] = { ...declaration, ...action };
       }
     }
 
     // diff & update keytrap
     const oldImplemented = IMPLEMENTED_ACTIONS_BY_ID.value;
-    const removedActions = Object.keys(oldImplemented).filter((id) => implemented[id] == null);
-    const addedActions = Object.keys(implemented).filter((id) => oldImplemented[id] == null);
+    const removedActions = Object.keys(oldImplemented).filter((id) => implementedActions[id] == null);
+    const addedActions = Object.keys(implementedActions).filter((id) => oldImplemented[id] == null);
     removedActions.forEach((id) => keytrap.unbind(oldImplemented[id].shortcuts ?? []));
     addedActions.forEach((id) => {
-      const action = implemented[id];
+      const action = implementedActions[id];
       if ((action.shortcuts?.length ?? 0) > 0) {
         keytrap.bind(action.shortcuts!, (e) => fireActionFromEvent(action, e), { key: id, replace: true });
       }
     });
 
-    IMPLEMENTED_ACTIONS_BY_ID.value = implemented;
+    IMPLEMENTED_ACTIONS_BY_ID.value = implementedActions;
   },
   { immediate: true },
 );
 
-// declare common actions
+/** Gets the nodes in the context of an Action. Only returns the nodes if they are part of tbe same connection. */
+function getNodesFromContext(ctx: ActionContext | undefined): {
+  connection: ConnectionBase<any, any> | null;
+  nodes: AnyNodeData[];
+} {
+  let nodesPtr = [];
+  if (canvas.selection != null) {
+    nodesPtr = canvas.selection.nodesPtr;
+  } else if (ctx?.triggerNode != null) {
+    nodesPtr = [ctx.triggerNode];
+  } else {
+    return { connection: null, nodes: [] };
+  }
+  const { connection, graph } = supergraph.getLinkOrError(nodesPtr[0]);
+  const nodes = graph.getManyMaybe(nodesPtr);
+  return { connection, nodes };
+}
+
+// space
 declareActionMap<"space">({
   // edit
   "space.edit.rename": {
@@ -469,6 +489,11 @@ declareActionMap<"space">({
     title: "Duplicate",
     text: "Duplicate this item",
     shortcuts: ["mod+d"],
+    action: (action, ctx) => {
+      const { connection, nodes } = getNodesFromContext(ctx);
+      if (connection == null) return false;
+      // nocheckin
+    },
   },
   "space.edit.delete": {
     icon: "fas fa-trash",
@@ -596,6 +621,14 @@ declareActionMap<"space">({
     title: "Clear Selection",
     text: "Clear selection",
     shortcuts: ["esc"],
+    action: (action, ctx) => {
+      // nocheckin: shortcut not working
+      if (canvas.selection != null) {
+        canvas.deselect();
+      } else {
+        return false;
+      }
+    },
   },
   // move
   "space.move.up": {

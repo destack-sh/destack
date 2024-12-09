@@ -158,7 +158,7 @@ const { activeDropZone } = useMultiDropZone({
       const target = graph.getOrError({ id: targetId });
       moveNode(connection.tx, graph, dragged.node, { anchor, target });
     } else if (dragged.kind == "selection") {
-      // move nodes 
+      // move nodes
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       const target = graph.getOrError({ id: targetId });
       for (let i = 0; i < dragged.nodes.length; i++) {
@@ -338,8 +338,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Left gutter -->
           <div
-            class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-1 px-1 text-right opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100"
-            :class="CANVAS_BLOCK_TYPES.includes(block.type) ? 'pt-2' : 'pt-1'"
+            class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-1 px-1 text-right transition-colors duration-150"
+            :class="[
+              CANVAS_BLOCK_TYPES.includes(block.type) ? 'pt-2' : 'pt-1',
+              canvas.isInspected(block) || canvas.isHighlighted(block)
+                ? 'opacity-100'
+                : 'opacity-0 group-focus-within/block-line:opacity-100 group-hover/block-line:opacity-100',
+            ]"
             :style="{ width: widths.gutter + 'px' }"
           >
             <!-- Create above / below -->

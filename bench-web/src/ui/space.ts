@@ -335,6 +335,11 @@ export class SpaceCanvas {
     }
   }
 
+  /** Clears the selection */
+  deselect() {
+    this.select(undefined);
+  }
+
   /** Inspects the given node */
   inspect(inspect: {
     node: AnyNodeData | NodeReferenceData;
