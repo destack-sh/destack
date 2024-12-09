@@ -128,10 +128,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       isPage ? 'cursor-pointer hover:bg-gray-100' : '',
       hasCanvas ? 'mb-2' : '',
     ]"
+    :data-suppress-drag="isPage ? 'select' : undefined"
     @click="() => isPage && canvas.goToNode(block!)"
   >
     <!-- Header -->
-    <div v-if="block.type != BlockType.TEXT && block.type" class="flex flex-row items-center rounded-t px-1 py-1">
+    <div v-if="block.type != BlockType.TEXT" class="flex flex-row items-center rounded-t px-1 py-1">
       <NodeReference
         ref="NodeReferenceRef"
         :size="hasCanvas ? 'large' : 'regular'"

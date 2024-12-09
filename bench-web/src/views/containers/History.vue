@@ -6,6 +6,7 @@ import { canvas, pkgGraph } from "@/system/space";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
+import { useEventListener } from "@vueuse/core";
 import { computed, provide, Ref, toRef } from "vue";
 
 const props = defineProps<
