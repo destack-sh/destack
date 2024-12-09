@@ -500,7 +500,7 @@ declareActionMap<"space">({
     shortcuts: ["mod+d"],
     action: (action, ctx) => {
       const { connection, graph, nodes } = getNodesFromContext(ctx);
-      if (connection == null || graph == null) return false;
+      if (connection == null || graph == null) return; // no action, but suppress anyway to avoid trigger browser shortcuts
       const clonedNodes = cloneNodes(connection.tx, graph, nodes)
       canvas.select(clonedNodes);
       return true;

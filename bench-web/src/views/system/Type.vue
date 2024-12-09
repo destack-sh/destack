@@ -144,15 +144,10 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <ul
+  <div
     ref="containerRef"
-    class="relative flex gap-x-2 gap-y-1 rounded"
-    :class="[
-      orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
-      variant == Variant.STEALTH ? 'px-0.5 py-0.5' : '',
-      activeDropZone != null ? 'outline outline-2 outline-gray-400' : '',
-    ]"
-    @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
+    class="relative"
+    :class="[activeDropZone != null ? 'outline outline-2 outline-gray-400' : '']"
   >
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
         (since it's not a move, but a sort of 'copy', and that's how we telegraph it elsewhere) -->
@@ -160,59 +155,68 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div v-if="activeDropZone" class="absolute right-1 top-1 text-gray-400">
       {{ toCamelName(FieldType, props.fieldType) }}
     </div>
-    <!-- Field wrapper -->
-    <li
-      v-for="field in fields"
-      :key="field.id"
-      class="relative w-fit"
-      :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
+    <ul
+      class="flex gap-x-2 gap-y-1 rounded"
+      :class="[
+        orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
+        variant == Variant.STEALTH ? 'px-0.5 py-0.5' : '',
+      ]"
+      @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
-      <!-- Drop indicator -->
-      <div
-        v-if="activeDropZone?.targetId == field.id"
-        class="absolute z-10 rounded bg-gray-400"
-        :class="[
-          orientation == Orientation.HORIZONTAL ? 'h-full w-1' : 'h-1 w-full',
-          activeDropZone?.anchor == 'start'
-            ? orientation == Orientation.HORIZONTAL
-              ? '-left-[6px]'
-              : '-top-[3px]'
-            : orientation == Orientation.HORIZONTAL
-              ? '-right-[6px]'
-              : '-bottom-[3px]',
-        ]"
-      />
-      <!-- Field -->
-      <Field
-        :id="field.id"
-        :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
-        v-contextmenu="
-          (context: PopoverContext): PopoverInfo => ({
-            kind: 'menu',
-            placement: 'bottom-right',
-            items: menuActionsLike(FIELD_CONTEXT_ACTIONS, { context: { ...context, triggerNode: field } }),
-          })
-        "
-        class="cursor-pointer truncate data-[dragging=true]:opacity-50"
+      <!-- Field wrapper -->
+      <li
+        v-for="field in fields"
+        :key="field.id"
+        class="relative w-fit"
         :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
-        :prepared-connection="preparedConnection"
-        :node-ptr="toNodeRef(field)"
-        :variant="variant"
-        :draggable="true"
-        @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, field)"
-      />
-    </li>
-    <!-- Add button -->
-    <button
-      v-if="variant != Variant.STEALTH || fields.length == 0"
-      class="h-[26px] rounded px-1 text-left text-gray-400 hover:text-gray-700"
-      :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
-      @click="(e) => onAddFieldAction(e, fieldType, block!, graph, () => connection.tx)"
-    >
-      <i class="fas fa-plus mr-1.5" />
-      <span> {{ toCamelName(FieldType, props.fieldType) }} </span>
-    </button>
+      >
+        <!-- Drop indicator -->
+        <div
+          v-if="activeDropZone?.targetId == field.id"
+          class="absolute z-10 rounded bg-gray-400"
+          :class="[
+            orientation == Orientation.HORIZONTAL ? 'h-full w-1' : 'h-1 w-full',
+            activeDropZone?.anchor == 'start'
+              ? orientation == Orientation.HORIZONTAL
+                ? '-left-[6px]'
+                : '-top-[3px]'
+              : orientation == Orientation.HORIZONTAL
+                ? '-right-[6px]'
+                : '-bottom-[3px]',
+          ]"
+        />
+        <!-- Field -->
+        <Field
+          :id="field.id"
+          :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-right',
+              items: menuActionsLike(FIELD_CONTEXT_ACTIONS, { context: { ...context, triggerNode: field } }),
+            })
+          "
+          class="cursor-pointer truncate data-[dragging=true]:opacity-50"
+          :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
+          :prepared-connection="preparedConnection"
+          :node-ptr="toNodeRef(field)"
+          :variant="variant"
+          :draggable="true"
+          @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, field)"
+        />
+      </li>
+      <!-- Add button -->
+      <button
+        v-if="variant != Variant.STEALTH || fields.length == 0"
+        class="h-[26px] rounded px-1 text-left text-gray-400 hover:text-gray-700"
+        :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
+        @click="(e) => onAddFieldAction(e, fieldType, block!, graph, () => connection.tx)"
+      >
+        <i class="fas fa-plus mr-1.5" />
+        <span> {{ toCamelName(FieldType, props.fieldType) }} </span>
+      </button>
+    </ul>
     <!-- Selection overlay -->
     <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
-  </ul>
+  </div>
 </template>

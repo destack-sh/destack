@@ -156,13 +156,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       id="text"
       ref="textRef"
       is-input
-      class="px-1 pt-1"
+      class="px-1 py-1"
       :variant="Variant.STEALTH"
       :model-value="block.text"
       v-bind="state.getChildState('text')"
       @update:model-value="(newText) => connection.tx.update(block!, { text: newText }, { debounce: 'long' })"
     />
-    <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200">
+    <div v-else-if="block.type != BlockType.PAGE" class="rounded-b pb-1 border-gray-200">
       <!-- Types -->
       <Type
         v-if="[BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"

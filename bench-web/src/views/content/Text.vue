@@ -12,13 +12,9 @@ import {
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
-import {
-  isNodeRef,
-  toNodeRef,
-  type TypedNodeReferenceData
-} from "@/proto/wiring";
+import { isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, canvas, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
@@ -407,16 +403,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="textRef"
-      v-contextmenu="
-        (context: PopoverContext): PopoverInfo => ({
-          isEnabled: props.isInput,
-          kind: 'menu',
-          placement: 'bottom-right',
-          items: menuActionsLike(['text.*', 'space.edit.copy', 'space.edit.cut', 'space.edit.paste'], { context }),
-          context,
-          dontFocus: true, // keep focus on the editor
-        })
-      "
       class="text relative rounded hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
