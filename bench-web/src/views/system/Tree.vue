@@ -4,6 +4,7 @@ import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
 import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
+import { newChangeId } from "@/language/transaction";
 import {
   BlockData,
   BlockType,
@@ -275,32 +276,43 @@ const { activeDropZone } = useMultiDropZone({
   orientation: Orientation.VERTICAL,
   hasCenterAnchor: true,
   fallbackToClosest: true,
-  kinds: ["node"],
+  kinds: ["node", "selection"],
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
-    if (dragged.kind != "node") return false;
-    const target = targetId != null ? graph.get({ id: targetId }) : null;
-    if (target == null || isDescendantOf(graph, target, dragged.node)) {
-      return false; // circular
-    }
-    const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.nodeType;
-    if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.nodeType)) {
-      return false; // not a child
-    }
-    if (
-      isNode(target, NodeType.BLOCK) &&
-      isNode(dragged.nodes[0], NodeType.BLOCK) &&
-      anchor == "center" &&
-      target.type != BlockType.PAGE
-    ) {
-      return false; // can only move blocks into page blocks
-    }
-    return true;
+    if (dragged.kind != "node" && dragged.kind != "selection") return false;
+    return dragged.nodes.every((node) => {
+      const target = targetId != null ? graph.get({ id: targetId }) : null;
+      if (target == null || isDescendantOf(graph, target, node)) {
+        return false; // circular
+      }
+      const targetParentType =
+        anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.nodeType;
+      if (!CHILD_NODE_TYPES[targetParentType].includes(node.metatype as unknown as NodeType)) {
+        return false; // not a child
+      }
+      if (
+        isNode(target, NodeType.BLOCK) &&
+        isNode(dragged.nodes[0], NodeType.BLOCK) &&
+        anchor == "center" &&
+        target.type != BlockType.PAGE
+      ) {
+        return false; // can only move blocks into page blocks
+      }
+      return true;
+    });
   },
   onDrop: (dragged, anchor, targetId) => {
-    if (targetId != null && dragged.kind == "node") {
+    if (targetId != null && (dragged.kind == "node" || dragged.kind == "selection")) {
+      const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       const target = graph.getOrError({ id: targetId });
-      moveNode(connection.tx, graph, dragged.node, { anchor, target });
+      for (let i = 0; i < dragged.nodes.length; i++) {
+        const node = graph.getOrError(dragged.nodes[i]);
+        moveNode(tx, graph, node, {
+          anchor: i == 0 ? anchor : "after",
+          target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
+        });
+      }
+      canvas.goToNode(graph.getOrError(dragged.nodes[dragged.nodes.length - 1]));
     }
   },
 });
@@ -358,7 +370,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-model="query"
           class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
-          :data-suppress-actions="'common.navigate' /* allow select & move */"
+          :data-suppress-actions="'space.navigate' /* allow select & move */"
           @keydown.enter.stop.prevent="
             () => {
               if (focusedNode != null) {
@@ -402,7 +414,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 kind: 'menu',
                 placement: 'bottom-right',
                 items: menuActionsLike(
-                  ['common.navigate.open*', 'common.edit.rename', 'common.edit.duplicate', 'common.edit.delete'],
+                  ['space.navigate.open*', 'space.edit.rename', 'space.edit.duplicate', 'space.edit.delete'],
                   { context },
                 ),
                 context,
@@ -428,7 +440,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           data-suppress-drag="both"
           :draggable="true"
           @click.stop="fire(node)"
-          @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, graph, node)"
+          @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, node)"
         >
           <!-- Drop indicator -->
           <div

@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { cloneNode } from "@/language/node";
+import { newChangeId } from "@/language/transaction";
 import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
-import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
-import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
+import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
@@ -81,22 +82,23 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   name: "tab.header",
   container: headerRef,
   targets: tabsRef,
-  kinds: ["node"],
+  kinds: ["node", "selection"],
   metatypes: [NodeType.VIEW],
   orientation: Orientation.HORIZONTAL,
   fallbackToClosest: true,
   onDrop: (dragged, anchor, targetId) => {
-    if (dragged.kind != "node") return;
-    const draggedNode = spaceGraph.get(dragged.node) as ViewData;
-    if (draggedNode != null) {
+    if (dragged.kind != "node" && dragged.kind != "selection") return;
+    const tx = spaceConnection.tx.with({ change: { key: newChangeId(), title: "Move" } });
+    for (let node of dragged.nodes) {
+      node = spaceGraph.getOrError(node);
+      if (!isNode(node, NodeType.VIEW)) continue;
       const self = spaceGraph.get(props.self) as ViewData;
-      canvas.moveView(spaceGraph, {
-        self,
-        child: draggedNode,
-        anchor: anchor as "start" | "end",
-        referenceId: targetId,
-      });
-      focus(draggedNode);
+      canvas.moveView(
+        spaceGraph,
+        { self, child: node, anchor: anchor as "start" | "end", referenceId: targetId },
+        { tx },
+      );
+      focus(node);
     }
   },
 });
@@ -238,9 +240,10 @@ defineExpose<ViewExposed>({ self, actions });
           i == focusedTabIdx ? 'bg-white text-gray-900' : 'border-b',
           i != focusedTabIdx ? 'text-gray-600' : '',
         ]"
+        data-suppress-drag="select"
         :draggable="true"
         @click="focus(tab)"
-        @dragstart.stop="(e: DragEvent) => startDragging(e, spaceGraph, tab)"
+        @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, tab)"
       >
         <!-- Tab header  -->
         <IconInline

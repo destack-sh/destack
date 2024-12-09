@@ -45,13 +45,10 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.discord",
   "space.launch.notifications",
   "space.launch.fullscreen",
-  "space.create.above",
-  "space.create.below",
-  "space.create.field",
-  "space.create.field.input",
-  "space.create.field.output",
+  // history
   "space.history.undo",
   "space.history.redo",
+  // edit
   "space.edit.rename",
   "space.edit.move",
   "space.edit.copy",
@@ -59,6 +56,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.edit.paste",
   "space.edit.duplicate",
   "space.edit.delete",
+  // navigate
   "space.navigate.open",
   "space.navigate.up",
   "space.navigate.down",
@@ -73,38 +71,44 @@ export const ACTION_BUILTIN_IDS = [
   "space.navigate.pageDown",
   "space.navigate.goBack",
   "space.navigate.goForward",
+  // select
   "space.select.all",
   "space.select.up",
   "space.select.down",
   "space.select.left",
   "space.select.right",
   "space.select.clear",
+  // move
   "space.move.up",
   "space.move.down",
   "space.move.left",
   "space.move.right",
+  "space.move.inside",
+  "space.move.outside",
+  // search
   "space.search.findInView",
   "space.search.replaceInView",
   "space.search.findInSpace",
   "space.search.replaceInSpace",
-  "space.sense.goToDefinition",
-  "space.sense.findReferences",
-  "space.sense.findImplementations",
   // session
   "session.run.start",
   "session.run.pause",
   "session.run.resume",
   "session.run.kill",
-  // database
-  "database.column.sortAscending",
-  "database.column.sortDescending",
-  "database.column.filter",
-  "database.column.wrap",
-  "database.column.hide",
-  // message
-  "message.chat.reply",
-  "message.edit.edit",
-  "message.edit.pin",
+  // list
+  "list.create.above",
+  "list.create.below",
+  // tree
+  "tree.create.above",
+  "tree.create.below",
+  "tree.create.inside",
+  // table
+  "table.create.record",
+  "table.column.sortAscending",
+  "table.column.sortDescending",
+  "table.column.filter",
+  "table.column.wrap",
+  "table.column.hide",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -153,7 +157,6 @@ export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_
 ) as Record<ActionBuiltinId, number>;
 export type ActionBuiltinId = (typeof ACTION_BUILTIN_IDS)[number];
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
-export type ActionSource = { kind: "builtin"; id: ActionBuiltinId } | { kind: "block"; block: NodeReferenceData };
 export type ActionContext = {
   triggerNode?: AnyNodeData | NodeReferenceData;
 };
@@ -182,11 +185,10 @@ export type Action = {
   text: string | TextData;
   shortcuts?: KeySignature[]; // NOTE :Incomplete: define shortcuts in per-Space/User keymap?
   isEnabled?: Ref<boolean> | (() => boolean);
-  source: ActionSource;
   category: string;
   subcategory?: string;
   path: string;
-  action: ActionCallable;
+  action?: ActionCallable;
   // additional metadata
   url?: string; // for external URLs
   isChecked?: Ref<boolean> | ((action: Action, ctx?: ActionContext) => boolean); // for toggle actions
@@ -200,7 +202,7 @@ type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "isEnabled" | "act
   id: ActionBuiltinId;
   icon?: string | IconData;
 };
-export type ActionDeclaration = Omit<ActionIn, "id" | "enabled" | "action">;
+export type ActionDeclaration = Omit<ActionIn, "id" | "enabled" | "action"> & { action?: ActionCallable };
 export type ActionMapDeclaration<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionDeclaration>;
 export type ActionImplementation = Pick<Action, "isEnabled" | "action" | "isChecked">;
 export type ActionMapImplementation<T extends string> = Record<
@@ -218,15 +220,15 @@ export function addAction(kind: ActionKind, in_: ActionIn) {
     type: "generic",
     ...in_,
     icon: typeof in_.icon === "string" ? makeIcon({ faName: in_.icon }) : in_.icon,
-    source: { kind: "builtin", id: in_.id },
     id: in_.id,
     category: idParts[0],
     subcategory: idParts[1],
     path: idParts.slice(0, -1).join(" / "),
   };
-  if (DECLARED_ACTIONS_BY_ID.value[in_.id] != null && (!IS_DEV || getCurrentInstance() == null))
-    // hot-reloading re-registers actions
+  if (DECLARED_ACTIONS_BY_ID.value[in_.id] != null && (!IS_DEV || getCurrentInstance() == null)) {
+    // hot-reloading re-registers actions (sometimes)
     throw new Error(`action already exists: ${in_.id} (${in_} != ${DECLARED_ACTIONS_BY_ID.value[in_.id]})`);
+  }
   DECLARED_ACTIONS_BY_ID.value[in_.id as ActionBuiltinId] = action;
   triggerRef(DECLARED_ACTIONS_BY_ID);
 }
@@ -356,7 +358,7 @@ export function fireAction(
   context?: ActionContext,
 ) {
   if (action.isEnabled != null && !toValue(action.isEnabled)) return false;
-  if (action.kind == "static") {
+  if (action.action != null) {
     // static: just call callback directly
     log.trace("action.static", action.id);
     const ret = action.action(action, context);
@@ -366,7 +368,7 @@ export function fireAction(
     for (const view of viewsInOrder ?? []) {
       let impl = view.exposed?.actions?.[action.id];
       if (typeof impl == "function") impl = { action: impl };
-      if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) {
+      if (impl?.action != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) {
         log.trace("action.virtual", action.id);
         const ret = impl.action(action, context);
         if (typeof ret != "boolean" || ret === true) return true;
@@ -432,17 +434,6 @@ watch(
 
 // declare common actions
 declareActionMap<"space">({
-  // create
-  "space.create.above": {
-    icon: "fas fa-angles-up",
-    title: "Create Above",
-    text: "Create a new item above this item",
-  },
-  "space.create.below": {
-    icon: "fas fa-angles-down",
-    title: "Create Below",
-    text: "Create a new item below this item",
-  },
   // edit
   "space.edit.rename": {
     icon: "fas fa-pencil",
@@ -656,25 +647,6 @@ declareActionMap<"space">({
     text: "Replace in this space",
     shortcuts: ["mod+shift+r"],
   },
-  // sense
-
-  "space.sense.goToDefinition": {
-    icon: "fas fa-turn-down-right",
-    title: "Go to Definition",
-    text: "Go to definition of this node",
-    shortcuts: ["mod+b"],
-  },
-  "space.sense.findReferences": {
-    icon: "fas fa-turn-down-left",
-    title: "Find References",
-    text: "Find references of this node",
-    shortcuts: ["mod+shift+b"],
-  },
-  "space.sense.findImplementations": {
-    icon: "fas fa-turn-down-left",
-    title: "Find Implementations",
-    text: "Find implementations of this node",
-  },
 });
 
 // history
@@ -706,7 +678,6 @@ contributeActionMap<"space.history">({
 // session
 declareActionMap<"session">({
   // session
-  // TODO :Incomplete: session.* action handling (in Block/Step/Page/...)
   "session.run.start": {
     icon: "fas fa-play",
     title: "Run",
@@ -730,90 +701,75 @@ declareActionMap<"session">({
   },
 });
 
-// type
-declareActionMap<"type">({
-  // edit
-  "type.edit.isList": {
-    type: "toggle",
-    icon: "fas fa-list",
-    title: "List",
-    text: "Mark this type as a list",
+// list
+declareActionMap<"list">({
+  // create
+  "list.create.above": {
+    icon: "fas fa-arrow-up",
+    title: "Create Above",
+    text: "Create a new item above this item",
   },
-  "type.edit.isRequired": {
-    type: "toggle",
-    icon: "fas fa-shield-check",
-    title: "Required",
-    text: "Mark this type as required",
-  },
-  "type.edit.isSecret": {
-    type: "toggle",
-    icon: "fas fa-lock",
-    title: "Secret",
-    text: "Mark this type as secret",
+  "list.create.below": {
+    icon: "fas fa-arrow-down",
+    title: "Create Below",
+    text: "Create a new item below this item",
   },
 });
 
-// database
-declareActionMap<"database">({
-  "database.column.sortAscending": {
+// tree
+declareActionMap<"tree">({
+  // create
+  "tree.create.above": {
+    icon: "fas fa-arrow-up",
+    title: "Create Above",
+    text: "Create a new item above this item",
+  },
+  "tree.create.below": {
+    icon: "fas fa-arrow-down",
+    title: "Create Below",
+    text: "Create a new item below this item",
+  },
+  "tree.create.inside": {
+    icon: "fas fa-arrow-right",
+    title: "Create Inside",
+    text: "Create a new item inside this item",
+  },
+});
+
+// table
+declareActionMap<"table">({
+  // create
+  "table.create.record": {
+    icon: "fas fa-plus",
+    title: "Create Record",
+    text: "Create a new record",
+  },
+  // column
+  "table.column.sortAscending": {
     icon: "fas fa-arrow-up",
     title: "Sort Ascending",
     text: "Sort this column in ascending order",
   },
-  "database.column.sortDescending": {
+  "table.column.sortDescending": {
     icon: "fas fa-arrow-down",
     title: "Sort Descending",
     text: "Sort this column in descending order",
   },
-  "database.column.filter": {
+  "table.column.filter": {
     icon: "fas fa-filter",
     title: "Filter",
     text: "Filter this column",
   },
-  "database.column.wrap": {
+  "table.column.wrap": {
     icon: "fas fa-align-justify",
     title: "Wrap",
     text: "Wrap this column",
   },
-  "database.column.hide": {
+  "table.column.hide": {
     type: "toggle",
     icon: "fas fa-eye-slash",
     title: "Hide",
     text: "Hide this column",
-  },
-});
-
-// flow
-declareActionMap<"flow">({
-  // pipe
-  "flow.pipe.begin": {
-    icon: "fas fa-arrow-right",
-    title: "Pipe From Here",
-    text: "Begin a Pipe at this Step",
-  },
-});
-
-// pipe
-declareActionMap<"pipe">({});
-
-// message
-declareActionMap<"message">({
-  // handle
-  "message.chat.reply": {
-    icon: "fas fa-reply",
-    title: "Reply",
-    text: "Reply to this message",
-  },
-  "message.edit.edit": {
-    icon: "fas fa-pencil",
-    title: "Edit",
-    text: "Edit this message",
-  },
-  "message.edit.pin": {
-    type: "toggle",
-    icon: "fas fa-thumbtack",
-    title: "Pin",
-    text: "Pin this message",
   },
 });
 
@@ -1085,8 +1041,6 @@ export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "space.edit.rename",
   "space.edit.duplicate",
   "space.edit.delete",
-  "space.create.above",
-  "space.create.below",
 ];
 
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [

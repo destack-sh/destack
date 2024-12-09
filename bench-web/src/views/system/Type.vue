@@ -3,14 +3,23 @@ import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField } from "@/language/field";
 import { moveNode, onNodeMorphed } from "@/language/node";
+import { newChangeId } from "@/language/transaction";
 import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { FIELD_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { onAddFieldAction } from "@/ui/detail";
-import { startDraggingIfAllowed, useMultiDropZone, type DragContent, type MultiAnchor } from "@/ui/drag";
+import {
+  startDraggingIfAllowed,
+  startSelectingIfAllowed,
+  useMultiDropZone,
+  useSelectionZone,
+  type DragContent,
+  type MultiAnchor,
+} from "@/ui/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -40,45 +49,57 @@ const fields = computed(() => allFields.value.filter((f) => f.type == props.fiel
 // dragging :TypeDragAndDrop
 // NOTE: we have separate drop types for left/right (for function types)
 function allowDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
-  if (dragged.kind != "node") return false;
-  const node = graph.get(dragged.node);
-  if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (block.value?.type == BlockType.CHOICE)) {
-    return true;
-  } else if (
-    isNode(node, NodeType.BLOCK) &&
-    block.value?.type != BlockType.CHOICE &&
-    TYPE_BLOCK_TYPES.includes(node.type)
-  ) {
-    return true;
-  } else {
-    return false;
-  }
+  if (dragged.kind != "node" && dragged.kind != "selection") return false;
+  return dragged.nodes.every((node) => {
+    node = graph.getOrError(node);
+    if (isNode(node, NodeType.FIELD) && (node.type == FieldType.OPTION) == (block.value?.type == BlockType.CHOICE)) {
+      return true;
+    } else if (
+      isNode(node, NodeType.BLOCK) &&
+      block.value?.type != BlockType.CHOICE &&
+      TYPE_BLOCK_TYPES.includes(node.type)
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  });
 }
 function onDrop(dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
-  if (dragged.kind != "node") return;
-  const node = graph.getOrError(dragged.node);
+  if (dragged.kind != "node" && dragged.kind != "selection") return;
+  const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
   const target = targetId != null ? graph.get({ id: targetId }) : null;
-  if (isNode(node, NodeType.FIELD)) {
-    // move field
-    if (target != null) {
-      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      moveNode(connection.tx, graph, dragged.node, { anchor, target });
-    } else {
-      moveNode(connection.tx, graph, dragged.node, { anchor: "center", target: block.value! });
-    }
-    if (node.type != props.fieldType) {
-      connection.tx.update(node, { type: props.fieldType ?? undefined }, { debounce: "tick" });
-      onNodeMorphed(connection.tx, graph, node);
-    }
-  } else if (isNode(node, NodeType.BLOCK)) {
-    // add field with block type
-    const type = blockToType(node);
-    const fieldIn = { ...type, type: props.fieldType! };
-    if (target != null) {
-      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-      createField(connection.tx, graph, { field: fieldIn, anchor, target });
-    } else {
-      createField(connection.tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
+  for (let i = 0; i < dragged.nodes.length; i++) {
+    const node = graph.getOrError(dragged.nodes[i]);
+    if (isNode(node, NodeType.FIELD)) {
+      // move field
+      if (target != null) {
+        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+        moveNode(tx, graph, node, {
+          anchor: i == 0 ? anchor : "after",
+          target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
+        });
+      } else {
+        moveNode(tx, graph, node, { anchor: "center", target: block.value! });
+      }
+      if (node.type != props.fieldType) {
+        tx.update(node, { type: props.fieldType ?? undefined }, { debounce: "tick" });
+        onNodeMorphed(tx, graph, node);
+      }
+    } else if (isNode(node, NodeType.BLOCK)) {
+      // add field with block type
+      const type = blockToType(node);
+      const fieldIn = { ...type, type: props.fieldType! };
+      if (target != null) {
+        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+        createField(tx, graph, {
+          field: fieldIn,
+          anchor: i == 0 ? anchor : "after",
+          target: i == 0 ? target : (graph.getOrError(dragged.nodes[i - 1]) as FieldData),
+        });
+      } else {
+        createField(tx, graph, { field: fieldIn, anchor: "inside", target: block.value! });
+      }
     }
   }
 }
@@ -87,12 +108,16 @@ const { activeDropZone } = useMultiDropZone({
   container: containerRef,
   targets: fieldRefs,
   orientation: orientation.value,
-  kinds: ["node"],
+  kinds: ["node", "selection"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],
   fallbackToClosest: true,
   allowDrop,
   onDrop,
 });
+
+// selecting
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
 const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData | null } => {
@@ -101,14 +126,14 @@ const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData
   return { field };
 };
 // NOTE :Incomplete: Type.actions (move, navigate, ...)
-const actions: Partial<ActionMapImplementation<"space">> = {
-  // space
-  "space.create.above": (action, ctx) => {
+const actions: Partial<ActionMapImplementation<"list">> = {
+  // list
+  "list.create.above": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
     createField(connection.tx, graph, { anchor: "before", target: field, field: { type: props.fieldType } });
   },
-  "space.create.below": (action, ctx) => {
+  "list.create.below": (action, ctx) => {
     const { field } = getFieldFromContext(ctx);
     if (field == null) return false;
     createField(connection.tx, graph, { anchor: "after", target: field, field: { type: props.fieldType } });
@@ -127,6 +152,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       variant == Variant.STEALTH ? 'px-0.5 py-0.5' : '',
       activeDropZone != null ? 'outline outline-2 outline-gray-400' : '',
     ]"
+    @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
   >
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
         (since it's not a move, but a sort of 'copy', and that's how we telegraph it elsewhere) -->
@@ -173,7 +199,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         :node-ptr="toNodeRef(field)"
         :variant="variant"
         :draggable="true"
-        @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, graph, field)"
+        @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, field)"
       />
     </li>
     <!-- Add button -->
@@ -186,5 +212,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <i class="fas fa-plus mr-1.5" />
       <span> {{ toCamelName(FieldType, props.fieldType) }} </span>
     </button>
+    <!-- Selection overlay -->
+    <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
   </ul>
 </template>

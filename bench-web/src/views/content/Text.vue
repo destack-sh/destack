@@ -412,7 +412,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           isEnabled: props.isInput,
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(['text.*', 'common.edit.copy', 'common.edit.cut', 'common.edit.paste'], { context }),
+          items: menuActionsLike(['text.*', 'space.edit.copy', 'space.edit.cut', 'space.edit.paste'], { context }),
           context,
           dontFocus: true, // keep focus on the editor
         })
@@ -424,7 +424,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
       ]"
-      data-suppress-actions="space.move.left,common.move.right"
+      data-suppress-actions="space.move.left,space.move.right"
       data-suppress-drag="both"
     >
       <!-- Placeholder -->

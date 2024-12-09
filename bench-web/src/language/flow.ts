@@ -14,6 +14,7 @@ import {
   PipeData,
   PipeType,
   PortSide,
+  SelectionData,
   StepType,
   StructType,
   TransformData,
@@ -29,7 +30,7 @@ import { toaster } from "@/ui/toast";
 import { addVector2, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
-import { canvas } from "@/utils/globals";
+import { canvas, supergraph } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
 import type Step from "@/views/system/Step.vue";
@@ -87,6 +88,7 @@ export type FlowThing =
   | { kind: "canvas" }
   | { kind: "step"; step: StepData }
   | { kind: "pipe"; pipe: PipeData }
+  | { kind: "selection"; selection: SelectionData; nodes: AnyNodeData[] }
   | { kind: "port"; step: StepData; side: PortSide };
 
 /** Step state in a Flow. */
@@ -209,7 +211,7 @@ export class FlowContext {
   update: (update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) => void;
   stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
   containerRef: Ref<HTMLElement | null>;
-  dragging: Ref<{ thing: FlowThing; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
+  dragging: Ref<{ thing: FlowThing; viewOffsetByThing: Record<string, { x: number; y: number }> } | null> = ref(null);
   cursorWorldPos: Ref<Vector2>;
   viewport: Ref<{
     scale: number;
@@ -825,37 +827,47 @@ export class FlowContext {
   /** Starts dragging a thing if it's not a disallowed element (like an input). */
   startDraggingIfAllowed(e: MouseEvent, thing: FlowThing): boolean {
     const target = e.target as HTMLElement;
-    if (!isDragAllowed(target, "drag")) return false;
-    return this.startDragging(e, thing);
+    if (!isDragAllowed(target, "drag")) {
+      return false;
+    } else {
+      return this.startDragging(e, thing);
+    }
   }
 
   /** Starts dragging a thing. */
   startDragging(e: MouseEvent, thing: FlowThing): boolean {
     if (this.dragging.value != null) return false; // already dragging
-    this.setViewport(); // prevent auto viewport
+    this.setViewport(); // prevent auto viewport to avoid jankiness while dragging
+
     if (thing.kind == "canvas") {
       // start panning canvas
-      this.dragging.value = {
-        thing,
-        viewOffsetToThing: this.viewportToViewVec({ x: e.clientX, y: e.clientY }),
-      };
+      this.dragging.value = { thing, viewOffsetByThing: {} };
     } else if (thing.kind == "step") {
       // start moving step
-      const positionViewportVec = this.worldToViewportVec({
-        x: thing.step.position?.x ?? 0,
-        y: thing.step.position?.y ?? 0,
-      });
-      this.dragging.value = {
-        thing,
-        viewOffsetToThing: { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y },
-      };
+      if (canvas.isSelected(thing.step)) {
+        // promote to selection
+        const nodes = supergraph.getManyMaybe(canvas.selection!.nodesPtr);
+        const steps = nodes.filter((s) => isNode(s, NodeType.STEP));
+        const viewOffsetByThing: Record<string, { x: number; y: number }> = {};
+        for (const step of steps) {
+          const positionViewportVec = this.worldToViewportVec({ x: step.position?.x ?? 0, y: step.position?.y ?? 0 });
+          viewOffsetByThing[step.id] = { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y };
+        }
+        thing = { kind: "selection", selection: canvas.selection!, nodes };
+        this.dragging.value = { thing, viewOffsetByThing };
+      } else {
+        const positionViewportVec = this.worldToViewportVec({
+          x: thing.step.position?.x ?? 0,
+          y: thing.step.position?.y ?? 0,
+        });
+        const viewOffsetToThing = { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y };
+        this.dragging.value = { thing, viewOffsetByThing: { [thing.step.id]: viewOffsetToThing } };
+      }
     } else if (thing.kind == "port") {
       // create pending pipe
-      this.dragging.value = { thing: thing, viewOffsetToThing: { x: 0, y: 0 } };
-    } else if (thing.kind == "pipe") {
-      throw new Error("cannot drag pipe");
+      this.dragging.value = { thing: thing, viewOffsetByThing: {} };
     } else {
-      assertNever(thing);
+      throw new Error(`cannot drag ${thing.kind}`);
     }
     log.trace("flow.drag.start", this.dragging.value);
     return true;
@@ -883,22 +895,33 @@ export class FlowContext {
       );
     } else if (thing.kind == "step") {
       // move step (snap to grid)
-      const screenVec = this.viewportToViewVec({
-        x: e.clientX - this.dragging.value.viewOffsetToThing.x,
-        y: e.clientY - this.dragging.value.viewOffsetToThing.y,
-      });
+      const viewOffset = this.dragging.value.viewOffsetByThing[thing.step.id];
+      if (viewOffset == null) throw new Error(`no view offset for ${describeNode(thing.step)}`);
+      const screenVec = this.viewportToViewVec({ x: e.clientX - viewOffset.x, y: e.clientY - viewOffset.y });
       const worldVec = snapVec(this.viewToWorldVec(screenVec));
       this.tx.update(
         thing.step,
         { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
         { debounce: "long" },
       );
+    } else if (thing.kind == "selection") {
+      // move all steps in selection (snap each to grid)
+      for (const node of thing.nodes) {
+        if (!isNode(node, NodeType.STEP)) continue;
+        const viewOffset = this.dragging.value.viewOffsetByThing[node.id];
+        if (viewOffset == null) throw new Error(`no view offset for ${describeNode(node)}`);
+        const screenVec = this.viewportToViewVec({ x: e.clientX - viewOffset.x, y: e.clientY - viewOffset.y });
+        const worldVec = snapVec(this.viewToWorldVec(screenVec));
+        this.tx.update(
+          node,
+          { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
+          { debounce: "long" },
+        );
+      }
     } else if (thing.kind == "port") {
-      // nothing to do
-    } else if (thing.kind == "pipe") {
-      throw new Error("cannot drag pipe");
+      // nothing to do?
     } else {
-      assertNever(thing);
+      throw new Error(`cannot drag ${thing.kind}`);
     }
   }
 

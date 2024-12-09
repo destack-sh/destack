@@ -391,20 +391,36 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
         const constraintRows: DetailRow[] = [];
         // list
         if (node.isList || node.primitiveType == PrimitiveType.STRING) {
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength]));
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength]));
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength], { title: "Minimum Length" }),
+          );
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength], { title: "Maximum Length" }),
+          );
         }
         // stringy
         if (node.primitiveType == PrimitiveType.STRING) {
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith]));
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith]));
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex]));
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith], { title: "Prefix" }),
+          );
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith], { title: "Suffix" }),
+          );
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex], { title: "Regex" }),
+          );
         }
         // number
         if (typeIsNumeric(node)) {
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue]));
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue]));
-          constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue]));
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue], { title: "Minimum" }),
+          );
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue], { title: "Maximum" }),
+          );
+          constraintRows.push(
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue], { title: "Step" }),
+          );
         }
         // node
         if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {

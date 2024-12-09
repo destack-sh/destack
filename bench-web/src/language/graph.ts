@@ -1398,12 +1398,25 @@ export class NodeSuperGraph {
     return null;
   }
 
+  /** Gets a node from the supergraph or throws an error if it's not found. */
+  getOrError<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
+    const node = this.get(key);
+    if (node == null) throw new Error(`node not found: ${key}`);
+    return node;
+  }
+
   /**
-   * Gets a node from the supergraph maybe.
+   * Gets multiple nodes from the supergraph.
    */
-  getMaybe<T extends NodeType>(key: NodeKey<T> | null): NodeTypeMapping[T] | null {
-    if (key == null) return null;
-    else return this.get(key);
+  getMany<T extends NodeType>(keys: NodeKey<T>[]): NodeTypeMapping[T][] {
+    return keys.map((key) => this.getOrError(key));
+  }
+
+  /**
+   * Gets multiple nodes from the supergraph maybe.
+   */
+  getManyMaybe<T extends NodeType>(keys: NodeKey<T>[]): NodeTypeMapping[T][] {
+    return keys.map((key) => this.get(key)).filter((node) => node != null);
   }
 
   /**

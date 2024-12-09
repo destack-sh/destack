@@ -60,16 +60,6 @@ const BENCH_MENU_ITEMS = computed(() => {
       },
     },
     {
-      id: "sense",
-      type: "generic",
-      category: "main",
-      icon: "fas fa-telescope",
-      title: "Analyze",
-      action: {
-        items: [...menuActionsLike(["space.sense*"], { context: undefined })],
-      },
-    },
-    {
       id: "session",
       type: "generic",
       category: "main",

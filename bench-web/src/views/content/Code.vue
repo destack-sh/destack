@@ -92,7 +92,7 @@ function makeEditorView(): EditorView {
     },
   });
   // NOTE: apply data-suppress-actions directly to contenteditable element so that our action system finds it
-  view.contentDOM.dataset.suppressActions = "space.edit,common.navigate,common.select";
+  view.contentDOM.dataset.suppressActions = "space.edit,space.navigate,space.select";
   return view;
 }
 
@@ -194,12 +194,12 @@ defineExpose<ViewExposed>({ self, id, actions });
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(['code.*', 'common.edit.copy', 'common.edit.cut', 'common.edit.paste'], { context }),
+          items: menuActionsLike(['code.*', 'space.edit.copy', 'space.edit.cut', 'space.edit.paste'], { context }),
           context,
           dontFocus: true, // keep focus on the editor
         })
       "
-      data-suppress-actions="space.move.left,common.move.right"
+      data-suppress-actions="space.move.left,space.move.right"
       data-suppress-drag="both"
       class="code rounded hover:cursor-text"
       :class="[

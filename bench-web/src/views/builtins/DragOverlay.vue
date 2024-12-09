@@ -1,29 +1,25 @@
 <script lang="ts" setup>
-import { NodeType } from "@/proto/wire";
-import { IconInline, getNodeIcon } from "@/ui/icon";
-import { toCamelName } from "@/language/const";
 import { _setDragImage, activeDrag } from "@/ui/drag";
-import { Casing, toCasing } from "@/utils/string";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 </script>
 <template>
   <!-- Drag image overlay -->
   <!-- Wrapper to ensure dragImageRef is always set -->
   <div :ref="(ref) => _setDragImage(ref as any)" class="absolute -top-[100px] left-20 py-1 pl-2">
-    <div v-if="activeDrag" class="max-w-48 rounded border border-gray-200 bg-white px-2 py-1 text-gray-900">
+    <div v-if="activeDrag" class="">
       <!-- And wrapper to offset within the image to ensure the text isn't obscured by the cursor -->
-      <div v-if="activeDrag.kind == 'node'" class="flex flex-row items-center">
-        <IconInline v-bind="getNodeIcon(activeDrag.nodes[0])" class="mr-1 w-5 text-gray-700" />
-        <span class="truncate">
-          {{
-            (activeDrag.nodes[0] as any).title ??
-            (activeDrag.nodes[0] as any).name ??
-            toCamelName(NodeType, activeDrag.node.nodeType)
-          }}
-        </span>
+      <div v-if="activeDrag.kind == 'node' || activeDrag.kind == 'selection'" class="flex flex-row items-center gap-x-1">
+        <NodeReference
+          v-for="node in activeDrag.nodes.slice(0, 3)"
+          :key="node.id"
+          :node="node"
+          size="regular"
+          class="max-w-48 rounded-2xl border border-gray-300 bg-white px-1.5 py-0.5 text-gray-900"
+        />
+        <div v-if="activeDrag.nodes.length > 3" class="text-gray-400">+{{ activeDrag.nodes.length - 3 }}</div>
       </div>
       <div v-else>
-        <!-- NOTE :Incomplete: drag selections -->
-        <span class="text-gray-700">{{ toCasing(activeDrag.kind, Casing.CAMEL) }}</span>
+        <span class="text-danger-600">???</span>
       </div>
     </div>
   </div>

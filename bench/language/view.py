@@ -65,12 +65,10 @@ class ViewType(IdEnum):
     TYPE = 209
     OBJECT = 210
     # helpers
-    TREE = 400
     DETAIL = 403
     CREATE = 404
     CHAT = 405
     RUN = 406
-    FEED = 407
     TIMELINE = 408
     HUB = 409
     HELP = 411
@@ -103,8 +101,10 @@ class ViewType(IdEnum):
     # collections
     LIST = 1050
     TABLE = 1051
-    GALLERY = 1052
-    BOARD = 1053
+    TREE = 1052
+    FEED = 1053
+    GALLERY = 1054
+    BOARD = 1055
 
     #
     # Style

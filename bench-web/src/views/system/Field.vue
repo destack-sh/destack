@@ -53,14 +53,15 @@ defineExpose<ViewExposed>({ self, id, actions });
     :class="[
       variant != Variant.STEALTH ? 'w-fit border border-gray-200' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      isSelected ? 'bg-orange-400/20' : '',
-      !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : 'hover:bg-gray-100',
+      isSelected ? 'bg-orange-400/20' : 'hover:bg-gray-100',
+      !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
       field.type == FieldType.OPTION ? 'rounded-2xl pr-2.5' : '',
       field.type == FieldType.INPUT || field.type == FieldType.OUTPUT || field.type == FieldType.MEMBER
         ? 'rounded pr-2'
         : '',
       field.type == FieldType.VARIABLE ? 'rounded-2xl pr-2.5' : '',
     ]"
+    data-suppress-drag="select"
   >
     <!-- Icon -->
     <NodeReference class="px-1 py-[3px]" :node="field" :tx="() => connection.tx" size="regular" light is-input />
