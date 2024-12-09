@@ -9,7 +9,6 @@ import { type Action, type ActionContext, type ActionMapImplementation } from "@
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -201,14 +200,7 @@ defineExpose<ViewExposed>({ self, actions });
     <Scroll
       id="tabHeader"
       ref="columnHeaderRef"
-      v-contextmenu="
-        (context: PopoverContext): PopoverInfo => ({
-          kind: 'menu',
-          placement: 'bottom-right',
-          items: menuActionsLike(['view.navigate*close*frame*', 'view.layout*'], { context }),
-          context,
-        })
-      "
+      data-contextmenu-items="view.navigate*close*frame*,view.layout*"
       class="scrollbar-none relative flex w-full select-none flex-row bg-gray-100"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
@@ -221,26 +213,17 @@ defineExpose<ViewExposed>({ self, actions });
         v-for="(tab, i) in tabs"
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         :key="tab.id"
-        v-contextmenu="
-          (context: PopoverContext): PopoverInfo => {
-            context = { ...context, triggerNode: tab };
-            return {
-              kind: 'menu',
-              placement: 'bottom-right',
-              items: menuActionsLike(['view.navigate*close*tab*', 'view.navigate.duplicateTab', 'view.layout*'], {
-                context,
-              }),
-              context,
-            };
-          }
-        "
         class="group relative flex h-full max-w-52 select-none flex-row items-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
           i == focusedTabIdx ? 'bg-white text-gray-900' : 'border-b',
           i != focusedTabIdx ? 'text-gray-600' : '',
         ]"
+        data-contextmenu-items="view.navigate*close*tab*,view.navigate.duplicateTab,view.layout*"
         data-suppress-drag="select"
+        :data-node-type="tab.metatype"
+        :data-node-id="tab.id"
+        :data-node-ck="tab.id"
         :draggable="true"
         @click="focus(tab)"
         @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, tab)"

@@ -3,7 +3,7 @@ import { createBlock, useHierarchicalNodeMoveActions } from "@/language/block";
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { cloneNode, moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
+import { moveNode, unpackSubnodeProperty, useSubnodeProperty } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import {
   BlockData,
@@ -19,7 +19,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
@@ -27,7 +27,6 @@ import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
 import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
@@ -406,21 +405,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-for="({ node, depth, hasChildren }, i) in expandedItems"
           :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
           :key="node.id"
-          v-contextmenu="
-            (context: PopoverContext): PopoverInfo => {
-              doFocus(node);
-              context = { ...context, triggerNode: node };
-              return {
-                kind: 'menu',
-                placement: 'bottom-right',
-                items: menuActionsLike(
-                  ['space.navigate.open*', 'space.edit.rename', 'space.edit.duplicate', 'space.edit.delete'],
-                  { context },
-                ),
-                context,
-              };
-            }
-          "
+          data-contextmenu-items="space.navigate.open*"
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"

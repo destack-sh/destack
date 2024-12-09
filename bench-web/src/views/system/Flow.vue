@@ -33,7 +33,6 @@ import {
 } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
@@ -317,15 +316,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <div
       v-if="flow"
       ref="bodyRef"
-      v-contextmenu="
-        (context: PopoverContext): PopoverInfo => ({
-          kind: 'menu',
-          placement: 'bottom-right',
-          items: menuActionsLike(['space.create.step', 'space.create.pipe', 'space.edit.paste', 'flow.pipe.begin'], {
-            context: { ...context, triggerNode: flow! },
-          }),
-        })
-      "
       class="group/flow relative w-full select-none"
       :class="[
         variant == Variant.COMPACT ? 'h-full' : '',
@@ -442,13 +432,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :id="pipe.id"
             :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
             :key="pipe.id"
-            v-contextmenu="
-              (context: PopoverContext): PopoverInfo => ({
-                kind: 'menu',
-                placement: 'bottom-right',
-                items: menuActionsLike(PIPE_CONTEXT_ACTIONS, { context: { ...context, triggerNode: pipe } }),
-              })
-            "
+            :data-contextmenu-items="PIPE_CONTEXT_ACTIONS.join(',')"
             :node-ptr="toNodeRef(pipe)"
             class="absolute"
           />
@@ -471,13 +455,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :id="step.id"
             :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
             :key="step.id"
-            v-contextmenu="
-              (context: PopoverContext): PopoverInfo => ({
-                kind: 'menu',
-                placement: 'bottom-right',
-                items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { ...context, triggerNode: step } }),
-              })
-            "
             class="absolute"
             :class="[flowCtx?.isDraggingStep(step) ? 'cursor-grabbing' : 'cursor-grab']"
             :style="{
@@ -486,6 +463,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               top: (step.position?.y ?? 0) + 'px',
             }"
             :node-ptr="toNodeRef(step)"
+            :data-contextmenu-items="STEP_CONTEXT_ACTIONS.join(',')"
             data-suppress-drag="select"
             @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step: step! })"
           />

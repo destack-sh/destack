@@ -197,14 +197,7 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- No frames -->
     <Empty
       v-if="sizedViews.length === 0"
-      v-contextmenu="
-        (context: PopoverContext): PopoverInfo => ({
-          kind: 'menu',
-          placement: 'bottom-right',
-          items: menuActionsLike(['view.navigate*close*frame*', 'view.layout*'], { context }),
-          context,
-        })
-      "
+      data-contextmenu-items="view.navigate*close*frame*,view.layout*"
       :type="type"
       class="flex h-full w-full flex-col items-center justify-center"
     />

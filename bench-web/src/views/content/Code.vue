@@ -5,7 +5,6 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { copy, cyrb53a } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -190,15 +189,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
     <div
       ref="codeRef"
-      v-contextmenu="
-        (context: PopoverContext): PopoverInfo => ({
-          kind: 'menu',
-          placement: 'bottom-right',
-          items: menuActionsLike(['code.*', 'space.edit.copy', 'space.edit.cut', 'space.edit.paste'], { context }),
-          context,
-          dontFocus: true, // keep focus on the editor
-        })
-      "
+      data-contextmenu-items="code.*"
       data-suppress-actions="space.move.left,space.move.right"
       data-suppress-drag="both"
       class="code rounded hover:cursor-text"

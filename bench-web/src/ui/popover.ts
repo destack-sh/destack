@@ -1,9 +1,10 @@
-import type { IconData, ViewType } from "@/proto/wire";
+import { NodeReferenceData, ObjectType, type AnyNodeData, type IconData, type ViewType } from "@/proto/wire";
 import {
   fireAction,
   getAction,
   getActionsLike,
   getImplementingAction,
+  getNodeActions,
   type Action,
   type ActionBuiltinId,
   type ActionContext,
@@ -19,6 +20,7 @@ import type { ViewComponent } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, triggerRef, type Directive, type Ref } from "vue";
 import { log } from "@/utils/log";
+import { supergraph } from "@/utils/globals";
 
 export type MenuInfo = {
   icon?: string | IconData;
@@ -122,7 +124,7 @@ export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
 };
 
 export type PopoverInfo = (
-  | ({ kind: "menu" } & MenuInfo & { width?: number, height?: number })
+  | ({ kind: "menu" } & MenuInfo & { width?: number; height?: number })
   | {
       kind: "component";
       component: any | ViewType;
@@ -480,4 +482,91 @@ export function trackHoverElementOnce(
   }
 
   return { startTracking, stopTracking };
+}
+
+/** Creates the default context menu for the views at the given element. */
+export function pushDefaultContextMenu(e: MouseEvent) {
+  let currentNode: AnyNodeData | null = null;
+  const nodes: AnyNodeData[] = [];
+  const actions: Action[] = [];
+  const actionsById: Record<string, Action> = {};
+  const nodeByActionId: Record<string, AnyNodeData> = {};
+  const elementByActionId: Record<string, HTMLElement> = {};
+
+  function addAction(element: HTMLElement, action: Action) {
+    if (action.id != null && actionsById[action.id] == null) {
+      actions.push(action);
+      actionsById[action.id] = action;
+      if (currentNode != null) {
+        nodeByActionId[action.id] = currentNode;
+      }
+      elementByActionId[action.id] = element;
+    }
+  }
+
+  // gather stack of nodes and actions
+  const hasSelection = canvas.selection != null;
+  let element = e.target as HTMLElement;
+  while (element != null) {
+    // find new node at element
+    let nextNodePtr: NodeReferenceData | null = null;
+    if (element.dataset?.["nodeId"] != null) {
+      nextNodePtr = {
+        metatype: ObjectType.NODE_REFERENCE,
+        nodeType: Number(element.dataset["nodeType"]),
+        id: element.dataset["nodeId"],
+        ck: element.dataset["nodeCk"],
+      };
+    } else if ((element as any).__viewComponent != null) {
+      const component = (element as any).__viewComponent as ViewComponent;
+      if (component.props.nodePtr != null) {
+        nextNodePtr = component.props.nodePtr;
+      }
+    }
+    if (nextNodePtr != null) {
+      const nextNode = supergraph.get(nextNodePtr);
+      if (nextNode != null) {
+        // make new node
+        nodes.push(nextNode);
+        currentNode = nextNode;
+      }
+    }
+
+    // gather actions
+    if (!hasSelection) {
+      const contextMenuItems = element.dataset["contextmenuItems"]?.split(",") ?? [];
+      const contextMenuActions = getActionsLike(contextMenuItems);
+      contextMenuActions.forEach((action) => addAction(element, action));
+      if (currentNode != null) {
+        const nodeActions = getNodeActions(currentNode);
+        nodeActions.forEach((action) => addAction(element, action));
+      }
+    }
+
+    // and up we go
+    element = element.parentElement!;
+  }
+
+  // add default selection actions
+  if (hasSelection) {
+    for (const node of nodes) {
+      if (canvas.isSelected(node)) {
+        const nodeActions = getNodeActions(node);
+        nodeActions.forEach((action) => addAction(element, action));
+      }
+    }
+  }
+
+  // build menu
+  if (actions.length == 0 || nodes.length == 0) return; // no actions found
+  const menu: MenuInfo = {
+    context: { triggerElement: e.target as HTMLElement, triggerNode: nodes[0] },
+    items: actions.map((action) => menuItemFromAction(action, { context: { triggerNode: nodes[0] } })),
+  };
+  pushPopover({ trigger: e.target as HTMLElement, reference: { x: e.clientX, y: e.clientY }, info: menu });
+
+  // auto-select first node if not selected
+  if (!canvas.isSelected(nodes[0])) {
+    canvas.select([nodes[0]]);
+  }
 }
