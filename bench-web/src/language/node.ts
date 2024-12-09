@@ -33,9 +33,10 @@ import {
   newNodeCk,
   newNodeId,
   nodeReference,
-  toNodeRef
+  toNodeRef,
 } from "@/proto/wiring";
 import { addVector2 } from "@/ui/view";
+import { groupByList } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
 import { computed, Ref } from "vue";
@@ -365,16 +366,32 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
   return clone;
 }
 
+/** Returns the root nodes of the given nodes (without parent in the given nodes). */
+export function getRootNodes<T extends AnyNodeData>(nodes: T[]): T[] {
+  const nodesByParentId: Record<string, AnyNodeData[]> = groupByList(nodes, (node) => node.parentPtr!.id!);
+  const rootNodes: T[] = [];
+  for (const node of nodes) {
+    if (nodesByParentId[node.id!] == null) rootNodes.push(node);
+  }
+  return rootNodes;
+}
+
 /**
  * Creates a clone of this node and its node descendants with the same content (and different identity)
  * The new node will be appended after the current node in its parent.
- * TODO :Broken: cloneNode should (but doesn't) keep inner references consistent :CloneNodeReferences
+ * nocheckin: cloneNode/cloneNodes should (but doesn't) keep inner references consistent :CloneNodeReferences
  **/
 export function cloneNode<T extends AnyNodeData>(
   tx: Transaction,
   graph: ReadNodeGraph,
   node: T,
-  options: { includeChildren?: boolean; now?: Timestamp; set?: Partial<T>; _isNested?: boolean } = {
+  options: {
+    after?: AnyNodeData;
+    includeChildren?: boolean;
+    now?: Timestamp;
+    set?: Partial<T>;
+    _isNested?: boolean;
+  } = {
     includeChildren: true,
   },
 ): T {
@@ -419,7 +436,7 @@ export function cloneNode<T extends AnyNodeData>(
       tx,
       node: clone as T & { orderKey: string },
       position: "after",
-      reference: node.id!,
+      reference: options?.after?.id ?? node.id!,
       getNodes: () =>
         graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType) as Array<T & { orderKey: string }>,
     });
@@ -435,6 +452,32 @@ export function cloneNode<T extends AnyNodeData>(
   }
 
   return clone;
+}
+
+/** Clones the given nodes (preserving their order) and returns the new nodes. */
+export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNodeGraph, nodes: T[]) {
+  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Duplicate" } });
+
+  nodes = getRootNodes(nodes);
+  const nodesByParentId: Record<string, AnyNodeData[]> = groupByList(nodes, (node) => node.parentPtr?.id!);
+
+  const clonedNodes: AnyNodeData[] = [];
+  const clonedNodesByParentId: Record<string, AnyNodeData[]> = {};
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    const parentId = node.parentPtr?.id!;
+    let after = clonedNodesByParentId[parentId]?.at(-1);
+    if (clonedNodesByParentId[parentId] != null) {
+      after = clonedNodesByParentId[parentId]?.at(-1);
+    } else {
+      after = nodesByParentId[parentId]?.at(-1);
+    }
+    const clone = cloneNode(tx, graph, node, { after, includeChildren: true });
+    clonedNodes.push(clone);
+    if (clonedNodesByParentId[parentId] == null) clonedNodesByParentId[parentId] = [];
+    clonedNodesByParentId[parentId]?.push(clone);
+  }
+  return clonedNodes;
 }
 
 /**
