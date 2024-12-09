@@ -50,7 +50,8 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(IdEnum):
-    NATIVE = 1
+    INTERNAL = 1  # within Bench
+    FEDERATED = 2  # from/to another Bench
     EMAIL = 10
     SMS = 11
     # WHATSAPP, TELEGRAM, ...?
@@ -76,7 +77,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
 
     parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
-    type: MessageType = p_regular(30, require=True, default=MessageType.NATIVE)
+    type: MessageType = p_regular(30, require=True, default=MessageType.INTERNAL)
     status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
     origin: BenchNode | None = p_regular(35, require=False, references="any")
     block: "Block | None" = p_internal(
@@ -136,7 +137,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         *,
         parent: MessageParent | None = None,
         origin: BenchNode | None = None,
-        type: MessageType = MessageType.NATIVE,
+        type: MessageType = MessageType.INTERNAL,
         status: MessageStatus = MessageStatus.SENT,
         reply_to: "Message | None" = None,
     ) -> "Message":

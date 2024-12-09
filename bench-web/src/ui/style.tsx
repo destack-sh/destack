@@ -154,7 +154,6 @@ export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
   [StepType.CLONE]: ColorType.SKY,
   [StepType.UPDATE]: ColorType.SKY,
   [StepType.DELETE]: ColorType.SKY,
-  [StepType.RESTORE]: ColorType.SKY,
   // run
   [StepType.ACTION]: ColorType.ORANGE,
   [StepType.YIELD]: ColorType.PINK,

@@ -292,24 +292,29 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           />
         </div>
         <!-- Canvas controls -->
-        <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1">
+        <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-0.5">
           <!-- Zoom -->
           <button
-            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.zoom('out', flowCtx.centerVec!, 10)"
           >
             <i class="fas fa-minus w-5 text-center" />
           </button>
-          <span class="text-gray-400">{{ Math.round(viewport.scale * 100) }}%</span>
           <button
             class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom(1.0, flowCtx.centerVec!, 1)"
+          >
+            {{ Math.round(viewport.scale * 100) }}%
+          </button>
+          <button
+            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
           >
             <i class="fas fa-plus w-5 text-center" />
           </button>
           <!-- Auto/Reset -->
           <button
-            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.resetViewport()"
           >
             <i class="fas fa-arrows-to-dot w-5 text-center" />
@@ -490,7 +495,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
               top: (step.position?.y ?? 0) + 'px',
             }"
             :node-ptr="toNodeRef(step)"
-            data-suppress-drag="true"
+            data-suppress-drag="select"
             @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step: step! })"
           />
         </div>
@@ -507,7 +512,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <!-- Menu -->
         <div
           class="rounded-b-0 pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-t-2xl border-x border-t border-gray-200 bg-white px-2.5 py-1.5"
-          data-suppress-drag="true"
+          data-suppress-drag="both"
           :class="
             variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
           "

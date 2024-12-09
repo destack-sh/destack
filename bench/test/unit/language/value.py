@@ -113,11 +113,11 @@ def test_partial_node_message(session: Session, package: Package) -> None:
 
     # set/get values on value and properties
     obj.Field1 = 42
-    obj.type = MessageType.NATIVE
+    obj.type = MessageType.INTERNAL
     obj.title = "My New Message"
     obj.block = message_type
     assert obj.Field1 == 42
-    assert obj.type == MessageType.NATIVE
+    assert obj.type == MessageType.INTERNAL
     assert obj.block == message_type
     assert obj.title == "My New Message"
 
@@ -131,7 +131,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     # turn into full node
     full_obj = Message.from_partial(obj)
     assert full_obj.id is not None
-    assert full_obj.type == MessageType.NATIVE
+    assert full_obj.type == MessageType.INTERNAL
     assert full_obj.title == "My New Message"
     assert full_obj.value
     assert full_obj.value.Field1 == 42

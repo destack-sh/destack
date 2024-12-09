@@ -24,7 +24,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
-import { isDraggingAllowed } from "@/ui/drag";
+import { isDragAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { addVector2, type Vector2 } from "@/ui/view";
@@ -833,7 +833,7 @@ export class FlowContext {
   /** Starts dragging a thing if it's not a disallowed element (like an input). */
   startDraggingIfAllowed(e: MouseEvent, thing: FlowThing): boolean {
     const target = e.target as HTMLElement;
-    if (!isDraggingAllowed(target)) return false;
+    if (!isDragAllowed(target, "drag")) return false;
     return this.startDragging(e, thing);
   }
 

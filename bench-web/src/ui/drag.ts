@@ -60,12 +60,15 @@ export function isDragging(node: AnyNodeData | NodeReferenceData) {
 }
 
 /** Checks whether the given element may be dragged. */
-export function isDraggingAllowed(element: HTMLElement | SVGElement | null): boolean {
+export function isDragAllowed(element: HTMLElement | SVGElement | null, what: "drag" | "select"): boolean {
   if (element == null || DRAG_DISALLOWED_ELEMENTS.has(element.tagName.toLowerCase())) return false;
   // check for 'data-suppress-drag' attribute in containing elements
   let el: HTMLElement | SVGElement | null = element;
   while (el != null) {
-    if (el.hasAttribute("data-suppress-drag")) return false;
+    const suppress = el.getAttribute("data-suppress-drag");
+    if (suppress == "both" || suppress == what) {
+      return false;
+    }
     el = el.parentElement as HTMLElement | null;
   }
   return true;
@@ -78,7 +81,7 @@ export function startDraggingIfAllowed(
   data: AnyNodeData | NodeReferenceData,
 ): boolean {
   const trigger = event.target as HTMLElement;
-  if (!isDraggingAllowed(trigger)) {
+  if (!isDragAllowed(trigger, "drag")) {
     log.trace("drag.start.disallowed", trigger);
     return false;
   } else {
@@ -590,7 +593,7 @@ export function startSelecting(zone: SelectionZone, event: MouseEvent) {
 
 /** Starts selecting if allowed at the given position. */
 export function startSelectingIfAllowed(zone: SelectionZone, event: MouseEvent) {
-  if (isDraggingAllowed(event.target as HTMLElement | SVGElement | null)) {
+  if (isDragAllowed(event.target as HTMLElement | SVGElement | null, "select")) {
     startSelecting(zone, event);
   }
 }

@@ -826,7 +826,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
-            data-suppress-drag="true"
+            data-suppress-drag="both"
           >
             <!-- Selection checkbox -->
             <button
@@ -1018,7 +1018,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
-            data-suppress-drag="true"
+            data-suppress-drag="both"
           >
             <!-- Controls -->
             <button
