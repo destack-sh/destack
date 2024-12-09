@@ -38,7 +38,7 @@ import {
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { ActionContext, ActionMapImplementation, fireActionById, RECORD_CONTEXT_ACTIONS } from "@/ui/action";
+import { ActionContext, ActionMapImplementation, fireActionById } from "@/ui/action";
 import {
   DragContent,
   MultiAnchor,
@@ -49,7 +49,7 @@ import {
 } from "@/ui/drag";
 import { getNodeIcon, getTypeIcon, ICON_BY_EXPRESSION_OP as ICON_BY_EXPRESSION_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, PopoverContext, PopoverInfo, PopoverInfoIn, pushPopover } from "@/ui/popover";
+import { PopoverInfoIn, pushDefaultMenu, pushPopover } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
 import {
   collapseSelection,
@@ -947,16 +947,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           >
             <!-- Controls -->
             <button
-              v-menu="
-                (): PopoverInfo => ({
-                  kind: 'menu',
-                  placement: 'bottom-left',
-                  offset: 'referenceWidth',
-                  items: menuActionsLike(RECORD_CONTEXT_ACTIONS, { context: { triggerNode: record } }),
-                })
-              "
               class="rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/row:opacity-100"
-              @click="() => (state.deselect(), setSelectionRow(record, true, false))"
+              @click="(e) => (setSelectionRow(record, true, false), pushDefaultMenu(record, e))"
             >
               <i class="fas fa-ellipsis-vertical w-5 text-center" />
             </button>
