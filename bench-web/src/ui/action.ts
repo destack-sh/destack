@@ -501,7 +501,7 @@ declareActionMap<"space">({
     action: (action, ctx) => {
       const { connection, graph, nodes } = getNodesFromContext(ctx);
       if (connection == null || graph == null) return; // no action, but suppress anyway to avoid trigger browser shortcuts
-      const clonedNodes = cloneNodes(connection.tx, graph, nodes)
+      const clonedNodes = cloneNodes(connection.tx, graph, nodes);
       canvas.select(clonedNodes);
       return true;
     },
@@ -1089,31 +1089,13 @@ contributeActionMap<"space">({
 // Node context actions
 //
 
-export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "space.edit.rename",
-  "space.edit.duplicate",
-  "space.edit.delete",
-];
+const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.delete", "space.edit.duplicate"];
 
-export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "space.edit.rename",
-  "space.edit.duplicate",
-  "space.edit.delete",
-  "space.navigate.open",
-];
-
-export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "space.edit.rename",
-  "space.edit.duplicate",
-  "space.edit.delete",
-];
-
-export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "space.edit.rename",
-  "space.edit.duplicate",
-  "space.edit.delete",
-];
-export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.rename", "space.edit.delete"];
+export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
+export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
+export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
+export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
+export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {
   [NodeType.BLOCK]: BLOCK_CONTEXT_ACTIONS,
@@ -1121,3 +1103,15 @@ export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]
   [NodeType.STEP]: STEP_CONTEXT_ACTIONS,
   [NodeType.PIPE]: PIPE_CONTEXT_ACTIONS,
 };
+
+/** Gets the base Actions for a Node. */
+export function getNodeActions(node: AnyNodeData): Action[] {
+  const actions: ActionBuiltinId[] = [...NODE_CONTEXT_ACTIONS];
+  if (CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType] != null) {
+    actions.push(...CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType]!);
+  }
+  if ("title" in node || "name" in node) {
+    actions.push("space.edit.rename");
+  }
+  return actions.map(getAction);
+}

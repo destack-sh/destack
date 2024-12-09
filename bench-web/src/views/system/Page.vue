@@ -22,7 +22,6 @@ import {
 } from "@/proto/wire/";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { runtime } from "@/system/runtime";
 import { bench, canvas } from "@/system/space";
 import { BLOCK_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import {
@@ -299,15 +298,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <Scroll
       v-if="page"
       id="body"
-      v-contextmenu="
-        (context: PopoverContext): PopoverInfo => ({
-          kind: 'menu',
-          placement: 'bottom-right',
-          items: menuActionsLike(['space.create.above', 'space.create.below', 'space.edit.paste'], {
-            context: { ...context, triggerNode: page },
-          }),
-        })
-      "
+      data-contextmenu-items="list.create.above,list.create.below,space.edit.paste"
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
@@ -409,19 +400,13 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <Block
               :id="block.id"
               :ref="(ref: any) => (ref ? (blockRefs[block.id!] = ref) : delete blockRefs[block.id!])"
-              v-contextmenu="
-                (context: PopoverContext): PopoverInfo => ({
-                  kind: 'menu',
-                  placement: 'bottom-right',
-                  items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { ...context, triggerNode: block } }),
-                })
-              "
               class="w-full"
               :class="isDragging(block) ? 'opacity-50' : ''"
               :node-ptr="toNodeRef(block)"
               :prepared-connection="preparedConnection"
               :containerGutterWidth="widths.gutter"
               v-bind="state.getChildState(block.id)"
+              :data-contextmenu-items="BLOCK_CONTEXT_ACTIONS.join(',')"
               :draggable="block.type == BlockType.PAGE"
               @dragstart.stop="(e) => startDraggingIfAllowed(e, block)"
             />

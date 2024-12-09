@@ -18,7 +18,6 @@ import {
   type DragContent,
   type MultiAnchor,
 } from "@/ui/drag";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
@@ -189,15 +188,9 @@ defineExpose<ViewExposed>({ self, id, actions });
         <Field
           :id="field.id"
           :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
-          v-contextmenu="
-            (context: PopoverContext): PopoverInfo => ({
-              kind: 'menu',
-              placement: 'bottom-right',
-              items: menuActionsLike(FIELD_CONTEXT_ACTIONS, { context: { ...context, triggerNode: field } }),
-            })
-          "
           class="cursor-pointer truncate data-[dragging=true]:opacity-50"
           :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
+          :data-contextmenu-items="FIELD_CONTEXT_ACTIONS.join(',')"
           :prepared-connection="preparedConnection"
           :node-ptr="toNodeRef(field)"
           :variant="variant"

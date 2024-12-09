@@ -580,6 +580,8 @@ export function startSelecting(zone: SelectionZone, event: MouseEvent) {
 
 /** Starts selecting if allowed at the given position. */
 export function startSelectingIfAllowed(zone: SelectionZone, event: MouseEvent) {
+  // ignore contextmenu/right-click
+  if (event.button == 2) return;
   if (isDragAllowed(event.target as HTMLElement | SVGElement | null, "select")) {
     startSelecting(zone, event);
   }

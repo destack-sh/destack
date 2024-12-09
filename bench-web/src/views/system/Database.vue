@@ -804,32 +804,6 @@ defineExpose<ViewExposed>({ self, id, actions });
             :ref="
               (ref: any) => (ref != null ? (columnHeaderRefs[column.id] = ref) : delete columnHeaderRefs[column.id])
             "
-            v-contextmenu="
-              (context: PopoverContext): PopoverInfoIn => {
-                context = { ...context, triggerNode: column.kind == 'field' ? column.field : undefined };
-                const items = [
-                  ...menuActionsLike(
-                    [
-                      'space.edit.rename',
-                      'space.edit.duplicate',
-                      'space.edit.delete',
-                      'table.column.sortAscending',
-                      'table.column.sortDescending',
-                      'table.column.filter',
-                    ],
-                    {
-                      context,
-                    },
-                  ),
-                ];
-                return {
-                  kind: 'menu',
-                  placement: 'bottom-right',
-                  items,
-                  context,
-                };
-              }
-            "
             class="relative flex h-full flex-shrink-0 cursor-pointer items-center border-b border-gray-200 border-l-transparent px-2 transition-colors duration-150 data-[dragging=true]:opacity-50"
             :class="[
               x > 0 ? 'border-l' : '',
@@ -844,6 +818,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
               width: `${column.width}px`,
             }"
+            data-contextmenu-items="table.column.*"
             :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
             :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
             :data-node-type="column.kind == 'field' ? column.field.metatype : undefined"
@@ -955,17 +930,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         <div
           v-for="(record, y) in records"
           :key="record.id"
-          v-contextmenu="
-            (context: PopoverContext): PopoverInfoIn => {
-              context = { ...context, triggerNode: record };
-              return {
-                kind: 'menu',
-                placement: 'bottom-right',
-                items: menuActionsLike(['space.edit.duplicate', 'space.edit.delete'], { context }),
-                context,
-              };
-            }
-          "
           class="group/row flex flex-row border-gray-200"
           :data-node-id="record.id"
           :data-node-ck="record.id"

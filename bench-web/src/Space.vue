@@ -9,7 +9,7 @@ import { IS_IN_ALT_MODE, fireActionById } from "@/ui/action";
 import { makeIcon } from "@/ui/icon";
 import { keytrap } from "@/ui/keymap";
 import { isDraggingGlobal } from "@/ui/layout";
-import { hasActivePopover } from "@/ui/popover";
+import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
 import { createDesktopDefaultSpace } from "@/ui/space";
 import { DISCORD_URL } from "@/utils/globals";
 import DragOverlay from "@/views/builtins/DragOverlay.vue";
@@ -65,7 +65,7 @@ watch(
       IS_IN_ALT_MODE ? 'altmode' : '',
     ]"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
-    @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
+    @contextmenu.stop.prevent="(e) => pushDefaultContextMenu(e)"
   >
     <!-- Space root (:OneRootWindow) -->
     <Split
