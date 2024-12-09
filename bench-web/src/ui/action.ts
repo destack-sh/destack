@@ -1,6 +1,6 @@
 import { getEditStack } from "@/language/edit";
 import { getAllTransactionBuffers } from "@/language/transaction";
-import { NodeReferenceData, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
+import { NodeReferenceData, NodeType, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
@@ -44,79 +44,63 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.documentation",
   "space.launch.discord",
   "space.launch.notifications",
-  "space.edit.inspect",
-  "space.edit.create",
-  "space.display.fullscreen",
-  // common
-  "common.create.above",
-  "common.create.below",
-  "common.create.block",
-  "common.create.record",
-  "common.create.step",
-  "common.create.pipe",
-  "common.create.trigger",
-  "common.create.field",
-  "common.create.field.input",
-  "common.create.field.output",
-  "common.history.undo",
-  "common.history.redo",
-  "common.edit.rename",
-  "common.edit.move",
-  "common.edit.copy",
-  "common.edit.cut",
-  "common.edit.paste",
-  "common.edit.duplicate",
-  "common.edit.delete",
-  "common.navigate.open",
-  "common.navigate.up",
-  "common.navigate.down",
-  "common.navigate.left",
-  "common.navigate.right",
-  "common.navigate.zoomIn",
-  "common.navigate.zoomOut",
-  "common.navigate.enter",
-  "common.navigate.exit",
-  "common.navigate.reset",
-  "common.navigate.pageUp",
-  "common.navigate.pageDown",
-  "common.navigate.goBack",
-  "common.navigate.goForward",
-  "common.select.all",
-  "common.select.up",
-  "common.select.down",
-  "common.select.left",
-  "common.select.right",
-  "common.select.clear",
-  "common.move.up",
-  "common.move.down",
-  "common.move.left",
-  "common.move.right",
-  "common.search.findInView",
-  "common.search.replaceInView",
-  "common.search.findInSpace",
-  "common.search.replaceInSpace",
-  "common.sense.goToDefinition",
-  "common.sense.findReferences",
-  "common.sense.findImplementations",
+  "space.launch.fullscreen",
+  "space.create.above",
+  "space.create.below",
+  "space.create.field",
+  "space.create.field.input",
+  "space.create.field.output",
+  "space.history.undo",
+  "space.history.redo",
+  "space.edit.rename",
+  "space.edit.move",
+  "space.edit.copy",
+  "space.edit.cut",
+  "space.edit.paste",
+  "space.edit.duplicate",
+  "space.edit.delete",
+  "space.navigate.open",
+  "space.navigate.up",
+  "space.navigate.down",
+  "space.navigate.left",
+  "space.navigate.right",
+  "space.navigate.zoomIn",
+  "space.navigate.zoomOut",
+  "space.navigate.enter",
+  "space.navigate.exit",
+  "space.navigate.reset",
+  "space.navigate.pageUp",
+  "space.navigate.pageDown",
+  "space.navigate.goBack",
+  "space.navigate.goForward",
+  "space.select.all",
+  "space.select.up",
+  "space.select.down",
+  "space.select.left",
+  "space.select.right",
+  "space.select.clear",
+  "space.move.up",
+  "space.move.down",
+  "space.move.left",
+  "space.move.right",
+  "space.search.findInView",
+  "space.search.replaceInView",
+  "space.search.findInSpace",
+  "space.search.replaceInSpace",
+  "space.sense.goToDefinition",
+  "space.sense.findReferences",
+  "space.sense.findImplementations",
   // session
   "session.run.start",
   "session.run.pause",
   "session.run.resume",
   "session.run.kill",
-  // type
-  "type.edit.isList",
-  "type.edit.isRequired",
-  "type.edit.isSecret",
-  // block
-  // ...
   // database
   "database.column.sortAscending",
   "database.column.sortDescending",
   "database.column.filter",
   "database.column.wrap",
   "database.column.hide",
-  // flow
-  "flow.pipe.begin",
   // message
   "message.chat.reply",
   "message.edit.edit",
@@ -159,11 +143,9 @@ export const ACTION_BUILTIN_IDS = [
   "user.misc.goToHome",
   "user.settings.editKeybindings",
   // organization
-  "organization.create",
-  // developer
-  "developer.developerMode",
-  "developer.tx.retryAllFailed",
-  "developer.view.addEmptyView",
+  "developer.test.developerMode",
+  "developer.test.retryAllFailed",
+  "developer.test.addEmptyView",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -186,11 +168,10 @@ export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
   toaster.debug({ title: "Coming soon", text: `"${toValue(action.title)}" is not yet available.`, icon: action.icon });
 
 /**
- * An Action that can be performed by the user in the space.
+ * An Action that can be performed by the User in the Space.
  * Actions can be declared and implemented in different places (e.g. for different behavior in various Views).
  *
  * NOTE :Architecture: define Action as Struct so it can be provided by custom Views/...?
- *  provide actions by tagging runnable (no args) Blocks with Action?
  */
 export type Action = {
   kind: ActionKind;
@@ -199,7 +180,7 @@ export type Action = {
   icon?: IconData;
   title: MaybeRef<string>;
   text: string | TextData;
-  shortcuts?: KeySignature[]; // TODO :Feature: define shortcuts in per-Space & per-User keymap
+  shortcuts?: KeySignature[]; // NOTE :Incomplete: define shortcuts in per-Space/User keymap?
   isEnabled?: Ref<boolean> | (() => boolean);
   source: ActionSource;
   category: string;
@@ -303,9 +284,9 @@ export function getActionsLike(like: ActionFilter | string[]): Action[] {
  * The mask is simply a prefix match.
  */
 export const DEFAULT_SUPPRESSED_ACTIONS: Record<string, string[]> = {
-  input: ["common.edit", "common.navigate", "common.select", "common.move"],
-  textarea: ["common.edit", "common.navigate", "common.select", "common.move"],
-  contenteditable: ["common.edit", "common.navigate", "common.select", "common.move"],
+  input: ["space.edit", "space.navigate", "space.select", "space.move"],
+  textarea: ["space.edit", "space.navigate", "space.select", "space.move"],
+  contenteditable: ["space.edit", "space.navigate", "space.select", "space.move"],
 };
 
 /** Finds an ancestor element suppressing the given action */
@@ -450,246 +431,226 @@ watch(
 );
 
 // declare common actions
-declareActionMap<"common">({
+declareActionMap<"space">({
   // create
-  "common.create.above": {
+  "space.create.above": {
     icon: "fas fa-angles-up",
     title: "Create Above",
     text: "Create a new item above this item",
   },
-  "common.create.below": {
+  "space.create.below": {
     icon: "fas fa-angles-down",
     title: "Create Below",
     text: "Create a new item below this item",
   },
-  "common.create.block": {
-    icon: "fas fa-cube",
-    title: "Create Block",
-    text: "Create a new Block",
-  },
-  "common.create.record": {
-    icon: "fas fa-record-vinyl",
-    title: "Create Record",
-    text: "Create a new Record",
-  },
-  "common.create.step": {
-    icon: "fas fa-step-forward",
-    title: "Create Step",
-    text: "Create a new Step",
-  },
-  "common.create.pipe": {
-    icon: "fas fa-pipe-section",
-    title: "Create Pipe",
-    text: "Create a new Pipe",
-  },
   // edit
-  "common.edit.rename": {
+  "space.edit.rename": {
     icon: "fas fa-pencil",
     title: "Rename",
     text: "Rename this item",
     shortcuts: ["f2"],
   },
-  "common.edit.move": {
+  "space.edit.move": {
     icon: "fas fa-arrows-turn-right",
     title: "Move",
     text: "Move this item",
   },
-  "common.edit.copy": {
+  "space.edit.copy": {
     icon: "fas fa-copy",
     title: "Copy",
     text: "Copy this item",
     shortcuts: ["mod+c"],
   },
-  "common.edit.cut": {
+  "space.edit.cut": {
     icon: "fas fa-scissors",
     title: "Cut",
     text: "Cut this item",
     shortcuts: ["mod+x"],
   },
-  "common.edit.paste": {
+  "space.edit.paste": {
     icon: "fas fa-paste",
     title: "Paste",
     text: "Paste this item",
     shortcuts: ["mod+v"],
   },
-  "common.edit.duplicate": {
+  "space.edit.duplicate": {
     icon: "fas fa-clone",
     title: "Duplicate",
     text: "Duplicate this item",
     shortcuts: ["mod+d"],
   },
-  "common.edit.delete": {
+  "space.edit.delete": {
     icon: "fas fa-trash",
     title: "Delete",
     text: "Delete this item",
     shortcuts: ["del", "backspace"],
   },
   // navigate
-  "common.navigate.open": {
-    icon: "fas fa-magnifying-glass-plus",
+  "space.navigate.open": {
+    icon: "fas fa-arrow-up-right",
     title: "Open",
     text: "Open this node in a new view",
     shortcuts: ["mod+enter"],
   },
-  "common.navigate.up": {
+  "space.navigate.up": {
     icon: "fas fa-arrow-up",
     title: "Navigate Up",
     text: "Navigate up",
     shortcuts: ["up"],
   },
-  "common.navigate.down": {
+  "space.navigate.down": {
     icon: "fas fa-arrow-down",
     title: "Navigate Down",
     text: "Navigate down",
     shortcuts: ["down"],
   },
-  "common.navigate.left": {
+  "space.navigate.left": {
     icon: "fas fa-arrow-left",
     title: "Navigate Left",
     text: "Navigate left",
     shortcuts: ["left"],
   },
-  "common.navigate.right": {
+  "space.navigate.right": {
     icon: "fas fa-arrow-right",
     title: "Navigate Right",
     text: "Navigate right",
     shortcuts: ["right"],
   },
-  "common.navigate.zoomIn": {
+  "space.navigate.zoomIn": {
     icon: "fas fa-search-plus",
     title: "Zoom In",
     text: "Zoom in",
     shortcuts: ["plus", "mod+plus"],
   },
-  "common.navigate.zoomOut": {
+  "space.navigate.zoomOut": {
     icon: "fas fa-search-minus",
     title: "Zoom Out",
     text: "Zoom out",
     shortcuts: ["minus", "mod+minus"],
   },
-  "common.navigate.reset": {
+  "space.navigate.reset": {
     icon: "fas fa-arrows-to-dot",
     title: "Reset",
     text: "Reset",
     shortcuts: ["0"],
   },
-  "common.navigate.enter": {
+  "space.navigate.enter": {
     icon: "fas fa-arrow-in",
     title: "Navigate In",
     text: "Navigate in",
     shortcuts: ["enter"],
   },
-  "common.navigate.exit": {
+  "space.navigate.exit": {
     icon: "fas fa-arrow-out",
     title: "Navigate Out",
     text: "Navigate out",
     shortcuts: ["esc"],
   },
-  "common.navigate.pageUp": {
+  "space.navigate.pageUp": {
     icon: "fas fa-arrow-up-to-line",
     title: "Page Up",
     text: "Page up",
     shortcuts: ["pageup"],
   },
-  "common.navigate.pageDown": {
+  "space.navigate.pageDown": {
     icon: "fas fa-arrow-down-to-line",
     title: "Page Down",
     text: "Page down",
     shortcuts: ["pagedown"],
   },
-  "common.navigate.goBack": {
+  "space.navigate.goBack": {
     icon: "fas fa-arrow-turn-left",
     title: "Go Back",
     text: "Go back in view history",
     shortcuts: ["mod+shift+delete"],
   },
-  "common.navigate.goForward": {
+  "space.navigate.goForward": {
     icon: "fas fa-arrow-turn-right",
     title: "Go Forward",
     text: "Go forward in view history",
   },
   // select
-  "common.select.all": {
+  "space.select.all": {
     icon: "fas fa-check-square",
     title: "Select All",
     text: "Select all items",
     shortcuts: ["mod+a"],
   },
-  "common.select.up": {
+  "space.select.up": {
     icon: "fas fa-square-caret-up",
     title: "Select Up",
     text: "Select up",
     shortcuts: ["shift+up"],
   },
-  "common.select.down": {
+  "space.select.down": {
     icon: "fas fa-square-caret-down",
     title: "Select Down",
     text: "Select down",
     shortcuts: ["shift+down"],
   },
-  "common.select.left": {
+  "space.select.left": {
     icon: "fas fa-square-caret-left",
     title: "Select Left",
     text: "Select left",
     shortcuts: ["shift+left"],
   },
-  "common.select.right": {
+  "space.select.right": {
     icon: "fas fa-square-caret-right",
     title: "Select Right",
     text: "Select right",
     shortcuts: ["shift+right"],
   },
-  "common.select.clear": {
+  "space.select.clear": {
     icon: "fas fa-times",
     title: "Clear Selection",
     text: "Clear selection",
     shortcuts: ["esc"],
   },
   // move
-  "common.move.up": {
+  "space.move.up": {
     icon: "fas fa-square-up",
     title: "Move Up",
     text: "Move up",
     shortcuts: ["alt+up"],
   },
-  "common.move.down": {
+  "space.move.down": {
     icon: "fas fa-square-down",
     title: "Move Down",
     text: "Move down",
     shortcuts: ["alt+down"],
   },
-  "common.move.left": {
+  "space.move.left": {
     icon: "fas fa-square-left",
     title: "Move Left",
     text: "Move left",
     shortcuts: ["alt+left", "shift+tab"],
   },
-  "common.move.right": {
+  "space.move.right": {
     icon: "fas fa-square-right",
     title: "Move Right",
     text: "Move right",
     shortcuts: ["alt+right", "tab"],
   },
   // search
-  "common.search.findInView": {
+  "space.search.findInView": {
     icon: "fas fa-magnifying-glass",
     title: "Search in View",
     text: "Find in this view",
     shortcuts: ["mod+f"],
   },
-  "common.search.replaceInView": {
+  "space.search.replaceInView": {
     icon: "fas fa-right-left",
     title: "Replace in View",
     text: "Replace in this view",
     shortcuts: ["mod+r"],
   },
-  "common.search.findInSpace": {
+  "space.search.findInSpace": {
     icon: "fas fa-magnifying-glass",
     title: "Search in Space",
     text: "Find in this space",
     shortcuts: ["mod+shift+f"],
   },
-  "common.search.replaceInSpace": {
+  "space.search.replaceInSpace": {
     icon: "fas fa-right-left",
     title: "Replace in Space",
     text: "Replace in this space",
@@ -697,19 +658,19 @@ declareActionMap<"common">({
   },
   // sense
 
-  "common.sense.goToDefinition": {
+  "space.sense.goToDefinition": {
     icon: "fas fa-turn-down-right",
     title: "Go to Definition",
     text: "Go to definition of this node",
     shortcuts: ["mod+b"],
   },
-  "common.sense.findReferences": {
+  "space.sense.findReferences": {
     icon: "fas fa-turn-down-left",
     title: "Find References",
     text: "Find references of this node",
     shortcuts: ["mod+shift+b"],
   },
-  "common.sense.findImplementations": {
+  "space.sense.findImplementations": {
     icon: "fas fa-turn-down-left",
     title: "Find Implementations",
     text: "Find implementations of this node",
@@ -717,8 +678,8 @@ declareActionMap<"common">({
 });
 
 // history
-contributeActionMap<"common.history">({
-  "common.history.undo": {
+contributeActionMap<"space.history">({
+  "space.history.undo": {
     icon: "fas fa-arrow-turn-left",
     title: "Undo",
     text: "Undo the last action or edit",
@@ -729,7 +690,7 @@ contributeActionMap<"common.history">({
       stack.undo();
     },
   },
-  "common.history.redo": {
+  "space.history.redo": {
     icon: "fas fa-arrow-turn-right",
     title: "Redo",
     text: "Redo the last undone action or edit",
@@ -1030,7 +991,7 @@ contributeActionMap<"view">({
 
 // developer actions
 contributeActionMap<"developer">({
-  "developer.developerMode": {
+  "developer.test.developerMode": {
     type: "toggle",
     icon: "fas fa-binary",
     title: "Developer Mode",
@@ -1056,7 +1017,7 @@ contributeActionMap<"developer">({
     },
     shortcuts: ["alt+f12", "f12"],
   },
-  "developer.tx.retryAllFailed": {
+  "developer.test.retryAllFailed": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-redo",
     title: "Retry All Failed Commits",
@@ -1067,7 +1028,7 @@ contributeActionMap<"developer">({
       });
     },
   },
-  "developer.view.addEmptyView": {
+  "developer.test.addEmptyView": {
     isEnabled: isDeveloperMode,
     icon: "fas fa-window-frame",
     title: "Add Empty View",
@@ -1103,21 +1064,7 @@ contributeActionMap<"space">({
     isEnabled: ref(false),
     action: ACTION_COMING_SOON,
   },
-  // edit
-  "space.edit.inspect": {
-    title: "Inspect Node",
-    text: "Inspect a selected node",
-    icon: "fas fa-eye-dropper",
-    action: ACTION_COMING_SOON,
-  },
-  "space.edit.create": {
-    title: "Create Space",
-    text: "Create a new separate Space",
-    icon: "fas fa-plus",
-    action: ACTION_COMING_SOON,
-  },
-  // full screen
-  "space.display.fullscreen": {
+  "space.launch.fullscreen": {
     type: "toggle",
     icon: "fas fa-maximize",
     title: "Toggle Fullscreen",
@@ -1129,3 +1076,42 @@ contributeActionMap<"space">({
     },
   },
 });
+
+//
+// Node context actions
+//
+
+export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "space.edit.rename",
+  "space.edit.duplicate",
+  "space.edit.delete",
+  "space.create.above",
+  "space.create.below",
+];
+
+export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "space.edit.rename",
+  "space.edit.duplicate",
+  "space.edit.delete",
+  "space.navigate.open",
+];
+
+export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "space.edit.rename",
+  "space.edit.duplicate",
+  "space.edit.delete",
+];
+
+export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "space.edit.rename",
+  "space.edit.duplicate",
+  "space.edit.delete",
+];
+export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.rename", "space.edit.delete"];
+
+export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {
+  [NodeType.BLOCK]: BLOCK_CONTEXT_ACTIONS,
+  [NodeType.RECORD]: RECORD_CONTEXT_ACTIONS,
+  [NodeType.STEP]: STEP_CONTEXT_ACTIONS,
+  [NodeType.PIPE]: PIPE_CONTEXT_ACTIONS,
+};

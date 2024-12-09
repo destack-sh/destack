@@ -52,7 +52,7 @@ const showPipeMeta = computed(() => !pipe.value?.isNameHidden || pipe.value?.typ
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"common" | "pipe">> = {};
+const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {};
 
 defineExpose<ViewExposed>({ self, id, actions });
 </script>

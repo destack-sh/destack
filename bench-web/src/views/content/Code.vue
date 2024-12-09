@@ -92,7 +92,7 @@ function makeEditorView(): EditorView {
     },
   });
   // NOTE: apply data-suppress-actions directly to contenteditable element so that our action system finds it
-  view.contentDOM.dataset.suppressActions = "common.edit,common.navigate,common.select";
+  view.contentDOM.dataset.suppressActions = "space.edit,common.navigate,common.select";
   return view;
 }
 
@@ -137,32 +137,32 @@ const { isInDropZone } = useDropZone({
 });
 
 // actions
-const actions: Partial<ActionMapImplementation<"common" | "code">> = {
-  "common.edit.copy": {
+const actions: Partial<ActionMapImplementation<"space" | "code">> = {
+  "space.edit.copy": {
     isEnabled: () => false,
     action: () => {
       throw new Error("not implemented");
     },
   },
-  "common.edit.cut": {
+  "space.edit.cut": {
     isEnabled: () => false,
     action: () => {
       throw new Error("not implemented");
     },
   },
-  "common.edit.paste": {
+  "space.edit.paste": {
     isEnabled: () => false,
     action: () => {
       throw new Error("not implemented");
     },
   },
-  "common.move.up": {
+  "space.move.up": {
     action: () => {
       if (view == null) return;
       commands.moveLineUp({ state: view.state, dispatch: view.dispatch });
     },
   },
-  "common.move.down": {
+  "space.move.down": {
     action: () => {
       if (view == null) return;
       commands.moveLineDown({ state: view.state, dispatch: view.dispatch });
@@ -199,7 +199,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           dontFocus: true, // keep focus on the editor
         })
       "
-      data-suppress-actions="common.move.left,common.move.right"
+      data-suppress-actions="space.move.left,common.move.right"
       data-suppress-drag="both"
       class="code rounded hover:cursor-text"
       :class="[

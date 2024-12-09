@@ -37,7 +37,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-magnifying-glass",
       title: "Search",
-      action: { items: menuActionsLike(["space.omnibar*", "common.search*"], { context: undefined }) },
+      action: { items: menuActionsLike(["space.omnibar*", "space.search*"], { context: undefined }) },
     },
     {
       id: "view",
@@ -56,7 +56,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       icon: "fas fa-hammer",
       title: "Edit",
       action: {
-        items: menuActionsLike(["common.history*", "common.edit*", "common.move*"], { context: undefined }),
+        items: menuActionsLike(["space.history*", "space.edit*", "space.move*"], { context: undefined }),
       },
     },
     {
@@ -66,7 +66,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       icon: "fas fa-telescope",
       title: "Analyze",
       action: {
-        items: [...menuActionsLike(["common.sense*"], { context: undefined })],
+        items: [...menuActionsLike(["space.sense*"], { context: undefined })],
       },
     },
     {

@@ -369,7 +369,7 @@ function formatAction(mark: TextMarkType): ActionImplementation {
     },
   };
 }
-const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"common">> = {
+const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"space">> = {
   // text
   "text.format.bold": formatAction("bold"),
   "text.format.italic": formatAction("italic"),
@@ -385,11 +385,11 @@ const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation
       view.dispatch(view.state.tr.insert(from, hardBreak));
     },
   },
-  // common
-  "common.edit.delete": {
+  // space
+  "space.edit.delete": {
     action: () => commands.deleteSelection(view!.state, view!.dispatch),
   },
-  "common.select.all": {
+  "space.select.all": {
     action: () => commands.selectAll(view!.state, view!.dispatch),
   },
 };
@@ -424,7 +424,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
       ]"
-      data-suppress-actions="common.move.left,common.move.right"
+      data-suppress-actions="space.move.left,common.move.right"
       data-suppress-drag="both"
     >
       <!-- Placeholder -->

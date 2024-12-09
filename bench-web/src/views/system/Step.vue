@@ -5,7 +5,6 @@ import {
   DEFAULT_TEXT_BY_STEP_TYPE,
   FLOW_PORT_SIZE,
   getStepSides,
-  STEP_CONTEXT_ACTIONS,
   STEP_SIZE,
   useFlowContext,
 } from "@/language/flow";
@@ -24,7 +23,7 @@ import {
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
-import type { ActionMapImplementation } from "@/ui/action";
+import { STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
@@ -68,9 +67,9 @@ const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: ste
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"step"> = {
-  // common
-  "common.edit.rename": {
+const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"step"> = {
+  // space
+  "space.edit.rename": {
     isEnabled: () => step.value?.type != StepType.TEXT,
     action: () => {
       nextTick(() => focusInElement(nameRef.value as MaybeElement));

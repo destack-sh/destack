@@ -23,7 +23,6 @@ import {
   type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionBuiltinId } from "@/ui/action";
 import { isDragAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
@@ -36,13 +35,6 @@ import { computedValue } from "@/utils/ref";
 import type Step from "@/views/system/Step.vue";
 import { useMouse } from "@vueuse/core";
 import { computed, inject, ref, shallowRef, triggerRef, watch, type Ref } from "vue";
-
-export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "common.edit.rename",
-  "common.edit.duplicate",
-  "common.edit.delete",
-];
-export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["common.edit.rename", "common.edit.delete"];
 
 export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
@@ -1032,7 +1024,7 @@ export class FlowContext {
   }
 
   /** Moves the thing */
-  moveThing(thing: StepData | PipeData, move: { x: number; y: number }) {
+  move(thing: StepData | PipeData, move: { x: number; y: number }) {
     if (isNode(thing, NodeType.STEP)) {
       this.tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long" });
     } else if (isNode(thing, NodeType.PIPE)) {

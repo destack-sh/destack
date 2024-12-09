@@ -18,16 +18,9 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionBuiltinId, ActionContext, ActionMapImplementation } from "@/ui/action";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { generateOrderKey } from "@/utils/fractional";
 import type { Ref } from "vue";
-
-export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "common.edit.rename",
-  "common.edit.duplicate",
-  "common.edit.delete",
-  "common.navigate.open",
-];
 
 /** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
@@ -37,7 +30,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
   txFactory: () => Transaction;
   getItemFromContext(context: ActionContext | undefined): { item: NodeTreeItem<T> | null; idx: number };
   enabled?: Ref<boolean>;
-}): ActionMapImplementation<"common.move"> {
+}): ActionMapImplementation<"space.move"> {
   type ItemT = NodeTreeItem<T>;
 
   const { graph, basePtr, expandedItems, txFactory, getItemFromContext, enabled } = options;
@@ -79,7 +72,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
   }
 
   return {
-    "common.move.up": {
+    "space.move.up": {
       isEnabled: enabled,
       action: (action, context) => {
         // move block one closer in indent or above the previous item in linear order
@@ -99,7 +92,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         }
       },
     },
-    "common.move.down": {
+    "space.move.down": {
       isEnabled: enabled,
       action: (action, context) => {
         // move block one further in indent or below the next item in linear order (skipping own descendants)
@@ -126,7 +119,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         }
       },
     },
-    "common.move.left": {
+    "space.move.left": {
       isEnabled: enabled,
       action: (action, context) => {
         // move block one 'higher' in indent (to after parent in its siblings)
@@ -135,7 +128,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         return moveNodeLeft(txFactory(), item, idx);
       },
     },
-    "common.move.right": {
+    "space.move.right": {
       isEnabled: enabled,
       action: (action, context) => {
         // move block one 'lower' in indent (to before the next sibling of the closest parent)
@@ -153,11 +146,11 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
   txFactory: () => Transaction;
   getNodeFromContext(context: ActionContext | undefined): { node: NodeTypeMapping[T] | null; idx: number };
   enabled?: Ref<boolean>;
-}): ActionMapImplementation<"common.move.up" | "common.move.down"> {
+}): ActionMapImplementation<"space.move.up" | "space.move.down"> {
   const { graph, txFactory, getNodeFromContext, enabled } = options;
 
   return {
-    "common.move.up": {
+    "space.move.up": {
       isEnabled: enabled,
       action: (action, context) => {
         // move block one position up
@@ -171,7 +164,7 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
         return true;
       },
     },
-    "common.move.down": {
+    "space.move.down": {
       isEnabled: enabled,
       action: (action, context) => {
         // move block one position down

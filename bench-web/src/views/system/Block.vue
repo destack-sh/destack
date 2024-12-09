@@ -97,14 +97,14 @@ function updateValue(value: any) {
   }
 }
 
-const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"block"> = {
-  // common
-  "common.edit.rename": {
+const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"block"> = {
+  // space
+  "space.edit.rename": {
     action: () => {
       nextTick(() => NodeReferenceRef.value?.focusIdentifier());
     },
   },
-  "common.navigate.open": (action, ctx) => {
+  "space.navigate.open": (action, ctx) => {
     if (block.value == null) return false;
     canvas.goToNode(block.value);
   },

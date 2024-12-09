@@ -34,33 +34,11 @@ const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 const isSelected = computed(() => state.isSelected(nodePtr.value));
 
 // actions
-const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"type"> = {
-  // common
-  "common.edit.rename": {
+const actions: Partial<ActionMapImplementation<"space">> = {
+  // space
+  "space.edit.rename": {
     action: () => {
       nextTick(() => focusInElement(nameRef.value as MaybeElement));
-    },
-  },
-  // type
-  "type.edit.isList": {
-    isChecked: () => field.value?.isList ?? false,
-    action: () => {
-      if (field.value == null) return;
-      connection.tx.update(field.value!, { isList: !field.value!.isList });
-    },
-  },
-  "type.edit.isRequired": {
-    isChecked: () => field.value?.isRequired ?? false,
-    action: () => {
-      if (field.value == null) return;
-      connection.tx.update(field.value!, { isRequired: !field.value!.isRequired });
-    },
-  },
-  "type.edit.isSecret": {
-    isChecked: () => field.value?.isSecret ?? false,
-    action: () => {
-      if (field.value == null) return;
-      connection.tx.update(field.value!, { isSecret: !field.value!.isSecret });
     },
   },
 };

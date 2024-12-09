@@ -22,7 +22,6 @@ import {
   EnumType,
   FieldData,
   FieldType,
-  FileType,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -31,14 +30,12 @@ import {
   PROPERTY_INFOS_BY_TYPE,
   PropertyReferenceData,
   StepData,
-  StepType,
   StructType,
   TypeConstraintData,
   TypeInfoData,
   TypeKind,
-  ViewType,
   type AnyNodeData,
-  type PropertyInfo,
+  type PropertyInfo
 } from "@/proto/wire";
 import {
   contentEquals,
@@ -50,21 +47,11 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import type { ActionBuiltinId } from "@/ui/action";
 import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getRandomColorType } from "@/ui/style";
 import { assertNever, decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 
-export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
-  "common.edit.rename",
-  "common.edit.duplicate",
-  "common.edit.delete",
-  "common.create.above",
-  "common.create.below",
-  "type.edit.isRequired",
-  "type.edit.isList",
-];
 
 export type TypeIdentity = Pick<
   TypeInfoData,
