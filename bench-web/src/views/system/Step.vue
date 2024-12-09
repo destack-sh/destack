@@ -1,13 +1,7 @@
 <script lang="ts" setup>
 import { SINK_STEP_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
-import {
-  DEFAULT_TEXT_BY_STEP_TYPE,
-  FLOW_PORT_SIZE,
-  getStepSides,
-  STEP_SIZE,
-  useFlowContext,
-} from "@/language/flow";
+import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/language/flow";
 import { isRunActive } from "@/language/session";
 import {
   ColorShade,
@@ -25,7 +19,7 @@ import { runtime } from "@/system/runtime";
 import { canvas } from "@/system/space";
 import { STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import { menuActionsLike, PopoverInfoIn, type PopoverInfo } from "@/ui/popover";
+import { menuActionsLike, PopoverInfoIn, pushDefaultMenu, type PopoverInfo } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import RunStatus from "@/views/builtins/RunStatus.vue";
@@ -238,15 +232,8 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Floating Menu -->
     <div class="absolute -left-5 top-0 flex -translate-x-1 flex-row gap-x-1.5">
       <button
-        v-menu="
-          (): PopoverInfo => ({
-            kind: 'menu',
-            placement: 'bottom-left',
-            offset: 'referenceWidth',
-            items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { triggerNode: stepPtr } }),
-          })
-        "
         class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/step:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
+        @click="(e) => pushDefaultMenu(step!, e)"
       >
         <i class="fas fa-ellipsis-vertical w-5 text-center" />
       </button>

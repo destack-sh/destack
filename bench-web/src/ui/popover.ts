@@ -484,10 +484,10 @@ export function trackHoverElementOnce(
   return { startTracking, stopTracking };
 }
 
-/** Creates the default context menu for the views at the given element. */
-export function pushDefaultContextMenu(e: MouseEvent) {
-  let currentNode: AnyNodeData | null = null;
-  const nodes: AnyNodeData[] = [];
+/** Creates the default menu for the views at the given element. */
+export function pushDefaultMenu(node: AnyNodeData | undefined, e: MouseEvent) {
+  let currentNode: AnyNodeData | null = node ?? null;
+  const nodes: AnyNodeData[] = node != null ? [node] : [];
   const actions: Action[] = [];
   const actionsById: Record<string, Action> = {};
   const nodeByActionId: Record<string, AnyNodeData> = {};
@@ -502,6 +502,12 @@ export function pushDefaultContextMenu(e: MouseEvent) {
       }
       elementByActionId[action.id] = element;
     }
+  }
+
+  // add default action
+  if (node != null) {
+    const nodeActions = getNodeActions(node);
+    nodeActions.forEach((action) => addAction(e.target as HTMLElement, action));
   }
 
   // gather stack of nodes and actions
@@ -569,4 +575,9 @@ export function pushDefaultContextMenu(e: MouseEvent) {
   if (!canvas.isSelected(nodes[0])) {
     canvas.select([nodes[0]]);
   }
+}
+
+/** Creates the default menu for the given element. */
+export function pushDefaultContextMenu(e: MouseEvent) {
+  pushDefaultMenu(undefined, e);
 }
