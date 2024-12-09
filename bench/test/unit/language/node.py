@@ -14,7 +14,7 @@ from bench.language.flow import ActionStep, Step
 from bench.language.node import BuiltinObject
 from bench.language.registry import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.session import Session
-from bench.language.text import md
+from bench.language.text import Text, md
 from bench.proto.wiring import unpack_builtin_object
 from bench.test.strategies import structs
 from bench.test.unit.conftest import RuntimeHandle
@@ -228,6 +228,28 @@ async def test_clone_subtree(local_runtime: RuntimeHandle):
     assert choice_clone.equals(choice)
     for field, field_clone in zip(choice.fields, choice_clone.fields):
         assert field_clone.equals(field)
+    await local_runtime.commit()
+
+
+async def test_clone_consistency(local_runtime: RuntimeHandle):
+    """Clone consistency test with references."""
+    choice = Block.new(BlockType.CHOICE, "Letter", fields=[Field.option("A"), Field.option("B")])
+    action = Block.new(
+        BlockType.ACTION,
+        "Action",
+        fields=[Field.input("Text", Text), Field.output("Choice", choice)],
+    )
+    local_runtime.page().append(choice)
+    local_runtime.page().append(action)
+    await local_runtime.commit()
+
+    # references should be consistent within new subtree
+    page_clone = local_runtime.page().clone()
+    choice_clone = page_clone.blocks.get("Letter")
+    assert choice_clone is not None
+    action_clone = page_clone.blocks.get("Action")
+    assert action_clone is not None
+    assert action_clone.fields.Choice.base_type == choice_clone
     await local_runtime.commit()
 
 

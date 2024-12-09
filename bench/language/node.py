@@ -61,7 +61,7 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
-from bench.language.list import LocalNodeList
+from bench.language.list import LocalNodeList, RemoteNodeList
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -1375,7 +1375,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def clone(self, *, reset: bool = True) -> Self:
         """
         Create a clone of this object and its descendants (structs/nodes) with the same content.
-        NOTE :Broken: node clone should keep inner references consistent :CloneNodeReferences
         """
         copy_kwargs = {}
         for prop in self.__wired_properties__.values():
@@ -1395,6 +1394,27 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 else:
                     copy_kwargs[prop.name] = prop_value
         return self.__class__(**copy_kwargs)
+
+    def replace_references(self, new_node_by_id: Mapping[UUID, "Node"]):
+        """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
+        for prop in self.__node_reference_properties__.values():
+            if (
+                prop.reference_kind == ReferenceKind.NODE_PARENT
+                or prop.reference_kind == ReferenceKind.NODE_CHILDREN
+            ):
+                continue
+            prop_value = getattr(self, prop.name)
+            if not prop.is_list:
+                if prop_value is None:
+                    continue
+                new_node = new_node_by_id.get(prop_value.id)
+                if new_node is not None:
+                    setattr(self, prop.name, new_node)
+            else:
+                if type(prop_value) is RemoteNodeList or len(prop_value) == 0:
+                    continue
+                new_nodes = [new_node_by_id.get(node.id) for node in prop_value]
+                prop_value.set(new_nodes)
 
     @property
     def active_session(self) -> "Session":
@@ -1864,29 +1884,43 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     yield from child.iter_descendants(recursive=True)
 
     @override
-    def clone(self, *, reset: bool = True, recursive: bool = True, detach: bool = False) -> Self:
+    def clone(
+        self,
+        *,
+        reset: bool = True,
+        recursive: bool = True,
+        detach: bool = False,
+        map: bool | dict[UUID, "Node"] = True,
+    ) -> Self:
         # clone self
         clone = super().clone(reset=reset)
 
+        # clone children and append to self (recursive)
+        if map is True:
+            map = {self.id: clone}
         if recursive:
-            # clone children and append to self (recursive)
             for child_prop in self.__node_child_properties__.values():
                 if child_prop.reference_list_type is not LocalNodeList:
                     continue  # only clone local lists
                 child_list = getattr(self, child_prop.name)
                 clone_list = getattr(clone, child_prop.name)
                 for child in child_list:
-                    child_clone = child.clone(recursive=True, detach=True)
+                    child_clone = child.clone(recursive=True, detach=True, map=map)
                     clone_list.append(child_clone)  # re-attach
+                    if type(map) is dict:
+                        map[child.id] = child_clone
+
+        # map new identities
+        if type(map) is dict:
+            for node in map.values():
+                node.replace_references(map)
 
         # append to our parent to re-attach
         parent = self.parent
         if detach:
             clone.parent_ptr = None
         elif parent:
-            parent_child_prop = parent.get_child_property(self.metatype)
-            parent_list = getattr(parent, parent_child_prop.name)
-            parent_list.append(clone)
+            parent.append(clone)
         return clone
 
     def __eq__(self, other: Any):

@@ -298,7 +298,7 @@ class Transaction:
         if (
             type == EditType.UPDATE
             and len(self._pending_edit_events) > 0
-            and self._pending_edit_events[-1].node == node
+            and self._pending_edit_events[-1].node.id == node.id
             and self._pending_edit_events[-1].type == EditType.UPDATE
         ):
             prev_edit = self._pending_edit_events[-1]

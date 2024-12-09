@@ -39,6 +39,7 @@ import { addVector2 } from "@/ui/view";
 import { groupByList } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
+import { AnyNode } from "postcss";
 import { computed, Ref } from "vue";
 
 /** Extracts the last (potentially multi-digit) characters as an integer */
@@ -376,10 +377,29 @@ export function getRootNodes<T extends AnyNodeData>(nodes: T[]): T[] {
   return rootNodes;
 }
 
+/** Replaces references in the BuiltinObject with their mapped values. */
+function replaceReferences(obj: AnyNodeData | AnyStructData | any, map: Record<string, NodeReferenceData>): any {
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      obj[i] = replaceReferences(obj[i], map);
+    }
+    return obj;
+  } else if (obj && typeof obj === "object") {
+    if (obj.id && typeof obj.id === "string" && map[obj.id]) {
+      return replaceReferences(map[obj.id], map);
+    } else {
+      for (const key in obj) {
+        obj[key] = replaceReferences(obj[key], map);
+      }
+      return obj;
+    }
+  }
+
+  return obj;
+}
 /**
  * Creates a clone of this node and its node descendants with the same content (and different identity)
  * The new node will be appended after the current node in its parent.
- * nocheckin: cloneNode/cloneNodes should (but doesn't) keep inner references consistent :CloneNodeReferences
  **/
 export function cloneNode<T extends AnyNodeData>(
   tx: Transaction,
@@ -391,6 +411,8 @@ export function cloneNode<T extends AnyNodeData>(
     now?: Timestamp;
     set?: Partial<T>;
     _isNested?: boolean;
+    _keepOrder?: boolean;
+    _map?: Record<string, NodeReferenceData>;
   } = {
     includeChildren: true,
   },
@@ -431,7 +453,7 @@ export function cloneNode<T extends AnyNodeData>(
   // put clone after 'node'
   // (technically we could get the new orderKey before we create it, avoiding an update,
   //   but that only works if the order doesn't require fixing up the siblings, which updateOrder may do)
-  if ((node as any).orderKey && !options?._isNested) {
+  if ((node as any).orderKey && !options?._keepOrder) {
     updateOrder({
       tx,
       node: clone as T & { orderKey: string },
@@ -442,12 +464,31 @@ export function cloneNode<T extends AnyNodeData>(
     });
   }
 
+  // remember new identity
+  const map = options?._map ?? {};
+  map[node.id!] = toNodeRef(clone);
+
   // clone all children (recursively)
   if (options?.includeChildren) {
     const clonePtr = toNodeRef(clone);
     const children = graph.getChildren(node);
     for (const child of children) {
-      cloneNode(tx, graph, child, { includeChildren: true, now, set: { parentPtr: clonePtr }, _isNested: true });
+      cloneNode(tx, graph, child, {
+        includeChildren: true,
+        now,
+        set: { parentPtr: clonePtr },
+        _isNested: true,
+        _keepOrder: true,
+        _map: map,
+      });
+    }
+  }
+
+  // map identities (recursively)
+  if (options?._map == null) {
+    for (const nodeId in map) {
+      const newNode = graph.getOrError({ id: nodeId });
+      replaceReferences(newNode, map);
     }
   }
 
@@ -458,25 +499,37 @@ export function cloneNode<T extends AnyNodeData>(
 export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNodeGraph, nodes: T[]) {
   if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Duplicate" } });
 
+  // get the root nodes
   nodes = getRootNodes(nodes);
   const nodesByParentId: Record<string, AnyNodeData[]> = groupByList(nodes, (node) => node.parentPtr?.id!);
 
+  // clone them (maintaing relative position)
   const clonedNodes: AnyNodeData[] = [];
   const clonedNodesByParentId: Record<string, AnyNodeData[]> = {};
+  const map: Record<string, NodeReferenceData> = {};
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     const parentId = node.parentPtr?.id!;
-    let after = clonedNodesByParentId[parentId]?.at(-1);
+    // if we already have the parent cloned, go after its last child, otherwise go after the parent
+    let after;
     if (clonedNodesByParentId[parentId] != null) {
       after = clonedNodesByParentId[parentId]?.at(-1);
     } else {
       after = nodesByParentId[parentId]?.at(-1);
     }
-    const clone = cloneNode(tx, graph, node, { after, includeChildren: true });
+    const clone = cloneNode(tx, graph, node, { after, includeChildren: true, _map: map });
     clonedNodes.push(clone);
     if (clonedNodesByParentId[parentId] == null) clonedNodesByParentId[parentId] = [];
     clonedNodesByParentId[parentId]?.push(clone);
   }
+
+  // map identities for all cloned nodes
+  for (const nodeId in map) {
+    const clonedId = map[nodeId].id!;
+    const newNode = graph.getOrError({ id: clonedId });
+    replaceReferences(newNode, map);
+  }
+
   return clonedNodes;
 }
 
