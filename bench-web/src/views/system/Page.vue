@@ -371,7 +371,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               "
               class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               :draggable="true"
-              data-suppress-drag="true"
+              data-suppress-drag="both"
               @mousedown="() => state.select(makeSelection([block]), { debounce: 'long' })"
               @dragstart.stop="(e) => startDraggingIfAllowed(e, graph, block)"
             >
@@ -422,7 +422,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
           :style="{
             width: widths.block + 'px',
           }"
-          data-suppress-drag="true"
         >
           <!-- Add blocks -->
           <button
@@ -434,6 +433,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               BlockType.FLOW,
               BlockType.PAGE,
             ]"
+            data-suppress-drag="both"
             class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
             @click="() => createAndFocusBlock({ type: blockType }, 'inside', page!)"
           >

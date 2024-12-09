@@ -432,7 +432,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             paddingRight: 8 + 'px',
           }"
           role="treeitem"
-          data-suppress-drag="true"
+          data-suppress-drag="both"
           :draggable="true"
           @click.stop="fire(node)"
           @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, graph, node)"

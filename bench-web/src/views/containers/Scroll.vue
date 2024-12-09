@@ -153,7 +153,7 @@ defineExpose<
       :style="
         orientation == Orientation.HORIZONTAL ? { height: props.trackWidth + 'px' } : { width: props.trackWidth + 'px' }
       "
-      data-suppress-drag="true"
+      data-suppress-drag="both"
     >
       <div
         v-if="area.isOverflown.value"

@@ -425,7 +425,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
       ]"
       data-suppress-actions="common.move.left,common.move.right"
-      data-suppress-drag="true"
+      data-suppress-drag="both"
     >
       <!-- Placeholder -->
       <div v-if="placeholder && isTextEmpty(modelValue)" class="pointer-events-none absolute left-2 top-1">

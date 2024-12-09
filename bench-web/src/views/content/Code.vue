@@ -200,7 +200,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         })
       "
       data-suppress-actions="common.move.left,common.move.right"
-      data-suppress-drag="true"
+      data-suppress-drag="both"
       class="code rounded hover:cursor-text"
       :class="[
         variant != Variant.STEALTH

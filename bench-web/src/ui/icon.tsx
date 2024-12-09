@@ -283,7 +283,6 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.CLONE]: "fas fa-clone",
   [StepType.UPDATE]: "fas fa-pencil",
   [StepType.DELETE]: "fas fa-trash",
-  [StepType.RESTORE]: "fas fa-trash-undo",
   // run
   [StepType.ACTION]: "fas fa-code",
   [StepType.YIELD]: "fas fa-hand",
