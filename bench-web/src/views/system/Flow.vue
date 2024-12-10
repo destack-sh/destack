@@ -30,11 +30,7 @@ import {
   STEP_SIZE,
 } from "@/system/flow";
 import { canvas } from "@/system/space";
-import {
-  PIPE_CONTEXT_ACTIONS,
-  STEP_CONTEXT_ACTIONS,
-  type ActionMapImplementation
-} from "@/ui/action";
+import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -75,6 +71,7 @@ const containerRef = ref<HTMLElement | null>(null);
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
+const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const headerSize = useElementSize(headerRef);
@@ -162,6 +159,10 @@ function moveNodes(nodes: AnyNodeData[], move: { x: number; y: number }) {
   }
 }
 const actions: Partial<ActionMapImplementation<"space" | "session">> = {
+  // edit
+  "space.edit.rename": () => {
+    nameRef.value?.focusIdentifier();
+  },
   // move
   "space.move.up": (action, context) => {
     moveNodes(context.nodes ?? [], { x: 0, y: -FLOW_GRID_STEP });
@@ -242,7 +243,15 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       }"
     >
       <!-- Title -->
-      <NodeReference v-if="flow" class="mb-2 mt-5" size="title" is-input :node="flow" :tx="() => connection.tx" />
+      <NodeReference
+        v-if="flow"
+        ref="nameRef"
+        class="mb-2 mt-5"
+        size="title"
+        is-input
+        :node="flow"
+        :tx="() => connection.tx"
+      />
       <div class="flex flex-row flex-wrap items-center">
         <!-- Signature -->
         <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
@@ -316,7 +325,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                     placement: 'bottom-left',
                     props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
                     onApply: (value) => {
-                      flowCtx.createStep({ parent: flow!, step: { type: value }});
+                      flowCtx.createStep({ parent: flow!, step: { type: value } });
                     },
                   },
                 })

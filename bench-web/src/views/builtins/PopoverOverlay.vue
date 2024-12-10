@@ -189,7 +189,7 @@ function close(popover: PopoverInstance | undefined) {
           :is="toComponent(popover.info)"
           id="popover"
           :ref="(el: any) => registerInnerRef(popover.id, el)"
-          v-bind="{ isInline: true, ...(popover.info.props ?? {}) }"
+          v-bind="{ isInline: true, isPopover: true, ...(popover.info.props ?? {}) }"
           :model-value="popoverValues[popover.id]"
           @update:model-value="
             (newValue: any) => {

@@ -177,7 +177,8 @@ const { placement: nestedPlacement } = useFloating({
   options: { placement: "right-top", referenceMargin: 8, offset: { x: 0, y: -7 } },
 });
 
-// nocheckin: make nested Menu work
+// TODO :UX: make nested Menu work more nicely
+//  (more like Omnibar/Picker, filter to matches, search all nested items when searching, ...)
 
 defineExpose({ focus, clear, query });
 </script>

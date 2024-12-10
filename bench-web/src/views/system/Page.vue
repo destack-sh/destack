@@ -24,7 +24,7 @@ import {
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas } from "@/system/space";
-import { BLOCK_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { BLOCK_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import {
   isDragging,
   startDraggingIfAllowed,
@@ -73,6 +73,7 @@ const page = graph.getRef(nodePtr) as Ref<BlockData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
+const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
@@ -173,6 +174,10 @@ const { activeDropZone } = useMultiDropZone({
 
 // actions
 const actions: Partial<ActionMapImplementation<"list" | "space">> = {
+  // edit
+  "space.edit.rename": () => {
+    nameRef.value?.focusIdentifier();
+  },
   ...useNodeListActions({
     nodeType: NodeType.BLOCK,
     self: state.baseViewRef,
@@ -263,8 +268,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             width: widths.block + 'px',
           }"
         >
-          <!-- Icon -->
-          <NodeReference ref="NodeReferenceRef" size="title" :node="page" is-input :tx="() => connection.tx" />
+          <NodeReference ref="nameRef" size="title" :node="page" is-input :tx="() => connection.tx" />
         </div>
 
         <!-- Blocks -->

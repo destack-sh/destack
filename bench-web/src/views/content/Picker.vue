@@ -39,6 +39,7 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     placeholder?: string;
     customIndex?: SearchIndex<any>;
+    isPopover?: boolean;
   } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
   >
@@ -46,6 +47,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+const state = canvas.registerView(self, id);
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const query: Ref<string> = ref("");
@@ -204,8 +206,7 @@ function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
     return queryRef.value;
   }
 }
-// nocheckin: make Type picker & popover work like Menu
-canvas.registerView(self, id);
+
 defineExpose<ViewExposed>({
   self,
   id,
@@ -248,6 +249,7 @@ defineExpose<ViewExposed>({
                   buttonRef?.getBoundingClientRect().width! + (variant == Variant.STEALTH ? 10 : 0), // see above
                 ),
               },
+              isPopover: false, // want clean inline style so it matches this variant
               isInline: true,
             },
             onApply: (value: any) => apply(value),
@@ -331,7 +333,12 @@ defineExpose<ViewExposed>({
     <!-- Inline Combobox -->
     <div v-else-if="isInline" :style="{ width: width + 'px' }">
       <!-- Header -->
-      <div class="flex w-full flex-row flex-wrap items-center gap-y-1.5 border-b border-gray-200 px-2.5 py-1">
+      <div
+        class="flex flex-row flex-wrap items-center gap-y-1.5 px-2.5 py-1"
+        :class="[
+          isPopover ? 'mx-2 mb-0.5 mt-1.5 rounded border border-gray-200 bg-gray-100' : 'border-b border-gray-200',
+        ]"
+      >
         <!-- Current value -->
         <template v-if="valueType?.isList">
           <button
@@ -379,7 +386,7 @@ defineExpose<ViewExposed>({
         track-is-overlay
       >
         <!-- Results -->
-        <ul v-if="results.length > 0" class="flex flex-col py-0.5">
+        <ul v-if="results.length > 0" class="flex flex-col py-0.5" :class="[isPopover ? 'mx-2 mb-1 mt-0.5' : '']">
           <template v-for="item in results" :key="item.id">
             <!-- Results -->
             <li

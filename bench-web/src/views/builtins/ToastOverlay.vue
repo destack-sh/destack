@@ -106,7 +106,6 @@ const absoluteStyle = computed(() => {
       <div class="py-1.5">
         <!-- Header -->
         <div class="flex flex-row">
-          <IconInline v-if="toast.icon" v-bind="toast.icon" class="mr-1.5 w-5 text-gray-700" />
           <span class="font-medium text-gray-700">{{ toast.title }}</span>
         </div>
         <!-- Content -->
