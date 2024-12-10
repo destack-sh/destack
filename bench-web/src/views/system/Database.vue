@@ -235,6 +235,7 @@ function createRecord() {
     valuePacked: {},
   });
   canvas.inspect({ node: record, view: containerRef.value });
+  return record;
 }
 
 function getColumnMinWidth(type: TypeIdentity, viewType: ViewType | undefined) {
@@ -542,6 +543,7 @@ const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
     self: state.baseViewRef,
     graph: graph,
     list: records,
+    create: () => createRecord(),
     txFactory: () => connection.tx,
   }),
   // table

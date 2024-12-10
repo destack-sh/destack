@@ -1,7 +1,6 @@
 import { toCamelName } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import {
-  EDIT_TYPES,
   UNDO_EDIT_BY_TYPE,
   getTransactionBuffer,
   newChangeId,
@@ -10,32 +9,17 @@ import {
   type ChangeIn,
   type TransactionBuffer,
 } from "@/language/transaction";
-import { unpackBuiltinObject } from "@/language/value";
 import {
   ChangeCategory,
   EditData,
   EditOperationData,
   EditOperationType,
   EditType,
-  LogData,
-  NodeReferenceData,
-  NodeType,
   ObjectType,
   Timestamp,
   ViewData,
-  type AnyNodeData,
 } from "@/proto/wire";
-import {
-  EMPTY_SCOPE,
-  describeEdit,
-  describeNode,
-  isNode,
-  makeDefaultObject,
-  makeScope,
-  toNodeRef,
-  wrapSomeNode,
-} from "@/proto/wiring";
-import { origin, userPtr } from "@/system/client";
+import { EMPTY_SCOPE, describeEdit } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { watch } from "vue";
@@ -49,6 +33,7 @@ import { watch } from "vue";
 class EditStack {
   private _editStack: EditData[] = [];
   private _editsById: Record<string, EditData> = {};
+  private _editedAtByEditId: Record<string, Timestamp> = {};
   private _connectionIdByEdit: Record<string, number> = {};
   private _derivedEditsById: Record<string, EditData> = {};
   private _undoIndex: number = 0;
@@ -85,11 +70,13 @@ class EditStack {
     // make inverse edits to undo change
     const change: ChangeIn = { key: newChangeId(), title: `Undo` };
     const undoEdits: EditData[] = [];
+    const editedAt = Timestamp.now();
     for (const edit of edits) {
-      const undoEdit: EditData = { ...edit, id: newEditId(), editedAt: Timestamp.now(), changeKey: change.key };
-      invertEdit(edit, undoEdit, "undo");
+      const undoEdit: EditData = { ...edit, id: newEditId(), editedAt, changeKey: change.key };
+      invertEdit(edit, this._editedAtByEditId[edit.id]!, undoEdit, "undo");
       undoEdits.push(undoEdit);
       this._undoIndex--;
+      this._editedAtByEditId[edit.id] = editedAt;
       this._derivedEditsById[undoEdit.id] = undoEdit;
 
       // apply in same connection as original edits
@@ -99,7 +86,7 @@ class EditStack {
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
       buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
     }
-    log.info("edit.undo", { edits, undoEdits, undoIndex: this._undoIndex });
+    log.debug("edit.undo", { edits, undoEdits, undoIndex: this._undoIndex });
   }
 
   /**
@@ -108,7 +95,8 @@ class EditStack {
    */
   redo() {
     if (this._undoIndex >= this._editStack.length) return;
-    // accumulate edits from same change (edits are in original order)
+    // accumulate edits from same change
+    // ('edits' are the *original* edits in original order)
     const edits: EditData[] = [this._editStack[this._undoIndex]];
     if (edits[0].changeKey != null) {
       for (let i = this._undoIndex + 1; i < this._editStack.length; i++) {
@@ -121,11 +109,13 @@ class EditStack {
     // make inverse edits to redo change
     const change: ChangeIn = { key: newChangeId(), title: `Redo` };
     const redoEdits: EditData[] = [];
+    const editedAt = Timestamp.now();
     for (const edit of edits) {
-      const redoEdit: EditData = { ...edit, id: newEditId(), editedAt: Timestamp.now(), changeKey: change.key };
-      invertEdit(edit, redoEdit, "redo");
+      const redoEdit: EditData = { ...edit, id: newEditId(), editedAt, changeKey: change.key };
+      invertEdit(edit, this._editedAtByEditId[edit.id]!, redoEdit, "redo");
       redoEdits.push(redoEdit);
       this._undoIndex++;
+      this._editedAtByEditId[edit.id] = editedAt;
       this._derivedEditsById[redoEdit.id] = redoEdit;
 
       // apply in same connection as original edits
@@ -135,7 +125,7 @@ class EditStack {
       buffer.tx.with({ connectionId, change }).addEdit(redoEdit);
       buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
     }
-    log.info("edit.undo", { edits, redoEdits, undoIndex: this._undoIndex });
+    log.debug("edit.redo", { edits, redoEdits, undoIndex: this._undoIndex });
   }
 
   subscribeToBuffer(buffer: TransactionBuffer): () => void {
@@ -145,6 +135,7 @@ class EditStack {
         if (this._filter(edit) && !this._editsById[edit.id] && !this._derivedEditsById[edit.id]) {
           this._editStack.push(edit);
           this._editsById[edit.id] = edit;
+          this._editedAtByEditId[edit.id] = edit.editedAt!;
           if (event.connectionIdByEditId[edit.id] == null) {
             throw new Error(`missing connection id for ${describeEdit(edit)}`);
           }
@@ -155,6 +146,7 @@ class EditStack {
       if (hasNewEdits) {
         // reset undo/redo stack
         this._undoIndex = this._editStack.length;
+        // TODO :Performance: prune edit stack (after do)?
       }
     });
     return bufferedSub;
@@ -198,7 +190,7 @@ export function invertEditOperation(op: EditOperationData): EditOperationData {
 }
 
 /** Inverts an edit as an undo/redo of the given edit (in place). */
-export function invertEdit(edit: EditData | LogData, invertedEdit: EditData, mode: "undo" | "redo"): void {
+export function invertEdit(edit: EditData, editedAt: Timestamp, invertedEdit: EditData, mode: "undo" | "redo"): void {
   const undoType = UNDO_EDIT_BY_TYPE[invertedEdit.type!];
   if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, invertedEdit.type!)}}`);
 
@@ -214,63 +206,13 @@ export function invertEdit(edit: EditData | LogData, invertedEdit: EditData, mod
   }
 
   // edit content
-  if (isNode(edit, NodeType.LOG)) {
-    if (edit.nodeData != null) {
-      invertedEdit.nodeData = wrapSomeNode(unpackBuiltinObject(edit.nodeData) as AnyNodeData);
-    }
-    if (invertedEdit.type == EditType.RESTORE) {
-      invertedEdit.oldEditedAt = edit.createdAt;
-    }
-  } else {
-    invertedEdit.nodeData = edit.nodeData;
-    if (invertedEdit.type == EditType.RESTORE) {
-      invertedEdit.oldEditedAt = edit.editedAt;
-    }
+  invertedEdit.nodeData = edit.nodeData;
+  if (invertedEdit.type == EditType.RESTORE) {
+    invertedEdit.oldEditedAt = editedAt;
   }
 
   // edit operations
   if (mode == "undo") {
     invertedEdit.operations = edit.operations.map((op) => invertEditOperation(op)).reverse();
   }
-}
-
-/** Turns a logged edit back into an edit (to redo/undo) */
-export function makeEditFromLog(
-  log: LogData,
-  mode: "redo" | "undo",
-  options?: { category?: ChangeCategory; subjectPtr?: NodeReferenceData },
-): EditData {
-  // unpack
-  if (log.nodePtr == null) throw new Error(`missing node for ${log.type}: ${describeNode(log)}`);
-  const nodeType = log.nodePtr.nodeType;
-  const editType = log.type as unknown as EditType | undefined;
-  if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
-  const nodeData =
-    log.nodeData != null
-      ? (makeDefaultObject(unpackBuiltinObject(log.nodeData, nodeType as unknown as ObjectType)) as AnyNodeData)
-      : null;
-
-  // make edit
-  const subjectPtr = options?.subjectPtr ?? userPtr.value;
-  if (subjectPtr == null) throw new Error(`missing subject for ${log.type}: ${describeNode(log)}`);
-  const scope = makeScope({ benchId: log.benchPtr?.id, packageId: log.packagePtr?.id });
-  const edit: EditData = {
-    metatype: ObjectType.EDIT,
-    id: newEditId(),
-    type: editType!,
-    nodePtr: log.nodePtr,
-    scope: scope,
-    nodeData: nodeData != null ? wrapSomeNode(nodeData) : undefined,
-    operations: log.operations,
-    origin: origin.value,
-    category: options?.category ?? log.category,
-    subjectPtr: subjectPtr,
-    editedAt: Timestamp.now(),
-    undoOfPtr: mode == "undo" ? toNodeRef(log) : undefined,
-  };
-
-  // invert edit
-  invertEdit(log, edit, mode);
-
-  return edit;
 }

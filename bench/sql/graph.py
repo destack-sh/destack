@@ -1368,7 +1368,6 @@ async def _pg_edit_cascade(
     # figure out which nodes to cascade to
     root_nodes = tuple(root_edit.node_ptr for root_edit in batch)
     root_edit_by_root_node_id = {cast(str, root_edit.node_ptr.id): root_edit for root_edit in batch}
-    removed_at_by_root_node_id: dict[str, datetime.datetime] = {}
     if edit_type == EditType.RESTORE:
         # only cascade to nodes that were removed at the exact same time
         removed_dts = []
@@ -1376,7 +1375,6 @@ async def _pg_edit_cascade(
             assert root_edit.HasField("old_edited_at"), f"no old edited at for {root_edit!r}"
             removed_at = root_edit.old_edited_at.ToDatetime(tzinfo=pytz.utc)
             removed_dts.append(removed_at)
-            removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)] = removed_at
         extra_filter = C(op=ConditionalType.IN, property=Node.deleted_at, value=removed_dts)
     elif edit_type == EditType.ERASE:
         # cascade to all

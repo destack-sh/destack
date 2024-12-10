@@ -244,11 +244,4 @@ contributeActionMap<"user">({
       }
     },
   },
-  "user.settings.editKeybindings": {
-    icon: "fas fa-keyboard",
-    isEnabled: ref(false),
-    title: "Edit Keybindings",
-    text: "Customize your keybindings everywhere.",
-    action: ACTION_COMING_SOON,
-  },
 });

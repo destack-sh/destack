@@ -52,11 +52,14 @@ defineExpose<ViewExposed>({ self, id, actions });
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
       isSelected ? 'border-gray-400 bg-orange-400/20' : 'border-gray-200 hover:bg-gray-100',
       !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
-      field.type == FieldType.OPTION ? 'rounded-2xl pr-2.5' : '',
+      field.type == FieldType.OPTION || field.type == FieldType.VARIABLE
+        ? variant != Variant.STEALTH
+          ? 'rounded-2xl pr-2.5'
+          : 'rounded'
+        : '',
       field.type == FieldType.INPUT || field.type == FieldType.OUTPUT || field.type == FieldType.MEMBER
         ? 'rounded pr-2'
         : '',
-      field.type == FieldType.VARIABLE ? 'rounded-2xl pr-2.5' : '',
     ]"
     data-suppress-drag="select"
   >

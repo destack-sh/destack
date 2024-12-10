@@ -109,9 +109,9 @@ enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
   NODE_TYPE_USER = 2;
-  NODE_TYPE_ORGANIZATION = 3;
   NODE_TYPE_HANDLE = 4;
   NODE_TYPE_CLIENT = 5;
+  NODE_TYPE_ORGANIZATION = 10;
   NODE_TYPE_SERVER = 200;
   NODE_TYPE_STORE = 201;
   NODE_TYPE_DRIVE = 203;
@@ -220,9 +220,9 @@ enum ObjectType {
   OBJECT_TYPE_UNSPECIFIED = 0;
   OBJECT_TYPE_BENCH = 1;
   OBJECT_TYPE_USER = 2;
-  OBJECT_TYPE_ORGANIZATION = 3;
   OBJECT_TYPE_HANDLE = 4;
   OBJECT_TYPE_CLIENT = 5;
+  OBJECT_TYPE_ORGANIZATION = 10;
   OBJECT_TYPE_SERVER = 200;
   OBJECT_TYPE_STORE = 201;
   OBJECT_TYPE_DRIVE = 203;
@@ -413,9 +413,9 @@ enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
   BENCH_TYPE_USER = 2;
-  BENCH_TYPE_ORGANIZATION = 3;
   BENCH_TYPE_HANDLE = 4;
   BENCH_TYPE_CLIENT = 5;
+  BENCH_TYPE_ORGANIZATION = 10;
   BENCH_TYPE_SERVER = 200;
   BENCH_TYPE_STORE = 201;
   BENCH_TYPE_DRIVE = 203;
@@ -3400,9 +3400,9 @@ message SomeNodeData {
   oneof node {
     BenchData bench = 1;
     UserData user = 2;
-    OrganizationData organization = 3;
-    HandleData handle = 4;
-    ClientData client = 5;
+    HandleData handle = 3;
+    ClientData client = 4;
+    OrganizationData organization = 5;
     ServerData server = 6;
     StoreData store = 7;
     DriveData drive = 8;

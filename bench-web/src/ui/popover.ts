@@ -569,6 +569,10 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
 
   // build menu
   if (Object.keys(actionsById).length == 0 || nodes.length == 0) return; // no actions found
+  if (!canvas.isSelected(nodes[0])) {
+    // auto-select first node if not selected
+    canvas.select([nodes[0]]);
+  }
   const actions = Object.values(actionsById);
   actions.sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id]);
   const context: PopoverContext = {
@@ -576,16 +580,12 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
     nodes: canvas.selection != null ? supergraph.getManyMaybe(canvas.selection.nodesPtr) : [nodes[0]],
   };
   const contextViews = getMenuContextViews(context);
-  // nocheckin: associate actions with proper eloements
+  // TODO :UX: associate actions with proper eloements
   //  (if we click on a Type view inside a Block selection, we want the list.create.above from the Block selection, not from the Type view)
   const menuItems = actions.map((action) => menuItemFromAction(action, { context, contextViews: contextViews }));
   const menu: MenuInfo = { context, items: menuItems };
   pushPopover({ trigger: e.target as HTMLElement, reference: { x: e.clientX, y: e.clientY }, info: menu });
 
-  // auto-select first node if not selected
-  if (!canvas.isSelected(nodes[0])) {
-    canvas.select([nodes[0]]);
-  }
 }
 
 /** Creates the default menu for the given element. */

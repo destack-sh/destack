@@ -120,9 +120,9 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_UNSPECIFIED: _ClassVar[NodeType]
     NODE_TYPE_BENCH: _ClassVar[NodeType]
     NODE_TYPE_USER: _ClassVar[NodeType]
-    NODE_TYPE_ORGANIZATION: _ClassVar[NodeType]
     NODE_TYPE_HANDLE: _ClassVar[NodeType]
     NODE_TYPE_CLIENT: _ClassVar[NodeType]
+    NODE_TYPE_ORGANIZATION: _ClassVar[NodeType]
     NODE_TYPE_SERVER: _ClassVar[NodeType]
     NODE_TYPE_STORE: _ClassVar[NodeType]
     NODE_TYPE_DRIVE: _ClassVar[NodeType]
@@ -231,9 +231,9 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_UNSPECIFIED: _ClassVar[ObjectType]
     OBJECT_TYPE_BENCH: _ClassVar[ObjectType]
     OBJECT_TYPE_USER: _ClassVar[ObjectType]
-    OBJECT_TYPE_ORGANIZATION: _ClassVar[ObjectType]
     OBJECT_TYPE_HANDLE: _ClassVar[ObjectType]
     OBJECT_TYPE_CLIENT: _ClassVar[ObjectType]
+    OBJECT_TYPE_ORGANIZATION: _ClassVar[ObjectType]
     OBJECT_TYPE_SERVER: _ClassVar[ObjectType]
     OBJECT_TYPE_STORE: _ClassVar[ObjectType]
     OBJECT_TYPE_DRIVE: _ClassVar[ObjectType]
@@ -419,9 +419,9 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_UNSPECIFIED: _ClassVar[BenchType]
     BENCH_TYPE_BENCH: _ClassVar[BenchType]
     BENCH_TYPE_USER: _ClassVar[BenchType]
-    BENCH_TYPE_ORGANIZATION: _ClassVar[BenchType]
     BENCH_TYPE_HANDLE: _ClassVar[BenchType]
     BENCH_TYPE_CLIENT: _ClassVar[BenchType]
+    BENCH_TYPE_ORGANIZATION: _ClassVar[BenchType]
     BENCH_TYPE_SERVER: _ClassVar[BenchType]
     BENCH_TYPE_STORE: _ClassVar[BenchType]
     BENCH_TYPE_DRIVE: _ClassVar[BenchType]
@@ -1716,9 +1716,9 @@ ENUM_TYPE_ORGANIZATION_STATUS: EnumType
 NODE_TYPE_UNSPECIFIED: NodeType
 NODE_TYPE_BENCH: NodeType
 NODE_TYPE_USER: NodeType
-NODE_TYPE_ORGANIZATION: NodeType
 NODE_TYPE_HANDLE: NodeType
 NODE_TYPE_CLIENT: NodeType
+NODE_TYPE_ORGANIZATION: NodeType
 NODE_TYPE_SERVER: NodeType
 NODE_TYPE_STORE: NodeType
 NODE_TYPE_DRIVE: NodeType
@@ -1821,9 +1821,9 @@ STRUCT_TYPE_RECTANGLE_CONSTRAINT: StructType
 OBJECT_TYPE_UNSPECIFIED: ObjectType
 OBJECT_TYPE_BENCH: ObjectType
 OBJECT_TYPE_USER: ObjectType
-OBJECT_TYPE_ORGANIZATION: ObjectType
 OBJECT_TYPE_HANDLE: ObjectType
 OBJECT_TYPE_CLIENT: ObjectType
+OBJECT_TYPE_ORGANIZATION: ObjectType
 OBJECT_TYPE_SERVER: ObjectType
 OBJECT_TYPE_STORE: ObjectType
 OBJECT_TYPE_DRIVE: ObjectType
@@ -1979,9 +1979,9 @@ POLICY_EFFECT_DENY: PolicyEffect
 BENCH_TYPE_UNSPECIFIED: BenchType
 BENCH_TYPE_BENCH: BenchType
 BENCH_TYPE_USER: BenchType
-BENCH_TYPE_ORGANIZATION: BenchType
 BENCH_TYPE_HANDLE: BenchType
 BENCH_TYPE_CLIENT: BenchType
+BENCH_TYPE_ORGANIZATION: BenchType
 BENCH_TYPE_SERVER: BenchType
 BENCH_TYPE_STORE: BenchType
 BENCH_TYPE_DRIVE: BenchType
@@ -6138,12 +6138,12 @@ class StreamData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., current_status: _Optional[_Union[ResourceStatus, str]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class SomeNodeData(_message.Message):
-    __slots__ = ("bench", "user", "organization", "handle", "client", "server", "store", "drive", "vault", "cache", "machine", "browser", "file", "stream", "secret", "membership", "invite", "branch", "package", "dependency", "space", "block", "trigger", "field", "query", "view", "step", "pipe", "badge", "message", "record", "session", "run", "interrupt", "log", "skip")
+    __slots__ = ("bench", "user", "handle", "client", "organization", "server", "store", "drive", "vault", "cache", "machine", "browser", "file", "stream", "secret", "membership", "invite", "branch", "package", "dependency", "space", "block", "trigger", "field", "query", "view", "step", "pipe", "badge", "message", "record", "session", "run", "interrupt", "log", "skip")
     BENCH_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
-    ORGANIZATION_FIELD_NUMBER: _ClassVar[int]
     HANDLE_FIELD_NUMBER: _ClassVar[int]
     CLIENT_FIELD_NUMBER: _ClassVar[int]
+    ORGANIZATION_FIELD_NUMBER: _ClassVar[int]
     SERVER_FIELD_NUMBER: _ClassVar[int]
     STORE_FIELD_NUMBER: _ClassVar[int]
     DRIVE_FIELD_NUMBER: _ClassVar[int]
@@ -6177,9 +6177,9 @@ class SomeNodeData(_message.Message):
     SKIP_FIELD_NUMBER: _ClassVar[int]
     bench: BenchData
     user: UserData
-    organization: OrganizationData
     handle: HandleData
     client: ClientData
+    organization: OrganizationData
     server: ServerData
     store: StoreData
     drive: DriveData
@@ -6211,4 +6211,4 @@ class SomeNodeData(_message.Message):
     interrupt: InterruptData
     log: LogData
     skip: SkipData
-    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., server: _Optional[_Union[ServerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., drive: _Optional[_Union[DriveData, _Mapping]] = ..., vault: _Optional[_Union[VaultData, _Mapping]] = ..., cache: _Optional[_Union[CacheData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., stream: _Optional[_Union[StreamData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., branch: _Optional[_Union[BranchData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., query: _Optional[_Union[QueryData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., step: _Optional[_Union[StepData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., badge: _Optional[_Union[BadgeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interrupt: _Optional[_Union[InterruptData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...
+    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., server: _Optional[_Union[ServerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., drive: _Optional[_Union[DriveData, _Mapping]] = ..., vault: _Optional[_Union[VaultData, _Mapping]] = ..., cache: _Optional[_Union[CacheData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., stream: _Optional[_Union[StreamData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., branch: _Optional[_Union[BranchData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., query: _Optional[_Union[QueryData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., step: _Optional[_Union[StepData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., badge: _Optional[_Union[BadgeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interrupt: _Optional[_Union[InterruptData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...
