@@ -970,29 +970,27 @@ export class FlowContext {
             reference: { x: e.clientX, y: e.clientY },
             info: {
               kind: "component",
+              placement: "bottom",
               component: ViewType.PICKER,
               props: {
                 valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }),
               },
               onApply: (value) => {
                 const tx = this.tx.with({ change: { key: newChangeId() } });
-                const step = createStep(tx, this.graph, {
+                const step = this.createStep({
                   parent: this.flow.value!,
-                  step: {
-                    type: value,
-                    position: {
-                      metatype: ObjectType.VECTOR2,
-                      x: targetPosition.x - STEP_SIZE.width / 2,
-                      y: targetPosition.y - STEP_SIZE.height / 2,
-                    },
-                  },
+                  near: { x: targetPosition.x - STEP_SIZE.width / 2, y: targetPosition.y - STEP_SIZE.height / 2 },
+                  step: { type: value },
+                  tx,
                 });
-                const pipe = createPipe(tx, this.graph, {
+                const pipe = this.createPipe({
                   parent: this.flow.value!,
                   pipe: { type: PipeType.PASS, isNameHidden: true },
                   source: sourcePort,
                   target: { parent: step, side: PortSide.INCOMING },
+                  tx,
                 });
+                canvas.inspect({ node: step, view: this.view.value });
               },
             },
           });
@@ -1002,7 +1000,7 @@ export class FlowContext {
         if (this.canPortsConnect(sourcePort, targetPort)) {
           // connect it up
           log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
-          const pipe = createPipe(this.tx, this.graph, {
+          const pipe = this.createPipe({
             parent: this.flow.value,
             pipe: { type: PipeType.PASS, isNameHidden: true },
             source: sourcePort,
@@ -1011,6 +1009,10 @@ export class FlowContext {
           canvas.inspect({ node: pipe, view: this.view.value });
         } else {
           // nothing to do?
+          toaster.error({
+            title: "Invalid Pipe",
+            text: `Cannot connect ${sourcePort.parent.name} to ${targetPort.parent.name}.`,
+          });
         }
       }
     } catch (e) {
@@ -1022,7 +1024,7 @@ export class FlowContext {
     this.dragging.value = null;
   }
 
-  /** Gets the (first) Step at the given position */
+  /** Gets the (first) Step at the given position (in world coordinates) */
   getStepAt(position: Vector2, filter?: (step: StepData) => boolean): StepData | null {
     let steps = this.steps.value;
     if (filter != null) {
@@ -1101,6 +1103,134 @@ export class FlowContext {
     } else {
       assertNever(thing);
     }
+  }
+
+  /** Find empty space of the given size */
+  findEmptySpace(
+    near: Vector2,
+    size: { width: number; height: number },
+    bias: "right" | "down" | "alternate" = "alternate",
+    options?: {
+      maxSteps?: number;
+      margin?: number;
+    },
+  ): Vector2Data | null {
+    near = snapVec(near);
+    const position = { ...near };
+    const { maxSteps = 100, margin = FLOW_GRID_STEP } = options ?? {};
+    const hitOffsets = [
+      { x: -margin, y: -margin },
+      { x: size.width + margin, y: -margin },
+      { x: -margin, y: size.height + margin },
+      { x: size.width + margin, y: size.height + margin },
+      { x: size.width / 2, y: size.height / 2 },
+    ];
+
+    let numSteps = 0;
+    while (numSteps < maxSteps) {
+      // check if there's any overlapping step at the position (including bounding corners)
+      let hit = false;
+      for (const cornerOffset of hitOffsets) {
+        const cornerPosition = addVector2(position, cornerOffset);
+        if (this.getStepAt(cornerPosition) != null) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) {
+        // found empty space
+        return { ...position, metatype: ObjectType.VECTOR2 };
+      }
+
+      // advance step
+      if (bias === "right") {
+        position.x += FLOW_GRID_STEP;
+      } else if (bias === "down") {
+        position.y += FLOW_GRID_STEP;
+      } else {
+        // alternate
+        if (numSteps % 2 === 0) {
+          position.x += FLOW_GRID_STEP;
+        } else {
+          position.y += FLOW_GRID_STEP;
+        }
+      }
+      numSteps++;
+    }
+
+    return null;
+  }
+
+  /** Creates a Step */
+  createStep(options: {
+    step: { type: StepType } & Partial<StepData>;
+    parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+    near?: Vector2 | null; // in world coordinates
+    tx?: Transaction;
+  }): StepData {
+    const parent = isNode(options.parent) ? options.parent : this.graph.getOrError(options.parent);
+    const parentPtr = toNodeRef(parent);
+    const packagePtr = parent.packagePtr;
+    const flow = getContainingFlow(this.graph, parent);
+    if (flow == null) throw new Error(`no flow for ${describeNode(parent)}`);
+
+    // position in graph
+    const siblings = this.graph.getChildren(parent, NodeType.STEP);
+    const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
+    const position = options.step.position ?? this.findEmptySpace(options.near ?? this.centerVec!, STEP_SIZE);
+
+    // create
+    const step = (options.tx ?? this.tx).create({
+      metatype: NodeType.STEP,
+      name: makeNodeName(this.graph, { metatype: ObjectType.STEP, type: options.step.type, parentPtr }),
+      orderKey,
+      ...options.step,
+      position: position ?? undefined,
+      type: options.step.type,
+      parentPtr,
+      packagePtr,
+    });
+    canvas.inspect({ node: step, view: this.view.value });
+    return step;
+  }
+
+  /** Creates a Pipe */
+  createPipe(options: {
+    parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+    pipe: { type: PipeType } & Partial<PipeData>;
+    source: Port;
+    target: Port;
+    tx?: Transaction;
+  }) {
+    const parent = isNode(options.parent) ? options.parent : this.graph.getOrError(options.parent);
+    const parentPtr = toNodeRef(parent);
+    const packagePtr = parent.packagePtr;
+
+    // swap source/target if needed
+    if (options.source.side == PortSide.INCOMING && options.target.side == PortSide.OUTGOING) {
+      [options.source, options.target] = [options.target, options.source];
+    }
+    const { source, target } = options;
+    if (source.side != PortSide.OUTGOING) throw new Error(`cannot pipe from incoming port`);
+    if (target.side != PortSide.INCOMING) throw new Error(`cannot pipe to outgoing port`);
+
+    // position in graph
+    const siblings = this.graph.getChildren(parent, NodeType.PIPE);
+    const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
+
+    // create
+    const pipe = (options.tx ?? this.tx).create({
+      metatype: NodeType.PIPE,
+      name: makeNodeName(this.graph, { ...options.pipe, metatype: ObjectType.PIPE, parentPtr }),
+      orderKey,
+      ...options.pipe,
+      parentPtr,
+      packagePtr,
+      sourcePtr: toNodeRef(source.parent),
+      targetPtr: toNodeRef(target.parent),
+    });
+    canvas.inspect({ node: pipe, view: this.view.value });
+    return pipe;
   }
 }
 export const FLOW_CONTEXT_KEY = Symbol("flow");
@@ -1204,10 +1334,7 @@ export function interpolatePath(points: Vector2[], factor: number = 2): Vector2[
 
     for (let j = 1; j < factor; j++) {
       const t = j / factor;
-      interpolated.push({
-        x: p1.x + (p2.x - p1.x) * t,
-        y: p1.y + (p2.y - p1.y) * t,
-      });
+      interpolated.push({ x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t });
     }
   }
 
@@ -1221,87 +1348,4 @@ export function pathToSvg(path: PipePath): string {
   } else {
     return `M ${path.start.x} ${path.start.y} C ${path.control1.x} ${path.control1.y}, ${path.control2.x} ${path.control2.y}, ${path.end.x} ${path.end.y}`;
   }
-}
-
-export function createStep(
-  tx: Transaction,
-  graph: ReadNodeGraph,
-  options: {
-    step: { type: StepType } & Partial<StepData>;
-    parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
-    near?: Vector2 | null; // in world coordinates
-  },
-): StepData {
-  const parent = isNode(options.parent) ? options.parent : graph.getOrError(options.parent);
-  const parentPtr = toNodeRef(parent);
-  const packagePtr = parent.packagePtr;
-  const flow = getContainingFlow(graph, parent);
-  if (flow == null) throw new Error(`no flow for ${describeNode(parent)}`);
-
-  // position in graph
-  const siblings = graph.getChildren(parent, NodeType.STEP);
-  const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
-
-  // TODO :UX: create step in empty space
-  let position: Vector2Data | null = options.step.position ?? null;
-  if (options.near != null) {
-    position = makeStruct({
-      metatype: StructType.VECTOR2,
-      x: options.near.x - STEP_SIZE.width / 2,
-      y: options.near.y - STEP_SIZE.height / 2,
-    });
-  }
-
-  // create
-  const step = tx.create({
-    metatype: NodeType.STEP,
-    name: makeNodeName(graph, { metatype: ObjectType.STEP, type: options.step.type, parentPtr }),
-    orderKey,
-    ...options.step,
-    position: position ?? undefined,
-    type: options.step.type,
-    parentPtr,
-    packagePtr,
-  });
-  return step;
-}
-
-export function createPipe(
-  tx: Transaction,
-  graph: ReadNodeGraph,
-  options: {
-    parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
-    pipe: { type: PipeType } & Partial<PipeData>;
-    source: Port;
-    target: Port;
-  },
-) {
-  const parent = isNode(options.parent) ? options.parent : graph.getOrError(options.parent);
-  const parentPtr = toNodeRef(parent);
-  const packagePtr = parent.packagePtr;
-
-  // swap source/target if needed
-  if (options.source.side == PortSide.INCOMING && options.target.side == PortSide.OUTGOING) {
-    [options.source, options.target] = [options.target, options.source];
-  }
-  const { source, target } = options;
-  if (source.side != PortSide.OUTGOING) throw new Error(`cannot pipe from incoming port`);
-  if (target.side != PortSide.INCOMING) throw new Error(`cannot pipe to outgoing port`);
-
-  // position in graph
-  const siblings = graph.getChildren(parent, NodeType.PIPE);
-  const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
-
-  // create
-  const pipe = tx.create({
-    metatype: NodeType.PIPE,
-    name: makeNodeName(graph, { ...options.pipe, metatype: ObjectType.PIPE, parentPtr }),
-    orderKey,
-    ...options.pipe,
-    parentPtr,
-    packagePtr,
-    sourcePtr: toNodeRef(source.parent),
-    targetPtr: toNodeRef(target.parent),
-  });
-  return pipe;
 }

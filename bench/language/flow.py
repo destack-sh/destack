@@ -478,7 +478,7 @@ class FailStep(Step):
 class GetStep(Step):
     """Get a single Node."""
 
-    node_type: NodeType = p_regular(100)
+    node_type: NodeType | None = p_regular(100, default=None)
     base_block: Optional["Block"] = p_regular(
         101, array=False, require=False, default=None, references=NodeType.BLOCK
     )
@@ -489,7 +489,7 @@ class GetStep(Step):
 class SearchStep(Step):
     """Search for Nodes."""
 
-    node_type: NodeType = p_regular(100)
+    node_type: NodeType | None = p_regular(100, default=None)
     base_block: Optional["Block"] = p_regular(
         101, array=False, require=False, default=None, references=NodeType.BLOCK
     )

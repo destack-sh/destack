@@ -374,7 +374,7 @@ export function addTransform(transform: TransformData | null | undefined, add: P
   return updated;
 }
 
-export function addVector2(vec: Vector2Data | null | undefined, add: Partial<Vector2Data>): Vector2Data {
+export function addVector2(vec: Vector2 | null | undefined, add: Partial<Vector2>): Vector2Data {
   return {
     metatype: ObjectType.VECTOR2,
     x: (vec?.x ?? 0) + (add.x ?? 0),
