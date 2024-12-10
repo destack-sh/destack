@@ -126,16 +126,12 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
 
 // actions
 const hasMultipleTabs = computed(() => tabs.value.length > 1);
-const getTabFromContext = (ctx: ActionContext | undefined) => {
-  const matchingTab = tabs.value.find((t) => t.id == ctx?.triggerNode?.id);
-  return matchingTab ?? tabs.value[focusedTabIdx.value!];
-};
 const splitAction = (anchor: SplitAnchor) => ({
-  action: (action: Action, ctx?: ActionContext) => {
-    const focusedTab = getTabFromContext(ctx);
-    if (focusedTab == null) return false;
+  action: (action: Action, ctx: ActionContext) => {
+    const tab = ctx.nodes?.[0];
+    if (!isNode(tab, NodeType.VIEW)) return false;
     const selfData = spaceGraph.get(props.self) as ViewData;
-    canvas.splitView(spaceGraph, { parent: selfData, child: focusedTab, anchor });
+    canvas.splitView(spaceGraph, { parent: selfData, child: tab, anchor });
     return true;
   },
 });
@@ -143,8 +139,8 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.duplicateTab": {
     isEnabled: computed(() => focusedTabIdx.value != null),
     action: (action, ctx) => {
-      const tab = getTabFromContext(ctx);
-      if (tab == null) return false;
+      const tab = ctx.nodes?.[0];
+      if (!isNode(tab, NodeType.VIEW)) return false;
       const clonedTab = cloneNode(spaceConnection.tx, spaceGraph, tab);
       focus(clonedTab);
     },
@@ -152,16 +148,16 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.closeTab": {
     isEnabled: computed(() => focusedTabIdx.value != null),
     action: (action, ctx) => {
-      const tab = getTabFromContext(ctx);
-      if (tab == null) return false;
+      const tab = ctx.nodes?.[0];
+      if (!isNode(tab, NodeType.VIEW)) return false;
       remove(tab);
     },
   },
   "view.navigate.closeOtherTabs": {
     isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
-      const tab = getTabFromContext(ctx);
-      if (tab == null) return false;
+      const tab = ctx.nodes?.[0];
+      if (!isNode(tab, NodeType.VIEW)) return false;
       for (const t of tabs.value) {
         if (t != tab) canvas.removeView(spaceGraph, t);
       }
@@ -170,8 +166,8 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.focusPreviousTab": {
     isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
-      const tab = getTabFromContext(ctx);
-      if (tab == null) return false;
+      const tab = ctx.nodes?.[0];
+      if (!isNode(tab, NodeType.VIEW)) return false;
       const newIdx = (tabs.value.indexOf(tab) - 1 + tabs.value.length) % tabs.value.length;
       focus(tabs.value[newIdx]);
     },
@@ -179,8 +175,8 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   "view.navigate.focusNextTab": {
     isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
-      const tab = getTabFromContext(ctx);
-      if (tab == null) return false;
+      const tab = ctx.nodes?.[0];
+      if (!isNode(tab, NodeType.VIEW)) return false;
       const newIdx = (tabs.value.indexOf(tab) + 1) % tabs.value.length;
       focus(tabs.value[newIdx]);
     },

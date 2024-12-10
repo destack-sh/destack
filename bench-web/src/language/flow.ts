@@ -1047,9 +1047,10 @@ export class FlowContext {
   }
 
   /** Moves the thing */
-  move(thing: StepData | PipeData, move: { x: number; y: number }) {
+  move(thing: StepData | PipeData, move: { x: number; y: number }, options?: { tx?: Transaction} & TransactionOptions) {
+    const tx = options?.tx ?? this.tx;
     if (isNode(thing, NodeType.STEP)) {
-      this.tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long" });
+      tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long", ...options });
     } else if (isNode(thing, NodeType.PIPE)) {
       throw new Error(":Incomplete: move pipe");
     } else {

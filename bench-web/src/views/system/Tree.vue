@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { createBlock, useHierarchicalNodeMoveActions } from "@/language/block";
+import { createBlock } from "@/language/block";
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
@@ -24,7 +24,7 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { startDraggingIfAllowed, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
+import { isDragging, startDraggingIfAllowed, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { highlightMatches } from "@/ui/search";
@@ -317,37 +317,21 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
-const getItemFromContext = (ctx: ActionContext | undefined): { item: NodeTreeItem<any> | null; idx: number } => {
-  let item = expandedItems.value.find((item) => item.node.id == ctx?.triggerNode?.id);
-  if (!item) item = expandedItems.value.find((item) => item.node.id == focusedItem.value?.node.id);
-  if (!item) return { item: null, idx: -1 };
-  const idx = expandedItems.value.indexOf(item);
-  return { item, idx };
-};
 const actions: Partial<ActionMapImplementation<"space">> = {
   // navigate
   "space.navigate.open": (action, ctx) => {
-    const node = getItemFromContext(ctx).item?.node;
-    if (node == null) return false;
-    canvas.goToNode(node, { skipSelf: preset.value == TreeViewPreset.OUTLINE });
+    if (ctx.nodes?.[0] == null) return false;
+    canvas.goToNode(ctx.nodes[0], { skipSelf: preset.value == TreeViewPreset.OUTLINE });
   },
   // duplicate
   "space.edit.rename": (action, ctx) => {
-    const node = getItemFromContext(ctx).item?.node;
-    if (node == null) return false;
-    editingNodePtr.value = toNodeRef(node);
+    if (ctx.nodes?.[0] == null) return false;
+    editingNodePtr.value = isNode(ctx.nodes[0]) ? toNodeRef(ctx.nodes[0]) : ctx.nodes[0];
     nextTick(() => {
       editingNameRef.value?.[0]?.focus?.();
       editingNameRef.value?.[0]?.select?.();
     });
   },
-  ...useHierarchicalNodeMoveActions({
-    graph: graph,
-    basePtr: rootPtr,
-    txFactory: () => connection.tx,
-    expandedItems,
-    getItemFromContext,
-  }),
   // select
   "space.select.all": () => canvas.select(expandedItems.value.map((item) => item.node)),
 };
@@ -409,12 +393,13 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] transition-colors duration-150 hover:cursor-pointer hover:bg-gray-100 data-[dragging=true]:opacity-50"
+          class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] transition-colors duration-150 hover:cursor-pointer hover:bg-gray-100"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'
               : 'border-transparent',
             canvas.isSelected(node) ? 'bg-orange-400/20' : isFocused(node) ? 'bg-gray-100' : '',
+            isDragging(node) ? 'opacity-50' : '',
             (node as any).name != null ? '' : 'italic',
           ]"
           :style="{

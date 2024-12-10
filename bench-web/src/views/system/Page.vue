@@ -1,9 +1,10 @@
 <script lang="ts" setup>
-import { createBlock, useFlatNodeMoveActions } from "@/language/block";
+import { createBlock } from "@/language/block";
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { isDescendantOf } from "@/language/graph";
+import { useNodeListActions } from "@/language/list";
 import { moveNode, NodeIn } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { packValue } from "@/language/value";
@@ -171,60 +172,16 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
-const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
-  let blockIdx: number | undefined = undefined;
-  if (blockIdx === undefined && ctx?.triggerNode?.id != null)
-    blockIdx = blocks.value.findIndex((block) => block.id == ctx!.triggerNode!.id);
-  if (blockIdx === undefined && focusedNodePtr.value?.id != null)
-    blockIdx = blocks.value.findIndex((block) => block.id == focusedNodePtr.value!.id);
-  if (blockIdx === undefined) return { block: null, idx: -1 };
-  const block = blocks.value[blockIdx];
-  return { block, idx: blockIdx };
-};
 const actions: Partial<ActionMapImplementation<"list" | "space">> = {
-  // list
-  "list.create.above": (action, context) => {
-    let { block } = getBlockFromContext(context);
-    if (block == null) block = blocks.value[0];
-    if (block == null) return false;
-    createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
-  },
-  "list.create.below": (action, context) => {
-    let { block } = getBlockFromContext(context);
-    if (block == null) block = blocks.value[blocks.value.length - 1];
-    if (block == null) return false;
-    createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
-  },
-  // navigation
-  "space.navigate.up": (action, context) => {
-    const { block, idx } = getBlockFromContext(context);
-    let toFocus = blocks.value[idx - 1];
-    if (block == null) {
-      if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[blocks.value.length - 1];
-      else return false;
-    }
-    if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
-  },
-  "space.navigate.down": (action, context) => {
-    const { block, idx } = getBlockFromContext(context);
-    let toFocus = blocks.value[idx + 1];
-    if (block == null) {
-      if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[0];
-      else return false;
-    }
-    if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
-  },
-  // move
-  ...useFlatNodeMoveActions({
+  ...useNodeListActions({
+    nodeType: NodeType.BLOCK,
+    self: state.baseViewRef,
     graph: graph,
+    list: blocks,
     txFactory: () => connection.tx,
-    getNodeFromContext: (context) => {
-      const { block, idx } = getBlockFromContext(context);
-      return { node: block, idx };
-    },
+    create: (anchor, node) =>
+      createAndFocusBlock({ type: BlockType.TEXT }, node != null ? anchor : "inside", node ?? page.value!),
   }),
-  // select
-  "space.select.all": () => canvas.select(blocks.value),
 };
 function createAndFocusBlock(
   blockIn: Partial<NodeIn<NodeType.BLOCK>> & Required<Pick<NodeIn<NodeType.BLOCK>, "type">>,
@@ -233,6 +190,7 @@ function createAndFocusBlock(
 ) {
   const block = createBlock(connection.tx, graph, { block: blockIn, anchor, target });
   nextTick(() => focus(block));
+  return block;
 }
 
 // focus
@@ -277,7 +235,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <NodePath v-if="nodePtr" :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :self="nodePtr" :graph="graph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
-        <button class="text-gray-400 hover:bg-gray-100 hover:text-gray-700" @click="(e) => pushDefaultMenu('main', page!, e)">
+        <button
+          class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          @click="(e) => pushDefaultMenu('main', page!, e)"
+        >
           <i class="fas fa-ellipsis-vertical w-5 text-center" />
         </button>
       </div>
@@ -394,13 +355,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
         >
           <!-- Add blocks -->
           <button
-            v-for="blockType in [
-              BlockType.TEXT,
-              BlockType.CHOICE,
-              BlockType.DATABASE,
-              BlockType.FLOW,
-              BlockType.PAGE,
-            ]"
+            v-for="blockType in [BlockType.TEXT, BlockType.CHOICE, BlockType.DATABASE, BlockType.FLOW, BlockType.PAGE]"
             data-suppress-drag="both"
             class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
             @click="() => createAndFocusBlock({ type: blockType }, 'inside', page!)"

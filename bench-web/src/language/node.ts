@@ -589,3 +589,25 @@ export function moveNode(
     throw new Error(`unexpected anchor: ${anchor}`);
   }
 }
+
+/**
+ * Moves the given nodes around. Like moveNode but such that multiple nodes are order preserved relatively.
+ */
+export function moveNodes(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  nodes: AnyNodeData[],
+  options: {
+    anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down";
+    target?: AnyNodeData | NodeReferenceData;
+  },
+) {
+  if (nodes.length == 0) return;
+  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Move" } });
+  // move first to target
+  moveNode(tx, graph, nodes[0], { anchor: options.anchor, target: options.target });
+  // move the rest relative to the first
+  for (let i = 1; i < nodes.length; i++) {
+    moveNode(tx, graph, nodes[i], { anchor: "after", target: graph.getOrError(nodes[i - 1]) });
+  }
+}

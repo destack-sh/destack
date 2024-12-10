@@ -2,6 +2,7 @@
 import { blockToType } from "@/language/block";
 import { toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField } from "@/language/field";
+import { useNodeListActions } from "@/language/list";
 import { moveNode, onNodeMorphed } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
@@ -11,6 +12,7 @@ import { canvas } from "@/system/space";
 import { FIELD_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { onAddFieldAction } from "@/ui/detail";
 import {
+  isDragging,
   startDraggingIfAllowed,
   startSelectingIfAllowed,
   useMultiDropZone,
@@ -35,6 +37,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
+const state = canvas.registerView(self, id);
 
 const containerRef = ref<HTMLElement | null>(null);
 const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
@@ -119,27 +122,24 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
-const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData | null } => {
-  const field = fields.value.find((f) => f.id == ctx?.triggerNode?.id) ?? null;
-  // NOTE :Incomplete: Type fallback to focused/inspection/...? like in other actions?
-  return { field };
-};
 // NOTE :Incomplete: Type.actions (move, navigate, ...)
 const actions: Partial<ActionMapImplementation<"list">> = {
   // list
-  "list.create.above": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    createField(connection.tx, graph, { anchor: "before", target: field, field: { type: props.fieldType } });
-  },
-  "list.create.below": (action, ctx) => {
-    const { field } = getFieldFromContext(ctx);
-    if (field == null) return false;
-    createField(connection.tx, graph, { anchor: "after", target: field, field: { type: props.fieldType } });
-  },
+  ...useNodeListActions({
+    nodeType: NodeType.FIELD,
+    self: state.baseViewRef,
+    graph,
+    list: fields,
+    txFactory: () => connection.tx,
+    create: (anchor, node) =>
+      createField(connection.tx, graph, {
+        anchor: node != null ? anchor : "inside",
+        target: node ?? block.value!,
+        field: { type: props.fieldType },
+      }),
+  }),
 };
 
-canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
@@ -188,8 +188,11 @@ defineExpose<ViewExposed>({ self, id, actions });
         <Field
           :id="field.id"
           :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
-          class="cursor-pointer truncate data-[dragging=true]:opacity-50"
-          :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
+          class="cursor-pointer truncate transition-colors duration-150"
+          :class="[
+            orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]',
+            isDragging(field) ? 'opacity-50' : '',
+          ]"
           :data-contextmenu-items="FIELD_CONTEXT_ACTIONS.join(',')"
           :prepared-connection="preparedConnection"
           :node-ptr="toNodeRef(field)"

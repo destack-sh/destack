@@ -1,5 +1,6 @@
 import { NodeReferenceData, ObjectType, type AnyNodeData, type IconData, type ViewType } from "@/proto/wire";
 import {
+  ACTION_BUILTIN_IDS_INDEX,
   fireAction,
   getAction,
   getActionsLike,
@@ -49,8 +50,8 @@ export type MenuItem = {
 
 /** Gets the view context for a given menu (item) */
 function getMenuContextViews(context?: PopoverContext): ViewComponent[] {
-  if (context?.triggerElement) {
-    return collectViewComponentsUp(context.triggerElement);
+  if (context?.element) {
+    return collectViewComponentsUp(context.element);
   } else {
     return canvas.focusedViewComponents;
   }
@@ -112,7 +113,7 @@ export function menuActionsLike(
 //
 
 export type PopoverContext = ActionContext & {
-  triggerElement?: MaybeElement;
+  element?: MaybeElement;
 };
 
 const POPOVER_DATA_SET_ATTRIBUTE = "popover";
@@ -147,7 +148,7 @@ export type PopoverInfo = (
 export type PopoverInfoIn = Partial<PopoverInfo>;
 
 /** The triggering element with some extra state */
-type PopoverTriggerElement = HTMLElement & {
+type PopoverElement = HTMLElement & {
   menuOnEvent?: (e: MouseEvent) => void;
 };
 
@@ -170,6 +171,7 @@ function newPopoverId() {
   return PopoverId++;
 }
 
+/** Updates the state of a popover (already in the stack) */
 export function updatePopover(instance: PopoverInstance, info: Partial<PopoverInfo>) {
   const idx = _activePopovers.value.indexOf(instance);
   if (idx < 0) return;
@@ -178,14 +180,15 @@ export function updatePopover(instance: PopoverInstance, info: Partial<PopoverIn
   triggerRef(_activePopovers);
 }
 
+/** Pushes a popover onto the stack */
 export function pushPopover(push: {
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement | undefined;
   info: PopoverInfoIn;
 }): PopoverInstance {
-  const triggerNode = canvas.findViewData(push.trigger) ?? undefined;
-  const context: PopoverContext = { triggerElement: push.trigger, triggerNode };
+  const node = canvas.findViewData(push.trigger) ?? undefined;
+  const context: PopoverContext = { element: push.trigger, nodes: node ? [node] : [] };
   const info = {
     ...OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS,
     ...push.info,
@@ -218,6 +221,7 @@ export function pushPopover(push: {
   return instance;
 }
 
+/** Removes a popover from the stack */
 export function popPopover(fromIdx: number | PopoverInstance = -1) {
   if (typeof fromIdx == "object") {
     fromIdx = _activePopovers.value.indexOf(fromIdx);
@@ -246,13 +250,13 @@ function makePopoverDirective(options: {
 }): Directive<MaybeElement, PopoverInfoIn | ((context: PopoverContext) => PopoverInfoIn)> {
   return {
     mounted(el, binding) {
-      const triggerEl = el as PopoverTriggerElement;
+      const triggerEl = el as PopoverElement;
       triggerEl.menuOnEvent = (e: MouseEvent) => {
         const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
-        const triggerNode = canvas.findViewData(triggerEl) ?? undefined;
+        const node = canvas.findViewData(triggerEl) ?? undefined;
         const info =
           typeof binding.value == "function"
-            ? binding.value({ triggerElement: triggerEl, triggerNode })
+            ? binding.value({ element: triggerEl, nodes: node ? [node] : [] })
             : binding.value;
         if (info.isEnabled === false) return;
         e.preventDefault();
@@ -263,7 +267,7 @@ function makePopoverDirective(options: {
     },
 
     unmounted(el) {
-      const triggerEl = el as PopoverTriggerElement;
+      const triggerEl = el as PopoverElement;
       if (triggerEl.menuOnEvent) triggerEl.removeEventListener(options.event, triggerEl.menuOnEvent);
     },
   };
@@ -272,7 +276,7 @@ function makePopoverDirective(options: {
 export const CONTEXT_MENU_DIRECTIVE = makePopoverDirective({ event: "contextmenu", reference: "trigger" });
 export const MENU_DIRECTIVE = makePopoverDirective({ event: "click", reference: "self" });
 
-type HoverMenuTriggerElement = PopoverTriggerElement & {
+type HoverMenuElement = PopoverElement & {
   hoverTimeout?: number;
   hideTimeout?: number;
   hoverOnMouseEnter?: (e: MouseEvent) => void;
@@ -304,7 +308,7 @@ function isMouseOverlapping(e: MouseEvent, ...els: (HTMLElement | undefined)[]):
 
 export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
   mounted(el, binding) {
-    const triggerEl = el as HoverMenuTriggerElement;
+    const triggerEl = el as HoverMenuElement;
     const options = binding.value;
     const hoverDelay = options.showDelay ?? DEFAULT_HOVER_DELAY;
     const leaveDelay = options.hideDelay ?? DEFAULT_LEAVE_DELAY;
@@ -314,10 +318,10 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
 
     const showPopover = (e: MouseEvent) => {
       const reference = options.reference === "self" ? triggerEl : { x: e.clientX, y: e.clientY };
-      const triggerNode = (window as any).canvas?.findViewData(triggerEl) ?? undefined;
+      const node = (window as any).canvas?.findViewData(triggerEl) ?? undefined;
       const popoverInfo =
         typeof options.popover === "function"
-          ? options.popover({ triggerElement: triggerEl, triggerNode })
+          ? options.popover({ element: triggerEl, nodes: [node] })
           : options.popover;
       if (popoverInfo.isEnabled === false) return;
 
@@ -386,7 +390,7 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
   },
 
   unmounted(el) {
-    const triggerEl = el as HoverMenuTriggerElement;
+    const triggerEl = el as HoverMenuElement;
 
     clearTimeout(triggerEl.hoverTimeout);
     clearTimeout(triggerEl.hideTimeout);
@@ -492,7 +496,6 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
 
   let currentNode: AnyNodeData | null = node ?? null;
   const nodes: AnyNodeData[] = node != null ? [node] : [];
-  const actions: Action[] = [];
   const actionsById: Record<string, Action> = {};
   const nodeByActionId: Record<string, AnyNodeData> = {};
   const elementByActionId: Record<string, HTMLElement> = {};
@@ -500,7 +503,6 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   function addAction(element: HTMLElement, action: Action) {
     if (action.id != null && actionsById[action.id] == null) {
       if (excludedActions.includes(action.id)) return;
-      actions.push(action);
       actionsById[action.id] = action;
       if (currentNode != null) {
         nodeByActionId[action.id] = currentNode;
@@ -566,9 +568,16 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   }
 
   // build menu
-  if (actions.length == 0 || nodes.length == 0) return; // no actions found
-  const context = { triggerElement: e.target as HTMLElement, triggerNode: nodes[0] };
+  if (Object.keys(actionsById).length == 0 || nodes.length == 0) return; // no actions found
+  const actions = Object.values(actionsById);
+  actions.sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id]);
+  const context: PopoverContext = {
+    element: e.target as HTMLElement,
+    nodes: canvas.selection != null ? supergraph.getManyMaybe(canvas.selection.nodesPtr) : [nodes[0]],
+  };
   const contextViews = getMenuContextViews(context);
+  // nocheckin: associate actions with proper eloements
+  //  (if we click on a Type view inside a Block selection, we want the list.create.above from the Block selection, not from the Type view)
   const menuItems = actions.map((action) => menuItemFromAction(action, { context, contextViews: contextViews }));
   const menu: MenuInfo = { context, items: menuItems };
   pushPopover({ trigger: e.target as HTMLElement, reference: { x: e.clientX, y: e.clientY }, info: menu });

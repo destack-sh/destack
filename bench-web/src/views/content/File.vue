@@ -89,7 +89,7 @@ const HOVER_MENU: HoverMenuOptions = {
         metatype: ObjectType.RECTANGLE,
         width: Math.max(
           FILE_POPOVER_WIDTH_MIN,
-          Math.min(FILE_POPOVER_WIDTH_MAX, getElement(context.triggerElement)!.getBoundingClientRect().width),
+          Math.min(FILE_POPOVER_WIDTH_MAX, getElement(context.element)!.getBoundingClientRect().width),
         ),
       },
       isInline: true,

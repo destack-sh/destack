@@ -161,11 +161,11 @@ export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_
 export type ActionBuiltinId = (typeof ACTION_BUILTIN_IDS)[number];
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 export type ActionContext = {
-  triggerNode?: AnyNodeData | NodeReferenceData;
+  nodes?: AnyNodeData[];
 };
 export type ActionCallable = (
   action: Action,
-  context?: ActionContext,
+  context: ActionContext,
 ) => void | boolean | Promise<void> | Promise<boolean>;
 export type ActionKind = "static" | "virtual";
 export const ACTION_TYPES = ["generic", "external-url", "toggle", "menu"] as const;
@@ -318,7 +318,8 @@ export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
 }
 
 /** Triggers the bound action from a keyboard event. */
-export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: ActionContext): boolean {
+export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
+  // bail if action is disabled or suppressed
   if (action.isEnabled != null && !toValue(action.isEnabled)) {
     log.debug("action.disabled", action.id);
     return false;
@@ -327,11 +328,21 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent, context?: 
   if (suppressor) {
     log.trace("action.suppressed", action.id, suppressor);
     return false;
-  } else {
-    const localViewsInOrder = collectViewComponentsUp(e.target as HTMLElement);
-    // NOTE: concat local views and focused view components so local ones are preferred, but all are available
-    return fireAction(action, [...localViewsInOrder, ...canvas.focusedViewComponents], context);
   }
+
+  // assemble current context
+  const context: ActionContext = {};
+  if (canvas.selection != null) {
+    context.nodes = supergraph.getManyMaybe(canvas.selection.nodesPtr);
+  } else if (space.value?.inspectionPtr != null) {
+    const node = supergraph.getOrError(space.value.inspectionPtr);
+    if (node != null) context.nodes = [node];
+  }
+
+  // fire action
+  const localViewsInOrder = collectViewComponentsUp(e.target as HTMLElement);
+  // NOTE: concat local views and focused view components so local ones are preferred, but all are available
+  return fireAction(action, [...localViewsInOrder, ...canvas.focusedViewComponents], context);
 }
 
 /**
@@ -359,7 +370,7 @@ export function getImplementingAction(action: Action, context: ViewComponent[]):
 export function fireAction(
   action: Action,
   viewsInOrder: ViewComponent[] | null = canvas.focusedViewComponents,
-  context?: ActionContext,
+  context: ActionContext = {},
 ) {
   if (action.isEnabled != null && !toValue(action.isEnabled)) return false;
   if (action.kind == "static") {
@@ -450,13 +461,13 @@ function getNodesFromContext(ctx: ActionContext | undefined): {
   let nodesPtr = [];
   if (canvas.selection != null) {
     nodesPtr = canvas.selection.nodesPtr;
-  } else if (ctx?.triggerNode != null) {
-    nodesPtr = [ctx.triggerNode];
+  } else if (ctx?.nodes != null) {
+    nodesPtr = ctx.nodes;
   } else {
     return { connection: null, graph: null, nodes: [] };
   }
   const { connection, graph } = supergraph.getLinkOrError(nodesPtr[0]);
-  
+
   // get and deduplicate nodes
   const nodes = [];
   const nodesById: Record<string, AnyNodeData> = {};
@@ -653,8 +664,6 @@ declareActionMap<"space">({
     action: (action, ctx) => {
       if (canvas.selection != null) {
         canvas.deselect();
-      } else {
-        return false;
       }
     },
   },
