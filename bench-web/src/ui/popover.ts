@@ -5,6 +5,7 @@ import {
   getActionsLike,
   getImplementingAction,
   getNodeActions,
+  SCALAR_CONTEXT_ACTIONS,
   type Action,
   type ActionBuiltinId,
   type ActionContext,
@@ -485,7 +486,10 @@ export function trackHoverElementOnce(
 }
 
 /** Creates the default menu for the views at the given element. */
-export function pushDefaultMenu(node: AnyNodeData | undefined, e: MouseEvent) {
+export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | undefined, e: MouseEvent) {
+  const hasSelection = canvas.selection != null && canvas.selection.nodesPtr.length > 1;
+  const excludedActions = hasSelection ? SCALAR_CONTEXT_ACTIONS : [];
+
   let currentNode: AnyNodeData | null = node ?? null;
   const nodes: AnyNodeData[] = node != null ? [node] : [];
   const actions: Action[] = [];
@@ -495,6 +499,7 @@ export function pushDefaultMenu(node: AnyNodeData | undefined, e: MouseEvent) {
 
   function addAction(element: HTMLElement, action: Action) {
     if (action.id != null && actionsById[action.id] == null) {
+      if (excludedActions.includes(action.id)) return;
       actions.push(action);
       actionsById[action.id] = action;
       if (currentNode != null) {
@@ -511,7 +516,6 @@ export function pushDefaultMenu(node: AnyNodeData | undefined, e: MouseEvent) {
   }
 
   // gather stack of nodes and actions
-  const hasSelection = canvas.selection != null;
   let element = e.target as HTMLElement;
   while (element != null) {
     // find new node at element
@@ -539,14 +543,12 @@ export function pushDefaultMenu(node: AnyNodeData | undefined, e: MouseEvent) {
     }
 
     // gather actions
-    if (!hasSelection) {
-      const contextMenuItems = element.dataset["contextmenuItems"]?.split(",") ?? [];
-      const contextMenuActions = getActionsLike(contextMenuItems);
-      contextMenuActions.forEach((action) => addAction(element, action));
-      if (currentNode != null) {
-        const nodeActions = getNodeActions(currentNode);
-        nodeActions.forEach((action) => addAction(element, action));
-      }
+    const contextMenuItems = element.dataset["contextmenuItems"]?.split(",") ?? [];
+    const contextMenuActions = getActionsLike(contextMenuItems);
+    contextMenuActions.forEach((action) => addAction(element, action));
+    if (currentNode != null) {
+      const nodeActions = getNodeActions(currentNode);
+      nodeActions.forEach((action) => addAction(element, action));
     }
 
     // and up we go
@@ -565,10 +567,10 @@ export function pushDefaultMenu(node: AnyNodeData | undefined, e: MouseEvent) {
 
   // build menu
   if (actions.length == 0 || nodes.length == 0) return; // no actions found
-  const menu: MenuInfo = {
-    context: { triggerElement: e.target as HTMLElement, triggerNode: nodes[0] },
-    items: actions.map((action) => menuItemFromAction(action, { context: { triggerNode: nodes[0] } })),
-  };
+  const context = { triggerElement: e.target as HTMLElement, triggerNode: nodes[0] };
+  const contextViews = getMenuContextViews(context);
+  const menuItems = actions.map((action) => menuItemFromAction(action, { context, contextViews: contextViews }));
+  const menu: MenuInfo = { context, items: menuItems };
   pushPopover({ trigger: e.target as HTMLElement, reference: { x: e.clientX, y: e.clientY }, info: menu });
 
   // auto-select first node if not selected
@@ -579,5 +581,5 @@ export function pushDefaultMenu(node: AnyNodeData | undefined, e: MouseEvent) {
 
 /** Creates the default menu for the given element. */
 export function pushDefaultContextMenu(e: MouseEvent) {
-  pushDefaultMenu(undefined, e);
+  pushDefaultMenu("context", undefined, e);
 }

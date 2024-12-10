@@ -343,9 +343,13 @@ export function expandSelection(
   selection: SelectionData | undefined | null,
   nodes: (AnyNodeData | NodeReferenceData)[],
 ): SelectionData {
+  const newNodes = nodes.filter((n) => !selection?.nodesPtr.some((m) => m.id == n.id));
   return {
     ...(selection ?? { metatype: ObjectType.SELECTION }),
-    nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
+    nodesPtr: [
+      ...(selection?.nodesPtr ?? []),
+      ...newNodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
+    ],
     fieldsPtr: [],
     propertiesPtr: [],
   };

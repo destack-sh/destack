@@ -96,7 +96,6 @@ const USER_MENU_ITEMS = computed(() => {
   }
   items.push(
     ...[
-      menuItemFromAction("user.settings.editKeybindings", { category: "primary" }),
       menuItemFromAction("user.auth.logout", { category: "secondary" }),
     ],
   );

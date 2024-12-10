@@ -149,7 +149,6 @@ export const ACTION_BUILTIN_IDS = [
   "user.auth.logoutAll",
   "user.auth.activate",
   "user.misc.goToHome",
-  "user.settings.editKeybindings",
   // organization
   "developer.test.developerMode",
   "developer.test.retryAllFailed",
@@ -457,7 +456,17 @@ function getNodesFromContext(ctx: ActionContext | undefined): {
     return { connection: null, graph: null, nodes: [] };
   }
   const { connection, graph } = supergraph.getLinkOrError(nodesPtr[0]);
-  const nodes = graph.getManyMaybe(nodesPtr);
+  
+  // get and deduplicate nodes
+  const nodes = [];
+  const nodesById: Record<string, AnyNodeData> = {};
+  for (const nodePtr of nodesPtr) {
+    const node = graph.get(nodePtr);
+    if (node != null && nodesById[node.id!] == null) {
+      nodes.push(node);
+      nodesById[node.id!] = node;
+    }
+  }
   return { connection, graph, nodes };
 }
 
@@ -1089,7 +1098,9 @@ contributeActionMap<"space">({
 // Node context actions
 //
 
-const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.delete", "space.edit.duplicate"];
+export const SCALAR_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.rename"];
+
+export const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.duplicate", "space.edit.delete"];
 
 export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
@@ -1107,11 +1118,11 @@ export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]
 /** Gets the base Actions for a Node. */
 export function getNodeActions(node: AnyNodeData): Action[] {
   const actions: ActionBuiltinId[] = [...NODE_CONTEXT_ACTIONS];
-  if (CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType] != null) {
-    actions.push(...CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType]!);
-  }
   if ("title" in node || "name" in node) {
     actions.push("space.edit.rename");
+  }
+  if (CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType] != null) {
+    actions.push(...CONTEXT_ACTIONS_BY_TYPE[node.metatype as unknown as NodeType]!);
   }
   return actions.map(getAction);
 }

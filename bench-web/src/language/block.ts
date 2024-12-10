@@ -140,6 +140,8 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
   };
 }
 
+// nocheckin: handle selections in move (and list.create.above/below)
+
 /** Actions to move up/down in a flat node level (assumes all the parents are the same, i.e. all nodes are siblings) */
 export function useFlatNodeMoveActions<T extends NodeType>(options: {
   graph: ReadNodeGraph;
