@@ -3,7 +3,7 @@ import { describeNode, makeScope, nodeReference, toNodeRef, type TypedNodeRefere
 import { NodeGraph, type ReadNodeGraph } from "@/language/graph";
 import { SOURCE_NODE_TYPES } from "@/language/const";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
-import { isDeveloperMode as globalIsDeveloperMode } from "@/utils/globals";
+import { IS_DEVELOPER_MODE as globalIsDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { computedValue, pickRef, pretendReadonly } from "@/utils/ref";
 import { pseudoRandomNumber, xorString } from "@/utils/string";

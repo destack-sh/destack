@@ -13,7 +13,7 @@ import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { ICON_BY_HUB_ASPECT, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import { isDeveloperMode } from "@/utils/globals";
+import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
@@ -72,7 +72,7 @@ const BENCH_MENU_ITEMS = computed(() => {
     menuItemFromAction("space.launch.discord"),
   ];
 
-  if (isDeveloperMode.value) {
+  if (IS_DEVELOPER_MODE.value) {
     items.push({
       id: "developer",
       type: "generic",

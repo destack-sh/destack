@@ -13,9 +13,9 @@ import {
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
+import { setCanvas } from "@/system/globals";
 import { createDesktopDefaultSpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
-import { setCanvas as _setCanvas } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { computed, nextTick, watch } from "vue";
 
@@ -61,7 +61,7 @@ export const { connection: spaceConnection } = useExistingConnection(local.space
 export const canvas = new SpaceCanvas(local.spacePtr, spaceGraph, () =>
   spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
 );
-_setCanvas(canvas);
+setCanvas(canvas);
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
 export const ownedSpacesInPkg = computed(() =>
   local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),

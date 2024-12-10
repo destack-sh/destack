@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { SINK_STEP_TYPES } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
-import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/language/flow";
+import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/system/flow";
 import { isRunActive } from "@/language/session";
 import {
   ColorShade,

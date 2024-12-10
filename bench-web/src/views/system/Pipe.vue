@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
-import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
+import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/system/flow";
 import { isGeneratedNodeName } from "@/language/node";
 import { isRunActive } from "@/language/session";
 import { ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
