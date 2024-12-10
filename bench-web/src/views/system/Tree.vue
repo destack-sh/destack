@@ -24,7 +24,13 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { isDragging, startDraggingIfAllowed, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
+import {
+  isDragging,
+  startDraggingIfAllowed,
+  startSelectingIfAllowed,
+  useMultiDropZone,
+  useSelectionZone,
+} from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { highlightMatches } from "@/ui/search";
@@ -398,7 +404,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'
               : 'border-transparent',
-            canvas.isSelected(node) ? 'bg-orange-400/20' : isFocused(node) ? 'bg-gray-100' : '',
+            canvas.isSelected(node)
+              ? 'bg-orange-400/20'
+              : isFocused(node) || canvas.isHighlighted(node)
+                ? 'bg-gray-100'
+                : '',
             isDragging(node) ? 'opacity-50' : '',
             (node as any).name != null ? '' : 'italic',
           ]"

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.09.0"
+VERSION = "2024.12.10.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -146,49 +146,6 @@ USER_TABLE = Table(
     ),
 )
 
-ORGANIZATION_TABLE = Table(
-    "bench_organization",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column(
-            "main_handle_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_handle",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column("main_handle_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column(
-            "main_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column("status", PrimitiveType.INT16),
-    ),
-    indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
-    constraints=(
-        Constraint(
-            "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
-        ),
-    ),
-)
-
 HANDLE_TABLE = Table(
     "bench_handle",
     (
@@ -267,6 +224,49 @@ CLIENT_TABLE = Table(
             ConstraintType.UNIQUE,
             columns=("access_token",),
             index="bench_idx_access_token",
+        ),
+    ),
+)
+
+ORGANIZATION_TABLE = Table(
+    "bench_organization",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column(
+            "main_handle_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_handle",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("main_handle_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column(
+            "main_bench_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
+        Column("status", PrimitiveType.INT16),
+    ),
+    indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
+    constraints=(
+        Constraint(
+            "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
         ),
     ),
 )
