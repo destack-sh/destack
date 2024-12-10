@@ -16,9 +16,12 @@ import { IS_DEV } from "@/utils/globals";
 import { Casing, toCasing } from "@/utils/string";
 import { type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
 
-export type ViewProps = { self?: NodeReferenceData; modelValue?: any; placeholder?: string } & Partial<
-  Omit<ViewData, "metatype" | "ck">
->;
+export type ViewProps = {
+  self?: NodeReferenceData;
+  modelValue?: any;
+  placeholder?: string;
+  isPopover?: boolean;
+} & Partial<Omit<ViewData, "metatype" | "ck">>;
 export type ViewComponent = {
   new (): ComponentInstance<any>;
   props: ViewProps;
@@ -97,7 +100,6 @@ export const ViewContentWrapper: FunctionalComponent<{
   );
 };
 ViewContentWrapper.props = ["type", "title", "variant", "orientation", "valueType"];
-
 
 // inverse :ViewRegistry for lookups without needing to import the registry
 export function getViewTypeByComponentName(name: string): ViewType | null {

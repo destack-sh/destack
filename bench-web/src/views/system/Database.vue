@@ -187,6 +187,7 @@ const {
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLDivElement | null> = ref(null);
+const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<HTMLDivElement | null> = ref(null);
@@ -538,6 +539,10 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 //
 
 const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
+  // edit
+  "space.edit.rename": () => {
+    nameRef.value?.focusIdentifier();
+  },
   ...useNodeListActions({
     nodeType: NodeType.RECORD,
     self: state.baseViewRef,
@@ -603,6 +608,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <div v-if="variant != Variant.COMPACT">
         <NodeReference
           v-if="block"
+          ref="nameRef"
           is-input
           class="mb-2 mt-5 px-0.5"
           size="title"

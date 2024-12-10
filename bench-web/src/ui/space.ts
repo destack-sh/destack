@@ -370,7 +370,7 @@ export class SpaceCanvas {
     const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
-      this.tx().update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "short" });
+      this.tx().update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "long" });
     }
 
     // open inspector
@@ -449,7 +449,7 @@ export class SpaceCanvas {
     // focus the given selection within the view
     if (focus.focus != null) {
       const view = this.getViewData(focus.view)!;
-      if (!deepValueEquals(view.focus, focus.focus)) tx.update(view, { focus: focus.focus }, { debounce: "short" });
+      if (!deepValueEquals(view.focus, focus.focus)) tx.update(view, { focus: focus.focus }, { debounce: "long" });
     }
 
     // focus every 'child' in its 'parent' up to space root
@@ -460,7 +460,7 @@ export class SpaceCanvas {
     while (parent?.metatype == ObjectType.VIEW || parent?.metatype == ObjectType.SPACE) {
       const childFocus = makeSelection([child]);
       if (!deepValueEquals(parent.focus, childFocus)) {
-        tx.update(parent, { focus: childFocus }, { debounce: "short" });
+        tx.update(parent, { focus: childFocus }, { debounce: "long" });
         updated.push(parent, { focus: childFocus });
       }
       child = parent as ViewData;
@@ -472,7 +472,7 @@ export class SpaceCanvas {
       const descendants = this.graph.getDescendants(child, { metatypes: [NodeType.VIEW] });
       descendants
         .filter((v) => v.focus != null)
-        .forEach((v) => tx.update(v, { focus: undefined }, { debounce: "short" }));
+        .forEach((v) => tx.update(v, { focus: undefined }, { debounce: "long" }));
     }
   }
 

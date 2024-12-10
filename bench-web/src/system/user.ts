@@ -128,7 +128,7 @@ export async function logIn(
   } = await supervisor.loginUser({ user: wrapProtoOneOf(userIn), password, client: makeCurrentClient() }, options);
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
-  toaster.info({ icon: "fas fa-right-from-bracket", title: "Logged In", text: `Welcome back, ${user.slug}.` });
+  toaster.success({ icon: "fas fa-right-from-bracket", title: "Logged in", text: `Welcome back, ${user.slug}.` });
   return { user, client };
 }
 
