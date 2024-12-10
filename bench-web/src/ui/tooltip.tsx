@@ -98,7 +98,7 @@ export function tooltipFromAction(action: Action, override?: Partial<TooltipInfo
 }
 
 /** The triggering element with some extra state */
-interface TooltipTriggerElement extends HTMLElement {
+interface TooltipElement extends HTMLElement {
   tooltipInstance?: TooltipInstance;
   tooltipShowTimeout?: number;
   tooltipHideTimeout?: number;
@@ -110,7 +110,7 @@ interface TooltipTriggerElement extends HTMLElement {
 export type TooltipInstance = {
   id: number;
   info: TooltipInfo;
-  reference: TooltipTriggerElement;
+  reference: TooltipElement;
   container?: HTMLElement | SVGElement;
   createdAt: DateTime;
 };
@@ -124,7 +124,7 @@ const TOOLTIP_DATA_ID_ATTRIBUTE = "tooltipid";
 
 let tooltipId = 0;
 function createTooltip(
-  reference: TooltipTriggerElement,
+  reference: TooltipElement,
   info: TooltipInfo,
   container: HTMLElement | SVGElement | undefined,
 ): TooltipInstance {
@@ -151,7 +151,7 @@ function destroyTooltip(instance: TooltipInstance) {
 /** Simple tooltip directive that shows/hides itself on hover with a delay*/
 export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   mounted(el, binding) {
-    const triggerEl = el as TooltipTriggerElement;
+    const triggerEl = el as TooltipElement;
 
     triggerEl.tooltipOnMouseEnter = (e: MouseEvent) => {
       const info = binding.value;
@@ -198,14 +198,14 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   },
 
   updated(el, binding) {
-    const tooltipEl = el as TooltipTriggerElement;
+    const tooltipEl = el as TooltipElement;
     if (tooltipEl.tooltipInstance != null) {
       tooltipEl.tooltipInstance.info = binding.value;
     }
   },
 
   unmounted(el) {
-    const triggerEl = el as TooltipTriggerElement;
+    const triggerEl = el as TooltipElement;
     if (triggerEl.tooltipShowTimeout != null) clearTimeout(triggerEl.tooltipShowTimeout);
     if (triggerEl.tooltipHideTimeout != null) clearTimeout(triggerEl.tooltipHideTimeout);
 
@@ -229,7 +229,7 @@ export type HoverInfo = {
   hide?: (e: MouseEvent) => void;
 };
 
-type HoverTriggerElement = {
+type HoverElement = {
   hoverShowTimeout?: number;
   hoverHideTimeout?: number;
   hoverOnMouseEnter?: (e: MouseEvent) => void;
@@ -239,7 +239,7 @@ type HoverTriggerElement = {
 /** Convenience hover directive to perform arbitrary actions */
 export const HOVER_DIRECTIVE: Directive<MaybeElement, HoverInfo> = {
   mounted(el, binding) {
-    const triggerEl = el as HoverTriggerElement;
+    const triggerEl = el as HoverElement;
     const { showDelay = DEFAULT_HOVER_SHOW_DELAY, hideDelay = DEFAULT_HOVER_HIDE_DELAY } = binding.value;
 
     triggerEl.hoverOnMouseEnter = (e: MouseEvent) => {
@@ -263,13 +263,13 @@ export const HOVER_DIRECTIVE: Directive<MaybeElement, HoverInfo> = {
   },
 
   updated(el, binding) {
-    const triggerEl = el as HoverTriggerElement;
+    const triggerEl = el as HoverElement;
     if (triggerEl.hoverShowTimeout != null) clearTimeout(triggerEl.hoverShowTimeout);
     if (triggerEl.hoverHideTimeout != null) clearTimeout(triggerEl.hoverHideTimeout);
   },
 
   unmounted(el) {
-    const triggerEl = el as HoverTriggerElement;
+    const triggerEl = el as HoverElement;
     if (triggerEl.hoverShowTimeout != null) clearTimeout(triggerEl.hoverShowTimeout);
     if (triggerEl.hoverHideTimeout != null) clearTimeout(triggerEl.hoverHideTimeout);
     if (triggerEl.hoverOnMouseEnter) triggerEl.removeEventListener("mouseenter", triggerEl.hoverOnMouseEnter);
@@ -301,7 +301,7 @@ const INPUT_EVENTS = [
 type InputEventName = (typeof INPUT_EVENTS)[number];
 type InputOutsideCallback = (e: Event) => boolean;
 
-type EventOutsideTriggerElement = {
+type EventOutsideElement = {
   inputOutsideOnInput?: (e: Event) => void;
   inputOutsideEventName?: InputEventName;
   inputOutsideTimeoutId?: number;
@@ -317,7 +317,7 @@ type InputOutsideBinding =
 /** Convenience X outside Y directive. Event name is derived from modifier. */
 export const EVENT_OUTSIDE_DIRECTIVE: Directive<MaybeElement, InputOutsideBinding> = {
   mounted(el, binding) {
-    const triggerEl = el as EventOutsideTriggerElement;
+    const triggerEl = el as EventOutsideElement;
     const eventName = Object.keys(binding.modifiers)[0] as InputEventName;
 
     if (!INPUT_EVENTS.includes(eventName)) {
@@ -356,7 +356,7 @@ export const EVENT_OUTSIDE_DIRECTIVE: Directive<MaybeElement, InputOutsideBindin
   },
 
   unmounted(el) {
-    const triggerEl = el as EventOutsideTriggerElement;
+    const triggerEl = el as EventOutsideElement;
 
     if (triggerEl.inputOutsideTimeoutId) {
       clearTimeout(triggerEl.inputOutsideTimeoutId);

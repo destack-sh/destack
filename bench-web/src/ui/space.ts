@@ -63,6 +63,7 @@ import {
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
+import { supergraph } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -204,6 +205,11 @@ export class SpaceCanvas {
     return space.value?.selection ?? null;
   }
 
+  /** Gets the inspection  */
+  get inspection(): NodeReferenceData | null {
+    return space.value?.inspectionPtr ?? null;
+  }
+
   /** Gets the absolutely focused view components in bottom up order */
   get focusedViewComponents(): ViewComponent[] {
     return Object.values(this.focusedViewComponentsById.value);
@@ -329,7 +335,6 @@ export class SpaceCanvas {
       selection = makeSelection(selection.map(toNodeRef));
     }
     if (space?.value != null) {
-      console.trace("select", selection);
       this.tx().update(space.value, { selection }, { debounce: "long", ...options });
     } else {
       throw new Error("no base view");
@@ -338,7 +343,9 @@ export class SpaceCanvas {
 
   /** Clears the selection */
   deselect() {
-    this.select(undefined);
+    if (this.selection != null) {
+      this.select(undefined);
+    }
   }
 
   /** Inspects the given node */
@@ -382,7 +389,7 @@ export class SpaceCanvas {
     ) & { anchor?: FocusAnchor | NodeReferenceData; ignoreInspection?: boolean },
   ) {
     log.trace("canvas.focus", focus);
-    focus.node = this.graph.getOrError({ id: focus.node.id }); // 'refresh' node in graph since it may have moved
+    focus.node = supergraph.getOrError({ id: focus.node.id }); // 'refresh' node in graph since it may have moved
     const nodeType = isNodeRef(focus.node) ? (focus.node as NodeReferenceData).nodeType : focus.node.metatype;
 
     if (nodeType == NodeType.VIEW && this.isInSpace(focus.node)) {
@@ -642,7 +649,7 @@ export class SpaceCanvas {
     while (base != null && (base as any)?.__selfViewRef == null) {
       base = (base as any).parent;
     }
-    const baseViewRef: Ref<ViewData | null> | null = (base as any)?.__selfViewRef ?? null;
+    const baseViewRef: Ref<ViewData | null> = (base as any)?.__selfViewRef ?? ref(null);
 
     //
     // (Sub)State
@@ -709,7 +716,7 @@ export class SpaceCanvas {
       return canvas.isSelected(node);
     }
 
-    return { getState, getChildState, update, select: select, deselect: deselect, isSelected };
+    return { getState, getChildState, update, select: select, deselect: deselect, isSelected, baseViewRef };
   }
 
   /** Gets the containing root view (or self, if any) for a view */

@@ -3,6 +3,7 @@ import { blockToType } from "@/language/block";
 import { getPropertyName, getPropertyTitle, TYPE_BLOCK_TYPES } from "@/language/const";
 import { makeAndConditional, makeExpression } from "@/language/expression";
 import { createField, getPropertyType, getStorageKey, makeTypeInfo, NAME_TYPE, TypeIdentity } from "@/language/field";
+import { useNodeListActions } from "@/language/list";
 import { moveNode } from "@/language/node";
 import { DebounceLevel, newChangeId, Transaction } from "@/language/transaction";
 import { packValue, unpackValue } from "@/language/value";
@@ -535,36 +536,24 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
 // Actions
 //
 
-function getNodeFromContext(ctx: ActionContext | undefined): { node: FieldData | RecordData | null } {
-  const node = ctx?.triggerNode;
-  if (isNode(node, NodeType.FIELD) || isNode(node, NodeType.RECORD)) {
-    return { node };
-  }
-  return { node: null };
-}
-function getConnectionFromNode(node: FieldData | RecordData) {
-  if (isNode(node, NodeType.FIELD)) {
-    return connection;
-  } else if (isNode(node, NodeType.RECORD)) {
-    return recordConnection;
-  } else {
-    assertNever(node);
-  }
-}
-
-const actions: Partial<ActionMapImplementation<"space" | "table">> = {
-  // select
-  "space.select.all": () => canvas.select(records.value),
+const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
+  ...useNodeListActions({
+    nodeType: NodeType.RECORD,
+    self: state.baseViewRef,
+    graph: graph,
+    list: records,
+    txFactory: () => connection.tx,
+  }),
   // table
   "table.column.sortAscending": (action, ctx) => {
-    const { node } = getNodeFromContext(ctx);
+    const node = ctx.nodes?.[0];
     if (!isNode(node, NodeType.FIELD)) return false;
     const column = columns.value.find((column) => column.kind == "field" && column.field == node);
     if (column == null) return false;
     addSort(column, ExpressionType.ASCENDING);
   },
   "table.column.sortDescending": (action, ctx) => {
-    const { node } = getNodeFromContext(ctx);
+    const node = ctx.nodes?.[0];
     if (!isNode(node, NodeType.FIELD)) return false;
     const column = columns.value.find((column) => column.kind == "field" && column.field == node);
     if (column == null) return false;

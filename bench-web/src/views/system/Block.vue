@@ -127,7 +127,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       isSelected ? 'bg-orange-400/20' : '',
       isPage ? 'cursor-pointer ' : '',
       isPage && !isSelected ? 'hover:bg-gray-100' : '',
-      hasCanvas ? 'mb-2' : '',
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"
     @click="() => isPage && canvas.goToNode(block!)"
