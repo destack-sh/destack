@@ -1,24 +1,24 @@
 import { getEditStack } from "@/language/edit";
 import { ReadNodeGraph } from "@/language/graph";
-import { cloneNode, cloneNodes } from "@/language/node";
+import { cloneNodes } from "@/language/node";
 import { getAllTransactionBuffers, newChangeId } from "@/language/transaction";
-import { NodeReferenceData, NodeType, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
+import { NodeType, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { ConnectionBase } from "@/system/connection";
+import { supergraph } from "@/system/globals";
 import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
 import { clearSpace, createDesktopDefaultSpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { collectViewComponentsUp } from "@/ui/view";
-import { groupByList, type FilterPrefix } from "@/utils/functools";
-import { DISCORD_URL, IS_DEV, supergraph } from "@/utils/globals";
+import { type FilterPrefix } from "@/utils/functools";
+import { DISCORD_URL, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
-import { AnyNode } from "postcss";
 import {
   computed,
   getCurrentInstance,
@@ -153,6 +153,9 @@ export const ACTION_BUILTIN_IDS = [
   "developer.test.developerMode",
   "developer.test.retryAllFailed",
   "developer.test.addEmptyView",
+  "developer.toast.info",
+  "developer.toast.debug",
+  "developer.toast.error",
 ] as const;
 export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_BUILTIN_IDS.reduce(
   (acc, id, idx) => ({ ...acc, [id]: idx }),
@@ -1017,6 +1020,7 @@ contributeActionMap<"view">({
 
 // developer actions
 contributeActionMap<"developer">({
+  // test
   "developer.test.developerMode": {
     type: "toggle",
     icon: "fas fa-binary",
@@ -1062,6 +1066,31 @@ contributeActionMap<"developer">({
     action: () => {
       const name = toCasing(generateRandomName().toUpperCase(), Casing.CAMEL, true);
       canvas.addView({ type: ViewType.EMPTY, name, title: name });
+    },
+  },
+  // toast
+  "developer.toast.info": {
+    icon: "fas fa-info-circle",
+    title: "Info",
+    text: "Show an info toast",
+    action: () => {
+      toaster.info({ title: "Info", text: "This is an info toast" });
+    },
+  },
+  "developer.toast.debug": {
+    icon: "fas fa-bug",
+    title: "Debug",
+    text: "Show a debug toast",
+    action: () => {
+      toaster.debug({ title: "Debug", text: "This is a debug toast" });
+    },
+  },
+  "developer.toast.error": {
+    icon: "fas fa-exclamation-triangle",
+    title: "Error",
+    text: "Show an error toast",
+    action: () => {
+      toaster.error({ title: "Error", text: "This is an error toast" });
     },
   },
 });

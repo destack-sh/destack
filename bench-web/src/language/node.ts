@@ -3,7 +3,7 @@
  */
 
 import { TIMED_NODE_TYPES, toCamelName } from "@/language/const";
-import { FLOW_GRID_STEP } from "@/language/flow";
+import { FLOW_GRID_STEP } from "@/system/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { updateOrder } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";

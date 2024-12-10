@@ -9,7 +9,7 @@ import { type Action, type ActionContext, type ActionMapImplementation } from "@
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { IS_DEV, isDeveloperMode } from "@/utils/globals";
+import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -277,7 +277,7 @@ defineExpose<ViewExposed>({ self, actions });
         class="flex h-full w-full flex-col justify-center bg-danger-300 text-center"
       >
         <!-- missing view -->
-        <span v-if="IS_DEV || isDeveloperMode" class="font-mono font-semibold">
+        <span v-if="IS_DEV || IS_DEVELOPER_MODE" class="font-mono font-semibold">
           {{ ViewType[tabs[focusedTabIdx].type] }}
         </span>
       </div>

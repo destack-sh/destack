@@ -1,6 +1,4 @@
-import type { ReadNodeGraph } from "@/language/graph";
 import {
-  FileFormat,
   FileType,
   NodeReferenceData,
   NodeType,
@@ -8,13 +6,13 @@ import {
   Orientation,
   SelectionData,
   StructType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { contentEquals, isNode, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
+import { canvas, supergraph } from "@/system/globals";
 import { makeSelection } from "@/ui/view";
 import { getElement, getElementRef } from "@/utils/element";
-import { assertNever, groupByList } from "@/utils/functools";
-import { canvas, supergraph } from "@/utils/globals";
+import { groupByList } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
 import SelectionZone from "@/views/builtins/SelectionOverlay.vue";

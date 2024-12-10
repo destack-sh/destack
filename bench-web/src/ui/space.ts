@@ -1,5 +1,4 @@
 import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
-import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { cloneNode, generateNodeName, makeNode, NodeIn, unpackSubnode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
@@ -43,10 +42,13 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
+import { getContainingFlow } from "@/system/flow";
+import { supergraph } from "@/system/globals";
 import { canvas, inspectionBasePtr, inspectionPtr, space } from "@/system/space";
 import type { SplitAnchor } from "@/ui/drag";
 import { toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
+import { PopoverInfoIn, PopoverInstance, pushPopover } from "@/ui/popover";
 import {
   collectViewComponentsUp,
   findViewComponentUp,
@@ -63,7 +65,6 @@ import {
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
-import { supergraph } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -1090,6 +1091,17 @@ export class SpaceCanvas {
       tx.update(parent, { size: halfSize });
     }
     this.cleanupRootViews(graph, graph.get(child.parentPtr!) as ViewData);
+  }
+
+  /** Opens a new popover */
+  pushPopover(push: {
+    trigger: HTMLElement | SVGElement;
+    reference: { x: number; y: number } | HTMLElement | SVGElement;
+    container?: HTMLElement | SVGElement | undefined;
+    info: PopoverInfoIn;
+  }): PopoverInstance {
+    // simple wrapper for now (should probably move Popover state into SpaceCanvas)
+    return pushPopover(push);
   }
 }
 

@@ -10,7 +10,7 @@ import {
   PIPE_WIDTH,
   PipePath,
   STEP_SIZE,
-} from "@/language/flow";
+} from "@/system/flow";
 import { newChangeId } from "@/language/transaction";
 import {
   AnyNodeData,
@@ -322,7 +322,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       @mousedown="(e) => startSelectingIfAllowed(selectionZoneBody, e)"
       @mousemove="(e) => flowContext.onDragging(e)"
       @mouseleave="flowContext.cancelDragging()"
-      @mouseup="flowContext.cancelDragging()"
+      @mouseup="(e) => flowContext.endDragging(e, { kind: 'canvas' })"
       @wheel="(e) => (variant != Variant.COMPACT ? flowContext.onWheel(e) : undefined)"
     >
       <!-- Background grid (infinitely repeated) -->

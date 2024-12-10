@@ -1,6 +1,4 @@
-import { NodeSuperGraph } from "@/language/graph";
-import { SpaceCanvas } from "@/ui/space";
-import { createDeferredProxy, pretendReadonly } from "@/utils/ref";
+import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
 export const VERSION = "2024.12.10.0";
@@ -16,8 +14,4 @@ export const DISCORD_URL = import.meta.env.VITE_DISCORD_URL || "https://discord.
 export const GRPC_KEEPALIVE_INTERVAL_SECONDS = 60;
 export const IP_API_KEY = IP_API_KEY_B64 ? atob(IP_API_KEY_B64) : null;
 export const IS_DEV = ENV == null || ENV == "dev";
-
-// hoisted globals for safe importing
-export const isDeveloperMode = pretendReadonly(ref(IS_DEV));
-export const { proxy: canvas, setRealObject: setCanvas } = createDeferredProxy<SpaceCanvas>();
-export const { proxy: supergraph, setRealObject: setSupergraph } = createDeferredProxy<NodeSuperGraph>();
+export const IS_DEVELOPER_MODE = pretendReadonly(ref(IS_DEV)); // hoisted for safe importing

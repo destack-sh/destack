@@ -44,9 +44,10 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
+import { setSupergraph } from "@/system/globals";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent } from "@/utils/functools";
-import { IS_DEV, setSupergraph } from "@/utils/globals";
+import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";

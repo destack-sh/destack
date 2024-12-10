@@ -48,7 +48,7 @@ import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import type { TypeIdentity } from "@/language/field";
 import { isNode } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
-import { IS_DEV, isDeveloperMode } from "@/utils/globals";
+import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 
 export type IconMetadata = {
   id: string;
@@ -94,7 +94,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   } else if (props.emoji) {
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else {
-    if (IS_DEV || isDeveloperMode.value) return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
+    if (IS_DEV || IS_DEVELOPER_MODE.value) return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
     else return <span style={{ color: colorHex }}>???</span>;
   }
 };

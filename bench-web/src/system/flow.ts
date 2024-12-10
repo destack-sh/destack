@@ -1,9 +1,10 @@
 import { INVISIBLE_STEP_TYPES, SINK_STEP_TYPES, SOURCE_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, NodeIn, unpackSubnode, unpackSubnodeProperty } from "@/language/node";
-import type { Transaction, TransactionOptions } from "@/language/transaction";
+import { newChangeId, type Transaction, type TransactionOptions } from "@/language/transaction";
 import {
   Agency,
+  BenchType,
   BlockData,
   BlockType,
   ColorShade,
@@ -18,8 +19,10 @@ import {
   StepType,
   StructType,
   TransformData,
+  TypeKind,
   Vector2Data,
   ViewData,
+  ViewType,
   type AnyNodeData,
   type StepData,
 } from "@/proto/wire";
@@ -30,12 +33,13 @@ import { toaster } from "@/ui/toast";
 import { addVector2, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
-import { canvas, supergraph } from "@/utils/globals";
+import { canvas, supergraph } from "@/system/globals";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
 import type Step from "@/views/system/Step.vue";
 import { useMouse } from "@vueuse/core";
 import { computed, inject, ref, shallowRef, triggerRef, watch, type Ref } from "vue";
+import { makeTypeInfo } from "@/language/field";
 
 export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
@@ -932,6 +936,18 @@ export class FlowContext {
     log.trace("flow.drag.cancel", this.dragging.value);
   }
 
+  /** Checks if two ports can be connected. */
+  canPortsConnect(sourcePort: Port, targetPort: Port) {
+    return (
+      !portEquals(sourcePort, targetPort) /* can't connect same port */ &&
+      !SINK_STEP_TYPES.includes(sourcePort.parent.type) /* can't go from sink */ &&
+      !SOURCE_STEP_TYPES.includes(targetPort?.parent.type) /* can't go to source */ &&
+      !this.pipes.value.some(
+        (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
+      ) /* can't connect same two Steps twice */
+    );
+  }
+
   /** Stop dragging a thing (if any). Triggers a 'release' event to connect things. */
   endDragging(e: MouseEvent, at: FlowThing) {
     if (this.flow.value == null) throw new Error("no flow to connect");
@@ -946,17 +962,44 @@ export class FlowContext {
           targetPort = { parent: at.step, side: at.side };
         } else if (at.kind == "step") {
           targetPort = { parent: at.step, side: getOtherSide(sourcePort.side) };
+        } else {
+          // dragged into emptyness, open step picker
+          const targetPosition = this.viewportToWorldVec({ x: e.clientX, y: e.clientY });
+          canvas.pushPopover({
+            trigger: e.target as HTMLElement,
+            reference: { x: e.clientX, y: e.clientY },
+            info: {
+              kind: "component",
+              component: ViewType.PICKER,
+              props: {
+                valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }),
+              },
+              onApply: (value) => {
+                const tx = this.tx.with({ change: { key: newChangeId() } });
+                const step = createStep(tx, this.graph, {
+                  parent: this.flow.value!,
+                  step: {
+                    type: value,
+                    position: {
+                      metatype: ObjectType.VECTOR2,
+                      x: targetPosition.x - STEP_SIZE.width / 2,
+                      y: targetPosition.y - STEP_SIZE.height / 2,
+                    },
+                  },
+                });
+                const pipe = createPipe(tx, this.graph, {
+                  parent: this.flow.value!,
+                  pipe: { type: PipeType.PASS, isNameHidden: true },
+                  source: sourcePort,
+                  target: { parent: step, side: PortSide.INCOMING },
+                });
+              },
+            },
+          });
+          return;
         }
 
-        if (
-          targetPort != null &&
-          !portEquals(sourcePort, targetPort) /* can't connect same port */ &&
-          !SINK_STEP_TYPES.includes(sourcePort.parent.type) /* can't go from sink */ &&
-          !SOURCE_STEP_TYPES.includes(targetPort?.parent.type) /* can't go to source */ &&
-          !this.pipes.value.some(
-            (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
-          ) /* can't connect same two Steps twice */
-        ) {
+        if (this.canPortsConnect(sourcePort, targetPort)) {
           // connect it up
           log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = createPipe(this.tx, this.graph, {
@@ -965,11 +1008,9 @@ export class FlowContext {
             source: sourcePort,
             target: targetPort,
           });
-          if (this.view.value != null) {
-            canvas.inspect({ node: pipe, view: this.view.value });
-          }
+          canvas.inspect({ node: pipe, view: this.view.value });
         } else {
-          // nothing to do
+          // nothing to do?
         }
       }
     } catch (e) {
@@ -1047,7 +1088,11 @@ export class FlowContext {
   }
 
   /** Moves the thing */
-  move(thing: StepData | PipeData, move: { x: number; y: number }, options?: { tx?: Transaction} & TransactionOptions) {
+  move(
+    thing: StepData | PipeData,
+    move: { x: number; y: number },
+    options?: { tx?: Transaction } & TransactionOptions,
+  ) {
     const tx = options?.tx ?? this.tx;
     if (isNode(thing, NodeType.STEP)) {
       tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long", ...options });
