@@ -948,7 +948,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Controls -->
             <button
               class="rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/row:opacity-100"
-              @click="(e) => (setSelectionRow(record, true, false), pushDefaultMenu(record, e))"
+              @click="(e) => (setSelectionRow(record, true, false), pushDefaultMenu('main', record, e))"
             >
               <i class="fas fa-ellipsis-vertical w-5 text-center" />
             </button>

@@ -199,9 +199,10 @@ class NodeType(IdEnum):
     # universe
     BENCH = 1
     USER = 2
-    ORGANIZATION = 3
     HANDLE = 4
     CLIENT = 5
+    ORGANIZATION = 10
+    # TEAM/GROUP?
 
     #
     # Regional

@@ -329,6 +329,7 @@ export class SpaceCanvas {
       selection = makeSelection(selection.map(toNodeRef));
     }
     if (space?.value != null) {
+      console.trace("select", selection);
       this.tx().update(space.value, { selection }, { debounce: "long", ...options });
     } else {
       throw new Error("no base view");
@@ -410,7 +411,7 @@ export class SpaceCanvas {
         if (!focused) {
           const component = this.getViewComponent(viewData!.id!);
           if (component != null) this.onComponentFocused(component);
-          log.debug("canvas.focusFailed", focus, { viewData, component });
+          log.trace("canvas.focusFailed", focus, { viewData, component });
         }
       });
     } else if ("view" in focus) {

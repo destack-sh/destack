@@ -125,7 +125,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     class="group/block relative select-none rounded transition-colors duration-150"
     :class="[
       isSelected ? 'bg-orange-400/20' : '',
-      isPage ? 'cursor-pointer hover:bg-gray-100' : '',
+      isPage ? 'cursor-pointer ' : '',
+      isPage && !isSelected ? 'hover:bg-gray-100' : '',
       hasCanvas ? 'mb-2' : '',
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"

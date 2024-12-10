@@ -277,7 +277,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <NodePath v-if="nodePtr" :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :self="nodePtr" :graph="graph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
-        <button class="text-gray-400 hover:bg-gray-100 hover:text-gray-700" @click="(e) => pushDefaultMenu(page!, e)">
+        <button class="text-gray-400 hover:bg-gray-100 hover:text-gray-700" @click="(e) => pushDefaultMenu('main', page!, e)">
           <i class="fas fa-ellipsis-vertical w-5 text-center" />
         </button>
       </div>
@@ -347,7 +347,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
               :draggable="true"
               data-suppress-drag="select"
-              @click="(e) => pushDefaultMenu(block, e)"
+              @click="(e) => pushDefaultMenu('main', block, e)"
               @dragstart.stop="(e) => startDraggingIfAllowed(e, block)"
             >
               <i class="fas fa-grip-vertical w-5 text-center" />
@@ -398,7 +398,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
               BlockType.TEXT,
               BlockType.CHOICE,
               BlockType.DATABASE,
-              BlockType.ACTION,
               BlockType.FLOW,
               BlockType.PAGE,
             ]"

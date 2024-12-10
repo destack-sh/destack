@@ -233,7 +233,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div class="absolute -left-5 top-0 flex -translate-x-1 flex-row gap-x-1.5">
       <button
         class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/step:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
-        @click="(e) => pushDefaultMenu(step!, e)"
+        @click="(e) => pushDefaultMenu('main', step!, e)"
       >
         <i class="fas fa-ellipsis-vertical w-5 text-center" />
       </button>
