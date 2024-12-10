@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { ColorShade, ColorType } from "@/proto/wire";
-import { IconInline } from "@/ui/icon";
+import { ColorShade, ColorType, IconData } from "@/proto/wire";
+import { IconInline, makeIcon } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { Toast, toaster, ToastLevel, type ToastAnchor } from "@/ui/toast";
 import { assertNever } from "@/utils/functools";
@@ -11,7 +11,7 @@ const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: numbe
 const isInverted = computed(() => props.anchor == "top-left" || props.anchor == "top-right");
 
 // enter from top/bottom
-const TOAST_WIDTH = 360;
+const TOAST_WIDTH = 320;
 const MAX_TOASTS = 5;
 
 const ENTER_FROM_BY_ANCHOR: Record<ToastAnchor, string> = {
@@ -36,10 +36,17 @@ const visibleToasts = computed(() => {
 
 const COLOR_BY_TOAST_LEVEL: Record<ToastLevel, ColorType> = {
   [ToastLevel.DEBUG]: ColorType.GRAY,
-  [ToastLevel.INFO]: ColorType.GRAY,
+  [ToastLevel.INFO]: ColorType.YELLOW,
   [ToastLevel.SUCCESS]: ColorType.SUCCESS,
   [ToastLevel.WARNING]: ColorType.WARNING,
   [ToastLevel.ERROR]: ColorType.DANGER,
+};
+const ICON_BY_TOAST_LEVEL: Record<ToastLevel, IconData> = {
+  [ToastLevel.DEBUG]: makeIcon("fas fa-bug"),
+  [ToastLevel.INFO]: makeIcon("fas fa-info-circle"),
+  [ToastLevel.SUCCESS]: makeIcon("fas fa-check-circle"),
+  [ToastLevel.WARNING]: makeIcon("fas fa-exclamation-triangle"),
+  [ToastLevel.ERROR]: makeIcon("fas fa-exclamation-triangle"),
 };
 
 function getToastColorHex(toast: Toast, shade: ColorShade): string {
@@ -64,7 +71,7 @@ const absoluteStyle = computed(() => {
 <template>
   <TransitionGroup
     tag="ul"
-    class="fixed z-50 flex gap-y-1 p-2"
+    class="fixed z-50 flex gap-y-1.5 p-2"
     data-outside-view="true"
     :class="[isInverted ? 'flex-col-reverse' : 'flex-col']"
     :style="absoluteStyle"
@@ -82,33 +89,34 @@ const absoluteStyle = computed(() => {
       :key="toast.id"
       :style="{
         width: TOAST_WIDTH + 'px',
-        borderLeftColor: getToastColorHex(toast, ColorShade.S600),
       }"
-      class="group/toast relative border rounded border-l-4 bg-white px-3.5 py-2"
+      class="group/toast relative flex flex-row items-center gap-x-1 rounded-2xl border border-gray-300 bg-white shadow-sm"
     >
-      <!-- Header -->
-      <div class="flex flex-row">
-        <span class="font-medium text-gray-900">{{ toast.title }}</span>
+      <!-- Icon -->
+      <div class="flex-shrink-0 pl-3.5 pr-1.5">
+        <IconInline
+          v-bind="toast.icon ?? ICON_BY_TOAST_LEVEL[toast.level]"
+          class="w-5 text-center text-lg text-gray-700"
+          :style="{
+            color: getToastColorHex(toast, ColorShade.S600),
+          }"
+        />
       </div>
-      <!-- Content -->
-      <p v-if="toast.text" class="mt-0.5 line-clamp-2 text-gray-700">
-        {{ toast.text }}
-      </p>
-      <!-- Actions -->
-      <div v-if="toast.actions.length > 0" class="mt-1.5 flex w-full justify-end gap-x-3">
-        <button
-          v-for="(action, j) in toast.actions"
-          :key="j"
-          class="group/action max-w-20 truncate font-medium text-gray-400 group-hover/action:text-gray-700"
-          @click="action.action(), toaster.dismiss(toast)"
-        >
-          <IconInline v-if="action.icon" v-bind="action.icon" class="mr-1" />
-          <span class="">{{ action.title }}</span>
-        </button>
+      <!-- Main -->
+      <div class="py-1.5">
+        <!-- Header -->
+        <div class="flex flex-row">
+          <IconInline v-if="toast.icon" v-bind="toast.icon" class="mr-1.5 w-5 text-gray-700" />
+          <span class="font-medium text-gray-700">{{ toast.title }}</span>
+        </div>
+        <!-- Content -->
+        <p v-if="toast.text" class="line-clamp-2 text-gray-400">
+          {{ toast.text }}
+        </p>
       </div>
       <!-- Dismiss -->
       <button
-        class="absolute right-3 top-2.5 text-gray-400 opacity-40 transition-colors duration-75 hover:bg-gray-100 group-hover/toast:opacity-100"
+        class="right-3 ml-auto h-full border-gray-300 py-3 pl-1 pr-3.5 text-gray-400 opacity-40 transition-colors duration-75 group-hover/toast:opacity-100"
         @click="toaster.dismiss(toast)"
       >
         <i class="fas fa-xmark" />

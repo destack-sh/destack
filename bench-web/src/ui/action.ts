@@ -153,6 +153,7 @@ export const ACTION_BUILTIN_IDS = [
   "developer.test.developerMode",
   "developer.test.retryAllFailed",
   "developer.test.addEmptyView",
+  "developer.toast.success",
   "developer.toast.info",
   "developer.toast.debug",
   "developer.toast.error",
@@ -523,9 +524,12 @@ declareActionMap<"space">({
     shortcuts: ["mod+d"],
     action: (action, ctx) => {
       const { connection, graph, nodes } = getNodesFromContext(ctx);
-      if (connection == null || graph == null) return; // no action, but suppress anyway to avoid trigger browser shortcuts
+      if (connection == null || graph == null || nodes.length == 0) return; // no action, but suppress anyway to avoid trigger browser shortcuts
       const clonedNodes = cloneNodes(connection.tx, graph, nodes);
       canvas.select(clonedNodes);
+      if (clonedNodes.length > 0) {
+        canvas.inspect({ node: clonedNodes[0], view: canvas.focusedViewPtr.value });
+      }
       return true;
     },
   },
@@ -536,7 +540,7 @@ declareActionMap<"space">({
     shortcuts: ["del", "backspace"],
     action: (action, ctx) => {
       const { connection, graph, nodes } = getNodesFromContext(ctx);
-      if (connection == null || graph == null) return false;
+      if (connection == null || graph == null || nodes.length == 0) return false;
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
       for (const node of nodes) {
         tx.delete(node);
@@ -1074,7 +1078,7 @@ contributeActionMap<"developer">({
     title: "Info",
     text: "Show an info toast",
     action: () => {
-      toaster.info({ title: "Info", text: "This is an info toast" });
+      toaster.info({ title: "Info", text: "This is an info toast", durationMs: 60000 });
     },
   },
   "developer.toast.debug": {
@@ -1082,7 +1086,7 @@ contributeActionMap<"developer">({
     title: "Debug",
     text: "Show a debug toast",
     action: () => {
-      toaster.debug({ title: "Debug", text: "This is a debug toast" });
+      toaster.debug({ title: "Debug", text: "This is a debug toast", durationMs: 60000 });
     },
   },
   "developer.toast.error": {
@@ -1090,7 +1094,15 @@ contributeActionMap<"developer">({
     title: "Error",
     text: "Show an error toast",
     action: () => {
-      toaster.error({ title: "Error", text: "This is an error toast" });
+      toaster.error({ title: "Error", text: "This is an error toast", durationMs: 60000 });
+    },
+  },
+  "developer.toast.success": {
+    icon: "fas fa-check-circle",
+    title: "Success",
+    text: "Show a success toast",
+    action: () => {
+      toaster.success({ title: "Success", text: "This is a success toast", durationMs: 60000 });
     },
   },
 });

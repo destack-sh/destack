@@ -204,7 +204,7 @@ function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
     return queryRef.value;
   }
 }
-
+// nocheckin: make Type picker & popover work like Menu
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({
   self,

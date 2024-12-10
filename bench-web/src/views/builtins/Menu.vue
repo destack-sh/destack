@@ -177,6 +177,8 @@ const { placement: nestedPlacement } = useFloating({
   options: { placement: "right-top", referenceMargin: 8, offset: { x: 0, y: -7 } },
 });
 
+// nocheckin: make nested Menu work
+
 defineExpose({ focus, clear, query });
 </script>
 <template>

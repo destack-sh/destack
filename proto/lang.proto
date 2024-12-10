@@ -2953,14 +2953,14 @@ message FailStepData {
 
 // Get a single Node.
 message GetStepData {
-  NodeType node_type = 100;
+  optional NodeType node_type = 100;
   optional NodeReferenceData base_block_ptr = 101;
   optional ExpressionData filter = 102;
 }
 
 // Search for Nodes.
 message SearchStepData {
-  NodeType node_type = 100;
+  optional NodeType node_type = 100;
   optional NodeReferenceData base_block_ptr = 101;
   optional ExpressionData filter = 102;
   repeated ExpressionData sort = 103;
