@@ -503,7 +503,6 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
       rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
       rowProperty(PipeProperty.type),
       rowProperty(PipeProperty.color),
-      rowProperty(PipeProperty.isNameHidden, { title: "Hide Name" }),
     ]);
     sectionRun(PipeProperty.runOptions);
   }
@@ -572,7 +571,7 @@ export function onAddFieldAction(
   } else {
     const button = (e.target as HTMLElement).closest("button")!;
     pushPopover({
-      kind: 'view',
+      kind: "view",
       trigger: button,
       reference: button,
       component: ViewType.PICKER,

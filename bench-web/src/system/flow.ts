@@ -45,8 +45,8 @@ export const FLOW_GRID_STEP = 16;
 export const FLOW_PORT_SIZE = 12;
 
 export const FLOW_CANVAS_DOT_SIZE = 2;
-export const FLOW_SCALE_MIN = 0.7;
-export const FLOW_SCALE_MAX = 1.3;
+export const FLOW_SCALE_MIN = 0.5;
+export const FLOW_SCALE_MAX = 1.5;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
@@ -989,7 +989,7 @@ export class FlowContext {
               ) {
                 this.createPipe({
                   parent: this.flow.value!,
-                  pipe: { type: PipeType.PASS, isNameHidden: true },
+                  pipe: { type: PipeType.PASS },
                   source: sourcePort,
                   target: { parent: step, side: PortSide.INCOMING },
                   tx,
@@ -1006,7 +1006,7 @@ export class FlowContext {
           log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = this.createPipe({
             parent: this.flow.value,
-            pipe: { type: PipeType.PASS, isNameHidden: true },
+            pipe: { type: PipeType.PASS },
             source: sourcePort,
             target: targetPort,
           });

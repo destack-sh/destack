@@ -2898,7 +2898,7 @@ message PipeData {
   NodeMode mode = 90;
   optional ColorData color = 91;
   bool is_hidden = 92;
-  bool is_name_hidden = 93;
+  bool is_name_shown = 93;
 }
 
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).

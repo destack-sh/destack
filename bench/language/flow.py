@@ -175,7 +175,7 @@ class Pipe(SourceNode[PipeData]):
         91, default=None, require=False, array=False, struct=StructType.COLOR
     )
     is_hidden: bool = p_regular(92, default=False)
-    is_name_hidden: bool = p_regular(93, default=False)
+    is_name_shown: bool = p_regular(93, default=False)
 
     def __content_str__(self) -> str:
         sign = SIGN_BY_PIPE_TYPE.get(self.type, "???")

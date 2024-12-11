@@ -138,6 +138,7 @@ function makeEditorView(): EditorView {
       if (tx.docChanged && selection.empty && selection.$head.nodeBefore?.text?.endsWith(MENTION_TRIGGER_CHAR)) {
         const referencePos = view.coordsAtPos(selection.$head.pos);
         pushPopover({
+          kind: "view",
           trigger: getElement(textRef.value)!,
           reference: { x: referencePos.left, y: referencePos.top },
           component: ViewType.PICKER,
@@ -225,6 +226,7 @@ class MentionView implements PmNodeView {
               return;
             }
             popoverInstance = pushPopover({
+              kind: "view",
               trigger: this.dom,
               reference: this.dom,
               placement: "bottom",

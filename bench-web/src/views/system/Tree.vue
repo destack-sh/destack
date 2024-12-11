@@ -78,7 +78,7 @@ const inspectedNodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.EXPLORE) {
     return [NodeType.BLOCK];
   } else if (preset.value == TreeViewPreset.OUTLINE) {
-    return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.PIPE];
+    return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
   } else {
     return unpackSubnodeProperty(NodeType.VIEW, ViewType.TREE, props.subnodePacked, "nodeTypes");
   }
