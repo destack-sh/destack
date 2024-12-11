@@ -254,7 +254,10 @@ export class SpaceCanvas {
   getNodeAt(el: HTMLElement | SVGElement): NodeReferenceData | null {
     // traverse upwards until we find some node ptr or a component that gives us a node ptr
     while (el != null) {
-      if (el.dataset?.["nodeId"] != null) {
+      if (el.dataset?.["ignoreElement"] == "self") {
+        el = el.parentElement!; // skip this element
+        continue;
+      } else if (el.dataset?.["nodeId"] != null) {
         // annotated element
         const nodePtr = {
           metatype: ObjectType.NODE_REFERENCE,

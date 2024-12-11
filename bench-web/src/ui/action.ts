@@ -165,6 +165,7 @@ export const ACTION_BUILTIN_IDS_INDEX: Record<ActionBuiltinId, number> = ACTION_
 export type ActionBuiltinId = (typeof ACTION_BUILTIN_IDS)[number];
 export type ActionBuiltinCategory = FilterPrefix<ActionBuiltinId, string>;
 export type ActionContext = {
+  event?: KeyboardEvent | MouseEvent;
   nodes?: AnyNodeData[];
 };
 export type ActionCallable = (
@@ -335,7 +336,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
   }
 
   // assemble current context
-  const context: ActionContext = {};
+  const context: ActionContext = { event: e };
   if (canvas.selection != null && supergraph.getManyMaybe(canvas.selection.nodesPtr).length > 0) {
     context.nodes = supergraph.getManyMaybe(canvas.selection.nodesPtr);
   } else if (space.value?.inspectionPtr != null) {

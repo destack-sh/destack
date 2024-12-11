@@ -983,13 +983,18 @@ export class FlowContext {
                   step: { type: value },
                   tx,
                 });
-                const pipe = this.createPipe({
-                  parent: this.flow.value!,
-                  pipe: { type: PipeType.PASS, isNameHidden: true },
-                  source: sourcePort,
-                  target: { parent: step, side: PortSide.INCOMING },
-                  tx,
-                });
+                if (
+                  step.type != StepType.TEXT &&
+                  this.canPortsConnect(sourcePort, { parent: step, side: PortSide.INCOMING })
+                ) {
+                  this.createPipe({
+                    parent: this.flow.value!,
+                    pipe: { type: PipeType.PASS, isNameHidden: true },
+                    source: sourcePort,
+                    target: { parent: step, side: PortSide.INCOMING },
+                    tx,
+                  });
+                }
                 canvas.inspect({ node: step, view: this.view.value });
               },
             },
