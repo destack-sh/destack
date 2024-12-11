@@ -401,6 +401,7 @@ export function fireAction(
       }
     }
     if (action.action != null) {
+      // default to static implementation if we have one
       const ret = action.action(action, context);
       if (typeof ret != "boolean" || ret === true) return true;
     }

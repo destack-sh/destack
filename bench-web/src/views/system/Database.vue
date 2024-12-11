@@ -444,8 +444,8 @@ const selectedRecordsById: Ref<Record<string, RecordData>> = computed(() => {
       {} as Record<string, RecordData>,
     );
 });
-const hasSelectionRows = computed(() => Object.keys(selectedRecordsById.value).length > 0);
-const numSelectedRows = computed(() => Object.keys(selectedRecordsById.value).length);
+const selectedRecords = computed(() => Object.values(selectedRecordsById.value));
+const numSelectedRows = computed(() => selectedRecords.value.length);
 const isAllSelectedRows = computed(() => numSelectedRows.value >= records.value.length);
 const lastSelectedRow: Ref<RecordData | null> = ref(null);
 
@@ -665,6 +665,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <div
             class="flex flex-row items-center rounded border transition-colors duration-150"
             :class="numSelectedRows > 0 ? 'opacity-100' : 'opacity-0'"
+            data-suppress-drag="both"
           >
             <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
               {{ numSelectedRows }} selected
@@ -672,14 +673,14 @@ defineExpose<ViewExposed>({ self, id, actions });
             <button
               v-tooltip="{ title: 'Duplicate', small: true }"
               class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
-              @click.stop="fireActionById('space.edit.duplicate')"
+              @click.stop="fireActionById('space.edit.duplicate', { nodes: selectedRecords })"
             >
               <i class="fas fa-clone" />
             </button>
             <button
               v-tooltip="{ title: 'Delete', small: true }"
               class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
-              @click.stop="fireActionById('space.edit.delete')"
+              @click.stop="fireActionById('space.edit.delete', { nodes: selectedRecords })"
             >
               <i class="fas fa-trash" />
             </button>
@@ -773,7 +774,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Composite actions -->
           <div
             class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-end px-1.5 transition-colors duration-150"
-            :class="[hasSelectionRows ? 'bg-white' : 'bg-transparent']"
+            :class="[selectedRecords.length > 0 ? 'bg-white' : 'bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
@@ -783,7 +784,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <button
               class="flex h-4 w-4 items-center rounded border border-gray-200 bg-white px-[1px] transition-colors duration-150"
-              :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
+              :class="selectedRecords.length > 0 ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
               @click="() => (isAllSelectedRows ? state.deselect() : state.select(records))"
             >
               <span
@@ -935,7 +936,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Row actions -->
           <div
             class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-center justify-end gap-x-1 px-1.5 transition-colors duration-150"
-            :class="[hasSelectionRows ? 'bg-white' : 'bg-transparent']"
+            :class="[selectedRecords.length > 0 ? 'bg-white' : 'bg-transparent']"
             :style="{
               width: `${ROW_ACTIONS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
@@ -952,12 +953,12 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Selection checkbox -->
             <button
               class="flex h-4 w-4 items-center rounded border border-gray-200 bg-white px-[1px] transition-colors duration-150"
-              :class="hasSelectionRows ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'"
+              :class="selectedRecords.length > 0 ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'"
               @click="() => setSelectionRow(record, !isSelectedRow(record), shiftKey ?? false)"
             >
               <span
                 class="inline-block h-3 w-3 rounded transition-colors duration-75"
-                :class="hasSelectionRows && isSelectedRow(record) ? 'bg-gray-700' : ''"
+                :class="selectedRecords.length > 0 && isSelectedRow(record) ? 'bg-gray-700' : ''"
               />
             </button>
           </div>
