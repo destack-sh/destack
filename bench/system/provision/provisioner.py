@@ -60,8 +60,8 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 .tolist()
             )
 
+        # auto migrate resources to current version
         for resource in resources:
-            # auto migrate resources to current version
             # NOTE :Robustness: unsure when to migrate which resources
             if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
                 async with self.host.session(commit=True):
@@ -77,7 +77,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
 
         # then start watching in host plugin
         #  (starting watch after above is important because there is no lock between this and on_commit_deferred,
-        #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .start)
+        #   and we assume exclusivity in the provisioning methods. Host plugins start the queue in .start)
         await super().start()
 
     async def _do_start(self) -> None:

@@ -24,7 +24,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.10.0"
+VERSION = "2024.12.11.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -214,7 +214,7 @@ class NodeType(IdEnum):
     DRIVE = 203  # object store like S3/MinIO, maybe block storage later
     VAULT = 204  # secret storage
     CACHE = 205  # ephemeral key-value store
-    # resource (anonymous)
+    # resource (physical)
     MACHINE = 250
     BROWSER = 251
     FILE = 260
