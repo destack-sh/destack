@@ -353,21 +353,21 @@ class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingConte
 
 
 @node_component()
-class NamedResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
+class VirtualResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
     """
-    A named resource in a Bench.
+    A 'virtual' resource in a Bench.
     """
 
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
 
 
 @node_component()
-class AnonymousResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
+class PhysicalResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
     """
-    An anonymous resource in a Bench.
+    A 'physical' resource in a Bench.
     """
 
-    pass
+    title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
 
 CPU_CONSTRAINT = constraint(min_value=0.1, max_value=16.0, step_value=0.1)
@@ -375,7 +375,7 @@ RAM_CONSTRAINT = constraint(min_value=0.1, max_value=256.0, step_value=0.1)
 
 
 @node_(NodeType.SERVER)
-class Server(NamedResourceNode[ServerData]):
+class Server(VirtualResourceNode[ServerData]):
     """
     A Server provides virtual compute for a Bench's Runtime.
     Physical compute is materialized dynamically on Machines.
@@ -402,7 +402,7 @@ class Server(NamedResourceNode[ServerData]):
 
 
 @node_(NodeType.STORE)
-class Store(NamedResourceNode[StoreData]):
+class Store(VirtualResourceNode[StoreData]):
     """A trusty Postgres-compatible database."""
 
     version: str = p_system(40, default=VERSION, default_sql=None)
@@ -416,21 +416,21 @@ class Store(NamedResourceNode[StoreData]):
 
 
 @node_(NodeType.DRIVE)
-class Drive(NamedResourceNode[DriveData]):
+class Drive(VirtualResourceNode[DriveData]):
     """Drive for file storage."""
 
     ...
 
 
 @node_(NodeType.VAULT)
-class Vault(NamedResourceNode[DriveData]):
+class Vault(VirtualResourceNode[DriveData]):
     """Vault for secret storage."""
 
     ...
 
 
 @node_(NodeType.CACHE)
-class Cache(NamedResourceNode[DriveData]):
+class Cache(VirtualResourceNode[DriveData]):
     """Cache for ephemeral key-value storage."""
 
     ...

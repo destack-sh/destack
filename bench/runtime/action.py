@@ -723,7 +723,7 @@ Action1 = Block.new(
     fields=(Field.output("Number", int),),
 )
 # output: raise (no/unclear instructions)
-raise ModelIncapableError(f"Unclear requirements for {Action1!r}")
+raise ModelIncapableError("Unclear requirements")
 """,
     ),
     PromptText(

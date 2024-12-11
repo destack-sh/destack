@@ -4,14 +4,13 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.bench import (
     CPU_CONSTRAINT,
     RAM_CONSTRAINT,
-    AnonymousResourceNode,
     Bench,
+    PhysicalResourceNode,
     Server,
 )
 from bench.language.const import VERSION, EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, node_, struct_
 from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
-from bench.language.validation import TITLE_CONSTRAINT
 from bench.proto.wire.lang_pb2 import BrowserData, MachineData
 from bench.utils.func import IdEnum
 
@@ -33,7 +32,7 @@ class MachineImage(Struct):
 
 
 @node_(NodeType.MACHINE)
-class Machine(AnonymousResourceNode[MachineData]):
+class Machine(PhysicalResourceNode[MachineData]):
     """
     A Machine provides physical compute.
     Machines may be tied to a Server for our own Runtime or may be manually provisioned.
@@ -41,7 +40,6 @@ class Machine(AnonymousResourceNode[MachineData]):
 
     parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
     type: MachineType = p_regular(30, default=MachineType.RUNTIME)
-    title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     version: str = p_system(40, default=VERSION, default_sql=None)
     current_version: Optional[str] = p_system(41, default=None)
@@ -67,7 +65,7 @@ class Machine(AnonymousResourceNode[MachineData]):
 
 
 @node_(NodeType.BROWSER)
-class Browser(AnonymousResourceNode[BrowserData]):
+class Browser(PhysicalResourceNode[BrowserData]):
     """Browser instance for web browsing."""
 
     ...

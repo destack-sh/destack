@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.10.0"
+VERSION = "2024.12.11.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -487,6 +487,7 @@ BROWSER_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("title", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
@@ -513,12 +514,12 @@ FILE_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("title", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column("current_status", PrimitiveType.INT16),
         Column("kind", PrimitiveType.INT16),
-        Column("title", PrimitiveType.STRING),
         Column("external_url", PrimitiveType.STRING, is_nullable=True),
         Column("inline_content", PrimitiveType.BYTES, is_nullable=True),
         Column("type", PrimitiveType.INT16),
@@ -558,6 +559,7 @@ STREAM_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("title", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),

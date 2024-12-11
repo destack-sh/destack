@@ -140,7 +140,7 @@ defineExpose<ViewExposed>({ self, id, actions });
 
     <!-- Midpoint meta -->
     <div
-      class="group/meta absolute z-10 flex -translate-x-1/2 -translate-y-1/2 select-none flex-row items-center rounded-2xl border transition-colors duration-150"
+      class="group/meta pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none flex-row items-center rounded-2xl border transition-colors duration-150"
       :class="[
         showPipeMeta
           ? [isInspected || isHighlighted || isSelected ? 'border-gray-300 bg-gray-100' : 'border-gray-200 bg-white']
@@ -148,6 +148,9 @@ defineExpose<ViewExposed>({ self, id, actions });
         pipe.isNameHidden ? 'px-0.5' : 'px-2',
       ]"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
+      :data-node-type="pipe.metatype"
+      :data-node-id="pipe.id"
+      :data-node-ck="pipe.ck"
     >
       <!-- Type -->
       <IconInline

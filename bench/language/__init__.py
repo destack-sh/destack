@@ -8,20 +8,20 @@ from .access import (
 )
 from .action import ActionBase, Agency, Call, Continue
 from .bench import (
-    AnonymousResourceNode,
     Bench,
     Branch,
     Cache,
     Client,
     Dependency,
     Drive,
-    NamedResourceNode,
     Package,
+    PhysicalResourceNode,
     ResourceNode,
     ResourceStatus,
     Server,
     Store,
     Vault,
+    VirtualResourceNode,
 )
 from .block import Block
 from .code import Code, CodeLine, CodeType, code
@@ -186,7 +186,6 @@ __all__ = [
     "AggregationResult",
     "Alignment",
     "Anchor",
-    "AnonymousResourceNode",
     "AudioOptions",
     "Badge",
     "Bench",
@@ -264,7 +263,6 @@ __all__ = [
     "Machine",
     "Message",
     "MultipleNodesFoundError",
-    "NamedResourceNode",
     "Node",
     "Node",
     "NodeDataGraph",
@@ -287,6 +285,7 @@ __all__ = [
     "PackageNode",
     "PackageNode",
     "Path",
+    "PhysicalResourceNode",
     "Pipe",
     "PipeType",
     "Policy",
@@ -360,6 +359,7 @@ __all__ = [
     "VideoOptions",
     "View",
     "ViewType",
+    "VirtualResourceNode",
     "WatchAggregateUpdateData",
     "WatchGetUpdateData",
     "WatchSearchUpdateData",

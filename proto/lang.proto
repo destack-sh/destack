@@ -1880,8 +1880,8 @@ message CodeData {
 
 message FileInfoData {
   ObjectType metatype = 1;
+  string title = 32;
   FileKind kind = 40;
-  string title = 41;
   optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType type = 50;
@@ -2783,12 +2783,12 @@ message FileData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
+  string title = 32;
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
   ResourceStatus current_status = 37;
   FileKind kind = 40;
-  string title = 41;
   optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType type = 50;
@@ -3148,6 +3148,7 @@ message BrowserData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
+  string title = 32;
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
@@ -3371,6 +3372,7 @@ message StreamData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
+  string title = 32;
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;

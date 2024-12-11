@@ -418,6 +418,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       @mouseleave="flowCtx.cancelDragging()"
       @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
       @wheel="(e) => (variant != Variant.COMPACT ? flowCtx.onWheel(e) : undefined)"
+      @keydown.esc="flowCtx.cancelDragging()"
     >
       <!-- Background grid (infinitely repeated) -->
       <div class="absolute h-full w-full overflow-hidden" :style="{}">

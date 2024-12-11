@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Union, cast
 
-from bench.language.bench import AnonymousResourceNode
+from bench.language.bench import PhysicalResourceNode
 from bench.language.const import NodeType, ObjectKind, StructType
 from bench.language.field import TypeInfo
 from bench.language.node import (
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.SECRET)
-class Secret(AnonymousResourceNode[SecretData]):
+class Secret(PhysicalResourceNode[SecretData]):
     """A secret value."""
 
     parent: Union["Vault", None] = p_node_parent(4, NodeType.VAULT, is_system=True)
