@@ -194,7 +194,14 @@ function createAndFocusBlock(
   target: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
 ) {
   const block = createBlock(connection.tx, graph, { block: blockIn, anchor, target });
-  nextTick(() => focus(block));
+  canvas.inspect({ node: block });
+  if (block.type == BlockType.TEXT) {
+    nextTick(() => focus(block));
+  } else if (block.type != BlockType.PAGE) {
+    canvas.select([block]);
+  } else {
+    canvas.goToNode(block);
+  }
   return block;
 }
 
@@ -296,6 +303,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <button
               v-menu="
                 (): PopoverInfoIn => ({
+                  kind: 'view',
                   component: ViewType.PICKER,
                   placement: 'bottom',
                   props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },

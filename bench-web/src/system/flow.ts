@@ -51,6 +51,7 @@ export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 2;
 export const STEP_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
+export const STEP_SIZE_HALF = { width: STEP_SIZE.width / 2, height: STEP_SIZE.height / 2 };
 
 export const DEFAULT_TEXT_BY_STEP_TYPE: Partial<Record<StepType, string>> = {
   [StepType.START]: "Begin the flow.",
@@ -968,35 +969,33 @@ export class FlowContext {
           canvas.pushPopover({
             trigger: e.target as HTMLElement,
             reference: { x: e.clientX, y: e.clientY },
-            info: {
-              kind: "component",
-              placement: "bottom",
-              component: ViewType.PICKER,
-              props: {
-                valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }),
-              },
-              onApply: (value) => {
-                const tx = this.tx.with({ change: { key: newChangeId() } });
-                const step = this.createStep({
+            kind: 'view',
+            placement: "bottom",
+            component: ViewType.PICKER,
+            props: {
+              valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }),
+            },
+            onApply: (value) => {
+              const tx = this.tx.with({ change: { key: newChangeId() } });
+              const step = this.createStep({
+                parent: this.flow.value!,
+                near: { x: targetPosition.x - STEP_SIZE.width / 2, y: targetPosition.y - STEP_SIZE.height / 2 },
+                step: { type: value },
+                tx,
+              });
+              if (
+                step.type != StepType.TEXT &&
+                this.canPortsConnect(sourcePort, { parent: step, side: PortSide.INCOMING })
+              ) {
+                this.createPipe({
                   parent: this.flow.value!,
-                  near: { x: targetPosition.x - STEP_SIZE.width / 2, y: targetPosition.y - STEP_SIZE.height / 2 },
-                  step: { type: value },
+                  pipe: { type: PipeType.PASS, isNameHidden: true },
+                  source: sourcePort,
+                  target: { parent: step, side: PortSide.INCOMING },
                   tx,
                 });
-                if (
-                  step.type != StepType.TEXT &&
-                  this.canPortsConnect(sourcePort, { parent: step, side: PortSide.INCOMING })
-                ) {
-                  this.createPipe({
-                    parent: this.flow.value!,
-                    pipe: { type: PipeType.PASS, isNameHidden: true },
-                    source: sourcePort,
-                    target: { parent: step, side: PortSide.INCOMING },
-                    tx,
-                  });
-                }
-                canvas.inspect({ node: step, view: this.view.value });
-              },
+              }
+              canvas.inspect({ node: step, view: this.view.value });
             },
           });
           return;

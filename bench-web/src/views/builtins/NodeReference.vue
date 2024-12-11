@@ -66,6 +66,7 @@ defineExpose({
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="
         (): PopoverInfoIn => ({
+          kind: 'view',
           component: Icon,
           placement: 'bottom-right',
           offset: '-referenceWidth',

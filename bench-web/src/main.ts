@@ -4,7 +4,7 @@ import "./assets/index.css";
 import { startTransactionRotation as startTransactionBuffers } from "@/language/transaction";
 import { sendRemoteKeepAlives } from "@/system/connection";
 import { keytrap } from "@/ui/keymap";
-import { CONTEXT_MENU_DIRECTIVE, HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
+import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
 import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
@@ -49,7 +49,6 @@ async function init() {
     toaster.error({ title: "Internal client error", text: (err as any).message ?? info });
   };
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
-  app.directive("contextmenu", CONTEXT_MENU_DIRECTIVE);
   app.directive("menu", MENU_DIRECTIVE);
   app.directive("hovermenu", HOVER_MENU_DIRECTIVE);
   app.directive("hover", HOVER_DIRECTIVE);

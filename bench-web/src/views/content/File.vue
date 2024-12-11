@@ -22,7 +22,7 @@ import {
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, canvas, pkgConnection } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
-import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
+import { ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
 import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
@@ -81,6 +81,7 @@ const HOVER_MENU: HoverMenuOptions = {
     optimisticValue.value != null &&
     [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.value.type),
   popover: (context: PopoverContext) => ({
+    kind: 'view',
     component: ViewType.FILE,
     props: {
       ...(props as ViewProps),

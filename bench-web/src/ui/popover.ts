@@ -28,7 +28,7 @@ export type MenuInfo = {
   icon?: string | IconData;
   title?: string;
   text?: string;
-  items: MenuItem[];
+  items?: MenuItem[];
   context?: PopoverContext;
 };
 
@@ -119,25 +119,20 @@ export type PopoverContext = ActionContext & {
 const POPOVER_DATA_SET_ATTRIBUTE = "popover";
 const POPOVER_DATA_ID_ATTRIBUTE = "popoverid";
 
-export const OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS: FloatingOptions = {
+export const DEFAULT_POPOVER_FLOATING_OPTIONS: FloatingOptions = {
   placement: "bottom-right",
   referenceMargin: 4,
   containerMargin: 8,
 };
 
-export type PopoverInfo = (
+export type PopoverContent =
   | ({ kind: "menu" } & MenuInfo & { width?: number; height?: number })
-  | {
-      kind: "component";
-      component: any | ViewType;
-      props: ViewComponent["props"];
-      propsRef: () => ViewComponent["props"];
-      context?: PopoverContext;
-    }
-) & {
+  | { kind: "view"; icon?: IconData; title?: string; component: any | ViewType; props: ViewComponent["props"] };
+export type PopoverInfo = PopoverContent & {
+  context?: PopoverContext;
   isEnabled?: boolean;
   reference?: { x: number; y: number } | HTMLElement | SVGElement;
-  container?: HTMLElement | SVGElement | "containingRoot";
+  container?: HTMLElement | SVGElement;
   containerClass?: string;
   dontFocus?: boolean;
   dontAnimate?: boolean;
@@ -145,17 +140,17 @@ export type PopoverInfo = (
   onApply?(value?: any): void;
   onClose?(): void;
 } & FloatingOptions;
-export type PopoverInfoIn = Partial<PopoverInfo>;
+export type PopoverInfoIn = Required<Pick<PopoverInfo, "kind">> & Partial<PopoverInfo> & PopoverContent;
 
 /** The triggering element with some extra state */
 type PopoverElement = HTMLElement & {
   menuOnEvent?: (e: MouseEvent) => void;
 };
 
-export type PopoverInstance = {
+export type PopoverInstance = PopoverInfo & {
   id: number;
-  element: HTMLElement | undefined; // the actual popover (set in PopoverOverlay)
-  info: PopoverInfo;
+  generation: number;
+  element?: HTMLElement | undefined; // the actual popover (set in PopoverOverlay)
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
   container?: HTMLElement | SVGElement;
@@ -166,78 +161,82 @@ export const activePopovers = pretendReadonly(_activePopovers);
 export const topPopover = computed(() => _activePopovers.value[_activePopovers.value.length - 1]);
 export const hasActivePopover = computed(() => _activePopovers.value.length > 0);
 
-let PopoverId = 0;
-function newPopoverId() {
-  return PopoverId++;
+let popoverGeneration = 0;
+function newPopoverGeneration() {
+  return popoverGeneration++;
 }
-
-/** Updates the state of a popover (already in the stack) */
-export function updatePopover(instance: PopoverInstance, info: Partial<PopoverInfo>) {
-  const idx = _activePopovers.value.indexOf(instance);
-  if (idx < 0) return;
-  instance.info = { ...instance.info, ...info } as PopoverInfo;
-  _activePopovers.value[idx] = instance;
-  triggerRef(_activePopovers);
+let popoverId = 0;
+function newPopoverId() {
+  return popoverId++;
 }
 
 /** Pushes a popover onto the stack */
-export function pushPopover(push: {
-  trigger: HTMLElement | SVGElement;
-  reference: { x: number; y: number } | HTMLElement | SVGElement;
-  container?: HTMLElement | SVGElement | undefined;
-  info: PopoverInfoIn;
-}): PopoverInstance {
-  const node = canvas.findViewData(push.trigger) ?? undefined;
-  const context: PopoverContext = { element: push.trigger, nodes: node ? [node] : [] };
-  const info = {
-    ...OVERLAY_MENU_DEFAULT_FLOATING_OPTIONS,
-    ...push.info,
-    context,
-    kind: "component" in push.info ? "component" : "menu",
-  } as PopoverInfo;
-
+export function pushPopover(
+  options: {
+    generation?: number | "new";
+    reference: { x: number; y: number } | HTMLElement | SVGElement;
+    trigger: HTMLElement | SVGElement;
+  } & PopoverInfoIn,
+): PopoverInstance {
+  // find container
   let container: HTMLElement | SVGElement | undefined;
-  if (info.container == "containingRoot") {
-    const containingRoot = findViewComponentUp(push.trigger, (c) => isViewComponentIn(c, ROOT_VIEW_TYPES));
-    if (containingRoot == null) throw new Error("no containing root found");
-    container = getElement(containingRoot) ?? undefined;
+  if (options.container == undefined) {
+    const containingRoot = findViewComponentUp(options.trigger, (c) => isViewComponentIn(c, ROOT_VIEW_TYPES));
+    container = containingRoot != null ? (getElement(containingRoot) ?? undefined) : undefined;
   } else {
-    container = info.container ?? container;
+    container = options.container;
   }
 
+  // create popover instance
+  let generation: number;
+  if (options.generation == "new") {
+    generation = newPopoverGeneration();
+  } else if (options.generation == undefined) {
+    generation = activePopovers.value[activePopovers.value.length - 1]?.generation ?? newPopoverGeneration();
+  } else {
+    generation = options.generation;
+  }
   const instance: PopoverInstance = {
     id: newPopoverId(),
-    element: undefined, // set in PopoverOverlay
-    info,
-    trigger: push.trigger,
-    reference: info.reference ?? push.reference,
+    ...DEFAULT_POPOVER_FLOATING_OPTIONS,
+    ...options,
+    generation,
+    element: undefined,
     container,
   };
   _activePopovers.value.push(instance);
   triggerRef(_activePopovers);
+
+  // mark trigger
   instance.trigger.dataset[POPOVER_DATA_SET_ATTRIBUTE] = "true";
   instance.trigger.dataset[POPOVER_DATA_ID_ATTRIBUTE] = instance.id.toString();
+
   log.trace("popover.push", instance);
   return instance;
 }
 
 /** Removes a popover from the stack */
-export function popPopover(fromIdx: number | PopoverInstance = -1) {
-  if (typeof fromIdx == "object") {
-    fromIdx = _activePopovers.value.indexOf(fromIdx);
+export function popPopover(from: number | PopoverInstance = -1, generation?: number | undefined) {
+  // figure out which popovers to close
+  if (typeof from == "object") {
+    generation = from.generation;
+    from = _activePopovers.value.indexOf(from);
   }
-  const closedMenus = activePopovers.value.slice(fromIdx < 0 ? 0 : fromIdx);
-  if (closedMenus.length === 0) return;
-  closedMenus.forEach((instance) => {
+  const closedPopovers = activePopovers.value
+    .slice(from < 0 ? 0 : from)
+    .filter((instance) => generation == undefined || instance.generation == generation);
+  if (closedPopovers.length === 0) return;
+
+  // close them
+  closedPopovers.forEach((instance) => {
     if (instance != null && instance.trigger.dataset[POPOVER_DATA_ID_ATTRIBUTE] == instance?.id.toString()) {
       delete instance.trigger.dataset[POPOVER_DATA_SET_ATTRIBUTE];
       delete instance.trigger.dataset[POPOVER_DATA_ID_ATTRIBUTE];
     }
   });
-  if (fromIdx >= 0) _activePopovers.value = _activePopovers.value.slice(0, fromIdx);
-  else _activePopovers.value = [];
-  log.trace("popover.pop", closedMenus);
-  return closedMenus;
+  _activePopovers.value = _activePopovers.value.filter((instance) => !closedPopovers.some((p) => p.id == instance.id));
+  log.trace("popover.pop", closedPopovers);
+  return closedPopovers;
 }
 
 //
@@ -261,7 +260,7 @@ function makePopoverDirective(options: {
         if (info.isEnabled === false) return;
         e.preventDefault();
         e.stopPropagation();
-        pushPopover({ trigger: triggerEl, reference, info });
+        pushPopover({ trigger: triggerEl, reference, ...info });
       };
       triggerEl.addEventListener(options.event, triggerEl.menuOnEvent);
     },
@@ -273,7 +272,6 @@ function makePopoverDirective(options: {
   };
 }
 
-export const CONTEXT_MENU_DIRECTIVE = makePopoverDirective({ event: "contextmenu", reference: "trigger" });
 export const MENU_DIRECTIVE = makePopoverDirective({ event: "click", reference: "self" });
 
 type HoverMenuElement = PopoverElement & {
@@ -327,7 +325,7 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
 
       e.preventDefault();
       e.stopPropagation();
-      popoverInstance = pushPopover({ trigger: triggerEl, reference, info: popoverInfo });
+      popoverInstance = pushPopover({ ...popoverInfo, trigger: triggerEl, reference });
     };
 
     const hidePopover = () => {
@@ -558,6 +556,8 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   }
 
   // build menu
+  // TODO :UX: associate actions with the most appropriate elements
+  //  (if we click on a Type view inside a Block selection, we want the list.create.above from the Block selection, not from the Type view)
   if (Object.keys(actionsById).length == 0 || nodes.length == 0) return; // no actions found
   if (!canvas.isSelected(nodes[0])) {
     // auto-select first node if not selected
@@ -566,15 +566,19 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   const actions = Object.values(actionsById);
   actions.sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id]);
   const context: PopoverContext = {
+    event: e,
     element: e.target as HTMLElement,
     nodes: canvas.selection != null ? supergraph.getManyMaybe(canvas.selection.nodesPtr) : [nodes[0]],
   };
   const contextViews = getMenuContextViews(context);
-  // TODO :UX: associate actions with proper eloements
-  //  (if we click on a Type view inside a Block selection, we want the list.create.above from the Block selection, not from the Type view)
   const menuItems = actions.map((action) => menuItemFromAction(action, { context, contextViews: contextViews }));
-  const menu: MenuInfo = { context, items: menuItems };
-  pushPopover({ trigger: e.target as HTMLElement, reference: { x: e.clientX, y: e.clientY }, info: menu });
+  pushPopover({
+    kind: "menu",
+    context,
+    items: menuItems,
+    trigger: e.target as HTMLElement,
+    reference: { x: e.clientX, y: e.clientY },
+  });
 }
 
 /** Creates the default menu for the given element. */

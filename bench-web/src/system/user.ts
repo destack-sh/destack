@@ -111,7 +111,7 @@ export async function signUp(
   } = await supervisor.signupUser({ ...userIn, password, client: makeCurrentClient() }, options);
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
-  toaster.info({ icon: "fas fa-right-from-bracket", title: "Signed Up", text: `Welcome, ${user.slug}.` });
+  toaster.success({ icon: "fas fa-right-from-bracket", title: "Signed up", text: `Welcome, ${user.slug}.` });
 }
 
 /**
@@ -148,7 +148,7 @@ export async function logOut(logOut?: { all?: boolean; clients?: { id: string }[
     // logged out current client
     log.info("user.logout", logOut);
     onLogout();
-    toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
+    toaster.success({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }
 }
 
@@ -229,13 +229,13 @@ contributeActionMap<"user">({
   "user.misc.goToHome": {
     icon: "fas fa-home",
     isEnabled: isActivated,
-    title: "Go to My Bench",
+    title: "Go Home",
     text: "Go back to your Bench.",
     action: async () => {
       if (bench.value?.id == user.value!.mainBenchPtr?.id) {
-        toaster.info({
+        toaster.success({
           icon: "fas fa-home",
-          title: "Already Home",
+          title: "Already home",
           text: "You are already on your Bench.",
           override: "user.misc.goToHome",
         });

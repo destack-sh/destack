@@ -229,32 +229,31 @@ defineExpose<ViewExposed>({
       v-if="!isInline && variant != Variant.COMPACT"
       ref="buttonRef"
       v-menu="
-        (): PopoverInfoIn => {
-          return {
-            component: ViewType.PICKER,
-            placement: 'inside-top-left',
-            isEnabled: !isDisabled && isInput,
-            // stealth picker has no padding, but popover picker does, so add offset to ensure it's aligned
-            offset: variant == Variant.STEALTH ? { x: -10, y: -5 } : undefined,
-            referenceMargin: 0,
-            dontAnimate: variant == Variant.STEALTH,
-            props: {
-              ...(props as ViewProps),
-              variant: Variant.PRIMARY, // full dropdown
-              title: undefined, // clear title
-              size: {
-                metatype: ObjectType.RECTANGLE,
-                width: Math.max(
-                  MIN_WIDTH,
-                  buttonRef?.getBoundingClientRect().width! + (variant == Variant.STEALTH ? 10 : 0), // see above
-                ),
-              },
-              isPopover: false, // want clean inline style so it matches this variant
-              isInline: true,
+        (): PopoverInfoIn => ({
+          kind: 'view',
+          component: ViewType.PICKER,
+          placement: 'inside-top-left',
+          isEnabled: !isDisabled && isInput,
+          // stealth picker has no padding, but popover picker does, so add offset to ensure it's aligned
+          offset: variant == Variant.STEALTH ? { x: -10, y: -5 } : undefined,
+          referenceMargin: 0,
+          dontAnimate: variant == Variant.STEALTH,
+          props: {
+            ...(props as ViewProps),
+            variant: Variant.PRIMARY, // full dropdown
+            title: undefined, // clear title
+            size: {
+              metatype: ObjectType.RECTANGLE,
+              width: Math.max(
+                MIN_WIDTH,
+                buttonRef?.getBoundingClientRect().width! + (variant == Variant.STEALTH ? 10 : 0), // see above
+              ),
             },
-            onApply: (value: any) => apply(value),
-          };
-        }
+            isPopover: false, // want clean inline style so it matches this variant
+            isInline: true,
+          },
+          onApply: (value: any) => apply(value),
+        })
       "
       role="button"
       :disabled="props.isDisabled || !props.isInput"

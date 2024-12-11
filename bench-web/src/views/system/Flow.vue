@@ -10,11 +10,13 @@ import {
   NodeReferenceData,
   NodeType,
   PipeData,
+  PipeType,
+  PortSide,
   StepData,
   TypeKind,
   Variant,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -27,11 +29,13 @@ import {
   PIPE_WIDTH,
   PipePath,
   STEP_SIZE,
+  STEP_SIZE_HALF,
 } from "@/system/flow";
 import { canvas } from "@/system/space";
 import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { PopoverInfoIn } from "@/ui/popover";
+import { subVector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -69,10 +73,10 @@ const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
+const createStepRef: Ref<HTMLButtonElement | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
 const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const headerSize = useElementSize(headerRef);
-const containerScroll = useScroll(bodyRef);
 
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
@@ -155,10 +159,69 @@ function moveNodes(nodes: AnyNodeData[], move: { x: number; y: number }) {
     }
   }
 }
-const actions: Partial<ActionMapImplementation<"space" | "session">> = {
+function pushPopover(popover: PopoverInfoIn, e?: MouseEvent | KeyboardEvent) {
+  canvas.pushPopover({
+    generation: "new",
+    trigger: (e?.target ?? bodyRef.value!) as HTMLElement,
+    reference: e instanceof MouseEvent ? { x: e.clientX, y: e.clientY } : bodyRef.value!,
+    placement: e instanceof MouseEvent ? undefined : "inside-top",
+    ...popover,
+  });
+}
+const actions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = {
   // edit
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();
+  },
+  "flow.edit.createStep": (action, context) => {
+    pushPopover(
+      {
+        kind: "view",
+        component: ViewType.PICKER,
+        placement: "inside-top",
+        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+        onApply: (value) => {
+          flowCtx.createStep({ parent: flow.value!, step: { type: value } });
+        },
+      },
+      context.event,
+    );
+  },
+  "flow.edit.splitPipe": (action, context) => {
+    if (context.nodes?.length != 1) return;
+    const pipe = context.nodes[0];
+    if (!isNode(pipe, NodeType.PIPE)) return;
+    const oldTarget = graph.getOrError(pipe.targetPtr!) as StepData;
+    pushPopover(
+      {
+        kind: "view",
+        component: ViewType.PICKER,
+        placement: "bottom-right",
+        props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+        onApply: (value) => {
+          const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Pipe" } });
+          // find position
+          const pipeMidpoint = flowCtx.pipesStates.value[pipe.id!].path.value?.midpoint;
+          if (pipeMidpoint == null) throw new Error("no pipe midpoint");
+          const position = subVector2(pipeMidpoint, { x: STEP_SIZE_HALF.width, y: STEP_SIZE_HALF.height });
+          // create new step
+          const newStep = flowCtx.createStep({ parent: flow.value!, step: { type: value, position }, tx });
+          // create new pipe from new step to old pipe target
+          const newPipe = flowCtx.createPipe({
+            parent: flow.value!,
+            source: { parent: newStep, side: PortSide.OUTGOING },
+            target: { parent: oldTarget, side: PortSide.INCOMING },
+            pipe: { type: PipeType.PASS, isNameHidden: true },
+            tx,
+          });
+          // reconnect old pipe to new step
+          tx.update(pipe, { targetPtr: toNodeRef(newStep) }, { debounce: "long" });
+          // and go to
+          canvas.inspect({ node: newStep });
+        },
+      },
+      context.event,
+    );
   },
   // move
   "space.move.up": (action, context) => {
@@ -212,6 +275,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   <div
     ref="containerRef"
     :class="[variant == Variant.COMPACT ? '' : 'h-full']"
+    data-contextmenu-items="flow.edit.create*"
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Meta header -->
@@ -311,19 +375,19 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           </button>
           <!-- Add step -->
           <button
+            ref="createStepRef"
             class="group/button rounded px-1 py-0.5 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
             @click="
               (e) =>
                 canvas.pushPopover({
+                  kind: 'view',
                   trigger: e.target as HTMLElement,
                   reference: { x: e.clientX, y: e.clientY },
-                  info: {
-                    component: ViewType.PICKER,
-                    placement: 'bottom-left',
-                    props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
-                    onApply: (value) => {
-                      flowCtx.createStep({ parent: flow!, step: { type: value } });
-                    },
+                  component: ViewType.PICKER,
+                  placement: 'bottom-left',
+                  props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+                  onApply: (value) => {
+                    flowCtx.createStep({ parent: flow!, step: { type: value } });
                   },
                 })
             "
@@ -502,24 +566,26 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
           data-suppress-drag="both"
           :class="
-            variant != Variant.COMPACT ? '' : 'opacity-50 transition-colors duration-150 group-hover/flow:opacity-100'
+            variant != Variant.COMPACT
+              ? ''
+              : 'opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100 group-hover/flow:opacity-100'
           "
         >
           <!-- Add step -->
           <button
+            ref="createStepRef"
             class="group/button rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="
               (e) =>
                 canvas.pushPopover({
+                  kind: 'view',
                   trigger: e.target as HTMLElement,
                   reference: { x: e.clientX, y: e.clientY },
-                  info: {
-                    component: ViewType.PICKER,
-                    placement: 'bottom-left',
-                    props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
-                    onApply: (value) => {
-                      flowCtx.createStep({ parent: flow!, step: { type: value } });
-                    },
+                  component: ViewType.PICKER,
+                  placement: 'bottom-left',
+                  props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+                  onApply: (value) => {
+                    flowCtx.createStep({ parent: flow!, step: { type: value } });
                   },
                 })
             "

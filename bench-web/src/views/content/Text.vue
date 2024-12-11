@@ -140,27 +140,25 @@ function makeEditorView(): EditorView {
         pushPopover({
           trigger: getElement(textRef.value)!,
           reference: { x: referencePos.left, y: referencePos.top },
-          info: {
-            component: ViewType.PICKER,
-            referenceMargin: 2,
-            offset: { x: 0, y: -8 }, // align query text with line
-            placement: "inside-top-left",
-            props: { placeholder: "Mention Node", valueType: makeTypeInfo({ benchType: BenchType.BLOCK }) },
-            onApply(node) {
-              if (view == null) throw new Error("view no longer mounted");
-              // replace @ with mention and focus there
-              const mention = PM_SCHEMA.node("mention", { nodePtr: toNodeRef(node) });
-              view.dispatch(
-                view.state.tr
-                  .delete(selection.$head.pos - 1, selection.$head.pos)
-                  .insert(selection.$head.pos - 1, mention)
-                  .insert(selection.$head.pos, PM_SCHEMA.text(" ")),
-              );
-            },
-            onClose: () => {
-              if (view == null) throw new Error("view no longer mounted");
-              nextTick(() => view!.focus());
-            },
+          component: ViewType.PICKER,
+          referenceMargin: 2,
+          offset: { x: 0, y: -8 }, // align query text with line
+          placement: "inside-top-left",
+          props: { placeholder: "Mention Node", valueType: makeTypeInfo({ benchType: BenchType.BLOCK }) },
+          onApply(node) {
+            if (view == null) throw new Error("view no longer mounted");
+            // replace @ with mention and focus there
+            const mention = PM_SCHEMA.node("mention", { nodePtr: toNodeRef(node) });
+            view.dispatch(
+              view.state.tr
+                .delete(selection.$head.pos - 1, selection.$head.pos)
+                .insert(selection.$head.pos - 1, mention)
+                .insert(selection.$head.pos, PM_SCHEMA.text(" ")),
+            );
+          },
+          onClose: () => {
+            if (view == null) throw new Error("view no longer mounted");
+            nextTick(() => view!.focus());
           },
         });
       }
@@ -229,14 +227,12 @@ class MentionView implements PmNodeView {
             popoverInstance = pushPopover({
               trigger: this.dom,
               reference: this.dom,
-              info: {
-                placement: "bottom",
-                component: ViewType.FILE,
-                props: {
-                  modelValue: pmNode.attrs.nodePtr,
-                  isInline: true,
-                  size: { metatype: ObjectType.RECTANGLE, width: 400 },
-                },
+              placement: "bottom",
+              component: ViewType.FILE,
+              props: {
+                modelValue: pmNode.attrs.nodePtr,
+                isInline: true,
+                size: { metatype: ObjectType.RECTANGLE, width: 400 },
               },
             });
           },
@@ -414,7 +410,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       data-suppress-drag="both"
     >
       <!-- Placeholder -->
-      <div v-if="placeholder && isTextEmpty(modelValue)" class="pointer-events-none absolute left-2 top-1">
+      <div
+        v-if="placeholder && isTextEmpty(modelValue)"
+        class="pointer-events-none absolute"
+        :class="variant != Variant.STEALTH ? 'left-2 top-1' : 'left-0.5 top-0.5'"
+      >
         <div class="text-sm text-gray-400">{{ placeholder }}</div>
       </div>
     </div>

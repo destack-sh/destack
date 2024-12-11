@@ -204,7 +204,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Add button -->
       <button
         v-if="variant != Variant.STEALTH || fields.length == 0"
-        class="h-[26px] rounded px-1 text-left text-gray-400 hover:text-gray-700"
+        class="h-[28px] rounded px-1 text-left text-gray-400 hover:text-gray-700"
         :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
         @click="(e) => onAddFieldAction(e, fieldType, block!, graph, () => connection.tx)"
       >

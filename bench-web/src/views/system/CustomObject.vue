@@ -128,7 +128,6 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
             },
             isInline: true,
           },
-          propsRef: () => ({ modelValue: props.modelValue }),
           onUpdate: (value: any) => emit('update:modelValue', value),
           onApply: (value: any) => apply(value),
         })

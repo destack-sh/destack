@@ -3,6 +3,7 @@ import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, pkgGraph } from "@/system/space";
+import { ActionMapImplementation } from "@/ui/action";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
@@ -44,7 +45,7 @@ const history: HistoryState = {
   canGoForward: computed(() => (focusedViewIdx.value ?? 0) < views.value.length - 1),
   go: (delta: number) => {
     // try to go up to delta times (skipping views where we don't have the node anymore)
-    if (delta == 0 ||focusedViewIdx.value == null) return;
+    if (delta == 0 || focusedViewIdx.value == null) return;
     let viewIdx = focusedViewIdx.value;
     while (delta != 0) {
       viewIdx += Math.sign(delta);
@@ -61,7 +62,13 @@ const history: HistoryState = {
 };
 provide(HISTORY_STATE_KEY, history);
 
-defineExpose<ViewExposed>({ self });
+// actions
+const actions: Partial<ActionMapImplementation<"view">> = {
+  "view.history.goBack": () => history.go(-1),
+  "view.history.goForward": () => history.go(1),
+};
+
+defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
   <div class="h-full w-full">
