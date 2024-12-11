@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { SOURCE_STEP_TYPES, toCamelName } from "@/language/const";
+import { SOURCE_STEP_TYPES } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { newChangeId } from "@/language/transaction";
 import {
@@ -11,11 +11,10 @@ import {
   NodeType,
   PipeData,
   StepData,
-  StepType,
   TypeKind,
   Variant,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -32,7 +31,6 @@ import {
 import { canvas } from "@/system/space";
 import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
@@ -62,7 +60,6 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self, { isRequired: false });
-const selfView = spaceGraph.getRef(self);
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
@@ -83,7 +80,7 @@ const flowCtx = new FlowContext({
   graph: graph,
   tx: () => connection.tx,
   update: state.update,
-  view: selfView,
+  view: state.baseViewRef,
   transform: toRef(props, "transform"),
   containerRef: bodyRef,
   stepRefs: stepRefs,
@@ -288,19 +285,19 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-0.5">
           <!-- Zoom -->
           <button
-            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.zoom('out', flowCtx.centerVec!, 10)"
           >
             <i class="fas fa-minus w-5 text-center" />
           </button>
           <button
-            class="rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.zoom(1.0, flowCtx.centerVec!, 1)"
           >
             {{ Math.round(viewport.scale * 100) }}%
           </button>
           <button
-            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
           >
             <i class="fas fa-plus w-5 text-center" />
@@ -502,46 +499,56 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <!-- Menu -->
         <div
-          class="rounded-b-0 pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-t-2xl border-x border-t border-gray-200 bg-white px-2.5 py-1.5"
+          class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
           data-suppress-drag="both"
           :class="
-            variant != Variant.COMPACT ? '' : 'opacity-0 transition-colors duration-150 group-hover/flow:opacity-100'
+            variant != Variant.COMPACT ? '' : 'opacity-50 transition-colors duration-150 group-hover/flow:opacity-100'
           "
         >
-          <!-- Create -->
+          <!-- Add step -->
           <button
-            v-for="stepType in [
-              StepType.START,
-              StepType.COMPLETE,
-              StepType.FAIL,
-              StepType.ACTION,
-              StepType.CREATE,
-              StepType.YIELD,
-              StepType.TEXT,
-            ]"
-            :key="stepType"
-            v-tooltip="{
-              title: `${toCamelName(StepType, stepType)}`,
-              showDelay: 200,
-              hideDelay: 100,
-              small: true,
-              referenceMargin: 8,
-              group: 'flow.overlay',
-            }"
-            class="rounded px-1"
-            :class="
-              variant != Variant.COMPACT
-                ? 'text-base text-gray-700 hover:bg-gray-100'
-                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+            class="group/button rounded px-1 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="
+              (e) =>
+                canvas.pushPopover({
+                  trigger: e.target as HTMLElement,
+                  reference: { x: e.clientX, y: e.clientY },
+                  info: {
+                    component: ViewType.PICKER,
+                    placement: 'bottom-left',
+                    props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+                    onApply: (value) => {
+                      flowCtx.createStep({ parent: flow!, step: { type: value } });
+                    },
+                  },
+                })
             "
-            @click="flow && flowCtx.createStep({ step: { type: stepType }, parent: flow })"
           >
-            <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
+            <i class="fas fa-plus mr-1.5 text-center" />
+            <span class="">Step</span>
           </button>
-          <!-- Reset Viewport (if compact) -->
+          <!-- Zoom -->
           <button
-            v-if="variant == Variant.COMPACT"
-            class="rounded px-1 text-gray-400 hover:text-gray-700"
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom('out', flowCtx.centerVec!, 10)"
+          >
+            <i class="fas fa-minus w-5 text-center" />
+          </button>
+          <button
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom(1.0, flowCtx.centerVec!, 1)"
+          >
+            {{ Math.round(viewport.scale * 100) }}%
+          </button>
+          <button
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
+          >
+            <i class="fas fa-plus w-5 text-center" />
+          </button>
+          <!-- Auto/Reset -->
+          <button
+            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.resetViewport()"
           >
             <i class="fas fa-arrows-to-dot w-5 text-center" />

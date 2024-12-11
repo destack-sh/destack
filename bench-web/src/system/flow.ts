@@ -30,7 +30,7 @@ import { describeNode, isNode, makeStruct, toNodeRef, type TypedNodeReferenceDat
 import { isDragAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
-import { addVector2, type Vector2 } from "@/ui/view";
+import { addVector2, subVector2, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { canvas, supergraph } from "@/system/globals";
@@ -1109,30 +1109,41 @@ export class FlowContext {
   findEmptySpace(
     near: Vector2,
     size: { width: number; height: number },
-    bias: "right" | "down" | "alternate" = "alternate",
     options?: {
+      bias?: "right" | "down";
       maxSteps?: number;
-      margin?: number;
+      margin?: { x: number; y: number };
     },
   ): Vector2Data | null {
     near = snapVec(near);
     const position = { ...near };
-    const { maxSteps = 100, margin = FLOW_GRID_STEP } = options ?? {};
+    const { maxSteps = 100, margin = { x: FLOW_GRID_STEP, y: FLOW_GRID_STEP * 4 }, bias = "down" } = options ?? {};
     const hitOffsets = [
-      { x: -margin, y: -margin },
-      { x: size.width + margin, y: -margin },
-      { x: -margin, y: size.height + margin },
-      { x: size.width + margin, y: size.height + margin },
+      { x: 0, y: 0 },
+      { x: size.width, y: 0 },
+      { x: 0, y: size.height },
+      { x: size.width, y: size.height },
       { x: size.width / 2, y: size.height / 2 },
     ];
+    if (margin.x != 0 || margin.y != 0) {
+      // add hitoffsets for every step [0, margin.x] and [0, margin.y]
+      for (let testX = 0; testX < margin.x; testX += FLOW_GRID_STEP) {
+        for (let testY = 0; testY < margin.y; testY += FLOW_GRID_STEP) {
+          hitOffsets.push({ x: -testX, y: -testY });
+          hitOffsets.push({ x: size.width + testX, y: -testY });
+          hitOffsets.push({ x: -testX, y: size.height + testY });
+          hitOffsets.push({ x: size.width + testX, y: size.height + testY });
+        }
+      }
+    }
 
     let numSteps = 0;
     while (numSteps < maxSteps) {
       // check if there's any overlapping step at the position (including bounding corners)
       let hit = false;
-      for (const cornerOffset of hitOffsets) {
-        const cornerPosition = addVector2(position, cornerOffset);
-        if (this.getStepAt(cornerPosition) != null) {
+      for (const hitOffset of hitOffsets) {
+        const hitPosition = addVector2(position, hitOffset);
+        if (this.getStepAt(hitPosition) != null) {
           hit = true;
           break;
         }
@@ -1148,12 +1159,7 @@ export class FlowContext {
       } else if (bias === "down") {
         position.y += FLOW_GRID_STEP;
       } else {
-        // alternate
-        if (numSteps % 2 === 0) {
-          position.x += FLOW_GRID_STEP;
-        } else {
-          position.y += FLOW_GRID_STEP;
-        }
+        assertNever(bias);
       }
       numSteps++;
     }
@@ -1177,7 +1183,12 @@ export class FlowContext {
     // position in graph
     const siblings = this.graph.getChildren(parent, NodeType.STEP);
     const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
-    const position = options.step.position ?? this.findEmptySpace(options.near ?? this.centerVec!, STEP_SIZE);
+    const position =
+      options.step.position ??
+      this.findEmptySpace(
+        options.near ?? subVector2(this.centerVec!, { x: STEP_SIZE.width / 2, y: STEP_SIZE.height / 2 }),
+        STEP_SIZE,
+      );
 
     // create
     const step = (options.tx ?? this.tx).create({

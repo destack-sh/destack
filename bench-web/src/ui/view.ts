@@ -382,6 +382,14 @@ export function addVector2(vec: Vector2 | null | undefined, add: Partial<Vector2
   };
 }
 
+export function subVector2(vec: Vector2 | null | undefined, sub: Partial<Vector2>): Vector2Data {
+  return {
+    metatype: ObjectType.VECTOR2,
+    x: (vec?.x ?? 0) - (sub.x ?? 0),
+    y: (vec?.y ?? 0) - (sub.y ?? 0),
+  };
+}
+
 //
 // History
 //
