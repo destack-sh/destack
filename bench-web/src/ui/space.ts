@@ -147,7 +147,12 @@ export class SpaceCanvas {
     });
     // and 'focus' on any other element
     useEventListener(document, "mousedown", (e) => {
-      if (e.target != null && e.target != activeElement.value && !isOutsideView(e.target as HTMLElement)) {
+      if (
+        e.target != null &&
+        e.target != activeElement.value &&
+        !(e.target as HTMLElement).hasAttribute("data-v-app") &&
+        !isOutsideView(e.target as HTMLElement)
+      ) {
         this.onComponentFocused(e.target as HTMLElement);
       }
     });
@@ -355,7 +360,7 @@ export class SpaceCanvas {
   /** Inspects the given node */
   inspect(inspect: {
     node: AnyNodeData | NodeReferenceData;
-    view: SomeView | ViewComponent | ComponentInstance<any> | HTMLElement | SVGElement;
+    view?: SomeView | ViewComponent | ComponentInstance<any> | HTMLElement | SVGElement | undefined;
     focus?: "target" | "detail";
   }): void {
     log.trace("canvas.inspect", inspect);
@@ -364,8 +369,10 @@ export class SpaceCanvas {
     let view: SomeView | null;
     if (isNodeRef(inspect.view) || isNode(inspect.view)) {
       view = inspect.view as SomeView;
-    } else {
+    } else if (inspect.view != null) {
       view = this.findViewData(inspect.view);
+    } else {
+      view = this.focusedView;
     }
     if (view == null) throw new Error(`no view for ${inspect.view}`);
     const viewAncestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
@@ -379,7 +386,7 @@ export class SpaceCanvas {
     // open inspector
     const focus = inspect.focus ?? "target";
     if (focus == "target") {
-      this.focusInGraph({ focus: makeSelection([inspect.node]), view: inspect.view });
+      this.focusInGraph({ focus: makeSelection([inspect.node]), view: view });
     } else if (focus == "detail") {
       this.addView({ type: ViewType.DETAIL }, { ifPresent: "focus" });
     } else {
@@ -546,13 +553,13 @@ export class SpaceCanvas {
     return false; // could not focus
   }
 
-  /** Restores component focus to the currently absolutely focused element if possible. */
+  /** Restores component focus to the currently absolutely focused element (if possible). */
   restoreComponentFocus(): boolean {
-    if (this.spacePtr.value == null) throw new Error("no current space");
-    const space = this.graph.get(this.spacePtr.value);
-    if ((space?.focus?.nodesPtr?.length ?? 0) > 0) {
-      const view = this.getViewData(space!.focus!.nodesPtr[0]);
+    if (this.space.value == null) throw new Error("no current space");
+    if ((this.space.value?.focus?.nodesPtr?.length ?? 0) > 0) {
+      const view = this.getViewData(this.space.value!.focus!.nodesPtr[0]);
       if (view != null) {
+        log.trace("canvas.restoreComponentFocus", view);
         return this.focusInComponent(view);
       }
     }
@@ -1102,12 +1109,13 @@ export class SpaceCanvas {
   }
 
   /** Opens a new popover */
-  pushPopover(push: {
-    trigger: HTMLElement | SVGElement;
-    reference: { x: number; y: number } | HTMLElement | SVGElement;
-    container?: HTMLElement | SVGElement | undefined;
-    info: PopoverInfoIn;
-  }): PopoverInstance {
+  pushPopover(
+    push: {
+      generation?: number | "new";
+      trigger: HTMLElement | SVGElement;
+      reference: { x: number; y: number } | HTMLElement | SVGElement;
+    } & PopoverInfoIn,
+  ): PopoverInstance {
     // simple wrapper for now (should probably move Popover state into SpaceCanvas)
     return pushPopover(push);
   }

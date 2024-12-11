@@ -103,19 +103,19 @@ const absoluteStyle = computed(() => {
         />
       </div>
       <!-- Main -->
-      <div class="py-1.5">
+      <div class="max-w-full min-w-0 py-1.5">
         <!-- Header -->
         <div class="flex flex-row">
           <span class="font-medium text-gray-700">{{ toast.title }}</span>
         </div>
         <!-- Content -->
-        <p v-if="toast.text" class="line-clamp-2 text-gray-400">
+        <p v-if="toast.text" class="max-w-full truncate text-gray-400">
           {{ toast.text }}
         </p>
       </div>
       <!-- Dismiss -->
       <button
-        class="right-3 ml-auto h-full border-gray-300 py-3 pl-1 pr-3.5 text-gray-400 opacity-40 transition-colors duration-75 group-hover/toast:opacity-100"
+        class="right-3 ml-auto h-full flex-shrink-0 border-gray-300 py-3 pl-1 pr-3.5 text-gray-400 opacity-40 transition-colors duration-75 group-hover/toast:opacity-100"
         @click="toaster.dismiss(toast)"
       >
         <i class="fas fa-xmark" />

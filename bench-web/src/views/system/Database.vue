@@ -39,7 +39,7 @@ import {
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { ActionContext, ActionMapImplementation, fireActionById } from "@/ui/action";
+import { ActionMapImplementation, fireActionById } from "@/ui/action";
 import {
   DragContent,
   MultiAnchor,
@@ -700,16 +700,15 @@ defineExpose<ViewExposed>({ self, id, actions });
               (e) => {
                 const button = (e.target as HTMLElement).closest('button')!;
                 pushPopover({
+                  kind: 'view',
                   trigger: button,
                   reference: button,
-                  info: {
-                    component: ViewType.PICKER,
-                    placement: 'bottom-left',
-                    offset: 'referenceWidth',
-                    props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-                    onApply: (typeInfo: TypeIdentity) => {
-                      createField(connection.tx, graph, { anchor: 'inside', target: block!, field: typeInfo });
-                    },
+                  component: ViewType.PICKER,
+                  placement: 'bottom-left',
+                  offset: 'referenceWidth',
+                  props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+                  onApply: (typeInfo: TypeIdentity) => {
+                    createField(connection.tx, graph, { anchor: 'inside', target: block!, field: typeInfo });
                   },
                 });
               }
@@ -840,6 +839,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <IconInline
               v-menu="
                 (): PopoverInfoIn => ({
+                  kind: 'view',
                   component: Icon,
                   isEnabled: column.kind == 'field',
                   placement: 'bottom-right',
@@ -892,8 +892,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- Status (if not connected or empty) -->
         <div
           v-if="!isConnected"
-          class="flex w-full flex-row items-center justify-center text-center"
-          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+          class="flex flex-row items-center justify-center text-center"
+          :style="{ paddingLeft: `${ROW_ACTIONS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
         >
           <!-- Loading -->
           <Transition
@@ -909,8 +909,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- No rows -->
         <div
           v-else-if="records.length == 0"
-          class="flex w-full flex-row items-center justify-center text-center"
-          :style="{ height: `${ROW_HEIGHT_MIN}px` }"
+          class="flex flex-row items-center justify-center text-center"
+          :style="{ paddingLeft: `${ROW_ACTIONS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
         >
           <!-- Loading -->
           <span v-if="recordConnection.isConnecting.value">
@@ -974,7 +974,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900 transition-colors duration-150"
             :class="[
               x > 0 ? 'border-l' : '',
-              isSelectedCell(record, column) ? 'bg-orange-400/20' : '',
+              isSelectedCell(record, column) ? 'bg-orange-400/20' : canvas.isInspected(record) ? 'bg-gray-100' : '',
               column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{
@@ -1005,6 +1005,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
               v-menu="
                 (): PopoverInfoIn => ({
+                  kind: 'view',
                   component: Icon,
                   placement: 'bottom-right',
                   offset: '-referenceWidth',

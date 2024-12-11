@@ -54,6 +54,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
+import { canvas } from "@/system/globals";
 import { ICON_BY_FIELD_TYPE, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getView } from "@/ui/view";
@@ -562,28 +563,29 @@ export function onAddFieldAction(
   txFactory: () => Transaction,
 ) {
   if (fieldType == FieldType.OPTION) {
-    createField(txFactory(), graph, {
+    const field = createField(txFactory(), graph, {
       anchor: "inside",
       target: parent!,
       field: { type: fieldType },
     });
+    canvas.inspect({ node: field });
   } else {
     const button = (e.target as HTMLElement).closest("button")!;
     pushPopover({
+      kind: 'view',
       trigger: button,
       reference: button,
-      info: {
-        component: ViewType.PICKER,
-        placement: "bottom-left",
-        offset: "referenceWidth",
-        props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-        onApply: (typeInfo: TypeIdentity) => {
-          createField(txFactory(), graph, {
-            anchor: "inside",
-            target: parent,
-            field: { ...typeInfo, type: fieldType },
-          });
-        },
+      component: ViewType.PICKER,
+      placement: "bottom-left",
+      offset: "referenceWidth",
+      props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+      onApply: (typeInfo: TypeIdentity) => {
+        const field = createField(txFactory(), graph, {
+          anchor: "inside",
+          target: parent,
+          field: { ...typeInfo, type: fieldType },
+        });
+        canvas.inspect({ node: field });
       },
     });
   }

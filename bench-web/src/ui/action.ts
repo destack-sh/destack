@@ -10,7 +10,7 @@ import { canvas, hasLocalBench, pkg, space } from "@/system/space";
 import { makeIcon } from "@/ui/icon";
 import { keytrap, type KeySignature } from "@/ui/keymap";
 import { clearSpace, createDesktopDefaultSpace } from "@/ui/space";
-import { toaster } from "@/ui/toast";
+import { toaster, ToastLevel } from "@/ui/toast";
 import { collectViewComponentsUp } from "@/ui/view";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
@@ -113,6 +113,9 @@ export const ACTION_BUILTIN_IDS = [
   "table.column.filter",
   "table.column.wrap",
   "table.column.hide",
+  // flow
+  "flow.edit.createStep",
+  "flow.edit.splitPipe",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -124,6 +127,8 @@ export const ACTION_BUILTIN_IDS = [
   "code.edit.format",
   "code.edit.comment",
   // view
+  "view.history.goBack",
+  "view.history.goForward",
   "view.navigate.duplicateTab",
   "view.navigate.focusPreviousTab",
   "view.navigate.focusNextTab",
@@ -149,7 +154,7 @@ export const ACTION_BUILTIN_IDS = [
   "user.auth.logoutAll",
   "user.auth.activate",
   "user.misc.goToHome",
-  // organization
+  // developer
   "developer.test.developerMode",
   "developer.test.retryAllFailed",
   "developer.test.addEmptyView",
@@ -862,6 +867,20 @@ declareActionMap<"table">({
   },
 });
 
+// flow
+declareActionMap<"flow">({
+  "flow.edit.createStep": {
+    icon: "fas fa-step-forward",
+    title: "Create Step",
+    text: "Create a new step",
+  },
+  "flow.edit.splitPipe": {
+    icon: "fas fa-scissors",
+    title: "Split Pipe",
+    text: "Split this pipe",
+  },
+});
+
 // text
 declareActionMap<"text">({
   // format
@@ -926,6 +945,18 @@ declareActionMap<"code">({
 
 // view
 declareActionMap<"view">({
+  // history
+  "view.history.goBack": {
+    icon: "fas fa-chevron-left",
+    title: "Go Back",
+    text: "Go back to the previous view",
+    shortcuts: ["mod+shift+backspace"],
+  },
+  "view.history.goForward": {
+    icon: "fas fa-chevron-right",
+    title: "Go Forward",
+    text: "Go forward to the next view",
+  },
   // navigate
   "view.navigate.duplicateTab": {
     icon: "fas fa-copy",
@@ -1045,7 +1076,7 @@ contributeActionMap<"developer">({
     isChecked: isDeveloperMode,
     action: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
-      toaster.info({
+      toaster.success({
         override: "developer.toggleDeveloperMode",
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
         text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
@@ -1089,35 +1120,36 @@ contributeActionMap<"developer">({
     icon: "fas fa-info-circle",
     title: "Info",
     text: "Show an info toast",
-    action: () => {
-      toaster.info({ title: "Info", text: "This is an info toast", durationMs: 60000 });
-    },
+    action: () => testToast(ToastLevel.INFO),
   },
   "developer.toast.debug": {
     icon: "fas fa-bug",
     title: "Debug",
     text: "Show a debug toast",
-    action: () => {
-      toaster.debug({ title: "Debug", text: "This is a debug toast", durationMs: 60000 });
-    },
+    action: () => testToast(ToastLevel.DEBUG),
   },
   "developer.toast.error": {
     icon: "fas fa-exclamation-triangle",
     title: "Error",
     text: "Show an error toast",
-    action: () => {
-      toaster.error({ title: "Error", text: "This is an error toast", durationMs: 60000 });
-    },
+    action: () => testToast(ToastLevel.ERROR),
   },
   "developer.toast.success": {
     icon: "fas fa-check-circle",
     title: "Success",
     text: "Show a success toast",
-    action: () => {
-      toaster.success({ title: "Success", text: "This is a success toast", durationMs: 60000 });
-    },
+    action: () => testToast(ToastLevel.SUCCESS),
   },
 });
+
+function testToast(level: ToastLevel) {
+  toaster.add({
+    level,
+    title: ToastLevel[level],
+    text: "This is a test toast. Lorem ipsum dolor sit amet. Much more text.",
+    durationMs: 60000,
+  });
+}
 
 // space actions
 contributeActionMap<"space">({
@@ -1170,7 +1202,7 @@ export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const RECORD_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
 export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
-export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [];
+export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
 
 export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]>> = {
   [NodeType.BLOCK]: BLOCK_CONTEXT_ACTIONS,

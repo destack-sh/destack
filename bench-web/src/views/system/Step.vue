@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { SINK_STEP_TYPES } from "@/language/const";
+import { SINK_STEP_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/system/flow";
 import { isRunActive } from "@/language/session";
@@ -79,7 +79,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded border outline outline-1 transition-colors duration-150"
     :class="[
-      isSelected ? 'border-gray-400 bg-orange-400/20 backdrop-blur-sm' : '',
+      isSelected ? 'border-gray-400 bg-orange-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
       lastRun != null && isRunActive(lastRun) ? '' : 'outline-transparent',
@@ -93,7 +93,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Ports -->
     <div
       v-for="side in ['top', 'bottom', 'left', 'right']"
-      v-if="!SINK_STEP_TYPES.includes(step.type)"
+      v-if="step.type != StepType.TEXT && !SINK_STEP_TYPES.includes(step.type)"
       class="absolute"
       :class="[
         side == 'top' ? '-top-2.5 left-1/2 -translate-x-1/2' : '',
@@ -128,6 +128,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <div
         v-menu="
           (): PopoverInfoIn => ({
+            kind: 'view',
             component: Icon,
             placement: 'bottom-right',
             offset: '-referenceWidth',
@@ -158,7 +159,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             id="name"
             ref="nameRef"
             class="flex-shrink-0 font-medium transition-colors duration-150"
-            placeholder="Step"
+            :placeholder="toCamelName(StepType, step.type)"
             is-input
             :value-type="NAME_TYPE"
             :variant="Variant.STEALTH"
@@ -221,8 +222,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       <Text
         id="text"
         class=""
-        placeholder="Text..."
         is-input
+        placeholder="Text..."
         :variant="Variant.STEALTH"
         :model-value="step.text"
         @update:model-value="(newText) => flowCtx.tx.update(step!, { text: newText }, { debounce: 'long' })"

@@ -106,6 +106,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       v-if="!isInline"
       v-menu="
         (): PopoverInfoIn => ({
+          kind: 'view',
           component: ViewType.ICON,
           placement: 'bottom-left',
           offset: 'referenceWidth',
@@ -157,6 +158,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           v-tooltip="{ title: 'Change color', small: true }"
           v-menu="
             (): PopoverInfoIn => ({
+              kind: 'view',
               component: ViewType.COLOR,
               placement: 'top',
               reference: headerRef!,

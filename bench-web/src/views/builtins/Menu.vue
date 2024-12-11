@@ -12,11 +12,12 @@ import { computed, nextTick, ref, shallowRef, watch } from "vue";
 
 const SHOW_NESTED_DELAY = 200;
 
-const props = defineProps<{ items: MenuItem[]; parent?: MenuInfo; placement?: FloatingPlacement }>();
+const props = defineProps<{ items?: MenuItem[]; parent?: MenuInfo; placement?: FloatingPlacement }>();
 const emit = defineEmits<{
   close: [bubble?: boolean];
 }>();
 
+const items = computed(() => props.items ?? []);
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const itemRefs: Ref<Record<number, HTMLElement | null>> = ref({});
@@ -38,7 +39,7 @@ function isNestedItem(item: MenuItem["action"]): item is MenuInfo {
  */
 
 function onMouseEnter(itemIdx: number) {
-  if (props.items[itemIdx].isDisabled) return;
+  if (items.value[itemIdx].isDisabled) return;
 
   // immediately focus
   activeItemIdx.value = itemIdx;
@@ -47,7 +48,7 @@ function onMouseEnter(itemIdx: number) {
   /**  */
   const openOrCloseFocused = () => {
     if (itemIdx == activeItemIdx.value) {
-      if (isNestedItem(props.items[itemIdx].action)) {
+      if (isNestedItem(items.value[itemIdx].action)) {
         openNestedMenu(itemIdx);
       } else {
         activeNestedItemIdx.value = null;
@@ -55,7 +56,7 @@ function onMouseEnter(itemIdx: number) {
     }
   };
   // wait to show/hide nested menu if we're transitioning between having it open vs closed
-  if ((activeNestedItemIdx.value != null) !== isNestedItem(props.items[itemIdx].action)) {
+  if ((activeNestedItemIdx.value != null) !== isNestedItem(items.value[itemIdx].action)) {
     hoverItemTimeout.value = setTimeout(openOrCloseFocused, SHOW_NESTED_DELAY);
   } else {
     openOrCloseFocused();
@@ -72,19 +73,19 @@ function onMouseLeave(itemIdx: number) {
 function focus(idx: number | "next" | "previous" | "top" | "bottom") {
   queryRef.value?.focus();
   if (idx == "top") {
-    idx = props.items.findIndex((item) => !item.isDisabled);
+    idx = items.value.findIndex((item) => !item.isDisabled);
   } else if (idx == "bottom") {
-    idx = props.items
+    idx = items.value
       .slice()
       .reverse()
       .findIndex((item) => !item.isDisabled);
   } else if (idx == "next") {
     const offset = (activeItemIdx.value ?? 0) + 1;
-    const forwardIdx = props.items.slice(offset).findIndex((item) => !item.isDisabled);
+    const forwardIdx = items.value.slice(offset).findIndex((item) => !item.isDisabled);
     idx = forwardIdx == -1 ? -1 : offset + forwardIdx;
   } else if (idx == "previous") {
     const offset = activeItemIdx.value ?? 1;
-    const reverseIdx = props.items
+    const reverseIdx = items.value
       .slice(0, offset)
       .reverse()
       .findIndex((item) => !item.isDisabled);
@@ -102,7 +103,7 @@ function clear() {
 
 /** Triggers the action for the given item */
 function fire(itemIdx: number) {
-  const item = props.items[itemIdx];
+  const item = items.value[itemIdx];
   log.trace("menu.fire", item.id);
   activeItemIdx.value = itemIdx;
   if (typeof item.action == "object") {
@@ -128,7 +129,7 @@ function openNestedMenu(itemIdx: number) {
 
 /** Navigate horizontally to open/close nested menus if relevant */
 function onNavigateHorizontal(direction: "left" | "right") {
-  const item = activeItemIdx.value != null ? props.items[activeItemIdx.value] : null;
+  const item = activeItemIdx.value != null ? items.value[activeItemIdx.value] : null;
 
   if (props.parent == null) {
     // in root menu
@@ -158,12 +159,12 @@ watch(
     const { markedResults, bestMatches } = highlightMatches({
       uf,
       query: query.value,
-      candidates: props.items.map((item) => item.title),
+      candidates: items.value.map((item) => item.title),
     });
     itemTitleMarked.value = markedResults;
 
     // auto-select best match
-    const bestMatch = bestMatches.find((i) => !props.items[i].isDisabled);
+    const bestMatch = bestMatches.find((i) => !items.value[i].isDisabled);
     if (bestMatch != null) focus(bestMatch);
   },
   { immediate: true },
