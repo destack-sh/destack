@@ -557,16 +557,6 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
     element = element.parentElement!;
   }
 
-  // add default selection actions
-  if (hasSelection) {
-    for (const node of nodes) {
-      if (canvas.isSelected(node)) {
-        const nodeActions = getNodeActions(node);
-        nodeActions.forEach((action) => addAction(element, action));
-      }
-    }
-  }
-
   // build menu
   if (Object.keys(actionsById).length == 0 || nodes.length == 0) return; // no actions found
   if (!canvas.isSelected(nodes[0])) {
@@ -585,7 +575,6 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   const menuItems = actions.map((action) => menuItemFromAction(action, { context, contextViews: contextViews }));
   const menu: MenuInfo = { context, items: menuItems };
   pushPopover({ trigger: e.target as HTMLElement, reference: { x: e.clientX, y: e.clientY }, info: menu });
-
 }
 
 /** Creates the default menu for the given element. */

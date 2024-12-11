@@ -1460,7 +1460,7 @@ export class NodeSuperGraph {
     connection: ConnectionBase<any, any>;
   } {
     const link = this.getLink(key);
-    if (link == null) throw new Error(`node not found: ${key}`);
+    if (link == null) throw new Error(`no graph found for ${describeNode(key)}`);
     return link;
   }
 

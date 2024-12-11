@@ -336,10 +336,10 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
 
   // assemble current context
   const context: ActionContext = {};
-  if (canvas.selection != null) {
+  if (canvas.selection != null && supergraph.getManyMaybe(canvas.selection.nodesPtr).length > 0) {
     context.nodes = supergraph.getManyMaybe(canvas.selection.nodesPtr);
   } else if (space.value?.inspectionPtr != null) {
-    const node = supergraph.getOrError(space.value.inspectionPtr);
+    const node = supergraph.get(space.value.inspectionPtr);
     if (node != null) context.nodes = [node];
   }
 
@@ -462,15 +462,26 @@ function getNodesFromContext(ctx: ActionContext | undefined): {
   graph: ReadNodeGraph | null;
   nodes: AnyNodeData[];
 } {
+  // gather 'context' nodes
   let nodesPtr = [];
-  if (canvas.selection != null) {
+  if (canvas.selection != null && supergraph.getManyMaybe(canvas.selection.nodesPtr).length > 0) {
     nodesPtr = canvas.selection.nodesPtr;
+  } else if (canvas.inspection != null) {
+    nodesPtr = [canvas.inspection];
   } else if (ctx?.nodes != null) {
     nodesPtr = ctx.nodes;
   } else {
     return { connection: null, graph: null, nodes: [] };
   }
-  const { connection, graph } = supergraph.getLinkOrError(nodesPtr[0]);
+
+  // find link
+  let link = null;
+  for (const nodePtr of nodesPtr) {
+    link = supergraph.getLink(nodePtr);
+    if (link == null) break;
+  }
+  if (link == null) return { connection: null, graph: null, nodes: [] };
+  const { connection, graph } = link;
 
   // get and deduplicate nodes
   const nodes = [];
@@ -1148,6 +1159,8 @@ contributeActionMap<"space">({
 // Node context actions
 //
 
+export const NON_DUPLICATABLE_NODE_TYPES = [NodeType.PIPE];
+
 export const SCALAR_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.rename"];
 
 export const NODE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["space.edit.duplicate", "space.edit.delete"];
@@ -1167,7 +1180,11 @@ export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]
 
 /** Gets the base Actions for a Node. */
 export function getNodeActions(node: AnyNodeData): Action[] {
-  const actions: ActionBuiltinId[] = [...NODE_CONTEXT_ACTIONS];
+  const actions: ActionBuiltinId[] = [];
+  if (!NON_DUPLICATABLE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
+    actions.push("space.edit.duplicate");
+  }
+  actions.push("space.edit.delete");
   if ("title" in node || "name" in node) {
     actions.push("space.edit.rename");
   }

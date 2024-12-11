@@ -79,7 +79,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded border outline outline-1 transition-colors duration-150"
     :class="[
-      isSelected ? 'border-gray-400 bg-orange-400/20' : '',
+      isSelected ? 'border-gray-400 bg-orange-400/20 backdrop-blur-sm' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
       lastRun != null && isRunActive(lastRun) ? '' : 'outline-transparent',

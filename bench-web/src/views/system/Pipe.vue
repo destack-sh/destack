@@ -12,7 +12,8 @@ import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
-import { computed, toRef } from "vue";
+import { computed, Ref, ref, toRef } from "vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
@@ -40,6 +41,8 @@ const pathColorHex = computed(() => {
 const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: pipePtr.value?.ck }));
 const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: pipePtr.value?.ck }));
 
+const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
+
 const isInspected = computed(() => canvas.isInspected(pipePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
 const isSelected = computed(() => state.isSelected(pipePtr.value));
@@ -52,12 +55,17 @@ const showPipeMeta = computed(() => !pipe.value?.isNameHidden || pipe.value?.typ
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {};
+const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {
+  "space.edit.rename": () => {
+    nameRef.value?.focusIdentifier();
+  },
+};
 
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
+    <!-- nocheckin: exclude path bounding box from select (but keep inner path) -->
     <!-- Path -->
     <svg
       class="group relative cursor-pointer overflow-visible"
