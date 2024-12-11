@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.11.0"
+VERSION = "2024.12.11.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1154,7 +1154,7 @@ PIPE_TABLE = Table(
         Column("mode", PrimitiveType.INT16, default="1"),
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_name_hidden", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_name_shown", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 

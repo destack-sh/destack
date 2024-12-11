@@ -46,7 +46,7 @@ import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
 import Type from "@/views/system/Type.vue";
-import { useElementSize, useScroll } from "@vueuse/core";
+import { useElementSize } from "@vueuse/core";
 import { computed, onMounted, provide, ref, toRef, type Ref } from "vue";
 
 const BACKGROUND_STYLE: "checker" | "dots" = "dots";
@@ -211,7 +211,7 @@ const actions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = 
             parent: flow.value!,
             source: { parent: newStep, side: PortSide.OUTGOING },
             target: { parent: oldTarget, side: PortSide.INCOMING },
-            pipe: { type: PipeType.PASS, isNameHidden: true },
+            pipe: { type: PipeType.PASS },
             tx,
           });
           // reconnect old pipe to new step

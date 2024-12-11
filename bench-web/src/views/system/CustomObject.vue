@@ -117,6 +117,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
       ref="buttonRef"
       v-menu="
         (): PopoverInfoIn => ({
+          kind: 'view',
           component: ViewType.OBJECT,
           placement: 'inside-top-left',
           referenceMargin: 0,
