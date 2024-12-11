@@ -6,7 +6,7 @@ import {
   Orientation,
   SelectionData,
   StructType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { contentEquals, isNode, isNodeRef, isStruct, toNodeRef } from "@/proto/wiring";
 import { canvas, supergraph } from "@/system/globals";
@@ -603,7 +603,13 @@ function getIntersectingNodes(
     const elBounding = el.getBoundingClientRect();
 
     // check for intersecting nodes
-    if (elBounding.left <= x2 && elBounding.right >= x && elBounding.top <= y2 && elBounding.bottom >= y) {
+    if (
+      elBounding.left <= x2 &&
+      elBounding.right >= x &&
+      elBounding.top <= y2 &&
+      elBounding.bottom >= y &&
+      el.dataset?.["ignoreElement"] != "self"
+    ) {
       let nodePtr: NodeReferenceData | null = null;
       if (el.dataset?.["nodeId"] != null) {
         nodePtr = {

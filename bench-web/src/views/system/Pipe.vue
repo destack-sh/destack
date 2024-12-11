@@ -64,13 +64,17 @@ const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <div v-if="pipe != null && path != null" :class="isHidden ? 'group pointer-events-none z-30' : ''">
-    <!-- nocheckin: exclude path bounding box from select (but keep inner path) -->
+  <div
+    v-if="pipe != null && path != null"
+    :class="isHidden ? 'group pointer-events-none z-30' : ''"
+    data-ignore-element="self"
+  >
     <!-- Path -->
     <svg
-      class="group relative cursor-pointer overflow-visible"
+      class="group pointer-events-none relative overflow-visible"
       :class="lastRun != null && isRunActive(lastRun) ? 'animate-pulse' : ''"
       :style="{ color: lastRun != null ? getRunColorHex(lastRun.status) : pathColorHex }"
+      data-ignore-element="self"
     >
       <defs>
         <!-- Main Arrowhead Marker -->
@@ -108,7 +112,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         fill="none"
         :marker-end="'url(#arrowhead-background-' + pipe.id + ')'"
         :d="pathToSvg(path)"
-        class="transition-colors duration-150"
+        class="pointer-events-auto cursor-pointer transition-colors duration-150"
         :class="
           isInspected || isHighlighted || isSelected
             ? 'stroke-current'
@@ -117,6 +121,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         :data-node-type="pipe.metatype"
         :data-node-id="pipe.id"
         :data-node-ck="pipe.ck"
+        data-suppress-drag="select"
       />
 
       <!-- Main Path -->
