@@ -343,7 +343,7 @@ export class SpaceCanvas {
     if (selection != null && !isStruct(selection, StructType.SELECTION)) {
       selection = makeSelection(selection.map(toNodeRef));
     }
-    if (space?.value != null) {
+    if (space?.value != null && !deepValueEquals(space.value.selection, selection)) {
       this.tx().update(space.value, { selection }, { debounce: "long", ...options });
     } else {
       throw new Error("no base view");
