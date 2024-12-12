@@ -335,6 +335,7 @@ async def hosted_bench(global_store: Store):
             name="User",
             email="user@symbolx.com",
             status=UserStatus.REGISTERED,
+            region=Region.ZURICH,
             last_logged_in_at=REAL_ORACLE.utc(),
             is_staff=True,
             _is_new=True,  # force create
