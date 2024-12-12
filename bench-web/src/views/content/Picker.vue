@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { isEnumType, isNodeType, toCamelName } from "@/language/const";
+import { isEnumType, isLocalNodeType, isNodeType, SOURCE_NODE_TYPES, toCamelName } from "@/language/const";
 import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
+import { ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
   IconData,
@@ -15,8 +16,9 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/system/connection";
+import { makeScope, type TypedNodeReferenceData } from "@/proto/wiring";
+import { BENCH_SCOPE } from "@/system/client";
+import { SearchConnectionParams, supergraph, useSearchConnection } from "@/system/connection";
 import { canvas, pkgGraph } from "@/system/space";
 import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -55,6 +57,10 @@ const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const activeResultId: Ref<string | null> = ref(null);
 const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH));
 
+//
+// Type/Value
+//
+
 const baseType = supergraph.getRef(
   computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined),
 );
@@ -80,47 +86,102 @@ const facetName = computed(() => {
     return null;
   }
 });
-// NOTE :Broken: technically modelValueVignettes/Icon aren't fully reactive (requires modelValue to change)
+// NOTE: technically modelValueVignettes/Icon aren't fully reactive (requires modelValue to change)
 const hasValue = computed(() => {
   if (props.modelValue == null) return false;
   if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
   else return true;
 });
+function resolveValue(value: any) {
+  for (const index of indices.value) {
+    const item = index.fromValue(value);
+    if (item != null) return item;
+  }
+  return null;
+}
 const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
   if (!hasValue.value) return [];
   if (!props.valueType?.isList) {
-    const value = index.value.fromValue(props.modelValue) as SearchItem | null;
+    const value = resolveValue(props.modelValue);
     return [{ title: value?.title, icon: (value as any)?.icon }];
   } else {
-    const values = (props.modelValue as any[]).map((v) => index.value.fromValue(v) as SearchItem | null);
+    const values = (props.modelValue as any[]).map((v) => resolveValue(v));
     return values.map((v) => ({ title: v?.title, icon: (v as any)?.icon }));
   }
 });
 
+//
+// Search
+//
+
+// nocheckin: remote search
+// nocheckin: avoid useSearchConnection for every single Picker instance
+const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
+  if (
+    props.customIndex == null &&
+    isNodeType(props.valueType?.benchType) &&
+    !SOURCE_NODE_TYPES.includes(props.valueType.benchType)
+  ) {
+    // remote search
+    const params: SearchConnectionParams<any> = {
+      nodeType: props.valueType.benchType,
+      scope: isLocalNodeType(props.valueType.benchType) ? BENCH_SCOPE.value : makeScope({}),
+      blockPtr: props.valueType.baseTypePtr,
+      isEnabled: true,
+    };
+    return params;
+  } else {
+    // local search
+    const params: SearchConnectionParams<any> = {
+      nodeType: NodeType.BENCH,
+      scope: makeScope({}),
+      isEnabled: false,
+    };
+    return params;
+  }
+});
+const {
+  connection: remoteConnection,
+  graph: remoteGraph,
+  isConnecting,
+  isConnected,
+  isStale,
+} = useSearchConnection({ name: "picker" }, remoteSearchParams);
+
 type PickerItem = EnumOptionItem | NodeItem | TypeItem;
-const index: Ref<SearchIndex<any>> = computed(() => {
+const indices: Ref<SearchIndex<any>[]> = computed(() => {
   if (props.customIndex != null) {
-    return props.customIndex;
+    // custom index
+    return [props.customIndex];
   } else if (isEnumType(props.valueType?.benchType)) {
-    return enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] });
+    // regular enum
+    return [enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] })];
   } else if (props.valueType?.kind == TypeKind.NODE || isNodeType(props.valueType?.benchType)) {
     let roots: AnyNodeData[] | undefined = undefined;
-    if (props.valueType.baseTypePtr != null) {
-      // based node
-      const base = pkgGraph.get(props.valueType.baseTypePtr);
-      if (base != null) roots = [base];
-    } else if ((props.valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
-      roots = props.valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
-    }
     let metatypes: NodeType[];
-    if (props.valueType.benchType != null) {
+    let graph: ReadNodeGraph;
+    if (remoteSearchParams.value.isEnabled) {
+      // remote search
+      graph = remoteGraph;
       metatypes = [props.valueType.benchType as unknown as NodeType];
-    } else if ((props.valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
-      metatypes = props.valueType.constraint!.nodeTypes;
     } else {
-      metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+      // local search
+      if (props.valueType.baseTypePtr != null) {
+        // based node
+        const base = pkgGraph.get(props.valueType.baseTypePtr);
+        if (base != null) roots = [base];
+      } else if ((props.valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
+        roots = props.valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
+      }
+      if (props.valueType.benchType != null) {
+        metatypes = [props.valueType.benchType as unknown as NodeType];
+      } else if ((props.valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
+        metatypes = props.valueType.constraint!.nodeTypes;
+      } else {
+        metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+      }
     }
-    return graphIndex({
+    const localIndex = graphIndex({
       id: "graph",
       graph: pkgGraph,
       metatypes,
@@ -132,8 +193,10 @@ const index: Ref<SearchIndex<any>> = computed(() => {
           ? (node) => nodeMatchesConstraint(node, props.valueType!.constraint!)
           : undefined,
     });
+    return [localIndex];
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
-    return typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 });
+    // some type
+    return [typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 })];
   } else {
     throw new Error(`unsupported value type: ${props.valueType?.benchType}`);
   }
@@ -141,7 +204,7 @@ const index: Ref<SearchIndex<any>> = computed(() => {
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const { results, resultsTotal } = useSearch<PickerItem>({
   query,
-  indices: computed(() => ({ main: index.value })),
+  indices: computed(() => indices.value.reduce((acc, index) => ({ ...acc, [index.id]: index }), {})),
   isEnabled: computed(() => props.isInline),
 });
 
@@ -152,8 +215,12 @@ watch(results, () => {
   }
 });
 
+//
+// Interaction
+//
+
 function isSelected(value: PickerItem) {
-  return hasValue.value && index.value.valueEquals(value, props.modelValue);
+  return hasValue.value && indices.value.some((index) => index.valueEquals(value, props.modelValue));
 }
 function isActive(item: PickerItem) {
   return item.id === activeResultId.value;
@@ -161,7 +228,9 @@ function isActive(item: PickerItem) {
 function select(option: string | PickerItem | undefined) {
   if (typeof option == "string") option = results.value.find((r) => r.id === option);
   if (option == null) return;
-  const value = index.value.toValue(option);
+  const index = indices.value.find((index) => option.itemId.startsWith(index.id));
+  if (index == null) return;
+  const value = index.toValue(option);
   if (value != null) {
     if (!props.valueType?.isList) {
       apply(value);
@@ -178,7 +247,7 @@ function deselect(option: PickerItem | number) {
     if (typeof option == "number") {
       apply((props.modelValue as any[]).filter((v, i) => i != option));
     } else {
-      apply((props.modelValue as any[]).filter((v) => !index.value.valueEquals(v, option)));
+      apply((props.modelValue as any[]).filter((v) => !indices.value.some((index) => index.valueEquals(v, option))));
     }
   }
 }

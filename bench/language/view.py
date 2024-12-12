@@ -88,7 +88,6 @@ class ViewType(IdEnum):
     DRAWER = 1011
     SCROLL = 1012
     GRID = 1013
-    # ROW, COLUMN, ...?
 
     # groups
     GROUP = 1030
@@ -106,6 +105,7 @@ class ViewType(IdEnum):
     FEED = 1053
     GALLERY = 1054
     BOARD = 1055
+    # ROW, COLUMN, ...?
 
     #
     # Style

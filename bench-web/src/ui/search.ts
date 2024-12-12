@@ -493,7 +493,7 @@ export function useSearch<T extends SearchItem>(search: {
   const candidatesRef = shallowRef<SearchCandidate[]>([]);
   const resultsRef = shallowRef<SearchResult[]>([]);
   const resultsTotal = shallowRef(0);
-  const uf = new uFuzzy({ intraMode: 1 });
+  let uf: uFuzzy | null = null;
   const subs: (() => void)[] = [];
 
   function updateCandidates() {
@@ -526,6 +526,9 @@ export function useSearch<T extends SearchItem>(search: {
     }
 
     // search
+    if (uf == null) {
+      uf = new uFuzzy({ intraMode: 1 });
+    }
     const haystack = candidates.map((c) => getIndexedStr(c).str);
     const [idxs, info, order] = uf.search(haystack, search.query.value, options.outOfOrder, candidates.length);
     // collect

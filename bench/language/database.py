@@ -33,7 +33,7 @@ logger = structlog.get_logger(__name__)
 )
 class Record(StateNode[RecordData], HasNodeBase):
     """
-    A Record from a DatabaseBlock.
+    A Record from a DatabaseBlock. May references other Records (except for :ManyToManyRecords).
     """
 
     # NOTE :Incomplete: support nested Records? (Record.parent->Record)

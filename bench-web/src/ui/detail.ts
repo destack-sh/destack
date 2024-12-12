@@ -386,8 +386,12 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
     } else {
       commonRows.push(rowType());
       if (node.type != FieldType.VARIABLE) {
+        const base = node.baseTypePtr != null ? graph.get(node.baseTypePtr) : null;
         commonRows.push(rowProperty(FieldProperty.isRequired, { title: "Required" }));
-        commonRows.push(rowProperty(FieldProperty.isList, { title: "List" }));
+        if (!(isNode(base, NodeType.BLOCK) && base.type == BlockType.DATABASE)) {
+          // no lists for database fields yet :ManyToManyRecords
+          commonRows.push(rowProperty(FieldProperty.isList, { title: "List" }));
+        }
 
         const constraintRows: DetailRow[] = [];
         // list

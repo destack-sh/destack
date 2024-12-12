@@ -193,6 +193,7 @@ defineExpose<ViewExposed>({ self, id, focus });
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               v-tooltip="
                 {
+                  group: 'icon',
                   isEnabled: results[i] != null,
                   title: () => results[i]?.title /* results[i] because 'item' is captured once and never updated */,
                   showDelay: 200,

@@ -78,6 +78,8 @@ class DatabasePlugin(HostPlugin[Block | Field]):
         )
 
     def _init_context_from_blocks(self) -> None:
+        """Initialize the SQL context from the current package."""
+        # NOTE :Incomplete: handle :ManyToManyRecords
         databases = [
             node
             for node in self.package._graph.nodes_of_type(Block)

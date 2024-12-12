@@ -4,11 +4,8 @@ import {
   BlockProperty,
   BlockType,
   EditType,
-  ENUM_BY_TYPE,
   EnumType,
-  EnumTypeMapping,
   FieldData,
-  IconData,
   MessageData,
   ModelProvider,
   ModelType,
@@ -29,10 +26,9 @@ import {
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
-import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { Casing, toCasing } from "@/utils/string";
 
 export const FLOAT_EPSILON = 1e-6;
@@ -62,6 +58,26 @@ export function isEnumType(object: any): object is EnumType {
   return typeof object == "number" && ENUM_TYPES_SET.has(object);
 }
 
+export function isSourceNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 1000 && nodeType < 1100;
+}
+
+export function isStateNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 1100 && nodeType < 1200;
+}
+
+export function isRuntimeNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 1200 && nodeType < 1300;
+}
+
+export function isResourceNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 200 && nodeType < 300;
+}
+
+export function isLocalNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 1000;
+}
+
 // node types :NodeTypes
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [
@@ -71,11 +87,12 @@ export const BASED_NODE_TYPES = [
   NodeType.MESSAGE,
   NodeType.RUN,
 ];
-export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1000 && nt < 1100);
-export const STATE_NODE_TYPES = SOURCE_NODE_TYPES.filter((nt) => nt >= 1100 && nt < 1200);
-export const RUNTIME_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1200 && nt < 1300);
+export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
+export const STATE_NODE_TYPES = SOURCE_NODE_TYPES.filter(isStateNodeType);
+export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
 export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE];
-export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 200 && nt < 300);
+export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
+export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
@@ -267,7 +284,10 @@ export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.JSON,
   PrimitiveType.BYTES,
   PrimitiveType.UUID,
+  PrimitiveType.DATE,
   PrimitiveType.DATETIME,
+  PrimitiveType.TIME,
+  PrimitiveType.INTERVAL,
 ];
 export const EXPOSED_ANCHORS = [
   // the rest are exposed too but as additional flags (start/end)
@@ -303,7 +323,7 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
     [PrimitiveType.FLOAT64]: "Number",
     [PrimitiveType.UUID]: "UUID",
     [PrimitiveType.JSON]: "JSON",
-    [PrimitiveType.DATETIME]: "Date",
+    [PrimitiveType.DATETIME]: "Date and Time",
   },
   [EnumType.TYPE_FORMAT]: {
     [TypeFormat.URL]: "URL",
