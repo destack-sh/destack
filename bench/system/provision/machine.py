@@ -124,12 +124,12 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     async def _do_provision(self, resource: Machine):
         async with self.host.session(commit=True):
             resource.connection_uri = self._local_machine_url
-            resource.current_status = ResourceStatus.UP
+            resource.status = ResourceStatus.UP
 
     @override
     async def _do_decommission(self, resource: Machine):
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.GONE
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class DockerMachineProvisioner(Provisioner[Machine, Machine]):
@@ -159,7 +159,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
                     continue
                 container = containers_by_id.get(machine.external_id)
                 if container is None:
-                    machine.current_status = ResourceStatus.DECLARED
+                    machine.status = ResourceStatus.DECLARED
 
     @override
     async def _do_provision(self, resource: Machine):
@@ -182,7 +182,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         async with self.host.session(commit=True):
             resource.external_name = external_name
             resource.external_id = container.id
-            resource.current_status = ResourceStatus.UP
+            resource.status = ResourceStatus.UP
             resource.connection_uri = f"http://localhost:{assigned_port}"
 
     @override
@@ -197,7 +197,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         if container is not None:
             container.remove(force=True)
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.GONE
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
@@ -322,27 +322,23 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         """Updates the current state of the Machine from its respective Pod."""
         # resources
         resources_limits = cast(dict, pod.spec.containers[0].resources.limits)  # type: ignore
-        current_cpu = self._parse_pod_resource_scalar(resources_limits["cpu"])
-        if current_cpu is not None and machine.current_cpu != current_cpu:
-            machine.current_cpu = current_cpu
-        current_ram = self._parse_pod_resource_scalar(resources_limits["memory"])
-        if current_ram is not None and machine.current_ram != current_ram:
-            machine.current_ram = current_ram
+        cpu = self._parse_pod_resource_scalar(resources_limits["cpu"])
+        if cpu is not None and machine.cpu != cpu:
+            machine.cpu = cpu
+        ram = self._parse_pod_resource_scalar(resources_limits["memory"])
+        if ram is not None and machine.ram != ram:
+            machine.ram = ram
 
         # version
-        current_version = cast(str, pod.metadata.labels.get("version"))  # type: ignore
-        if current_version is not None and machine.current_version != current_version:
-            machine.current_version = current_version
+        version = cast(str, pod.metadata.labels.get("version"))  # type: ignore
+        if version is not None and machine.version != version:
+            machine.version = version
 
         # status
         pod_phase = cast(str, pod.status.phase) if pod.status else None  # type: ignore
-        current_status = ResourceStatus.UP if pod_phase == "Running" else ResourceStatus.DOWN
-        if machine.current_status != current_status:
-            machine.current_status = current_status
-            if current_status == ResourceStatus.UP:
-                machine.started_at = self.host.oracle.utc()
-            elif current_status == ResourceStatus.DOWN:
-                machine.terminated_at = self.host.oracle.utc()
+        status = ResourceStatus.UP if pod_phase == "Running" else ResourceStatus.DOWN
+        if machine.status != status:
+            machine.status = status
 
         # connection uri (using pod ip, only works inside cluster for now)
         if pod.status and pod.status.pod_ip:  # type: ignore
@@ -367,7 +363,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                 elif event_type == "DELETED":
                     self._kubernetes_pods_by_name.pop(pod.metadata.name, None)
                     async with self.host.session(commit=True):
-                        machine.current_status = ResourceStatus.GONE
+                        machine.status = ResourceStatus.DECOMMISSIONED
                 else:
                     assert_never(event_type)
 
@@ -401,7 +397,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                     machine.external_name
                     and machine.external_name not in self._kubernetes_pods_by_name
                 ):
-                    machine.current_status = ResourceStatus.DECLARED
+                    machine.status = ResourceStatus.DECLARED
 
         # and keep watching for pod changes
         self.tasks.run(
@@ -421,10 +417,10 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     async def _do_update(self, resource: Machine):
         target_diff = resource._get_target_diff("cpu", "ram", "version")
         if (
-            resource.current_status.is_extant
-            and resource.restarted_at is not None
-            and resource.started_at is not None
-            and resource.restarted_at > resource.started_at
+            resource.status.is_extant
+            and resource.reset_at is not None
+            and resource.activated_at is not None
+            and resource.reset_at > resource.activated_at
         ):
             # 'restart' by deleting it (to be recreated)
             assert resource.external_name is not None, f"{resource!r} has no external name"
@@ -463,7 +459,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                 # probably already gone
                 logger.warn("machine.decommission.error", resource=resource, exc_info=e)
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.GONE
+            resource.status = ResourceStatus.DECOMMISSIONED
 
     @override
     async def wait_closed(self) -> None:

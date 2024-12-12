@@ -24,7 +24,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.11.1"
+VERSION = "2024.12.12.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -93,13 +93,15 @@ class EnumType(IdEnum):
     REGION = 21003
     REGION_ZONE = 21004
     REGION_AREA = 21005
-    RESOURCE_STATUS = 21006
-    FILE_RETENTION_MODE = 21007
-    FILE_KIND = 21008
-    FILE_TYPE = 21009
-    FILE_FORMAT = 21010
-    CLIENT_TYPE = 21011
-    MACHINE_TYPE = 21012
+    RESOURCE_STATUS = 21010
+    RESOURCE_OCCUPANCY = 21011
+    FILE_RETENTION_MODE = 21020
+    FILE_KIND = 21021
+    FILE_TYPE = 21022
+    FILE_FORMAT = 21023
+    CLIENT_TYPE = 21030
+    MACHINE_TYPE = 21040
+    BROWSER_TYPE = 21050
 
     # type (21500-21999)
     PRIMITIVE_TYPE = 21501
@@ -628,7 +630,7 @@ class BlockType(IdEnum):
     # types
     CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
     MESSAGE = 12  # define a signal type with fields
-    # RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
+    # SECRET, RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
     ACTION = 21  # define a code function/script with fields (optionally incl. input/output)

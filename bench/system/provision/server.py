@@ -29,7 +29,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     async def _reconcile(self, server: Server):
         machines = await Machine.where(
             Machine.get_property("parent").eq(server)
-            & Machine.get_property("current_status").neq(ResourceStatus.GONE)
+            & Machine.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
         ).tolist()
 
         # "rescale server" (just ensure a single machine exists for now)
@@ -50,17 +50,17 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
 
         # update server status to reflect machines (if needed)
         if machines:
-            if all(m.current_status == ResourceStatus.UP for m in machines):
-                current_status = ResourceStatus.UP
-            elif any(m.current_status == ResourceStatus.UP for m in machines):
-                current_status = ResourceStatus.DEGRADED
+            if all(m.status == ResourceStatus.UP for m in machines):
+                status = ResourceStatus.UP
+            elif any(m.status == ResourceStatus.UP for m in machines):
+                status = ResourceStatus.DEGRADED
             else:
-                current_status = ResourceStatus.DOWN
+                status = ResourceStatus.DOWN
         else:
-            current_status = ResourceStatus.DOWN
-        if server.current_status != current_status:
+            status = ResourceStatus.DOWN
+        if server.status != status:
             async with self.host.session(commit=True):
-                server.current_status = current_status
+                server.status = status
 
     @override
     async def _do_on_commit_deferred(self, commit: Commit[Server | Machine]) -> None:
@@ -76,7 +76,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
 
         # and check/update them
         for server in servers:
-            if server.current_status != ResourceStatus.GONE:
+            if server.status != ResourceStatus.DECOMMISSIONED:
                 await self._reconcile(server)
 
     @override
@@ -91,4 +91,4 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     async def _do_decommission(self, resource: Server):
         # nothing special, child machines are automatically removed too
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.GONE
+            resource.status = ResourceStatus.DECOMMISSIONED

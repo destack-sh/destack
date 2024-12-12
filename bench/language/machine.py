@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.bench import (
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 @enum_(EnumType.MACHINE_TYPE)
 class MachineType(IdEnum):
     RUNTIME = 1  # our own Bench runtime
-    # IMAGE = 2  # custom Machine image
+    # IMAGE = 2  # custom Machine/Docker image
 
 
 @struct_(StructType.MACHINE_IMAGE)
@@ -41,31 +40,34 @@ class Machine(PhysicalResourceNode[MachineData]):
     parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
     type: MachineType = p_regular(30, default=MachineType.RUNTIME)
 
-    version: str = p_system(40, default=VERSION, default_sql=None)
-    current_version: Optional[str] = p_system(41, default=None)
-    external_name: Optional[str] = p_kernel(42, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
+    version: str = p_system(50, default=VERSION, default_sql=None)
+    target_version: str = p_internal(51, default=VERSION, default_sql=None)
+    external_name: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(53, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_kernel(
-        44, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        54, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
     client: Optional["Client"] = p_system(
-        45, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
+        55, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
 
-    cpu: float = p_regular(50, description="vCPU count", constraint=CPU_CONSTRAINT)
-    current_cpu: Optional[float] = p_system(51, default=None, description="vCPU count")
-    ram: float = p_regular(52, description="GB", constraint=RAM_CONSTRAINT)
-    current_ram: Optional[float] = p_system(53, default=None, description="GB")
+    cpu: float = p_system(60, description="vCPU count", constraint=CPU_CONSTRAINT)
+    target_cpu: Optional[float] = p_regular(61, default=None, description="vCPU count")
+    ram: float = p_regular(62, description="GB", constraint=RAM_CONSTRAINT)
+    target_ram: Optional[float] = p_regular(63, default=None, description="GB")
 
-    started_at: Optional[datetime] = p_system(60, default=None)
-    stopped_at: Optional[datetime] = p_internal(61, default=None)
-    terminated_at: Optional[datetime] = p_system(62, default=None)
-    active_at: Optional[datetime] = p_system(63, default=None)
-    restarted_at: Optional[datetime] = p_internal(64, default=None)
+
+@enum_(EnumType.BROWSER_TYPE)
+class BrowserType(IdEnum):
+    CHROME = 1
 
 
 @node_(NodeType.BROWSER)
 class Browser(PhysicalResourceNode[BrowserData]):
-    """Browser instance for web browsing."""
+    """A Browser instance for web browsing."""
 
-    ...
+    type: BrowserType = p_regular(30, default=BrowserType.CHROME)
+
+    version: str | None = p_regular(50, default=None)
+    target_version: Optional[str] = p_regular(51, default=None)
+    external_name: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)

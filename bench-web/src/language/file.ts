@@ -109,7 +109,6 @@ export async function extractFile(
     benchPtr: toNodeRef(bench),
     region: bench.region,
     status: ResourceStatus.UP,
-    currentStatus: ResourceStatus.DOWN,
     kind: FileKind.DRIVE,
     title,
     type,

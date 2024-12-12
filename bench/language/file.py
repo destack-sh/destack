@@ -484,31 +484,31 @@ class FileBase(BuiltinObject):
     title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     # content
-    kind: FileKind = p_internal(40)
-    external_url: Optional[str] = p_regular(43, default=None)  # if external
+    kind: FileKind = p_internal(50)
+    external_url: Optional[str] = p_regular(53, default=None)  # if external
     inline_content: Optional[bytes] = p_regular(
-        44, default=None, constraint=constraint(min_length=1)
+        54, default=None, constraint=constraint(min_length=1)
     )
     ...  # thumbnail/preview/...?
 
-    # common meta
-    type: FileType = p_internal(50)
-    mime_type: str | None = p_internal(51, constraint=MIME_TYPE_CONSTRAINT)
-    format: FileFormat | None = p_internal(52, default=None)
+    # common metadata
+    type: FileType = p_internal(60)
+    mime_type: str | None = p_internal(61, constraint=MIME_TYPE_CONSTRAINT)
+    format: FileFormat | None = p_internal(62, default=None)
     size: int = p_internal(
-        53, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
+        63, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
     )
-    sha256: str | None = p_internal(54, constraint=SHA256_CONSTRAINT)
+    sha256: str | None = p_internal(64, constraint=SHA256_CONSTRAINT)
 
     # multimedia
-    width: Optional[int] = p_internal(55, default=None)
-    height: Optional[int] = p_internal(56, default=None)
-    aspect_ratio: Optional[float] = p_internal(57, default=None)
-    codec: Optional[str] = p_internal(58, default=None)
-    duration: Optional[timedelta] = p_internal(60, default=None)
-    bitrate: Optional[int] = p_internal(61, default=None)
-    channels: Optional[int] = p_internal(62, default=None)
-    sample_rate: Optional[int] = p_internal(63, default=None)
+    width: Optional[int] = p_internal(65, default=None)
+    height: Optional[int] = p_internal(66, default=None)
+    aspect_ratio: Optional[float] = p_internal(67, default=None)
+    codec: Optional[str] = p_internal(68, default=None)
+    duration: Optional[timedelta] = p_internal(69, default=None)
+    bitrate: Optional[int] = p_internal(70, default=None)
+    channels: Optional[int] = p_internal(72, default=None)
+    sample_rate: Optional[int] = p_internal(73, default=None)
 
     # cached content
     _original: Optional["File"] = p_runtime(default=None)  # if converted
@@ -787,13 +787,13 @@ class File(PhysicalResourceNode[FileData], FileBase):
     parent: Union["Drive", None] = p_node_parent(4, NodeType.DRIVE, is_system=True)
 
     # content/info
-    # ...FileInfoBase[40-69]
+    # ...FileInfoBase[50-79]
 
     # meta
     retention: FileRetentionMode = p_system(
-        70, default=FileRetentionMode.AUTOMATIC, default_sql=None
+        80, default=FileRetentionMode.AUTOMATIC, default_sql=None
     )
-    expires_at: Optional[datetime] = p_system(71)
+    expires_at: Optional[datetime] = p_system(81)
 
     __content_str__ = FileBase.__content_str__  # type: ignore
 

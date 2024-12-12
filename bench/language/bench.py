@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -34,6 +34,7 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
+from bench.language.run import Run
 from bench.language.validation import (
     NAME_CONSTRAINT,
     SLUG_CONSTRAINT,
@@ -279,17 +280,22 @@ class ResourceStatus(IdEnum):
     DOWN = 15
     DEGRADED = 16
     # terminal
-    GONE = 30
+    DECOMMISSIONED = 30
 
     @property
     def is_extant(self) -> bool:
         """Whether this resouce does/should exist."""
         return 10 <= self.value <= 20
 
-    @property
-    def is_target(self) -> bool:
-        """Whether this status can be a target status for a resource."""
-        return self < 15 or self > 20
+
+@enum_(EnumType.RESOURCE_OCCUPANCY)
+class ResourceOccupancy(IdEnum):
+    """The occupancy of a resource."""
+
+    AVAILABLE = 1
+    RESERVED = 2
+    OCCUPIED = 3
+    DIRTY = 20
 
 
 EXTANT_RESOURCE_STATUSES = bittuple(*(s for s in ResourceStatus if 10 <= s.value <= 20))
@@ -300,16 +306,25 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 @node_component()
 class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
     """
-    An external resource in a Bench.
+    A Resource in a Bench.
     Resources generally work on the 'desired state' principle.
-    The actual 'current' state is stored in current_* properties (where relevant).
+    Where applicable, the target state is stored in target_* properties.
     """
 
     parent: Bench | None = p_node_parent(4, NodeType.BENCH, is_system=True)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
+    # ... space for type/title/...
+    status: ResourceStatus = p_system(33, default=ResourceStatus.DECLARED, default_sql=None)
     region: Region = p_system(35, default=REGION, default_sql=None)
-    status: ResourceStatus = p_system(36, default=ResourceStatus.UP, default_sql=None)
-    current_status: ResourceStatus = p_system(37, default=ResourceStatus.DECLARED, default_sql=None)
+    text: Optional["Text"] = p_regular(39, default=None, struct=StructType.TEXT)
+
+    # target status
+    activated_at: Optional[datetime] = p_internal(40, default=None)
+    deactivated_at: Optional[datetime] = p_internal(41, default=None)
+    reset_at: Optional[datetime] = p_internal(42, default=None)
+    suspended_at: Optional[datetime] = p_internal(43, default=None)
+    decommissioned_at: Optional[datetime] = p_internal(44, default=None)
+    # current status
+    active_at: Optional[datetime] = p_system(45, default=None)
 
     def __content_str__(self):
         value_strs: list[str] = []
@@ -331,25 +346,36 @@ class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingConte
                 value_strs.append(f"{prop.name}={value}")
         return ", ".join(value_strs)
 
-    def as_declared(self) -> "Self":
-        """Marks this resource as declared (to prevent it from being provisioned immediately)."""
-        self.status = ResourceStatus.DECLARED
-        return self
-
     def _get_target_diff(self, *keys: str) -> dict[str, Any]:
         """
-        Checks whether specific properties <key> differ from their current_<key> values.
-        Returns the target values (not current) of differing properties.
+        Checks whether specific properties <key> differ from their target_<key> values.
+        Returns the target values of differing properties.
         """
-        current_diff: dict[str, Any] = {}
+        target_diff: dict[str, Any] = {}
         for key in keys:
             prop = self.__properties__.get(key)
             assert prop is not None, f"no property {key} in {self.__class__.__name__}"
-            value = getattr(self, key)
-            current_value = getattr(self, f"current_{key}")
-            if value != current_value:
-                current_diff[key] = value
-        return current_diff
+            current_value = getattr(self, key)
+            target_value = getattr(self, f"target_{key}")
+            if current_value != target_value:
+                target_diff[key] = target_value
+        return target_diff
+
+    @property
+    def target_status(self) -> ResourceStatus:
+        """The implied target status of this Resource."""
+        if self.decommissioned_at is not None:
+            return ResourceStatus.DECOMMISSIONED
+        elif self.suspended_at is not None and not (
+            self.activated_at is not None and self.activated_at > self.suspended_at
+        ):
+            return ResourceStatus.SLEEPING
+        elif self.deactivated_at is not None and not (
+            self.activated_at is not None and self.activated_at > self.deactivated_at
+        ):
+            return ResourceStatus.DOWN
+        else:
+            return ResourceStatus.UP
 
 
 @node_component()
@@ -369,6 +395,11 @@ class PhysicalResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
 
     title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
+    occupancy: ResourceOccupancy = p_system(
+        36, default=ResourceOccupancy.RESERVED, default_sql=None
+    )
+    owned_by: Optional[Run] = p_system(37, require=False, array=False, references=NodeType.RUN)
+
 
 CPU_CONSTRAINT = constraint(min_value=0.1, max_value=16.0, step_value=0.1)
 RAM_CONSTRAINT = constraint(min_value=0.1, max_value=256.0, step_value=0.1)
@@ -381,37 +412,34 @@ class Server(VirtualResourceNode[ServerData]):
     Physical compute is materialized dynamically on Machines.
     """
 
-    version: str = p_system(40, default=VERSION, default_sql=None)
-    current_version: Optional[str] = p_system(41, default=None)
+    version: str = p_system(50, default=VERSION, default_sql=None)
+    target_version: str = p_system(51, default=VERSION, default_sql=None)
 
     min_cpu: Optional[float] = p_system(
-        50, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
+        60, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
     )
     max_cpu: Optional[float] = p_system(
-        51, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
+        61, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
     )
     min_ram: Optional[float] = p_system(
-        52, default=None, description="GB", constraint=RAM_CONSTRAINT
+        62, default=None, description="GB", constraint=RAM_CONSTRAINT
     )
     max_ram: Optional[float] = p_system(
-        53, default=None, description="GB", constraint=RAM_CONSTRAINT
+        63, default=None, description="GB", constraint=RAM_CONSTRAINT
     )
-
-    active_at: Optional[datetime] = p_internal(60, default=None)
-    bumped_at: Optional[datetime] = p_internal(61, default=None)
 
 
 @node_(NodeType.STORE)
 class Store(VirtualResourceNode[StoreData]):
     """A trusty Postgres-compatible database."""
 
-    version: str = p_system(40, default=VERSION, default_sql=None)
-    current_version: Optional[str] = p_system(41, default=None)
+    version: str = p_system(50, default=VERSION, default_sql=None)
+    target_version: str = p_system(51, default=VERSION, default_sql=None)
 
-    external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
+    external_name: Optional[str] = p_kernel(60, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(61, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_kernel(
-        52, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        62, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
 
 

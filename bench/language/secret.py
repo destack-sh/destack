@@ -12,7 +12,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import TITLE_CONSTRAINT
 from bench.proto.wire import SecretData
 
 if TYPE_CHECKING:
@@ -27,12 +26,9 @@ class Secret(PhysicalResourceNode[SecretData]):
 
     parent: Union["Vault", None] = p_node_parent(4, NodeType.VAULT, is_system=True)
 
-    # meta
-    title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
-
     # content
-    value_type: TypeInfo = p_regular(40, struct=StructType.TYPE_INFO)
-    value_packed: Any = p_value_packed(41, secret=True)
+    value_type: TypeInfo = p_regular(50, struct=StructType.TYPE_INFO)
+    value_packed: Any = p_value_packed(51, secret=True)
     value = p_value_runtime(
-        41, kind=ObjectKind.MEMBER, typ=lambda self: cast(Secret, self).value_type
+        51, kind=ObjectKind.MEMBER, typ=lambda self: cast(Secret, self).value_type
     )

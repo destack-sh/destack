@@ -193,7 +193,7 @@ export const COLOR_BY_RESOURCE_STATUS: Record<ResourceStatus, ColorType> = {
   [ResourceStatus.DOWN]: ColorType.RED,
   [ResourceStatus.SLEEPING]: ColorType.YELLOW,
   [ResourceStatus.DEGRADED]: ColorType.ORANGE,
-  [ResourceStatus.GONE]: ColorType.GRAY,
+  [ResourceStatus.DECOMMISSIONED]: ColorType.GRAY,
 };
 
 export function getLogColorHex(level: LogLevel, shade?: ColorShade): string | undefined {

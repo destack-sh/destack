@@ -49,7 +49,6 @@ from bench.utils.func import IdEnum
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Code,
         Color,
         Expression,
         Field,
@@ -142,9 +141,6 @@ class Pipe(SourceNode[PipeData]):
     condition: Optional["Expression"] = p_regular(
         60, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
-    condition_code: Optional["Code"] = p_regular(
-        61, default=None, require=False, array=False, struct=StructType.CODE
-    )
     constraint: Optional["TypeConstraint"] = p_regular(
         62, default=None, array=False, struct=StructType.TYPE_CONSTRAINT
     )
@@ -157,14 +153,6 @@ class Pipe(SourceNode[PipeData]):
         array=False,
         struct=StructType.OBJECT_MAPPING,
         description="Mapping for inputs from source node into target node.",
-    )
-    mapping_code: Optional["Code"] = p_regular(
-        71,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.CODE,
-        description="Mapping for outputs from source node into target node. Takes precedence over mapping.",
     )
 
     # modulation
