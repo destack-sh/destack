@@ -49,12 +49,12 @@ class StoreProvisioner(Provisioner[Store, Store]):
             )
             await conn.commit()
         async with self.host.session(commit=True):
-            resource.current_version = resource.version
+            resource.version = resource.target_version
 
     @override
     async def _do_update(self, resource: Store):
         # auto-migrate if version changed
-        if resource.version != resource.current_version:
+        if resource.version != resource.target_version:
             await self._do_migrate(resource)
 
 
@@ -79,7 +79,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         async with self.host.session(commit=True):
             resource.external_id = neon_project.project_id
             resource.connection_uri = neon_project.connection_uri
-            resource.current_status = ResourceStatus.UP
+            resource.status = ResourceStatus.UP
         # migrate it immediately
         await self._do_migrate(resource)
 
@@ -88,7 +88,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         assert resource.external_id, f"{resource!r} has no external ID"
         await self._neon_api.delete_project(project_id=resource.external_id)
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.GONE
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class LocalhostStoreProvisioner(StoreProvisioner):
@@ -110,7 +110,7 @@ class LocalhostStoreProvisioner(StoreProvisioner):
             connection_uri = self.host.global_store.connection_uri
             assert connection_uri, f"{self.host.global_store!r} has no connection URI"
             resource.connection_uri = f"{connection_uri.rsplit('/', 1)[0]}/{resource.external_name}"
-            resource.current_status = ResourceStatus.UP
+            resource.status = ResourceStatus.UP
         # migrate it immediately
         await self._do_migrate(resource)
 
@@ -132,12 +132,12 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
     @override
     async def _do_provision(self, resource: Drive):
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.UP
+            resource.status = ResourceStatus.UP
 
     @override
     async def _do_decommission(self, resource: Drive):
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.GONE
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class NeonCreateProjectRep(NamedTuple):

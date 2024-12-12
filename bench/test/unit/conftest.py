@@ -310,7 +310,7 @@ async def local_runtime_async(global_store: Store):
     finally:
         # delete DBs
         for store in bench.stores:
-            if store.current_status == ResourceStatus.UP:
+            if store.status == ResourceStatus.UP:
                 await delete_test_db(store)
 
 

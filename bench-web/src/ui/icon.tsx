@@ -615,7 +615,7 @@ export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> 
   [ResourceStatus.DOWN]: "fas fa-circle-xmark",
   [ResourceStatus.DEGRADED]: "fas fa-circle-exclamation",
   [ResourceStatus.SLEEPING]: "fas fa-zzz",
-  [ResourceStatus.GONE]: "fas fa-empty-set",
+  [ResourceStatus.DECOMMISSIONED]: "fas fa-circle-slash",
 });
 
 export const ICON_BY_CACHE_MODE: Partial<Record<CacheMode, IconData>> = _makeIcons<CacheMode>({

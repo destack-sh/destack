@@ -54,7 +54,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
             resources = (
                 await provision_cls.where(
                     provision_cls.get_property("bench").eq(self.bench)
-                    & provision_cls.get_property("current_status").neq(ResourceStatus.GONE)
+                    & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
                 )
                 .select_all()
                 .tolist()
@@ -67,12 +67,12 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 async with self.host.session(commit=True):
                     setattr(resource, "version", VERSION)
             # provision/update/decommission
-            if resource.status.is_extant:
-                if resource.current_status.is_extant:
+            if resource.target_status.is_extant:
+                if resource.status.is_extant:
                     await self.update(resource)
                 else:
                     await self.provision(resource)
-            elif resource.current_status.is_extant:
+            elif resource.status.is_extant:
                 await self.decommission(resource)
 
         # then start watching in host plugin
@@ -91,18 +91,18 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
         if commit.has(self.resource_type):
             subcommit = cast(Commit[PT], commit.trim_to(self.resource_type))
             for resource in subcommit.added:
-                if resource.status.is_extant and not resource.current_status.is_extant:
+                if resource.target_status.is_extant and not resource.status.is_extant:
                     await self.provision(resource)
             for resource in subcommit.updated:
-                if resource.status.is_extant:
-                    if resource.current_status.is_extant:
+                if resource.target_status.is_extant:
+                    if resource.status.is_extant:
                         await self.update(resource)
                     else:
                         await self.provision(resource)
-                elif resource.current_status.is_extant:
+                elif resource.status.is_extant:
                     await self.decommission(resource)
             for resource in subcommit.removed:
-                if resource.current_status.is_extant:
+                if resource.status.is_extant:
                     await self.decommission(resource)
         await self._do_on_commit_deferred(commit)
 

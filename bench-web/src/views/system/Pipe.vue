@@ -52,9 +52,9 @@ const strokeDashArray = computed(() => {
     return `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}`;
   } else if (pipe.value?.type === PipeType.OPTION) {
     // dotted
-    return `${PIPE_WIDTH * 1},${PIPE_WIDTH * 3}`;
+    return `${PIPE_WIDTH * 1},${PIPE_WIDTH * 2}`;
   } else if (pipe.value?.type === PipeType.STREAM) {
-    // dash/dot alternate (animated)
+    // long dashed (animated)
     return `${PIPE_WIDTH * 3},${PIPE_WIDTH * 4}`;
   } else {
     return undefined;

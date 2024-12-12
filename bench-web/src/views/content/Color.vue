@@ -61,6 +61,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       ref="buttonRef"
       v-menu="
         (): PopoverInfoIn => ({
+          kind: 'view',
           component: ViewType.COLOR,
           placement: 'bottom-left',
           offset: 'referenceWidth',

@@ -122,13 +122,6 @@ class Continue(Struct):
         struct=StructType.OBJECT_MAPPING,
         description="Mapping for inputs from current node into next node.",
     )
-    mapping_code: Optional["Code"] = p_regular(
-        51,
-        require=False,
-        array=False,
-        struct=StructType.CODE,
-        description="Mapping to get inputs for next node. Takes precedence over mapping.",
-    )
 
     @property
     def input_type(self) -> Optional["TypeBase"]:
