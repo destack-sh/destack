@@ -1,6 +1,6 @@
 import { HELPER_VIEW_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
-import { cloneNode, generateNodeName, makeNode, NodeIn, unpackSubnode } from "@/language/node";
+import { cloneNode, generateNodeName, makeNode, NodeIn, packSubnode, unpackSubnode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { getRunBasePtr } from "@/language/session";
 import {
@@ -847,8 +847,14 @@ export class SpaceCanvas {
       return existing;
     } else if (options?.ifPresent == "upsertAndFocus") {
       log.trace("canvas.addView.upsertAndFocus", view, { existing, options });
-      if (!deepValueEquals(existing.icon, view.icon) || !deepValueEquals(existing.focus, view.focus)) {
-        tx.update(existing, { icon: toIconMaybe(view.icon), focus: view.focus }, { debounce: "tick" });
+      if (view.subnode != null && view.subnodePacked == null) {
+        view.subnodePacked = packSubnode(NodeType.VIEW, view.type, view.subnode);
+      }
+      for (const property of [ViewProperty.title, ViewProperty.icon, ViewProperty.focus, ViewProperty.subnodePacked]) {
+        const propertyName = ViewProperty[property];
+        if (!deepValueEquals((existing as any)[propertyName], (view as any)[propertyName])) {
+          tx.update(existing, { [propertyName]: (view as any)[propertyName] }, { debounce: "tick" });
+        }
       }
       this.focus({ node: existing });
       return existing;

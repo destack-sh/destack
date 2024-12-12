@@ -3,6 +3,7 @@ import { makeTypeInfo } from "@/language/field";
 import { useSubnode } from "@/language/node";
 import { makeEdit } from "@/language/transaction";
 import {
+  BenchType,
   NodeType,
   Region,
   UserWizardViewStage,
@@ -18,10 +19,12 @@ import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { makeIcon } from "@/ui/icon";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
+import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
+import Picker from "@/views/content/Picker.vue";
 import Button from "@/views/controls/Button.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, watchEffect, type Ref } from "vue";
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title" | "subnodePacked">
@@ -40,6 +43,14 @@ const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.FRANKFURT);
+watchEffect(() => {
+  if (GEOLOCATION.value?.area != null) {
+    const defaultRegion = DEFAULT_REGION_BY_AREA[GEOLOCATION.value.area];
+    if (defaultRegion != null) {
+      region.value = defaultRegion;
+    }
+  }
+});
 const isActive = ref(false);
 const lastError: Ref<string | null> = ref(null);
 
@@ -57,7 +68,7 @@ function switchStage() {
       makeEdit(selfNode, {
         metatype: NodeType.VIEW,
         type: ViewType.USER_WIZARD,
-        title: "Sign Up",
+        title: "Sign up",
         subnode: { stage: UserWizardViewStage.SIGN_UP },
       }),
     );
@@ -66,7 +77,7 @@ function switchStage() {
       makeEdit(selfNode, {
         metatype: NodeType.VIEW,
         type: ViewType.USER_WIZARD,
-        title: "Log In",
+        title: "Log in",
         subnode: { stage: UserWizardViewStage.LOG_IN },
       }),
     );
@@ -111,7 +122,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 defineExpose<ViewExposed>({ self, focus });
 </script>
 <template>
-  <div class="mx-auto mt-24 h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
+  <div class="mx-auto mt-[20%] h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">{{ title }}</h2>
@@ -126,6 +137,7 @@ defineExpose<ViewExposed>({ self, focus });
       <NativeInput
         v-if="stage == UserWizardViewStage.SIGN_UP"
         id="name"
+        ref="nameRef"
         v-model="name"
         :icon="makeIcon({ faName: 'fas fa-user' })"
         name="Name"
@@ -135,6 +147,7 @@ defineExpose<ViewExposed>({ self, focus });
       />
       <NativeInput
         id="slug"
+        ref="slugRef"
         v-model="slug"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="slug"
@@ -152,7 +165,7 @@ defineExpose<ViewExposed>({ self, focus });
         :variant="Variant.PRIMARY"
         is-input
       />
-      <!-- TODO :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/) -->
+      <!-- NOTE :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/) -->
       <NativeInput
         id="password"
         v-model="password"
@@ -162,6 +175,16 @@ defineExpose<ViewExposed>({ self, focus });
         :variant="Variant.PRIMARY"
         is-input
         :value-type="makeTypeInfo({ isSecret: true })"
+      />
+      <Picker
+        v-if="stage == UserWizardViewStage.SIGN_UP"
+        id="region"
+        v-model="region"
+        :icon="makeIcon({ faName: 'fas fa-globe' })"
+        name="Region"
+        title="Region"
+        is-input
+        :value-type="makeTypeInfo({ benchType: BenchType.REGION, isList: false, isRequired: true })"
       />
     </div>
     <!-- Actions -->

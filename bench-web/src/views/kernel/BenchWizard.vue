@@ -1,14 +1,12 @@
 <script lang="ts" setup>
-import { BenchType, EnumType, NodeReferenceData, Region, UserStatus, Variant, ViewData } from "@/proto/wire/";
+import { makeTypeInfo } from "@/language/field";
+import { BenchType, NodeReferenceData, Region, UserStatus, Variant, ViewData } from "@/proto/wire/";
 import { toNodeRef } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
-import { makeIcon } from "@/ui/icon";
-import { enumIndex } from "@/ui/search";
 import { canvas, goToBench } from "@/system/space";
 import { createBench, user } from "@/system/user";
-import { makeTypeInfo } from "@/language/field";
-import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
+import { makeIcon } from "@/ui/icon";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
+import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
 import { viewEmits, type FocusAnchor } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";
@@ -17,8 +15,6 @@ import { computed, ref, toRef, watch, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData; id: string } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
-
-const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
 const self = toRef(props, "self");
 const id = toRef(props, "id");
@@ -79,7 +75,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData) {
 defineExpose({ self, focus });
 </script>
 <template>
-  <div class="mx-auto mt-24 min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
+  <div class="mx-auto mt-[20%] min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">Create your Bench</h2>
@@ -102,7 +98,7 @@ defineExpose({ self, focus });
         is-input
         is-disabled
       />
-      <!-- Region Area -->
+      <!-- Region -->
       <Picker
         id="region"
         v-model="region"
@@ -111,13 +107,6 @@ defineExpose({ self, focus });
         title="Region"
         is-input
         :value-type="makeTypeInfo({ benchType: BenchType.REGION, isList: false, isRequired: true })"
-        :custom-index="
-          enumIndex({
-            id: 'geolocation',
-            enumTypes: [EnumType.REGION],
-            enumValues: [Region.FRANKFURT, Region.OHIO],
-          })
-        "
       />
     </div>
     <!-- Actions -->

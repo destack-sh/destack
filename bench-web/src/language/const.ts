@@ -20,6 +20,7 @@ import {
   PropertyInfo,
   PropertyReferenceData,
   RecordData,
+  Region,
   RunData,
   RunStatus,
   StepType,
@@ -283,6 +284,7 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.OPENAI_O1_PREVIEW,
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
+export const EXPOSED_REGIONS = [Region.FRANKFURT, Region.OHIO];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
@@ -292,6 +294,7 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
   [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
+  [EnumType.REGION]: EXPOSED_REGIONS,
 };
 
 export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {

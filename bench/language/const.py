@@ -24,7 +24,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.12.0"
+VERSION = "2024.12.12.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -157,7 +157,6 @@ class EnumType(IdEnum):
     STEP_TYPE = 23020
     PORT_SIDE = 23021
     PIPE_TYPE = 23022
-    NOTIFICATION_LEVEL = 23023
     NODE_MODE = 23024
 
     # view (23500-23999)
@@ -1250,7 +1249,7 @@ class UserStatus(IdEnum):
     RESERVED = 2  # reserved a handle, unconfirmed
     WAITLISTED = 3  # got handle, confirmed email, waiting
     REGISTERED = 4  # got handle, confirmed email, ready to activate
-    ACTIVATED = 10  # has main bench, all ready to go
+    ACTIVATED = 10  # has bench, all ready to go
 
 
 @enum_(EnumType.ORGANIZATION_STATUS)
@@ -1258,17 +1257,6 @@ class OrganizationStatus(IdEnum):
     # NOTE UserStatus/OrganizationStatus ids for same statuses should match
     REGISTERED = 4  # created org
     ACTIVATED = 10  # has main bench
-
-
-@enum_(EnumType.NOTIFICATION_LEVEL)
-class NotificationLevel(IdEnum):
-    """
-    The level of interaction required for a notification.
-    """
-
-    PASSIVE = 1  # no quick action required, not urgent
-    ACTIVE = 2  # important action required / may want to know this as soon as possible
-    URGENT = 3  # immediate action required
 
 
 #

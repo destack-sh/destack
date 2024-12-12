@@ -6,6 +6,7 @@ from bench.language.const import (
     BlockType,
     NodeType,
     OrganizationStatus,
+    Region,
     StructType,
     UserStatus,
 )
@@ -76,7 +77,8 @@ class User(Node[UserData]):
     if TYPE_CHECKING:
         main_bench_id: Optional[UUID] = None
         main_bench_ptr: Optional[NodeReference] = None
-    status: UserStatus = p_system(38)
+    region: "Region" = p_system(38, require=True)
+    status: UserStatus = p_system(39)
 
     # auth
     # TODO :Architecture: refactor out authentication & challenges for Users/Client
@@ -121,7 +123,8 @@ class Organization(Node[OrganizationData]):
     main_bench: Optional["Bench"] = p_system(
         36, array=False, require=False, references=NodeType.BENCH, fk=True
     )
-    status: OrganizationStatus = p_system(37)
+    region: "Region" = p_system(37, require=True)
+    status: OrganizationStatus = p_system(38)
 
     # flags
     # ...

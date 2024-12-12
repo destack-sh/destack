@@ -9,6 +9,7 @@ import {
   UserData,
   UserProperty,
   UserStatus,
+  UserWizardViewStage,
   ViewType,
 } from "@/proto/wire";
 import {
@@ -177,8 +178,13 @@ export async function createBench(
   return { bench };
 }
 
-function userWizardView(view: { title: string }): ViewIn {
-  return { type: ViewType.USER_WIZARD, icon: makeIcon("fas fa-right-from-bracket"), ...view };
+function userWizardView(view: { title: string; stage: UserWizardViewStage }): ViewIn {
+  return {
+    type: ViewType.USER_WIZARD,
+    icon: makeIcon("fas fa-right-from-bracket"),
+    title: view.title,
+    subnode: { stage: view.stage },
+  };
 }
 
 contributeActionMap<"user">({
@@ -188,7 +194,9 @@ contributeActionMap<"user">({
     text: "Create a new account.",
     isEnabled: isUnauthenticated,
     action: () => {
-      canvas.addView(userWizardView({ title: "Sign Up" }), { ifPresent: "upsertAndFocus" });
+      canvas.addView(userWizardView({ title: "Sign up", stage: UserWizardViewStage.SIGN_UP }), {
+        ifPresent: "upsertAndFocus",
+      });
     },
   },
   "user.auth.login": {
@@ -197,7 +205,9 @@ contributeActionMap<"user">({
     text: "Log in to an existing account.",
     isEnabled: isUnauthenticated,
     action: () => {
-      canvas.addView(userWizardView({ title: "Log In" }), { ifPresent: "upsertAndFocus" });
+      canvas.addView(userWizardView({ title: "Log in", stage: UserWizardViewStage.LOG_IN }), {
+        ifPresent: "upsertAndFocus",
+      });
     },
   },
   "user.auth.logout": {

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.12.0"
+VERSION = "2024.12.12.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -126,6 +126,7 @@ USER_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
+        Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
         Column("password_salt", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
         Column("password_hash", PrimitiveType.BYTES, is_nullable=True, is_encrypted=True),
@@ -261,6 +262,7 @@ ORGANIZATION_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
+        Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16),
     ),
     indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
@@ -467,6 +469,8 @@ MACHINE_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("occupancy", PrimitiveType.INT16),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -521,6 +525,8 @@ BROWSER_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("occupancy", PrimitiveType.INT16),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -561,6 +567,8 @@ FILE_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("occupancy", PrimitiveType.INT16),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -616,6 +624,8 @@ STREAM_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("occupancy", PrimitiveType.INT16),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -653,6 +663,8 @@ SECRET_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("occupancy", PrimitiveType.INT16),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),

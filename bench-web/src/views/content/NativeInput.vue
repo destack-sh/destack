@@ -129,7 +129,9 @@ defineExpose<ViewExposed & { select: () => void }>({
           : variant != Variant.STEALTH
             ? 'bg-white text-gray-900'
             : 'text-gray-900',
-        variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline' : '',
+        variant != Variant.STEALTH
+          ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline'
+          : '',
         validationError != null ? 'outline-danger-600' : 'outline-gray-400',
       ]"
     >
@@ -163,7 +165,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         <!-- Clear -->
         <button
           v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"
-          class="ml-auto pl-1 text-gray-400 opacity-0 outline-none hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
+          class="ml-auto pl-1 text-gray-400 opacity-0 outline-none transition-colors duration-75 hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
           tabindex="-1"
           @click.stop="clear"
         >
@@ -177,7 +179,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           <!-- Remove -->
           <button
             v-if="!isDisabled"
-            class="ml-1.5 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+            class="ml-1.5 text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
             @click.stop="remove(i)"
           >
             <i class="fas fa-xmark" />
@@ -200,7 +202,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         <!-- Add to list-->
         <button
           v-else-if="!isDisabled"
-          class="mr-2 self-center text-gray-400 opacity-0 hover:text-pgrayrimary-700 group-hover:opacity-100"
+          class="hover:text-pgrayrimary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
           @click.stop="addNewValue(), $nextTick(() => inputRef?.focus())"
         >
           <i class="fas fa-plus" />
