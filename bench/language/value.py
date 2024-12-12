@@ -145,7 +145,7 @@ class CustomObject(Mapping[str, Any]):
         self.parent = parent
         self.parent_key = parent_key
         self._supergraph = supergraph or typ._supergraph
-        assert self._supergraph != NULL_SUPERGRAPH, f"missing supergraph for {self!r}"
+        assert self._supergraph is not NULL_SUPERGRAPH, f"missing supergraph for {self!r}"
 
     def __str__(self) -> str:
         set_fields: list[str] = []
@@ -158,6 +158,8 @@ class CustomObject(Mapping[str, Any]):
                     set_fields.append(f"{prop.name}[{len(prop_value)}]")
                 elif type(prop_value) is CustomObject:
                     set_fields.append(f"{prop.name}=<{prop_value._type_name} (...)>")
+                elif isinstance(prop_value, StateNode):
+                    set_fields.append(f"{prop.name}=<{prop_value.absolute_path}>")
                 else:
                     set_fields.append(f"{prop.name}={prop_value!r}")
         for field in self._type._fields:
@@ -167,6 +169,8 @@ class CustomObject(Mapping[str, Any]):
                     set_fields.append(f"{field.name}[{len(field_value)}]")
                 elif type(field_value) is CustomObject:
                     set_fields.append(f"{field.name}=<{field_value._type_name} (...)>")
+                elif isinstance(field_value, StateNode):
+                    set_fields.append(f"{field.name}=<{field_value.absolute_path}>")
                 else:
                     set_fields.append(f"{field.name}={field_value!r}")
         return ", ".join(set_fields)
@@ -1783,6 +1787,7 @@ from bench.language.node import (  # noqa: E402
     Node,
     NodeReference,
     NodeReferenceData,
+    StateNode,
     Struct,
     object_,
     struct_,
