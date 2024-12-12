@@ -18,9 +18,11 @@ from bench.language.const import (
 )
 from bench.language.list import LocalNodeList
 from bench.language.node import (
+    OWNER_TYPES,
     BenchNode,
     ClientOrigin,
     HasTracingContext,
+    Owner,
     SourceNode,
     local_node_,
     node_,
@@ -34,7 +36,6 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.run import Run
 from bench.language.validation import (
     NAME_CONSTRAINT,
     SLUG_CONSTRAINT,
@@ -398,7 +399,7 @@ class PhysicalResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
     occupancy: ResourceOccupancy = p_system(
         36, default=ResourceOccupancy.RESERVED, default_sql=None
     )
-    owned_by: Optional[Run] = p_system(37, require=False, array=False, references=NodeType.RUN)
+    owned_by: Optional[Owner] = p_system(37, require=False, array=False, references=OWNER_TYPES)
 
 
 CPU_CONSTRAINT = constraint(min_value=0.1, max_value=16.0, step_value=0.1)

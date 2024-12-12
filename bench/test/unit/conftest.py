@@ -101,6 +101,7 @@ def make_session(name: str):
     )
     user = User(
         status=UserStatus.REGISTERED,
+        region=Region.ZURICH,
         slug="test",
         email="test@symbolx.com",
         name=name,

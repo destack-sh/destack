@@ -184,6 +184,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 name=request.name or request.slug,
                 email=request.email,
                 status=UserStatus.WAITLISTED if USE_WAITLIST else UserStatus.REGISTERED,
+                region=Region.ZURICH,
                 last_logged_in_at=self.oracle.utc(),
                 _is_new=True,  # force create
             )

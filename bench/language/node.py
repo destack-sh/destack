@@ -118,6 +118,7 @@ if TYPE_CHECKING:
         GetConnection,
         Machine,
         NodeReference,
+        Organization,
         Package,
         PropertyReference,
         QueryBuilder,
@@ -1620,6 +1621,9 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type["Node"]]
 EditSubject = Union["User", "Server", "Block", "Step", "Run"]
 EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN)
+
+Owner = Union["User", "Organization", "Block", "Step", "Run"]
+OWNER_TYPES = (NodeType.USER, NodeType.ORGANIZATION, NodeType.BLOCK, NodeType.RUN)
 
 
 def is_implicit_node_property(prop_id: int) -> bool:
