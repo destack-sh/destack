@@ -145,7 +145,7 @@ function walkGraph(options: {
     // make item
     let title: string = (node as any).title ?? (node as any).name ?? "";
     if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
-      // take title from wrapped node for node views :ViewNodeTitles
+      // take title from wrapped node for node views :ViewNodeTitles :DelegateNodes
       //  (NOTE :UX: maybe we should indicate the real name and index that too somehow?)
       const referencedNode = options.graph.get(node.nodePtr);
       if (referencedNode != null) {
@@ -228,7 +228,7 @@ export function graphIndex(idx: {
     id: idx.id,
     fromValue: (value: NodeKey<any>) => itemFromNode(idx.id, idx.graph, value),
     toValue: (candidate: NodeItem) => toNodeRef(candidate.node),
-    valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id === b.id || a.ck == b.ck,
+    valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id == b.id || a.ck == b.ck,
     candidates: () => walkGraph({ ...idx, maxDepth: maxDepthRef.value }),
   };
 

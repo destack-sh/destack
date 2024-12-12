@@ -1,29 +1,34 @@
 <script lang="ts" setup>
 import { isEnumType, isLocalNodeType, isNodeType, SOURCE_NODE_TYPES, toCamelName } from "@/language/const";
+import { makeExpression } from "@/language/expression";
 import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
+  ExpressionData,
+  ExpressionType,
   IconData,
+  NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
   RectangleData,
+  TypeInfoData,
   TypeKind,
   Variant,
   ViewData,
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { makeScope, type TypedNodeReferenceData } from "@/proto/wiring";
+import { makeScope, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
 import { SearchConnectionParams, supergraph, useSearchConnection } from "@/system/connection";
 import { canvas, pkgGraph } from "@/system/space";
 import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import type { NodeItem, SearchItem, TypeItem } from "@/ui/search";
+import type { NodeItem, TypeItem } from "@/ui/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -115,7 +120,9 @@ const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefine
 //
 
 // nocheckin: remote search
-// nocheckin: avoid useSearchConnection for every single Picker instance
+// nocheckin: debounce
+// nocheckin: don't instance useSearchConnection/useSearch for every single Picker instance
+const REMOTE_SEARCH_FIRST = 30;
 const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
   if (
     props.customIndex == null &&
@@ -123,11 +130,36 @@ const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
     !SOURCE_NODE_TYPES.includes(props.valueType.benchType)
   ) {
     // remote search
+    const queryString = query.value;
+    const nodeType = props.valueType.benchType;
+    const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeType];
+    const filterClauses: ExpressionData[] = [];
+    if (queryString.length > 0) {
+      // query string filtering
+      for (const key of ["slug", "name", "title"]) {
+        if (key in nodeProperties) {
+          const propertyPtr = propertyReference(nodeType, nodeProperties[key]);
+          const clause = makeExpression({ type: ExpressionType.MATCHES, propertyPtr, value: queryString });
+          filterClauses.push(clause);
+        }
+      }
+    }
+    const scope = isLocalNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+    const sort: ExpressionData[] = [
+      makeExpression({
+        type: ExpressionType.DESCENDING,
+        propertyPtr: propertyReference(nodeType, nodeProperties["createdAt"]),
+      }),
+    ];
     const params: SearchConnectionParams<any> = {
-      nodeType: props.valueType.benchType,
-      scope: isLocalNodeType(props.valueType.benchType) ? BENCH_SCOPE.value : makeScope({}),
+      isEnabled: props.isInline,
+      nodeType,
+      scope,
       blockPtr: props.valueType.baseTypePtr,
-      isEnabled: true,
+      filter:
+        filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined,
+      sort,
+      first: REMOTE_SEARCH_FIRST,
     };
     return params;
   } else {
@@ -143,10 +175,53 @@ const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
 const {
   connection: remoteConnection,
   graph: remoteGraph,
-  isConnecting,
-  isConnected,
-  isStale,
-} = useSearchConnection({ name: "picker" }, remoteSearchParams);
+  isConnecting: remoteIsConnecting,
+  isConnected: remoteIsConnected,
+  isStale: remoteIsStale,
+} = useSearchConnection({ name: "picker", live: false }, remoteSearchParams);
+const isLoading = computed(
+  () => remoteSearchParams.value.isEnabled && (!remoteIsConnected.value || remoteIsStale.value),
+);
+
+function makeGraphIndices(valueType: TypeInfoData) {
+  let roots: AnyNodeData[] | undefined = undefined;
+  let metatypes: NodeType[];
+  let graph: ReadNodeGraph;
+  if (remoteSearchParams.value.isEnabled) {
+    // remote search
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    remoteIsConnected.value; // nocheckin: trigger reactivity
+    graph = remoteGraph;
+    metatypes = [remoteSearchParams.value.nodeType];
+  } else {
+    // local search
+    graph = pkgGraph;
+    if (valueType.baseTypePtr != null) {
+      // based node
+      const base = pkgGraph.get(valueType.baseTypePtr);
+      if (base != null) roots = [base];
+    } else if ((valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
+      roots = valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
+    }
+    if (valueType.benchType != null) {
+      metatypes = [valueType.benchType as unknown as NodeType];
+    } else if ((valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
+      metatypes = valueType.constraint!.nodeTypes;
+    } else {
+      metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+    }
+  }
+  const localIndex = graphIndex({
+    id: "graph",
+    graph: graph,
+    metatypes,
+    roots,
+    skipDepth: roots != null ? 0 : 2,
+    maxDepth: valueType.constraint?.nodeMaxDepth,
+    filter: valueType.constraint != null ? (node) => nodeMatchesConstraint(node, valueType!.constraint!) : undefined,
+  });
+  return [localIndex];
+}
 
 type PickerItem = EnumOptionItem | NodeItem | TypeItem;
 const indices: Ref<SearchIndex<any>[]> = computed(() => {
@@ -157,43 +232,7 @@ const indices: Ref<SearchIndex<any>[]> = computed(() => {
     // regular enum
     return [enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] })];
   } else if (props.valueType?.kind == TypeKind.NODE || isNodeType(props.valueType?.benchType)) {
-    let roots: AnyNodeData[] | undefined = undefined;
-    let metatypes: NodeType[];
-    let graph: ReadNodeGraph;
-    if (remoteSearchParams.value.isEnabled) {
-      // remote search
-      graph = remoteGraph;
-      metatypes = [props.valueType.benchType as unknown as NodeType];
-    } else {
-      // local search
-      if (props.valueType.baseTypePtr != null) {
-        // based node
-        const base = pkgGraph.get(props.valueType.baseTypePtr);
-        if (base != null) roots = [base];
-      } else if ((props.valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
-        roots = props.valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
-      }
-      if (props.valueType.benchType != null) {
-        metatypes = [props.valueType.benchType as unknown as NodeType];
-      } else if ((props.valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
-        metatypes = props.valueType.constraint!.nodeTypes;
-      } else {
-        metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
-      }
-    }
-    const localIndex = graphIndex({
-      id: "graph",
-      graph: pkgGraph,
-      metatypes,
-      roots,
-      skipDepth: roots != null ? 0 : 2,
-      maxDepth: props.valueType?.constraint?.nodeMaxDepth,
-      filter:
-        props.valueType?.constraint != null
-          ? (node) => nodeMatchesConstraint(node, props.valueType!.constraint!)
-          : undefined,
-    });
-    return [localIndex];
+    return makeGraphIndices(props.valueType);
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
     // some type
     return [typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 })];
@@ -428,15 +467,17 @@ defineExpose<ViewExposed>({
         </template>
         <!-- Query -->
         <span class="flex flex-row items-center">
+          <i v-if="isLoading" class="fas fa-spinner-third w-5 animate-spin text-center text-gray-700" />
           <IconInline
+            v-else
             v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
-            class="mr-2 w-5 text-gray-700"
+            class="w-5 text-center text-gray-700"
           />
           <input
             ref="queryRef"
             v-model="query"
             type="text"
-            class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
+            class="ml-2 w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
             :placeholder="placeholder ?? `Select ${facetName ?? '???'}`"
             @keydown.enter.stop.prevent="activeResultId && select(activeResultId)"
             @keydown.up.stop.prevent="focus('previous')"
@@ -498,11 +539,10 @@ defineExpose<ViewExposed>({
           </span>
         </div>
         <!-- Help -->
-        <div v-if="results.length == 0" class="max-w-full py-1">
-          <!-- Nothing found -->
-          <div v-if="results.length === 0" class="px-[11px] py-1 text-gray-500">
+        <div v-if="!isLoading && results.length == 0" class="max-w-full py-1">
+          <div class="px-[11px] py-1 text-gray-500">
             <i class="fas fa-empty-set w-5 text-center text-gray-600" />
-            <span class="ml-1"> No results </span>
+            <span class="ml-1">No results</span>
           </div>
         </div>
       </Scroll>

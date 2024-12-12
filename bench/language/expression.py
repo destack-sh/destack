@@ -60,9 +60,10 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalType, str] = {
     ConditionalType.LESS_THAN: "<",
     ConditionalType.LESS_THAN_OR_EQUALS: "<=",
     # string comparison
-    ConditionalType.MATCHES_REGEX: "$re=",
+    ConditionalType.MATCHES: "~=",
     ConditionalType.STARTS_WITH: "^=",
-    ConditionalType.ENDS_WITH: "$=",
+    ConditionalType.ENDS_WITH: "=$",
+    ConditionalType.MATCHES_REGEX: "$re=",
     # containment
     ConditionalType.CONTAINS: "∋",
     ConditionalType.NOT_CONTAINS: "!∋",
@@ -269,7 +270,12 @@ class ExpressionTypes:  # :ExpressionOps
     SET = {ConditionalType.CONTAINS, ConditionalType.NOT_CONTAINS}
     EXISTENCE = {ConditionalType.EXISTS, ConditionalType.NOT_EXISTS}
     VECTOR = {ConditionalType.NEAR}
-    STRING = {ConditionalType.MATCHES_REGEX, ConditionalType.STARTS_WITH, ConditionalType.ENDS_WITH}
+    STRING = {
+        ConditionalType.MATCHES,
+        ConditionalType.STARTS_WITH,
+        ConditionalType.ENDS_WITH,
+        ConditionalType.MATCHES_REGEX,
+    }
     SCORED = {ConditionalType.NEAR, *STRING}
     # aggregations
     BOOLEAN = {AggregationType.EXISTS}
@@ -566,15 +572,18 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     elif cond.type == ConditionalType.LESS_THAN_OR_EQUALS:
         return node_value <= cond_value
     # string comparison
-    elif cond.type == ConditionalType.MATCHES_REGEX:
+    elif cond.type == ConditionalType.MATCHES:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
-        return node_value is not None and regex.match(cond_value, node_value) is not None
+        return node_value is not None and cond_value in node_value
     elif cond.type == ConditionalType.STARTS_WITH:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
         return node_value is not None and node_value.startswith(cond_value)
     elif cond.type == ConditionalType.ENDS_WITH:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
         return node_value is not None and node_value.endswith(cond_value)
+    elif cond.type == ConditionalType.MATCHES_REGEX:
+        assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
+        return node_value is not None and regex.match(cond_value, node_value) is not None
     # containment
     elif cond.type == ConditionalType.CONTAINS:
         return isinstance(node_value, Collection) and cond_value in node_value
