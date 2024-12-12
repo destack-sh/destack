@@ -406,7 +406,7 @@ defineExpose<ViewExposed>({
                 <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
               </span>
               <!-- Metadata -->
-              <span class="ml-auto flex-1 truncate pl-2">
+              <span class="ml-auto flex-1 truncate pl-2 text-right">
                 <!-- Path -->
                 <span
                   v-if="valueType?.kind != TypeKind.BASED_NODE && 'path' in item"

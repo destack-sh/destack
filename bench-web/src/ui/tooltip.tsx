@@ -1,5 +1,5 @@
 import type { IconData, TextData } from "@/proto/wire";
-import type { Action } from "@/ui/action";
+import { getAction, type Action, type ActionBuiltinId } from "@/ui/action";
 import { normalizeKeymapKey, parseKeymapSignature } from "@/ui/keymap";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { isOnMac } from "@/utils/browser";
@@ -79,6 +79,7 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   text: string | TextData | (() => string | TextData);
   small?: boolean;
   shortcuts?: string[];
+  actions?: ActionBuiltinId[];
   showDelay?: number;
   hideDelay?: number;
   placement?: FloatingPlacement;
@@ -92,6 +93,7 @@ export function tooltipFromAction(action: Action, override?: Partial<TooltipInfo
     title: toValue(action.title),
     text: action.text,
     shortcuts: action.shortcuts,
+    actions: [action.id],
     placement: "top",
     ...override,
   };
@@ -107,9 +109,8 @@ interface TooltipElement extends HTMLElement {
 }
 
 /** An active instance of a tooltip */
-export type TooltipInstance = {
+export type TooltipInstance = TooltipInfo & {
   id: number;
-  info: TooltipInfo;
   reference: TooltipElement;
   container?: HTMLElement | SVGElement;
   createdAt: DateTime;
@@ -128,7 +129,25 @@ function createTooltip(
   info: TooltipInfo,
   container: HTMLElement | SVGElement | undefined,
 ): TooltipInstance {
-  const instance = { id: tooltipId++, info, reference, container, createdAt: DateTime.now() };
+  // make instance
+  const instance = {
+    id: tooltipId++,
+    ...info,
+    shortcuts: info.shortcuts ?? [],
+    reference,
+    container,
+    createdAt: DateTime.now(),
+  };
+  for (const actionId of info.actions ?? []) {
+    const action = getAction(actionId);
+    for (const shortcut of action.shortcuts ?? []) {
+      if (!instance.shortcuts.includes(shortcut)) {
+        instance.shortcuts.push(shortcut);
+      }
+    }
+  }
+
+  // add to active & mark as active
   _activeTooltips.value = [..._activeTooltips.value, instance];
   reference.dataset[TOOLTIP_DATA_SET_ATTRIBUTE] = "true";
   reference.dataset[TOOLTIP_DATA_ID_ATTRIBUTE] = instance.id.toString();
@@ -163,7 +182,7 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
         }
         if (
           info.group != null &&
-          info.group == lastActiveTooltip?.info?.group &&
+          info.group == lastActiveTooltip?.group &&
           lastActiveTooltip.createdAt.diffNow().milliseconds < 500
         ) {
           destroyTooltip(lastActiveTooltip!);
@@ -200,7 +219,7 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
   updated(el, binding) {
     const tooltipEl = el as TooltipElement;
     if (tooltipEl.tooltipInstance != null) {
-      tooltipEl.tooltipInstance.info = binding.value;
+      Object.assign(tooltipEl.tooltipInstance, binding.value);
     }
   },
 

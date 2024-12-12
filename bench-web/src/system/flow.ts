@@ -971,6 +971,7 @@ export class FlowContext {
             reference: { x: e.clientX, y: e.clientY },
             kind: 'view',
             placement: "bottom",
+            title: "Add Step",
             component: ViewType.PICKER,
             props: {
               valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }),

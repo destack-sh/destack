@@ -695,8 +695,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Controls -->
           <!-- Add field -->
           <button
-            class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
-            :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
+            class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="
               (e) => {
                 const button = (e.target as HTMLElement).closest('button')!;
@@ -705,6 +704,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   trigger: button,
                   reference: button,
                   component: ViewType.PICKER,
+                  title: 'Add Member',
                   placement: 'bottom-left',
                   offset: 'referenceWidth',
                   props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
@@ -720,7 +720,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           </button>
           <!-- Add record -->
           <button
-            class="group/button rounded px-1 py-0.5 hover:bg-gray-100"
+            class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             :class="variant == Variant.COMPACT ? 'text-gray-400 hover:text-gray-700' : ''"
             @click="() => createRecord()"
           >

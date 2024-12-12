@@ -574,6 +574,7 @@ export function onAddFieldAction(
       kind: "view",
       trigger: button,
       reference: button,
+      title: `Add ${toCamelName(FieldType, fieldType)}`,
       component: ViewType.PICKER,
       placement: "bottom-left",
       offset: "referenceWidth",

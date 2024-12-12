@@ -64,7 +64,7 @@ provide(HISTORY_STATE_KEY, history);
 
 // actions
 const actions: Partial<ActionMapImplementation<"view">> = {
-  "view.history.goBack": () => history.go(-1),
+  "view.history.goBackward": () => history.go(-1),
   "view.history.goForward": () => history.go(1),
 };
 

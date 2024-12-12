@@ -103,7 +103,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       ]"
     >
       <button
-        class="relative cursor-crosshair rounded-2xl border bg-white opacity-0 outline-none transition-colors duration-150 hover:bg-gray-100 group-hover/step:opacity-100"
+        class="relative cursor-crosshair rounded-2xl border bg-white opacity-0 outline-none transition-colors duration-150 hover:bg-gray-100 hover:opacity-100"
         :class="[isInspected || isHighlighted ? 'border-gray-400' : 'border-gray-200']"
         :style="{
           width: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE * 2 : FLOW_PORT_SIZE) + 'px',

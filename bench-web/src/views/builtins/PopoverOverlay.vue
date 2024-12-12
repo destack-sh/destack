@@ -166,6 +166,9 @@ function close(popover: PopoverInstance | undefined) {
         data-outside-view="true"
         @keydown.esc.stop.prevent="() => close(popover)"
       >
+        <div v-if="popover.title" class="px-3 pt-1.5">
+          <span class="font-semibold">{{ popover.title }}</span>
+        </div>
         <component
           :is="toComponent(popover)"
           id="popover"
