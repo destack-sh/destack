@@ -1345,7 +1345,7 @@ enum NodeMode {
   NODE_MODE_PRODUCTION = 1;
   NODE_MODE_DEVELOPMENT = 2;
   NODE_MODE_TEST = 3;
-  NODE_MODE_PREVIEW = 4;
+  NODE_MODE_PREVIEW = 5;
   NODE_MODE_BUILTIN = 10;
 }
 
@@ -1369,8 +1369,8 @@ enum ViewType {
   VIEW_TYPE_FLOW = 206;
   VIEW_TYPE_STEP = 207;
   VIEW_TYPE_PIPE = 208;
-  VIEW_TYPE_TYPE = 209;
-  VIEW_TYPE_OBJECT = 210;
+  VIEW_TYPE_TYPE = 300;
+  VIEW_TYPE_OBJECT = 301;
   VIEW_TYPE_DETAIL = 403;
   VIEW_TYPE_CREATE = 404;
   VIEW_TYPE_CHAT = 405;
@@ -2779,6 +2779,38 @@ message QueryBlockData {
   optional NodeReferenceData query_ptr = 100;
 }
 
+message BrowserData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  optional NodeReferenceData updated_by_ptr = 14;
+  int64 updated_epoch = 15;
+  optional google.protobuf.Timestamp deleted_at = 16;
+  optional google.protobuf.Value subnode_packed = 29;
+  BrowserType type = 30;
+  string title = 32;
+  ResourceStatus status = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceOccupancy occupancy = 36;
+  optional NodeReferenceData owned_by_ptr = 37;
+  optional google.protobuf.Timestamp activated_at = 40;
+  optional google.protobuf.Timestamp deactivated_at = 41;
+  optional google.protobuf.Timestamp reset_at = 42;
+  optional google.protobuf.Timestamp suspended_at = 43;
+  optional google.protobuf.Timestamp decommissioned_at = 44;
+  optional google.protobuf.Timestamp active_at = 45;
+  optional string version = 50;
+  optional string target_version = 51;
+  optional string external_name = 52;
+  NodeMode mode = 90;
+}
+
 message RecordData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3171,38 +3203,6 @@ message MachineData {
   optional float target_cpu = 61;
   float ram = 62;
   optional float target_ram = 63;
-  NodeMode mode = 90;
-}
-
-message BrowserData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  BrowserType type = 30;
-  string title = 32;
-  ResourceStatus status = 33;
-  optional TextData text = 34;
-  Region region = 35;
-  ResourceOccupancy occupancy = 36;
-  optional NodeReferenceData owned_by_ptr = 37;
-  optional google.protobuf.Timestamp activated_at = 40;
-  optional google.protobuf.Timestamp deactivated_at = 41;
-  optional google.protobuf.Timestamp reset_at = 42;
-  optional google.protobuf.Timestamp suspended_at = 43;
-  optional google.protobuf.Timestamp decommissioned_at = 44;
-  optional google.protobuf.Timestamp active_at = 45;
-  optional string version = 50;
-  optional string target_version = 51;
-  optional string external_name = 52;
   NodeMode mode = 90;
 }
 

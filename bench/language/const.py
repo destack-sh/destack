@@ -627,9 +627,10 @@ class BlockType(IdEnum):
     # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     # types
+    # CLASS?
     CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
     MESSAGE = 12  # define a signal type with fields
-    # SECRET, RESOURCE, PROTOCOL/TRAIT, ISSUE, METRIC, BLOCK, ...?
+    # SECRET, RESOURCE, PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
     ACTION = 21  # define a code function/script with fields (optionally incl. input/output)
@@ -1034,7 +1035,7 @@ class NodeMode(IdEnum):
     PRODUCTION = 1
     DEVELOPMENT = 2
     TEST = 3
-    PREVIEW = 4
+    PREVIEW = 5
     BUILTIN = 10
 
 

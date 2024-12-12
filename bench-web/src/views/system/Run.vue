@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { toCamelName } from "@/language/const";
 import { makeTypeConstraint, makeTypeInfo } from "@/language/field";
 import { useSubnodeProperty } from "@/language/node";
 import {
@@ -28,7 +29,7 @@ import {
 } from "@/proto/wire";
 import { isNode, makeStruct, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getInterruptActions, runtime } from "@/system/runtime";
-import { canvas, pkgGraph } from "@/system/space";
+import { canvas, pkg, pkgGraph } from "@/system/space";
 import { ICON_BY_INTERRUPT_TYPE, IconInline } from "@/ui/icon";
 import { computedValue } from "@/utils/ref";
 import RunError from "@/views/builtins/RunError.vue";
@@ -68,9 +69,18 @@ const run = computed(() => {
 });
 const runBasePtr = computed(() => (run.value != null ? getRunBasePtr(run.value) : nodePtr.value));
 const runTree = computed(() => runtime.focusedRunTree);
-
-// run
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
+
+// schema
+const fields = pkgGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
+const hasVariables = computed(() => fields.value.some((f) => f.type == FieldType.VARIABLE));
+const hasInputs = computed(() => fields.value.some((f) => f.type == FieldType.INPUT));
+const hasOutputs = computed(() => fields.value.some((f) => f.type == FieldType.OUTPUT));
+const variableType = computed(() =>
+  runBasePtr.value != null
+    ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.VARIABLE })
+    : undefined,
+);
 const inputType = computed(() =>
   runBasePtr.value != null
     ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.INPUT })
@@ -81,9 +91,24 @@ const outputType = computed(() =>
     ? makeTypeInfo({ kind: TypeKind.CUSTOM_OBJECT, baseTypePtr: runBasePtr.value, baseFieldType: FieldType.OUTPUT })
     : undefined,
 );
-
-const inputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
-const outputsRef: Ref<InstanceType<typeof CustomObject> | null> = ref(null);
+function getRunObjectType(fieldType: FieldType) {
+  if (fieldType == FieldType.INPUT) return inputType.value;
+  else if (fieldType == FieldType.OUTPUT) return outputType.value;
+  else if (fieldType == FieldType.VARIABLE) return variableType.value;
+  else return undefined;
+}
+function hasRunObjectFields(fieldType: FieldType) {
+  if (fieldType == FieldType.INPUT) return hasInputs.value;
+  else if (fieldType == FieldType.OUTPUT) return hasOutputs.value;
+  else if (fieldType == FieldType.VARIABLE) return hasVariables.value;
+  else return false;
+}
+function getRunObjectValue(fieldType: FieldType) {
+  if (fieldType == FieldType.INPUT) return run.value?.inputsPacked;
+  else if (fieldType == FieldType.OUTPUT) return run.value?.outputsPacked;
+  else if (fieldType == FieldType.VARIABLE) return run.value?.variablesPacked;
+  else return undefined;
+}
 
 // interrupts
 type InterruptInfo = {
@@ -139,80 +164,63 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
     <!-- TODO :UX: also turn this into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-2">
-      <!-- Inputs -->
-      <div class="px-5">
+      <!-- Variables/Inputs -->
+      <div
+        v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT].filter((ft) => hasRunObjectFields(ft))"
+        :key="fieldType"
+        class="px-5"
+      >
         <h4
           class="flex flex-row items-center font-semibold"
           :style="{
             height: `${SECTION_HEADER_HEIGHT}px`,
           }"
         >
-          <span>Inputs</span>
+          <span>{{ toCamelName(FieldType, fieldType) }}s</span>
         </h4>
         <CustomObject
-          id="inputs"
-          ref="inputsRef"
+          :id="`fields-${fieldType}`"
           class="w-full"
-          :value-type="inputType"
+          :value-type="getRunObjectType(fieldType)"
           is-inline
           is-input
           :variant="Variant.STEALTH"
           :model-value="inputsPacked"
           @update:model-value="
             (value) => {
-              state.update(
-                { metatype: NodeType.VIEW, type: ViewType.RUN, subnode: { inputsPacked: value } },
-                { debounce: 'short' },
-              );
+              const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'variablesPacked']: value };
+              state.update({ metatype: NodeType.VIEW, type: ViewType.RUN, subnode }, { debounce: 'short' });
             }
           "
         />
-        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">Nothing</span>
       </div>
     </div>
     <!-- Existing Run -->
     <div v-else class="flex flex-col gap-y-2">
-      <!-- Ancestor runs? -->
-      <div class="px-5">
+      <!-- Variables/Inputs/Outputs -->
+      <div
+        v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT, FieldType.OUTPUT].filter((ft) =>
+          hasRunObjectFields(ft),
+        )"
+        :key="fieldType"
+        class="px-5"
+      >
         <div
           class="flex flex-row items-center"
           :style="{
             height: `${SECTION_HEADER_HEIGHT}px`,
           }"
         >
-          <span class="font-semibold">Inputs</span>
+          <span class="font-semibold">{{ toCamelName(FieldType, fieldType) }}s</span>
         </div>
         <CustomObject
-          id="inputs"
-          ref="inputsRef"
+          :id="`fields-${fieldType}`"
           class="w-full"
-          :value-type="inputType"
+          :value-type="getRunObjectType(fieldType)"
           is-inline
           :variant="Variant.STEALTH"
-          :model-value="run.inputsPacked"
+          :model-value="getRunObjectValue(fieldType)"
         />
-        <span v-if="inputsRef?.fields.length == 0" class="text-gray-400">Nothing</span>
-      </div>
-      <!-- Outputs (last run) -->
-      <div v-if="run?.outputsPacked != null" class="px-5">
-        <div
-          class="flex flex-row items-center"
-          :style="{
-            height: `${SECTION_HEADER_HEIGHT}px`,
-          }"
-        >
-          <span class="font-semibold">Outputs</span>
-        </div>
-        <CustomObject
-          id="outputs"
-          ref="outputsRef"
-          class="w-full"
-          :value-type="outputType"
-          is-inline
-          :variant="Variant.STEALTH"
-          :model-value="run.outputsPacked"
-        />
-        <span v-if="outputsRef?.fields.length == 0" class="text-gray-400">Nothing</span>
       </div>
       <!-- Error -->
       <div v-if="run?.error != null" class="px-5">

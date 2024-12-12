@@ -62,8 +62,9 @@ class ViewType(IdEnum):
     FLOW = 206
     STEP = 207
     PIPE = 208
-    TYPE = 209
-    OBJECT = 210
+    # structs
+    TYPE = 300
+    OBJECT = 301
     # helpers
     DETAIL = 403
     CREATE = 404

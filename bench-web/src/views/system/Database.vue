@@ -704,7 +704,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                   trigger: button,
                   reference: button,
                   component: ViewType.PICKER,
-                  title: 'Add Member',
+                  title: 'Add Field',
                   placement: 'bottom-left',
                   offset: 'referenceWidth',
                   props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
@@ -716,7 +716,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             "
           >
             <i class="fas fa-plus mr-1.5 text-center" />
-            <span>Member</span>
+            <span>Field</span>
           </button>
           <!-- Add record -->
           <button

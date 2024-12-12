@@ -9,7 +9,7 @@ import { BlockType, FieldType, NodeType, Orientation, Variant, ViewData, type Fi
 import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { FIELD_CONTEXT_ACTIONS, type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { FIELD_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { onAddFieldAction } from "@/ui/detail";
 import {
   isDragging,
@@ -31,12 +31,15 @@ const props = defineProps<
     id: string;
     preparedConnection?: PreparedGetConnection;
     fieldType: FieldType;
-  } & Partial<Pick<ViewData, "name" | "variant" | "orientation" | "nodePtr">>
+  } & Partial<Pick<ViewData, "variant" | "orientation" | "nodePtr">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
+const isHorizontal = computed(
+  () => orientation.value == Orientation.HORIZONTAL || orientation.value == Orientation.HORIZONTAL_REVERSED,
+);
 const state = canvas.registerView(self, id);
 
 const containerRef = ref<HTMLElement | null>(null);
@@ -156,10 +159,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
     <ul
       class="flex gap-x-2 gap-y-1 rounded"
-      :class="[
-        orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col',
-        variant == Variant.STEALTH ? 'px-0.5 py-0.5' : '',
-      ]"
+      :class="[isHorizontal ? 'flex-row' : 'flex-col', variant == Variant.STEALTH ? 'px-0.5 py-0.5' : '']"
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
       <!-- Field wrapper -->
@@ -167,19 +167,19 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-for="field in fields"
         :key="field.id"
         class="relative w-fit"
-        :class="orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]'"
+        :class="!isHorizontal ? 'w-full' : 'max-w-[200px]'"
       >
         <!-- Drop indicator -->
         <div
           v-if="activeDropZone?.targetId == field.id"
           class="absolute z-10 rounded bg-gray-400"
           :class="[
-            orientation == Orientation.HORIZONTAL ? 'h-full w-1' : 'h-1 w-full',
+            isHorizontal ? 'h-full w-1' : 'h-1 w-full',
             activeDropZone?.anchor == 'start'
-              ? orientation == Orientation.HORIZONTAL
+              ? isHorizontal
                 ? '-left-[6px]'
                 : '-top-[3px]'
-              : orientation == Orientation.HORIZONTAL
+              : isHorizontal
                 ? '-right-[6px]'
                 : '-bottom-[3px]',
           ]"
@@ -205,7 +205,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <button
         v-if="variant != Variant.STEALTH || fields.length == 0"
         class="h-[28px] rounded px-1 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
-        :class="orientation == Orientation.HORIZONTAL ? '' : 'mx-1.5'"
+        :class="isHorizontal ? '' : 'mx-1.5'"
         @click="(e) => onAddFieldAction(e, fieldType, block!, graph, () => connection.tx)"
       >
         <i class="fas fa-plus mr-1.5" />
