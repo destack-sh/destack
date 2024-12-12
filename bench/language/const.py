@@ -1155,9 +1155,10 @@ class ConditionalType(IdEnum):
     LESS_THAN = 314
     LESS_THAN_OR_EQUALS = 315
     # string comparison
-    MATCHES_REGEX = 320
+    MATCHES = 320
     STARTS_WITH = 321
     ENDS_WITH = 322
+    MATCHES_REGEX = 323
     # collections
     CONTAINS = 330
     NOT_CONTAINS = 331

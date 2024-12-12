@@ -722,7 +722,9 @@ PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalType, PostgresConditionalOp] = {
     ConditionalType.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
     # string
     ConditionalType.MATCHES_REGEX: PostgresConditionalOp.REGEXP,
-    ConditionalType.STARTS_WITH: PostgresConditionalOp.LIKE,
+    ConditionalType.MATCHES: PostgresConditionalOp.ILIKE,
+    ConditionalType.STARTS_WITH: PostgresConditionalOp.ILIKE,
+    ConditionalType.ENDS_WITH: PostgresConditionalOp.ILIKE,
     # containment
     ConditionalType.CONTAINS: PostgresConditionalOp.CONTAINS,
     ConditionalType.IN: PostgresConditionalOp.IN,

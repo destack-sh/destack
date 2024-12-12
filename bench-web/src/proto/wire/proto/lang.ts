@@ -10316,9 +10316,9 @@ export enum ExpressionType {
      */
     LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: EXPRESSION_TYPE_MATCHES_REGEX = 320;
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MATCHES = 320;
      */
-    MATCHES_REGEX = 320,
+    MATCHES = 320,
     /**
      * @generated from protobuf enum value: EXPRESSION_TYPE_STARTS_WITH = 321;
      */
@@ -10327,6 +10327,10 @@ export enum ExpressionType {
      * @generated from protobuf enum value: EXPRESSION_TYPE_ENDS_WITH = 322;
      */
     ENDS_WITH = 322,
+    /**
+     * @generated from protobuf enum value: EXPRESSION_TYPE_MATCHES_REGEX = 323;
+     */
+    MATCHES_REGEX = 323,
     /**
      * @generated from protobuf enum value: EXPRESSION_TYPE_CONTAINS = 330;
      */
@@ -10495,9 +10499,9 @@ export enum ConditionalType {
      */
     LESS_THAN_OR_EQUALS = 315,
     /**
-     * @generated from protobuf enum value: CONDITIONAL_TYPE_MATCHES_REGEX = 320;
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_MATCHES = 320;
      */
-    MATCHES_REGEX = 320,
+    MATCHES = 320,
     /**
      * @generated from protobuf enum value: CONDITIONAL_TYPE_STARTS_WITH = 321;
      */
@@ -10506,6 +10510,10 @@ export enum ConditionalType {
      * @generated from protobuf enum value: CONDITIONAL_TYPE_ENDS_WITH = 322;
      */
     ENDS_WITH = 322,
+    /**
+     * @generated from protobuf enum value: CONDITIONAL_TYPE_MATCHES_REGEX = 323;
+     */
+    MATCHES_REGEX = 323,
     /**
      * @generated from protobuf enum value: CONDITIONAL_TYPE_CONTAINS = 330;
      */

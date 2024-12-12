@@ -1034,9 +1034,10 @@ class ExpressionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EXPRESSION_TYPE_GREATER_THAN_OR_EQUALS: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_LESS_THAN: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_LESS_THAN_OR_EQUALS: _ClassVar[ExpressionType]
-    EXPRESSION_TYPE_MATCHES_REGEX: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MATCHES: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_STARTS_WITH: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_ENDS_WITH: _ClassVar[ExpressionType]
+    EXPRESSION_TYPE_MATCHES_REGEX: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_CONTAINS: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_NOT_CONTAINS: _ClassVar[ExpressionType]
     EXPRESSION_TYPE_IN: _ClassVar[ExpressionType]
@@ -1084,9 +1085,10 @@ class ConditionalType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CONDITIONAL_TYPE_GREATER_THAN_OR_EQUALS: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_LESS_THAN: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_LESS_THAN_OR_EQUALS: _ClassVar[ConditionalType]
-    CONDITIONAL_TYPE_MATCHES_REGEX: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_MATCHES: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_STARTS_WITH: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_ENDS_WITH: _ClassVar[ConditionalType]
+    CONDITIONAL_TYPE_MATCHES_REGEX: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_CONTAINS: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_NOT_CONTAINS: _ClassVar[ConditionalType]
     CONDITIONAL_TYPE_IN: _ClassVar[ConditionalType]
@@ -2509,9 +2511,10 @@ EXPRESSION_TYPE_GREATER_THAN: ExpressionType
 EXPRESSION_TYPE_GREATER_THAN_OR_EQUALS: ExpressionType
 EXPRESSION_TYPE_LESS_THAN: ExpressionType
 EXPRESSION_TYPE_LESS_THAN_OR_EQUALS: ExpressionType
-EXPRESSION_TYPE_MATCHES_REGEX: ExpressionType
+EXPRESSION_TYPE_MATCHES: ExpressionType
 EXPRESSION_TYPE_STARTS_WITH: ExpressionType
 EXPRESSION_TYPE_ENDS_WITH: ExpressionType
+EXPRESSION_TYPE_MATCHES_REGEX: ExpressionType
 EXPRESSION_TYPE_CONTAINS: ExpressionType
 EXPRESSION_TYPE_NOT_CONTAINS: ExpressionType
 EXPRESSION_TYPE_IN: ExpressionType
@@ -2550,9 +2553,10 @@ CONDITIONAL_TYPE_GREATER_THAN: ConditionalType
 CONDITIONAL_TYPE_GREATER_THAN_OR_EQUALS: ConditionalType
 CONDITIONAL_TYPE_LESS_THAN: ConditionalType
 CONDITIONAL_TYPE_LESS_THAN_OR_EQUALS: ConditionalType
-CONDITIONAL_TYPE_MATCHES_REGEX: ConditionalType
+CONDITIONAL_TYPE_MATCHES: ConditionalType
 CONDITIONAL_TYPE_STARTS_WITH: ConditionalType
 CONDITIONAL_TYPE_ENDS_WITH: ConditionalType
+CONDITIONAL_TYPE_MATCHES_REGEX: ConditionalType
 CONDITIONAL_TYPE_CONTAINS: ConditionalType
 CONDITIONAL_TYPE_NOT_CONTAINS: ConditionalType
 CONDITIONAL_TYPE_IN: ConditionalType

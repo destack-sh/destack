@@ -442,10 +442,13 @@ def _pg_compile_conditional(
             value = list(cond.value) if not isinstance(cond.value, list) else cond.value
             right = sqlstr("ALL({})").format(sql.Literal(value))
             return SqlComparison(left=left, op=PostgresConditionalOp.NEQ, right=right)
+        elif cond.type == ConditionalType.MATCHES:
+            # wrap a % in the value with %
+            right = sqlstr("'%' || {} || '%'").format(sql.Literal(cond.value))
         elif cond.type == ConditionalType.STARTS_WITH:
             right = sqlstr("{} || '%'").format(sql.Literal(cond.value))
         elif cond.type == ConditionalType.ENDS_WITH:
-            right = sqlstr("'%s' || {}").format(sql.Literal(cond.value))
+            right = sqlstr("'%' || {}").format(sql.Literal(cond.value))
         else:
             assert cond.value is not None, f"cannot compare {cond!r} with None"
             right = sql.Literal(cond.value)

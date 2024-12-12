@@ -173,10 +173,7 @@ const {
       isEnabled: nodePtr.value != null && blockRaw.value != null,
       sort: sorts.value.length > 0 ? sorts.value : [DEFAULT_SORT],
       filter: makeAndConditional(filters.value),
-      select: {
-        metatype: ObjectType.SELECT_OPTIONS,
-        selectFieldsPtr: fieldsRaw.value.map(toNodeRef),
-      },
+      select: { metatype: ObjectType.SELECT_OPTIONS, selectFieldsPtr: fieldsRaw.value.map(toNodeRef) },
     }),
   ),
 );

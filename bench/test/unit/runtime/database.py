@@ -262,6 +262,17 @@ async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
     assert Record1.Field1 == "Record1"  # type: ignore
 
 
+async def test_record_recursive_reference(hosted_runtime: RuntimeHandle):
+    """Create a Record with a recursive reference to itself."""
+    Database1 = Block.new(BlockType.DATABASE, "Database1")
+    Database1.fields.append(Field.member("Record", Database1))
+    hosted_runtime.page().blocks.append(Database1)
+    Record1 = Database1.records.create(title="Record1")
+    Record1.Record = Record1  # type: ignore
+    await hosted_runtime.session.commit()
+    assert Record1.Record == Record1  # type: ignore
+
+
 async def test_search_record(hosted_runtime: RuntimeHandle):
     """Insert, update and query Records with various filters."""
     Database1 = Block.new(

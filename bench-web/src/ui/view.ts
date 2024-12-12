@@ -51,7 +51,7 @@ export type Vector3 = Omit<Vector3Data, "metatype">;
 export type Vector4 = Omit<Vector4Data, "metatype">;
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
-  return component.__name ?? (component as any).type.__name;
+  return component.__name ?? (component as any).type.__name ?? (component as any).type.name;
 }
 
 export function describeVueComponent(component: ComponentInstance<any>): string {
@@ -108,7 +108,7 @@ export function findViewComponentUp(
       if ((el as any).__viewComponent != null) el = (el as any).__viewComponent;
       else el = el.parentElement!;
     } else {
-      if (where == null || where(el)) return el;
+      if (isViewComponent(el) && (where == null || where(el))) return el;
       else el = el.parent;
     }
   }
