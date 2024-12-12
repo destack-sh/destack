@@ -125,7 +125,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     class="group/block relative select-none rounded transition-colors duration-150"
     :class="[
       isSelected ? 'bg-orange-400/20' : '',
-      isPage ? 'cursor-pointer ' : '',
+      isPage ? 'cursor-pointer' : '',
       isPage && !isSelected ? 'hover:bg-gray-100' : '',
     ]"
     :data-suppress-drag="isPage ? 'select' : undefined"
@@ -162,7 +162,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       v-bind="state.getChildState('text')"
       @update:model-value="(newText) => connection.tx.update(block!, { text: newText }, { debounce: 'long' })"
     />
-    <div v-else-if="block.type != BlockType.PAGE" class="rounded-b pb-1 border-gray-200">
+    <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200 pb-1">
       <!-- Types -->
       <Type
         v-if="[BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
@@ -196,10 +196,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :node-ptr="props.nodePtr"
             :field-type="FieldType.OUTPUT"
           />
-          <span v-if="fields?.some((f) => f.type == FieldType.VARIABLE)" class="text-xs text-gray-400">◆</span>
           <Type
             id="type.input"
-            class="ml"
+            class="ml-auto"
             :node="block"
             :prepared-connection="preparedConnection"
             :node-ptr="props.nodePtr"

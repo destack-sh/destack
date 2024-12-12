@@ -85,7 +85,6 @@ enum EnumType {
   ENUM_TYPE_STEP_TYPE = 23020;
   ENUM_TYPE_PORT_SIDE = 23021;
   ENUM_TYPE_PIPE_TYPE = 23022;
-  ENUM_TYPE_NOTIFICATION_LEVEL = 23023;
   ENUM_TYPE_NODE_MODE = 23024;
   ENUM_TYPE_SPACE_TYPE = 23501;
   ENUM_TYPE_VIEW_TYPE = 23502;
@@ -590,7 +589,6 @@ enum BenchType {
   BENCH_TYPE_STEP_TYPE = 23020;
   BENCH_TYPE_PORT_SIDE = 23021;
   BENCH_TYPE_PIPE_TYPE = 23022;
-  BENCH_TYPE_NOTIFICATION_LEVEL = 23023;
   BENCH_TYPE_NODE_MODE = 23024;
   BENCH_TYPE_SPACE_TYPE = 23501;
   BENCH_TYPE_VIEW_TYPE = 23502;
@@ -1340,14 +1338,6 @@ enum PipeType {
   PIPE_TYPE_SELECT = 2;
   PIPE_TYPE_OPTION = 3;
   PIPE_TYPE_STREAM = 50;
-}
-
-// The level of interaction required for a notification.
-enum NotificationLevel {
-  NOTIFICATION_LEVEL_UNSPECIFIED = 0;
-  NOTIFICATION_LEVEL_PASSIVE = 1;
-  NOTIFICATION_LEVEL_ACTIVE = 2;
-  NOTIFICATION_LEVEL_URGENT = 3;
 }
 
 enum NodeMode {
@@ -2373,8 +2363,8 @@ message ServerData {
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -2405,8 +2395,8 @@ message StoreData {
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -2436,8 +2426,8 @@ message DriveData {
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -2462,8 +2452,8 @@ message VaultData {
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -2488,8 +2478,8 @@ message CacheData {
   optional google.protobuf.Value subnode_packed = 29;
   string name = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -2827,10 +2817,10 @@ message FileData {
   optional google.protobuf.Value subnode_packed = 29;
   string title = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -3161,10 +3151,10 @@ message MachineData {
   MachineType type = 30;
   string title = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -3200,10 +3190,10 @@ message BrowserData {
   BrowserType type = 30;
   string title = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -3382,10 +3372,10 @@ message SecretData {
   optional google.protobuf.Value subnode_packed = 29;
   string title = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;
@@ -3441,10 +3431,10 @@ message StreamData {
   optional google.protobuf.Value subnode_packed = 29;
   string title = 32;
   ResourceStatus status = 33;
+  optional TextData text = 34;
   Region region = 35;
   ResourceOccupancy occupancy = 36;
   optional NodeReferenceData owned_by_ptr = 37;
-  optional TextData text = 39;
   optional google.protobuf.Timestamp activated_at = 40;
   optional google.protobuf.Timestamp deactivated_at = 41;
   optional google.protobuf.Timestamp reset_at = 42;

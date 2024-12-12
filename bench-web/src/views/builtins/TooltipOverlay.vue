@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { IconInline, toIconMaybe } from "@/ui/icon";
-import { getFloatingPosition, type FloatingOptions } from "@/utils/floating";
 import { Shortcut, activeTooltips, type TooltipInstance } from "@/ui/tooltip";
+import { getFloatingPosition, type FloatingOptions } from "@/utils/floating";
 import { ref, type Ref } from "vue";
 
 const tooltipRefs: Ref<Record<string, HTMLDivElement>> = ref({});
@@ -10,7 +10,7 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
   // get bounding
   const tooltipRect = el.getBoundingClientRect();
   const referenceRect = tooltip.reference.getBoundingClientRect();
-  const options: FloatingOptions = { placement: "top", referenceMargin: 4, containerMargin: 12, ...tooltip.info };
+  const options: FloatingOptions = { placement: "top", referenceMargin: 4, containerMargin: 12, ...tooltip };
   const containerRect =
     tooltip.container != null
       ? tooltip.container.getBoundingClientRect()
@@ -47,31 +47,21 @@ function positionTooltip(tooltip: TooltipInstance, el: HTMLDivElement) {
               : delete tooltipRefs[tooltip.id]
         "
         class="absolute z-100 w-fit max-w-80 whitespace-nowrap rounded border border-gray-200 bg-white text-gray-700"
-        :class="[tooltip.info.small ? 'px-1.5 py-0.5' : 'px-2.5 py-1']"
+        :class="[tooltip.small ? 'px-1.5 py-0.5' : 'px-2.5 py-1']"
         @mouseenter="tooltip.reference.tooltipOnMouseEnter"
         @mouseleave="tooltip.reference.tooltipOnMouseLeave"
       >
         <!-- Header -->
-        <p v-if="tooltip.info.icon || tooltip.info.title" class="mb-0.5 flex flex-row items-center">
-          <IconInline
-            v-if="tooltip.info.icon"
-            class="mr-1.5 w-5 text-gray-700"
-            v-bind="toIconMaybe(tooltip.info.icon)"
-          />
-          <span
-            v-if="tooltip.info.title"
-            class="truncate"
-            :class="tooltip.info.small ? 'font-medium' : 'font-semibold'"
-          >
-            {{ typeof tooltip.info.title == "function" ? tooltip.info.title() : tooltip.info.title }}
+        <p v-if="tooltip.icon || tooltip.title" class="mb-0.5 flex flex-row items-center gap-x-1.5">
+          <IconInline v-if="tooltip.icon" class="w-5 text-gray-700" v-bind="toIconMaybe(tooltip.icon)" />
+          <span v-if="tooltip.title" class="truncate" :class="tooltip.small ? 'font-medium' : 'font-semibold'">
+            {{ typeof tooltip.title == "function" ? tooltip.title() : tooltip.title }}
           </span>
-          <span v-if="tooltip.info.shortcuts" class="ml-auto pl-4">
-            <Shortcut class="text-gray-700" :shortcut="tooltip.info.shortcuts[0]" />
-          </span>
+          <Shortcut v-for="shortcut in tooltip.shortcuts" class="text-gray-700" :shortcut="shortcut" />
         </p>
         <!-- Content -->
         <p class="max-h-20 max-w-full truncate whitespace-break-spaces">
-          {{ typeof tooltip.info.text == "function" ? tooltip.info.text() : tooltip.info.text }}
+          {{ typeof tooltip.text == "function" ? tooltip.text() : tooltip.text }}
         </p>
       </div>
     </template>

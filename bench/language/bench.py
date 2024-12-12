@@ -315,8 +315,8 @@ class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingConte
     parent: Bench | None = p_node_parent(4, NodeType.BENCH, is_system=True)
     # ... space for type/title/...
     status: ResourceStatus = p_system(33, default=ResourceStatus.DECLARED, default_sql=None)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default=REGION, default_sql=None)
-    text: Optional["Text"] = p_regular(39, default=None, struct=StructType.TEXT)
 
     # target status
     activated_at: Optional[datetime] = p_internal(40, default=None)

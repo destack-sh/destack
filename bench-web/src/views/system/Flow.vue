@@ -179,6 +179,7 @@ const actions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = 
         kind: "view",
         component: ViewType.PICKER,
         placement: "inside-top",
+        title: "Add Step",
         props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
         onApply: (value) => {
           flowCtx.createStep({ parent: flow.value!, step: { type: value } });
@@ -197,6 +198,7 @@ const actions: Partial<ActionMapImplementation<"flow" | "space" | "session">> = 
         kind: "view",
         component: ViewType.PICKER,
         placement: "bottom-right",
+        title: "Add Step",
         props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
         onApply: (value) => {
           const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Pipe" } });
@@ -297,7 +299,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     <!-- Header -->
     <div
       v-if="flow && variant != Variant.COMPACT"
-      ref="columnHeaderRef"
+      ref="headerRef"
       :style="{
         marginLeft: `${GUTTER_WIDTH}px`,
         marginRight: `${GUTTER_WIDTH}px`,
@@ -313,89 +315,63 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         :node="flow"
         :tx="() => connection.tx"
       />
-      <div class="flex flex-row flex-wrap items-center">
+      <div class="flex flex-row flex-wrap items-center gap-x-2">
         <!-- Signature -->
-        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1 border-gray-200">
-          <Type
-            id="type.input"
-            class=""
-            :node="flow"
-            :prepared-connection="preparedConnection"
-            :node-ptr="props.nodePtr"
-            :field-type="FieldType.INPUT"
-          />
-          <i
-            v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
-            class="fas fa-arrow-right-long text-base text-gray-400"
-          />
-          <Type
-            id="type.output"
-            class=""
-            :node="flow"
-            :prepared-connection="preparedConnection"
-            :node-ptr="props.nodePtr"
-            :field-type="FieldType.OUTPUT"
-          />
-          <span v-if="fields?.some((f) => f.type == FieldType.VARIABLE)" class="text-xs text-gray-400">◆</span>
-          <Type
-            id="type.input"
-            :node="flow"
-            :prepared-connection="preparedConnection"
-            :node-ptr="props.nodePtr"
-            :field-type="FieldType.VARIABLE"
-          />
-        </div>
-        <!-- Canvas controls -->
-        <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-0.5">
-          <!-- Zoom -->
-          <button
-            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.zoom('out', flowCtx.centerVec!, 10)"
-          >
-            <i class="fas fa-minus w-5 text-center" />
-          </button>
-          <button
-            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.zoom(1.0, flowCtx.centerVec!, 1)"
-          >
-            {{ Math.round(viewport.scale * 100) }}%
-          </button>
-          <button
-            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
-          >
-            <i class="fas fa-plus w-5 text-center" />
-          </button>
-          <!-- Auto/Reset -->
-          <button
-            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.resetViewport()"
-          >
-            <i class="fas fa-arrows-to-dot w-5 text-center" />
-          </button>
-          <!-- Add step -->
-          <button
-            ref="createStepRef"
-            class="group/button rounded px-1 py-0.5 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-            @click="
-              (e) =>
-                canvas.pushPopover({
-                  kind: 'view',
-                  trigger: e.target as HTMLElement,
-                  reference: { x: e.clientX, y: e.clientY },
-                  component: ViewType.PICKER,
-                  placement: 'bottom-left',
-                  props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
-                  onApply: (value) => {
-                    flowCtx.createStep({ parent: flow!, step: { type: value } });
-                  },
-                })
-            "
-          >
-            <i class="fas fa-plus mr-1.5 text-center" />
-            <span class="">Step</span>
-          </button>
-        </div>
+        <!-- Inputs -->
+        <Type
+          id="type.input"
+          class=""
+          :node="flow"
+          :prepared-connection="preparedConnection"
+          :node-ptr="props.nodePtr"
+          :field-type="FieldType.INPUT"
+        />
+        <i
+          v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
+          class="fas fa-arrow-right-long text-base text-gray-400"
+        />
+        <!-- Outputs -->
+        <Type
+          id="type.output"
+          class=""
+          :node="flow"
+          :prepared-connection="preparedConnection"
+          :node-ptr="props.nodePtr"
+          :field-type="FieldType.OUTPUT"
+        />
+        <!-- Variables -->
+        <Type
+          id="type.input"
+          class="ml-auto"
+          :node="flow"
+          :prepared-connection="preparedConnection"
+          :node-ptr="props.nodePtr"
+          :field-type="FieldType.VARIABLE"
+        />
+        <!-- Add step -->
+        <button
+          ref="createStepRef"
+          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+          @click="
+            (e) =>
+              canvas.pushPopover({
+                kind: 'view',
+                trigger: e.target as HTMLElement,
+                reference: e.target as HTMLElement,
+                component: ViewType.PICKER,
+                title: 'Add Step',
+                placement: 'bottom-left',
+                offset: 'referenceWidth',
+                props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
+                onApply: (value) => {
+                  flowCtx.createStep({ parent: flow!, step: { type: value } });
+                },
+              })
+          "
+        >
+          <i class="fas fa-plus mr-1.5 text-center" />
+          <span class="">Step</span>
+        </button>
       </div>
     </div>
     <!-- Canvas body -->
@@ -564,11 +540,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <!-- Menu -->
         <div
-          class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
+          class="pointer-events-auto mb-3 z-20 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
           data-suppress-drag="both"
           :class="
             variant != Variant.COMPACT
-              ? ''
+              ? 'opacity-100'
               : 'opacity-0 transition-colors duration-150 group-hover/block-line:opacity-100 group-hover/flow:opacity-100'
           "
         >
@@ -581,9 +557,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
                 canvas.pushPopover({
                   kind: 'view',
                   trigger: e.target as HTMLElement,
-                  reference: { x: e.clientX, y: e.clientY },
+                  reference: e.target as HTMLElement,
+                  title: 'Add Step',
                   component: ViewType.PICKER,
-                  placement: 'bottom-left',
+                  placement: 'top',
                   props: { valueType: makeTypeInfo({ kind: TypeKind.ENUM, benchType: BenchType.STEP_TYPE }) },
                   onApply: (value) => {
                     flowCtx.createStep({ parent: flow!, step: { type: value } });

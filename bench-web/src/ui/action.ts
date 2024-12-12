@@ -73,7 +73,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.navigate.reset",
   "space.navigate.pageUp",
   "space.navigate.pageDown",
-  "space.navigate.goBack",
+  "space.navigate.goBackward",
   "space.navigate.goForward",
   // select
   "space.select.all",
@@ -127,7 +127,7 @@ export const ACTION_BUILTIN_IDS = [
   "code.edit.format",
   "code.edit.comment",
   // view
-  "view.history.goBack",
+  "view.history.goBackward",
   "view.history.goForward",
   "view.navigate.duplicateTab",
   "view.navigate.focusPreviousTab",
@@ -639,16 +639,17 @@ declareActionMap<"space">({
     text: "Page down",
     shortcuts: ["pagedown"],
   },
-  "space.navigate.goBack": {
+  "space.navigate.goBackward": {
     icon: "fas fa-arrow-turn-left",
     title: "Go Back",
     text: "Go back in view history",
-    shortcuts: ["mod+shift+delete"],
+    shortcuts: ["mod+shift+backspace"],
   },
   "space.navigate.goForward": {
     icon: "fas fa-arrow-turn-right",
     title: "Go Forward",
     text: "Go forward in view history",
+    shortcuts: ["mod+shift+enter"],
   },
   // select
   "space.select.all": {
@@ -947,7 +948,7 @@ declareActionMap<"code">({
 // view
 declareActionMap<"view">({
   // history
-  "view.history.goBack": {
+  "view.history.goBackward": {
     icon: "fas fa-chevron-left",
     title: "Go Back",
     text: "Go back to the previous view",
@@ -957,6 +958,7 @@ declareActionMap<"view">({
     icon: "fas fa-chevron-right",
     title: "Go Forward",
     text: "Go forward to the next view",
+    shortcuts: ["mod+shift+enter"],
   },
   // navigate
   "view.navigate.duplicateTab": {

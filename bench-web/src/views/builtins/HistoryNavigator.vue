@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { NodeType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
+import { ActionBuiltinId } from "@/ui/action";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { computed, inject } from "vue";
 
@@ -17,6 +18,12 @@ defineExpose({
 <template>
   <div v-if="isActive" class="flex flex-row gap-x-1 px-1">
     <button
+      v-tooltip="{
+        group: 'history',
+        placement: 'bottom',
+        title: 'Go back',
+        actions: ['view.history.goBackward'] as ActionBuiltinId[],
+      }"
       class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoBackward.value"
       @click="history?.go(-1)"
@@ -24,6 +31,12 @@ defineExpose({
       <i class="fas fa-arrow-left" />
     </button>
     <button
+      v-tooltip="{
+        group: 'history',
+        placement: 'bottom',
+        title: 'Go forward',
+        actions: ['view.history.goForward'] as ActionBuiltinId[],
+      }"
       class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoForward.value"
       @click="history?.go(1)"

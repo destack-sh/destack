@@ -29,14 +29,15 @@ const activeResultLocalId: Ref<string | null> = ref(null);
 
 const isQueryEmpty = computed(() => query.value.length === 0);
 const indices = computed(() => {
-  const m = mode.value;
   const indices: Record<string, SearchIndex<any>> = {};
 
   // actions
-  if (["everywhere", "actions"].includes(m)) indices["Actions"] = actionIndex();
+  if (["everywhere", "actions"].includes(mode.value)) {
+    indices["Actions"] = actionIndex();
+  }
 
   // views
-  if (space.value != null && ["everywhere", "space", "views"].includes(m))
+  if (space.value != null && ["everywhere", "space", "views"].includes(mode.value)) {
     indices["Views"] = graphIndex({
       id: "views",
       graph: spaceGraph,
@@ -46,10 +47,15 @@ const indices = computed(() => {
       // only tabs for now
       filter: (node, ancestors) => (ancestors[0]?.node as ViewData)?.type == ViewType.TAB,
     });
+  }
 
   // package
   // NOTE: we only search package deeply if we have a query for performance & clarity
-  if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "space", "bench", "package"].includes(m))
+  if (
+    packagePtr.value != null &&
+    hasLocalPkg.value &&
+    ["everywhere", "space", "bench", "package"].includes(mode.value)
+  ) {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: pkgGraph,
@@ -58,6 +64,7 @@ const indices = computed(() => {
       skipDepth: 1,
       maxDepth: isQueryEmpty.value ? 1 : undefined,
     });
+  }
 
   return indices;
 });

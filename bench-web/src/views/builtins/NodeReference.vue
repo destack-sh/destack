@@ -76,7 +76,7 @@ defineExpose({
         })
       "
       v-bind="getNodeIcon(node)"
-      class="rounded text-center"
+      class="rounded text-center data-[popover=true]:bg-gray-100"
       :class="[...iconClass, isInput ? 'hover:cursor-pointer hover:bg-gray-100' : '', iconLight ? '' : 'text-gray-700']"
     />
     <!-- Identifier -->

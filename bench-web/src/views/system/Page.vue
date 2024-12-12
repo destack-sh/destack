@@ -305,6 +305,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 (): PopoverInfoIn => ({
                   kind: 'view',
                   component: ViewType.PICKER,
+                  title: 'Add Block Below',
                   placement: 'bottom',
                   props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
                   onApply: (blockType: BlockType) => createAndFocusBlock({ type: blockType }, 'after', block),
@@ -312,6 +313,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               "
               class="ml-2 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
               :style="{}"
+              @click="(e) => canvas.select([block])"
             >
               <i class="fas fa-plus" />
             </button>
