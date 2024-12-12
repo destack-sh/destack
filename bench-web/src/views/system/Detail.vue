@@ -10,7 +10,7 @@ import { DetailSection, makeInspectLayout } from "@/ui/detail";
 import { computedValue } from "@/utils/ref";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import Type from "@/views/system/Type.vue";
+import FieldList from "@/views/builtins/FieldList.vue";
 import { computed, toRef } from "vue";
 
 const SECTION_HEADER_HEIGHT = 32;
@@ -152,7 +152,7 @@ defineExpose<ViewExposed>({ self, id });
           </div>
           <!-- Fields -->
           <div v-if="row.type == 'fields'" class="rounded border border-gray-200">
-            <Type
+            <FieldList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
               :node-ptr="row.delegatePtr ?? nodePtr"

@@ -28,9 +28,8 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FLOW]: () => import("@/views/system/Flow.vue"),
   [ViewType.STEP]: () => import("@/views/system/Step.vue"),
   [ViewType.PIPE]: () => import("@/views/system/Pipe.vue"),
-  [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
+  // structs
   [ViewType.OBJECT]: () => import("@/views/system/CustomObject.vue"),
-
   // helpers
   [ViewType.TREE]: () => import("@/views/system/Tree.vue"),
   [ViewType.DETAIL]: () => import("@/views/system/Detail.vue"),

@@ -601,6 +601,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
 
     # member-only flags
     # is_stored/is_computed, is_indexed, is_unique, ...
+    # resource_options, ...?
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

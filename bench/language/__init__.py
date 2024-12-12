@@ -24,6 +24,7 @@ from .bench import (
     VirtualResourceNode,
 )
 from .block import Block
+from .browser import Browser, BrowserType
 from .code import Code, CodeLine, CodeType, code
 from .connection import (
     AggregateConnection,
@@ -84,7 +85,7 @@ from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .interrupt import Breakpoint, BreakpointAction, BreakpointSite, Interrupt, InterruptType
 from .list import LocalNodeList, NodeList, RemoteNodeList, ValueList
 from .log import Log, LogInfo, LogKind, LogLevel
-from .machine import Browser, Machine
+from .machine import Machine, MachineImage, MachineType
 from .message import Message
 from .node import (
     BenchNode,
@@ -199,6 +200,7 @@ __all__ = [
     "BreakpointAction",
     "BreakpointSite",
     "Browser",
+    "BrowserType",
     "BuiltinObject",
     "C",
     "Cache",
@@ -261,6 +263,8 @@ __all__ = [
     "LogKind",
     "LogLevel",
     "Machine",
+    "MachineImage",
+    "MachineType",
     "Message",
     "MultipleNodesFoundError",
     "Node",

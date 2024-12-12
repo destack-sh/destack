@@ -45,7 +45,7 @@ import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
-import Type from "@/views/system/Type.vue";
+import FieldList from "@/views/builtins/FieldList.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, onMounted, provide, ref, toRef, type Ref } from "vue";
 
@@ -318,7 +318,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <div class="flex flex-row flex-wrap items-center gap-x-2">
         <!-- Signature -->
         <!-- Inputs -->
-        <Type
+        <FieldList
           id="type.input"
           class=""
           :node="flow"
@@ -331,7 +331,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           class="fas fa-arrow-right-long text-base text-gray-400"
         />
         <!-- Outputs -->
-        <Type
+        <FieldList
           id="type.output"
           class=""
           :node="flow"
@@ -340,7 +340,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :field-type="FieldType.OUTPUT"
         />
         <!-- Variables -->
-        <Type
+        <FieldList
           id="type.input"
           class="ml-auto"
           :node="flow"

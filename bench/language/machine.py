@@ -10,7 +10,7 @@ from bench.language.bench import (
 from bench.language.const import VERSION, EnumType, NodeType, StructType, enum_
 from bench.language.node import Struct, node_, struct_
 from bench.language.property import p_internal, p_kernel, p_node_parent, p_regular, p_system
-from bench.proto.wire.lang_pb2 import BrowserData, MachineData
+from bench.proto.wire.lang_pb2 import MachineData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -55,19 +55,3 @@ class Machine(PhysicalResourceNode[MachineData]):
     target_cpu: Optional[float] = p_regular(61, default=None, description="vCPU count")
     ram: float = p_regular(62, description="GB", constraint=RAM_CONSTRAINT)
     target_ram: Optional[float] = p_regular(63, default=None, description="GB")
-
-
-@enum_(EnumType.BROWSER_TYPE)
-class BrowserType(IdEnum):
-    CHROME = 1
-
-
-@node_(NodeType.BROWSER)
-class Browser(PhysicalResourceNode[BrowserData]):
-    """A Browser instance for web browsing."""
-
-    type: BrowserType = p_regular(30, default=BrowserType.CHROME)
-
-    version: str | None = p_regular(50, default=None)
-    target_version: Optional[str] = p_regular(51, default=None)
-    external_name: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)

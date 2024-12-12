@@ -16,7 +16,7 @@ import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
 import Database from "@/views/system/Database.vue";
 import Flow from "@/views/system/Flow.vue";
-import Type from "@/views/system/Type.vue";
+import FieldList from "@/views/builtins/FieldList.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -164,7 +164,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     />
     <div v-else-if="block.type != BlockType.PAGE" class="rounded-b border-gray-200 pb-1">
       <!-- Types -->
-      <Type
+      <FieldList
         v-if="[BlockType.CHOICE, BlockType.MESSAGE].includes(block.type)"
         id="type"
         :node="block"
@@ -176,7 +176,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <template v-if="block.type == BlockType.ACTION || block.type == BlockType.FLOW">
         <!-- Signature -->
         <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-1">
-          <Type
+          <FieldList
             id="type.input"
             class=""
             :node="block"
@@ -188,7 +188,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
             class="fas fa-arrow-right-long text-base text-gray-400"
           />
-          <Type
+          <FieldList
             id="type.output"
             class=""
             :node="block"
@@ -196,7 +196,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             :node-ptr="props.nodePtr"
             :field-type="FieldType.OUTPUT"
           />
-          <Type
+          <FieldList
             id="type.input"
             class="ml-auto"
             :node="block"
