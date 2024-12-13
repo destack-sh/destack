@@ -4,7 +4,7 @@ import { getVueComponentType } from "@/ui/view";
 import type { ViewComponent } from "@/views/common";
 
 // NOTE!: Only put ABSOLUTELY NECESSARY definitions for the view registry here.
-// Any change in any component or import will cause all dependencies to hot reload!
+// Any change in any component or import will cause all dependencies to hot reload during development!
 // NOTE: Architecture: we register these components lazily to avoid force reloading everything during local development.
 //  (Otherwise any change in any component requires this file to be reloaded, forcing *all* components to be reloaded.)
 // NOTE: sync with inverse registry in common :ViewRegistry
@@ -30,6 +30,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.PIPE]: () => import("@/views/system/Pipe.vue"),
   // structs
   [ViewType.OBJECT]: () => import("@/views/system/CustomObject.vue"),
+  [ViewType.FIELD_LIST]: () => import("@/views/system/FieldList.vue"),
   // helpers
   [ViewType.TREE]: () => import("@/views/system/Tree.vue"),
   [ViewType.DETAIL]: () => import("@/views/system/Detail.vue"),

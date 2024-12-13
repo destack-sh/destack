@@ -269,7 +269,7 @@ defineExpose<ViewExposed>({
         <!-- Clear -->
         <button
           v-if="hasValue && !valueType?.isRequired"
-          class="mr-2 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+          class="mr-2 text-gray-400 opacity-0 transition-colors duration-150 hover:text-gray-700 group-hover:opacity-100"
           @click.stop="clear"
         >
           <i class="fas fa-xmark" />
@@ -328,7 +328,7 @@ defineExpose<ViewExposed>({
             <!-- Deselect -->
             <button
               v-if="!isDisabled && isInput"
-              class="ml-1.5 text-gray-400 hover:text-gray-700"
+              class="ml-1.5 text-gray-400 transition-colors duration-150 hover:text-gray-700"
               @click.stop="deselect(i)"
             >
               <i class="fas fa-xmark" />

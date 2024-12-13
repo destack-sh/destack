@@ -87,8 +87,7 @@ export function isIdentifiedViewComponent(
 export function isViewComponentIn(component: ViewComponent, viewTypes: Set<ViewType>): boolean {
   const componentType = getVueComponentType(component);
   const viewType = getViewTypeByComponentName(componentType);
-  if (viewType == null) throw new Error(`no view type for component: ${componentType}`);
-  return viewTypes.has(viewType);
+  return viewType != null && viewTypes.has(viewType);
 }
 
 export function getViewComponentId(component: ViewComponent): string {

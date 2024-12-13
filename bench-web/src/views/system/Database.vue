@@ -637,7 +637,10 @@ defineExpose<ViewExposed>({ self, id, actions });
             <span class="text-gray-900">{{
               findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
             }}</span>
-            <button class="ml-1.5 text-gray-400 opacity-0 group-hover:opacity-100" @click="() => sorts.splice(i, 1)">
+            <button
+              class="ml-1.5 text-gray-400 opacity-0 transition-colors duration-150 group-hover:opacity-100"
+              @click="() => sorts.splice(i, 1)"
+            >
               <i class="fas fa-xmark" />
             </button>
           </div>
@@ -813,9 +816,9 @@ defineExpose<ViewExposed>({ self, id, actions });
               width: `${column.width}px`,
             }"
             data-contextmenu-items="table.column.*"
-            :data-node-id="column.kind == 'field' ? column.field.ck : undefined"
-            :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
             :data-node-type="column.kind == 'field' ? column.field.metatype : undefined"
+            :data-node-id="column.kind == 'field' ? column.field.id : undefined"
+            :data-node-ck="column.kind == 'field' ? column.field.ck : undefined"
             data-suppress-drag="select"
             :draggable="column.kind == 'field'"
             @dragstart.stop="(e: DragEvent) => column.kind == 'field' && startDraggingIfAllowed(e, column.field)"

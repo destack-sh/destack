@@ -1,10 +1,12 @@
 import { blockToType } from "@/language/block";
 import {
   isEnumType,
+  isInBenchNodeType,
   isLocalNodeType,
   isNodeType,
   isSourceNodeType,
   isStructType,
+  isVirtualResourceNodeType,
   TYPE_BLOCK_TYPES,
 } from "@/language/const";
 import { EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
@@ -38,7 +40,7 @@ import {
   RemoteSearchConnection,
   SearchConnectionParams,
 } from "@/system/connection";
-import { pkgGraph } from "@/system/space";
+import { benchGraph, pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import {
   AVAILABLE_FA_ICONS,
@@ -87,6 +89,7 @@ export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; path?:
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
   itemId: string; // per index
   title: string;
+  aliases?: string[]; // nocheckin: support search aliases (email, slug, ...)
   category?: string;
 };
 
@@ -746,7 +749,7 @@ export function makeRemoteSearchParams(options: {
       }
     }
   }
-  const scope = isLocalNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+  const scope = isInBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
   const sort: ExpressionData[] = [
     makeExpression({
       type: ExpressionType.DESCENDING,
@@ -801,7 +804,12 @@ export function useValueSearch(options: {
       const query = queryDebounced.value.trim();
 
       // acquire new remote connection if needed
-      if (isEnabled.value && isNodeType(valueType.value?.benchType) && !isSourceNodeType(valueType.value?.benchType)) {
+      if (
+        isEnabled.value &&
+        isNodeType(valueType.value?.benchType) &&
+        !isSourceNodeType(valueType.value?.benchType) &&
+        !isVirtualResourceNodeType(valueType.value?.benchType)
+      ) {
         // acquire/update remote connection
         if (
           lastRemoteValueType != null &&
@@ -847,23 +855,25 @@ export function useValueSearch(options: {
         return remoteGraphIndex.value;
       } else {
         // local graph
+        const nodeType = valueType.value?.benchType as unknown as NodeType;
+        const graph = benchGraph.nodeTypes.includes(nodeType) ? benchGraph : pkgGraph;
         let roots: AnyNodeData[] | undefined = undefined;
         let metatypes: NodeType[] = [];
         if (valueType.value?.baseTypePtr != null) {
           // based node
-          const base = pkgGraph.get(valueType.value.baseTypePtr);
+          const base = graph.get(valueType.value.baseTypePtr);
           if (base != null) roots = [base];
         } else if ((valueType.value?.constraint?.nodeScopePtr?.length ?? 0) > 0) {
-          roots = valueType.value!.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
+          roots = valueType.value!.constraint!.nodeScopePtr.map((r) => graph.get(r)).filter((r) => r != null);
         }
         if (valueType.value?.benchType != null) {
-          metatypes = [valueType.value.benchType as unknown as NodeType];
+          metatypes = [nodeType];
         } else if ((valueType.value?.constraint?.nodeTypes?.length ?? 0) > 0) {
           metatypes = valueType.value!.constraint!.nodeTypes;
         } else {
           metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
         }
-        return graphIndex({ id: "graph", graph: pkgGraph, roots, metatypes });
+        return graphIndex({ id: "graph", graph, roots, metatypes });
       }
     } else if (options.valueType.value?.benchType == BenchType.TYPE_INFO) {
       // some type

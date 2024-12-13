@@ -568,16 +568,14 @@ def _register_system_policies():
         ),
         Policy(name="OwnerAccess").append(
             PolicyRule(
-                name="OwnerCanDoAnything",
-                text=Text.plain("Owners of a node can do anything (unless system prohibited)."),
+                name="OwnerCanDoAnything", text=Text.plain("Owners of a node can do anything.")
             )
             .subject(is_owner=True)
             .allow(),
         ),
         Policy(name="StaffAccess").append(
             PolicyRule(
-                name="StaffCanReadAnythingDuringEA",
-                text=Text.plain("During early access, staff users can access anything."),
+                name="StaffCanReadAnything", text=Text.plain("Staff users can read anything.")
             )
             .subject(is_staff=True)
             .allow(AccessKind.READ),
@@ -585,9 +583,7 @@ def _register_system_policies():
         Policy(name="MemberAccess").append(
             PolicyRule(
                 name="MemberCanReadBench",
-                text=Text.plain(
-                    "Every member of your Bench/Organization can read its non-sensitive properties."
-                ),
+                text=Text.plain("Members can read non-sensitive properties."),
             )
             .subject(is_member=True)
             .allow(AccessKind.READ)
@@ -601,9 +597,7 @@ def _register_system_policies():
         Policy(name="AuthenticatedAccess").append(
             PolicyRule(
                 name="AuthenticatedCanReadPublic",
-                text=Text.plain(
-                    "Authenticated users can read public nodes like User, Organization, Bench."
-                ),
+                text=Text.plain("Authenticated users can read public nodes."),
             )
             .subject(is_authenticated=True)
             .allow(AccessKind.READ)
@@ -624,7 +618,7 @@ def _register_system_policies():
 
 #
 # Access checking
-# NOTE :Performance :Architecture: overhaul access checking (and maybe some policies)
+# NOTE :Performance :Architecture: overhaul access checking (and Policies)
 #  It should be clearer where you can allow/deny certain access, and how that may be nested.
 #  For instance: can I allow access to a child node whose parent is denied? How do the paths work?
 #
@@ -718,9 +712,6 @@ def generate_access_matrix(
 
     if base_policies is None:
         base_policies = _SYSTEM_POLICIES
-
-    # TODO :Performance :Architecture: figure out better way of checking access than access matrices
-    #  Current approach is a bit unwiedly, hard to update incrementally and not very efficient.
 
     roots = graph.find_roots()
     identities = subject.split_into_acting_subjects(graph)
@@ -938,7 +929,10 @@ def evaluate_access(
 
     # sum into decision
     if mode == AccessMode.ADAPTIVE:  # adaptive  = if any property was allowed -> access is allowed
-        decision = PolicyEffect.ALLOW if composite_allowed_properties.any() else PolicyEffect.DENY
+        if composite_allowed_properties.any():  # noqa: SIM108
+            decision = PolicyEffect.ALLOW
+        else:
+            decision = PolicyEffect.DENY
     elif mode == AccessMode.ATOMIC:  # atomic = if any property was rejected -> access is denied
         if composite_allowed_properties == wanted_properties:
             decision = PolicyEffect.ALLOW
@@ -963,7 +957,7 @@ def adapt_read_query(subject: Subject, query: "QueryBuilder") -> "QueryBuilder":
             query._ancestor_types.append(ancestor_type)
 
     # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
-    # NOTE :Performance :Security: also pre-filter read options for owner?
+    # TODO :Performance :Security: also pre-filter read options for owner?
 
     return query
 

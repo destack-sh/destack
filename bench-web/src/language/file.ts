@@ -356,7 +356,7 @@ function cacheDownload(download: FileDownload) {
   triggerRef(downloadsByFileId);
 }
 
-const FILE_DOWNLOAD_BATCH_INTERVAL = 40; // ms
+const FILE_DOWNLOAD_BATCH_INTERVAL = 50; // ms
 const pendingDownloads: FileDownload[] = [];
 
 // periodically batch downloads
@@ -585,6 +585,7 @@ export function getFileAccept(options: {
   return acceptParts.join(",");
 }
 
+/** Gets the file accept string for the given file type and constraint. */
 export function getFileAcceptFromConstraint(
   type: FileType,
   constraint: TypeConstraintData | undefined,

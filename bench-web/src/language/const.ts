@@ -26,7 +26,7 @@ import {
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -74,8 +74,16 @@ export function isResourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 200 && nodeType < 300;
 }
 
+export function isVirtualResourceNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 200 && nodeType < 250;
+}
+
 export function isLocalNodeType(nodeType: NodeType): boolean {
   return nodeType >= 1000;
+}
+
+export function isInBenchNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 200 || nodeType == NodeType.BENCH;
 }
 
 // node types :NodeTypes
@@ -92,7 +100,9 @@ export const STATE_NODE_TYPES = SOURCE_NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
 export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE];
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
+export const VIRTUAL_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isVirtualResourceNodeType);
 export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
+export const IN_BENCH_NODE_TYPES = NODE_TYPES.filter(isInBenchNodeType);
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];

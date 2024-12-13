@@ -556,9 +556,12 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   }
 
   // build menu
-  // TODO :UX: associate actions with the most appropriate elements
+  // NOTE :UX: associate actions with the most appropriate elements?
   //  (if we click on a Type view inside a Block selection, we want the list.create.above from the Block selection, not from the Type view)
-  if (Object.keys(actionsById).length == 0 || nodes.length == 0) return; // no actions found
+  if (Object.keys(actionsById).length == 0 || nodes.length == 0) {
+    return; // no actions found
+  }
+  console.log("context", { target: e.target, nodes, actionsById });
   if (!canvas.isSelected(nodes[0])) {
     // auto-select first node if not selected
     canvas.select([nodes[0]]);

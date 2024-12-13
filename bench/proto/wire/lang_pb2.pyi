@@ -1361,6 +1361,7 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_PIPE: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
+    VIEW_TYPE_FIELD_LIST: _ClassVar[ViewType]
     VIEW_TYPE_DETAIL: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
@@ -2742,6 +2743,7 @@ VIEW_TYPE_STEP: ViewType
 VIEW_TYPE_PIPE: ViewType
 VIEW_TYPE_TYPE: ViewType
 VIEW_TYPE_OBJECT: ViewType
+VIEW_TYPE_FIELD_LIST: ViewType
 VIEW_TYPE_DETAIL: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType

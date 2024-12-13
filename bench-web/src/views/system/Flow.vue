@@ -37,7 +37,7 @@ import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { PopoverInfoIn } from "@/ui/popover";
 import { subVector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
-import FieldList from "@/views/builtins/FieldList.vue";
+import FieldList from "@/views/system/FieldList.vue";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
