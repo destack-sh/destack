@@ -11,7 +11,7 @@ import {
 import { EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
 import { makeExpression } from "@/language/expression";
 import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
-import type { NodeKey, NodeSuperGraph, ReadNodeGraph } from "@/language/graph";
+import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/graph";
 import {
   BenchType,
   BlockData,
@@ -39,6 +39,7 @@ import {
   RemoteSearchConnection,
   SearchConnectionParams,
 } from "@/system/connection";
+import { supergraph } from "@/system/globals";
 import { benchGraph, pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import {
@@ -273,7 +274,7 @@ export function useIndexSearch<T extends SearchItem>(search: {
   // refresh candidates on index change
   subs.push(
     watch(
-      () => [search.isEnabled.value, toValue(search.indices)],
+      () => search.isEnabled.value && toValue(search.indices),
       () => {
         updateCandidates();
         updateResults();
@@ -477,6 +478,13 @@ export function useValueSearch(options: {
       if (remoteGraphIndex.value != null) {
         // remote graph
         return remoteGraphIndex.value;
+      } else if (
+        isNodeType(valueType.value?.benchType) &&
+        !isSourceNodeType(valueType.value?.benchType) &&
+        !isVirtualResourceNodeType(valueType.value?.benchType)
+      ) {
+        // remote supergraph
+        return SUPERGRAPH_INDEX;
       } else {
         // local graph
         const nodeType = valueType.value?.benchType as unknown as NodeType;
@@ -541,11 +549,11 @@ export function useValueSearch(options: {
 function nodeItemFromNode(
   indexId: string,
   graph: ReadNodeGraph | NodeSuperGraph,
-  value: NodeKey<any>,
+  value: AnyNodeData | TypedNodeKey<any>,
   ancestors: NodeItem[] = [],
   options: { skipDepth?: number } = {},
 ): NodeItem | null {
-  const node = graph.get(value);
+  const node = isNode(value) ? value : graph.get(value);
   if (node == null) return null;
 
   // 'title'
@@ -591,7 +599,7 @@ function nodeItemFromNode(
 function walkGraph(options: {
   id: string;
   graph: ReadNodeGraph;
-  metatypes: NodeType[];
+  metatypes?: NodeType[];
   roots?: AnyNodeData[];
   skipDepth?: number;
   maxDepth?: number;
@@ -612,7 +620,7 @@ function walkGraph(options: {
 
     // add this item if it matches the filter
     if (
-      metatypes.includes(node.metatype as unknown as NodeType) &&
+      (metatypes == null || metatypes.includes(node.metatype as unknown as NodeType)) &&
       (filter == null || filter(node, ancestors)) &&
       (skipDepth == null || ancestors.length >= skipDepth)
     ) {
@@ -650,7 +658,7 @@ export function graphIndex(idx: {
 }): SearchIndex<NodeItem> {
   const index: SearchIndex<NodeItem> = {
     id: idx.id,
-    getItemFromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.graph, value),
+    getItemFromValue: (value: TypedNodeKey<any>) => nodeItemFromNode(idx.id, idx.graph, value),
     getValueFromItem: (candidate: NodeItem) => toNodeRef(candidate.node),
     candidates: () => walkGraph({ ...idx, maxDepth: toValue(idx.maxDepth) }),
   };
@@ -664,7 +672,7 @@ export function graphIndex(idx: {
 export function supergraphIndex(idx: {
   id: string;
   supergraph: NodeSuperGraph;
-  metatypes: NodeType[];
+  metatypes?: NodeType[];
   roots?: AnyNodeData[];
   filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
   skipDepth?: number;
@@ -672,7 +680,7 @@ export function supergraphIndex(idx: {
 }): SearchIndex<NodeItem> {
   const index: SearchIndex<NodeItem> = {
     id: idx.id,
-    getItemFromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.supergraph, value),
+    getItemFromValue: (value: TypedNodeKey<any>) => nodeItemFromNode(idx.id, idx.supergraph, value),
     getValueFromItem: (candidate: NodeItem) => toNodeRef(candidate.node),
     candidates: () => {
       // figure out which graphs to search
@@ -680,13 +688,13 @@ export function supergraphIndex(idx: {
       if (idx.roots != null) {
         graphs = [];
         for (const root of idx.roots) {
-          const link = idx.supergraph.getLink(root);
+          const link = idx.supergraph.getLink({ id: root.id, nodeType: root.metatype as unknown as NodeType });
           if (link != null && !graphs.includes(link.graph)) {
             graphs.push(link.graph);
           }
         }
       } else {
-        graphs = idx.supergraph.graphs;
+        graphs = idx.supergraph.liveGraphs;
       }
 
       // and search them
@@ -696,6 +704,7 @@ export function supergraphIndex(idx: {
   };
   return markRaw(index);
 }
+export const SUPERGRAPH_INDEX = supergraphIndex({ id: "supergraph", supergraph: supergraph, metatypes: [] });
 
 //
 // Action index

@@ -1,18 +1,15 @@
+import { getPropertyType } from "@/language/field";
+import { packValue } from "@/language/value";
 import {
   BlockData,
   ExpressionType,
-  NodeReferenceData,
-  NodeType,
   ObjectType,
   RunData,
   StepData,
   UserData,
   type ExpressionData,
-  type SortType,
+  type SortType
 } from "@/proto/wire";
-import { supergraph } from "@/system/connection";
-import { getPropertyType } from "@/language/field";
-import { packValue } from "@/language/value";
 
 export function makeExpression(
   options: { type: ExpressionType; value?: any } & Partial<ExpressionData>,
@@ -50,17 +47,3 @@ export function makeAndConditional(clauses: ExpressionData[]): ExpressionData | 
 
 export type EditSubject = UserData | RunData | BlockData | StepData;
 
-/** Resolves an arbitrary subject in the supergraph */
-export function resolveSubject(subjectPtr: NodeReferenceData | null | undefined): EditSubject | null {
-  let subject: EditSubject | null;
-  if (subjectPtr != null) {
-    if (subjectPtr.nodeType == NodeType.RUN) {
-      subject = supergraph.get({ ck: subjectPtr.baseCk }) as BlockData | StepData | null;
-    } else {
-      subject = supergraph.get(subjectPtr) as UserData | null;
-    }
-  } else {
-    subject = null;
-  }
-  return subject;
-}

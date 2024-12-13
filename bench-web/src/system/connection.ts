@@ -45,6 +45,7 @@ import {
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { setSupergraph } from "@/system/globals";
+import { RemoteNodeLoader } from "@/system/remote";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
@@ -299,6 +300,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   readonly params: ConnectionParamsMapping<T>[K];
   readonly result: ShallowRef<(ConnectionResultMapping<T>[K] & ConnectionInternalResult) | null> = shallowRef(null);
   readonly txBuffer: TransactionBuffer;
+  readonly nodeTypes: NodeType[];
   readonly createdAt: DateTime = DateTime.now();
   lastReferencedAt: DateTime | null = null;
 
@@ -317,6 +319,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     this.meta = meta;
     this.params = params;
     this.txBuffer = txBuffer;
+    this.nodeTypes = getNodeTypesFromParams(params);
   }
 
   get id(): number {
@@ -876,7 +879,8 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
 // NOTE :Performance :UX: cache/store connections (results) locally for initial hydration?
 //
 
-const INACTIVE_CONNECTION_TIMEOUT = 30 * 1000; // 30 seconds
+const CONNECTION_REMOTE_LOAD_INTERVAL = 1000; // 1 second (nocheckin increase?)
+const CONNECTION_INACTIVE_TIMEOUT = 30 * 1000; // 30 seconds
 
 let connectionId = 0;
 function newConnectionId(): number {
@@ -894,6 +898,8 @@ export const connections = pretendReadonly(_connections);
 export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
 export const supergraph = new NodeSuperGraph(connections);
 setSupergraph(supergraph);
+export const remoteNodeLoader = new RemoteNodeLoader(supergraph);
+supergraph.subscribeEvent(remoteNodeLoader.onEvent.bind(remoteNodeLoader));
 
 /** Adds a new connection to the connection set */
 function _addConnection(connection: ConnectionBase<any, any>): void {
@@ -915,7 +921,7 @@ async function gcInactiveConnections() {
       Object.getPrototypeOf(c) != LocalGetConnection.prototype &&
       c.referenceCount == 0 &&
       c.lastReferencedAt != null &&
-      DateTime.now().diff(c.lastReferencedAt).milliseconds > INACTIVE_CONNECTION_TIMEOUT,
+      DateTime.now().diff(c.lastReferencedAt).milliseconds > CONNECTION_INACTIVE_TIMEOUT,
   );
   if (inactiveConnections.length > 0) {
     log.trace("graph.gcInactiveConnections", { count: inactiveConnections.length });
@@ -923,8 +929,10 @@ async function gcInactiveConnections() {
   }
 }
 
+// periodically load missing nodes
+setInterval(remoteNodeLoader.loadMissing.bind(remoteNodeLoader), CONNECTION_REMOTE_LOAD_INTERVAL);
 // periodically clean up inactive connections
-setInterval(gcInactiveConnections, INACTIVE_CONNECTION_TIMEOUT);
+setInterval(gcInactiveConnections, CONNECTION_INACTIVE_TIMEOUT);
 
 /** RC-=1. Connections without references are GCed after some time. */
 export function releaseConnection(connection: ConnectionBase<any, any>): void {

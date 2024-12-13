@@ -58,6 +58,7 @@ const state = canvas.registerView(self, id);
 // node
 const nodePtr = computedValue(() => props.nodePtr);
 const node = pkgGraph.getRef(nodePtr);
+const nodeIsRunnable = computed(() => isRunnable(node.value));
 
 // run is the focused run if it contains this runnable
 const run = computed(() => {
@@ -160,7 +161,7 @@ function start() {
 defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ self, id, start, run });
 </script>
 <template>
-  <div v-if="node" class="h-full w-full">
+  <div v-if="node && nodeIsRunnable" class="h-full w-full">
     <!-- TODO :UX: also turn this into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-2">

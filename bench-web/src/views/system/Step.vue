@@ -243,7 +243,6 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- NOTE :UX: show last step output/error here? -->
   </div>
   <div v-else ref="containerRef" class="rounded border border-gray-200 bg-white">
-    <!-- should never be rendered by containing flow -->
-    <span class="text-danger-600">???</span>
+    <!-- Should never be rendered by containing flow -->
   </div>
 </template>

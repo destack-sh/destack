@@ -179,9 +179,6 @@ defineExpose<ViewExposed>({ self, id });
           <div v-else-if="row.type == 'text'" class="text-gray-400">
             <span>{{ row.text }}</span>
           </div>
-          <div v-else>
-            <span class="text-danger-600">???</span>
-          </div>
         </div>
       </div>
     </div>
