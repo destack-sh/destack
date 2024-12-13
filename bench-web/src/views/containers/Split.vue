@@ -1,17 +1,15 @@
 <script lang="ts" setup>
-import { RectangleData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { useExistingConnection } from "@/system/connection";
-import { canvas } from "@/system/space";
-import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/ui/layout";
-import type { SplitLayout } from "@/ui/layout";
-import { getViewBinding, getViewComponent } from "@/views/registry";
-import { viewEmits } from "@/views/common";
-import type { ViewExposed } from "@/views/common";
-import { computed, ref, toRef, type Ref } from "vue";
-import Empty from "@/views/builtins/Empty.vue";
+import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { canvas, spaceGraph } from "@/system/space";
+import type { ActionMapImplementation } from "@/ui/action";
+import type { SplitLayout } from "@/ui/layout";
+import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/ui/layout";
+import Empty from "@/views/builtins/Empty.vue";
+import type { ViewExposed } from "@/views/common";
+import { viewEmits } from "@/views/common";
+import { getViewBinding, getViewComponent } from "@/views/registry";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   {
@@ -24,7 +22,6 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const splits = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 
 const focusedSplitIdx: Ref<number | null> = computed(() => {

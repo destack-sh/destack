@@ -31,12 +31,13 @@ import {
   STEP_SIZE,
   STEP_SIZE_HALF,
 } from "@/system/flow";
-import { canvas } from "@/system/space";
+import { canvas, spaceGraph } from "@/system/space";
 import { PIPE_CONTEXT_ACTIONS, STEP_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { PopoverInfoIn } from "@/ui/popover";
 import { subVector2, VIEW_DEFAULT_BAR_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
+import FieldList from "@/views/builtins/FieldList.vue";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
@@ -45,7 +46,6 @@ import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
-import FieldList from "@/views/builtins/FieldList.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, onMounted, provide, ref, toRef, type Ref } from "vue";
 
@@ -63,7 +63,6 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self, { isRequired: false });
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.BLOCK>);
 const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
@@ -80,7 +79,7 @@ const headerSize = useElementSize(headerRef);
 
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
-  spaceTx: () => spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
+  spaceTx: () => canvas.tx().with({ category: ChangeCategory.SPACE }),
   graph: graph,
   tx: () => connection.tx,
   update: state.update,
@@ -540,7 +539,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       >
         <!-- Menu -->
         <div
-          class="pointer-events-auto mb-3 z-20 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
+          class="pointer-events-auto z-20 mb-3 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
           data-suppress-drag="both"
           :class="
             variant != Variant.COMPACT

@@ -23,7 +23,7 @@ import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
+import type { ActionMapImplementation } from "@/ui/action";
 import {
   isDragging,
   startDraggingIfAllowed,

@@ -60,7 +60,6 @@ import {
   ref,
   shallowRef,
   toRef,
-  toValue,
   triggerRef,
   watch,
   type MaybeRef,
@@ -1133,7 +1132,7 @@ function useConnectionGraphRaw<T extends NodeType>(
 }
 
 /**
- * Gets the current connection for the given scope. Does not acquire any new connections.
+ * Gets any current connection for the given scope. Does not acquire any new connections.
  * NOTE: for performance the graph/connection proxies are 'lazy' (just regular refs, so they get batch-processed per tick).
  *  That means changing 'node' will change connection/graph only on the next tick.
  * NOTE :Architecture: the graphs and the current bench/pkg/space pointers are not atomically updated,
@@ -1152,7 +1151,7 @@ export function useExistingConnection<T extends NodeType = any>(
   graphRaw: ReadNodeGraph;
   connection: Connection<"get", T>;
 } {
-  // TODO :Performance: don't use separate overlay graphs for every useExistingConnection?
+  // NOTE :Performance: don't use separate overlay graphs for every useExistingConnection?
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
   const graph = useConnectionGraphWithOverlay(connection);
@@ -1162,7 +1161,7 @@ export function useExistingConnection<T extends NodeType = any>(
   const refreshConnection = () => {
     const oldConnection = connection.value;
     let newConnection = null;
-    if (connection.value) releaseConnection(connection.value);
+    if (oldConnection != null) releaseConnection(oldConnection);
 
     if (nodeRef.value != null && options?.isEnabled?.value !== false) {
       if (nodeRef.value?.id == null) {
@@ -1189,8 +1188,6 @@ export function useExistingConnection<T extends NodeType = any>(
   };
   watch(() => [nodeRef.value, () => options?.isEnabled?.value], refreshConnection, { immediate: true });
 
-  // NOTE: useExistingConnection is usually used where a connection must exist (inside View components).
-  //  Otherwise if we don't have a connection we need to check *every* new connection until we get a match.
   let stopGlobalWatch = null as (() => void) | null;
   watch(
     connection,
@@ -1244,44 +1241,6 @@ export function useGetConnection<T extends NodeType>(
     isConnected,
     isStale,
   };
-}
-
-/**
- * Gets the given node from the relevant subgraph, fetching/caching automatically.
- * Wrapper around connections that just gives you the node directly.
- */
-export function useNode<T extends NodeType>(paramsIn: {
-  name: string;
-  live?: boolean;
-  scope?: MaybeRef<GraphScopeData>;
-  nodePtr: MaybeRef<NodeReferenceData | TypedNodeReferenceData<T> | null | undefined>;
-  ancestorTypes?: MaybeRef<NodeType[]>;
-  descendantTypes?: MaybeRef<NodeType[]>;
-  isOptional?: boolean;
-  isEnabled?: Ref<boolean | undefined>;
-}): {
-  connection: Connection<"get" | "search", T>;
-  node: Ref<NodeTypeMapping[T] | null>;
-  isConnecting: Ref<boolean>;
-  isConnected: Ref<boolean>;
-  isStale: Ref<boolean>;
-} {
-  const { graph, connection, isConnecting, isConnected, isStale } = useGetConnection<T>(
-    { name: paramsIn.name, live: paramsIn.live === undefined ? true : paramsIn.live },
-    computed(
-      () =>
-        ({
-          scope: toValue(paramsIn.scope) ?? PACKAGE_SCOPE.value,
-          roots: [toValue(paramsIn.nodePtr)!],
-          isOptional: paramsIn.isOptional,
-          isEnabled: toValue(paramsIn.nodePtr) != null && toValue(paramsIn.isEnabled) !== false,
-          ancestorTypes: toValue(paramsIn.ancestorTypes),
-          descendantTypes: toValue(paramsIn.descendantTypes),
-        }) as GetConnectionParams<T>,
-    ),
-  );
-  const node = graph.getRef(paramsIn.nodePtr) as Ref<NodeTypeMapping[T] | null>;
-  return { connection, node, isConnecting, isConnected, isStale };
 }
 
 /**

@@ -3,8 +3,7 @@ import { cloneNode } from "@/language/node";
 import { newChangeId } from "@/language/transaction";
 import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
-import { canvas } from "@/system/space";
+import { canvas, spaceGraph } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
@@ -30,7 +29,6 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 
 // focus
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => t.nodePtr ?? null)));
 const tabsTitles = computed(() => {
@@ -87,7 +85,7 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   fallbackToClosest: true,
   onDrop: (dragged, anchor, targetId) => {
     if (dragged.kind != "node" && dragged.kind != "selection") return;
-    const tx = spaceConnection.tx.with({ change: { key: newChangeId(), title: "Move" } });
+    const tx = canvas.tx().with({ change: { key: newChangeId(), title: "Move" } });
     for (let node of dragged.nodes) {
       node = spaceGraph.getOrError(node);
       if (!isNode(node, NodeType.VIEW)) continue;
@@ -141,7 +139,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: (action, ctx) => {
       const tab = ctx.nodes?.[0];
       if (!isNode(tab, NodeType.VIEW)) return false;
-      const clonedTab = cloneNode(spaceConnection.tx, spaceGraph, tab);
+      const clonedTab = cloneNode(canvas.tx(), spaceGraph, tab);
       focus(clonedTab);
     },
   },
