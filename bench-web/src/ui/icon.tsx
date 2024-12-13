@@ -42,7 +42,7 @@ import {
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
 // curl https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/metadata/icons.json
-//  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
+//  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, aliases: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import type { TypeIdentity } from "@/language/field";
@@ -54,7 +54,7 @@ export type IconMetadata = {
   id: string;
   title: string;
   unicode: string;
-  alias: string[];
+  aliases?: string[];
   family: "fas" | "fab";
   faName: string;
 };

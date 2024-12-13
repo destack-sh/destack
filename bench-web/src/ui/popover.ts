@@ -537,7 +537,9 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
       const nextNode = supergraph.get(nextNodePtr);
       if (nextNode != null) {
         // make new node
-        nodes.push(nextNode);
+        if (!nodes.some((node) => node.id == nextNode.id)) {
+          nodes.push(nextNode);
+        }
         currentNode = nextNode;
       }
     }
@@ -561,7 +563,6 @@ export function pushDefaultMenu(kind: "main" | "context", node: AnyNodeData | un
   if (Object.keys(actionsById).length == 0 || nodes.length == 0) {
     return; // no actions found
   }
-  console.log("context", { target: e.target, nodes, actionsById });
   if (!canvas.isSelected(nodes[0])) {
     // auto-select first node if not selected
     canvas.select([nodes[0]]);
