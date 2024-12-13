@@ -11,9 +11,12 @@ export type EnumOption<T extends EnumType = EnumType> = {
   isHidden?: boolean;
 };
 
-const ENUM_OPTIONS_BY_TYPE: Record<EnumType, EnumOption[]> = Object.fromEntries(
+export const ENUM_OPTIONS_BY_TYPE: Record<EnumType, EnumOption[]> = Object.fromEntries(
   ENUM_TYPES.map((enumType) => [enumType, makeEnumOptions(enumType)]),
 ) as Record<EnumType, EnumOption[]>;
+export const ENUM_OPTIONS_BY_VALUE: Record<EnumType, Record<number, EnumOption>> = Object.fromEntries(
+  ENUM_TYPES.map((enumType) => [enumType, Object.fromEntries(makeEnumOptions(enumType).map((o) => [o.value, o]))]),
+) as Record<EnumType, Record<number, EnumOption>>;
 
 function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const protoEnum = ENUM_BY_TYPE[enumType];
@@ -34,6 +37,10 @@ function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
 
 export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   return ENUM_OPTIONS_BY_TYPE[enumType] as EnumOption<T>[];
+}
+
+export function getEnumOption<T extends EnumType>(enumType: T, enumValue: EnumTypeMapping[T]): EnumOption<T> | null {
+  return (ENUM_OPTIONS_BY_VALUE[enumType]?.[enumValue as any] ?? null) as EnumOption<T> | null;
 }
 
 export function getEnumTitle<T extends EnumType>(enumType: T, enumValue: EnumTypeMapping[T]): string {

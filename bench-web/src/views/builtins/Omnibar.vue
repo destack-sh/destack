@@ -8,7 +8,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import {
   ACTION_INDEX,
   graphIndex,
-  useSearch,
+  useIndexSearch,
   type ActionItem,
   type NodeItem,
   type SearchIndex
@@ -75,7 +75,7 @@ const indices = computed(() => {
 
   return indices;
 });
-const { candidates, results, resultsTotal, updateCandidates } = useSearch<NodeItem | ActionItem>({
+const { candidates, results, resultsTotal, updateCandidates } = useIndexSearch<NodeItem | ActionItem>({
   query,
   isEnabled: isActive,
   indices,

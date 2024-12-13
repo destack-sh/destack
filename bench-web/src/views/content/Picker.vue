@@ -1,38 +1,27 @@
 <script lang="ts" setup>
-import { isEnumType, isNodeType, SOURCE_NODE_TYPES, toCamelName } from "@/language/const";
-import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
-import { ReadNodeGraph } from "@/language/graph";
+import { toCamelName } from "@/language/const";
+import { getConstrainedTypeName } from "@/language/field";
 import {
-  BenchType,
   IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
   RectangleData,
-  TypeInfoData,
   TypeKind,
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData,
 } from "@/proto/wire";
-import { makeScope, type TypedNodeReferenceData } from "@/proto/wiring";
-import { SearchConnectionParams, supergraph, useSearchConnection } from "@/system/connection";
-import { canvas, pkgGraph } from "@/system/space";
+import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { supergraph } from "@/system/connection";
+import { canvas } from "@/system/space";
 import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import type { SearchItem } from "@/ui/search";
-import {
-  enumIndex,
-  graphIndex,
-  makeRemoteSearchParams,
-  TYPE_INDEX,
-  useSearch,
-  useValueSearch,
-  type SearchIndex,
-} from "@/ui/search";
+import { useValueSearch } from "@/ui/search";
+import { toValueRef } from "@/utils/ref";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -99,21 +88,14 @@ const hasValue = computed(() => {
   if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
   else return true;
 });
-function resolveValue(value: any) {
-  for (const index of indices.value) {
-    const item = index.fromValue(value);
-    if (item != null) return item;
-  }
-  return null;
-}
 const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
   if (!hasValue.value) return [];
   if (!props.valueType?.isList) {
-    const value = resolveValue(props.modelValue);
-    return [{ title: value?.title, icon: (value as any)?.icon }];
+    const item = getItemFromValue(props.modelValue);
+    return [{ title: item?.title, icon: (item as any)?.icon }];
   } else {
-    const values = (props.modelValue as any[]).map((v) => resolveValue(v));
-    return values.map((v) => ({ title: v?.title, icon: (v as any)?.icon }));
+    const items = (props.modelValue as any[]).map((v) => getItemFromValue(v));
+    return items.map((v) => ({ title: v?.title, icon: (v as any)?.icon }));
   }
 });
 
@@ -121,14 +103,10 @@ const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefine
 // Search
 //
 
-// nocheckin: remote search
-// nocheckin: debounce
-// nocheckin: don't instance useSearchConnection/useSearch for every single Picker instance
-
-const { indices, candidates, results, resultsTotal, isLoading } = useValueSearch({
+const { candidates, results, resultsTotal, isLoading, getItemFromValue, getValueFromItem } = useValueSearch({
   query,
-  valueType: toRef(props, "valueType"),
-  isEnabled: computed(() => props.isInline),
+  valueType: toValueRef(toRef(props, "valueType")),
+  isEnabled: toRef(props, "isInline"),
 });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 
@@ -144,7 +122,11 @@ watch(results, () => {
 //
 
 function isSelected(value: SearchItem) {
-  return hasValue.value && indices.value.some((index) => index.valueEquals(value, props.modelValue));
+  if (!props.valueType?.isList) {
+    return hasValue.value && value.id == getItemFromValue(props.modelValue)?.id;
+  } else {
+    return (props.modelValue as any[]).some((v) => value.id == getItemFromValue(v)?.id);
+  }
 }
 function isActive(item: SearchItem) {
   return item.id === activeResultId.value;
@@ -152,9 +134,7 @@ function isActive(item: SearchItem) {
 function select(option: string | SearchItem | undefined) {
   if (typeof option == "string") option = results.value.find((r) => r.id === option);
   if (option == null) return;
-  const index = indices.value.find((index) => option.itemId.startsWith(index.id));
-  if (index == null) return;
-  const value = index.toValue(option);
+  const value = getValueFromItem(option);
   if (value != null) {
     if (!props.valueType?.isList) {
       apply(value);
@@ -171,7 +151,7 @@ function deselect(option: SearchItem | number) {
     if (typeof option == "number") {
       apply((props.modelValue as any[]).filter((v, i) => i != option));
     } else {
-      apply((props.modelValue as any[]).filter((v) => !indices.value.some((index) => index.valueEquals(v, option))));
+      apply((props.modelValue as any[]).filter((v) => getItemFromValue(v)?.id != option.id));
     }
   }
 }
