@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
+import { isNodeType, toCamelName } from "@/language/const";
 import { getConstrainedTypeName } from "@/language/field";
 import {
   IconData,
@@ -21,7 +21,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import type { SearchItem } from "@/ui/search";
 import { useValueSearch } from "@/ui/search";
-import { toValueRef } from "@/utils/ref";
+import { computedValue, toValueRef } from "@/utils/ref";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -82,13 +82,13 @@ const facetName = computed(() => {
     return null;
   }
 });
-// NOTE: technically modelValueVignettes/Icon aren't fully reactive (requires modelValue to change)
+// NOTE: technically currentItems/Icon aren't fully reactive (requires modelValue to change)
 const hasValue = computed(() => {
   if (props.modelValue == null) return false;
   if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
   else return true;
 });
-const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
+const currentItems: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
   if (!hasValue.value) return [];
   if (!props.valueType?.isList) {
     const item = getItemFromValue(props.modelValue);
@@ -98,6 +98,22 @@ const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefine
     return items.map((v) => ({ title: v?.title, icon: (v as any)?.icon }));
   }
 });
+const nodePtrs: Ref<NodeReferenceData[]> = computedValue(() => {
+  if (
+    props.modelValue == null ||
+    props.valueType == null ||
+    (props.valueType.kind != TypeKind.NODE && !isNodeType(props.valueType.benchType))
+  ) {
+    return []; // no nodes
+  } else if (!props.valueType?.isList) {
+    return [props.modelValue as NodeReferenceData];
+  } else {
+    return props.modelValue as NodeReferenceData[];
+  }
+});
+// nocheckin: tie into useSearch somehow? why do we need an index here at all?
+//  supergraph subscription for *every* Picker seems excessive?
+const nodes = supergraph.getManyRef(nodePtrs);
 
 //
 // Search
@@ -236,7 +252,7 @@ defineExpose<ViewExposed>({
       <!-- Current value -->
       <template v-if="hasValue">
         <button
-          v-for="(v, i) in valueVignettes"
+          v-for="(v, i) in currentItems"
           :key="i"
           class="mr-2 flex flex-row items-center rounded"
           :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
@@ -319,7 +335,7 @@ defineExpose<ViewExposed>({
         <!-- Current value -->
         <template v-if="valueType?.isList">
           <button
-            v-for="(v, i) in valueVignettes"
+            v-for="(v, i) in currentItems"
             :key="i"
             class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
           >

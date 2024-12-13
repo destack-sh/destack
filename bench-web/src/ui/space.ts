@@ -345,8 +345,6 @@ export class SpaceCanvas {
     }
     if (space?.value != null && !deepValueEquals(space.value.selection, selection)) {
       this.tx().update(space.value, { selection }, { debounce: "long", ...options });
-    } else {
-      throw new Error("no base view");
     }
   }
 
@@ -405,7 +403,7 @@ export class SpaceCanvas {
     ) & { anchor?: FocusAnchor | NodeReferenceData; ignoreInspection?: boolean },
   ) {
     log.trace("canvas.focus", focus);
-    focus.node = supergraph.getOrError({ id: focus.node.id }); // 'refresh' node in graph since it may have moved
+    focus.node = supergraph.getOrError({ id: focus.node.id, nodeType: focus.node.metatype as unknown as NodeType }); // 'refresh' node in graph since it may have moved
     const nodeType = isNodeRef(focus.node) ? (focus.node as NodeReferenceData).nodeType : focus.node.metatype;
 
     if (nodeType == NodeType.VIEW && this.isInSpace(focus.node)) {

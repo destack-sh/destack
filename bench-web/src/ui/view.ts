@@ -51,7 +51,7 @@ export type Vector3 = Omit<Vector3Data, "metatype">;
 export type Vector4 = Omit<Vector4Data, "metatype">;
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
-  return component.__name ?? (component as any).type.__name ?? (component as any).type.name;
+  return component.__name ?? (component as any).type?.__name ?? (component as any).type?.name;
 }
 
 export function describeVueComponent(component: ComponentInstance<any>): string {

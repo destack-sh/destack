@@ -221,7 +221,7 @@ class NodeType(IdEnum):
     FILE = 260
     STREAM = 261
     SECRET = 262
-    # ACCOUNT, DOMAIN, EMAIL, PHONE, ...
+    # ACCOUNT, DOMAIN, EMAIL, PHONE, APPLICATION, ...
 
     # auth
     MEMBERSHIP = 600

@@ -220,8 +220,7 @@ export function toCamelName<T extends object>(cls: T, key: any) {
 // Enums
 //
 
-export const EDIT_TYPE_PRESENT_VERB: Record<EditType, string> = {
-  [EditType.UNSPECIFIED]: "???",
+export const EDIT_TYPE_PRESENT_VERB: Partial<Record<EditType, string>> = {
   [EditType.CREATE]: "creates",
   [EditType.UPSERT]: "upserts",
   [EditType.UPDATE]: "updates",
@@ -230,8 +229,7 @@ export const EDIT_TYPE_PRESENT_VERB: Record<EditType, string> = {
   [EditType.RESTORE]: "restores",
   [EditType.ERASE]: "erases",
 };
-export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
-  [EditType.UNSPECIFIED]: "???",
+export const EDIT_TYPE_PAST_VERB: Partial<Record<EditType, string>> = {
   [EditType.CREATE]: "created",
   [EditType.UPSERT]: "upserted",
   [EditType.UPDATE]: "updated",

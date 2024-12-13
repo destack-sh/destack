@@ -3,6 +3,7 @@ import { ReadNodeGraph } from "@/language/graph";
 import { cloneNodes } from "@/language/node";
 import { getAllTransactionBuffers, newChangeId } from "@/language/transaction";
 import { NodeType, ViewType, type AnyNodeData, type IconData, type TextData } from "@/proto/wire";
+import { toNodeRef } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
 import { ConnectionBase } from "@/system/connection";
 import { supergraph } from "@/system/globals";
@@ -476,7 +477,7 @@ function getNodesFromContext(ctx: ActionContext | undefined): {
   } else if (canvas.inspection != null) {
     nodesPtr = [canvas.inspection];
   } else if (ctx?.nodes != null) {
-    nodesPtr = ctx.nodes;
+    nodesPtr = ctx.nodes.map(toNodeRef);
   } else {
     return { connection: null, graph: null, nodes: [] };
   }

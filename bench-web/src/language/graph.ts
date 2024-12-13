@@ -27,7 +27,6 @@ import {
   isRef,
   shallowRef,
   toRef,
-  triggerRef,
   watch,
   type MaybeRef,
   type Ref,
@@ -36,7 +35,11 @@ import {
 } from "vue";
 
 /** A NodeReference but with proper typing */
-export type NodeKey<T extends NodeType> = { nodeType?: T; id?: string; ck?: string };
+export type NodeKey<T extends NodeType> = Pick<
+  NodeReferenceData,
+  "id" | "ck" | "baseBenchId" | "benchId" | "baseCk"
+> & { nodeType?: T };
+export type TypedNodeKey<T extends NodeType> = NodeKey<T> & { nodeType: T };
 
 // NOTE :Performance!: should differentiate node update types for :NodeFiltering
 //  (e.g. full, create/delete, move, update:[properties...], etc.)
@@ -1382,30 +1385,60 @@ export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent
   return graph.getAncestors(child, { includeSelf: true }).some((ancestor) => ancestor.id == parent.id);
 }
 
+type NodeSuperGraphCallback = (event: "miss" | "hit" | "sub" | "unsub", key: TypedNodeKey<any>, callback: any) => void;
+
 /**
  * A supergraph composed of multiple subgraphs from different connections.
- * Used for global resolution of nodes across multiple graphs.
- * Graphs are searched in order, first match wins. We assume that that there are no meaningful overlaps.
+ * NOTE :Architecture: maybe supergraph should have an index of all nodes in all graphs for fast lookup?
  */
 export class NodeSuperGraph {
   connections: Ref<ConnectionBase<any, any>[]>;
+  private connectionsByNodeType: Ref<{ [nodeType: number]: ConnectionBase<any, any>[] }>;
+  private subs: NodeSuperGraphCallback[] = [];
 
   constructor(connections: Ref<ConnectionBase<any, any>[]>) {
     this.connections = connections;
+    this.connectionsByNodeType = computed(() => {
+      const connectionsByNodeType: { [nodeType: number]: ConnectionBase<any, any>[] } = {};
+      for (const connection of connections.value) {
+        for (const nodeType of connection.nodeTypes) {
+          if (!connectionsByNodeType[nodeType]) {
+            connectionsByNodeType[nodeType] = [];
+          }
+          connectionsByNodeType[nodeType].push(connection);
+        }
+      }
+      return connectionsByNodeType;
+    });
   }
 
-  get graphs(): ReadNodeGraph[] {
+  subscribeEvent(callback: NodeSuperGraphCallback): () => void {
+    this.subs.push(callback);
+    return () => {
+      const index = this.subs.indexOf(callback);
+      if (index >= 0) this.subs.splice(index, 1);
+    };
+  }
+
+  get liveGraphs(): ReadNodeGraph[] {
     return this.connections.value
-      .filter((connection) => "graphComposite" in connection.result.value)
+      .filter(
+        (connection) =>
+          connection.result.value != null && "graphComposite" in connection.result.value && connection.meta.live,
+      )
       .map((connection) => connection.result.value.graphComposite as ReadNodeGraph);
+  }
+
+  getConnectionsFor(nodeType: NodeType): ConnectionBase<any, any>[] {
+    return this.connectionsByNodeType.value[nodeType] ?? [];
   }
 
   /**
    * Gets a node from the supergraph.
    */
-  get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
-    for (const connection of this.connections.value) {
-      if ("graphComposite" in connection.result.value) {
+  get<T extends NodeType>(key: TypedNodeKey<T>): NodeTypeMapping[T] | null {
+    for (const connection of this.getConnectionsFor(key.nodeType)) {
+      if (connection.result.value != null && "graphComposite" in connection.result.value && connection.meta.live) {
         const graph = connection.result.value.graphComposite as ReadNodeGraph;
         const node = graph.get(key);
         if (node != null) return node;
@@ -1415,7 +1448,7 @@ export class NodeSuperGraph {
   }
 
   /** Gets a node from the supergraph or throws an error if it's not found. */
-  getOrError<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
+  getOrError<T extends NodeType>(key: TypedNodeKey<T>): NodeTypeMapping[T] {
     const node = this.get(key);
     if (node == null) throw new Error(`node not found: ${key}`);
     return node;
@@ -1424,14 +1457,14 @@ export class NodeSuperGraph {
   /**
    * Gets multiple nodes from the supergraph.
    */
-  getMany<T extends NodeType>(keys: NodeKey<T>[]): NodeTypeMapping[T][] {
+  getMany<T extends NodeType>(keys: TypedNodeKey<T>[]): NodeTypeMapping[T][] {
     return keys.map((key) => this.getOrError(key));
   }
 
   /**
    * Gets multiple nodes from the supergraph maybe.
    */
-  getManyMaybe<T extends NodeType>(keys: NodeKey<T>[]): NodeTypeMapping[T][] {
+  getManyMaybe<T extends NodeType>(keys: TypedNodeKey<T>[]): NodeTypeMapping[T][] {
     return keys.map((key) => this.get(key)).filter((node) => node != null);
   }
 
@@ -1439,14 +1472,14 @@ export class NodeSuperGraph {
    * Gets the source connection/graph from the supergraph.
    */
   getLink<T extends NodeType>(
-    key: NodeKey<T>,
+    key: TypedNodeKey<T>,
   ): {
     node: NodeTypeMapping[T];
     graph: ReadNodeGraph;
     connection: ConnectionBase<any, any>;
   } | null {
-    for (const connection of this.connections.value) {
-      if (connection.result.value != null && "graphComposite" in connection.result.value) {
+    for (const connection of this.getConnectionsFor(key.nodeType)) {
+      if (connection.result.value != null && "graphComposite" in connection.result.value && connection.meta.live) {
         const graph = connection.result.value.graphComposite as ReadNodeGraph;
         const node = graph.get(key);
         if (node != null) return { node, graph, connection };
@@ -1459,7 +1492,7 @@ export class NodeSuperGraph {
    * Gets the source connection/graph from the supergraph or throws an error if it's not found.
    */
   getLinkOrError<T extends NodeType>(
-    key: NodeKey<T>,
+    key: TypedNodeKey<T>,
   ): {
     node: NodeTypeMapping[T];
     graph: ReadNodeGraph;
@@ -1474,7 +1507,7 @@ export class NodeSuperGraph {
    * Subscribe to any change in the given key
    * Unlike ReadNodeGraph, we only subscribe to the first graph containing the node if it exists (otherwise all).
    */
-  subscribe(key: { id?: string; ck?: string }, callback: NodeGraphCallback): () => void {
+  subscribe<T extends NodeType>(key: TypedNodeKey<T>, callback: NodeGraphCallback): () => void {
     const subs: Array<() => void> = [];
     const unsub = () => {
       subs.forEach((sub) => sub());
@@ -1482,9 +1515,10 @@ export class NodeSuperGraph {
     };
     const update = () => {
       unsub();
+      // check all connections for the node
       let found = false;
-      for (const connection of this.connections.value) {
-        if (connection.result.value != null && "graphComposite" in connection.result.value) {
+      for (const connection of this.getConnectionsFor(key.nodeType)) {
+        if (connection.result.value != null && "graphComposite" in connection.result.value && connection.meta.live) {
           const graph = connection.result.value.graphComposite as ReadNodeGraph;
           const node = graph.get(key);
           if (node != null) {
@@ -1494,11 +1528,14 @@ export class NodeSuperGraph {
           }
         }
       }
+
+      // notify
+      this.subs.forEach((sub) => sub(found ? "hit" : "miss", key, callback));
+
+      // subscribe to all graphs and graphs list
       if (!found) {
-        // subscribe to all graphs and graphs list
-        // NOTE :Performance: subscribe to relevant subset of graphs in supergraph
-        for (const connection of this.connections.value) {
-          if (connection.result.value != null && "graphComposite" in connection.result.value) {
+        for (const connection of this.getConnectionsFor(key.nodeType)) {
+          if (connection.result.value != null && "graphComposite" in connection.result.value && connection.meta.live) {
             const graph = connection.result.value.graphComposite as ReadNodeGraph;
             subs.push(graph.subscribe(key, () => (callback(), update())));
           }
@@ -1508,14 +1545,18 @@ export class NodeSuperGraph {
       }
     };
     update();
-    return unsub;
+
+    return () => {
+      unsub();
+      this.subs.forEach((sub) => sub("unsub", key, callback));
+    };
   }
 
   /**
    * Gets a reactive reference to the current node with that key
    */
-  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null | undefined>): Ref<NodeTypeMapping[T] | null> {
-    const keyRef = toRef(key) as Ref<NodeKey<T>>;
+  getRef<T extends NodeType>(key: MaybeRef<TypedNodeKey<T> | null | undefined>): Ref<NodeTypeMapping[T] | null> {
+    const keyRef = toRef(key) as Ref<TypedNodeKey<T>>;
     let sub: (() => void) | null = null;
     const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
     const get = () => (keyRef.value != null ? this.get(keyRef.value) : null);
@@ -1532,16 +1573,43 @@ export class NodeSuperGraph {
   }
 
   /**
+   * Gets a reactive reference to multiple nodes from the supergraph.
+   */
+  getManyRef<T extends NodeType>(keys: MaybeRef<TypedNodeKey<T>[] | null | undefined>): Ref<NodeTypeMapping[T][]> {
+    const keysRef = toRef(keys) as Ref<TypedNodeKey<T>[] | null | undefined>;
+    const subs: (() => void)[] = [];
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.length = 0;
+    };
+    const get = () =>
+      keysRef.value != null
+        ? (keysRef.value.map((key) => this.get(key)).filter((n) => n != null) as NodeTypeMapping[T][])
+        : [];
+    const update = () => {
+      unsub();
+      if (keysRef.value)
+        keysRef.value.filter((k) => k != null).forEach((key) => subs.push(this.subscribe(key, trigger)));
+    };
+
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watchValue(keysRef, () => (update(), trigger()));
+    update();
+    tryOnBeforeUnmount(unsub);
+    return ref;
+  }
+
+  /**
    * Gets a reactive reference to the source for a node with that key
    */
   getLinkRef<T extends NodeType>(
-    key: MaybeRef<NodeKey<T> | null | undefined>,
+    key: MaybeRef<TypedNodeKey<T> | null | undefined>,
   ): {
     node: Ref<NodeTypeMapping[T] | null>;
     graph: Ref<ReadNodeGraph | null>;
     connection: Ref<ConnectionBase<any, any> | null>;
   } {
-    const keyRef = toRef(key) as Ref<NodeKey<T>>;
+    const keyRef = toRef(key) as Ref<TypedNodeKey<T>>;
     let sub: (() => void) | null = null;
     const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
     const get = () => (keyRef.value != null ? this.getLink(keyRef.value) : null);
