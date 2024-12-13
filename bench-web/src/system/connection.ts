@@ -927,7 +927,7 @@ async function gcInactiveConnections() {
 setInterval(gcInactiveConnections, INACTIVE_CONNECTION_TIMEOUT);
 
 /** RC-=1. Connections without references are GCed after some time. */
-function releaseConnection(connection: ConnectionBase<any, any>): void {
+export function releaseConnection(connection: ConnectionBase<any, any>): void {
   connection.decRefCount();
 }
 

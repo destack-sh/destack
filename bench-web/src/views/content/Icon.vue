@@ -15,7 +15,7 @@ import { canvas } from "@/system/space";
 import { getIconMetadata, IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import { ICON_INDEX, iconIndex, useSearch, type IconItem, type SearchIndex } from "@/ui/search";
+import { ICON_INDEX, iconIndex, useIndexSearch, type IconItem, type SearchIndex } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -47,7 +47,7 @@ const effectiveColorHex = computed(() => {
   else return getColorHex(effectiveColorType.value, ColorShade.S600);
 });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
-const { results, resultsTotal } = useSearch<IconItem>({
+const { results, resultsTotal } = useIndexSearch<IconItem>({
   query,
   indices: computed(() => ({ icon: ICON_INDEX })),
   isEnabled: computed(() => props.isInline),

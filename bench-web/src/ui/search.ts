@@ -3,25 +3,18 @@ import {
   isEnumType,
   isLocalNodeType,
   isNodeType,
+  isSourceNodeType,
   isStructType,
-  SOURCE_NODE_TYPES,
   TYPE_BLOCK_TYPES,
 } from "@/language/const";
-import { EnumOption, getEnumOptions } from "@/language/enum";
+import { EnumOption, getEnumOption, getEnumOptions } from "@/language/enum";
 import { makeExpression } from "@/language/expression";
-import {
-  getSubtypeEnum,
-  makeTypeConstraint,
-  nodeMatchesConstraint,
-  typeIdentityEquals,
-  type TypeIdentity,
-} from "@/language/field";
+import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeKey, NodeSuperGraph, ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
   BlockData,
   BlockType,
-  ENUM_BY_TYPE,
   EnumType,
   ExpressionData,
   ExpressionType,
@@ -35,23 +28,29 @@ import {
   ViewType,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData
+  type NodeReferenceData,
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
-import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
+import {
+  acquireConnection,
+  releaseConnection,
+  RemoteSearchConnection,
+  SearchConnectionParams,
+} from "@/system/connection";
 import { pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import {
   AVAILABLE_FA_ICONS,
+  DEFAULT_ENUM_ICON,
   DEFAULT_MISSING_ICON,
   getNodeIcon,
   ICON_BY_TYPE_KIND,
-  type IconMetadata
+  type IconMetadata,
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
-import { tryOnBeforeUnmount } from "@vueuse/core";
-import { computed, markRaw, shallowRef, toValue, watch, type MaybeRef, type Ref } from "vue";
+import { tryOnBeforeUnmount, useDebounce } from "@vueuse/core";
+import { computed, markRaw, ref, shallowRef, toValue, watch, type MaybeRef, type Ref } from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
@@ -101,12 +100,10 @@ export type SearchResultInfo = {
 export type SearchIndex<T extends SearchItem> = {
   /** Id and prefix */
   id: string;
-  /** Maps a value to a candidate (to reverse lookup existing values). */
-  fromValue: (value: any) => T | null;
-  /** Gets the value from a candidate */
-  toValue: (candidate: T) => any;
-  /** Whether two values from this index are equal */
-  valueEquals: (a: any, b: any) => boolean;
+  /** Maps a value to a SearchItem (to reverse lookup existing values). */
+  getItemFromValue: (value: any) => T | null;
+  /** Gets the value from a SearchItem */
+  getValueFromItem: (candidate: T) => any;
   /** Produces the current list of candidates. This is non-reactive for search stability & performance. */
   candidates: () => T[];
 };
@@ -252,9 +249,8 @@ export function graphIndex(idx: {
 }): SearchIndex<NodeItem> {
   const index: SearchIndex<NodeItem> = {
     id: idx.id,
-    fromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.graph, value),
-    toValue: (candidate: NodeItem) => toNodeRef(candidate.node),
-    valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id == b.id || a.ck == b.ck,
+    getItemFromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.graph, value),
+    getValueFromItem: (candidate: NodeItem) => toNodeRef(candidate.node),
     candidates: () => walkGraph({ ...idx, maxDepth: toValue(idx.maxDepth) }),
   };
 
@@ -275,9 +271,8 @@ export function supergraphIndex(idx: {
 }): SearchIndex<NodeItem> {
   const index: SearchIndex<NodeItem> = {
     id: idx.id,
-    fromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.supergraph, value),
-    toValue: (candidate: NodeItem) => toNodeRef(candidate.node),
-    valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id == b.id || a.ck == b.ck,
+    getItemFromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.supergraph, value),
+    getValueFromItem: (candidate: NodeItem) => toNodeRef(candidate.node),
     candidates: () => {
       // figure out which graphs to search
       let graphs: ReadNodeGraph[];
@@ -314,9 +309,8 @@ export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex
   }
   const index: SearchIndex<ActionItem> = {
     id: idx.id,
-    fromValue: map,
-    toValue: (candidate: ActionItem) => candidate.id,
-    valueEquals: (a, b) => a.id === b.id,
+    getItemFromValue: map,
+    getValueFromItem: (candidate: ActionItem) => candidate.id,
     candidates: () =>
       IMPLEMENTED_ACTIONS.value
         .filter((a) => a.isEnabled == null || toValue(a.isEnabled))
@@ -334,40 +328,25 @@ export const ACTION_INDEX = actionIndex();
 /*
  * Search the available options of an enum.
  */
-export function enumIndex(idx: { id: string; enumTypes: EnumType[]; enumValues?: any[] }): SearchIndex<EnumOptionItem> {
-  function itemFromEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
+export function enumIndex(idx: { id: string; enumType: EnumType }): SearchIndex<EnumOptionItem> {
+  function itemFromEnumOption(enumType: EnumType, value: EnumOption | number): EnumOptionItem | null {
     if (typeof value == "object") {
+      // already an enum option
       return { ...value, metatype: "enum-option", itemId: value.id };
     } else {
-      // find enum option
-      for (const enumType of enumTypes) {
-        if (ENUM_BY_TYPE[enumType][value] != null) {
-          const enumOption = getEnumOptions(enumType).find((o) => o.value === value);
-          if (enumOption != null)
-            return { ...enumOption, metatype: "enum-option", itemId: `${idx.id}-${enumOption.id}` };
-        }
-      }
+      // find enum option with value
+      const enumOption = getEnumOption(enumType, value);
+      if (enumOption != null) return { ...enumOption, metatype: "enum-option", itemId: `${idx.id}-${enumOption.id}` };
     }
     return null;
   }
 
   const index: SearchIndex<EnumOptionItem> = {
     id: idx.id,
-    fromValue: (value: EnumOption | number) => itemFromEnumOption(idx.enumTypes, value),
-    toValue: (candidate: EnumOptionItem) => candidate.value,
-    valueEquals: (a: EnumOption | number, b: EnumOption | number) => {
-      const aValue = typeof a == "object" ? a.value : a;
-      const bValue = typeof b == "object" ? b.value : b;
-      return aValue === bValue;
-    },
+    getItemFromValue: (value: EnumOption | number) => itemFromEnumOption(idx.enumType, value),
+    getValueFromItem: (candidate: EnumOptionItem) => candidate.value,
     candidates: () => {
-      if (idx.enumValues) {
-        return idx.enumValues.map((enumValue) => itemFromEnumOption(idx.enumTypes, enumValue)!);
-      } else {
-        return idx.enumTypes
-          .flatMap((enumType) => getEnumOptions(enumType))
-          .map((enumOption) => itemFromEnumOption(idx.enumTypes, enumOption)!);
-      }
+      return getEnumOptions(idx.enumType).map((enumOption) => itemFromEnumOption(idx.enumType, enumOption)!);
     },
   };
   return markRaw(index);
@@ -494,9 +473,8 @@ export function typeIndex(idx: {
 
   const index: SearchIndex<TypeItem> = {
     id: idx.id,
-    fromValue: typeItemFromTypeIdentity,
-    toValue: (candidate: TypeItem) => candidate,
-    valueEquals: typeIdentityEquals,
+    getItemFromValue: typeItemFromTypeIdentity,
+    getValueFromItem: (candidate: TypeItem) => candidate,
     candidates: () => {
       // primitives
       const primitiveItems = getIntrinsicOptions(EnumType.PRIMITIVE_TYPE);
@@ -550,9 +528,8 @@ const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(itemFromIcon
 export function iconIndex(id: string = "icon"): SearchIndex<IconItem> {
   const index: SearchIndex<IconItem> = {
     id,
-    fromValue: itemFromIcon,
-    toValue: (candiate: IconItem) => candiate,
-    valueEquals: (a: IconMetadata, b: IconMetadata) => a.faName === b.faName,
+    getItemFromValue: itemFromIcon,
+    getValueFromItem: (candiate: IconItem) => candiate,
     candidates: () => AVAILABLE_FA_ICONS_ITEMS,
   };
   return markRaw(index);
@@ -623,7 +600,11 @@ export function highlightMatches(search: {
 
 // NOTE: :Cleanup: useSearch.indices should type with T, but T is usually a union of different item types,
 //  which are distinct per index. So we need multiple Ts for SearchIndex<A>, SearchIndex<B>, etc. How?
-export function useSearch<T extends SearchItem>(search: {
+
+/**
+ * Search manually defined indices with a query string.
+ */
+export function useIndexSearch<T extends SearchItem>(search: {
   query: Ref<string>;
   indices: MaybeRef<Record<string, SearchIndex<any>>>;
   isEnabled: Ref<boolean>;
@@ -786,105 +767,134 @@ export function makeRemoteSearchParams(options: {
   return params;
 }
 
-const REMOTE_SEARCH_FIRST = 30;
-const REMOTE_SEARCH_DEBOUNCE = 100;
+const VALUE_SEARCH_FIRST = 30;
+const VALUE_SEARCH_DEBOUNCE = 100;
 
+/**
+ * Search dynamically built indices that match a value type and query string.
+ */
 export function useValueSearch(options: {
   query: Ref<string>;
   valueType: Ref<TypeIdentity | undefined | null>;
   isEnabled: Ref<boolean>;
-  remoteFirst?: number;
-  remoteDebounce?: number;
+  first?: number;
+  debounce?: number;
 }) {
-  const remoteFirst = options.remoteFirst ?? REMOTE_SEARCH_FIRST;
-  const remoteDebounce = options.remoteDebounce ?? REMOTE_SEARCH_DEBOUNCE;
+  const { query, valueType, isEnabled, first = VALUE_SEARCH_FIRST, debounce = VALUE_SEARCH_DEBOUNCE } = options;
+  const queryDebounced = useDebounce(query, debounce);
+  const remoteConnection: Ref<RemoteSearchConnection<any> | null> = shallowRef(null);
+  const remoteGraphIndex: Ref<SearchIndex<any> | null> = shallowRef(null);
+  const isLoading = ref(false);
+  let lastRemoteQuery: string = "";
+  let lastRemoteValueType: TypeIdentity | null = null;
+  let lastRemoteTotal: number = 0;
 
-  const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
-    if (
-      isNodeType(options.valueType.value?.benchType) &&
-      !SOURCE_NODE_TYPES.includes(options.valueType.value.benchType)
-    ) {
-      // remote search
-      return makeRemoteSearchParams({
-        query: options.query.value,
-        valueType: options.valueType.value,
-        first: REMOTE_SEARCH_FIRST,
-        isEnabled: options.isEnabled.value,
-      });
-    } else {
-      // local search
-      const params: SearchConnectionParams<any> = { nodeType: NodeType.BENCH, scope: makeScope({}), isEnabled: false };
-      return params;
-    }
-  });
-  const {
-    connection: remoteConnection,
-    graph: remoteGraph,
-    isConnected: remoteIsConnected,
-    isStale: remoteIsStale,
-  } = useSearchConnection({ name: "picker", live: false }, remoteSearchParams);
-  const isLoading = computed(
-    () => remoteSearchParams.value.isEnabled && (!remoteIsConnected.value || remoteIsStale.value),
+  // maintain remote connection (if needed)
+  watch(
+    [queryDebounced, valueType, isEnabled],
+    async () => {
+      // release old remote connection
+      if (remoteConnection.value != null) {
+        releaseConnection(remoteConnection.value);
+        remoteConnection.value = null;
+      }
+      const query = queryDebounced.value.trim();
+
+      // acquire new remote connection if needed
+      if (isEnabled.value && isNodeType(valueType.value?.benchType) && !isSourceNodeType(valueType.value?.benchType)) {
+        // acquire/update remote connection
+        if (
+          lastRemoteValueType != null &&
+          typeIdentityEquals(lastRemoteValueType, valueType.value) &&
+          query.startsWith(lastRemoteQuery) &&
+          lastRemoteTotal < first
+        ) {
+          return; // no need to update search, already narrowed down with previous search
+        }
+        // update remote connection
+        const params = makeRemoteSearchParams({ query, valueType: valueType.value, first, isEnabled: true });
+        isLoading.value = true;
+        try {
+          const connection = await acquireConnection("search", { name: `picker.search` }, params);
+          remoteConnection.value = connection as RemoteSearchConnection<any>;
+          const graph = connection.result.value?.graphComposite!;
+          const nodeType = valueType.value.benchType as unknown as NodeType;
+          remoteGraphIndex.value = graphIndex({ id: "graph", graph, metatypes: [nodeType] });
+          lastRemoteQuery = queryDebounced.value;
+          lastRemoteValueType = valueType.value;
+          lastRemoteTotal = connection.result.value?.rootsPtr.value.length ?? 0;
+        } finally {
+          isLoading.value = false;
+        }
+      } else {
+        // release remote connection
+        remoteGraphIndex.value = null;
+        lastRemoteQuery = "";
+      }
+    },
+    { immediate: true },
   );
 
-  function makeGraphIndices(valueType: TypeIdentity) {
-    let roots: AnyNodeData[] | undefined = undefined;
-    let metatypes: NodeType[];
-    let graph: ReadNodeGraph;
-    if (remoteSearchParams.value.isEnabled) {
-      // remote search
-      remoteIsConnected.value;
-      graph = remoteGraph;
-      metatypes = [remoteSearchParams.value.nodeType];
-    } else {
-      // local search
-      graph = pkgGraph;
-      if (valueType.baseTypePtr != null) {
-        // based node
-        const base = pkgGraph.get(valueType.baseTypePtr);
-        if (base != null) roots = [base];
-      } else if ((valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
-        roots = valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
-      }
-      if (valueType.benchType != null) {
-        metatypes = [valueType.benchType as unknown as NodeType];
-      } else if ((valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
-        metatypes = valueType.constraint!.nodeTypes;
-      } else {
-        metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
-      }
-    }
-    const index = graphIndex({
-      id: "graph",
-      graph: graph,
-      metatypes,
-      roots,
-      skipDepth: roots != null ? 0 : 2,
-      maxDepth: valueType.constraint?.nodeMaxDepth,
-      filter: valueType.constraint != null ? (node) => nodeMatchesConstraint(node, valueType!.constraint!) : undefined,
-    });
-    return [index];
-  }
-
-  const indices: Ref<SearchIndex<any>[]> = computed(() => {
+  // figure out index
+  const index: Ref<SearchIndex<any> | null> = computed(() => {
     if (isEnumType(options.valueType.value?.benchType)) {
       // regular enum
-      return [enumIndex({ id: "enum", enumTypes: [options.valueType.value.benchType] })];
+      return enumIndex({ id: "enum", enumType: options.valueType.value.benchType });
     } else if (options.valueType.value?.kind == TypeKind.NODE || isNodeType(options.valueType.value?.benchType)) {
       // node from (some) graph
-      return makeGraphIndices(options.valueType.value);
+      if (remoteGraphIndex.value != null) {
+        // remote graph
+        return remoteGraphIndex.value;
+      } else {
+        // local graph
+        let roots: AnyNodeData[] | undefined = undefined;
+        let metatypes: NodeType[] = [];
+        if (valueType.value?.baseTypePtr != null) {
+          // based node
+          const base = pkgGraph.get(valueType.value.baseTypePtr);
+          if (base != null) roots = [base];
+        } else if ((valueType.value?.constraint?.nodeScopePtr?.length ?? 0) > 0) {
+          roots = valueType.value!.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
+        }
+        if (valueType.value?.benchType != null) {
+          metatypes = [valueType.value.benchType as unknown as NodeType];
+        } else if ((valueType.value?.constraint?.nodeTypes?.length ?? 0) > 0) {
+          metatypes = valueType.value!.constraint!.nodeTypes;
+        } else {
+          metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+        }
+        return graphIndex({ id: "graph", graph: pkgGraph, roots, metatypes });
+      }
     } else if (options.valueType.value?.benchType == BenchType.TYPE_INFO) {
       // some type
-      return [TYPE_INDEX];
+      return TYPE_INDEX;
     } else {
-      throw new Error(`unsupported value type: ${options.valueType.value?.benchType}`);
+      return null;
     }
   });
-  const { candidates, results, resultsTotal } = useSearch<SearchItem>({
+
+  const { candidates, results, resultsTotal } = useIndexSearch<SearchItem>({
     query: options.query,
-    indices: computed(() => indices.value.reduce((acc, index) => ({ ...acc, [index.id]: index }), {})),
+    indices: computed(() => {
+      if (index.value == null) return {};
+      else return { [index.value.id]: index.value };
+    }),
     isEnabled: options.isEnabled,
   });
 
-  return { indices, candidates, results, resultsTotal, isLoading };
+  /** Get the SearchItem from its value */
+  function getItemFromValue(value: any): SearchItem | null {
+    const item = index.value?.getItemFromValue(value);
+    if (item != null) return item;
+    return null;
+  }
+
+  /** Get the value from a SearchItem */
+  function getValueFromItem(item: SearchItem): any {
+    const value = index.value?.getValueFromItem(item);
+    if (value != null) return value;
+    return null;
+  }
+
+  return { candidates, results, resultsTotal, isLoading, getItemFromValue, getValueFromItem };
 }
