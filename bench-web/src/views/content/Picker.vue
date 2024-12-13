@@ -1,14 +1,10 @@
 <script lang="ts" setup>
-import { isEnumType, isLocalNodeType, isNodeType, SOURCE_NODE_TYPES, toCamelName } from "@/language/const";
-import { makeExpression } from "@/language/expression";
+import { isEnumType, isNodeType, SOURCE_NODE_TYPES, toCamelName } from "@/language/const";
 import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
 import { ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
-  ExpressionData,
-  ExpressionType,
   IconData,
-  NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -21,15 +17,14 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { makeScope, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { BENCH_SCOPE } from "@/system/client";
+import { makeScope, type TypedNodeReferenceData } from "@/proto/wiring";
 import { SearchConnectionParams, supergraph, useSearchConnection } from "@/system/connection";
 import { canvas, pkgGraph } from "@/system/space";
 import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import type { NodeItem, SearchItem, TypeItem } from "@/ui/search";
-import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
+import type { SearchItem } from "@/ui/search";
+import { enumIndex, graphIndex, makeRemoteSearchParams, TYPE_INDEX, useSearch, type SearchIndex } from "@/ui/search";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -45,7 +40,6 @@ const props = defineProps<
     modelValue?: any;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     placeholder?: string;
-    customIndex?: SearchIndex<any>;
     isPopover?: boolean;
   } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
@@ -124,52 +118,17 @@ const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefine
 // nocheckin: don't instance useSearchConnection/useSearch for every single Picker instance
 const REMOTE_SEARCH_FIRST = 30;
 const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
-  if (
-    props.customIndex == null &&
-    isNodeType(props.valueType?.benchType) &&
-    !SOURCE_NODE_TYPES.includes(props.valueType.benchType)
-  ) {
+  if (isNodeType(props.valueType?.benchType) && !SOURCE_NODE_TYPES.includes(props.valueType.benchType)) {
     // remote search
-    const queryString = query.value;
-    const nodeType = props.valueType.benchType;
-    const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeType];
-    const filterClauses: ExpressionData[] = [];
-    if (queryString.length > 0) {
-      // query string filtering
-      for (const key of ["slug", "name", "title"]) {
-        if (key in nodeProperties) {
-          const propertyPtr = propertyReference(nodeType, nodeProperties[key]);
-          const clause = makeExpression({ type: ExpressionType.MATCHES, propertyPtr, value: queryString });
-          filterClauses.push(clause);
-        }
-      }
-    }
-    const scope = isLocalNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
-    const sort: ExpressionData[] = [
-      makeExpression({
-        type: ExpressionType.DESCENDING,
-        propertyPtr: propertyReference(nodeType, nodeProperties["createdAt"]),
-      }),
-    ];
-    const filter =
-      filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
-    const params: SearchConnectionParams<any> = {
-      isEnabled: props.isInline,
-      nodeType,
-      scope,
-      blockPtr: props.valueType.baseTypePtr,
-      filter,
-      sort,
+    return makeRemoteSearchParams({
+      query: query.value,
+      valueType: props.valueType,
       first: REMOTE_SEARCH_FIRST,
-    };
-    return params;
+      isEnabled: props.isInline,
+    });
   } else {
     // local search
-    const params: SearchConnectionParams<any> = {
-      nodeType: NodeType.BENCH,
-      scope: makeScope({}),
-      isEnabled: false,
-    };
+    const params: SearchConnectionParams<any> = { nodeType: NodeType.BENCH, scope: makeScope({}), isEnabled: false };
     return params;
   }
 });
@@ -189,8 +148,7 @@ function makeGraphIndices(valueType: TypeInfoData) {
   let graph: ReadNodeGraph;
   if (remoteSearchParams.value.isEnabled) {
     // remote search
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    remoteIsConnected.value; // nocheckin: trigger reactivity properly (this is unreliable and janky, also see above)
+    remoteIsConnected.value;
     graph = remoteGraph;
     metatypes = [remoteSearchParams.value.nodeType];
   } else {
@@ -211,7 +169,7 @@ function makeGraphIndices(valueType: TypeInfoData) {
       metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
     }
   }
-  const localIndex = graphIndex({
+  const index = graphIndex({
     id: "graph",
     graph: graph,
     metatypes,
@@ -220,14 +178,11 @@ function makeGraphIndices(valueType: TypeInfoData) {
     maxDepth: valueType.constraint?.nodeMaxDepth,
     filter: valueType.constraint != null ? (node) => nodeMatchesConstraint(node, valueType!.constraint!) : undefined,
   });
-  return [localIndex];
+  return [index];
 }
 
 const indices: Ref<SearchIndex<any>[]> = computed(() => {
-  if (props.customIndex != null) {
-    // custom index
-    return [props.customIndex];
-  } else if (isEnumType(props.valueType?.benchType)) {
+  if (isEnumType(props.valueType?.benchType)) {
     // regular enum
     return [enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] })];
   } else if (props.valueType?.kind == TypeKind.NODE || isNodeType(props.valueType?.benchType)) {
@@ -235,7 +190,7 @@ const indices: Ref<SearchIndex<any>[]> = computed(() => {
     return makeGraphIndices(props.valueType);
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
     // some type
-    return [typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 })];
+    return [TYPE_INDEX];
   } else {
     throw new Error(`unsupported value type: ${props.valueType?.benchType}`);
   }

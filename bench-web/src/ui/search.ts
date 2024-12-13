@@ -1,6 +1,7 @@
 import { blockToType } from "@/language/block";
-import { isNodeType, isStructType, TYPE_BLOCK_TYPES } from "@/language/const";
+import { isLocalNodeType, isNodeType, isStructType, TYPE_BLOCK_TYPES } from "@/language/const";
 import { EnumOption, getEnumOptions } from "@/language/enum";
+import { makeExpression } from "@/language/expression";
 import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeKey, NodeSuperGraph, ReadNodeGraph } from "@/language/graph";
 import {
@@ -9,7 +10,10 @@ import {
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
+  ExpressionData,
+  ExpressionType,
   FileType,
+  NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
   PrimitiveType,
   StepType,
@@ -20,7 +24,10 @@ import {
   type IconData,
   type NodeReferenceData,
 } from "@/proto/wire";
-import { isNode, toNodeRef } from "@/proto/wiring";
+import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
+import { BENCH_SCOPE } from "@/system/client";
+import { SearchConnectionParams } from "@/system/connection";
+import { pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import {
   AVAILABLE_FA_ICONS,
@@ -262,7 +269,9 @@ export function supergraphIndex(idx: {
         graphs = [];
         for (const root of idx.roots) {
           const link = idx.supergraph.getLink(root);
-          if (link != null) graphs.push(link.graph);
+          if (link != null && !graphs.includes(link.graph)) {
+            graphs.push(link.graph);
+          }
         }
       } else {
         graphs = idx.supergraph.graphs;
@@ -497,6 +506,7 @@ export function typeIndex(idx: {
   };
   return markRaw(index);
 }
+export const TYPE_INDEX = typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 });
 
 function itemFromIcon(value: IconMetadata): IconItem {
   return { ...value, metatype: "icon", itemId: `icon-${value.id}`, path: value.alias.join(HIDDEN_SEPARATOR) };
@@ -534,7 +544,6 @@ export function useSearch<T extends SearchItem>(search: {
   type SearchCandidate = T & SearchCandidateInfo;
   type SearchResult = T & SearchCandidateInfo & SearchResultInfo;
 
-  const indicesRef = toRef(search.indices) as Ref<Record<string, SearchIndex<T>>>;
   const candidatesRef = shallowRef<SearchCandidate[]>([]);
   const resultsRef = shallowRef<SearchResult[]>([]);
   const resultsTotal = shallowRef(0);
@@ -547,7 +556,7 @@ export function useSearch<T extends SearchItem>(search: {
       return;
     }
     const candidates: SearchCandidate[] = [];
-    for (const [indexName, index] of Object.entries(indicesRef.value)) {
+    for (const [indexName, index] of Object.entries(toValue(search.indices))) {
       const indexCandidates = index
         .candidates()
         .map((item) => ({ ...item, category: item.category ?? indexName, index: indexName }) as SearchCandidate);
@@ -618,10 +627,19 @@ export function useSearch<T extends SearchItem>(search: {
   }
 
   // refresh candidates on index change
-  subs.push(watch([search.isEnabled, indicesRef], updateCandidates, { immediate: true }));
+  subs.push(
+    watch(
+      () => [search.isEnabled.value, toValue(search.indices)],
+      () => {
+        updateCandidates();
+        updateResults();
+      },
+      { immediate: true },
+    ),
+  );
 
   // update results on query change
-  subs.push(watch([search.isEnabled, indicesRef, search.query], updateResults, { immediate: true }));
+  subs.push(watch(search.query, updateResults, { immediate: true }));
 
   tryOnBeforeUnmount(() => subs.forEach((sub) => sub()));
 
@@ -680,4 +698,50 @@ export function highlightMatches(search: {
   }
 
   return { markedResults, bestMatches };
+}
+
+/** Make remote search parameters for a remote (node) value type */
+export function makeRemoteSearchParams(options: {
+  query: string;
+  valueType: TypeIdentity;
+  first: number;
+  isEnabled?: boolean;
+}): SearchConnectionParams<any> {
+  const { query, valueType } = options;
+  const queryString = query;
+  const nodeType = valueType.benchType;
+  if (!isNodeType(nodeType)) {
+    throw new Error(`unsupported remote search type: ${nodeType}`);
+  }
+  const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeType];
+  const filterClauses: ExpressionData[] = [];
+  if (queryString.length > 0) {
+    // query string filtering
+    for (const key of ["slug", "name", "title"]) {
+      if (key in nodeProperties) {
+        const propertyPtr = propertyReference(nodeType, nodeProperties[key]);
+        const clause = makeExpression({ type: ExpressionType.MATCHES, propertyPtr, value: queryString });
+        filterClauses.push(clause);
+      }
+    }
+  }
+  const scope = isLocalNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+  const sort: ExpressionData[] = [
+    makeExpression({
+      type: ExpressionType.DESCENDING,
+      propertyPtr: propertyReference(nodeType, nodeProperties["createdAt"]),
+    }),
+  ];
+  const filter =
+    filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
+  const params: SearchConnectionParams<any> = {
+    nodeType,
+    scope,
+    blockPtr: valueType.baseTypePtr,
+    filter,
+    sort,
+    first: options.first,
+    isEnabled: options.isEnabled,
+  };
+  return params;
 }

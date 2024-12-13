@@ -4,9 +4,8 @@ import { toCamelName } from "@/language/const";
 import { packSubnode, useSubnodeProperty } from "@/language/node";
 import { BlockType, HubAspect, NodeType, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/system/runtime";
-import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph } from "@/system/space";
+import { bench, canvas, hasLocalBench, pkg, pkgConnection, pkgGraph, spaceGraph } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import { fireActionById } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
@@ -113,7 +112,6 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HUB, toRef(props, "subnodePacked"), "aspect");
 const visibleAspects = [HubAspect.BENCH, HubAspect.ACTIVITY, HubAspect.CATALOG];

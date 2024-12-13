@@ -1,13 +1,11 @@
 <script lang="ts" setup>
 import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
-import { canvas, pkgGraph } from "@/system/space";
+import { canvas, pkgGraph, spaceGraph } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
-import { useEventListener } from "@vueuse/core";
 import { computed, provide, Ref, toRef } from "vue";
 
 const props = defineProps<
@@ -22,7 +20,6 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const views = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const focusedViewIdx: Ref<number | null> = computed(() => {
   if (views.value.length == 0) {

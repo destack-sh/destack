@@ -220,7 +220,10 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
 export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 
-export function getView(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
+export function getView(
+  type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>,
+  options?: { forcePrimaryPicker?: boolean },
+): ViewProps | null {
   if (type.kind == TypeKind.CUSTOM_OBJECT || type.kind == TypeKind.PARTIAL_OBJECT) {
     // object
     return { type: ViewType.OBJECT, valueType: type as TypeInfoData };
@@ -248,7 +251,7 @@ export function getView(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>
       return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType!]!, valueType: makeTypeInfo(type) };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
-      if (!type.isList && getEnumOptions(type.benchType).length <= 5) {
+      if (!options?.forcePrimaryPicker && !type.isList && getEnumOptions(type.benchType).length <= 5) {
         // prefer inline picker for small scalar enums
         const variant = ICONS_BY_ENUM_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return { type: ViewType.PICKER, valueType: makeTypeInfo(type), variant, isInline: true };
