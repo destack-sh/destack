@@ -15,7 +15,7 @@ import { canvas } from "@/system/space";
 import { getIconMetadata, IconInline, makeIcon, metadataToIcon, type IconMetadata } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/ui/search";
+import { ICON_INDEX, iconIndex, useSearch, type IconItem, type SearchIndex } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -25,6 +25,7 @@ import { computed, ref, toRef, watch, type Ref } from "vue";
 const DEFAULT_WIDTH = 380;
 const MAX_HEIGHT = 280;
 const ITEMS_PER_ROW = 10;
+const MAX_ROWS = 32;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: IconData } & Partial<
@@ -45,17 +46,12 @@ const effectiveColorHex = computed(() => {
   if (effectiveColorType.value == ColorType.GRAY) return getColorHex(ColorType.GRAY, ColorShade.S700);
   else return getColorHex(effectiveColorType.value, ColorShade.S600);
 });
-const indices: Ref<Record<string, SearchIndex<any>>> = computed(() => {
-  const indices: Record<string, SearchIndex<any>> = {};
-  indices["icon"] = iconIndex();
-  return indices;
-});
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const { results, resultsTotal } = useSearch<IconItem>({
   query,
-  indices,
+  indices: computed(() => ({ icon: ICON_INDEX })),
   isEnabled: computed(() => props.isInline),
-  options: { outOfOrder: 0, highlight: false, maxResults: 32 * ITEMS_PER_ROW },
+  options: { outOfOrder: 0, highlight: false, maxResults: MAX_ROWS * ITEMS_PER_ROW },
 });
 
 // auto-select best match when searching

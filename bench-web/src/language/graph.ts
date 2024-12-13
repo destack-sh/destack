@@ -1394,6 +1394,12 @@ export class NodeSuperGraph {
     this.connections = connections;
   }
 
+  get graphs(): ReadNodeGraph[] {
+    return this.connections.value
+      .filter((connection) => "graphComposite" in connection.result.value)
+      .map((connection) => connection.result.value.graphComposite as ReadNodeGraph);
+  }
+
   /**
    * Gets a node from the supergraph.
    */

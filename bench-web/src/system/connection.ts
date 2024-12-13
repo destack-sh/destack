@@ -1013,6 +1013,21 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
   return connection;
 }
 
+/** Acquire a (remote) connection (new or existing) */
+export async function acquireConnection<K extends GraphConnectionKind, T extends NodeType>(
+  kind: K,
+  metaIn: ConnectionMetadataIn,
+  params: ConnectionParamsMapping<T>[K],
+): Promise<ConnectionBase<K, T>> {
+  const connection = findExistingConnection(kind, params);
+  if (connection != null) {
+    connection.incRefCount();
+    return connection;
+  } else {
+    return await acquireNewConnection(kind, metaIn, params);
+  }
+}
+
 /** Container for providing the results of a Get connection to an inner component */
 export type PreparedGetConnection<T extends NodeType = NodeType> = {
   connection: Connection<"get", T>;

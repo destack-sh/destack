@@ -2,7 +2,7 @@ import { blockToType } from "@/language/block";
 import { isNodeType, isStructType, TYPE_BLOCK_TYPES } from "@/language/const";
 import { EnumOption, getEnumOptions } from "@/language/enum";
 import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
-import type { NodeKey, ReadNodeGraph } from "@/language/graph";
+import type { NodeKey, NodeSuperGraph, ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
   BlockData,
@@ -190,8 +190,13 @@ function walkGraph(options: {
   return items;
 }
 
-function itemFromNode(indexId: string, graph: ReadNodeGraph, value: NodeKey<any>): NodeItem | null {
-  const node = graph.getMaybe(value);
+/** Make a NodeItem from a Node */
+function nodeItemFromNode(
+  indexId: string,
+  graph: ReadNodeGraph | NodeSuperGraph,
+  value: NodeKey<any>,
+): NodeItem | null {
+  const node = graph.get(value);
   if (node == null) return null;
   let title = (node as any).title ?? (node as any).name ?? "";
   if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
@@ -222,16 +227,52 @@ export function graphIndex(idx: {
   skipDepth?: number;
   maxDepth?: MaybeRef<number>;
 }): SearchIndex<NodeItem> {
-  const maxDepthRef = toRef(idx.maxDepth) as Ref<number | undefined>;
-
   const index: SearchIndex<NodeItem> = {
     id: idx.id,
-    fromValue: (value: NodeKey<any>) => itemFromNode(idx.id, idx.graph, value),
+    fromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.graph, value),
     toValue: (candidate: NodeItem) => toNodeRef(candidate.node),
     valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id == b.id || a.ck == b.ck,
-    candidates: () => walkGraph({ ...idx, maxDepth: maxDepthRef.value }),
+    candidates: () => walkGraph({ ...idx, maxDepth: toValue(idx.maxDepth) }),
   };
 
+  return markRaw(index);
+}
+
+/**
+ * Search nodes in a supergraph.
+ */
+export function supergraphIndex(idx: {
+  id: string;
+  supergraph: NodeSuperGraph;
+  metatypes: NodeType[];
+  roots?: AnyNodeData[];
+  filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
+  skipDepth?: number;
+  maxDepth?: MaybeRef<number>;
+}): SearchIndex<NodeItem> {
+  const index: SearchIndex<NodeItem> = {
+    id: idx.id,
+    fromValue: (value: NodeKey<any>) => nodeItemFromNode(idx.id, idx.supergraph, value),
+    toValue: (candidate: NodeItem) => toNodeRef(candidate.node),
+    valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id == b.id || a.ck == b.ck,
+    candidates: () => {
+      // figure out which graphs to search
+      let graphs: ReadNodeGraph[];
+      if (idx.roots != null) {
+        graphs = [];
+        for (const root of idx.roots) {
+          const link = idx.supergraph.getLink(root);
+          if (link != null) graphs.push(link.graph);
+        }
+      } else {
+        graphs = idx.supergraph.graphs;
+      }
+
+      // and search them
+      const candidates = graphs.flatMap((graph) => walkGraph({ ...idx, graph, maxDepth: toValue(idx.maxDepth) }));
+      return candidates;
+    },
+  };
   return markRaw(index);
 }
 
@@ -255,6 +296,7 @@ export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex
   };
   return markRaw(index);
 }
+export const ACTION_INDEX = actionIndex();
 
 /*
  * Search the available options of an enum.
@@ -298,6 +340,21 @@ export function enumIndex(idx: { id: string; enumTypes: EnumType[]; enumValues?:
   return markRaw(index);
 }
 
+function anyNodeTypeItem(idxId: string): TypeItem {
+  return {
+    metatype: "type",
+    kind: TypeKind.NODE,
+    id: "node",
+    itemId: `${idxId}-node`,
+    title: "Node",
+    icon: ICON_BY_TYPE_KIND[TypeKind.NODE],
+    isRequired: false,
+    isList: false,
+    isSecret: false,
+    constraint: undefined,
+  };
+}
+
 /**
  * Search the available type identities (built-ins plus from graph).
  */
@@ -307,45 +364,32 @@ export function typeIndex(idx: {
   skipDepth?: number;
   maxDepth?: number;
 }): SearchIndex<TypeItem> {
-  const ANY_NODE_TYPE: TypeItem = {
-    metatype: "type",
-    kind: TypeKind.NODE,
-    id: "node",
-    itemId: `${idx.id}-node`,
-    title: "Node",
-    icon: ICON_BY_TYPE_KIND[TypeKind.NODE],
-    isRequired: false,
-    isList: false,
-    isSecret: false,
-    constraint: undefined,
-  };
-
-  function mapFromValue(value: TypeIdentity): TypeItem | null {
+  function typeItemFromTypeIdentity(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
-      const nodeItem = itemFromNode(idx.id, idx.graph, value.baseTypePtr);
-      if (nodeItem != null) return mapFromNode(nodeItem);
+      const nodeItem = nodeItemFromNode(idx.id, idx.graph, value.baseTypePtr);
+      if (nodeItem != null) return typeItemFromNode(nodeItem);
     } else if (value.primitiveType != null) {
       if (value.format != null) {
         const option = getEnumOptions(EnumType.TYPE_FORMAT).find((option) => option.value == value.format);
-        if (option != null) return mapFromIntrinsicOption(EnumType.TYPE_FORMAT, option);
+        if (option != null) return typeItemFromIntrinsic(EnumType.TYPE_FORMAT, option);
       }
       const option = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
-      if (option != null) return mapFromIntrinsicOption(EnumType.PRIMITIVE_TYPE, option);
+      if (option != null) return typeItemFromIntrinsic(EnumType.PRIMITIVE_TYPE, option);
     } else if (isNodeType(value.benchType)) {
       const subtypeEnum = getSubtypeEnum(value.benchType);
       if (subtypeEnum != null && value.constraint?.nodeSubtypes?.length == 1) {
         const option = getEnumOptions(subtypeEnum).find((option) => option.value == value.constraint!.nodeSubtypes[0]);
-        if (option != null) return mapFromIntrinsicOption(subtypeEnum, option);
+        if (option != null) return typeItemFromIntrinsic(subtypeEnum, option);
       }
       const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
-      if (option != null) return mapFromIntrinsicOption(EnumType.BENCH_TYPE, option);
+      if (option != null) return typeItemFromIntrinsic(EnumType.BENCH_TYPE, option);
     } else if (value.kind == TypeKind.NODE) {
-      return ANY_NODE_TYPE;
+      return anyNodeTypeItem(idx.id);
     }
     return null;
   }
 
-  function mapFromIntrinsicOption(enumType: EnumType, option: EnumOption): TypeItem {
+  function typeItemFromIntrinsic(enumType: EnumType, option: EnumOption): TypeItem {
     const item: TypeItem = {
       kind: TypeKind.LITERAL,
       id: `${enumType}-${option.id}`,
@@ -396,10 +440,10 @@ export function typeIndex(idx: {
   }
 
   function getIntrinsicOptions(enumType: EnumType) {
-    return getEnumOptions(enumType).map((option) => mapFromIntrinsicOption(enumType, option));
+    return getEnumOptions(enumType).map((option) => typeItemFromIntrinsic(enumType, option));
   }
 
-  function mapFromNode(nodeItem: NodeItem): TypeItem {
+  function typeItemFromNode(nodeItem: NodeItem): TypeItem {
     const blockAsType = blockToType(nodeItem.node as BlockData);
     const item: TypeItem = {
       ...nodeItem,
@@ -413,7 +457,7 @@ export function typeIndex(idx: {
 
   const index: SearchIndex<TypeItem> = {
     id: idx.id,
-    fromValue: mapFromValue,
+    fromValue: typeItemFromTypeIdentity,
     toValue: (candidate: TypeItem) => candidate,
     valueEquals: typeIdentityEquals,
     candidates: () => {
@@ -436,13 +480,13 @@ export function typeIndex(idx: {
         },
         skipDepth: idx.skipDepth,
         maxDepth: idx.maxDepth,
-      }).map(mapFromNode);
+      }).map(typeItemFromNode);
 
       const allItems = [
         ...primitiveItems,
         ...typeFormatItems,
         ...fileItems,
-        ANY_NODE_TYPE,
+        anyNodeTypeItem(idx.id),
         ...graphItems,
         ...blockItems,
         ...stepItems,
@@ -461,9 +505,9 @@ const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(itemFromIcon
 /*
  * Search available icons.
  */
-export function iconIndex(): SearchIndex<IconItem> {
+export function iconIndex(id: string = "icon"): SearchIndex<IconItem> {
   const index: SearchIndex<IconItem> = {
-    id: "icon",
+    id,
     fromValue: itemFromIcon,
     toValue: (candiate: IconItem) => candiate,
     valueEquals: (a: IconMetadata, b: IconMetadata) => a.faName === b.faName,
@@ -471,6 +515,7 @@ export function iconIndex(): SearchIndex<IconItem> {
   };
   return markRaw(index);
 }
+export const ICON_INDEX = iconIndex();
 
 // NOTE: :Cleanup: useSearch.indices should type with T, but T is usually a union of different item types,
 //  which are distinct per index. So we need multiple Ts for SearchIndex<A>, SearchIndex<B>, etc. How?

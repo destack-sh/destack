@@ -28,7 +28,7 @@ import { canvas, pkgGraph } from "@/system/space";
 import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import type { NodeItem, TypeItem } from "@/ui/search";
+import type { NodeItem, SearchItem, TypeItem } from "@/ui/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -151,13 +151,14 @@ const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
         propertyPtr: propertyReference(nodeType, nodeProperties["createdAt"]),
       }),
     ];
+    const filter =
+      filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
     const params: SearchConnectionParams<any> = {
       isEnabled: props.isInline,
       nodeType,
       scope,
       blockPtr: props.valueType.baseTypePtr,
-      filter:
-        filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined,
+      filter,
       sort,
       first: REMOTE_SEARCH_FIRST,
     };
@@ -175,7 +176,6 @@ const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
 const {
   connection: remoteConnection,
   graph: remoteGraph,
-  isConnecting: remoteIsConnecting,
   isConnected: remoteIsConnected,
   isStale: remoteIsStale,
 } = useSearchConnection({ name: "picker", live: false }, remoteSearchParams);
@@ -190,7 +190,7 @@ function makeGraphIndices(valueType: TypeInfoData) {
   if (remoteSearchParams.value.isEnabled) {
     // remote search
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    remoteIsConnected.value; // nocheckin: trigger reactivity
+    remoteIsConnected.value; // nocheckin: trigger reactivity properly (this is unreliable and janky, also see above)
     graph = remoteGraph;
     metatypes = [remoteSearchParams.value.nodeType];
   } else {
@@ -223,7 +223,6 @@ function makeGraphIndices(valueType: TypeInfoData) {
   return [localIndex];
 }
 
-type PickerItem = EnumOptionItem | NodeItem | TypeItem;
 const indices: Ref<SearchIndex<any>[]> = computed(() => {
   if (props.customIndex != null) {
     // custom index
@@ -232,6 +231,7 @@ const indices: Ref<SearchIndex<any>[]> = computed(() => {
     // regular enum
     return [enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] })];
   } else if (props.valueType?.kind == TypeKind.NODE || isNodeType(props.valueType?.benchType)) {
+    // node from (some) graph
     return makeGraphIndices(props.valueType);
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
     // some type
@@ -241,7 +241,7 @@ const indices: Ref<SearchIndex<any>[]> = computed(() => {
   }
 });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
-const { results, resultsTotal } = useSearch<PickerItem>({
+const { results, resultsTotal } = useSearch<SearchItem>({
   query,
   indices: computed(() => indices.value.reduce((acc, index) => ({ ...acc, [index.id]: index }), {})),
   isEnabled: computed(() => props.isInline),
@@ -258,13 +258,13 @@ watch(results, () => {
 // Interaction
 //
 
-function isSelected(value: PickerItem) {
+function isSelected(value: SearchItem) {
   return hasValue.value && indices.value.some((index) => index.valueEquals(value, props.modelValue));
 }
-function isActive(item: PickerItem) {
+function isActive(item: SearchItem) {
   return item.id === activeResultId.value;
 }
-function select(option: string | PickerItem | undefined) {
+function select(option: string | SearchItem | undefined) {
   if (typeof option == "string") option = results.value.find((r) => r.id === option);
   if (option == null) return;
   const index = indices.value.find((index) => option.itemId.startsWith(index.id));
@@ -279,7 +279,7 @@ function select(option: string | PickerItem | undefined) {
     query.value = "";
   }
 }
-function deselect(option: PickerItem | number) {
+function deselect(option: SearchItem | number) {
   if (!props.valueType?.isList) {
     apply(undefined);
   } else if (hasValue.value) {
@@ -422,13 +422,18 @@ defineExpose<ViewExposed>({
       <button
         v-for="item in results"
         :key="item.id"
-        v-tooltip="{ icon: item.icon, title: item.title, small: true, group: 'picker' }"
+        v-tooltip="{
+          icon: (item as any).icon,
+          title: item.title,
+          small: true,
+          group: 'picker',
+        }"
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
         class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
         @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
       >
-        <IconInline v-if="variant == Variant.STEALTH && item.icon" v-bind="item.icon" class="w-5" />
+        <IconInline v-if="variant == Variant.STEALTH && (item as any).icon" v-bind="(item as any).icon" class="w-5" />
         <span v-else class="truncate">{{ item.title }}</span>
       </button>
       <div v-if="results.length == 0" class="mx-auto">
@@ -508,7 +513,11 @@ defineExpose<ViewExposed>({
               @click.prevent="select(item)"
             >
               <!-- Content -->
-              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
+              <IconInline
+                v-if="(item as any).icon"
+                v-bind="(item as any).icon"
+                class="mr-1.5 w-5 flex-shrink-0 text-gray-700"
+              />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
               <span class="flex-1 select-none">
                 <span class="truncate" v-html="item.titleMarked ?? item.title" />
@@ -542,7 +551,7 @@ defineExpose<ViewExposed>({
         <div v-if="!isLoading && results.length == 0" class="max-w-full py-1">
           <div class="px-[11px] py-1 text-gray-500">
             <i class="fas fa-empty-set w-5 text-center text-gray-600" />
-            <span class="ml-1">No results</span>
+            <span class="ml-1">{{ resultsTotal }} results</span>
           </div>
         </div>
       </Scroll>

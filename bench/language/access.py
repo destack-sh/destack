@@ -1051,13 +1051,14 @@ def evaluate_and_adapt_read(
                 visible_nodes.append(node)
             else:
                 # prune node properties to only allowed ones
-                node_copy = type(node)(metatype=node.metatype)  # type: ignore
+                node_copy = type(node)()  # type: ignore
                 node_copy.CopyFrom(node)  # type: ignore
                 for prop_ord in allowed_properties.search(False):
                     prop = node_cls.__properties_in_order__[prop_ord]
                     if prop.reference_wired_ptr is not None:
                         prop = prop.reference_wired_ptr
                     node_copy.ClearField(prop.name)
+                node_copy.metatype = node.metatype  # always keep metatype
                 visible_nodes.append(node_copy)
 
     # add any required skipped nodes back in (as Skips)
