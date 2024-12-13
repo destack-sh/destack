@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { STRING_TYPE, typeIsNumeric } from "@/language/field";
 import { checkValueScalar, checkValueScalarConstraint } from "@/language/value";
-import { Alignment, ColorShade, NodeType, Orientation, Variant, ViewType, type ViewData } from "@/proto/wire";
+import { Alignment, ColorShade, NodeType, Variant, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -145,7 +145,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           :placeholder="placeholder"
           spellcheck="false"
           :type="inputType"
-          class="flex-1 border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 placeholder:text-gray-400 focus:ring-0"
+          class="max-w-full flex-1 truncate border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 placeholder:text-gray-400 focus:ring-0"
           :class="[
             TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
             validationError != null ? 'text-danger-600' : '',
@@ -159,9 +159,9 @@ defineExpose<ViewExposed & { select: () => void }>({
           @input="currentValue = ($event.target as HTMLInputElement).value"
         />
         <!-- Invisible input to measure width -->
-        <span ref="measureRef" class="pointer-events-none invisible absolute whitespace-pre">{{
-          (currentValue?.length ?? 0) > 0 ? currentValue : placeholder
-        }}</span>
+        <span ref="measureRef" class="pointer-events-none invisible absolute whitespace-pre">
+          {{ (currentValue?.length ?? 0) > 0 ? currentValue : placeholder }}
+        </span>
         <!-- Clear -->
         <button
           v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"

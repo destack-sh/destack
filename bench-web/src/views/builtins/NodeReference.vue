@@ -20,6 +20,7 @@ const props = defineProps<{
   isInput?: boolean;
   light?: boolean;
   iconLight?: boolean;
+  maxWidth?: number;
 }>();
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
 const identifierRef = ref<InstanceType<typeof NativeInput> | null>(null);
@@ -45,6 +46,12 @@ const identifierClass = computed(() => [
   props.size == "title" ? ["ml-1.5 text-3xl", props.light ? "font-medium" : "font-bold"] : "",
   props.underline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
+const identifierWidthMax = computed(() => {
+  if (props.maxWidth != null) return props.maxWidth;
+  else if (props.size == "title") return 600;
+  else if (props.size == "large") return 400;
+  else return 300;
+});
 
 function getTx() {
   if (props.tx == null) {
@@ -85,6 +92,7 @@ defineExpose({
       id="identifier"
       ref="identifierRef"
       class="flex-shrink-0 rounded text-gray-900 transition-colors duration-150 focus-within:bg-gray-100 hover:bg-gray-100"
+      :style="{ maxWidth: `${identifierWidthMax}px` }"
       :class="identifierClass"
       :placeholder="nodeTypeName"
       is-input
@@ -95,6 +103,8 @@ defineExpose({
         (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })
       "
     />
-    <span v-else :class="identifierClass">{{ identifier }}</span>
+    <span v-else :class="identifierClass" class="truncate" :style="{ maxWidth: `${identifierWidthMax}px` }">
+      {{ identifier }}
+    </span>
   </div>
 </template>

@@ -24,7 +24,15 @@ import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, 
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import type { SearchItem } from "@/ui/search";
-import { enumIndex, graphIndex, makeRemoteSearchParams, TYPE_INDEX, useSearch, type SearchIndex } from "@/ui/search";
+import {
+  enumIndex,
+  graphIndex,
+  makeRemoteSearchParams,
+  TYPE_INDEX,
+  useSearch,
+  useValueSearch,
+  type SearchIndex,
+} from "@/ui/search";
 import { ViewContentWrapper, viewEmits, type FocusAnchor, type ViewExposed, type ViewProps } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -116,91 +124,13 @@ const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefine
 // nocheckin: remote search
 // nocheckin: debounce
 // nocheckin: don't instance useSearchConnection/useSearch for every single Picker instance
-const REMOTE_SEARCH_FIRST = 30;
-const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
-  if (isNodeType(props.valueType?.benchType) && !SOURCE_NODE_TYPES.includes(props.valueType.benchType)) {
-    // remote search
-    return makeRemoteSearchParams({
-      query: query.value,
-      valueType: props.valueType,
-      first: REMOTE_SEARCH_FIRST,
-      isEnabled: props.isInline,
-    });
-  } else {
-    // local search
-    const params: SearchConnectionParams<any> = { nodeType: NodeType.BENCH, scope: makeScope({}), isEnabled: false };
-    return params;
-  }
-});
-const {
-  connection: remoteConnection,
-  graph: remoteGraph,
-  isConnected: remoteIsConnected,
-  isStale: remoteIsStale,
-} = useSearchConnection({ name: "picker", live: false }, remoteSearchParams);
-const isLoading = computed(
-  () => remoteSearchParams.value.isEnabled && (!remoteIsConnected.value || remoteIsStale.value),
-);
 
-function makeGraphIndices(valueType: TypeInfoData) {
-  let roots: AnyNodeData[] | undefined = undefined;
-  let metatypes: NodeType[];
-  let graph: ReadNodeGraph;
-  if (remoteSearchParams.value.isEnabled) {
-    // remote search
-    remoteIsConnected.value;
-    graph = remoteGraph;
-    metatypes = [remoteSearchParams.value.nodeType];
-  } else {
-    // local search
-    graph = pkgGraph;
-    if (valueType.baseTypePtr != null) {
-      // based node
-      const base = pkgGraph.get(valueType.baseTypePtr);
-      if (base != null) roots = [base];
-    } else if ((valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
-      roots = valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
-    }
-    if (valueType.benchType != null) {
-      metatypes = [valueType.benchType as unknown as NodeType];
-    } else if ((valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
-      metatypes = valueType.constraint!.nodeTypes;
-    } else {
-      metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
-    }
-  }
-  const index = graphIndex({
-    id: "graph",
-    graph: graph,
-    metatypes,
-    roots,
-    skipDepth: roots != null ? 0 : 2,
-    maxDepth: valueType.constraint?.nodeMaxDepth,
-    filter: valueType.constraint != null ? (node) => nodeMatchesConstraint(node, valueType!.constraint!) : undefined,
-  });
-  return [index];
-}
-
-const indices: Ref<SearchIndex<any>[]> = computed(() => {
-  if (isEnumType(props.valueType?.benchType)) {
-    // regular enum
-    return [enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] })];
-  } else if (props.valueType?.kind == TypeKind.NODE || isNodeType(props.valueType?.benchType)) {
-    // node from (some) graph
-    return makeGraphIndices(props.valueType);
-  } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
-    // some type
-    return [TYPE_INDEX];
-  } else {
-    throw new Error(`unsupported value type: ${props.valueType?.benchType}`);
-  }
-});
-const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
-const { results, resultsTotal } = useSearch<SearchItem>({
+const { indices, candidates, results, resultsTotal, isLoading } = useValueSearch({
   query,
-  indices: computed(() => indices.value.reduce((acc, index) => ({ ...acc, [index.id]: index }), {})),
+  valueType: toRef(props, "valueType"),
   isEnabled: computed(() => props.isInline),
 });
+const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 
 // auto-select best match when searching
 watch(results, () => {
@@ -455,13 +385,18 @@ defineExpose<ViewExposed>({
         track-is-overlay
       >
         <!-- Results -->
-        <ul v-if="results.length > 0" class="flex flex-col py-0.5" :class="[isPopover ? 'mx-2 mb-1 mt-0.5' : '']">
+        <ul
+          v-if="results.length > 0"
+          class="flex max-w-full flex-col py-0.5"
+          :class="[isPopover ? 'mx-2 mb-1 mt-0.5' : '']"
+          :style="{ maxWidth: `${width}px` }"
+        >
           <template v-for="item in results" :key="item.id">
             <!-- Results -->
             <li
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               role="menuitem"
-              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded border border-transparent px-1.5 hover:bg-gray-100"
+              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center truncate rounded border border-transparent px-1.5 hover:bg-gray-100"
               :class="[isActive(item) ? 'bg-gray-100' : '']"
               :data-selected="isSelected(item)"
               :data-active="isActive(item)"
@@ -474,13 +409,13 @@ defineExpose<ViewExposed>({
                 class="mr-1.5 w-5 flex-shrink-0 text-gray-700"
               />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
-              <span class="flex-1 select-none">
+              <span class="max-w-full select-none truncate">
                 <span class="truncate" v-html="item.titleMarked ?? item.title" />
                 <!-- Checked -->
                 <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
               </span>
               <!-- Metadata -->
-              <span class="ml-auto flex-1 truncate pl-2 text-right">
+              <span class="ml-auto truncate pl-2 text-right">
                 <!-- Path -->
                 <span
                   v-if="valueType?.kind != TypeKind.BASED_NODE && 'path' in item"
