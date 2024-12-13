@@ -1,8 +1,21 @@
 import { blockToType } from "@/language/block";
-import { isLocalNodeType, isNodeType, isStructType, TYPE_BLOCK_TYPES } from "@/language/const";
+import {
+  isEnumType,
+  isLocalNodeType,
+  isNodeType,
+  isStructType,
+  SOURCE_NODE_TYPES,
+  TYPE_BLOCK_TYPES,
+} from "@/language/const";
 import { EnumOption, getEnumOptions } from "@/language/enum";
 import { makeExpression } from "@/language/expression";
-import { getSubtypeEnum, makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
+import {
+  getSubtypeEnum,
+  makeTypeConstraint,
+  nodeMatchesConstraint,
+  typeIdentityEquals,
+  type TypeIdentity,
+} from "@/language/field";
 import type { NodeKey, NodeSuperGraph, ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
@@ -22,24 +35,23 @@ import {
   ViewType,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData,
+  type NodeReferenceData
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
-import { SearchConnectionParams } from "@/system/connection";
+import { SearchConnectionParams, useSearchConnection } from "@/system/connection";
 import { pkgGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import {
   AVAILABLE_FA_ICONS,
-  DEFAULT_ENUM_ICON,
   DEFAULT_MISSING_ICON,
   getNodeIcon,
   ICON_BY_TYPE_KIND,
-  type IconMetadata,
+  type IconMetadata
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
-import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
+import { computed, markRaw, shallowRef, toValue, watch, type MaybeRef, type Ref } from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
@@ -116,6 +128,10 @@ const VISIBLE_SEPARATOR = ` / `;
 const HIDDEN_SEPARATOR = ` ; `;
 const VISIBLE_UNNAMED = `...`;
 const HIDDEN_UNNAMED = ` \\ `;
+
+//
+// Graph index
+//
 
 /**
  * Walks nodes from a graph and transforms them into search items.
@@ -285,6 +301,10 @@ export function supergraphIndex(idx: {
   return markRaw(index);
 }
 
+//
+// Action index
+//
+
 /**
  * Search the currently available actions.
  */
@@ -306,6 +326,10 @@ export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex
   return markRaw(index);
 }
 export const ACTION_INDEX = actionIndex();
+
+//
+// Enum index
+//
 
 /*
  * Search the available options of an enum.
@@ -348,6 +372,10 @@ export function enumIndex(idx: { id: string; enumTypes: EnumType[]; enumValues?:
   };
   return markRaw(index);
 }
+
+//
+// Type index
+//
 
 function anyNodeTypeItem(idxId: string): TypeItem {
   return {
@@ -508,6 +536,10 @@ export function typeIndex(idx: {
 }
 export const TYPE_INDEX = typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 });
 
+//
+// Icon index
+//
+
 function itemFromIcon(value: IconMetadata): IconItem {
   return { ...value, metatype: "icon", itemId: `icon-${value.id}`, path: value.alias.join(HIDDEN_SEPARATOR) };
 }
@@ -526,6 +558,68 @@ export function iconIndex(id: string = "icon"): SearchIndex<IconItem> {
   return markRaw(index);
 }
 export const ICON_INDEX = iconIndex();
+
+//
+// Highlighting
+//
+
+/**
+ * Highlights a substring of a match. The offset is into the original search string (and thus also the ranges).
+ */
+export function highlight(
+  substr: string,
+  ranges: number[], // start0, end0, start1, end1, ...
+  offset: { start: number; end: number },
+  mark: (strToMark: string) => string = (str) => `<mark>${str}</mark>`,
+): string {
+  let marked = "";
+  let subLast = 0;
+  for (let i = 0; i < ranges.length; i += 2) {
+    const sourceStart = ranges[i];
+    const sourceEnd = ranges[i + 1];
+    if (sourceStart >= offset.start && sourceEnd <= offset.end) {
+      marked += substr.slice(subLast, sourceStart - offset.start);
+      marked += mark(substr.slice(sourceStart - offset.start, sourceEnd - offset.start));
+      subLast = sourceEnd - offset.start;
+    }
+  }
+  marked += substr.slice(subLast); // remainder
+  return marked;
+}
+
+/** Simple search and highlight in plain text haystack */
+export function highlightMatches(search: {
+  uf: uFuzzy;
+  query: string;
+  candidates: string[];
+  options?: SearchOptions;
+}): {
+  markedResults: (string | null)[];
+  bestMatches: number[];
+} {
+  const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
+  const { uf, query, candidates } = search;
+  const [idxs, info, order] = uf.search(candidates, query, options.outOfOrder);
+  const markedResults: (string | null)[] = candidates.map((c) => null);
+  let bestMatches: number[] = [];
+
+  if (idxs && order) {
+    for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
+      const infoIdx = order[orderIdx];
+      const candidate = candidates[idxs[infoIdx]];
+      const result = candidate as string;
+      const ranges = info.ranges[infoIdx] as number[];
+      markedResults[idxs[infoIdx]] = highlight(result, ranges, { start: 0, end: result.length });
+    }
+    bestMatches = order.map((orderIdx) => idxs[order[orderIdx]]);
+  }
+
+  return { markedResults, bestMatches };
+}
+
+//
+// Search
+//
 
 // NOTE: :Cleanup: useSearch.indices should type with T, but T is usually a union of different item types,
 //  which are distinct per index. So we need multiple Ts for SearchIndex<A>, SearchIndex<B>, etc. How?
@@ -646,60 +740,6 @@ export function useSearch<T extends SearchItem>(search: {
   return { candidates: candidatesRef, results: resultsRef, resultsTotal, updateCandidates, updateResults };
 }
 
-/**
- * Highlights a substring of a match. The offset is into the original search string (and thus also the ranges).
- */
-export function highlight(
-  substr: string,
-  ranges: number[], // start0, end0, start1, end1, ...
-  offset: { start: number; end: number },
-  mark: (strToMark: string) => string = (str) => `<mark>${str}</mark>`,
-): string {
-  let marked = "";
-  let subLast = 0;
-  for (let i = 0; i < ranges.length; i += 2) {
-    const sourceStart = ranges[i];
-    const sourceEnd = ranges[i + 1];
-    if (sourceStart >= offset.start && sourceEnd <= offset.end) {
-      marked += substr.slice(subLast, sourceStart - offset.start);
-      marked += mark(substr.slice(sourceStart - offset.start, sourceEnd - offset.start));
-      subLast = sourceEnd - offset.start;
-    }
-  }
-  marked += substr.slice(subLast); // remainder
-  return marked;
-}
-
-/** Simple search and highlight in plain text haystack */
-export function highlightMatches(search: {
-  uf: uFuzzy;
-  query: string;
-  candidates: string[];
-  options?: SearchOptions;
-}): {
-  markedResults: (string | null)[];
-  bestMatches: number[];
-} {
-  const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
-  const { uf, query, candidates } = search;
-  const [idxs, info, order] = uf.search(candidates, query, options.outOfOrder);
-  const markedResults: (string | null)[] = candidates.map((c) => null);
-  let bestMatches: number[] = [];
-
-  if (idxs && order) {
-    for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
-      const infoIdx = order[orderIdx];
-      const candidate = candidates[idxs[infoIdx]];
-      const result = candidate as string;
-      const ranges = info.ranges[infoIdx] as number[];
-      markedResults[idxs[infoIdx]] = highlight(result, ranges, { start: 0, end: result.length });
-    }
-    bestMatches = order.map((orderIdx) => idxs[order[orderIdx]]);
-  }
-
-  return { markedResults, bestMatches };
-}
-
 /** Make remote search parameters for a remote (node) value type */
 export function makeRemoteSearchParams(options: {
   query: string;
@@ -744,4 +784,107 @@ export function makeRemoteSearchParams(options: {
     isEnabled: options.isEnabled,
   };
   return params;
+}
+
+const REMOTE_SEARCH_FIRST = 30;
+const REMOTE_SEARCH_DEBOUNCE = 100;
+
+export function useValueSearch(options: {
+  query: Ref<string>;
+  valueType: Ref<TypeIdentity | undefined | null>;
+  isEnabled: Ref<boolean>;
+  remoteFirst?: number;
+  remoteDebounce?: number;
+}) {
+  const remoteFirst = options.remoteFirst ?? REMOTE_SEARCH_FIRST;
+  const remoteDebounce = options.remoteDebounce ?? REMOTE_SEARCH_DEBOUNCE;
+
+  const remoteSearchParams: Ref<SearchConnectionParams<any>> = computed(() => {
+    if (
+      isNodeType(options.valueType.value?.benchType) &&
+      !SOURCE_NODE_TYPES.includes(options.valueType.value.benchType)
+    ) {
+      // remote search
+      return makeRemoteSearchParams({
+        query: options.query.value,
+        valueType: options.valueType.value,
+        first: REMOTE_SEARCH_FIRST,
+        isEnabled: options.isEnabled.value,
+      });
+    } else {
+      // local search
+      const params: SearchConnectionParams<any> = { nodeType: NodeType.BENCH, scope: makeScope({}), isEnabled: false };
+      return params;
+    }
+  });
+  const {
+    connection: remoteConnection,
+    graph: remoteGraph,
+    isConnected: remoteIsConnected,
+    isStale: remoteIsStale,
+  } = useSearchConnection({ name: "picker", live: false }, remoteSearchParams);
+  const isLoading = computed(
+    () => remoteSearchParams.value.isEnabled && (!remoteIsConnected.value || remoteIsStale.value),
+  );
+
+  function makeGraphIndices(valueType: TypeIdentity) {
+    let roots: AnyNodeData[] | undefined = undefined;
+    let metatypes: NodeType[];
+    let graph: ReadNodeGraph;
+    if (remoteSearchParams.value.isEnabled) {
+      // remote search
+      remoteIsConnected.value;
+      graph = remoteGraph;
+      metatypes = [remoteSearchParams.value.nodeType];
+    } else {
+      // local search
+      graph = pkgGraph;
+      if (valueType.baseTypePtr != null) {
+        // based node
+        const base = pkgGraph.get(valueType.baseTypePtr);
+        if (base != null) roots = [base];
+      } else if ((valueType.constraint?.nodeScopePtr?.length ?? 0) > 0) {
+        roots = valueType.constraint!.nodeScopePtr.map((r) => pkgGraph.get(r)).filter((r) => r != null);
+      }
+      if (valueType.benchType != null) {
+        metatypes = [valueType.benchType as unknown as NodeType];
+      } else if ((valueType.constraint?.nodeTypes?.length ?? 0) > 0) {
+        metatypes = valueType.constraint!.nodeTypes;
+      } else {
+        metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+      }
+    }
+    const index = graphIndex({
+      id: "graph",
+      graph: graph,
+      metatypes,
+      roots,
+      skipDepth: roots != null ? 0 : 2,
+      maxDepth: valueType.constraint?.nodeMaxDepth,
+      filter: valueType.constraint != null ? (node) => nodeMatchesConstraint(node, valueType!.constraint!) : undefined,
+    });
+    return [index];
+  }
+
+  const indices: Ref<SearchIndex<any>[]> = computed(() => {
+    if (isEnumType(options.valueType.value?.benchType)) {
+      // regular enum
+      return [enumIndex({ id: "enum", enumTypes: [options.valueType.value.benchType] })];
+    } else if (options.valueType.value?.kind == TypeKind.NODE || isNodeType(options.valueType.value?.benchType)) {
+      // node from (some) graph
+      return makeGraphIndices(options.valueType.value);
+    } else if (options.valueType.value?.benchType == BenchType.TYPE_INFO) {
+      // some type
+      return [TYPE_INDEX];
+    } else {
+      throw new Error(`unsupported value type: ${options.valueType.value?.benchType}`);
+    }
+  });
+  const { candidates, results, resultsTotal } = useSearch<SearchItem>({
+    query: options.query,
+    indices: computed(() => indices.value.reduce((acc, index) => ({ ...acc, [index.id]: index }), {})),
+    isEnabled: options.isEnabled,
+  });
+
+  return { indices, candidates, results, resultsTotal, isLoading };
 }

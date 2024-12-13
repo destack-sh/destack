@@ -389,7 +389,11 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     >
       <!-- Nodes -->
       <!-- NOTE :UX: it would be neat to have hover/focused/selected nodes highlighted (everywhere) -->
-      <ul ref="listRef" class="group/list relative mb-1 flex flex-col text-gray-900">
+      <ul
+        ref="listRef"
+        class="group/list relative mb-1 flex flex-col text-gray-900"
+        :style="{ maxWidth: `${containerSize.width.value}px` }"
+      >
         <!-- Node -->
         <li
           v-for="({ node, depth, hasChildren }, i) in expandedItems"
@@ -399,7 +403,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group/node relative mx-1.5 flex flex-row items-center rounded border py-[3px] transition-colors duration-150 hover:cursor-pointer"
+          class="group/node relative mx-1.5 flex max-w-full flex-row items-center rounded border py-[3px] transition-colors duration-150 hover:cursor-pointer"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'
@@ -467,7 +471,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           <!-- Name otherwise -->
           <span
             v-else
-            class="select-none truncate"
+            class="max-w-full select-none truncate"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
           />
           <!-- Meta -->
