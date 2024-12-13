@@ -55,7 +55,7 @@ from bench.system.utils.session import (
     pg_engine_from_store,
 )
 from bench.system.utils.sharding import HostMap
-from bench.utils.func import generate_access_token, generate_salt, to_uuid
+from bench.utils.func import bittuple, generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
@@ -65,6 +65,7 @@ tracer = trace.get_tracer(__name__)
 USE_WAITLIST = get_from_env(
     "USE_WAITLIST", default=False, description="Whether to add new users to the waitlist"
 )
+SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 
 
 class SupervisorService(GraphIoServiceBase, SupervisorBase):
@@ -74,7 +75,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         GraphIoServiceBase.__init__(
             self,
             bench_id=None,
-            node_types=USER_NODE_TYPES,
+            node_types=SUPERVISOR_NODE_TYPES,
             logger=logger,
             tracer=tracer,
             oracle=oracle,

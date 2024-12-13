@@ -171,6 +171,13 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         """Gets the graph engines available to this subgraph."""
         ...
 
+    def _check_allowed_node_types(self, *node_types: NodeType) -> None:
+        for node_type in node_types:
+            if node_type not in self.node_types:
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT, f"{self!r} does not support {node_type.bench_name}"
+                )
+
     def _validate_request(self, request: ProtoMessage) -> None:
         """Validate a request message for this service."""
         scope: GraphScopeData = getattr(request, "scope", None) or EMPTY_SCOPE_DATA
@@ -410,6 +417,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             )
 
         area = self._parse_commit(subject, context, request.edits)
+        self._check_allowed_node_types(*area.node_types)
         async with self._graph_lock.write(area):
             retry = COMMIT_RETRY.new(self.oracle)
             while retry.should_retry:
@@ -445,8 +453,9 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     @override
     async def get_nodes(self, request: "GetNodesRequest", headers: Mapping) -> "GetNodesResponse":
         # check that there is at least one root
-        if not request.roots:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
+        self._check_allowed_node_types(
+            *(wiring.unpack_enum(NodeType, r.node_type) for r in request.roots)
+        )
         # parse query & fetch
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
@@ -587,12 +596,13 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self, request: "SearchNodesRequest", headers: Mapping
     ) -> "SearchNodesResponse":
         # parse query & fetch
+        node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
+        self._check_allowed_node_types(node_type)
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             # build the query
             with self.tracer.start_as_current_span("graph.search.parse"):
-                node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 if request.block_ptr.metatype:
                     block_ptr = wiring.unpack_builtin_object(
                         request.block_ptr, supergraph=None, expect=NodeReference
@@ -721,11 +731,12 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self, request: "AggregateNodesRequest", headers: Mapping
     ) -> "AggregateNodesResponse":
         # parse query & fetch
+        node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
+        self._check_allowed_node_types(node_type)
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.aggregate.parse"):
-                node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 filter = wiring.unpack_builtin_object_validate_maybe(
                     request.filter, supergraph=session._supergraph, expect=Expression
                 )

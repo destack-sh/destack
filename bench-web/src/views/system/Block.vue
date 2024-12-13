@@ -16,7 +16,7 @@ import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
 import Database from "@/views/system/Database.vue";
 import Flow from "@/views/system/Flow.vue";
-import FieldList from "@/views/builtins/FieldList.vue";
+import FieldList from "@/views/system/FieldList.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<

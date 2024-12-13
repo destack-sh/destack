@@ -65,6 +65,7 @@ class ViewType(IdEnum):
     # structs
     TYPE = 300
     OBJECT = 301
+    FIELD_LIST = 302
     # helpers
     DETAIL = 403
     CREATE = 404
