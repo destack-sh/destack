@@ -2,7 +2,6 @@ import { blockToType } from "@/language/block";
 import {
   isEnumType,
   isInBenchNodeType,
-  isLocalNodeType,
   isNodeType,
   isSourceNodeType,
   isStructType,
@@ -61,6 +60,7 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   id: string;
   icon: IconData;
   title: string;
+  alias?: string;
   path?: string; // the ancestor path to display
   pathToIndex?: string; // alternative path to index for searching (length must match path for highlighting!)
   ancestors: NodeItem[]; // in order of traversal up, excl. self
@@ -85,11 +85,11 @@ export type TypeItem = TypeIdentity & {
   path?: string;
   pathToIndex?: string;
 };
-export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; path?: string; pathToIndex?: string };
+export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; alias?: string };
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
   itemId: string; // per index
   title: string;
-  aliases?: string[]; // nocheckin: support search aliases (email, slug, ...)
+  alias?: string;
   category?: string;
 };
 
@@ -97,6 +97,7 @@ export type SearchCandidateInfo = { candidate: string; category: string; index: 
 export type SearchResultInfo = {
   pathMarked?: string;
   titleMarked?: string;
+  aliasMarked?: string;
 };
 
 /** An index of searchable items (usually wrappers around some 'values'). */
@@ -113,9 +114,9 @@ export type SearchIndex<T extends SearchItem> = {
 
 export type SearchOptions = {
   /** Term permutations */
+  outOfOrder?: number;
   maxResults?: number;
   highlight?: boolean;
-  outOfOrder?: number;
 };
 
 const DEFAULT_SEARCH_OPTIONS: Required<SearchOptions> = {
@@ -130,8 +131,459 @@ const VISIBLE_UNNAMED = `...`;
 const HIDDEN_UNNAMED = ` \\ `;
 
 //
+// Search
+//
+
+// NOTE: :Cleanup: useSearch.indices should type with T, but T is usually a union of different item types,
+//  which are distinct per index. So we need multiple Ts for SearchIndex<A>, SearchIndex<B>, etc. How?
+
+/**
+ * Search manually defined indices with a query string.
+ */
+export function useIndexSearch<T extends SearchItem>(search: {
+  query: Ref<string>;
+  indices: MaybeRef<Record<string, SearchIndex<any>>>;
+  isEnabled: Ref<boolean>;
+  options?: SearchOptions;
+}): {
+  candidates: Ref<(T & SearchCandidateInfo)[]>;
+  results: Ref<(T & SearchCandidateInfo & SearchResultInfo)[]>;
+  resultsTotal: Ref<number>;
+  updateCandidates: () => void;
+  updateResults: () => void;
+} {
+  type SearchCandidate = T & SearchCandidateInfo;
+  type SearchResult = T & SearchCandidateInfo & SearchResultInfo;
+
+  const candidatesRef = shallowRef<SearchCandidate[]>([]);
+  const resultsRef = shallowRef<SearchResult[]>([]);
+  const resultsTotal = shallowRef(0);
+  let uf: uFuzzy | null = null;
+  const subs: (() => void)[] = [];
+
+  function updateCandidates() {
+    if (!search.isEnabled.value) {
+      candidatesRef.value = [];
+      return;
+    }
+    const candidates: SearchCandidate[] = [];
+    for (const [indexName, index] of Object.entries(toValue(search.indices))) {
+      const indexCandidates = index
+        .candidates()
+        .map((item) => ({ ...item, category: item.category ?? indexName, index: indexName }) as SearchCandidate);
+      candidates.push(...indexCandidates);
+    }
+    candidatesRef.value = candidates;
+  }
+
+  function updateResults() {
+    if (!search.isEnabled.value) {
+      resultsRef.value = [];
+      resultsTotal.value = 0;
+      return;
+    }
+    const candidates = candidatesRef.value;
+    const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
+    if (!search.query.value) {
+      resultsRef.value = candidates.slice(0, options.maxResults) as SearchResult[];
+      resultsTotal.value = candidates.length;
+      return;
+    }
+
+    // search
+    if (uf == null) {
+      uf = new uFuzzy({ intraMode: 1 });
+    }
+
+    // Build search strings array with title, path and alias for each candidate
+    const searchStrings: string[] = [];
+    const searchStringMap = new Map<number, { candidate: SearchCandidate; key: "title" | "path" | "alias" }>();
+
+    candidates.forEach((candidate) => {
+      searchStrings.push(candidate.title);
+      searchStringMap.set(searchStrings.length - 1, { candidate, key: "title" });
+      // path if exists
+      if ("path" in candidate && candidate.path != null) {
+        searchStrings.push(candidate.pathToIndex ?? candidate.path);
+        searchStringMap.set(searchStrings.length - 1, { candidate, key: "path" });
+      }
+      //  alias if exists
+      if (candidate.alias) {
+        searchStrings.push(candidate.alias);
+        searchStringMap.set(searchStrings.length - 1, { candidate, key: "alias" });
+      }
+    });
+
+    const [idxs, info, order] = uf.search(searchStrings, search.query.value, options.outOfOrder);
+
+    // collect
+    if (idxs && order) {
+      const results = new Map<string, SearchResult>();
+      const maxResults = Math.min(options.maxResults, order.length);
+
+      for (let orderIdx = 0; orderIdx < maxResults; orderIdx++) {
+        const infoIdx = order[orderIdx];
+        const searchStringIdx = idxs[infoIdx];
+        const { candidate, key: field } = searchStringMap.get(searchStringIdx)!;
+
+        // Get or create result for this candidate
+        let result = results.get(candidate.itemId);
+        if (!result) {
+          result = { ...candidate } as SearchResult;
+          results.set(candidate.itemId, result);
+        }
+
+        // highlight the matched field
+        if (options.highlight) {
+          const ranges = info.ranges[infoIdx] as number[];
+
+          if (field === "title") {
+            result.titleMarked = highlight(candidate.title, ranges, {
+              start: 0,
+              end: candidate.title.length,
+            });
+          } else if (field === "path" && "path" in candidate && candidate.path) {
+            result.pathMarked = highlight(candidate.path, ranges, {
+              start: 0,
+              end: candidate.path.length,
+            });
+          } else if (field === "alias" && candidate.alias) {
+            result.aliasMarked = highlight(candidate.alias, ranges, {
+              start: 0,
+              end: candidate.alias.length,
+            });
+          }
+        }
+      }
+
+      // count unique candidates that matched
+      const uniqueMatchCount = new Set(
+        order
+          .map((orderIdx) => idxs[orderIdx])
+          .map((searchStringIdx) => searchStringMap.get(searchStringIdx)!.candidate.itemId),
+      ).size;
+      resultsTotal.value = uniqueMatchCount;
+      resultsRef.value = Array.from(results.values());
+    } else {
+      resultsTotal.value = 0;
+      resultsRef.value = [];
+    }
+  }
+
+  // refresh candidates on index change
+  subs.push(
+    watch(
+      () => [search.isEnabled.value, toValue(search.indices)],
+      () => {
+        updateCandidates();
+        updateResults();
+      },
+      { immediate: true },
+    ),
+  );
+
+  // update results on query change
+  subs.push(watch(search.query, updateResults, { immediate: true }));
+
+  tryOnBeforeUnmount(() => subs.forEach((sub) => sub()));
+
+  return { candidates: candidatesRef, results: resultsRef, resultsTotal, updateCandidates, updateResults };
+}
+
+//
+// Highlighting
+//
+
+/**
+ * Highlights a substring of a match. The offset is into the original search string (and thus also the ranges).
+ */
+export function highlight(
+  substr: string,
+  ranges: number[], // start0, end0, start1, end1, ...
+  offset: { start: number; end: number },
+  mark: (strToMark: string) => string = (str) => `<mark>${str}</mark>`,
+): string {
+  let marked = "";
+  let subLast = 0;
+  for (let i = 0; i < ranges.length; i += 2) {
+    const sourceStart = ranges[i];
+    const sourceEnd = ranges[i + 1];
+    if (sourceStart >= offset.start && sourceEnd <= offset.end) {
+      marked += substr.slice(subLast, sourceStart - offset.start);
+      marked += mark(substr.slice(sourceStart - offset.start, sourceEnd - offset.start));
+      subLast = sourceEnd - offset.start;
+    }
+  }
+  marked += substr.slice(subLast); // remainder
+  return marked;
+}
+
+/** Simple search and highlight in plain text haystack */
+export function highlightMatches(search: {
+  uf: uFuzzy;
+  query: string;
+  candidates: string[];
+  options?: SearchOptions;
+}): {
+  markedResults: (string | null)[];
+  bestMatches: number[];
+} {
+  const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
+  const { uf, query, candidates } = search;
+  const [idxs, info, order] = uf.search(candidates, query, options.outOfOrder);
+  const markedResults: (string | null)[] = candidates.map((c) => null);
+  let bestMatches: number[] = [];
+
+  if (idxs && order) {
+    for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
+      const infoIdx = order[orderIdx];
+      const candidate = candidates[idxs[infoIdx]];
+      const result = candidate as string;
+      const ranges = info.ranges[infoIdx] as number[];
+      markedResults[idxs[infoIdx]] = highlight(result, ranges, { start: 0, end: result.length });
+    }
+    bestMatches = order.map((orderIdx) => idxs[order[orderIdx]]);
+  }
+
+  return { markedResults, bestMatches };
+}
+
+/** Make remote search parameters for a remote (node) value type */
+export function makeRemoteSearchParams(options: {
+  query: string;
+  valueType: TypeIdentity;
+  first: number;
+  isEnabled?: boolean;
+}): SearchConnectionParams<any> {
+  const { query, valueType } = options;
+  const queryString = query;
+  const nodeType = valueType.benchType;
+  if (!isNodeType(nodeType)) {
+    throw new Error(`unsupported remote search type: ${nodeType}`);
+  }
+  const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeType];
+  const filterClauses: ExpressionData[] = [];
+  if (queryString.length > 0) {
+    // query string filtering
+    for (const key of ["slug", "name", "title"]) {
+      if (key in nodeProperties) {
+        const propertyPtr = propertyReference(nodeType, nodeProperties[key]);
+        const clause = makeExpression({ type: ExpressionType.MATCHES, propertyPtr, value: queryString });
+        filterClauses.push(clause);
+      }
+    }
+  }
+  const scope = isInBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+  const sort: ExpressionData[] = [
+    makeExpression({
+      type: ExpressionType.DESCENDING,
+      propertyPtr: propertyReference(nodeType, nodeProperties["createdAt"]),
+    }),
+  ];
+  const filter =
+    filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
+  const params: SearchConnectionParams<any> = {
+    nodeType,
+    scope,
+    blockPtr: valueType.baseTypePtr,
+    filter,
+    sort,
+    first: options.first,
+    isEnabled: options.isEnabled,
+  };
+  return params;
+}
+
+const VALUE_SEARCH_FIRST = 30;
+const VALUE_SEARCH_DEBOUNCE = 100;
+
+/**
+ * Search dynamically built indices that match a value type and query string.
+ */
+export function useValueSearch(options: {
+  query: Ref<string>;
+  valueType: Ref<TypeIdentity | undefined | null>;
+  isEnabled: Ref<boolean>;
+  first?: number;
+  debounce?: number;
+}) {
+  const { query, valueType, isEnabled, first = VALUE_SEARCH_FIRST, debounce = VALUE_SEARCH_DEBOUNCE } = options;
+  const queryDebounced = useDebounce(query, debounce);
+  const remoteConnection: Ref<RemoteSearchConnection<any> | null> = shallowRef(null);
+  const remoteGraphIndex: Ref<SearchIndex<any> | null> = shallowRef(null);
+  const isLoading = ref(false);
+  let lastRemoteQuery: string = "";
+  let lastRemoteValueType: TypeIdentity | null = null;
+  let lastRemoteTotal: number = 0;
+
+  // maintain remote connection (if needed)
+  watch(
+    [queryDebounced, valueType, isEnabled],
+    async () => {
+      // release old remote connection
+      if (remoteConnection.value != null) {
+        releaseConnection(remoteConnection.value);
+        remoteConnection.value = null;
+      }
+      const query = queryDebounced.value.trim();
+
+      // acquire new remote connection if needed
+      if (
+        isEnabled.value &&
+        isNodeType(valueType.value?.benchType) &&
+        !isSourceNodeType(valueType.value?.benchType) &&
+        !isVirtualResourceNodeType(valueType.value?.benchType)
+      ) {
+        // acquire/update remote connection
+        if (
+          lastRemoteValueType != null &&
+          typeIdentityEquals(lastRemoteValueType, valueType.value) &&
+          query.startsWith(lastRemoteQuery) &&
+          lastRemoteTotal < first
+        ) {
+          return; // no need to update search, already narrowed down with previous search
+        }
+        // update remote connection
+        const params = makeRemoteSearchParams({ query, valueType: valueType.value, first, isEnabled: true });
+        isLoading.value = true;
+        try {
+          const connection = await acquireConnection("search", { name: `picker.search` }, params);
+          remoteConnection.value = connection as RemoteSearchConnection<any>;
+          const graph = connection.result.value?.graphComposite!;
+          const nodeType = valueType.value.benchType as unknown as NodeType;
+          remoteGraphIndex.value = graphIndex({ id: "graph", graph, metatypes: [nodeType] });
+          lastRemoteQuery = queryDebounced.value;
+          lastRemoteValueType = valueType.value;
+          lastRemoteTotal = connection.result.value?.rootsPtr.value.length ?? 0;
+        } finally {
+          isLoading.value = false;
+        }
+      } else {
+        // release remote connection
+        remoteGraphIndex.value = null;
+        lastRemoteQuery = "";
+      }
+    },
+    { immediate: true },
+  );
+
+  // figure out index
+  const index: Ref<SearchIndex<any> | null> = computed(() => {
+    if (isEnumType(options.valueType.value?.benchType)) {
+      // regular enum
+      return enumIndex({ id: "enum", enumType: options.valueType.value.benchType });
+    } else if (options.valueType.value?.kind == TypeKind.NODE || isNodeType(options.valueType.value?.benchType)) {
+      // node from (some) graph
+      if (remoteGraphIndex.value != null) {
+        // remote graph
+        return remoteGraphIndex.value;
+      } else {
+        // local graph
+        const nodeType = valueType.value?.benchType as unknown as NodeType;
+        const graph = benchGraph.nodeTypes.includes(nodeType) ? benchGraph : pkgGraph;
+        let roots: AnyNodeData[] | undefined = undefined;
+        let metatypes: NodeType[] = [];
+        if (valueType.value?.baseTypePtr != null) {
+          // based node
+          const base = graph.get(valueType.value.baseTypePtr);
+          if (base != null) roots = [base];
+        } else if ((valueType.value?.constraint?.nodeScopePtr?.length ?? 0) > 0) {
+          roots = valueType.value!.constraint!.nodeScopePtr.map((r) => graph.get(r)).filter((r) => r != null);
+        }
+        if (valueType.value?.benchType != null) {
+          metatypes = [nodeType];
+        } else if ((valueType.value?.constraint?.nodeTypes?.length ?? 0) > 0) {
+          metatypes = valueType.value!.constraint!.nodeTypes;
+        } else {
+          metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
+        }
+        return graphIndex({ id: "graph", graph, roots, metatypes });
+      }
+    } else if (options.valueType.value?.benchType == BenchType.TYPE_INFO) {
+      // some type
+      return TYPE_INDEX;
+    } else {
+      return null;
+    }
+  });
+
+  const { candidates, results, resultsTotal } = useIndexSearch<SearchItem>({
+    query: options.query,
+    indices: computed(() => {
+      if (index.value == null) return {};
+      else return { [index.value.id]: index.value };
+    }),
+    isEnabled: options.isEnabled,
+  });
+
+  /** Get the SearchItem from its value */
+  function getItemFromValue(value: any): SearchItem | null {
+    const item = index.value?.getItemFromValue(value);
+    if (item != null) return item;
+    return null;
+  }
+
+  /** Get the value from a SearchItem */
+  function getValueFromItem(item: SearchItem): any {
+    const value = index.value?.getValueFromItem(item);
+    if (value != null) return value;
+    return null;
+  }
+
+  return { candidates, results, resultsTotal, isLoading, getItemFromValue, getValueFromItem };
+}
+
+//
 // Graph index
 //
+
+/** Make a NodeItem from a Node */
+function nodeItemFromNode(
+  indexId: string,
+  graph: ReadNodeGraph | NodeSuperGraph,
+  value: NodeKey<any>,
+  ancestors: NodeItem[] = [],
+  options: { skipDepth?: number } = {},
+): NodeItem | null {
+  const node = graph.get(value);
+  if (node == null) return null;
+
+  // 'title'
+  let title = (node as any).slug ?? (node as any).title ?? (node as any).name ?? "";
+  if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
+    // take title from wrapped node for node views :ViewNodeTitles :DelegateNodes
+    //  (NOTE :UX: maybe we should indicate the real name and index that too somehow?)
+    const referencedNode = graph.get(node.nodePtr); // :ViewNodeTitles
+    if (referencedNode != null) {
+      title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
+    }
+  }
+
+  // compose path
+  const pathParts = [];
+  for (let i = ancestors.length - 1 - (options.skipDepth ?? 0); i >= 0; i--) {
+    const ancestor = ancestors[i];
+    if (ancestor.title != null && ancestor.title.length > 0) {
+      pathParts.push(ancestor.title);
+    }
+  }
+  const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
+  const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR);
+
+  // make item
+  const item: NodeItem = {
+    ...(toNodeRef(node)! as NodeReferenceData & { id: string }),
+    metatype: "node",
+    itemId: `${indexId}-${value.id}`,
+    node,
+    title,
+    path,
+    pathToIndex,
+    icon: getNodeIcon(node) ?? DEFAULT_MISSING_ICON,
+    ancestors: ancestors,
+  };
+  return item;
+}
 
 /**
  * Walks nodes from a graph and transforms them into search items.
@@ -145,97 +597,43 @@ function walkGraph(options: {
   maxDepth?: number;
   filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
 }): NodeItem[] {
+  const { id, graph, metatypes, roots, skipDepth, maxDepth, filter } = options;
   const items: NodeItem[] = [];
 
   /**
    * Walks the descendants from a node.
    */
   function walkNode(node: AnyNodeData, ancestors: NodeItem[]) {
-    // title is composed of nodes in path
-    const pathParts = [];
-    for (let i = ancestors.length - 1 - (options.skipDepth ?? 0); i >= 0; i--) {
-      const ancestor = ancestors[i];
-      if (ancestor.title != null && ancestor.title != "") {
-        pathParts.push(ancestor.title);
-      }
-    }
-    const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
-    const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR);
-    const ref = toNodeRef(node);
-
-    if (ref.id == null) throw new Error(`node has no id: ${node}`);
-
     // make item
-    let title: string = (node as any).title ?? (node as any).name ?? "";
-    if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
-      // take title from wrapped node for node views :ViewNodeTitles :DelegateNodes
-      //  (NOTE :UX: maybe we should indicate the real name and index that too somehow?)
-      const referencedNode = options.graph.get(node.nodePtr);
-      if (referencedNode != null) {
-        title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
-      }
-    }
-    const item: NodeItem = {
-      ...(ref as NodeReferenceData & { id: string }),
-      metatype: "node",
-      itemId: `${options.id}-${ref.id}`,
-      node,
-      path,
-      pathToIndex,
-      title,
-      icon: getNodeIcon(node) ?? DEFAULT_MISSING_ICON,
-      ancestors: ancestors,
-    };
+    const ref = toNodeRef(node);
+    if (ref.id == null) throw new Error(`node has no id: ${node}`);
+    const item = nodeItemFromNode(id, graph, ref, ancestors);
+    if (item == null) return;
 
-    // add this item if it matches
+    // add this item if it matches the filter
     if (
-      options.metatypes.includes(node.metatype as unknown as NodeType) &&
-      (options.filter == null || options.filter(node, ancestors)) &&
-      (options.skipDepth == null || ancestors.length >= options.skipDepth)
+      metatypes.includes(node.metatype as unknown as NodeType) &&
+      (filter == null || filter(node, ancestors)) &&
+      (skipDepth == null || ancestors.length >= skipDepth)
     ) {
       items.push(item);
     }
 
     // descend if possible
     const nextAncestors = [item, ...ancestors];
-    if (options.maxDepth == null || ancestors.length < options.maxDepth) {
-      for (const child of options.graph.getChildren(node)) {
+    if (maxDepth == null || ancestors.length < maxDepth) {
+      for (const child of graph.getChildren(node)) {
         walkNode(child, nextAncestors);
       }
     }
   }
 
-  const roots = options.roots ?? options.graph.roots;
-  for (const root of roots) {
+  // walk from roots
+  for (const root of roots ?? graph.roots) {
     walkNode(root, []);
   }
 
   return items;
-}
-
-/** Make a NodeItem from a Node */
-function nodeItemFromNode(
-  indexId: string,
-  graph: ReadNodeGraph | NodeSuperGraph,
-  value: NodeKey<any>,
-): NodeItem | null {
-  const node = graph.get(value);
-  if (node == null) return null;
-  let title = (node as any).title ?? (node as any).name ?? "";
-  if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
-    const referencedNode = graph.get(node.nodePtr); // :ViewNodeTitles
-    title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
-  }
-  const item: NodeItem = {
-    ...(toNodeRef(node)! as NodeReferenceData & { id: string }),
-    metatype: "node",
-    itemId: `${indexId}-${value.id}`,
-    node,
-    title: title,
-    icon: getNodeIcon(node) ?? DEFAULT_MISSING_ICON,
-    ancestors: [], // not needed?
-  };
-  return item;
 }
 
 /**
@@ -307,18 +705,18 @@ export function supergraphIndex(idx: {
  * Search the currently available actions.
  */
 export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex<ActionItem> {
-  function map(value: Action): ActionItem {
+  function getItemFromValue(value: Action): ActionItem {
     return { ...value, title: toValue(value.title), metatype: "action", itemId: `${idx.id}-${value.id}` };
   }
   const index: SearchIndex<ActionItem> = {
     id: idx.id,
-    getItemFromValue: map,
+    getItemFromValue: getItemFromValue,
     getValueFromItem: (candidate: ActionItem) => candidate.id,
     candidates: () =>
       IMPLEMENTED_ACTIONS.value
         .filter((a) => a.isEnabled == null || toValue(a.isEnabled))
         .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
-        .map(map),
+        .map(getItemFromValue),
   };
   return markRaw(index);
 }
@@ -522,7 +920,7 @@ export const TYPE_INDEX = typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 
 //
 
 function itemFromIcon(value: IconMetadata): IconItem {
-  return { ...value, metatype: "icon", itemId: `icon-${value.id}`, path: value.alias.join(HIDDEN_SEPARATOR) };
+  return { ...value, metatype: "icon", itemId: `icon-${value.id}`, alias: value.aliases?.join(HIDDEN_SEPARATOR) };
 }
 const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(itemFromIcon);
 /*
@@ -538,373 +936,3 @@ export function iconIndex(id: string = "icon"): SearchIndex<IconItem> {
   return markRaw(index);
 }
 export const ICON_INDEX = iconIndex();
-
-//
-// Highlighting
-//
-
-/**
- * Highlights a substring of a match. The offset is into the original search string (and thus also the ranges).
- */
-export function highlight(
-  substr: string,
-  ranges: number[], // start0, end0, start1, end1, ...
-  offset: { start: number; end: number },
-  mark: (strToMark: string) => string = (str) => `<mark>${str}</mark>`,
-): string {
-  let marked = "";
-  let subLast = 0;
-  for (let i = 0; i < ranges.length; i += 2) {
-    const sourceStart = ranges[i];
-    const sourceEnd = ranges[i + 1];
-    if (sourceStart >= offset.start && sourceEnd <= offset.end) {
-      marked += substr.slice(subLast, sourceStart - offset.start);
-      marked += mark(substr.slice(sourceStart - offset.start, sourceEnd - offset.start));
-      subLast = sourceEnd - offset.start;
-    }
-  }
-  marked += substr.slice(subLast); // remainder
-  return marked;
-}
-
-/** Simple search and highlight in plain text haystack */
-export function highlightMatches(search: {
-  uf: uFuzzy;
-  query: string;
-  candidates: string[];
-  options?: SearchOptions;
-}): {
-  markedResults: (string | null)[];
-  bestMatches: number[];
-} {
-  const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
-  const { uf, query, candidates } = search;
-  const [idxs, info, order] = uf.search(candidates, query, options.outOfOrder);
-  const markedResults: (string | null)[] = candidates.map((c) => null);
-  let bestMatches: number[] = [];
-
-  if (idxs && order) {
-    for (let orderIdx = 0; orderIdx < order.length; orderIdx++) {
-      const infoIdx = order[orderIdx];
-      const candidate = candidates[idxs[infoIdx]];
-      const result = candidate as string;
-      const ranges = info.ranges[infoIdx] as number[];
-      markedResults[idxs[infoIdx]] = highlight(result, ranges, { start: 0, end: result.length });
-    }
-    bestMatches = order.map((orderIdx) => idxs[order[orderIdx]]);
-  }
-
-  return { markedResults, bestMatches };
-}
-
-//
-// Search
-//
-
-// NOTE: :Cleanup: useSearch.indices should type with T, but T is usually a union of different item types,
-//  which are distinct per index. So we need multiple Ts for SearchIndex<A>, SearchIndex<B>, etc. How?
-
-/**
- * Search manually defined indices with a query string.
- */
-export function useIndexSearch<T extends SearchItem>(search: {
-  query: Ref<string>;
-  indices: MaybeRef<Record<string, SearchIndex<any>>>;
-  isEnabled: Ref<boolean>;
-  options?: SearchOptions;
-}): {
-  candidates: Ref<(T & SearchCandidateInfo)[]>;
-  results: Ref<(T & SearchCandidateInfo & SearchResultInfo)[]>;
-  resultsTotal: Ref<number>;
-  updateCandidates: () => void;
-  updateResults: () => void;
-} {
-  type SearchCandidate = T & SearchCandidateInfo;
-  type SearchResult = T & SearchCandidateInfo & SearchResultInfo;
-
-  const candidatesRef = shallowRef<SearchCandidate[]>([]);
-  const resultsRef = shallowRef<SearchResult[]>([]);
-  const resultsTotal = shallowRef(0);
-  let uf: uFuzzy | null = null;
-  const subs: (() => void)[] = [];
-
-  function updateCandidates() {
-    if (!search.isEnabled.value) {
-      candidatesRef.value = [];
-      return;
-    }
-    const candidates: SearchCandidate[] = [];
-    for (const [indexName, index] of Object.entries(toValue(search.indices))) {
-      const indexCandidates = index
-        .candidates()
-        .map((item) => ({ ...item, category: item.category ?? indexName, index: indexName }) as SearchCandidate);
-      candidates.push(...indexCandidates);
-    }
-    candidatesRef.value = candidates;
-  }
-
-  function updateResults() {
-    if (!search.isEnabled.value) {
-      resultsRef.value = [];
-      resultsTotal.value = 0;
-      return;
-    }
-    const candidates = candidatesRef.value;
-    const options = { ...DEFAULT_SEARCH_OPTIONS, ...search.options };
-    if (!search.query.value) {
-      resultsRef.value = candidates.slice(0, options.maxResults) as SearchResult[];
-      resultsTotal.value = candidates.length;
-      return;
-    }
-
-    // search
-    if (uf == null) {
-      uf = new uFuzzy({ intraMode: 1 });
-    }
-    const haystack = candidates.map((c) => getIndexedStr(c).str);
-    const [idxs, info, order] = uf.search(haystack, search.query.value, options.outOfOrder, candidates.length);
-    // collect
-    if (idxs && order) {
-      const results: SearchResult[] = [];
-      const maxResults = Math.min(options.maxResults, order.length);
-      for (let orderIdx = 0; orderIdx < maxResults; orderIdx++) {
-        const infoIdx = order[orderIdx];
-        const candidate = candidates[idxs[infoIdx]];
-        const result = { ...candidate } as SearchResult;
-        // highlight
-        if (options.highlight) {
-          const { str: indexedStr } = getIndexedStr(candidate);
-          result.titleMarked = highlight(candidate.title, info.ranges[infoIdx] as any, {
-            start: 0,
-            end: candidate.title.length,
-          });
-          if ("path" in candidate && candidate.path != null) {
-            result.pathMarked = highlight(candidate.path, info.ranges[infoIdx] as any, {
-              start: candidate.title.length + HIDDEN_SEPARATOR.length,
-              end: indexedStr.length,
-            });
-          }
-        }
-        results.push(result);
-      }
-      resultsTotal.value = order.length;
-      resultsRef.value = results;
-    } else {
-      resultsTotal.value = 0;
-      resultsRef.value = [];
-    }
-  }
-
-  function getIndexedStr(item: SearchItem): { str: string; isPathIncluded: boolean } {
-    if ("path" in item && item.path != null) {
-      // index path (which excludes item itself) + title
-      return { str: item.title + HIDDEN_SEPARATOR + (item.pathToIndex ?? item.path), isPathIncluded: true };
-    } else {
-      return { str: item.title, isPathIncluded: false };
-    }
-  }
-
-  // refresh candidates on index change
-  subs.push(
-    watch(
-      () => [search.isEnabled.value, toValue(search.indices)],
-      () => {
-        updateCandidates();
-        updateResults();
-      },
-      { immediate: true },
-    ),
-  );
-
-  // update results on query change
-  subs.push(watch(search.query, updateResults, { immediate: true }));
-
-  tryOnBeforeUnmount(() => subs.forEach((sub) => sub()));
-
-  return { candidates: candidatesRef, results: resultsRef, resultsTotal, updateCandidates, updateResults };
-}
-
-/** Make remote search parameters for a remote (node) value type */
-export function makeRemoteSearchParams(options: {
-  query: string;
-  valueType: TypeIdentity;
-  first: number;
-  isEnabled?: boolean;
-}): SearchConnectionParams<any> {
-  const { query, valueType } = options;
-  const queryString = query;
-  const nodeType = valueType.benchType;
-  if (!isNodeType(nodeType)) {
-    throw new Error(`unsupported remote search type: ${nodeType}`);
-  }
-  const nodeProperties = NODE_PROPERTY_ENUM_BY_TYPE[nodeType];
-  const filterClauses: ExpressionData[] = [];
-  if (queryString.length > 0) {
-    // query string filtering
-    for (const key of ["slug", "name", "title"]) {
-      if (key in nodeProperties) {
-        const propertyPtr = propertyReference(nodeType, nodeProperties[key]);
-        const clause = makeExpression({ type: ExpressionType.MATCHES, propertyPtr, value: queryString });
-        filterClauses.push(clause);
-      }
-    }
-  }
-  const scope = isInBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
-  const sort: ExpressionData[] = [
-    makeExpression({
-      type: ExpressionType.DESCENDING,
-      propertyPtr: propertyReference(nodeType, nodeProperties["createdAt"]),
-    }),
-  ];
-  const filter =
-    filterClauses.length > 0 ? makeExpression({ type: ExpressionType.OR, clauses: filterClauses }) : undefined;
-  const params: SearchConnectionParams<any> = {
-    nodeType,
-    scope,
-    blockPtr: valueType.baseTypePtr,
-    filter,
-    sort,
-    first: options.first,
-    isEnabled: options.isEnabled,
-  };
-  return params;
-}
-
-const VALUE_SEARCH_FIRST = 30;
-const VALUE_SEARCH_DEBOUNCE = 100;
-
-/**
- * Search dynamically built indices that match a value type and query string.
- */
-export function useValueSearch(options: {
-  query: Ref<string>;
-  valueType: Ref<TypeIdentity | undefined | null>;
-  isEnabled: Ref<boolean>;
-  first?: number;
-  debounce?: number;
-}) {
-  const { query, valueType, isEnabled, first = VALUE_SEARCH_FIRST, debounce = VALUE_SEARCH_DEBOUNCE } = options;
-  const queryDebounced = useDebounce(query, debounce);
-  const remoteConnection: Ref<RemoteSearchConnection<any> | null> = shallowRef(null);
-  const remoteGraphIndex: Ref<SearchIndex<any> | null> = shallowRef(null);
-  const isLoading = ref(false);
-  let lastRemoteQuery: string = "";
-  let lastRemoteValueType: TypeIdentity | null = null;
-  let lastRemoteTotal: number = 0;
-
-  // maintain remote connection (if needed)
-  watch(
-    [queryDebounced, valueType, isEnabled],
-    async () => {
-      // release old remote connection
-      if (remoteConnection.value != null) {
-        releaseConnection(remoteConnection.value);
-        remoteConnection.value = null;
-      }
-      const query = queryDebounced.value.trim();
-
-      // acquire new remote connection if needed
-      if (
-        isEnabled.value &&
-        isNodeType(valueType.value?.benchType) &&
-        !isSourceNodeType(valueType.value?.benchType) &&
-        !isVirtualResourceNodeType(valueType.value?.benchType)
-      ) {
-        // acquire/update remote connection
-        if (
-          lastRemoteValueType != null &&
-          typeIdentityEquals(lastRemoteValueType, valueType.value) &&
-          query.startsWith(lastRemoteQuery) &&
-          lastRemoteTotal < first
-        ) {
-          return; // no need to update search, already narrowed down with previous search
-        }
-        // update remote connection
-        const params = makeRemoteSearchParams({ query, valueType: valueType.value, first, isEnabled: true });
-        isLoading.value = true;
-        try {
-          const connection = await acquireConnection("search", { name: `picker.search` }, params);
-          remoteConnection.value = connection as RemoteSearchConnection<any>;
-          const graph = connection.result.value?.graphComposite!;
-          const nodeType = valueType.value.benchType as unknown as NodeType;
-          remoteGraphIndex.value = graphIndex({ id: "graph", graph, metatypes: [nodeType] });
-          lastRemoteQuery = queryDebounced.value;
-          lastRemoteValueType = valueType.value;
-          lastRemoteTotal = connection.result.value?.rootsPtr.value.length ?? 0;
-        } finally {
-          isLoading.value = false;
-        }
-      } else {
-        // release remote connection
-        remoteGraphIndex.value = null;
-        lastRemoteQuery = "";
-      }
-    },
-    { immediate: true },
-  );
-
-  // figure out index
-  const index: Ref<SearchIndex<any> | null> = computed(() => {
-    if (isEnumType(options.valueType.value?.benchType)) {
-      // regular enum
-      return enumIndex({ id: "enum", enumType: options.valueType.value.benchType });
-    } else if (options.valueType.value?.kind == TypeKind.NODE || isNodeType(options.valueType.value?.benchType)) {
-      // node from (some) graph
-      if (remoteGraphIndex.value != null) {
-        // remote graph
-        return remoteGraphIndex.value;
-      } else {
-        // local graph
-        const nodeType = valueType.value?.benchType as unknown as NodeType;
-        const graph = benchGraph.nodeTypes.includes(nodeType) ? benchGraph : pkgGraph;
-        let roots: AnyNodeData[] | undefined = undefined;
-        let metatypes: NodeType[] = [];
-        if (valueType.value?.baseTypePtr != null) {
-          // based node
-          const base = graph.get(valueType.value.baseTypePtr);
-          if (base != null) roots = [base];
-        } else if ((valueType.value?.constraint?.nodeScopePtr?.length ?? 0) > 0) {
-          roots = valueType.value!.constraint!.nodeScopePtr.map((r) => graph.get(r)).filter((r) => r != null);
-        }
-        if (valueType.value?.benchType != null) {
-          metatypes = [nodeType];
-        } else if ((valueType.value?.constraint?.nodeTypes?.length ?? 0) > 0) {
-          metatypes = valueType.value!.constraint!.nodeTypes;
-        } else {
-          metatypes = [NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.VIEW];
-        }
-        return graphIndex({ id: "graph", graph, roots, metatypes });
-      }
-    } else if (options.valueType.value?.benchType == BenchType.TYPE_INFO) {
-      // some type
-      return TYPE_INDEX;
-    } else {
-      return null;
-    }
-  });
-
-  const { candidates, results, resultsTotal } = useIndexSearch<SearchItem>({
-    query: options.query,
-    indices: computed(() => {
-      if (index.value == null) return {};
-      else return { [index.value.id]: index.value };
-    }),
-    isEnabled: options.isEnabled,
-  });
-
-  /** Get the SearchItem from its value */
-  function getItemFromValue(value: any): SearchItem | null {
-    const item = index.value?.getItemFromValue(value);
-    if (item != null) return item;
-    return null;
-  }
-
-  /** Get the value from a SearchItem */
-  function getValueFromItem(item: SearchItem): any {
-    const value = index.value?.getValueFromItem(item);
-    if (value != null) return value;
-    return null;
-  }
-
-  return { candidates, results, resultsTotal, isLoading, getItemFromValue, getValueFromItem };
-}

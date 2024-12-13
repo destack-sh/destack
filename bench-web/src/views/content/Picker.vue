@@ -382,7 +382,7 @@ defineExpose<ViewExposed>({
               :data-active="isActive(item)"
               @click.prevent="select(item)"
             >
-              <!-- Content -->
+              <!-- Main content -->
               <IconInline
                 v-if="(item as any).icon"
                 v-bind="(item as any).icon"
@@ -403,6 +403,11 @@ defineExpose<ViewExposed>({
                 >
                   <span v-html="item.pathMarked ?? item.path" />
                 </span>
+                <span
+                  v-else-if="item.alias"
+                  class="ml-auto truncate pl-2 text-right text-gray-500"
+                  v-html="item.aliasMarked ?? item.alias"
+                />
               </span>
             </li>
           </template>
