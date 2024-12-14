@@ -13,10 +13,18 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
+import { autoloader } from "@/system/globals";
 import { canvas } from "@/system/space";
-import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, ICON_BY_TYPE_KIND, IconInline, makeIcon } from "@/ui/icon";
+import {
+  ICON_BY_BENCH_TYPE,
+  ICON_BY_BLOCK_TYPE,
+  ICON_BY_NODE_TYPE,
+  ICON_BY_TYPE_KIND,
+  IconInline,
+  makeIcon,
+} from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import type { SearchItem } from "@/ui/search";
@@ -82,20 +90,34 @@ const facetName = computed(() => {
     return null;
   }
 });
+
 // NOTE: technically currentItems/Icon aren't fully reactive (requires modelValue to change)
 const hasValue = computed(() => {
   if (props.modelValue == null) return false;
   if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
   else return true;
 });
-const currentItems: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
+type ItemVignette = { title: string | undefined; icon: IconData | undefined; status: "found" | "pending" | "missing" };
+function getItemVignette(value: any): ItemVignette {
+  const item = getItemFromValue(value);
+  if (item != null) {
+    return { title: item?.title, icon: (item as any)?.icon, status: "found" };
+  } else if (isNodeRef(value)) {
+    return {
+      title: undefined,
+      icon: ICON_BY_NODE_TYPE[value.nodeType],
+      status: autoloader.isPending(value) ? "pending" : "missing",
+    };
+  } else {
+    return { title: undefined, icon: undefined, status: "missing" };
+  }
+}
+const currentItems: Ref<ItemVignette[]> = computed(() => {
   if (!hasValue.value) return [];
   if (!props.valueType?.isList) {
-    const item = getItemFromValue(props.modelValue);
-    return [{ title: item?.title, icon: (item as any)?.icon }];
+    return [getItemVignette(props.modelValue)];
   } else {
-    const items = (props.modelValue as any[]).map((v) => getItemFromValue(v));
-    return items.map((v) => ({ title: v?.title, icon: (v as any)?.icon }));
+    return (props.modelValue as any[]).map((v) => getItemVignette(v));
   }
 });
 const nodePtrs: Ref<NodeReferenceData[]> = computedValue(() => {
@@ -111,8 +133,8 @@ const nodePtrs: Ref<NodeReferenceData[]> = computedValue(() => {
     return props.modelValue as NodeReferenceData[];
   }
 });
-// nocheckin: tie into useSearch somehow? why do we need an index here at all?
-//  supergraph subscription for *every* Picker seems excessive?
+// NOTE :Architecture: needing to subscribe to supergraph for nodes (e.g., in Picker) seems unwieldy
+//  (but we need to signal to autoloader somehow that we need these nodes loaded...)
 const nodes = supergraph.getManyRef(nodePtrs);
 
 //
@@ -254,11 +276,12 @@ defineExpose<ViewExposed>({
         <button
           v-for="(v, i) in currentItems"
           :key="i"
-          class="mr-2 flex flex-row items-center rounded"
-          :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
+          class="mr-2 flex flex-row items-center gap-x-1.5 rounded"
+          :class="[valueType?.isList ? 'bg-gray-100 px-1' : '', v.status == 'pending' ? 'animate-pulse' : '']"
         >
-          <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
-          <span class="truncate">{{ v.title ?? "???" }}</span>
+          <IconInline v-if="v.icon" v-bind="v.icon" class="w-5 text-center text-gray-700" />
+          <span v-if="v.status == 'pending'" class="truncate">...</span>
+          <span v-else class="truncate">{{ v.title ?? "???" }}</span>
         </button>
       </template>
       <div

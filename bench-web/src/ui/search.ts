@@ -5,6 +5,7 @@ import {
   isNodeType,
   isSourceNodeType,
   isStructType,
+  isUnloadedNodeType,
   isVirtualResourceNodeType,
   TYPE_BLOCK_TYPES,
 } from "@/language/const";
@@ -429,12 +430,7 @@ export function useValueSearch(options: {
       const query = queryDebounced.value.trim();
 
       // acquire new remote connection if needed
-      if (
-        isEnabled.value &&
-        isNodeType(valueType.value?.benchType) &&
-        !isSourceNodeType(valueType.value?.benchType) &&
-        !isVirtualResourceNodeType(valueType.value?.benchType)
-      ) {
+      if (isEnabled.value && isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType)) {
         // acquire/update remote connection
         if (
           lastRemoteValueType != null &&
@@ -478,11 +474,7 @@ export function useValueSearch(options: {
       if (remoteGraphIndex.value != null) {
         // remote graph
         return remoteGraphIndex.value;
-      } else if (
-        isNodeType(valueType.value?.benchType) &&
-        !isSourceNodeType(valueType.value?.benchType) &&
-        !isVirtualResourceNodeType(valueType.value?.benchType)
-      ) {
+      } else if (isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType)) {
         // remote supergraph
         return SUPERGRAPH_INDEX;
       } else {

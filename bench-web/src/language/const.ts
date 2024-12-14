@@ -86,6 +86,11 @@ export function isInBenchNodeType(nodeType: NodeType): boolean {
   return nodeType >= 200 || nodeType == NodeType.BENCH;
 }
 
+/** Whether the node type isn't loaded by default */
+export function isUnloadedNodeType(nodeType: NodeType): boolean {
+  return !isSourceNodeType(nodeType) && !isVirtualResourceNodeType(nodeType);
+}
+
 // node types :NodeTypes
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [
