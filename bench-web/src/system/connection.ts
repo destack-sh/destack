@@ -935,7 +935,10 @@ async function gcInactiveConnections() {
 // periodically load missing nodes
 setInterval(autoloader.loadAll.bind(autoloader), CONNECTION_AUTOLOAD_INTERVAL);
 // periodically clean up inactive connections
-setInterval(gcInactiveConnections, CONNECTION_INACTIVE_TIMEOUT);
+setInterval(() => {
+  autoloader.gcBatches();
+  gcInactiveConnections();
+}, CONNECTION_INACTIVE_TIMEOUT / 10);
 
 /** RC-=1. Connections without references are GCed after some time. */
 export function releaseConnection(connection: ConnectionBase<any, any>): void {
