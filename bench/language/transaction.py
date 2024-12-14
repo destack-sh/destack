@@ -741,6 +741,7 @@ def edit_graph(
             # inline implicit metadata
             node_data.created_at.CopyFrom(edit.edited_at)
             node_data.updated_at.CopyFrom(edit.edited_at)
+            node_data.ClearField("deleted_at")
             if hasattr(node_data, "created_epoch"):
                 setattr(node_data, "created_epoch", edit.epoch)
                 setattr(node_data, "updated_epoch", edit.epoch)
@@ -835,6 +836,7 @@ def edit_data_graph(
             # inline implicit metadata
             node.created_at.CopyFrom(edit.edited_at)
             node.updated_at.CopyFrom(edit.edited_at)
+            node.ClearField("deleted_at")
             if hasattr(node, "created_epoch"):
                 setattr(node, "created_epoch", edit.epoch)
                 setattr(node, "updated_epoch", edit.epoch)

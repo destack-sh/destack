@@ -523,7 +523,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
               text: `'${this.kind}:${this.meta.name}' connection restored.`,
               override: `connection:${this.meta.id}`,
               summarize: {
-                key: "connection.reconnected",
+                key: "connection.reconnect",
                 info: [{ name: this.meta.name }],
                 title: (infos) => `${infos.length} connections restored`,
                 text: (infos) => {
@@ -1106,7 +1106,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 }
 
 /** The graph of a node connection overlaid with its local overlay */
-function useConnectionGraphWithOverlay<T extends NodeType>(
+function useConnectionGraphComposite<T extends NodeType>(
   connection: Ref<ConnectionBase<"get" | "search", T> | null>,
 ): ReadNodeGraph {
   // NOTE :Cleanup: the distinction between graphRaw/graphOverlay/graphComposite and this thing here is confusing?
@@ -1165,7 +1165,7 @@ export function useExistingConnection<T extends NodeType = any>(
   // NOTE :Performance: don't use separate overlay graphs for every useExistingConnection?
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
-  const graph = useConnectionGraphWithOverlay(connection);
+  const graph = useConnectionGraphComposite(connection);
   const graphRaw = useConnectionGraphRaw(connection);
 
   // route to the appropriate connection
@@ -1235,7 +1235,7 @@ export function useGetConnection<T extends NodeType>(
 
   // map results
   // NOTE :Cleanup: mapping connection results is a deep ref chain?
-  const graph = useConnectionGraphWithOverlay(connection);
+  const graph = useConnectionGraphComposite(connection);
   const graphRaw: ReadNodeGraph = useConnectionGraphRaw(connection);
   const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
@@ -1273,7 +1273,7 @@ export function useSearchConnection<T extends NodeType>(
   const { connection, isConnecting, isConnected, isStale } = useConnection<"search", T>("search", metaIn, paramsRef);
 
   // map results
-  const graph = useConnectionGraphWithOverlay(connection);
+  const graph = useConnectionGraphComposite(connection);
   const graphRaw = useConnectionGraphRaw(connection);
   const rootsPtr: Ref<TypedNodeReferenceData<T>[]> = computed(
     () => connection.value?.result?.value?.rootsPtr?.value ?? [],

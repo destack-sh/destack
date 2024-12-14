@@ -267,7 +267,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
-      <div ref="contentRef" class="flex min-h-full flex-col pb-[320px]">
+    <div ref="contentRef" class="flex min-h-full flex-col pb-[320px]">
         <!-- Page header (title) -->
         <div
           class="mx-auto mb-2 mt-5 flex flex-row items-center"
