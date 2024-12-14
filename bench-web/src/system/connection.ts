@@ -222,12 +222,12 @@ function makeConnectionOverlayGraph(
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
   // add current buffered edits
   {
-    const currentBuffered = connection.txBuffer.getBuffered();
+    const currentBuffered = connection.txBuffer.getBufferByConnection();
     const currentEdits = [...(currentBuffered[-1] ?? []), ...(currentBuffered[connection.meta.id] ?? [])];
     editGraph(overlay, currentEdits, { base: base });
   }
   // susbcribe to buffer changes
-  const sub = connection.txBuffer.subscribeBuffered((event) => {
+  const sub = connection.txBuffer.subscribeBuffer((event) => {
     if (event.meta.connectionId == null || event.meta.connectionId == connection.meta.id) {
       if (event.type == "reset") {
         overlay.clear();
@@ -640,7 +640,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
         editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
-        this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
+        this.txBuffer.onCommitted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
@@ -723,7 +723,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         page.value = { size: rep.rootsPtr.length, total: rep.total };
         // apply edits
         editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
-        this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
+        this.txBuffer.onCommitted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
@@ -1285,8 +1285,6 @@ export function useSearchConnection<T extends NodeType>(
   const page: Ref<PageInfo> = computed(
     () => connection.value?.result?.value?.page?.value ?? ({ roots: [], cursors: [], size: 0 } as PageInfo),
   );
-
-  // nocheckin: handle parent/base delete in search connection
 
   // no overlay because already overlaid
   return {

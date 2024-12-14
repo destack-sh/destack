@@ -635,9 +635,9 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="group rounded-xl border border-gray-200 px-2 py-0.5 hover:bg-gray-100"
           >
             <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
-            <span class="text-gray-900">{{
-              findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!)
-            }}</span>
+            <span class="text-gray-900">
+              {{ findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!) }}
+            </span>
             <button
               class="ml-1.5 text-gray-400 opacity-0 transition-colors duration-150 group-hover:opacity-100"
               @click="() => sorts.splice(i, 1)"
