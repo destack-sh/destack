@@ -625,6 +625,9 @@ function getIntersectingNodes(
         }
       }
       if (nodePtr != null) {
+        // resolve against supergraph (to get full node ref)
+        const node = supergraph.get(nodePtr);
+        if (node != null) nodePtr = toNodeRef(node);
         nodesById[nodePtr.id!] = nodePtr;
       }
     }

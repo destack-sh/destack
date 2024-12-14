@@ -1260,7 +1260,7 @@ export function useGetConnection<T extends NodeType>(
 /**
  * Searches for nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that 1) edits for the result nodes are watched and 2) the search itself is watched.
- * TODO :Incomplete!: paginate (across) search connections
+ * TODO :Incomplete: paginate (across) search connections
  */
 export function useSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
@@ -1285,6 +1285,8 @@ export function useSearchConnection<T extends NodeType>(
   const page: Ref<PageInfo> = computed(
     () => connection.value?.result?.value?.page?.value ?? ({ roots: [], cursors: [], size: 0 } as PageInfo),
   );
+
+  // nocheckin: handle parent/base delete in search connection
 
   // no overlay because already overlaid
   return {
