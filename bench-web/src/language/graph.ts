@@ -65,7 +65,7 @@ export interface ReadNodeGraph {
   get scope(): GraphScopeData;
 
   /** The node types contained in this graph */
-  get nodeTypes(): NodeType[];
+  get nodeTypes(): Set<NodeType>;
 
   /** Whether this graph is partial */
   readonly isOverlayOf: ReadNodeGraph | null;
@@ -205,7 +205,7 @@ export interface WriteNodeGraph {
  */
 abstract class BaseNodeGraphMixin implements ReadNodeGraph {
   abstract scope: GraphScopeData;
-  abstract nodeTypes: NodeType[];
+  abstract nodeTypes: Set<NodeType>;
   abstract isOverlayOf: ReadNodeGraph | null;
   abstract nodes: AnyNodeData[];
   abstract get size(): number;
@@ -224,7 +224,9 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
 
   describeSelf(): string {
     const rootsStr = this.roots.map(describeNode).join(", ") || "<no roots>";
-    const nodeTypesStr = this.nodeTypes.map((t) => toCamelName(NodeType, t)).join("|");
+    const nodeTypesStr = Array.from(this.nodeTypes)
+      .map((t) => toCamelName(NodeType, t))
+      .join("|");
     return `${this.constructor.name}(${rootsStr}, ${this.size} nodes, ${nodeTypesStr} ${describeScope(this.scope)})`;
   }
 
@@ -509,7 +511,7 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
  */
 export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
   public readonly scope: GraphScopeData;
-  public readonly nodeTypes: NodeType[];
+  public readonly nodeTypes: Set<NodeType>;
   public readonly isOverlayOf: ReadNodeGraph | null;
 
   private nodesById: { [id: string]: AnyNodeData } = {};
@@ -521,10 +523,10 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private nodeSubsByCk: { [ck: string]: Array<NodeGraphCallback> } = {};
   private nodeSubsByParentIdAndType: { [parentId: string]: { [type: string]: Array<NodeGraphCallback> } } = {};
 
-  constructor(init: { scope: GraphScopeData; nodeTypes: NodeType[]; isOverlayOf?: ReadNodeGraph }) {
+  constructor(init: { scope: GraphScopeData; nodeTypes: Set<NodeType>; isOverlayOf?: ReadNodeGraph }) {
     super();
     this.scope = init?.scope ?? {};
-    this.nodeTypes = init?.nodeTypes ?? [];
+    this.nodeTypes = init?.nodeTypes ?? new Set();
     this.isOverlayOf = init?.isOverlayOf ?? null;
   }
 
@@ -629,7 +631,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private _addToParent(node: AnyNodeData) {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      if (!this.nodesById[parentId] && !this.isOverlayOf && this.nodeTypes.includes(node.parentPtr.nodeType)) {
+      if (!this.nodesById[parentId] && !this.isOverlayOf && this.nodeTypes.has(node.parentPtr.nodeType)) {
         throw new Error(
           `parent ${describeNode(node.parentPtr)} not found in ${this.describeSelf()} for node ${describeNode(node)}`,
         );
@@ -647,7 +649,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId]?.[node.metatype]?.findIndex((n) => n == node.id);
-      if (nodeIdx == null && (this.isOverlayOf || this.nodeTypes.includes(node.parentPtr.nodeType))) return;
+      if (nodeIdx == null && (this.isOverlayOf || this.nodeTypes.has(node.parentPtr.nodeType))) return;
       else if (nodeIdx == -1)
         throw new Error(
           `node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)} in ${this.describeSelf()}`,
@@ -921,8 +923,8 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     return this._graph.value?.scope ?? EMPTY_SCOPE;
   }
 
-  get nodeTypes(): NodeType[] {
-    return this._graph.value?.nodeTypes ?? [];
+  get nodeTypes(): Set<NodeType> {
+    return this._graph.value?.nodeTypes ?? new Set();
   }
 
   get isOverlayOf(): ReadNodeGraph | null {
@@ -1082,8 +1084,8 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     else return this.layers.value[0].scope;
   }
 
-  get nodeTypes(): NodeType[] {
-    if (this.layers.value.length == 0) return [];
+  get nodeTypes(): Set<NodeType> {
+    if (this.layers.value.length == 0) return new Set();
     else return this.layers.value[0].nodeTypes;
   }
 
@@ -1435,8 +1437,16 @@ export class NodeSuperGraph {
       .map((connection) => connection.result.value.graphComposite as ReadNodeGraph);
   }
 
-  getConnectionsFor(nodeType: NodeType): ConnectionBase<any, any>[] {
-    return this.connectionsByNodeType.value[nodeType] ?? [];
+  getConnectionsFor(...nodeTypes: NodeType[]): ConnectionBase<any, any>[] {
+    if (nodeTypes.length == 0) {
+      return this.connections.value;
+    } else if (nodeTypes.length == 1) {
+      return this.connectionsByNodeType.value[nodeTypes[0]] ?? [];
+    } else {
+      return this.connections.value.filter((connection) =>
+        nodeTypes.every((nodeType) => connection.nodeTypes.has(nodeType)),
+      );
+    }
   }
 
   /**
@@ -1535,10 +1545,10 @@ export class NodeSuperGraph {
           }
         }
       }
-      
+
       // notify
       this.subs.forEach((sub) => sub(found ? "hit" : "miss", key, callback));
-      
+
       // subscribe to all graphs and graphs list
       if (!found) {
         for (const connection of this.getConnectionsFor(key.nodeType)) {
@@ -1552,7 +1562,7 @@ export class NodeSuperGraph {
       }
     };
     update();
-    
+
     this.subs.forEach((sub) => sub("sub", key, callback));
     return () => {
       unsub();

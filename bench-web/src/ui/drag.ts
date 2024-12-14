@@ -101,6 +101,7 @@ export function startDragging(event: DragEvent, data: AnyNodeData | NodeReferenc
       dragged = { trigger, kind: "selection", selection: canvas.selection!, nodes };
     } else {
       // just drag the node
+      canvas.select([data]);
       dragged = { trigger, kind: "node", node: toNodeRef(data), nodes: [data] };
     }
   } else if (isStruct(data, StructType.SELECTION)) {

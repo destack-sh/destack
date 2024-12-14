@@ -25,6 +25,7 @@ import {
 } from "@/proto/services";
 import {
   AggregationResultData,
+  EditData,
   ExpressionData,
   NodeReferenceData,
   NodeType,
@@ -43,9 +44,9 @@ import {
   unwrapSomeNode,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
+import { NodeAutoloader } from "@/system/autoload";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { setAutoloader, setSupergraph } from "@/system/globals";
-import { NodeAutoloader } from "@/system/autoload";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
@@ -207,39 +208,42 @@ function getNodeTypesFromParams<T extends NodeType>(
 }
 
 /**
- * Derives the overlay graph for a specific connection
- *
- * NOTE :UX :Architecture: instead of ignoring transactions from other connections outright we could optimistically
- *  apply edits to the same node identities to other connections as well. Ultimately, for better responsiveness,
- *  we probably want to emulate even more of the backend Connection behavior (e.g., optimistic search results).
- * (the reason for having the connection filter below is that while the backend properly filters edits per connection,
- *  here we distribute optimistic edits across the per-bench tx buffer, so an edit might not be relevant or even valid)
+ * Derives the overlay graph for a specific connection from the overall transaction buffer.
  */
 function makeConnectionOverlayGraph(
   base: NodeGraph,
   connection: Connection<any, any>,
 ): { graph: NodeGraph; sub: () => void } {
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
+
   // add current buffered edits
   {
     const currentBuffered = connection.txBuffer.getBufferByConnection();
     const currentEdits = [...(currentBuffered[-1] ?? []), ...(currentBuffered[connection.meta.id] ?? [])];
     editGraph(overlay, currentEdits, { base: base });
   }
+
   // susbcribe to buffer changes
   const sub = connection.txBuffer.subscribeBuffer((event) => {
-    if (event.meta.connectionId == null || event.meta.connectionId == connection.meta.id) {
-      if (event.type == "reset") {
-        overlay.clear();
-      }
-      let edits = event.newEdits;
-      if (event.meta.connectionId == null) {
-        // filter to only edits from this connection
-        edits = edits.filter((e) => base.nodeTypes.includes(e.nodePtr?.nodeType!));
-      }
-      editGraph(overlay, edits, { base: base, ignoreMissing: event.meta.connectionId == null });
+    if (event.type == "reset") {
+      overlay.clear();
+    }
+    let edits: EditData[];
+    if (event.meta.connectionId == connection.meta.id) {
+      // our connection, take all edits
+      edits = event.bufferedEdits;
+    } else if (event.meta.connectionId == null) {
+      // general connection, take any edits that match our node types
+      edits = event.bufferedEdits.filter((e) => base.nodeTypes.has(e.nodePtr?.nodeType!));
+    } else {
+      // other connection, take any edits that concern our own nodes
+      edits = event.bufferedEdits.filter((e) => base.has(e.nodePtr!));
+    }
+    if (edits.length > 0) {
+      editGraph(overlay, edits, { base: base, ignoreMissing: event.meta.connectionId != connection.meta.id });
     }
   });
+
   return { graph: overlay, sub };
 }
 
@@ -300,7 +304,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   readonly params: ConnectionParamsMapping<T>[K];
   readonly result: ShallowRef<(ConnectionResultMapping<T>[K] & ConnectionInternalResult) | null> = shallowRef(null);
   readonly txBuffer: TransactionBuffer;
-  readonly nodeTypes: NodeType[];
+  readonly nodeTypes: Set<NodeType>;
   readonly createdAt: DateTime = DateTime.now();
   lastReferencedAt: DateTime | null = null;
 
@@ -319,7 +323,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     this.meta = meta;
     this.params = params;
     this.txBuffer = txBuffer;
-    this.nodeTypes = getNodeTypesFromParams(params);
+    this.nodeTypes = new Set(getNodeTypesFromParams(params));
   }
 
   get id(): number {
@@ -606,7 +610,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
     onError: (error: Error) => void,
   ): Promise<GetConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
-    const graph = new NodeGraph({ scope, nodeTypes });
+    const graph = new NodeGraph({ scope, nodeTypes: new Set(nodeTypes) });
     const subs: (() => void)[] = [];
     const select: SelectOptionsData | undefined =
       params.select != null ? makeDefaultObject({ ...params.select, metatype: ObjectType.SELECT_OPTIONS }) : undefined;
@@ -639,11 +643,14 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
+        // apply edits from stream
         editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
-        this.txBuffer.onCommitted(rep.edits, rep.cascadedEdits);
+        this.txBuffer.onAccepted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
+    } else {
+      // nocheckin: apply edits from other accepted buffers (here and in search?)
     }
 
     const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
@@ -672,7 +679,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
     onError: (error: Error) => void,
   ): Promise<SearchConnectionResult<T> & ConnectionInternalResult> {
     const client = await getGraphClient(scope);
-    const graph = new NodeGraph({ scope, nodeTypes });
+    const graph = new NodeGraph({ scope, nodeTypes: new Set(nodeTypes) });
     const select: SelectOptionsData | undefined =
       params.select != null ? makeDefaultObject({ ...params.select, metatype: ObjectType.SELECT_OPTIONS }) : undefined;
     const subs: (() => void)[] = [];
@@ -723,7 +730,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         page.value = { size: rep.rootsPtr.length, total: rep.total };
         // apply edits
         editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
-        this.txBuffer.onCommitted(rep.edits, rep.cascadedEdits);
+        this.txBuffer.onAccepted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));

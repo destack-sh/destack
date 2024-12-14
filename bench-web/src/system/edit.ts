@@ -131,7 +131,7 @@ class EditStack {
   subscribeToBuffer(buffer: TransactionBuffer): () => void {
     const bufferedSub = buffer.subscribeBuffer((event) => {
       let hasNewEdits = false;
-      for (const edit of event.newEdits) {
+      for (const edit of event.bufferedEdits) {
         if (this._filter(edit) && !this._editsById[edit.id] && !this._derivedEditsById[edit.id]) {
           this._editStack.push(edit);
           this._editsById[edit.id] = edit;
