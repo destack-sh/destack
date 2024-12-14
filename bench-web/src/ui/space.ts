@@ -258,33 +258,42 @@ export class SpaceCanvas {
   /** Gets the node at the given element. */
   getNodeAt(el: HTMLElement | SVGElement): NodeReferenceData | null {
     // traverse upwards until we find some node ptr or a component that gives us a node ptr
+    let nodePtr: NodeReferenceData | null = null;
     while (el != null) {
       if (el.dataset?.["ignoreElement"] == "self") {
         el = el.parentElement!; // skip this element
         continue;
       } else if (el.dataset?.["nodeId"] != null) {
         // annotated element
-        const nodePtr = {
+        nodePtr = {
           metatype: ObjectType.NODE_REFERENCE,
           nodeType: Number(el.dataset["nodeType"]),
           id: el.dataset["nodeId"],
           ck: el.dataset["nodeCk"],
         };
-        return nodePtr;
+        break;
       } else if ((el as any).__viewComponent != null) {
         // view component
         const component = (el as any).__viewComponent as ViewComponent;
         if (component.exposed.mapToNode != null) {
-          const nodePtr = component.exposed.mapToNode(el);
-          if (nodePtr != null) return nodePtr;
+          nodePtr = component.exposed.mapToNode(el);
+          if (nodePtr != null) break;
         } else if (component.props.nodePtr != null) {
-          return component.props.nodePtr;
+          nodePtr = component.props.nodePtr;
+          break;
         }
       }
       // up we go
       el = el.parentElement!;
     }
-    return null;
+
+    // resolve against supergraph (to get full node ref)
+    if (nodePtr != null) {
+      const node = supergraph.get(nodePtr);
+      if (node != null) nodePtr = toNodeRef(node);
+    }
+
+    return nodePtr;
   }
 
   /** Updates our internal focus state in response to a browser event */

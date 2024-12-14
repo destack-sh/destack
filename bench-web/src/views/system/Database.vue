@@ -111,7 +111,7 @@ const fieldsRaw = graphRaw.getChildrenRef(blockRaw, NodeType.FIELD);
 //
 
 const DEFAULT_SORT = makeExpression({
-  type: ExpressionType.DESCENDING,
+  type: ExpressionType.ASCENDING,
   propertyPtr: propertyReference(NodeType.RECORD, RecordProperty.createdAt),
 });
 const filters: Ref<ExpressionData[]> = shallowRef([]);

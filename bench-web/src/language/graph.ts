@@ -1442,8 +1442,9 @@ export class NodeSuperGraph {
   /**
    * Gets a node from the supergraph.
    */
-  get<T extends NodeType>(key: TypedNodeKey<T>): NodeTypeMapping[T] | null {
-    for (const connection of this.getConnectionsFor(key.nodeType)) {
+  get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
+    const connections = key.nodeType != null ? this.getConnectionsFor(key.nodeType) : this.connections.value;
+    for (const connection of connections) {
       if (connection.result.value != null && "graphComposite" in connection.result.value && connection.meta.live) {
         const graph = connection.result.value.graphComposite as ReadNodeGraph;
         const node = graph.get(key);
@@ -1454,7 +1455,7 @@ export class NodeSuperGraph {
   }
 
   /** Gets a node from the supergraph or throws an error if it's not found. */
-  getOrError<T extends NodeType>(key: TypedNodeKey<T>): NodeTypeMapping[T] {
+  getOrError<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] {
     const node = this.get(key);
     if (node == null) throw new Error(`node not found: ${key}`);
     return node;
@@ -1463,14 +1464,14 @@ export class NodeSuperGraph {
   /**
    * Gets multiple nodes from the supergraph.
    */
-  getMany<T extends NodeType>(keys: TypedNodeKey<T>[]): NodeTypeMapping[T][] {
+  getMany<T extends NodeType>(keys: NodeKey<T>[]): NodeTypeMapping[T][] {
     return keys.map((key) => this.getOrError(key));
   }
 
   /**
    * Gets multiple nodes from the supergraph maybe.
    */
-  getManyMaybe<T extends NodeType>(keys: TypedNodeKey<T>[]): NodeTypeMapping[T][] {
+  getManyMaybe<T extends NodeType>(keys: NodeKey<T>[]): NodeTypeMapping[T][] {
     return keys.map((key) => this.get(key)).filter((node) => node != null);
   }
 

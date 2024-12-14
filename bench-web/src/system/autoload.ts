@@ -1,7 +1,7 @@
-import { isInBenchNodeType, isUnloadedNodeType } from "@/language/const";
+import { BASED_NODE_TYPES, isInBenchNodeType, isUnloadedNodeType } from "@/language/const";
 import { NodeSuperGraph } from "@/language/graph";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
-import { makeScope, toNodeRef } from "@/proto/wiring";
+import { describeNode, makeScope, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
 import { acquireConnection, GetConnectionParams, releaseConnection, RemoteGetConnection } from "@/system/connection";
 import { groupByList, groupByScalar } from "@/utils/functools";
@@ -23,7 +23,7 @@ export class NodeAutoloader {
   /** Nodes we're waiting/trying to load */
   private pendingNodesById: Ref<Record<string, NodeReferenceData>> = shallowRef({});
   /** Nodes we'll load next */
-  private nodesToLoad: Array<NodeReferenceData> = [];
+  private nextNodesToLoad: Array<NodeReferenceData> = [];
   /** All loaded batches */
   private loadedBatches: Array<AutoloadedBatch> = [];
   /** Nodes we already loaded (even if they are still missing!) */
@@ -72,8 +72,11 @@ export class NodeAutoloader {
       if (this.missingNodeById[key.id!] == null) {
         this.missingNodeById[key.id!] = key;
         if (isUnloadedNodeType(key.nodeType) && !this.failedNodesById[key.id!]) {
+          if (BASED_NODE_TYPES.includes(key.nodeType) && key.baseCk == null) {
+            throw new Error(`missing base in ${describeNode(key)}`);
+          }
           this.pendingNodesById.value[key.id!] = key;
-          this.nodesToLoad.push(key);
+          this.nextNodesToLoad.push(key);
           triggerRef(this.pendingNodesById);
         }
       }
@@ -85,8 +88,8 @@ export class NodeAutoloader {
     for (const key of keys) {
       if (this.missingNodeById[key.id!] != null) {
         delete this.missingNodeById[key.id!];
-        const index = this.nodesToLoad.findIndex((p) => p.id == key.id);
-        if (index >= 0) this.nodesToLoad.splice(index, 1);
+        const index = this.nextNodesToLoad.findIndex((p) => p.id == key.id);
+        if (index >= 0) this.nextNodesToLoad.splice(index, 1);
       }
     }
   }
@@ -130,15 +133,15 @@ export class NodeAutoloader {
 
   /** Load any missing nodes with new connections (as feasible) */
   async loadAll() {
-    if (this.nodesToLoad.length > 0) {
-      const nodesByBase = groupByList(this.nodesToLoad, (ptr) => ptr.nodeType + "." + ptr.baseCk);
-      await Promise.all(Object.values(nodesByBase).map(this.loadBatch.bind(this)));
-      this.nodesToLoad = [];
+    if (this.nextNodesToLoad.length > 0) {
+      const nodesByBase = groupByList(this.nextNodesToLoad, (ptr) => ptr.nodeType + "." + ptr.baseCk);
+      await Promise.all(Object.values(nodesByBase).map(this.load.bind(this)));
+      this.nextNodesToLoad = [];
     }
   }
 
   /** Load a batch of missing nodes with new connections */
-  private async loadBatch(missingNodes: NodeReferenceData[]) {
+  private async load(missingNodes: NodeReferenceData[]) {
     const batchId = this.batchId++;
     log.trace("autoload.loadBatch", { batchId, missingNodes });
 
@@ -150,7 +153,7 @@ export class NodeAutoloader {
     if (baseCk != null && blockPtr == null) {
       this.onFailed(...missingNodes);
       // nocheckin: retry once base is found
-      log.trace("autoload.loadBatch.fail", { batchId, missingNodes });
+      log.trace("autoload.load.fail", { batchId, missingNodes });
       return; // can't load this right now (but retry later?)
     }
 
@@ -165,7 +168,7 @@ export class NodeAutoloader {
     try {
       const connection = (await acquireConnection(
         "get",
-        { name: `remote.${batchId}`, live: true },
+        { name: `autoload.${batchId}`, live: true },
         params,
       )) as RemoteGetConnection<any>;
       const batch: AutoloadedBatch = {
@@ -174,10 +177,10 @@ export class NodeAutoloader {
         connection,
       };
       this.loadedBatches.push(batch);
-      log.trace("autoload.loadBatch.complete", { batchId, missingNodes });
+      log.trace("autoload.load.complete", { batchId, missingNodes });
       this.onLoaded(...missingNodes);
     } catch (e) {
-      log.trace("autoload.loadBatch.fail", { e, batchId, missingNodes });
+      log.trace("autoload.load.fail", { e, batchId, missingNodes });
       this.onFailed(...missingNodes);
     }
   }
