@@ -593,6 +593,7 @@ export function editGraph(
       const node = unwrapSomeNode(edit.nodeData);
       // implicit metadata
       node.createdAt = node.updatedAt = edit.editedAt;
+      node.deletedAt = undefined;
       if (edit.epoch != null && "createdEpoch" in node && "updatedEpoch" in node) {
         node.createdEpoch = node.updatedEpoch = edit.epoch;
       }

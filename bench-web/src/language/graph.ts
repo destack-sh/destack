@@ -211,6 +211,12 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
   abstract get size(): number;
   abstract get<T extends NodeType>(node: NodeKey<T>): NodeTypeMapping[T] | null;
   abstract getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][];
+  private static _id: number = 0;
+  public readonly id: number;
+
+  constructor() {
+    this.id = BaseNodeGraphMixin._id++;
+  }
 
   get roots() {
     return this.nodes.filter((n) => n.parentPtr == null || this.get(n.parentPtr) == null);

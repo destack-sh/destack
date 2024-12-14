@@ -5,6 +5,7 @@ import { makeScope, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
 import { acquireConnection, GetConnectionParams } from "@/system/connection";
 import { groupByList } from "@/utils/functools";
+import { log } from "@/utils/log";
 import { Ref, shallowRef, triggerRef } from "vue";
 
 /** Monitor the supergraph and automatically load (and unload) any remote nodes that we're missing. */
@@ -22,7 +23,7 @@ export class NodeAutoloader {
   /** Nodes we failed to load */
   private failedNodesById: Record<string, NodeReferenceData> = {};
   /** 'Generation' of the current load batch */
-  private loadGeneration: number = 0;
+  private batchId: number = 0;
 
   constructor(private supergraph: NodeSuperGraph) {
     this.supergraph = supergraph;
@@ -111,7 +112,8 @@ export class NodeAutoloader {
 
   /** Load a batch of missing nodes with new connections */
   private async loadBatch(missingNodes: NodeReferenceData[]) {
-    const generation = this.loadGeneration++;
+    const batchId = this.batchId++;
+    log.trace("autoload.loadBatch", { batchId, missingNodes });
 
     // build query
     const nodeType = missingNodes[0].nodeType;
@@ -121,6 +123,7 @@ export class NodeAutoloader {
     if (baseCk != null && blockPtr == null) {
       this.onFailed(...missingNodes);
       // nocheckin: retry once base is found
+      log.trace("autoload.loadBatch.fail", { batchId, missingNodes });
       return; // can't load this right now (but retry later?)
     }
 
@@ -132,12 +135,13 @@ export class NodeAutoloader {
       blockPtr: blockPtr as NodeReferenceData | undefined,
       isOptional: true,
     };
-    console.log("missing." + this.loadGeneration, NodeType[nodeType], missingNodes, scope, params);
     try {
-      const connection = await acquireConnection("get", { name: `remote.${generation}`, live: true }, params);
+      const connection = await acquireConnection("get", { name: `remote.${batchId}`, live: true }, params);
+      log.trace("autoload.loadBatch.complete", { batchId, missingNodes });
       // nocheckin: release connection somehow?
       this.onLoaded(...missingNodes);
     } catch (e) {
+      log.trace("autoload.loadBatch.fail", { e, batchId, missingNodes });
       this.onFailed(...missingNodes);
     }
   }

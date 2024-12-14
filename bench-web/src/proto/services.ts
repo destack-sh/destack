@@ -159,7 +159,13 @@ const operationsTracker = {
       op.call.responses.onNext((r) => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses ?? 0) + 1;
-        log.trace(`${rpcName}.update`, { id, uri, numResponses: op.numResponses, epoch: (r as any)?.epoch });
+        log.trace(`${rpcName}.update`, {
+          id,
+          uri,
+          response: r,
+          numResponses: op.numResponses,
+          epoch: (r as any)?.epoch,
+        });
       });
       op.call.responses.onComplete(() => {
         terminate();
