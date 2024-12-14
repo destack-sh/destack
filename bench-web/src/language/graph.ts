@@ -1534,10 +1534,10 @@ export class NodeSuperGraph {
           }
         }
       }
-
+      
       // notify
       this.subs.forEach((sub) => sub(found ? "hit" : "miss", key, callback));
-
+      
       // subscribe to all graphs and graphs list
       if (!found) {
         for (const connection of this.getConnectionsFor(key.nodeType)) {
@@ -1551,7 +1551,8 @@ export class NodeSuperGraph {
       }
     };
     update();
-
+    
+    this.subs.forEach((sub) => sub("sub", key, callback));
     return () => {
       unsub();
       this.subs.forEach((sub) => sub("unsub", key, callback));

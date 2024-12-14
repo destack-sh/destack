@@ -1,12 +1,18 @@
-import { isInBenchNodeType, isSourceNodeType, isUnloadedNodeType, isVirtualResourceNodeType } from "@/language/const";
+import { isInBenchNodeType, isUnloadedNodeType } from "@/language/const";
 import { NodeSuperGraph } from "@/language/graph";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { makeScope, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
-import { acquireConnection, GetConnectionParams } from "@/system/connection";
-import { groupByList } from "@/utils/functools";
+import { acquireConnection, GetConnectionParams, releaseConnection, RemoteGetConnection } from "@/system/connection";
+import { groupByList, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { Ref, shallowRef, triggerRef } from "vue";
+
+type AutoloadedBatch = {
+  id: number;
+  nodesById: Record<string, NodeReferenceData>;
+  connection: RemoteGetConnection<any>;
+};
 
 /** Monitor the supergraph and automatically load (and unload) any remote nodes that we're missing. */
 export class NodeAutoloader {
@@ -18,6 +24,8 @@ export class NodeAutoloader {
   private pendingNodesById: Ref<Record<string, NodeReferenceData>> = shallowRef({});
   /** Nodes we'll load next */
   private nodesToLoad: Array<NodeReferenceData> = [];
+  /** All loaded batches */
+  private loadedBatches: Array<AutoloadedBatch> = [];
   /** Nodes we already loaded (even if they are still missing!) */
   private loadedNodesById: Record<string, NodeReferenceData> = {};
   /** Nodes we failed to load */
@@ -42,7 +50,12 @@ export class NodeAutoloader {
       const subs = this.nodeSubsById[key.id!];
       if (subs != null) {
         const index = subs.indexOf(callback);
-        if (index >= 0) subs.splice(index, 1);
+        if (index >= 0) {
+          subs.splice(index, 1);
+          if (subs.length == 0) {
+            delete this.nodeSubsById[key.id!];
+          }
+        }
       }
     } else if (event == "hit") {
       // remove from missing
@@ -101,6 +114,20 @@ export class NodeAutoloader {
     return this.pendingNodesById.value[key.id!] != null;
   }
 
+  /** Purge all loaded batches without any subscribers */
+  gcBatches() {
+    const inactiveBatches = this.loadedBatches.filter((batch) =>
+      Object.keys(batch.nodesById).every((id) => this.nodeSubsById[id] == null),
+    );
+    if (inactiveBatches.length > 0) {
+      log.trace("autoload.gcBatches", { inactiveBatches });
+      for (const batch of inactiveBatches) {
+        releaseConnection(batch.connection);
+      }
+      this.loadedBatches = this.loadedBatches.filter((b) => !inactiveBatches.includes(b));
+    }
+  }
+
   /** Load any missing nodes with new connections (as feasible) */
   async loadAll() {
     if (this.nodesToLoad.length > 0) {
@@ -136,9 +163,18 @@ export class NodeAutoloader {
       isOptional: true,
     };
     try {
-      const connection = await acquireConnection("get", { name: `remote.${batchId}`, live: true }, params);
+      const connection = (await acquireConnection(
+        "get",
+        { name: `remote.${batchId}`, live: true },
+        params,
+      )) as RemoteGetConnection<any>;
+      const batch: AutoloadedBatch = {
+        id: batchId,
+        nodesById: groupByScalar(missingNodes, (ptr) => ptr.id!),
+        connection,
+      };
+      this.loadedBatches.push(batch);
       log.trace("autoload.loadBatch.complete", { batchId, missingNodes });
-      // nocheckin: release connection somehow?
       this.onLoaded(...missingNodes);
     } catch (e) {
       log.trace("autoload.loadBatch.fail", { e, batchId, missingNodes });
