@@ -155,7 +155,7 @@ export async function goToBench(go: {
   const {
     response: { nodes },
   } = await host.getNodes({ roots: [go.bench], scope, descendantTypes: [NodeType.BRANCH], ancestorTypes: [] });
-  const graph = new NodeGraph({ scope, nodeTypes: [NodeType.BRANCH] });
+  const graph = new NodeGraph({ scope, nodeTypes: new Set([NodeType.BRANCH]) });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
   const branch = graph.get(go.branch ?? bench.mainBranchPtr!) as BranchData;

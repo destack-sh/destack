@@ -53,7 +53,7 @@ import {
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount, useDebounce } from "@vueuse/core";
-import { computed, markRaw, ref, shallowRef, toValue, watch, type MaybeRef, type Ref } from "vue";
+import { computed, markRaw, onBeforeUnmount, ref, shallowRef, toValue, watch, type MaybeRef, type Ref } from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
@@ -414,11 +414,11 @@ export function useValueSearch(options: {
   const remoteConnection: Ref<RemoteSearchConnection<any> | null> = shallowRef(null);
   const remoteGraphIndex: Ref<SearchIndex<any> | null> = shallowRef(null);
   const isLoading = ref(false);
+
+  // maintain remote connection (if needed)
   let lastRemoteQuery: string = "";
   let lastRemoteValueType: TypeIdentity | null = null;
   let lastRemoteTotal: number = 0;
-
-  // maintain remote connection (if needed)
   watch(
     [queryDebounced, valueType, isEnabled],
     async () => {
@@ -463,6 +463,13 @@ export function useValueSearch(options: {
     },
     { immediate: true },
   );
+  // nocheckin: refresh search on first open?
+  tryOnBeforeUnmount(() => {
+    if (remoteConnection.value != null) {
+      releaseConnection(remoteConnection.value);
+      remoteConnection.value = null;
+    }
+  });
 
   // figure out index
   const index: Ref<SearchIndex<any> | null> = computed(() => {
@@ -480,7 +487,7 @@ export function useValueSearch(options: {
       } else {
         // local graph
         const nodeType = valueType.value?.benchType as unknown as NodeType;
-        const graph = benchGraph.nodeTypes.includes(nodeType) ? benchGraph : pkgGraph;
+        const graph = benchGraph.nodeTypes.has(nodeType) ? benchGraph : pkgGraph;
         let roots: AnyNodeData[] | undefined = undefined;
         let metatypes: NodeType[] = [];
         if (valueType.value?.baseTypePtr != null) {

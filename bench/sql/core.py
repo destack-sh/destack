@@ -547,7 +547,12 @@ class Table(TableObject):
         else:
             column = self._columns_by_field.get(key)
             if column is None:
-                raise KeyError(f"no column for field {key!r} in {self!r}")
+                # nocheckin: track down error when.. moving Databases? something causes this...
+                context_fields = [*self._columns_by_field.keys()]
+                source_fields = key.parent.fields.tolist() if key.parent else []
+                raise KeyError(
+                    f"no column for field {key!r} in {self!r} (context={context_fields}, tracked={source_fields})"
+                )
             return column
 
     def columns_include(self, other: "Table") -> bool:
