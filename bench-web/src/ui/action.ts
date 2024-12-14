@@ -1,4 +1,4 @@
-import { getEditStack } from "@/language/edit";
+import { getEditStack } from "@/system/edit";
 import { ReadNodeGraph } from "@/language/graph";
 import { cloneNodes } from "@/language/node";
 import { getAllTransactionBuffers, newChangeId } from "@/language/transaction";
