@@ -38,6 +38,7 @@ import {
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
+import { autoloader } from "@/system/globals";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation, fireActionById } from "@/ui/action";
 import {
