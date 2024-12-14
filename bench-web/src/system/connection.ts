@@ -44,8 +44,8 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
-import { setSupergraph } from "@/system/globals";
-import { RemoteNodeLoader } from "@/system/remote";
+import { setAutoloader, setSupergraph } from "@/system/globals";
+import { NodeAutoloader } from "@/system/autoload";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
@@ -879,7 +879,7 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
 // NOTE :Performance :UX: cache/store connections (results) locally for initial hydration?
 //
 
-const CONNECTION_REMOTE_LOAD_INTERVAL = 1000; // 1 second (nocheckin increase?)
+const CONNECTION_AUTOLOAD_INTERVAL = 100;
 const CONNECTION_INACTIVE_TIMEOUT = 30 * 1000; // 30 seconds
 
 let connectionId = 0;
@@ -898,8 +898,11 @@ export const connections = pretendReadonly(_connections);
 export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
 export const supergraph = new NodeSuperGraph(connections);
 setSupergraph(supergraph);
-export const remoteNodeLoader = new RemoteNodeLoader(supergraph);
-supergraph.subscribeEvent(remoteNodeLoader.onEvent.bind(remoteNodeLoader));
+export const autoloader = new NodeAutoloader(supergraph);
+setAutoloader(autoloader);
+supergraph.subscribeEvent((e, key, callback) =>
+  autoloader.onEvent(e, { metatype: ObjectType.NODE_REFERENCE, ...key }, callback),
+);
 
 /** Adds a new connection to the connection set */
 function _addConnection(connection: ConnectionBase<any, any>): void {
@@ -930,7 +933,7 @@ async function gcInactiveConnections() {
 }
 
 // periodically load missing nodes
-setInterval(remoteNodeLoader.loadMissing.bind(remoteNodeLoader), CONNECTION_REMOTE_LOAD_INTERVAL);
+setInterval(autoloader.loadAll.bind(autoloader), CONNECTION_AUTOLOAD_INTERVAL);
 // periodically clean up inactive connections
 setInterval(gcInactiveConnections, CONNECTION_INACTIVE_TIMEOUT);
 
