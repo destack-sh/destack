@@ -26,7 +26,7 @@ export class NodeAutoloader {
   private nextNodesToLoad: Array<NodeReferenceData> = [];
   /** All loaded batches */
   private loadedBatches: Array<AutoloadedBatch> = [];
-  /** Nodes we already loaded (even if they are still missing!) */
+  /** Nodes we already loaded/checked (even if they are still missing!) */
   private loadedNodesById: Record<string, NodeReferenceData> = {};
   /** Nodes we failed to load */
   private failedNodesById: Record<string, NodeReferenceData> = {};
@@ -71,27 +71,31 @@ export class NodeAutoloader {
     for (const key of keys) {
       if (this.missingNodeById[key.id!] == null) {
         this.missingNodeById[key.id!] = key;
-        if (isUnloadedNodeType(key.nodeType) && !this.failedNodesById[key.id!]) {
+        if (isUnloadedNodeType(key.nodeType) && !this.failedNodesById[key.id!] && !this.loadedNodesById[key.id!]) {
           if (BASED_NODE_TYPES.includes(key.nodeType) && key.baseCk == null) {
             throw new Error(`missing base in ${describeNode(key)}`);
           }
           this.pendingNodesById.value[key.id!] = key;
           this.nextNodesToLoad.push(key);
-          triggerRef(this.pendingNodesById);
         }
       }
     }
+    triggerRef(this.pendingNodesById);
   }
 
-  /** Remove 'missing' nodes from the list of nodes to load */
+  /** Remove 'missing' nodes from the list of pending nodes to load */
   removeMissing(...keys: NodeReferenceData[]) {
     for (const key of keys) {
       if (this.missingNodeById[key.id!] != null) {
         delete this.missingNodeById[key.id!];
         const index = this.nextNodesToLoad.findIndex((p) => p.id == key.id);
-        if (index >= 0) this.nextNodesToLoad.splice(index, 1);
+        if (index >= 0) {
+          this.nextNodesToLoad.splice(index, 1);
+        }
       }
+      delete this.pendingNodesById.value[key.id!];
     }
+    triggerRef(this.pendingNodesById);
   }
 
   /** On 'successful' loading of nodes (doesn't mean they're no longer missing!) */
@@ -135,15 +139,15 @@ export class NodeAutoloader {
   async loadAll() {
     if (this.nextNodesToLoad.length > 0) {
       const nodesByBase = groupByList(this.nextNodesToLoad, (ptr) => ptr.nodeType + "." + ptr.baseCk);
-      await Promise.all(Object.values(nodesByBase).map(this.load.bind(this)));
       this.nextNodesToLoad = [];
+      await Promise.all(Object.values(nodesByBase).map(this.load.bind(this)));
     }
   }
 
   /** Load a batch of missing nodes with new connections */
   private async load(missingNodes: NodeReferenceData[]) {
     const batchId = this.batchId++;
-    log.trace("autoload.loadBatch", { batchId, missingNodes });
+    log.trace("autoload.load", { batchId, missingNodes });
 
     // build query
     const nodeType = missingNodes[0].nodeType;
