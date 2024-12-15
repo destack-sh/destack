@@ -37,15 +37,16 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
         if not machines:
             async with self.host.session(commit=True) as session:
                 client = Client(
-                    parent=server,
+                    parent=self.bench,
                     type=ClientType.BENCH_MACHINE,
                     title="Machine1",
+                    server=server,
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 )
                 session._create(client)
-                await session.flush(optimistic=True)
                 machine = Machine(parent=server, title="Machine1", cpu=0.5, ram=0.5, client=client)
                 session._create(machine)
+                await session.flush(optimistic=True)
                 client.machine = machine
 
         # update server status to reflect machines (if needed)

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.15.1"
+VERSION = "2024.12.15.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -180,6 +180,8 @@ CLIENT_TABLE = Table(
         Column("space_id", PrimitiveType.UUID, is_nullable=True),
         Column("space_ck", PrimitiveType.UUID, is_nullable=True),
         Column("space_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_id", PrimitiveType.UUID, is_nullable=True),
+        Column("server_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),

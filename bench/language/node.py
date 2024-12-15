@@ -2603,6 +2603,18 @@ class GraphScope(Struct[GraphScopeData]):
     bench_id: Optional[UUID] = p_internal(30, default=None)
     package_id: Optional[UUID] = p_internal(31, default=None)
 
+    def __content_str__(self) -> str:
+        return repr_scope(self)
+
+
+def repr_scope(scope: GraphScope | GraphScopeData) -> str:
+    if scope.package_id:
+        return f"[bench_id={scope.bench_id}, package_id={scope.package_id}]"
+    elif scope.bench_id:
+        return f"[bench_id={scope.bench_id}]"
+    else:
+        return "[*]"
+
 
 EMPTY_SCOPE_DATA = GraphScopeData(metatype=lang_pb2.OBJECT_TYPE_GRAPH_SCOPE)
 

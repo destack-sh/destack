@@ -278,7 +278,7 @@ async def test_crud_node_pointers(omni_session: Session):
         store = bench.stores.create(name="Production A")
         drive = bench.drives.create(name="Production A")
         client = Client(
-            parent=server,
+            parent=bench,
             type=ClientType.BENCH_MOBILE,
             seen_at=session._oracle.utc(),
             title="Testificate's iPhone",

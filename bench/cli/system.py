@@ -94,7 +94,11 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
 
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
-    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
+    regional_store = regional_store_from_env()
+    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    async with global_session(
+        global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
+    ) as session:
         bench = (
             await Bench.include_descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)
             .select_all()
@@ -102,6 +106,10 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
         )
         assert len(bench.servers) == 1, f"{bench!r} has unexpected servers: {bench.servers!r}"
         server = bench.servers[0]
+        machines = await Machine.where(Machine.get_property("parent").eq(server)).tolist()
+        machine = first(machines, None)
+        if machine is None:
+            raise ValueError(f"{server!r} has no machines")
         clients = (
             await Client.where(
                 Client.get_property("parent").eq(server)
@@ -113,17 +121,15 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
         client = first(clients, None)
         if client is None:
             client = Client(
-                parent=server,
+                parent=bench,
                 type=ClientType.BENCH_MACHINE,
                 title=title,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
+                server=server,
+                machine=machine,
                 seen_at=REAL_ORACLE.utc(),
             )
             session._create(client)
-        machines = await Machine.where(Machine.get_property("parent").eq(server)).tolist()
-        machine = first(machines, None)
-        if machine is None:
-            raise ValueError(f"{server!r} has no machines")
 
         client_env = {
             "BENCH_ID": str(bench.id),

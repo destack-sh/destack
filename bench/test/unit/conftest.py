@@ -366,7 +366,7 @@ async def hosted_bench(global_store: Store, regional_store: Store):
         server = bench.main_server
         assert server is not None, f"no main server for {bench!r}"
         server_client = Client(
-            parent=server,
+            parent=bench,
             title="Server",
             type=ClientType.BENCH_MACHINE,
             access_token="server",

@@ -1139,6 +1139,7 @@ class SplitConnection(Connection):
                         ),
                         descendant_types=list(descendant_types),
                         include_deleted=query.include_deleted,
+                        select=query._select,
                     )
                     descendant_connection = await descendants_channel.search(
                         descendant_query, SearchOptions(live=False, mode="packed", count=False)
@@ -1170,6 +1171,7 @@ class SplitConnection(Connection):
                     ],
                     ancestor_types=remaining_ancestors_types,
                     include_deleted=query.include_deleted,
+                    select=query._select,
                 )
                 ancestor_connection = await ancestor_channel.get(ancestor_query, self.options)
                 combined_graph.extend(ancestor_connection.result_data.graph.nodes)

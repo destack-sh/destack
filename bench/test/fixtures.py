@@ -139,7 +139,7 @@ async def delete_test_db(store: Store):
 async def blank_store(request: pytest.FixtureRequest):
     """Gets the per test function blank store"""
 
-    store = make_global_store(f"test-{clean_name(request.node.name)}")
+    store = make_global_store(f"test-{clean_name(request.node.name)}-blank")
     await create_blank_test_db(store)
     try:
         yield store
@@ -151,7 +151,7 @@ async def blank_store(request: pytest.FixtureRequest):
 async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    store = make_global_store(f"test-{clean_name(request.node.name)}")
+    store = make_global_store(f"test-{clean_name(request.node.name)}-global")
     await create_test_db(store, BUILTIN_GLOBAL_SCHEMA)
     try:
         yield store
@@ -163,7 +163,7 @@ async def global_store(request: pytest.FixtureRequest):
 async def regional_store(request: pytest.FixtureRequest):
     """Gets the per test function regional store"""
 
-    store = make_regional_store(f"test-{clean_name(request.node.name)}")
+    store = make_regional_store(f"test-{clean_name(request.node.name)}-regional")
     await create_test_db(store, BUILTIN_REGIONAL_SCHEMA)
     try:
         yield store
@@ -182,7 +182,7 @@ async def omni_store(request: pytest.FixtureRequest):
     )
     OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
 
-    store = make_global_store(f"test-{clean_name(request.node.name)}")
+    store = make_global_store(f"test-{clean_name(request.node.name)}-omni")
     await create_test_db(store, OMNI_SCHEMA)
     try:
         yield store

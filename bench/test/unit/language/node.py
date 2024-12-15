@@ -126,7 +126,7 @@ def test_node_pointers_consistency(session: "Session"):
     server_a: Server = Server(parent=bench_a, name="Main")
     assert server_a.bench_id == bench_a.id
     client_a = Client(
-        parent=server_a,
+        parent=bench_a,
         seen_at=session._oracle.utc(),
         type=ClientType.BENCH_MOBILE,
         title="Testificate's iPhone",

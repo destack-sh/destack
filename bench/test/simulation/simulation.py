@@ -361,8 +361,8 @@ SIMULATIONS_BY_PROFILE = group_by(AVAILABLE_SIMULATIONS, lambda s: s.profile)
 
 async def _do_test_simulation(spec: SimulationSpec):
     simulation_id = get_simulation_id(spec)
-    global_store = make_global_store(f"test_{simulation_id}")
-    regional_store = make_regional_store(f"test_{simulation_id}")
+    global_store = make_global_store(f"test-{simulation_id}-global")
+    regional_store = make_regional_store(f"test-{simulation_id}-regional")
     await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
     await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
     simulation = Simulation(simulation_id, spec, global_store, regional_store)
