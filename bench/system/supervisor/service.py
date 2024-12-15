@@ -350,6 +350,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         owner_ptr = wiring.unpack_builtin_object(
             request.owner, supergraph=None, expect=NodeReference
         )
+        # nocheckin: add regional engine (map) to supervisor here
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
         ) as session:

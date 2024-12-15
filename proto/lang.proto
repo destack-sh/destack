@@ -2500,7 +2500,8 @@ message ClientData {
   optional google.protobuf.Timestamp seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;
   optional NodeReferenceData space_ptr = 60;
-  optional NodeReferenceData machine_ptr = 61;
+  optional NodeReferenceData server_ptr = 61;
+  optional NodeReferenceData machine_ptr = 62;
 }
 
 message HandleData {

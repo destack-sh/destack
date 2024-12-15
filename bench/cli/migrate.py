@@ -51,7 +51,7 @@ BENCH_QUERY = Bench.include_descendants(Store).select_all()
 @app.command(help="generate SQL migrations")
 @async_to_sync_blocking
 async def make(
-    area: Optional[NodeArea],
+    area: Optional[NodeArea] = None,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
@@ -173,7 +173,7 @@ async def make(
 @app.command(help="apply SQL migrations")
 @async_to_sync_blocking
 async def apply(
-    area: NodeArea,
+    area: NodeArea = typer.Option(help="the area to migrate"),  # noqa: B008
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"
     ),
@@ -186,10 +186,14 @@ async def apply(
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
     regional_store = regional_store_from_env()
+    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
 
     # resolve stores to migrate
-    if area == NodeArea.LOCAL and bench is not None:
-        async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
+    if area == NodeArea.LOCAL:
+        assert bench is not None, "bench is required for local area"
+        async with global_session(
+            global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+        ):
             if bench != "*":
                 bench_node = await BENCH_QUERY.get(slug=bench)
                 stores = (*bench_node.stores,)

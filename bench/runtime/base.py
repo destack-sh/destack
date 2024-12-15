@@ -201,8 +201,13 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._session.client = self._client
         self._session.machine = self._machine
         self._session.server = self._server
-        self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
-        self._session._subject = self._client.parent
+        if isinstance(self._client.parent, User):
+            self._session.user = self._client.parent
+            self._session._subject = self._client.parent
+        elif isinstance(self._client.parent, Bench):
+            self._session._subject = self._client.server
+        else:
+            raise ValueError(f"unknown client parent {self._client.parent!r} in {self!r}")
         self._session._origin = (
             self._client.to_origin(nonce=NONCE)._to_data() if self._client else None
         )

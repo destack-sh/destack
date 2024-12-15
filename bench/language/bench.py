@@ -425,7 +425,7 @@ class Cache(VirtualResourceNode[DriveData]):
 class Client(BenchNode[ClientData]):
     """A client to a Bench."""
 
-    parent: Union["User", "Server", None] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
+    parent: Union["User", "Bench", None] = p_node_parent(4, NodeType.USER, NodeType.BENCH)
     type: ClientType = p_regular(30)
     title: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
@@ -445,8 +445,11 @@ class Client(BenchNode[ClientData]):
     space: Optional["Space"] = p_system(
         60, array=False, require=False, references=NodeType.SPACE, fk=True
     )
+    server: Optional["Server"] = p_system(
+        61, array=False, require=False, references=NodeType.SERVER, fk=True
+    )
     machine: Optional["Machine"] = p_system(
-        61, array=False, require=False, references=NodeType.MACHINE, fk=True
+        62, array=False, require=False, references=NodeType.MACHINE, fk=True
     )
 
     @property

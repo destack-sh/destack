@@ -24,7 +24,7 @@ from bench.language.connection import (
 )
 from bench.language.const import AggregationType, NodeType, QueryType
 from bench.language.graph import NodeDataGraph
-from bench.language.node import Node, NodeReference
+from bench.language.node import Node, NodeReference, repr_scope
 from bench.language.query import QueryBuilder
 from bench.language.session import Session
 from bench.proto.wire import (
@@ -66,9 +66,8 @@ class PostgresEngine(GraphEngine):
         self.context = context
 
     def __str__(self):
-        return (
-            f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, store={self.store!r}"
-        )
+        scope_str = repr_scope(self.scope)
+        return f"scope={scope_str}, node_types={repr_enums(self.node_types)}, store={self.store!r}"
 
     @override
     async def channel(self, session: "Session") -> "PostgresChannel":
