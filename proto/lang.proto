@@ -25,19 +25,20 @@ enum EnumType {
   ENUM_TYPE_EDIT_OPERATION_TYPE = 20508;
   ENUM_TYPE_POLICY_EFFECT = 20509;
   ENUM_TYPE_BENCH_TYPE = 21001;
-  ENUM_TYPE_CLOUD = 21002;
-  ENUM_TYPE_REGION = 21003;
-  ENUM_TYPE_REGION_ZONE = 21004;
-  ENUM_TYPE_REGION_AREA = 21005;
-  ENUM_TYPE_RESOURCE_STATUS = 21010;
-  ENUM_TYPE_RESOURCE_OCCUPANCY = 21011;
-  ENUM_TYPE_FILE_RETENTION_MODE = 21020;
-  ENUM_TYPE_FILE_KIND = 21021;
-  ENUM_TYPE_FILE_TYPE = 21022;
-  ENUM_TYPE_FILE_FORMAT = 21023;
-  ENUM_TYPE_CLIENT_TYPE = 21030;
-  ENUM_TYPE_MACHINE_TYPE = 21040;
-  ENUM_TYPE_BROWSER_TYPE = 21050;
+  ENUM_TYPE_PACKAGE_TYPE = 21002;
+  ENUM_TYPE_CLOUD = 21010;
+  ENUM_TYPE_REGION = 21020;
+  ENUM_TYPE_REGION_ZONE = 21021;
+  ENUM_TYPE_REGION_AREA = 21022;
+  ENUM_TYPE_RESOURCE_STATUS = 21030;
+  ENUM_TYPE_RESOURCE_OCCUPANCY = 21031;
+  ENUM_TYPE_FILE_RETENTION_MODE = 21040;
+  ENUM_TYPE_FILE_KIND = 21041;
+  ENUM_TYPE_FILE_TYPE = 21042;
+  ENUM_TYPE_FILE_FORMAT = 21043;
+  ENUM_TYPE_CLIENT_TYPE = 21050;
+  ENUM_TYPE_MACHINE_TYPE = 21060;
+  ENUM_TYPE_BROWSER_TYPE = 21070;
   ENUM_TYPE_PRIMITIVE_TYPE = 21501;
   ENUM_TYPE_FIELD_ZONE = 21502;
   ENUM_TYPE_TYPE_KIND = 21503;
@@ -125,7 +126,6 @@ enum NodeType {
   NODE_TYPE_SECRET = 262;
   NODE_TYPE_MEMBERSHIP = 600;
   NODE_TYPE_INVITE = 601;
-  NODE_TYPE_BRANCH = 1000;
   NODE_TYPE_PACKAGE = 1001;
   NODE_TYPE_DEPENDENCY = 1002;
   NODE_TYPE_SPACE = 1003;
@@ -236,7 +236,6 @@ enum ObjectType {
   OBJECT_TYPE_SECRET = 262;
   OBJECT_TYPE_MEMBERSHIP = 600;
   OBJECT_TYPE_INVITE = 601;
-  OBJECT_TYPE_BRANCH = 1000;
   OBJECT_TYPE_PACKAGE = 1001;
   OBJECT_TYPE_DEPENDENCY = 1002;
   OBJECT_TYPE_SPACE = 1003;
@@ -429,7 +428,6 @@ enum BenchType {
   BENCH_TYPE_SECRET = 262;
   BENCH_TYPE_MEMBERSHIP = 600;
   BENCH_TYPE_INVITE = 601;
-  BENCH_TYPE_BRANCH = 1000;
   BENCH_TYPE_PACKAGE = 1001;
   BENCH_TYPE_DEPENDENCY = 1002;
   BENCH_TYPE_SPACE = 1003;
@@ -529,19 +527,20 @@ enum BenchType {
   BENCH_TYPE_EDIT_OPERATION_TYPE = 20508;
   BENCH_TYPE_POLICY_EFFECT = 20509;
   BENCH_TYPE_BENCH_TYPE = 21001;
-  BENCH_TYPE_CLOUD = 21002;
-  BENCH_TYPE_REGION = 21003;
-  BENCH_TYPE_REGION_ZONE = 21004;
-  BENCH_TYPE_REGION_AREA = 21005;
-  BENCH_TYPE_RESOURCE_STATUS = 21010;
-  BENCH_TYPE_RESOURCE_OCCUPANCY = 21011;
-  BENCH_TYPE_FILE_RETENTION_MODE = 21020;
-  BENCH_TYPE_FILE_KIND = 21021;
-  BENCH_TYPE_FILE_TYPE = 21022;
-  BENCH_TYPE_FILE_FORMAT = 21023;
-  BENCH_TYPE_CLIENT_TYPE = 21030;
-  BENCH_TYPE_MACHINE_TYPE = 21040;
-  BENCH_TYPE_BROWSER_TYPE = 21050;
+  BENCH_TYPE_PACKAGE_TYPE = 21002;
+  BENCH_TYPE_CLOUD = 21010;
+  BENCH_TYPE_REGION = 21020;
+  BENCH_TYPE_REGION_ZONE = 21021;
+  BENCH_TYPE_REGION_AREA = 21022;
+  BENCH_TYPE_RESOURCE_STATUS = 21030;
+  BENCH_TYPE_RESOURCE_OCCUPANCY = 21031;
+  BENCH_TYPE_FILE_RETENTION_MODE = 21040;
+  BENCH_TYPE_FILE_KIND = 21041;
+  BENCH_TYPE_FILE_TYPE = 21042;
+  BENCH_TYPE_FILE_FORMAT = 21043;
+  BENCH_TYPE_CLIENT_TYPE = 21050;
+  BENCH_TYPE_MACHINE_TYPE = 21060;
+  BENCH_TYPE_BROWSER_TYPE = 21070;
   BENCH_TYPE_PRIMITIVE_TYPE = 21501;
   BENCH_TYPE_FIELD_ZONE = 21502;
   BENCH_TYPE_TYPE_KIND = 21503;
@@ -608,6 +607,13 @@ enum BenchType {
   BENCH_TYPE_HELP_ASPECT = 23516;
   BENCH_TYPE_USER_STATUS = 24001;
   BENCH_TYPE_ORGANIZATION_STATUS = 24002;
+}
+
+enum PackageType {
+  PACKAGE_TYPE_UNSPECIFIED = 0;
+  PACKAGE_TYPE_ROOT = 1;
+  PACKAGE_TYPE_SIDE = 5;
+  PACKAGE_TYPE_SNAPSHOT = 10;
 }
 
 // The cloud provider.
@@ -2281,31 +2287,7 @@ message BenchData {
   optional NodeReferenceData main_drive_ptr = 42;
   optional NodeReferenceData main_vault_ptr = 43;
   optional NodeReferenceData main_cache_ptr = 44;
-  optional NodeReferenceData main_branch_ptr = 50;
-}
-
-message BranchData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  string name = 32;
-  optional string slug = 33;
-  optional TextData text = 34;
-  optional IconData icon = 35;
-  repeated PolicyData policies = 36;
-  optional NodeReferenceData main_package_ptr = 40;
-  optional NodeReferenceData base_ptr = 41;
-  bool is_overlay = 60;
-  bool is_light = 61;
+  optional NodeReferenceData main_package_ptr = 50;
 }
 
 message PackageData {
@@ -2321,12 +2303,13 @@ message PackageData {
   int64 updated_epoch = 15;
   optional google.protobuf.Timestamp deleted_at = 16;
   optional google.protobuf.Value subnode_packed = 29;
+  PackageType type = 30;
+  string name = 32;
+  string slug = 33;
   optional TextData text = 34;
   optional IconData icon = 35;
-  repeated PolicyData policies = 36;
+  optional NodeReferenceData owned_by_ptr = 36;
   optional NodeReferenceData base_ptr = 40;
-  bool is_snapshot = 60;
-  bool is_overlay = 61;
 }
 
 message DependencyData {
@@ -3352,6 +3335,7 @@ message SpaceData {
   optional TextData text = 32;
   string order_key = 33;
   repeated PolicyData policies = 34;
+  optional NodeReferenceData owned_by_ptr = 36;
   optional SelectionData focus = 70;
   optional SelectionData selection = 71;
   optional NodeReferenceData inspection_ptr = 75;
@@ -3484,25 +3468,24 @@ message SomeNodeData {
     SecretData secret = 15;
     MembershipData membership = 16;
     InviteData invite = 17;
-    BranchData branch = 18;
-    PackageData package = 19;
-    DependencyData dependency = 20;
-    SpaceData space = 21;
-    BlockData block = 22;
-    TriggerData trigger = 23;
-    FieldData field = 24;
-    QueryData query = 25;
-    ViewData view = 26;
-    StepData step = 27;
-    PipeData pipe = 28;
-    BadgeData badge = 29;
-    MessageData message = 30;
-    RecordData record = 31;
-    SessionData session = 32;
-    RunData run = 33;
-    InterruptData interrupt = 34;
-    LogData log = 35;
-    SkipData skip = 36;
+    PackageData package = 18;
+    DependencyData dependency = 19;
+    SpaceData space = 20;
+    BlockData block = 21;
+    TriggerData trigger = 22;
+    FieldData field = 23;
+    QueryData query = 24;
+    ViewData view = 25;
+    StepData step = 26;
+    PipeData pipe = 27;
+    BadgeData badge = 28;
+    MessageData message = 29;
+    RecordData record = 30;
+    SessionData session = 31;
+    RunData run = 32;
+    InterruptData interrupt = 33;
+    LogData log = 34;
+    SkipData skip = 35;
   };
 }
 

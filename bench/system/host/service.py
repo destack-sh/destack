@@ -13,7 +13,6 @@ from opentelemetry import trace
 
 from bench.language import Bench, Drive, NodeReference, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
-from bench.language.bench import Branch
 from bench.language.block import Block
 from bench.language.builtin import make_builtins
 from bench.language.connection import GraphEngine, MemoryEngine
@@ -95,7 +94,7 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
 BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
-    Package.include_ancestors(Branch)
+    Package.include_ancestors(Bench)
     .include_descendants(*SOURCE_NODE_TYPES)
     .select_all()
     .exclude(Bench.encryption_key)
@@ -308,15 +307,12 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             # load full bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
             assert self._bench.main_store, f"{self._bench!r} has no main store"
-            assert self._bench.main_branch, f"{self._bench!r} has no main branch"
-            assert self._bench.main_branch.main_package, f"{self._bench!r} has no main package"
-            session.parent = self._bench.main_branch.main_package  # patch in bench for pg context
+            assert self._bench.main_package, f"{self._bench!r} has no main package"
+            session.parent = self._bench.main_package  # patch in bench for pg context
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
 
             # load packages
-            self._main_package = await PACKAGE_QUERY.get(
-                self._bench.main_branch.main_package_ptr, mode="both"
-            )
+            self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, mode="both")
 
             # cleanup
             self._supergraph.remove_graph(tmp_bench._graph)
@@ -360,7 +356,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             self._engines = (*inmemory_engines, *self._engines)  # in order of priority
         # we open one Session for the entire lifecycle of the Host
         self._session = Session(
-            parent=self._bench.main_branch.main_package,
+            parent=self._bench.main_package,
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,

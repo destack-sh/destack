@@ -45,7 +45,6 @@ from bench.language.validation import (
 from bench.proto.wire import (
     AnyNodeData,
     BenchData,
-    BranchData,
     ClientData,
     DependencyData,
     DriveData,
@@ -111,7 +110,7 @@ class Bench(BenchNode[BenchData]):
     )
     policies: list["Policy"] = p_regular(39, struct=StructType.POLICY, array=True)
 
-    # resources
+    # (virtual) resources
     main_store: Optional["Store"] = p_system(
         40, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
     )
@@ -133,78 +132,47 @@ class Bench(BenchNode[BenchData]):
     vaults: LocalNodeList["Vault"] = p_node_children(NodeType.VAULT)
     caches: LocalNodeList["Cache"] = p_node_children(NodeType.CACHE)
 
-    # source
-    main_branch: Optional["Branch"] = p_regular(
+    # content
+    main_package: Optional["Package"] = p_regular(
         50,
         require=False,
         array=False,
-        references=NodeType.BRANCH,
+        references=NodeType.PACKAGE,
         fk=True,
         same_bench=True,
     )
-    branches: LocalNodeList["Branch"] = p_node_children(NodeType.BRANCH)
+    if TYPE_CHECKING:
+        main_package_id: Optional[UUID] = None
+        main_package_ptr: Optional[NodeReference] = None
+    packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
 
     @property
     def is_attached(self) -> bool:
         return True
 
-    @property
-    def main_package(self) -> "Package":
-        main_branch = self.main_branch
-        assert main_branch is not None, f"{self!r} has no main branch"
-        main_package = main_branch.main_package
-        assert main_package is not None, f"{self!r} has no main package"
-        return main_package
 
-    @property
-    def main_package_ptr(self) -> "NodeReference":
-        return self.main_package.to_ref()
+@enum_(EnumType.PACKAGE_TYPE)
+class PackageType(IdEnum):
+    ROOT = 1
+    SIDE = 5
+    SNAPSHOT = 10
 
 
-@local_node_(NodeType.BRANCH, unique=(("bench_id", "slug"),))
-class Branch(BenchNode[BranchData]):
-    """A branch is a lineage of Bench history."""
+@local_node_(NodeType.PACKAGE, unique=(("bench_id", "slug"),))
+class Package(BenchNode[PackageData]):
+    """A Package is an isolated part of a Bench."""
 
     parent: Bench | None = p_node_parent(4, NodeType.BENCH)
+    type: PackageType = p_regular(30, require=True)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)
+    slug: str = p_regular(33, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-    policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
-
-    main_package: Optional["Package"] = p_system(
-        40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
-    )
-    if TYPE_CHECKING:
-        main_package_id: Optional[UUID] = None
-        main_package_ptr: Optional[NodeReference] = None
-    base: Optional["Branch"] = p_system(
-        41, require=False, array=False, references=NodeType.BRANCH, fk=True, same_bench=True
-    )
-
-    # flags
-    is_overlay: bool = p_system(60, default=False)
-    is_light: bool = p_system(61, default=False)
-
-    packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
-
-
-@local_node_(NodeType.PACKAGE)
-class Package(BenchNode[PackageData]):
-    """A package is a version of a Bench in a Branch."""
-
-    parent: Branch | None = p_node_parent(4, NodeType.BRANCH)
-    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
-    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-    policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
+    owned_by: Optional[Owner] = p_regular(36, require=False, array=False, references=OWNER_TYPES)
 
     base: Optional["Package"] = p_system(
         40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
     )
-
-    # flags
-    is_snapshot: bool = p_system(60, default=False)
-    is_overlay: bool = p_system(61, default=False)
 
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
     spaces: LocalNodeList["Space"] = p_node_children(NodeType.SPACE)
@@ -233,16 +201,6 @@ class Package(BenchNode[PackageData]):
     @property
     def package_ptr(self):
         return self.to_ref()
-
-    @property
-    def name(self):
-        bench = self.bench
-        return bench.name if bench is not None else None
-
-    @property
-    def slug(self):
-        bench = self.bench
-        return bench.slug if bench is not None else None
 
     def __content_str__(self):
         parts = [

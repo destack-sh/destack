@@ -9,6 +9,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Client, NodeReference, Server, Store, User
 from bench.language.access import Subject
+from bench.language.bench import PackageType
 from bench.language.block import Block
 from bench.language.const import (
     USER_NODE_TYPES,
@@ -467,10 +468,8 @@ async def create_default_bench(
 
     # create main branch/package
     session._engines += (local_pg_engine_from_store(store),)  # sneakily add engine
-    main_branch = bench.branches.create(name="Main", slug="main")
-    main_package = main_branch.packages.create()
+    main_package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     await session.flush(optimistic=True)
-    main_branch.main_package = main_package
-    bench.main_branch = main_branch
+    bench.main_package = main_package
 
     return bench

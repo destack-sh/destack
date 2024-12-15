@@ -10,7 +10,7 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language.bench import Bench, Branch, Client, Package, Server
+from bench.language.bench import Bench, Client, Package, Server
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
@@ -47,7 +47,7 @@ tracer = trace.get_tracer(__name__)
 BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
     Package.include_descendants(*SOURCE_NODE_TYPES)
-    .include_ancestors(Bench, Branch)
+    .include_ancestors(Bench)
     .select_all()
     .exclude(Bench.encryption_key)
 )
@@ -184,9 +184,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         async with self.session(readonly=True):
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
-            main_branch = self._bench.main_branch
-            assert main_branch, f"{self._bench!r} has no main branch"
-            assert main_branch.main_package_id, f"{main_branch!r} has no main package"
             main_server = self._bench.main_server
             assert main_server, f"{self._bench!r} has no main server"
             self._client = await Client.get(id=self._client_id)
@@ -197,7 +194,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                 self._machine = await Machine.get(id=self._machine_id)
 
             # get package
-            self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
+            self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, live=True)
             self._session.parent = self._main_package
 
         # update session context

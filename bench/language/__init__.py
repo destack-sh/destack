@@ -9,7 +9,6 @@ from .access import (
 from .action import ActionBase, Agency, Call, Continue
 from .bench import (
     Bench,
-    Branch,
     Cache,
     Client,
     Dependency,
@@ -195,7 +194,6 @@ __all__ = [
     "BenchType",
     "Block",
     "BlockType",
-    "Branch",
     "Breakpoint",
     "BreakpointAction",
     "BreakpointSite",

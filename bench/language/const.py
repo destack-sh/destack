@@ -24,7 +24,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.13.1"
+VERSION = "2024.12.15.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -89,19 +89,20 @@ class EnumType(IdEnum):
 
     # bench (21000-21499)
     BENCH_TYPE = 21001
-    CLOUD = 21002
-    REGION = 21003
-    REGION_ZONE = 21004
-    REGION_AREA = 21005
-    RESOURCE_STATUS = 21010
-    RESOURCE_OCCUPANCY = 21011
-    FILE_RETENTION_MODE = 21020
-    FILE_KIND = 21021
-    FILE_TYPE = 21022
-    FILE_FORMAT = 21023
-    CLIENT_TYPE = 21030
-    MACHINE_TYPE = 21040
-    BROWSER_TYPE = 21050
+    PACKAGE_TYPE = 21002
+    CLOUD = 21010
+    REGION = 21020
+    REGION_ZONE = 21021
+    REGION_AREA = 21022
+    RESOURCE_STATUS = 21030
+    RESOURCE_OCCUPANCY = 21031
+    FILE_RETENTION_MODE = 21040
+    FILE_KIND = 21041
+    FILE_TYPE = 21042
+    FILE_FORMAT = 21043
+    CLIENT_TYPE = 21050
+    MACHINE_TYPE = 21060
+    BROWSER_TYPE = 21070
 
     # type (21500-21999)
     PRIMITIVE_TYPE = 21501
@@ -236,7 +237,6 @@ class NodeType(IdEnum):
     #
 
     # source (named, versioned, templatable)
-    BRANCH = 1000
     PACKAGE = 1001
     DEPENDENCY = 1002
     SPACE = 1003
@@ -324,7 +324,6 @@ IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
 SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
 BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
-    NodeType.BRANCH,
     NodeType.PACKAGE,
     NodeType.HANDLE,
     NodeType.CLIENT,

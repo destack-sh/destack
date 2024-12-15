@@ -7,7 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import NodeReference
-from bench.language.bench import Bench, Branch, Client, Package
+from bench.language.bench import Bench, Client, Package
 from bench.language.block import Block
 from bench.language.connection import GraphEngine
 from bench.language.const import (
@@ -238,15 +238,14 @@ async def get_package(bench_id: UUID, session: Session, *, live: bool):
     """Gets the entire main package source"""
     # resolve package pointer
     bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
-    bench = await Bench.include_descendants(NodeType.BRANCH, NodeType.PACKAGE).get(bench_ptr)
-    assert bench.main_branch is not None, f"{bench!r} has no main branch"
-    assert bench.main_branch.main_package is not None, f"{bench!r} has no main package"
-    pkg_stub = bench.main_branch.main_package
+    bench = await Bench.include_descendants(NodeType.PACKAGE).get(bench_ptr)
+    assert bench.main_package is not None, f"{bench!r} has no main package"
+    pkg_stub = bench.main_package
 
     # get package source
     pkg = await (
         Package.include_descendants(*SOURCE_NODE_TYPES)
-        .include_ancestors(Bench, Branch)
+        .include_ancestors(Bench)
         .select_all()
         .exclude(Bench.encryption_key)
         .get(pkg_stub.to_ref(), live=live)
