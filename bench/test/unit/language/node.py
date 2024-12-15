@@ -5,7 +5,7 @@ import pytest
 from hypothesis import given
 
 from bench.language import Bench, Message, NodeReference, Property, Server
-from bench.language.bench import Client
+from bench.language.bench import Client, PackageType
 from bench.language.block import ActionBlock, Block, ValueBlock
 from bench.language.code import Code
 from bench.language.const import BlockType, ClientType, NodeType
@@ -49,8 +49,7 @@ def test_get_set_non_existing_property(session: "Session"):
 
 def test_node_passthrough(session: "Session"):
     bench = Bench(slug="test", name="Test")
-    branch = bench.branches.create(name="main")
-    package = branch.packages.create()
+    package = bench.packages.create(name="main")
 
     WeatherCondition = package.blocks.create(
         type=BlockType.CHOICE,
@@ -113,15 +112,15 @@ def test_node_pointers_consistency(session: "Session"):
     bench_a.main_drive = bench_a.drives.create(name="Drive")
 
     # sub bench, above package pointers
-    branch_a = bench_a.branches.create(name="main a")
-    assert branch_a.bench_id == bench_a.id
-    assert branch_a.to_ref().equals(
+    package_a = bench_a.packages.create(name="main a")
+    assert package_a.bench_id == bench_a.id
+    assert package_a.to_ref().equals(
         NodeReference(
-            node_type=NodeType.BRANCH, id=branch_a.id, ck=branch_a.ck, bench_id=bench_a.id
+            node_type=NodeType.PACKAGE, id=package_a.id, ck=package_a.ck, bench_id=bench_a.id
         )
     )
-    assert branch_a.parent_ptr
-    assert branch_a.parent_ptr.id == bench_a.id
+    assert package_a.parent_ptr
+    assert package_a.parent_ptr.id == bench_a.id
 
     # sub bench nested pointers
     server_a: Server = Server(parent=bench_a, name="Main")
@@ -142,8 +141,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert client_a.parent_ptr.bench_id == bench_a.id
 
     # sub package nested pointers
-    branch_a = bench_a.branches.create(name="main a")
-    package_a = branch_a.packages.create()
+    package_a = bench_a.packages.create(type=PackageType.ROOT, name="main a")
     assert package_a.bench_id == bench_a.id
     block_a_1 = package_a.blocks.create(type=BlockType.VIEW)
     assert block_a_1.bench_id == bench_a.id
@@ -174,8 +172,7 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b.main_server = bench_b.servers.create(name="Server")
     bench_b.main_store = bench_b.stores.create(name="Store")
     bench_b.main_drive = bench_b.drives.create(name="Drive")
-    branch_b = bench_b.branches.create(name="main b")
-    package_b = branch_b.packages.create()
+    package_b = bench_b.packages.create(type=PackageType.ROOT, name="main b")
     block_b = package_b.blocks.create(type=BlockType.ACTION, roles=[block_a_1])
     assert block_b.bench_id == bench_b.id
     assert block_b.roles

@@ -110,7 +110,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Bench,
         Block,
-        Branch,
         Client,
         CustomObject,
         Expression,
@@ -2204,8 +2203,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             path_parts: list[str] = [self._path_key]
             parent = self.parent
             while parent is not None:
-                if parent.metatype == NodeType.BRANCH or parent.metatype == NodeType.PACKAGE:
-                    parent = cast("Branch | Package", parent).bench
+                if parent.metatype == NodeType.BENCH or parent.metatype == NodeType.PACKAGE:
+                    parent = cast("Bench | Package", parent).bench
                     continue
                 path_parts.append(parent._path_key)
                 next_parent = parent.parent
@@ -2432,7 +2431,7 @@ def get_tracing_context() -> NodeMode:
 
 @node_component()
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
-    """A node that exists inside a Bench."""
+    """A Node inside a Bench."""
 
     bench: "Bench | None" = p_node_ancestor_with_self(
         6, NodeType.BENCH, require=True, store=True, wire=True
@@ -2454,7 +2453,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 
 @node_component()
 class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContext, abc.ABC):
-    """A node that exists inside a Package."""
+    """A Node inside a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(
         5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
@@ -2470,7 +2469,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTracingContex
 
 @node_component()
 class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
-    """A package node with a persistent identity that can be instanced."""
+    """A Node in a Package with a persistent identity that can be instanced."""
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
     template: Optional["Node"] = p_node_template(7)
@@ -2484,12 +2483,12 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
 
 @node_component()
 class StateNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
-    """A package node with a persistent identity that can be instanced."""
+    """A Node in a Package with a persistent identity."""
 
 
 @node_component()
 class HasTimeIdentity(BuiltinObject, abc.ABC):
-    """A node whose identity is tied to a specific point in time."""
+    """A Node with a time-based identity."""
 
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
     __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
@@ -2560,12 +2559,12 @@ class HasRuntimeContext(BuiltinObject):
 class RuntimeNode[NodeDataT: AnyNodeData](
     HasTimeIdentity, PackageNode[NodeDataT], HasRuntimeContext, abc.ABC
 ):
-    """An eternal runtime node."""
+    """A Node that exists only (conceptually) at/in a Runtime."""
 
 
 @node_component()
 class HasNodeBase(BuiltinObject, abc.ABC):
-    """A node which may have a 'base' in another node (e.g., its type definition)."""
+    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
 
     @property
     @abc.abstractmethod
@@ -2606,7 +2605,7 @@ EMPTY_SCOPE_DATA = GraphScopeData(metatype=lang_pb2.OBJECT_TYPE_GRAPH_SCOPE)
 
 @struct_(StructType.CLIENT_ORIGIN)
 class ClientOrigin(Struct[ClientOriginData]):
-    """Information to identify a client."""
+    """Information to identify a Client."""
 
     type: ClientType = p_internal(30, require=True)
     id: Optional[UUID] = p_internal(31, default=None)
@@ -2618,7 +2617,7 @@ class NodeReference(Struct[NodeReferenceData]):
     """
     A plain reference to a Node.
     We include the Bench and 'ck' where available.
-    Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
+    Base = the Node is 'based' on (as in HasNodeBase).
     """
 
     node_type: NodeType = p_internal(30, require=True)

@@ -4,8 +4,10 @@ from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enu
 from bench.language.expression import Selection
 from bench.language.list import LocalNodeList
 from bench.language.node import (
+    OWNER_TYPES,
     Node,
     NodeReference,
+    Owner,
     SourceNode,
     Struct,
     local_node_,
@@ -655,15 +657,16 @@ class SpaceType(IdEnum):
 
 @local_node_(NodeType.SPACE)
 class Space(SourceNode[SpaceData]):
-    """A space for a user to interact with the Bench."""
+    """A Space for someone/something to interact with the Bench."""
 
-    parent: Union["Package", "Block", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
 
     type: SpaceType = p_regular(30)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
+    owned_by: Optional[Owner] = p_regular(36, require=False, array=False, references=OWNER_TYPES)
 
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION

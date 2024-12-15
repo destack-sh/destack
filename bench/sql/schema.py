@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.13.1"
+VERSION = "2024.12.15.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -82,7 +82,7 @@ BENCH_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
-        Column("main_branch_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_package_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
     constraints=(
@@ -731,53 +731,6 @@ INVITE_TABLE = Table(
     ),
 )
 
-BRANCH_TABLE = Table(
-    "bench_branch",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("slug", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("policies", PrimitiveType.JSON, is_array=True),
-        Column("main_package_id", PrimitiveType.UUID, is_nullable=True),
-        Column(
-            "base_branch_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_branch",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-        Column("is_overlay", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_light", PrimitiveType.BOOLEAN, default="false"),
-    ),
-    indexes=(
-        Index("bench_idx_bench_id_slug", IndexType.BTREE, ("bench_id", "slug"), is_unique=True),
-    ),
-    constraints=(
-        Constraint(
-            "bench_idx_bench_id_slug",
-            ConstraintType.UNIQUE,
-            columns=("bench_id", "slug"),
-            index="bench_idx_bench_id_slug",
-        ),
-    ),
-)
-
 PACKAGE_TABLE = Table(
     "bench_package",
     (
@@ -796,9 +749,17 @@ PACKAGE_TABLE = Table(
         Column("updated_epoch", PrimitiveType.INT64),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("type", PrimitiveType.INT16),
+        Column("name", PrimitiveType.STRING),
+        Column("slug", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("policies", PrimitiveType.JSON, is_array=True),
+        Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column(
             "base_package_id",
             PrimitiveType.UUID,
@@ -806,8 +767,17 @@ PACKAGE_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
-        Column("is_snapshot", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_overlay", PrimitiveType.BOOLEAN, default="false"),
+    ),
+    indexes=(
+        Index("bench_idx_bench_id_slug", IndexType.BTREE, ("bench_id", "slug"), is_unique=True),
+    ),
+    constraints=(
+        Constraint(
+            "bench_idx_bench_id_slug",
+            ConstraintType.UNIQUE,
+            columns=("bench_id", "slug"),
+            index="bench_idx_bench_id_slug",
+        ),
     ),
 )
 
@@ -848,8 +818,6 @@ SPACE_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -873,6 +841,12 @@ SPACE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("owned_by_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
         Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("inspection_id", PrimitiveType.UUID, is_nullable=True),

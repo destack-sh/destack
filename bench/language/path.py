@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional, assert_never, cast
 import regex
 from cachetools import LRUCache, cached
 
-from bench.language.bench import Bench, Branch, Package
+from bench.language.bench import Bench, Package
 from bench.language.const import BenchError, EnumType, NodeType, StructType, enum_
 from bench.language.flow import Step
 from bench.language.list import LocalNodeList
@@ -252,16 +252,12 @@ def _normalize_node(scope: Node) -> Node:
     """'Normalize' the scope, lowering a bench into its current main package."""
     if scope.metatype == NodeType.BENCH:
         bench = cast(Bench, scope)
-        main_branch = bench.main_branch
-        assert main_branch is not None, f"bench {bench!r} has no main branch"
-        main_package = main_branch.main_package
-        assert main_package is not None, f"branch {main_branch!r} has no main package"
+        main_package = bench.main_package
+        assert main_package is not None, f"bench {bench!r} has no main package"
         return main_package
-    elif scope.metatype == NodeType.BRANCH:
-        branch = cast(Branch, scope)
-        main_package = branch.main_package
-        assert main_package is not None, f"branch {branch!r} has no main package"
-        return main_package
+    elif scope.metatype == NodeType.PACKAGE:
+        package = cast(Package, scope)
+        return package
     else:
         return scope
 

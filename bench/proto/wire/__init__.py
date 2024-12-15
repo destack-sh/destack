@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.12.13.1"
+VERSION = "2024.12.15.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -38,7 +38,6 @@ AnyNodeData = Union[
     SecretData,
     MembershipData,
     InviteData,
-    BranchData,
     PackageData,
     DependencyData,
     SpaceData,

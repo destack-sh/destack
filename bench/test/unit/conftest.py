@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bench.language import Session, Store
-from bench.language.bench import Bench, Client, Package, ResourceStatus
+from bench.language.bench import Bench, Client, Package, PackageType, ResourceStatus
 from bench.language.block import Block
 from bench.language.connection import NullEngine
 from bench.language.const import (
@@ -130,8 +130,7 @@ def make_package(session: Session):
     bench.main_server = bench.servers.create(name="Server")
     bench.main_store = bench.stores.create(name="Store")
     bench.main_drive = bench.drives.create(name="Drive")
-    branch = bench.branches.create(name="Branch")
-    package = branch.packages.create()
+    package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     session.parent = package
     session._graph.update(session, _force_update_parent=True)
     return package
@@ -218,10 +217,10 @@ class RuntimeHandle:
 
     def page(self, name: str = "Page1") -> Block:
         """Gets or creates a page in the current package."""
-        page = self.bench.main_package.blocks.get(name)
+        page = self.package.blocks.get(name)
         if page is None:
             page = Block.new(BlockType.PAGE, name=name)
-            self.bench.main_package.blocks.append(page)
+            self.package.blocks.append(page)
         return page
 
     async def commit(self):
@@ -296,6 +295,7 @@ async def local_runtime_async(global_store: Store):
         _supergraph=bench._supergraph,
     )
     runtime = Runtime(session=session, cache=MemoryCache(bench), oracle=REAL_ORACLE)
+    assert bench.main_package is not None, f"no main package for {bench!r}"
     handle = RuntimeHandle(
         supergraph=bench._supergraph,
         user=user,
@@ -454,6 +454,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     )
     session.track(hosted_bench)
     runner = Runtime(session=session, cache=MemoryCache(hosted_bench), oracle=REAL_ORACLE)
+    assert hosted_bench.main_package is not None, f"no main package for {hosted_bench!r}"
     handle = RuntimeHandle(
         supergraph=hosted_bench._supergraph,
         user=user,

@@ -3,7 +3,7 @@ from typing import List, Tuple, cast
 import pytest
 from more_itertools import first
 
-from bench.language.bench import Bench, Package
+from bench.language.bench import Bench, Package, PackageType
 from bench.language.block import FlowBlock
 from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
@@ -135,9 +135,7 @@ def test_parse_path_invalid(invalid_path: str):
 @pytest.fixture
 def mock_package(session: Session):
     bench = Bench(name="bench1", slug="bench")
-    bench.main_branch = bench.branches.create(name="Main")
-    package = bench.main_branch.packages.create()
-    bench.main_branch.main_package = package
+    package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     session.parent = package  # patch in the session parent
     session._graph.update(session, _force_update_parent=True)
     return package
@@ -147,9 +145,7 @@ def mock_package(session: Session):
 def mock_package_populated(session: Session):
     # make bench
     bench = Bench(name="bench1", slug="bench")
-    bench.main_branch = bench.branches.create(name="Main")
-    package = bench.main_branch.packages.create()
-    bench.main_branch.main_package = package
+    package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     session.parent = package  # patch in the session parent
     session._graph.update(session, _force_update_parent=True)
 
