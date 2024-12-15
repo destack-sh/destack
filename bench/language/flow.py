@@ -24,7 +24,7 @@ from bench.language.node import (
     NodeSubtypeStub,
     SourceNode,
     Struct,
-    local_node_,
+    node_,
     node_subtype_,
     struct_,
 )
@@ -104,7 +104,7 @@ SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
 PIPE_TYPES_BY_SIGN: dict[str, PipeType] = {v: k for k, v in SIGN_BY_PIPE_TYPE.items()}
 
 
-@local_node_(NodeType.PIPE)
+@node_(NodeType.PIPE)
 class Pipe(SourceNode[PipeData]):
     """
     A connection between two Steps in a Flow (source = outgoing, target = incoming).
@@ -261,7 +261,7 @@ class StepType(IdEnum):
         return self >= 500 and self < 600
 
 
-@local_node_(NodeType.STEP, passthrough_get=("value", "fields"))
+@node_(NodeType.STEP, passthrough_get=("value", "fields"))
 class Step(SourceNode[StepData]):
     """
     A data or control flow node in a Flow. Steps are connected by Pipes.

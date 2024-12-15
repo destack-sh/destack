@@ -15,7 +15,7 @@ from bench.language.node import (
     BuiltinObject,
     SourceNode,
     Struct,
-    local_node_,
+    node_,
     object_,
     struct_,
 )
@@ -78,7 +78,7 @@ class TriggerBase(BuiltinObject):
     )
 
 
-@local_node_(NodeType.TRIGGER)
+@node_(NodeType.TRIGGER)
 class Trigger(SourceNode[TriggerData], TriggerBase):
     """A Trigger to run something."""
 

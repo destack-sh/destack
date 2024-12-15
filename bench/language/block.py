@@ -24,7 +24,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeBase
 from bench.language.list import LocalNodeList, RemoteNodeList
-from bench.language.node import NodeSubtypeStub, SourceNode, local_node_, node_subtype_
+from bench.language.node import NodeSubtypeStub, SourceNode, node_, node_subtype_
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 #  see :AutoNaming
 
 
-@local_node_(NodeType.BLOCK, passthrough_get=("fields",))
+@node_(NodeType.BLOCK, passthrough_get=("fields",))
 class Block(SourceNode[BlockData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 

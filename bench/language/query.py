@@ -37,7 +37,7 @@ from bench.language.node import (
     NodeReference,
     SourceNode,
     Struct,
-    local_node_,
+    node_,
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
@@ -708,7 +708,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return cast(tuple["Property"], properties)
 
 
-@local_node_(NodeType.QUERY)
+@node_(NodeType.QUERY)
 class Query(SourceNode[QueryData]):
     """A Query."""
 

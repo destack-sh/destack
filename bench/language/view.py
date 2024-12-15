@@ -10,7 +10,7 @@ from bench.language.node import (
     Owner,
     SourceNode,
     Struct,
-    local_node_,
+    node_,
     node_subtype_,
     struct_,
 )
@@ -479,7 +479,7 @@ class RectangleConstraint(Struct):
 #
 
 
-@local_node_(NodeType.VIEW)
+@node_(NodeType.VIEW)
 class View(SourceNode[ViewData]):
     """A view of a user interface in a Bench."""
 
@@ -655,7 +655,7 @@ class SpaceType(IdEnum):
     MOBILE = 30
 
 
-@local_node_(NodeType.SPACE)
+@node_(NodeType.SPACE)
 class Space(SourceNode[SpaceData]):
     """A Space for someone/something to interact with the Bench."""
 

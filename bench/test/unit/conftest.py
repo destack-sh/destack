@@ -34,6 +34,7 @@ from bench.language.const import (
     STRUCT_TYPES,
     BlockType,
     ClientType,
+    NodeArea,
     NodeMode,
     NodeType,
     ObjectType,
@@ -65,7 +66,7 @@ def event_loop_policy():
 def create_omni_session(omni_store: Store, oracle: Oracle):
     """Gets direct access to a per test global engine"""
 
-    global_pg_engine = pg_engine_from_store(omni_store, node_types=NODE_TYPES)
+    global_pg_engine = pg_engine_from_store(omni_store, area=None)
     session = Session(
         parent=None,
         _default_scope=EMPTY_SCOPE_DATA,
@@ -188,14 +189,15 @@ STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES]
 NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES]
 
 
-def create_global_session(global_store: Store, oracle: Oracle):
+def create_global_session(global_store: Store, regional_store: Store, oracle: Oracle):
     """Gets direct access to a per test global engine"""
 
-    global_pg_engine = pg_engine_from_store(global_store)
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
     session = Session(
         parent=None,
         _default_scope=EMPTY_SCOPE_DATA,
-        _engines=(global_pg_engine,),
+        _engines=(global_pg_engine, regional_pg_engine),
         _local_epoch=0,
         _oracle=oracle,
         _supergraph=NodeSuperGraph(root_ptr=None),
@@ -246,8 +248,8 @@ class RuntimeHandle:
 
 
 @pytest.fixture
-async def local_runtime_async(global_store: Store):
-    async with create_global_session(global_store, REAL_ORACLE) as session:
+async def local_runtime_async(global_store: Store, regional_store: Store):
+    async with create_global_session(global_store, regional_store, REAL_ORACLE) as session:
         # setup user/client
         user = User(
             slug="test",
@@ -328,8 +330,8 @@ def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
 
 
 @pytest.fixture
-async def hosted_bench(global_store: Store):
-    async with create_global_session(global_store, REAL_ORACLE) as session:
+async def hosted_bench(global_store: Store, regional_store: Store):
+    async with create_global_session(global_store, regional_store, REAL_ORACLE) as session:
         user = User(
             slug="user",
             name="User",
@@ -385,8 +387,13 @@ async def hosted_bench(global_store: Store):
 
 
 @pytest.fixture
-async def host_service(global_store: Store, hosted_bench: Bench):
-    host = HostService(bench_id=hosted_bench.id, global_store=global_store, oracle=REAL_ORACLE)
+async def host_service(global_store: Store, regional_store: Store, hosted_bench: Bench):
+    host = HostService(
+        bench_id=hosted_bench.id,
+        global_store=global_store,
+        regional_store=regional_store,
+        oracle=REAL_ORACLE,
+    )
     await host.start()
     try:
         yield host

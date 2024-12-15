@@ -23,10 +23,12 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     LOADED_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
+    REGIONAL_NODE_TYPES,
     SOURCE_NODE_TYPES,
     ClientType,
     ConditionalType,
     EditType,
+    NodeArea,
     NodeType,
 )
 from bench.language.expression import C
@@ -109,7 +111,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, bench_id: UUID, global_store: Store, oracle: Oracle):
+    def __init__(self, bench_id: UUID, global_store: Store, regional_store: Store, oracle: Oracle):
         GraphIoServiceBase.__init__(
             self,
             bench_id=bench_id,
@@ -125,12 +127,15 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
         self._global_store = global_store
-        self._global_pg_engine_unscoped = pg_engine_from_store(global_store)
+        self._global_pg_engine_unscoped = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+        self._regional_store = regional_store
+        self._regional_pg_engine_unscoped = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
         self._supergraph = NodeSuperGraph(self.bench_ptr)
         self._client_cache = ClientCache(ttl=60)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._global_pg_engine: PostgresEngine | None = None
+        self._regional_pg_engine: PostgresEngine | None = None
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[GraphEngine, ...] = ()
 
@@ -191,8 +196,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     def global_session(self, readonly: bool = False):
         return global_session(
-            store=self.global_store,
-            engines=(self._global_pg_engine_unscoped,),
+            node=self.bench,
+            engines=(self._global_pg_engine_unscoped, self._regional_pg_engine_unscoped),
             supergraph=self._supergraph,
             oracle=self.oracle,
             readonly=readonly,
@@ -330,6 +335,13 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             node_types=IN_BENCH_GLOBAL_NODE_TYPES | bittuple(NodeType.USER),
             context=database_plugin.context,
         )
+        self._regional_pg_engine = PostgresEngine(
+            store=self._bench.main_store,
+            bench=self._bench,
+            scope=self._scope,
+            node_types=REGIONAL_NODE_TYPES,
+            context=database_plugin.context,
+        )
         self._local_pg_engine = PostgresEngine(
             store=self._bench.main_store,
             bench=self._bench,
@@ -337,7 +349,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             node_types=LOCAL_NODE_TYPES,
             context=database_plugin.context,
         )
-        self._engines = (self._global_pg_engine, self._local_pg_engine)
+        self._engines = (self._global_pg_engine, self._regional_pg_engine, self._local_pg_engine)
         if HOST_MEMORY_ENGINE_ENABLED:
             inmemory_engines = (
                 MemoryEngine(

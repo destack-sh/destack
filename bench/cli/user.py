@@ -4,6 +4,7 @@ import typer
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import User
 from bench.language.const import (
+    NodeArea,
     UserStatus,
 )
 from bench.utils.oracle import REAL_ORACLE
@@ -18,12 +19,12 @@ logger = structlog.get_logger(__name__)
 async def unwaitlist(user_slug: str):
     from bench.system.utils.session import (
         global_session,
+        global_store_from_env,
         pg_engine_from_store,
-        system_store_from_env,
     )
 
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
+    global_store = global_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         user = await User.get(slug=user_slug)
         if user.status != UserStatus.WAITLISTED:

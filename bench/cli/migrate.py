@@ -11,7 +11,33 @@ from rich.console import Console
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
-from bench.language.const import VERSION, NodeType
+from bench.language.const import VERSION, NodeArea, NodeType
+from bench.sql.client import pg_connection
+from bench.sql.core import Schema
+from bench.sql.engine import SqlUndefinedObjectError
+from bench.sql.graph import (
+    BENCH_RECORD_TABLE_PREFIX,
+    BENCH_TABLE_PREFIX,
+    BUILTIN_GLOBAL_SCHEMA,
+    BUILTIN_LOCAL_SCHEMA,
+    BUILTIN_REGIONAL_SCHEMA,
+)
+from bench.sql.migration import (
+    Migration,
+    add_migration_to_fs,
+    generate_sql_migration_code,
+    generate_sql_migration_ops,
+    introspect_sql_schema,
+    read_migrations_from_fs,
+    read_migrations_from_pg,
+)
+from bench.sql.migration import sql_migrate as _migrate
+from bench.system.utils.session import (
+    global_session,
+    global_store_from_env,
+    pg_engine_from_store,
+    regional_store_from_env,
+)
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
@@ -22,43 +48,21 @@ console = Console()
 BENCH_QUERY = Bench.include_descendants(Store).select_all()
 
 
-@app.command(help="generate global / local SQL migrations")
+@app.command(help="generate SQL migrations")
 @async_to_sync_blocking
 async def make(
+    area: Optional[NodeArea],
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
-    no_local: bool = typer.Option(default=False, help="exclude local operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from bench.sql.client import pg_connection
-    from bench.sql.core import Schema
-    from bench.sql.engine import SqlUndefinedObjectError
-    from bench.sql.graph import (
-        BENCH_RECORD_TABLE_PREFIX,
-        BENCH_TABLE_PREFIX,
-        BUILTIN_GLOBAL_SCHEMA,
-        BUILTIN_LOCAL_SCHEMA,
-    )
-    from bench.sql.migration import (
-        Migration,
-        add_migration_to_fs,
-        generate_sql_migration_code,
-        generate_sql_migration_ops,
-        introspect_sql_schema,
-        read_migrations_from_fs,
-        read_migrations_from_pg,
-    )
-    from bench.system.utils.session import (
-        global_session,
-        pg_engine_from_store,
-        system_store_from_env,
-    )
-
     start = time.time()
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
+    global_store = global_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    regional_store = regional_store_from_env()
+    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
 
     # check existing migrations for inconsistencies
     file_migrations = read_migrations_from_fs()
@@ -83,10 +87,12 @@ async def make(
         )
 
     # diff local
-    if not no_local:
+    if area in (None, NodeArea.LOCAL):
         if not from_scratch:
             try:
-                async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
+                async with global_session(
+                    global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+                ):
                     bench_node = await BENCH_QUERY.get(slug=bench)
                     assert bench_node.main_store, f"{bench!r} has no main store"
                     async with pg_connection(bench_node.main_store) as conn:
@@ -107,19 +113,36 @@ async def make(
     else:
         local_migration_ops = []
 
-    # diff global
-    async with pg_connection(global_store) as conn:
-        old_global_schema = await introspect_sql_schema(
-            conn.cursor,
-            include_table_prefixes=(BENCH_TABLE_PREFIX,),
-            exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+    # diff regional
+    if area in (None, NodeArea.REGIONAL):
+        async with pg_connection(regional_store) as conn:
+            old_regional_schema = await introspect_sql_schema(
+                conn.cursor,
+                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+            )
+        regional_migration_ops = generate_sql_migration_ops(
+            old_schema=old_regional_schema, new_schema=BUILTIN_REGIONAL_SCHEMA
         )
-    global_migration_ops = generate_sql_migration_ops(
-        old_schema=old_global_schema, new_schema=BUILTIN_GLOBAL_SCHEMA
-    )
+    else:
+        regional_migration_ops = []
+
+    # diff global
+    if area in (None, NodeArea.GLOBAL):
+        async with pg_connection(global_store) as conn:
+            old_global_schema = await introspect_sql_schema(
+                conn.cursor,
+                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+            )
+        global_migration_ops = generate_sql_migration_ops(
+            old_schema=old_global_schema, new_schema=BUILTIN_GLOBAL_SCHEMA
+        )
+    else:
+        global_migration_ops = []
 
     # generate migration
-    if not global_migration_ops and not local_migration_ops:
+    if not global_migration_ops and not local_migration_ops and not regional_migration_ops:
         logger.info("migrate.make.noop")
         return
     latest_migration = max(file_migrations, key=lambda m: m.id, default=None)
@@ -128,12 +151,14 @@ async def make(
         version=VERSION,
         has_global=bool(global_migration_ops),
         has_local=bool(local_migration_ops),
+        has_regional=bool(regional_migration_ops),
         applied_at=None,
     )
     migration_code = generate_sql_migration_code(
         new_migration,
         global_ops=global_migration_ops,
         local_ops=local_migration_ops,
+        regional_ops=regional_migration_ops,
         exclude_inverse=no_downgrade,
         oracle=REAL_ORACLE,
     )
@@ -145,9 +170,10 @@ async def make(
     logger.info("migrate.make", duration=time.time() - start)
 
 
-@app.command(help="apply global / local SQL migrations")
+@app.command(help="apply SQL migrations")
 @async_to_sync_blocking
 async def apply(
+    area: NodeArea,
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"
     ),
@@ -156,20 +182,13 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
-    from bench.sql.client import pg_connection
-    from bench.sql.migration import sql_migrate as _migrate
-    from bench.system.utils.session import (
-        global_session,
-        pg_engine_from_store,
-        system_store_from_env,
-    )
-
     start = time.time()
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
+    global_store = global_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    regional_store = regional_store_from_env()
 
-    # resolve local_pg_name (determine local/global migration)
-    if bench is not None:
+    # resolve stores to migrate
+    if area == NodeArea.LOCAL and bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
             if bench != "*":
                 bench_node = await BENCH_QUERY.get(slug=bench)
@@ -177,14 +196,16 @@ async def apply(
             else:
                 benches = await BENCH_QUERY.tolist()
                 stores = tuple(store for bench in benches for store in bench.stores)
-    else:
+    elif area == NodeArea.REGIONAL:
+        stores = (regional_store,)
+    elif area == NodeArea.GLOBAL:
         stores = (global_store,)
+    else:
+        raise RuntimeError(f"invalid area: {area!r}")
 
     for store in stores:
         async with pg_connection(store) as conn:
-            await _migrate(
-                cur=conn.cursor, target=target, is_global=bench is None, oracle=REAL_ORACLE
-            )
+            await _migrate(cur=conn.cursor, target=target, area=area, oracle=REAL_ORACLE)
             if not dry_run:
                 await conn.commit()
             else:
@@ -195,24 +216,19 @@ async def apply(
 
 @app.command()
 @async_to_sync_blocking
-async def introspect(bench: Optional[str] = None):  # type: ignore
+async def introspect(area: Optional[NodeArea] = None, bench: Optional[str] = None):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
 
-    from bench.sql.client import pg_connection
-    from bench.sql.graph import BENCH_RECORD_TABLE_PREFIX, BENCH_TABLE_PREFIX
-    from bench.sql.migration import introspect_sql_schema
-    from bench.system.utils.session import (
-        global_session,
-        pg_engine_from_store,
-        system_store_from_env,
-    )
-
     start = time.perf_counter()
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
+    global_store = global_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    regional_store = regional_store_from_env()
+    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
 
-    if bench is not None:
-        async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
+    if area == NodeArea.LOCAL and bench is not None:
+        async with global_session(
+            global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+        ):
             bench_node = await Bench.include_descendants(NodeType.STORE).get(slug=bench)
             assert bench_node.main_store, f"{bench!r} has no main environment"
         async with pg_connection(bench_node.main_store) as conn:
@@ -224,7 +240,17 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
                 exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
             )
-    else:
+    elif area == NodeArea.REGIONAL:
+        async with pg_connection(regional_store) as conn:
+            schema = await introspect_sql_schema(
+                conn.cursor,
+                include_columns=True,
+                include_indexes=True,
+                include_constraints=True,
+                include_table_prefixes=(BENCH_TABLE_PREFIX,),
+                exclude_table_prefixes=(),
+            )
+    else:  # GLOBAL
         async with pg_connection(global_store) as conn:
             schema = await introspect_sql_schema(
                 conn.cursor,
@@ -232,7 +258,7 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
                 include_indexes=True,
                 include_constraints=True,
                 include_table_prefixes=(BENCH_TABLE_PREFIX,),
-                exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
+                exclude_table_prefixes=(),
             )
             await conn.rollback()
 

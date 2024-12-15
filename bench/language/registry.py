@@ -250,12 +250,6 @@ def _complete_bench_setup():
             [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_package__],
         )
 
-        # everything in local node types must be declared local
-        for node_cls in NODE_CLASS_BY_TYPE.values():
-            should_be_local = node_cls.metatype in LOCAL_NODE_TYPES
-            is_local = node_cls.__is_local__
-            assert should_be_local == is_local, f"{node_cls!r} is inconsistent"
-
         # check that BASED_NODE_TYPES is consistent with HasBase
         base_node_types = [
             cast(Node, n).metatype for n in get_subclasses(HasNodeBase) if hasattr(n, "metatype")

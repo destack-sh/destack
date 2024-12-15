@@ -1,7 +1,7 @@
 import { SOURCE_NODE_TYPES, VIRTUAL_RESOURCE_NODE_TYPES } from "@/language/const";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
 import { getHostClient } from "@/proto/services";
-import { BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
+import { BenchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
   makeScope,
   nodeReference,
@@ -25,7 +25,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
   computed(() => ({
     scope: BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
-    descendantTypes: [NodeType.BRANCH, NodeType.PACKAGE, ...VIRTUAL_RESOURCE_NODE_TYPES],
+    descendantTypes: [NodeType.PACKAGE, ...VIRTUAL_RESOURCE_NODE_TYPES],
     isEnabled: local.benchPtr.value != null,
   })),
 );
@@ -143,7 +143,6 @@ export async function assignSpaceInPackage() {
 /** 'Goes' to a Bench and sets it as the current main Bench. **/
 export async function goToBench(go: {
   bench: TypedNodeReferenceData<NodeType.BENCH>;
-  branch?: TypedNodeReferenceData<NodeType.BRANCH>;
   pkg?: TypedNodeReferenceData<NodeType.PACKAGE>;
   space?: TypedNodeReferenceData<NodeType.SPACE>;
 }) {
@@ -154,12 +153,11 @@ export async function goToBench(go: {
   const host = await getHostClient({ id: go.bench.id! });
   const {
     response: { nodes },
-  } = await host.getNodes({ roots: [go.bench], scope, descendantTypes: [NodeType.BRANCH], ancestorTypes: [] });
-  const graph = new NodeGraph({ scope, nodeTypes: new Set([NodeType.BRANCH]) });
+  } = await host.getNodes({ roots: [go.bench], scope, descendantTypes: [NodeType.PACKAGE], ancestorTypes: [] });
+  const graph = new NodeGraph({ scope, nodeTypes: new Set([NodeType.PACKAGE]) });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
-  const branch = graph.get(go.branch ?? bench.mainBranchPtr!) as BranchData;
-  const pkg = go.pkg ?? branch.mainPackagePtr!;
+  const pkg = go.pkg ?? bench.mainPackagePtr!;
   local.setBench({
     pkg: typeNodeReference(NodeType.PACKAGE, pkg),
     space: typeNodeReferenceMaybe(NodeType.SPACE, go.space),

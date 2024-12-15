@@ -27,6 +27,8 @@ from bench.sql.graph import (
     BUILTIN_GLOBAL_SCHEMA,
     BUILTIN_GLOBAL_TABLES,
     BUILTIN_LOCAL_TABLES,
+    BUILTIN_REGIONAL_SCHEMA,
+    BUILTIN_REGIONAL_TABLES,
     sqlstr,
 )
 from bench.sql.migration import (
@@ -34,15 +36,15 @@ from bench.sql.migration import (
     generate_sql_migration_ops,
     introspect_sql_schema,
 )
-from bench.system.utils.session import BEGINNING_OF_TIME, system_store_from_env
+from bench.system.utils.session import BEGINNING_OF_TIME, global_store_from_env
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def make_system_store(name: str):
-    """Creates a system store for testing. Like global store in system/core."""
+def make_global_store(name: str):
+    """Creates a global store for testing.."""
 
     host = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
     username = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
@@ -73,9 +75,41 @@ def make_system_store(name: str):
     return store
 
 
+def make_regional_store(name: str):
+    """Creates a regional store for testing."""
+
+    host = get_from_env("REGIONAL_PG_HOST", description="Regional Postgres host")
+    username = get_from_env("REGIONAL_PG_USERNAME", description="Regional Postgres username")
+    password = get_from_env("REGIONAL_PG_PASSWORD", description="Regional Postgres password")
+
+    system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
+    supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
+    system_bench_stub = Bench(
+        id=UUID(int=0),
+        name="System",
+        slug="system",
+        region=Region.ZURICH,
+        encryption_key=GLOBAL_PG_CRYPTO_KEY,
+        _supergraph=supergraph,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+    )
+    store = Store(
+        parent=system_bench_stub,
+        name=name,
+        version=VERSION,
+        external_name=name,
+        connection_uri=f"postgresql://{username}:{password}@{host}/{name}",
+        _supergraph=supergraph,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+    )
+    return store
+
+
 async def create_blank_test_db(store: Store):
     """Creates a blank postgres database"""
-    async with pg_connection(system_store_from_env(), autocommit=True) as conn:
+    async with pg_connection(global_store_from_env(), autocommit=True) as conn:
         await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
         await conn.execute(sqlstr(f'CREATE DATABASE "{store.external_name}"'))
 
@@ -97,7 +131,7 @@ async def create_test_db(store: Store, schema: Schema):
 async def delete_test_db(store: Store):
     """Deletes a postgres DB with one of our schemas"""
     await get_pg_pool(store).close()
-    async with pg_connection(system_store_from_env(), autocommit=True) as conn:
+    async with pg_connection(global_store_from_env(), autocommit=True) as conn:
         await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
 
 
@@ -105,7 +139,7 @@ async def delete_test_db(store: Store):
 async def blank_store(request: pytest.FixtureRequest):
     """Gets the per test function blank store"""
 
-    store = make_system_store(f"test-{clean_name(request.node.name)}")
+    store = make_global_store(f"test-{clean_name(request.node.name)}")
     await create_blank_test_db(store)
     try:
         yield store
@@ -117,8 +151,20 @@ async def blank_store(request: pytest.FixtureRequest):
 async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    store = make_system_store(f"test-{clean_name(request.node.name)}")
+    store = make_global_store(f"test-{clean_name(request.node.name)}")
     await create_test_db(store, BUILTIN_GLOBAL_SCHEMA)
+    try:
+        yield store
+    finally:
+        await delete_test_db(store)
+
+
+@pytest.fixture
+async def regional_store(request: pytest.FixtureRequest):
+    """Gets the per test function regional store"""
+
+    store = make_regional_store(f"test-{clean_name(request.node.name)}")
+    await create_test_db(store, BUILTIN_REGIONAL_SCHEMA)
     try:
         yield store
     finally:
@@ -131,15 +177,12 @@ async def omni_store(request: pytest.FixtureRequest):
 
     ALL_TABLES: tuple[Table, ...] = (
         *BUILTIN_GLOBAL_TABLES,
-        *(
-            t
-            for t in BUILTIN_LOCAL_TABLES
-            if not any(t.name == g.name for g in BUILTIN_GLOBAL_TABLES)
-        ),
+        *BUILTIN_REGIONAL_TABLES,
+        *BUILTIN_LOCAL_TABLES,
     )
     OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
 
-    store = make_system_store(f"test-{clean_name(request.node.name)}")
+    store = make_global_store(f"test-{clean_name(request.node.name)}")
     await create_test_db(store, OMNI_SCHEMA)
     try:
         yield store

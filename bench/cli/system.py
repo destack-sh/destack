@@ -15,11 +15,13 @@ from bench.language.const import (
     REGION,
     SYSTEM_SLUG,
     ClientType,
+    NodeArea,
     NodeType,
     Region,
     UserStatus,
 )
 from bench.language.machine import Machine
+from bench.system.utils.session import regional_store_from_env
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
@@ -35,15 +37,23 @@ async def bootstrap(region: Region = Region.ZURICH):
     from bench.system.supervisor.service import create_default_bench
     from bench.system.utils.session import (
         global_session,
+        global_store_from_env,
         pg_engine_from_store,
-        system_store_from_env,
     )
 
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
-    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
+    global_store = global_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    regional_store = regional_store_from_env()
+    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    async with global_session(
+        global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
+    ) as session:
         system_user = User(
-            name="System", slug="system", email="system@bench.com", status=UserStatus.REGISTERED
+            name="System",
+            slug="system",
+            email="system@bench.com",
+            region=Region.ZURICH,
+            status=UserStatus.REGISTERED,
         )
         session._create(system_user)
         await session.flush(optimistic=True)
@@ -78,12 +88,12 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
     from bench.system.utils.access import ACCESS_TOKEN_LENGTH
     from bench.system.utils.session import (
         global_session,
+        global_store_from_env,
         pg_engine_from_store,
-        system_store_from_env,
     )
 
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
+    global_store = global_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         bench = (
             await Bench.include_descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)

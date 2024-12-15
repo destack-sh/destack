@@ -4,6 +4,7 @@ import psycopg
 ID = "<ID>"
 VERSION = "<VERSION>"
 HAS_GLOBAL = "<HAS_GLOBAL>"
+HAS_REGIONAL = "<HAS_REGIONAL>"
 HAS_LOCAL = "<HAS_LOCAL>"
 
 
@@ -18,6 +19,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
 async def downgrade_global(cur: psycopg.AsyncCursor):
     pass  # <downgrade_global>
+
+
+#
+# Regional DB
+#
+
+
+async def upgrade_regional(cur: psycopg.AsyncCursor):
+    pass  # <upgrade_regional>
+
+
+async def downgrade_regional(cur: psycopg.AsyncCursor):
+    pass  # <downgrade_regional>
 
 
 #

@@ -14,6 +14,7 @@ from bench.language.block import Block
 from bench.language.const import (
     USER_NODE_TYPES,
     ClientType,
+    NodeArea,
     NodeType,
     OrganizationStatus,
     Region,
@@ -83,7 +84,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             scope=EMPTY_SCOPE_DATA,
         )
         self._global_store = global_store
-        self._global_pg_engine = pg_engine_from_store(global_store)
+        self._global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
         self._host_map = host_map
 
     def __str__(self):

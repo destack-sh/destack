@@ -14,9 +14,14 @@ from bench.language import Store
 from bench.proto.wire import (
     SupervisorClient,
 )
-from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA
+from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.test.conftest import TestProfile
-from bench.test.fixtures import create_test_db, delete_test_db, make_system_store
+from bench.test.fixtures import (
+    create_test_db,
+    delete_test_db,
+    make_global_store,
+    make_regional_store,
+)
 from bench.test.simulation.client import ClientHandle, UserHandle
 from bench.test.simulation.oracle import SimulatedEventLoop, SimulatedOracle
 from bench.test.simulation.service import HostHandle, ServiceHandle, SupervisorHandle
@@ -51,10 +56,11 @@ def get_simulation_id(simulation: SimulationSpec) -> str:
 class Simulation:
     """An active simulation"""
 
-    def __init__(self, id: str, spec: SimulationSpec, global_store: Store):
+    def __init__(self, id: str, spec: SimulationSpec, global_store: Store, regional_store: Store):
         self.id = id
         self.spec = spec
         self.global_store = global_store
+        self.regional_store = regional_store
 
         # system
         self.random = Random(spec.seed)
@@ -355,9 +361,11 @@ SIMULATIONS_BY_PROFILE = group_by(AVAILABLE_SIMULATIONS, lambda s: s.profile)
 
 async def _do_test_simulation(spec: SimulationSpec):
     simulation_id = get_simulation_id(spec)
-    global_store = make_system_store(f"test_{simulation_id}")
+    global_store = make_global_store(f"test_{simulation_id}")
+    regional_store = make_regional_store(f"test_{simulation_id}")
     await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
-    simulation = Simulation(simulation_id, spec, global_store)
+    await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
+    simulation = Simulation(simulation_id, spec, global_store, regional_store)
     try:
         await simulation.run()
         await delete_test_db(global_store)

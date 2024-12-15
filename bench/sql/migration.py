@@ -25,6 +25,7 @@ from more_itertools import first
 from opentelemetry import trace
 from psycopg import sql
 
+from bench.language.const import NodeArea
 from bench.sql.core import (
     MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,
@@ -79,18 +80,24 @@ class Migration:
     id: int
     version: str
     has_global: bool
+    has_regional: bool
     has_local: bool
     applied_at: Optional[datetime]
     path: Optional[Path] = None  # not stored
     file: Optional["MigrationFile"] = None  # not stored
 
     def __str__(self) -> str:
-        return (
-            f"{self.id} {self.version} (has_global={self.has_global}, has_local={self.has_local})"
-        )
+        return f"{self.id} {self.version} (has_global={self.has_global}, has_regional={self.has_regional}, has_local={self.has_local})"
 
     def __repr__(self) -> str:
         return f"<Migration {self}>"
+
+    def has_area(self, area: NodeArea) -> bool:
+        return (
+            (area == NodeArea.GLOBAL and self.has_global)
+            or (area == NodeArea.REGIONAL and self.has_regional)
+            or (area == NodeArea.LOCAL and self.has_local)
+        )
 
 
 MigratorFunc = Callable[[psycopg.AsyncConnection], Awaitable[None]]
@@ -107,6 +114,7 @@ def pack_migration_row(migration: Migration) -> dict[str, Any]:
         "id": migration.id,
         "version": migration.version,
         "has_global": migration.has_global,
+        "has_regional": migration.has_regional,
         "has_local": migration.has_local,
         "applied_at": migration.applied_at,
     }
@@ -117,6 +125,7 @@ def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
         id=row["id"],
         version=row["version"],
         has_global=row["has_global"],
+        has_regional=row["has_regional"],
         has_local=row["has_local"],
         applied_at=row["applied_at"],
     )
@@ -185,6 +194,7 @@ def read_migrations_from_fs() -> list[Migration]:
             id=int(migration_metadata["ID"]),
             version=migration_metadata["VERSION"][1:-1],
             has_global=migration_metadata["HAS_GLOBAL"] == "True",
+            has_regional=migration_metadata["HAS_REGIONAL"] == "True",
             has_local=migration_metadata["HAS_LOCAL"] == "True",
             applied_at=None,
             path=migration_path,
@@ -236,8 +246,8 @@ async def sql_migrate(
     target: str | int | None,
     oracle: Oracle,
     *,
-    is_global: bool,
-    store: Optional["Store"] = None,
+    area: NodeArea,
+    store: "Store | None" = None,
 ) -> list[Migration]:
     """
     Applies missing migrations (up or down) to reach the target migration.
@@ -257,12 +267,12 @@ async def sql_migrate(
             raise ValueError("no migrations found")
         target_migration = MIGRATIONS[-1]
 
-    logger.trace(
-        "migrations.load", target_migration=target_migration, is_global=is_global, store=store
-    )
+    logger.trace("migrations.load", target_migration=target_migration, area=area, store=store)
     stored_migrations = await read_migrations_from_pg(cur)
     is_upgrade = all(target_migration.id > m.id for m in stored_migrations if m.applied_at)
-    log = logger.bind(target_migration=target_migration, is_upgrade=is_upgrade, is_global=is_global)
+    log = logger.bind(
+        target_migration=target_migration, is_upgrade=is_upgrade, area=area, store=store
+    )
     applied_migrations = [m for m in stored_migrations if m.applied_at is not None]
     current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
     current_migration_id = current_migration.id if current_migration else -1
@@ -270,7 +280,7 @@ async def sql_migrate(
     # get the migrations to apply
     migrations_to_apply = []
     for migration in MIGRATIONS:
-        if (is_global and not migration.has_global) or (not is_global and not migration.has_local):
+        if not migration.has_area(area):
             continue
         if (is_upgrade and current_migration_id < migration.id <= target_migration.id) or (
             not is_upgrade and current_migration_id >= migration.id > target_migration.id
@@ -287,7 +297,7 @@ async def sql_migrate(
             migrations_to_apply,
             oracle=oracle,
             is_upgrade=is_upgrade,
-            is_global=is_global,
+            area=area,
             store=store,
         )
         log.debug("migrations.apply", cur=cur, migrations=migrations_to_apply, store=store)
@@ -312,15 +322,13 @@ async def _do_sql_migrate(
     oracle: Oracle,
     *,
     is_upgrade: bool,
-    is_global: bool,
+    area: NodeArea,
     store: Optional["Store"] = None,
 ):
     """Applies the given migrations in the given order."""
     for migration in migrations:
         with tracer.start_as_current_span("sql.apply_migration"):
-            func_name = (
-                f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(is_global and 'global') or 'local'}"
-            )
+            func_name = f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(area.value) or 'local'}"
             migration_file = _load_migration_from_path(migration)
             func = getattr(migration_file.module, func_name)
             try:
@@ -420,6 +428,60 @@ class MigrationOp:
         elif self.type == MigrationOpType.DELETE:
             return MigrationOp(MigrationOpType.CREATE, self.old_object, None)
         raise RuntimeError(f"unexpected migration op type: {self.type}")
+
+
+#
+# Diffing/generation
+#
+
+
+@tracer.start_as_current_span("sql.generate_migration_code")
+def generate_sql_migration_code(
+    migration: Migration,
+    oracle: Oracle,
+    *,
+    global_ops: list[MigrationOp],
+    regional_ops: list[MigrationOp],
+    local_ops: list[MigrationOp],
+    exclude_inverse: bool = False,
+) -> str:
+    """Generates the Python migration file."""
+    migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
+
+    # impute header/metadata
+    today = oracle.utc().date().strftime("%Y.%m.%d")
+    metadata_substitutions: dict[str, str] = {
+        "# <Header>": f"# This migration was automatically generated on {today}. Edit as needed.",
+        '"<ID>"': str(migration.id),
+        '"<VERSION>"': f'"{migration.version}"',
+        '"<HAS_GLOBAL>"': "True" if migration.has_global else "False",
+        '"<HAS_REGIONAL>"': "True" if migration.has_regional else "False",
+        '"<HAS_LOCAL>"': "True" if migration.has_local else "False",
+    }
+    for key, value in metadata_substitutions.items():
+        migration_code = migration_code.replace(key, value)
+
+    # impute upgrade/downgrade functions
+    global_ops_inverse = [op.invert() for op in global_ops[::-1]] if not exclude_inverse else None
+    regional_ops_inverse = (
+        [op.invert() for op in regional_ops[::-1]] if not exclude_inverse else None
+    )
+    local_ops_inverse = [op.invert() for op in local_ops[::-1]] if not exclude_inverse else None
+    for method_name, ops in [
+        ("upgrade_global", global_ops),
+        ("downgrade_global", global_ops_inverse),
+        ("upgrade_regional", regional_ops),
+        ("downgrade_regional", regional_ops_inverse),
+        ("upgrade_local", local_ops),
+        ("downgrade_local", local_ops_inverse),
+    ]:
+        method_body = _render_migration_body(ops)
+        method_placeholder = f"    pass  # <{method_name}>"
+        assert method_placeholder in migration_code, f"method placeholder not found: {method_name}"
+        migration_code = migration_code.replace(method_placeholder, indent(method_body, "    "))
+
+    migration_code = format_python(migration_code)
+    return migration_code
 
 
 @tracer.start_as_current_span("sql.generate_migration_ops")
@@ -528,48 +590,6 @@ def generate_sql_migration_ops(
         if op.type in include_types:
             ops.append(op)
     return ops
-
-
-@tracer.start_as_current_span("sql.generate_migration_code")
-def generate_sql_migration_code(
-    migration: Migration,
-    oracle: Oracle,
-    *,
-    global_ops: list[MigrationOp],
-    local_ops: list[MigrationOp],
-    exclude_inverse: bool = False,
-) -> str:
-    """Generates the Python migration file."""
-    migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
-
-    # impute header/metadata
-    today = oracle.utc().date().strftime("%Y.%m.%d")
-    metadata_substitutions: dict[str, str] = {
-        "# <Header>": f"# This migration was automatically generated on {today}. Edit as needed.",
-        '"<ID>"': str(migration.id),
-        '"<VERSION>"': f'"{migration.version}"',
-        '"<HAS_GLOBAL>"': "True" if migration.has_global else "False",
-        '"<HAS_LOCAL>"': "True" if migration.has_local else "False",
-    }
-    for key, value in metadata_substitutions.items():
-        migration_code = migration_code.replace(key, value)
-
-    # impute upgrade/downgrade functions
-    global_ops_inverse = [op.invert() for op in global_ops[::-1]] if not exclude_inverse else None
-    local_ops_inverse = [op.invert() for op in local_ops[::-1]] if not exclude_inverse else None
-    for method_name, ops in [
-        ("upgrade_global", global_ops),
-        ("downgrade_global", global_ops_inverse),
-        ("upgrade_local", local_ops),
-        ("downgrade_local", local_ops_inverse),
-    ]:
-        method_body = _render_migration_body(ops)
-        method_placeholder = f"    pass  # <{method_name}>"
-        assert method_placeholder in migration_code, f"method placeholder not found: {method_name}"
-        migration_code = migration_code.replace(method_placeholder, indent(method_body, "    "))
-
-    migration_code = format_python(migration_code)
-    return migration_code
 
 
 def _render_migration_body(ops: list[MigrationOp] | None) -> str:
