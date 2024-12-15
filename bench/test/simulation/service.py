@@ -127,7 +127,10 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
     @override
     async def _do_start(self) -> HostService:
         service = HostService(
-            bench_id=self.bench_id, global_store=self.simulation.global_store, oracle=self.oracle
+            bench_id=self.bench_id,
+            global_store=self.simulation.global_store,
+            regional_store=self.simulation.regional_store,
+            oracle=self.oracle,
         )
         await service.start()
         return service

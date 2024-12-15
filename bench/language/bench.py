@@ -24,7 +24,6 @@ from bench.language.node import (
     HasTracingContext,
     Owner,
     SourceNode,
-    local_node_,
     node_,
     node_component,
 )
@@ -57,7 +56,6 @@ from bench.utils.func import IdEnum, bittuple, generate_encryption_key
 if TYPE_CHECKING:
     from bench.language import (
         Block,
-        Client,
         Drive,
         Handle,
         Icon,
@@ -158,7 +156,7 @@ class PackageType(IdEnum):
     SNAPSHOT = 10
 
 
-@local_node_(NodeType.PACKAGE, unique=(("bench_id", "slug"),))
+@node_(NodeType.PACKAGE, unique=(("bench_id", "slug"),))
 class Package(BenchNode[PackageData]):
     """A Package is an isolated part of a Bench."""
 
@@ -211,7 +209,7 @@ class Package(BenchNode[PackageData]):
         return ", ".join(parts)
 
 
-@local_node_(NodeType.DEPENDENCY)
+@node_(NodeType.DEPENDENCY)
 class Dependency(SourceNode[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).
@@ -221,9 +219,9 @@ class Dependency(SourceNode[DependencyData]):
 
     parent: Union[Package, None] = p_node_parent(4, NodeType.PACKAGE)
 
-    dependency: Bench = p_regular(40, require=True, array=False, references=NodeType.BENCH)
-    dependency_version: Package = p_regular(
-        41, require=True, array=False, references=NodeType.PACKAGE
+    depends_on_bench: Bench = p_regular(40, require=True, array=False, references=NodeType.BENCH)
+    depends_on_packages: list[Package] = p_regular(
+        41, require=True, array=True, references=NodeType.PACKAGE
     )
 
 

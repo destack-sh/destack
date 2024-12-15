@@ -43,7 +43,7 @@ from bench.language.node import (
     Struct,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
-    local_node_,
+    node_,
     object_,
     pad_ck_from_tk_b64,
     struct_,
@@ -581,7 +581,7 @@ def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
 
 
 # pyright: reportIncompatibleMethodOverride=false
-@local_node_(NodeType.FIELD)
+@node_(NodeType.FIELD)
 class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _TypeQueryBuilder):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in builtin objects.

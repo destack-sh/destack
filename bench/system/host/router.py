@@ -11,7 +11,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import Bench, Package, Store, Subject
-from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES
+from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES, NodeArea
 from bench.proto.services import ServiceBase
 from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
 from bench.proto.wire.common_pb2 import RpcMetadata
@@ -76,12 +76,14 @@ class HostRouterService(ServiceBase, HostBase):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, global_store: Store, oracle: Oracle):
+    def __init__(self, global_store: Store, regional_store: Store, oracle: Oracle):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self._global_store = global_store
-        self._global_pg_engine = pg_engine_from_store(global_store)
+        self._global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+        self._regional_store = regional_store
+        self._regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
 
     def __str__(self):
         return "shards=[*]"
@@ -103,7 +105,12 @@ class HostRouterService(ServiceBase, HostBase):
         """Starts a Host for the given Bench."""
         existing_host = self.hosts.get(bench_id)
         assert existing_host is None, f"already have Host for {bench_id}: {existing_host!r}"
-        host = HostService(bench_id, self._global_store, self.oracle)
+        host = HostService(
+            bench_id=bench_id,
+            global_store=self._global_store,
+            regional_store=self._regional_store,
+            oracle=self.oracle,
+        )
         await host.start()
         self.hosts[bench_id] = host
         return host

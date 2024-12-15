@@ -758,6 +758,7 @@ LOCAL_EXTENSIONS = (
     Extension("timescaledb"),
 )
 GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
+REGIONAL_EXTENSIONS = (*BASE_EXTENSIONS,)
 ALL_EXTENSIONS = (
     *LOCAL_EXTENSIONS,
     *(ex for ex in GLOBAL_EXTENSIONS if not any(ex.name == e.name for e in LOCAL_EXTENSIONS)),
@@ -770,10 +771,12 @@ MIGRATION_TABLE = Table(  # see bench/sql/migration.py
         Column("id", PrimitiveType.INT32, is_primary_key=True, _source=2),
         Column("version", PrimitiveType.STRING, is_unique=True, _source=30),
         Column("has_global", PrimitiveType.BOOLEAN, _source=31),
-        Column("has_local", PrimitiveType.BOOLEAN, _source=32),
-        Column("applied_at", PrimitiveType.DATETIME, is_nullable=True, _source=33),
+        Column("has_regional", PrimitiveType.BOOLEAN, _source=32),
+        Column("has_local", PrimitiveType.BOOLEAN, _source=33),
+        Column("applied_at", PrimitiveType.DATETIME, is_nullable=True, _source=34),
     ),
 )
 
 DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
+DEFAULT_REGIONAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
 DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)

@@ -49,6 +49,7 @@ from bench.language.const import (
     ClientType,
     EditOperationType,
     FieldType,
+    NodeArea,
     NodeMode,
     NodeType,
     ObjectKind,
@@ -577,7 +578,15 @@ def node_(
         )(cls)
         cls.__is_stored__ = stored
         cls.__is_stored_value_unraveled__ = stored_value_unraveled
-        cls.__is_local__ = local
+
+        if node_type.is_global:
+            cls.__area__ = NodeArea.GLOBAL
+        elif node_type.is_regional:
+            cls.__area__ = NodeArea.REGIONAL
+        elif node_type.is_local:
+            cls.__area__ = NodeArea.LOCAL
+        else:
+            raise ValueError(f"unknown node store for {node_type}")
 
         cls.__extra_indexes__ = indexes
         cls.__extra_uniques__ = unique
@@ -664,11 +673,6 @@ def node_subtype_(
     return decorate
 
 
-local_node_ = functools.partial(node_, local=True)
-if TYPE_CHECKING:
-    local_node_ = node_
-
-
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def timed_node_(
     node_type: NodeType,
@@ -677,7 +681,7 @@ def timed_node_(
     indexes: tuple[tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
-    return local_node_(
+    return node_(
         node_type=node_type,
         passthrough_get=passthrough_get,
         passthrough_set=passthrough_set,
@@ -1669,7 +1673,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
     __is_stored_value_unraveled__: ClassVar[bool] = False  # custom storage logic (for records)
-    __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
+    __area__: ClassVar[NodeArea]
     __extra_indexes__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra indexes for PG
     __extra_uniques__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra constraints for PG
 
@@ -2203,7 +2207,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             path_parts: list[str] = [self._path_key]
             parent = self.parent
             while parent is not None:
-                if parent.metatype == NodeType.BENCH or parent.metatype == NodeType.PACKAGE:
+                if parent.metatype == NodeType.PACKAGE:
                     parent = cast("Bench | Package", parent).bench
                     continue
                 path_parts.append(parent._path_key)
@@ -2792,7 +2796,7 @@ class PropertyReference(Struct):
         return prop
 
 
-@local_node_(NodeType.SKIP, stored=False)
+@node_(NodeType.SKIP, stored=False)
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 

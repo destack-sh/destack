@@ -4,7 +4,7 @@ import structlog
 
 from bench.language.const import NodeType, ObjectKind, StructType
 from bench.language.field import TypeBase
-from bench.language.node import HasNodeBase, StateNode, local_node_
+from bench.language.node import HasNodeBase, StateNode, node_
 from bench.language.property import (
     p_internal,
     p_node_parent,
@@ -24,12 +24,11 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@local_node_(
+@node_(
     NodeType.RECORD,
     passthrough_get=("value",),
     passthrough_set=("value",),
     stored_value_unraveled=True,
-    local=True,
 )
 class Record(StateNode[RecordData], HasNodeBase):
     """

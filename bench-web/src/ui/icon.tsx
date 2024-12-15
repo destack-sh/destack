@@ -178,7 +178,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.BROWSER]: "fas fa-browser",
 
   // source
-  [NodeType.BRANCH]: "fas fa-code-branch",
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
   [NodeType.SPACE]: "fas fa-galaxy",

@@ -7,6 +7,8 @@ import typer
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
+from bench.language.const import NodeArea
+from bench.system.utils.session import regional_store_from_env
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
 
@@ -17,37 +19,46 @@ logger = structlog.get_logger(__name__)
 @app.callback(invoke_without_command=True)
 @app.command()
 @async_to_sync_blocking
-async def shell(bench: Optional[str] = None):  # type: ignore
+async def shell(area: NodeArea, bench: Optional[str] = None):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     from bench.system.utils.session import (
         global_session,
+        global_store_from_env,
         pg_engine_from_store,
-        system_store_from_env,
     )
 
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
-    if bench is not None:
-        async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
+    global_store = global_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    regional_store = regional_store_from_env()
+    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+
+    if area == NodeArea.GLOBAL:
+        store = global_store
+    elif area == NodeArea.REGIONAL:
+        store = regional_store
+    elif area == NodeArea.LOCAL:
+        assert bench is not None, "bench is required for local area"
+        async with global_session(
+            global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
+        ):
             bench_node = await Bench.include_descendants(Store).select_all().get(slug=bench)
             assert bench_node.main_store, f"{bench!r} has no main store"
             store = bench_node.main_store
     else:
-        bench_node = None
-        store = global_store
+        raise ValueError(f"invalid area: {area!r}")
 
-    connection_uri = store.connection_uri
-    assert connection_uri, f"store {store!r} has no connection_uri"
+    assert store.connection_uri, f"store {store!r} has no connection_uri"
     logger.info(
         "shell.psql",
-        bench_node=bench_node,
+        area=area,
+        bench=bench,
         store=store,
-        connection_uri=sanitize_connection_uri(connection_uri),
+        connection_uri=sanitize_connection_uri(store.connection_uri),
     )
     sigint_handler = signal.getsignal(signal.SIGINT)
     try:
         # allow SIGINT to pass to psql to abort queries
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run(["psql", connection_uri], check=True)  # noqa: ASYNC221
+        subprocess.run(["psql", store.connection_uri], check=True)  # noqa: ASYNC221
     finally:
         signal.signal(signal.SIGINT, sigint_handler)

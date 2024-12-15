@@ -45,6 +45,36 @@
       "justMyCode": true
     },
     {
+      "name": "bench.migrate.make",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["migrate", "make", "--no-downgrade"],
+      "env": {
+        "ENVIRONMENT": "dev",
+        "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "migrate.make",
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
+      "name": "bench.bootstrap",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["system", "bootstrap"],
+      "env": {
+        "ENVIRONMENT": "dev",
+        "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "bootstrap",
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
       "name": "bench.system",
       "type": "debugpy",
       "request": "launch",

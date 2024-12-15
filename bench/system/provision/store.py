@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Drive, ResourceStatus, Store
 from bench.language.bench import Region
-from bench.language.const import NodeType
+from bench.language.const import NodeArea, NodeType
 from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate
@@ -43,7 +43,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
             await sql_migrate(
                 conn.cursor,
                 target=resource.version,
-                is_global=False,
+                area=NodeArea.LOCAL,
                 store=resource,
                 oracle=self.host.oracle,
             )

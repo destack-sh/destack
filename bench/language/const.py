@@ -1,4 +1,5 @@
 import contextvars
+import enum
 import secrets
 import typing
 from datetime import date, datetime, time, timedelta
@@ -24,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.15.0"
+VERSION = "2024.12.15.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -192,10 +193,16 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 #
 
 
+class NodeArea(enum.StrEnum):
+    GLOBAL = "global"
+    REGIONAL = "regional"
+    LOCAL = "local"
+
+
 @enum_(EnumType.NODE_TYPE)
 class NodeType(IdEnum):
     #
-    # Global
+    # Global (1-1000)
     #
 
     # universe
@@ -206,60 +213,60 @@ class NodeType(IdEnum):
     ORGANIZATION = 10
     # TEAM/GROUP?
 
+    # auth
+    MEMBERSHIP = 100
+    INVITE = 101
+    # CHALLENGE?
+
     #
-    # Regional?
+    # Regional (2000-3000)
     #
 
     # resource (virtual)
-    SERVER = 200  # elastic compute
-    STORE = 201  # real database
-    DRIVE = 203  # object store like S3/MinIO, maybe block storage later
-    VAULT = 204  # secret storage
-    CACHE = 205  # ephemeral key-value store
+    SERVER = 2000  # elastic compute
+    STORE = 2001  # real database
+    DRIVE = 2003  # object store like S3/MinIO, maybe block storage later
+    VAULT = 2004  # secret storage
+    CACHE = 2005  # ephemeral key-value store
     # resource (physical)
-    MACHINE = 250
-    BROWSER = 251
-    FILE = 260
-    STREAM = 261
-    SECRET = 262
+    MACHINE = 2100
+    BROWSER = 2101
+    FILE = 2110
+    STREAM = 2111
+    SECRET = 2112
     # ACCOUNT, DOMAIN, EMAIL, PHONE, APPLICATION, ...
-
-    # auth
-    MEMBERSHIP = 600
-    INVITE = 601
-    # CHALLENGE?
 
     # synchronization
     # POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
-    # Local (per Bench)
+    # Local (3000-4000)
     #
 
     # source (named, versioned, templatable)
-    PACKAGE = 1001
-    DEPENDENCY = 1002
-    SPACE = 1003
-    BLOCK = 1010
-    TRIGGER = 1011
-    FIELD = 1012  # (based)
-    QUERY = 1013
-    VIEW = 1020
-    STEP = 1030
-    PIPE = 1031
-    BADGE = 1040
-    # TAG?
+    PACKAGE = 3001
+    DEPENDENCY = 3002
+    SPACE = 3003
+    BLOCK = 3010
+    TRIGGER = 3011
+    FIELD = 3012  # (based)
+    QUERY = 3013
+    VIEW = 3020
+    STEP = 3030
+    PIPE = 3031
+    BADGE = 3040
+    # TAG?2
     # POLICY?
 
     # state (versioned)
-    MESSAGE = 1100  # (based, timed)
-    RECORD = 1101  # (based)
+    MESSAGE = 3100  # (based, timed)
+    RECORD = 3101  # (based)
 
     # runtime
-    SESSION = 1900  # (timed)
-    RUN = 1901  # (based, timed)
-    INTERRUPT = 1902  # (timed)
-    LOG = 1903  # (timed)
+    SESSION = 3900  # (timed)
+    RUN = 3901  # (based, timed)
+    INTERRUPT = 3902  # (timed)
+    LOG = 3903  # (timed)
 
     #
     # Misc
@@ -268,66 +275,101 @@ class NodeType(IdEnum):
     SKIP = 9000
 
     @property
-    def is_universe(self) -> bool:
-        return self.id < 100
+    def is_global(self) -> bool:
+        return self.id < 1000
 
     @property
-    def is_global(self) -> bool:
-        return self.id < 200
+    def is_regional(self) -> bool:
+        return self.id >= 2000 and self.id < 3000
+
+    @property
+    def is_local(self) -> bool:
+        return self.id >= 3000
+
+    @property
+    def area(self) -> NodeArea:
+        return AREA_BY_NODE_TYPE[self]
 
     @property
     def is_source(self) -> bool:
-        return self.id >= 1000 and self.id < 1100
+        return self.id >= 3000 and self.id < 3100
 
     @property
     def is_state(self) -> bool:
-        return self.id >= 1100 and self.id < 1200
+        return self.id >= 3100 and self.id < 3200
 
     @property
     def is_runtime(self) -> bool:
-        return self.id >= 1900 and self.id < 2000
+        return self.id >= 3900 and self.id < 4000
 
 
 # :NodeTypes
 NODE_TYPES = bittuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
+
+
+def _get_node_types(
+    start: int | None = None, end: int | None = None, *extra_node_types: NodeType
+) -> bittuple[NodeType]:
+    if start is None:
+        start = 0
+    if end is None:
+        end = 10000
+    node_types = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= start and nt.id < end))
+    if extra_node_types:
+        node_types = node_types | bittuple(*extra_node_types)
+    return node_types
+
+
+GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
+REGIONAL_NODE_TYPES = _get_node_types(2000, 3000)
+LOCAL_NODE_TYPES = _get_node_types(3000)
+AREA_BY_NODE_TYPE = {
+    **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
+    **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
+    **dict.fromkeys(LOCAL_NODE_TYPES, NodeArea.LOCAL),
+}
+NODE_TYPES_BY_AREA = {
+    NodeArea.GLOBAL: GLOBAL_NODE_TYPES,
+    NodeArea.REGIONAL: REGIONAL_NODE_TYPES,
+    NodeArea.LOCAL: LOCAL_NODE_TYPES,
+}
+
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 1000))
-RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200 and nt.id < 300))
-ANONYMOUS_RESOURCE_NODE_TYPES = bittuple(
-    *tuple(nt for nt in NODE_TYPES if nt.id >= 250 and nt.id < 300)
-)
-LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000))
-SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000 and nt.id < 1100))
-STATE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1100 and nt.id < 1200))
-RUNTIME_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1900 and nt.id < 2000))
+RESOURCE_NODE_TYPES = _get_node_types(2000, 2200)
+ANONYMOUS_RESOURCE_NODE_TYPES = _get_node_types(2100, 2200)
+SOURCE_NODE_TYPES = _get_node_types(3000, 3100)
+STATE_NODE_TYPES = _get_node_types(3100, 3200)
+RUNTIME_NODE_TYPES = _get_node_types(3900, 4000)
 
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD, NodeType.RUN, NodeType.MESSAGE, NodeType.RECORD
 )
 TIMED_NODE_TYPES = bittuple(NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE)
-IN_PACKAGE_NODE_TYPES = bittuple(
-    *tuple(nt for nt in NODE_TYPES if nt.id >= 1001 and nt.id < 2000), NodeType.SKIP
+IN_PACKAGE_NODE_TYPES = _get_node_types(3001, 4000, NodeType.SKIP)
+SUB_PACKAGE_NODE_TYPES = _get_node_types(3001)
+IN_BENCH_NODE_TYPES = _get_node_types(
+    2000,
+    10000,
+    NodeType.BENCH,
+    NodeType.CLIENT,
+    NodeType.HANDLE,
+    NodeType.MEMBERSHIP,
+    NodeType.INVITE,
 )
-SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in IN_PACKAGE_NODE_TYPES if nt.id > 1001))
-IN_BENCH_NODE_TYPES = bittuple(
-    *(
-        *tuple(nt for nt in NODE_TYPES if nt.id >= 200),
-        NodeType.BENCH,
-        NodeType.CLIENT,
-        NodeType.HANDLE,
-    )
+IN_BENCH_GLOBAL_NODE_TYPES = _get_node_types(
+    2000, 10000, *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
 )
-IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
-    *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
+SUB_BENCH_NODE_TYPES = _get_node_types(
+    2000, 10000, *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
 )
-SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
-BENCH_NODE_TYPES = bittuple(
+BENCH_NODE_TYPES = _get_node_types(
+    2000,
+    10000,
     NodeType.BENCH,
     NodeType.PACKAGE,
     NodeType.HANDLE,
     NodeType.CLIENT,
-    *(nt for nt in NODE_TYPES if nt.id >= 200 and nt.id < 1000),
 )
 LOADED_BENCH_NODE_TYPES = bittuple(
     *(
@@ -335,7 +377,7 @@ LOADED_BENCH_NODE_TYPES = bittuple(
         - (set(STATE_NODE_TYPES) | set(ANONYMOUS_RESOURCE_NODE_TYPES) | {NodeType.CLIENT})
     )
 )
-PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
+PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 
 #

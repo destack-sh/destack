@@ -4,7 +4,6 @@ services:
     restart: on-failure
     environment:
       POSTGRES_USER: bench
-      POSTGRES_DB: bench
       POSTGRES_PASSWORD: bench
     volumes:
       - ../dev/postgres.conf:/etc/postgresql/postgresql.conf
@@ -12,6 +11,19 @@ services:
     ports:
       - '5432:5432'
     command: ["postgres", "-c", "config_file=./etc/postgresql/postgresql.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bench"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    entrypoint: |
+      bash -c '
+        docker-entrypoint.sh postgres &
+        until pg_isready -U bench; do sleep 1; done
+        psql -U bench -c "CREATE DATABASE \"bench-global\";"
+        psql -U bench -c "CREATE DATABASE \"bench-regional\";"
+        wait
+      '
 
   minio:
     image: minio/minio:latest

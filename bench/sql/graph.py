@@ -39,6 +39,7 @@ from bench.language.const import (
     EnumType,
     FieldType,
     LiteralType,
+    NodeArea,
     NodeType,
     PrimitiveType,
     QueryType,
@@ -88,10 +89,12 @@ from bench.sql.client import GLOBAL_PG_CRYPTO_KEY
 from bench.sql.core import (
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
+    DEFAULT_REGIONAL_TABLES,
     GLOBAL_EXTENSIONS,
     LOCAL_EXTENSIONS,
     PG_CONDITIONAL_OP_BY_BENCH,
     POSTGRES_SORT_OP_BY_BENCH,
+    REGIONAL_EXTENSIONS,
     CascadeAction,
     Column,
     Constraint,
@@ -213,14 +216,11 @@ def map_builtin_object_to_table(
         reference_nodes = (
             prop.reference_nodes or () if prop.reference_nodes != "any" else NODE_TYPES.tuple
         )
-        is_local = node.__is_local__ or any(
-            NODE_CLASS_BY_TYPE[n].__is_local__ for n in reference_nodes
-        )
         if (
             (prop.reference_kind == ReferenceKind.NODE_PARENT or prop.reference_force_fk)
             and not prop.is_list  # foreign keys must be scalar
             and reference_nodes
-            and (not is_local or node.metatype == reference_nodes[0])
+            and all(r.area == node.__area__ for r in reference_nodes)
         ):
             assert len(reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_node_table_name(reference_nodes[0])
@@ -1624,15 +1624,33 @@ BUILTIN_NODE_BY_TABLE_NAME: dict[str, NodeType] = {
     table.name: node_type for node_type, table in BUILTIN_TABLE_BY_NODE_TYPE.items()
 }
 BUILTIN_NODE_TABLES: tuple[Table, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
+
 BUILTIN_GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if not node.__is_local__ and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+    if node.__area__ == NodeArea.GLOBAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+)
+BUILTIN_REGIONAL_TABLES: tuple[Table, ...] = DEFAULT_REGIONAL_TABLES + tuple(
+    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
+    for node in NODE_CLASSES
+    if node.__area__ == NodeArea.REGIONAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
 BUILTIN_LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if node.__is_local__ and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
+    if node.__area__ == NodeArea.LOCAL and node.metatype in BUILTIN_TABLE_BY_NODE_TYPE
 )
+BUILTIN_TABLES_BY_AREA: dict[NodeArea, tuple[Table, ...]] = {
+    NodeArea.GLOBAL: BUILTIN_GLOBAL_TABLES,
+    NodeArea.REGIONAL: BUILTIN_REGIONAL_TABLES,
+    NodeArea.LOCAL: BUILTIN_LOCAL_TABLES,
+}
+
 BUILTIN_GLOBAL_SCHEMA = Schema(GLOBAL_EXTENSIONS, BUILTIN_GLOBAL_TABLES)
+BUILTIN_REGIONAL_SCHEMA = Schema(REGIONAL_EXTENSIONS, BUILTIN_REGIONAL_TABLES)
 BUILTIN_LOCAL_SCHEMA = Schema(LOCAL_EXTENSIONS, BUILTIN_LOCAL_TABLES)
+BUILTIN_SCHEMA_BY_AREA: dict[NodeArea, Schema] = {
+    NodeArea.GLOBAL: BUILTIN_GLOBAL_SCHEMA,
+    NodeArea.REGIONAL: BUILTIN_REGIONAL_SCHEMA,
+    NodeArea.LOCAL: BUILTIN_LOCAL_SCHEMA,
+}
