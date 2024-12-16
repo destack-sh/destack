@@ -80,6 +80,7 @@ def make_global_store(name: str):
 def make_regional_store(name: str):
     """Creates a regional store for testing."""
 
+    assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
     pg = get_from_env("GLOBAL_PG", description="Regional Postgres connection string")
     pg_url, pg_crypto_key = pg.split("|", maxsplit=1)
     pg_url_parsed = urlparse(pg_url)
@@ -121,12 +122,12 @@ async def create_test_db(store: Store, schema: Schema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(store)
     async with pg_connection(store, autocommit=True) as conn:
-        blank_schema = await introspect_sql_schema(
+        old_schema = await introspect_sql_schema(
             conn.cursor,
             include_table_prefixes=(BENCH_TABLE_PREFIX,),
             exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
         )
-        migration_ops = generate_sql_migration_ops(old_schema=blank_schema, new_schema=schema)
+        migration_ops = generate_sql_migration_ops(old_schema=old_schema, new_schema=schema)
         await apply_sql_migration_ops(conn.cursor, migration_ops)
         await conn.commit()
 
@@ -142,7 +143,7 @@ async def delete_test_db(store: Store):
 async def blank_store(request: pytest.FixtureRequest):
     """Gets the per test function blank store"""
 
-    store = make_global_store(f"test-{clean_name(request.node.name)}-blank")
+    store = make_global_store(f"test-{clean_name(request.node.name)[:32]}-blank")
     await create_blank_test_db(store)
     try:
         yield store
@@ -154,7 +155,7 @@ async def blank_store(request: pytest.FixtureRequest):
 async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    store = make_global_store(f"test-{clean_name(request.node.name)}-global")
+    store = make_global_store(f"test-{clean_name(request.node.name)[:32]}-global")
     await create_test_db(store, BUILTIN_GLOBAL_SCHEMA)
     try:
         yield store
@@ -166,7 +167,7 @@ async def global_store(request: pytest.FixtureRequest):
 async def regional_store(request: pytest.FixtureRequest):
     """Gets the per test function regional store"""
 
-    store = make_regional_store(f"test-{clean_name(request.node.name)}-regional")
+    store = make_regional_store(f"test-{clean_name(request.node.name)[:32]}-regional")
     await create_test_db(store, BUILTIN_REGIONAL_SCHEMA)
     try:
         yield store
@@ -184,7 +185,7 @@ async def omni_store(request: pytest.FixtureRequest):
     ALL_TABLES = tuple(ALL_TABLES.values())
     OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
 
-    store = make_global_store(f"test-{clean_name(request.node.name)}-omni")
+    store = make_global_store(f"test-{clean_name(request.node.name)[:32]}-omni")
     await create_test_db(store, OMNI_SCHEMA)
     try:
         yield store

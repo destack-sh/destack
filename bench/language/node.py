@@ -2485,7 +2485,7 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
 
 @node_component()
 class StateNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
-    """A Node in a Package with a persistent identity."""
+    """A Node in a Bench with a persistent cross-Package identity."""
 
 
 @node_component()

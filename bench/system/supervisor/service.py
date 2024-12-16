@@ -481,7 +481,7 @@ async def create_default_bench(
     await provision(HostProxy(global_store, session), bench, (store, drive))
 
     # create main branch/package
-    session._engines += (local_pg_engine_from_store(name="pg-local", store=store),)
+    session._engines += (local_pg_engine_from_store(name=f"pg-local-{bench.slug}", store=store),)
     main_package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     await session.flush(optimistic=True)
     bench.main_package = main_package
