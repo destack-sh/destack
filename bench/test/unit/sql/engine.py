@@ -202,7 +202,11 @@ async def test_cascade_edits(omni_session: Session):
 
     async with omni_session as session:
         user_1 = User(
-            name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
+            name="Rabbit",
+            slug="rabbit",
+            region=Region.ZURICH,
+            status=UserStatus.REGISTERED,
+            email="rabbit@symbolx.com",
         )
         session._create(user_1)
         await session.flush()

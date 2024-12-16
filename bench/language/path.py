@@ -51,7 +51,8 @@ class PathTokenType(IdEnum):
     CURRENT = 2
     PARENT = 3
     BENCH = 4
-    CHILD = 5
+    PACKAGE = 5
+    CHILD = 6
     CONTAINER = 7
     UNIQUE = 8
     FIELD = 10
@@ -102,7 +103,8 @@ class Path(Struct):
         Node2.field -> 'field' of 'Node2' (there must not be anything after .property)
         Node1/Node2/Node3 -> child 'Node3' of child 'Node2' of child 'Node1' of current node
 
-        @bench -> absolute reference to bench 'bench'
+        @bench -> absolute reference to bench 'bench' (uses main package)
+        @bench:package -> absolute reference to package 'package' in bench 'bench'
         @bench/Node1/Node2/Node3 -> absolute reference to 'Node3' in current package of @bench
     """
 
@@ -140,8 +142,8 @@ class Path(Struct):
 
 
 # see NAME_REGEX in validationl
-BENCH_PATTERN = regex.compile(rf"^@([{SLUG_REGEX_CHAR}]+)$")
-NODE_PATTERN = regex.compile(rf"^([>\^~])?([{NAME_REGEX_CHAR}\.]*)$")
+BENCH_PATTERN = regex.compile(rf"^@([{SLUG_REGEX_CHAR}]+)(?::([{SLUG_REGEX_CHAR}]+))?$")
+NODE_PATTERN = regex.compile(rf"^([>\^~:])?([{NAME_REGEX_CHAR}\.]*)$")
 
 
 @cached(LRUCache(maxsize=1024 * 10))
@@ -176,8 +178,12 @@ def parse_path(path: str) -> Path:
                 if len(tokens) > 0:
                     raise PathLogicError(f"bench reference must be the first segment in '{path}'")
                 token = PathToken(type=PathTokenType.BENCH, name=match.group(1))
-                if len(match.group(1)) != len(segment) - 1:
+                if len(match.group(1)) != len(segment) - 1 and not match.group(2):
                     raise PathSyntaxError(f"invalid bench name '{segment}' in '{path}'")
+                tokens.append(token)
+                if package_name := match.group(2):
+                    tokens.append(PathToken(type=PathTokenType.PACKAGE, name=package_name))
+                continue
             elif match := NODE_PATTERN.match(segment):
                 node_type = PathTokenType.CHILD
                 if match.group(1) == "~":
@@ -218,7 +224,7 @@ def parse_path(path: str) -> Path:
 def render_path(path: Path) -> str:
     """Renders a path back into a string."""
     path_parts = []
-    for token in path.tokens:
+    for i, token in enumerate(path.tokens):
         if token.type == PathTokenType.ROOT:
             path_parts.append("")
             if len(path.tokens) == 1:
@@ -228,7 +234,13 @@ def render_path(path: Path) -> str:
         elif token.type == PathTokenType.PARENT:
             path_parts.append("..")
         elif token.type == PathTokenType.BENCH:
-            path_parts.append(f"@{token.code_name}")
+            bench_part = f"@{token.code_name}"
+            # combined with package if set
+            if i + 1 < len(path.tokens) and path.tokens[i + 1].type == PathTokenType.PACKAGE:
+                bench_part += f":{path.tokens[i + 1].code_name}"
+            path_parts.append(bench_part)
+        elif token.type == PathTokenType.PACKAGE:
+            continue  # handled above
         elif token.type == PathTokenType.CONTAINER:
             path_parts.append(f"~{token.code_name or ''}")
         elif token.type == PathTokenType.UNIQUE:
@@ -246,20 +258,6 @@ def render_path(path: Path) -> str:
 
 
 # NOTE :Performance: index some of the path lookups in the graph somehow?
-
-
-def _normalize_node(scope: Node) -> Node:
-    """'Normalize' the scope, lowering a bench into its current main package."""
-    if scope.metatype == NodeType.BENCH:
-        bench = cast(Bench, scope)
-        main_package = bench.main_package
-        assert main_package is not None, f"bench {bench!r} has no main package"
-        return main_package
-    elif scope.metatype == NodeType.PACKAGE:
-        package = cast(Package, scope)
-        return package
-    else:
-        return scope
 
 
 def _get_child(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
@@ -379,12 +377,31 @@ def _get_unique(scope: Node, name: str) -> Node | None:
     return None
 
 
+def _lower_scope(scope: Node) -> Node:
+    """Lower Bench into its main Package."""
+    if scope.metatype == NodeType.BENCH:
+        package = cast(Bench, scope).main_package
+        assert package is not None, f"bench {scope!r} has no main package"
+        return package
+    else:
+        return scope
+
+
+def _raise_scope(scope: Node) -> Node:
+    """Raise a Package into its Bench."""
+    if scope.metatype == NodeType.PACKAGE:
+        bench = cast(Package, scope).bench
+        assert bench is not None, f"package {scope!r} has no bench"
+        return bench
+    else:
+        return scope
+
+
 def get_node(scope: Node, path: str | Path) -> Node | None:
     """
-    Resolves a node against the given scope.
-    We try to be forgiving and just return None if we can't find the node / the path is weird.
+    Resolves a Node against the given scope.
+    We try to be forgiving and just return None if we can't find the Node / the Path is weird.
     """
-    scope = _normalize_node(scope)
     if isinstance(path, str):
         path = parse_path(path)
     if len(path.tokens) == 0:
@@ -393,7 +410,7 @@ def get_node(scope: Node, path: str | Path) -> Node | None:
     for token in path.tokens:
         if token.type == PathTokenType.ROOT:
             if not isinstance(scope, (Package, PackageNode)):
-                raise PathLogicError(f"root references are only valid for bench nodes: {path}")
+                raise PathLogicError(f"root references are only valid for Bench Nodes: {path}")
             current = scope.package
         elif token.type == PathTokenType.CURRENT:
             pass
@@ -402,25 +419,34 @@ def get_node(scope: Node, path: str | Path) -> Node | None:
                 return None  # has no parent in path
             current = current.parent
         elif token.type == PathTokenType.BENCH:
-            if not isinstance(scope, (Package, PackageNode)):
-                raise PathLogicError(f"bench references are only valid for bench nodes: {path}")
-            pkg = scope.package
-            if pkg is not None and token.name != pkg.name:
-                raise PathLogicError(f"references to other benches are not supported: {path}")
+            if not isinstance(scope, BenchNode):
+                raise PathLogicError(f"bench references are only valid for Bench Nodes: {path}")
+            bench = scope.bench
+            if bench is not None and token.name != bench.name:
+                raise PathLogicError(f"references to other Benches are not supported: {path}")
             else:
-                current = pkg
+                current = bench
+        elif token.type == PathTokenType.PACKAGE:
+            assert token.name, f"missing name for {token!r} in {path!r}"
+            if not isinstance(current, Bench):
+                raise PathLogicError(f"package references are only valid for Benches: {path}")
+            current = _get_child(current, token.name, NodeType.PACKAGE)
         elif token.type == PathTokenType.CHILD:
+            current = _lower_scope(current)
             assert token.name, f"missing name for {token!r} in {path!r}"
             current = _get_child(current, token.name)
         elif token.type == PathTokenType.CONTAINER:
             if current.metatype == NodeType.PACKAGE:
                 return None  # has no parent in path
+            current = _lower_scope(current)
             current = _get_container(current, token.name)
         elif token.type == PathTokenType.UNIQUE:
             assert token.name, f"missing name for {token!r} in {path!r}"
+            current = _lower_scope(current)
             current = _get_unique(current, token.name)
         elif token.type == PathTokenType.FIELD:
             assert token.name, f"missing name for {token!r} in {path!r}"
+            current = _lower_scope(current)
             fields = cast(LocalNodeList["Field"] | None, getattr(current, "fields", None))
             if fields is not None:
                 current = fields.get(token.name)
@@ -430,11 +456,16 @@ def get_node(scope: Node, path: str | Path) -> Node | None:
             assert_never(token.type)
         if current is None:
             return None
+
+    # raise into bench if last token wasn't package
+    if path.tokens and path.tokens[-1].type != PathTokenType.PACKAGE:
+        current = _raise_scope(current)
+
     return current
 
 
 def get_node_or_error(scope: Node, path: str | Path) -> Node:
-    """Resolves a node against the given scope or raises an error."""
+    """Resolves a Node against the given scope or raises an error."""
     node = get_node(scope, path)
     if node is None:
         raise PathLookupError(f"node at {path} not found in {scope!r}")
@@ -442,11 +473,11 @@ def get_node_or_error(scope: Node, path: str | Path) -> Node:
 
 
 def _get_path_to_root(node: Node) -> list[Node]:
-    """Gets the path relevant ancestors to a node (including the node, up to package)"""
+    """Gets the path relevant ancestors to a Node (including the Node, up to Package/Bench)"""
     supergraph = node._supergraph
     ancestors: list[Node] = [node]
     cur = node
-    while cur.parent_ptr is not None and cur.metatype != NodeType.PACKAGE:
+    while cur.parent_ptr is not None and cur.metatype != NodeType.BENCH:
         next_cur = supergraph.get(cur.parent_ptr)
         assert (
             next_cur is not None
@@ -456,28 +487,45 @@ def _get_path_to_root(node: Node) -> list[Node]:
     return ancestors
 
 
+def _get_bench_path(node: Bench | Package) -> Path:
+    if isinstance(node, Bench):
+        return Path(tokens=[PathToken(type=PathTokenType.BENCH, name=node.slug)])
+    elif isinstance(node, Package):
+        if node.bench is not None:
+            if node.bench.main_package_id == node.id:
+                return Path(tokens=[PathToken(type=PathTokenType.BENCH, name=node.bench.slug)])
+            else:
+                return Path(
+                    tokens=[
+                        PathToken(type=PathTokenType.BENCH, name=node.bench.slug),
+                        PathToken(type=PathTokenType.PACKAGE, name=node.slug),
+                    ]
+                )
+        else:
+            raise PathLogicError(f"package {node!r} has no bench")
+    else:
+        assert_never(node)
+
+
 def get_path(scope: Node, node: Node) -> Path:
     """Finds a path to the given node from a scope. The inverse of get_node."""
-    scope = _normalize_node(scope)
-    node = _normalize_node(node)
-
     if scope == node:
-        if isinstance(node, Package):
-            return Path(tokens=[PathToken(type=PathTokenType.BENCH, name=node.name)])
+        if isinstance(node, (Bench, Package)):
+            return _get_bench_path(node)
         else:
             return Path(tokens=[PathToken(type=PathTokenType.CURRENT)])
 
     scope_path = _get_path_to_root(scope)
     node_path = _get_path_to_root(node)
-    if scope_path[-1] != node_path[-1] or isinstance(node, Package):
+    if scope_path[-1] != node_path[-1] or isinstance(node, (Bench, Package)):
         # make absolute path (different bench)
         if (
             not isinstance(node, BenchNode)
             or not node_path
-            or not isinstance(node_path[-1], Package)
+            or not isinstance(node_path[-1], (Bench, Package))
         ):
             raise PathLogicError(f"no common ancestor found for {scope!r} and {node!r}")
-        tokens = [PathToken(type=PathTokenType.BENCH, name=node_path[-1].name)]
+        tokens = _get_bench_path(node_path[-1]).tokens
         for node_ancestor in node_path[1:]:
             name = getattr(node_ancestor, "name", None)
             if name is None:
@@ -496,14 +544,15 @@ def get_path(scope: Node, node: Node) -> Path:
                 break
         else:
             raise PathLogicError(f"no common ancestor found for {scope!r} and {node!r}")
-        if isinstance(common_ancestor, Package):
+        if isinstance(common_ancestor, (Bench, Package)):
             # absolute path from bench to node
-            tokens = [PathToken(type=PathTokenType.ROOT)]
-            for node_ancestor in reversed(node_path[:-1]):
-                name = getattr(node_ancestor, "name", None)
-                if name is None:
-                    raise PathUnnamedNodeError(node_ancestor)
-                tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
+            tokens = _get_bench_path(common_ancestor).tokens
+            for node_ancestor in reversed(node_path):
+                if not isinstance(node_ancestor, (Bench, Package)):
+                    name = getattr(node_ancestor, "name", None)
+                    if name is None:
+                        raise PathUnnamedNodeError(node_ancestor)
+                    tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
         elif node_ancestor_idx == 0:
             # node is a direct ancestor of scope
             tokens = []

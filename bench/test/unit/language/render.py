@@ -184,8 +184,8 @@ def test_render_variable(shared_session: Session, shared_package: Package):
 @_render_as_stmt
 def test_render_variable_with_file(shared_session: Session, shared_package: Package):
     File1 = File(
-        kind=FileKind.DRIVE,
         title="myfile.txt",
+        kind=FileKind.DRIVE,
         type=FileType.TEXT,
         mime_type="text/plain",
         size=1024,

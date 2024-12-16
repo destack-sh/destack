@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.16.0"
+VERSION = "2024.12.16.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1278,10 +1278,6 @@ MESSAGE_TABLE = Table(
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-        Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
-        Index(
-            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
-        ),
     ),
 )
 
@@ -1325,10 +1321,6 @@ SESSION_TABLE = Table(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-        Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
-        Index(
-            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
-        ),
     ),
 )
 
@@ -1409,10 +1401,6 @@ RUN_TABLE = Table(
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-        Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
-        Index(
-            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
-        ),
     ),
 )
 
@@ -1474,10 +1462,6 @@ INTERRUPT_TABLE = Table(
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-        Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
-        Index(
-            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
-        ),
     ),
 )
 
@@ -1529,9 +1513,5 @@ LOG_TABLE = Table(
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
         Index("bench_idx_created_epoch", IndexType.BTREE, ("created_epoch",)),
-        Index("bench_idx_package_id_created_at", IndexType.BTREE, ("package_id", "created_at")),
-        Index(
-            "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
-        ),
     ),
 )
