@@ -255,6 +255,7 @@ async def local_runtime_async(global_store: Store, regional_store: Store):
             slug="test",
             name="test",
             email="test@test.com",
+            region=Region.ZURICH,
             status=UserStatus.REGISTERED,
             last_logged_in_at=REAL_ORACLE.utc(),
             is_staff=True,

@@ -11,7 +11,7 @@ from rich.console import Console
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
-from bench.language.const import VERSION, NodeArea, NodeType, Region
+from bench.language.const import REGION, VERSION, NodeArea, NodeType, Region
 from bench.sql.client import pg_connection
 from bench.sql.core import Schema
 from bench.sql.engine import SqlUndefinedObjectError
@@ -188,7 +188,7 @@ async def apply(
     start = time.time()
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env()
+    regional_store = regional_store_from_env(region or REGION)
     regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
 
     # resolve stores to migrate
@@ -223,13 +223,15 @@ async def apply(
 
 @app.command()
 @async_to_sync_blocking
-async def introspect(area: Optional[NodeArea] = None, bench: Optional[str] = None):  # type: ignore
+async def introspect(
+    area: Optional[NodeArea] = None, region: Optional[Region] = None, bench: Optional[str] = None
+):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
 
     start = time.perf_counter()
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env()
+    regional_store = regional_store_from_env(region or REGION)
     regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
 
     if area == NodeArea.LOCAL and bench is not None:

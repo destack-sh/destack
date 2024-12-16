@@ -43,7 +43,7 @@ async def bootstrap(region: Region = Region.ZURICH):
 
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env()
+    regional_store = regional_store_from_env(region=region)
     regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
     async with global_session(
         global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0

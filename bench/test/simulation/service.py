@@ -82,7 +82,10 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, Supervis
     @override
     async def _do_start(self):
         service = SupervisorService(
-            global_store=self.simulation.global_store, oracle=self.oracle, host_map=HostMap({})
+            global_store=self.simulation.global_store,
+            store_map=self.simulation.store_map,
+            oracle=self.oracle,
+            host_map=HostMap({}),
         )
         await service.start()
         return service

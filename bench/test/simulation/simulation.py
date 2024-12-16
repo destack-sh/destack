@@ -15,6 +15,7 @@ from bench.proto.wire import (
     SupervisorClient,
 )
 from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
+from bench.system.utils.sharding import StoreMap
 from bench.test.conftest import TestProfile
 from bench.test.fixtures import (
     create_test_db,
@@ -54,13 +55,21 @@ def get_simulation_id(simulation: SimulationSpec) -> str:
 
 @final
 class Simulation:
-    """An active simulation"""
+    """A Simulation of Hosts, Clients and Supervisors performing some Workloads."""
 
-    def __init__(self, id: str, spec: SimulationSpec, global_store: Store, regional_store: Store):
+    def __init__(
+        self,
+        id: str,
+        spec: SimulationSpec,
+        global_store: Store,
+        regional_store: Store,
+        store_map: StoreMap,
+    ):
         self.id = id
         self.spec = spec
         self.global_store = global_store
         self.regional_store = regional_store
+        self.store_map = store_map
 
         # system
         self.random = Random(spec.seed)
@@ -363,9 +372,16 @@ async def _do_test_simulation(spec: SimulationSpec):
     simulation_id = get_simulation_id(spec)
     global_store = make_global_store(f"test-{simulation_id}-global")
     regional_store = make_regional_store(f"test-{simulation_id}-regional")
+    store_map = StoreMap({"*": regional_store})
     await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
     await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
-    simulation = Simulation(simulation_id, spec, global_store, regional_store)
+    simulation = Simulation(
+        id=simulation_id,
+        spec=spec,
+        global_store=global_store,
+        regional_store=regional_store,
+        store_map=store_map,
+    )
     try:
         await simulation.run()
         await delete_test_db(global_store)

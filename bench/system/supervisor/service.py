@@ -56,7 +56,7 @@ from bench.system.utils.session import (
     local_pg_engine_from_store,
     pg_engine_from_store,
 )
-from bench.system.utils.sharding import HostMap
+from bench.system.utils.sharding import HostMap, StoreMap
 from bench.utils.func import bittuple, generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -73,7 +73,7 @@ SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 class SupervisorService(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, global_store: Store, oracle: Oracle, host_map: HostMap):
+    def __init__(self, global_store: Store, store_map: StoreMap, oracle: Oracle, host_map: HostMap):
         GraphIoServiceBase.__init__(
             self,
             bench_id=None,
@@ -85,6 +85,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         )
         self._global_store = global_store
         self._global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+        self._store_map = store_map
         self._host_map = host_map
 
     def __str__(self):
@@ -334,6 +335,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     async def create_bench(
         self, request: "CreateBenchRequest", headers: Mapping
     ) -> "CreateBenchResponse":
+        # get/check user
         metadata = wiring.unpack_rpc_headers(headers)
         subject = await self.get_request_subject(request, metadata)
         user: User | None = subject.user
@@ -347,12 +349,18 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.PERMISSION_DENIED, "cannot create bench for waitlisted user")
         region = wiring.unpack_enum(Region, request.region)
 
+        # get regional store
+        regional_store = self._store_map.get(region=region)
+        regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+
+        # create bench
         owner_ptr = wiring.unpack_builtin_object(
             request.owner, supergraph=None, expect=NodeReference
         )
-        # nocheckin: add regional engine (map) to supervisor here
         async with self.new_request_session(
-            supergraph=subject._supergraph, readonly=False
+            supergraph=subject._supergraph,
+            readonly=False,
+            engines=(self._global_pg_engine, regional_pg_engine),
         ) as session:
             # check (and reload owner to get Handles)
             if owner_ptr.node_type == NodeType.USER:
@@ -422,7 +430,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                     bench = await Bench.get(slug=value)
                 else:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
-                host_info = self._host_map.get_or_error(bench.region)
+                host_info = self._host_map.get(bench.region)
                 host_info = ResolveHostsResponse.HostInfo(
                     domain=host_info.host_domain,
                     grpc_port=host_info.grpc_port,
