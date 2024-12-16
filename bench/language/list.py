@@ -16,13 +16,14 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.const import NodeType, QueryType
+from bench.language.const import NodeType, QueryType, active_session
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import get_key_bounds, get_order_key
 
 if TYPE_CHECKING:
     from bench.language import (
+        BenchNode,
         CustomObject,
         Expression,
         Field,
@@ -40,10 +41,17 @@ NodeTypeOrClass = Union[NodeType, type["Node"]]
 
 class NodeList[V: Node](abc.ABC):
     """
-    A list of node children for a parent's child property.
+    A list of Node 'children' for a parent's child property.
+    The children may not be descendants of the parent (e.g. for Records in Databases).
     """
 
-    __slots__ = ("_child_node_cls", "_child_node_type", "_node", "_property")
+    __slots__ = (
+        "_child_node_cls",
+        "_child_node_parent_types",
+        "_child_node_type",
+        "_node",
+        "_property",
+    )
 
     def __init__(self, node: "Node", property: "Property"):
         self._node = node
@@ -55,32 +63,40 @@ class NodeList[V: Node](abc.ABC):
         ), f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_nodes[0]
         self._child_node_cls = cast(type[V], NODE_CLASS_BY_TYPE[self._child_node_type])
+        self._child_node_parent_types = (
+            self._child_node_cls.__parent_property__.reference_nodes or ()
+        )
 
     def __repr__(self):
         return (
             f"<{self.__class__.__name__} {self._node.absolute_path}.{self._property.name}: {self}>"
         )
 
+    @property
+    def _parent(self) -> "Node":
+        return self._node
+
     def create(self, **kwargs) -> V:
         """Creates a new node in the list."""
-        node = self._child_node_cls(**kwargs, parent=self._node)
+        node = self._child_node_cls(**kwargs, parent=self._parent)
         self.append(node)
         return node
 
     def append(self, node: V) -> V:
         """Attaches a child node to a parent through a list."""
+        parent = self._parent
         if node.parent is not None:
-            if node.parent is not self._node:
+            if node.parent is not parent:
                 raise ValueError(f"cannot attach {node!r} to {self!r}: attached to {node.parent!r}")
         else:
-            node.parent = self._node
+            node.parent = parent
 
         # validate
         if self._node._session is not None:
             node._validate_self((), invalid=on_invalid_raise)
 
         # add node (and descendants) to this parent's graph
-        new_graph = self._node._graph
+        new_graph = parent._graph
         if node._graph is not new_graph:
             old_graph = node._graph
             assert new_graph.supergraph.has(
@@ -96,9 +112,9 @@ class NodeList[V: Node](abc.ABC):
             added = (node,)  # already in the graph
 
         # 'create' node in session if it's attached
-        if self._node._session and self._node.is_attached:
-            self._node._session._create(*added)
-            self._node._session.track_many(*added)
+        if parent._session and parent.is_attached:
+            parent._session._create(*added)
+            parent._session.track_many(*added)
 
         return node
 
@@ -252,7 +268,23 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
 
 
 class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
-    """A NodeList backed by a connection to a (remote) graph."""
+    """A NodeList backed by a Connection to a (remote) graph."""
+
+    def __str__(self):
+        return "<remote>"
+
+    @property
+    def _parent(self) -> "Node":
+        if self._child_node_parent_types and self._child_node_parent_types[0] == NodeType.BENCH:
+            bench = None
+            if self._node.__is_in_bench__:
+                bench = cast("BenchNode", self._node).bench
+            if bench is None:
+                bench = active_session().bench
+            assert bench is not None, f"no bench for {self!r}"
+            return bench
+        else:
+            return self._node
 
     def clear(self):
         raise RuntimeError(f"cannot clear {self!r}")

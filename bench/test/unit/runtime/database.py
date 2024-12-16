@@ -7,15 +7,14 @@ from grpclib import GRPCError, Status
 from bench.language.block import Block
 from bench.language.const import BlockType
 from bench.language.field import Field
-from bench.language.session import Session
 from bench.language.text import Text, md
 from bench.language.value import sample_value
 from bench.test.unit.conftest import RuntimeHandle
 from bench.utils.string import Casing, to_casing
 
 
-def test_create_record_kwargs(session: Session):
-    """Create a Record with keyword arguments into value."""
+def test_create_record_kwargs(local_runtime: RuntimeHandle):
+    """Create a Record with keyword arguments (into value)."""
     Database1 = Block.new(
         BlockType.DATABASE,
         "Database1",
@@ -150,7 +149,7 @@ async def test_create_record_with_ptrs(hosted_runtime: RuntimeHandle):
     assert records == [Record1]
 
 
-async def test_delete_database(hosted_runtime: RuntimeHandle):
+async def test_delete_restore_database(hosted_runtime: RuntimeHandle):
     """Delete a database, querying it shouldn't work. Restore, and it should work again."""
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field.member("Name", str)])
     Record1 = Database1.records.create(Name="Record1")

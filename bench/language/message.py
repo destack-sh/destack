@@ -21,7 +21,6 @@ from bench.language.node import (
 )
 from bench.language.property import (
     p_internal,
-    p_node_parent,
     p_regular,
     p_value_packed,
     p_value_runtime,
@@ -31,7 +30,7 @@ from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, CustomObject, NodeReference, Text
+    from bench.language import Block, CustomObject, NodeReference, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -66,7 +65,6 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     If the parent is also a Message, then this is part of a thread (which may also be nested).
     """
 
-    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
     type: MessageType = p_regular(30, require=True, default=MessageType.INTERNAL)
     status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
     origin: BenchNode | None = p_regular(35, require=False, references="any")

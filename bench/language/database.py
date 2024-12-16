@@ -7,7 +7,6 @@ from bench.language.field import TypeBase
 from bench.language.node import HasNodeBase, StateNode, node_
 from bench.language.property import (
     p_internal,
-    p_node_parent,
     p_regular,
     p_system,
     p_value_packed,
@@ -17,7 +16,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, CustomObject, Icon, Text
+    from bench.language import Block, CustomObject, Icon, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -35,8 +34,6 @@ class Record(StateNode[RecordData], HasNodeBase):
     A Record from a DatabaseBlock. May references other Records (except for :ManyToManyRecords).
     """
 
-    # NOTE :Incomplete: support nested Records? (Record.parent->Record)
-    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
     # type: RecordType?
     title: Optional[str] = p_regular(32, default=None)
     order_key: str | None = p_internal(33, default=INTEGER_ZERO)

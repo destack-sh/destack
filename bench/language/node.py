@@ -2252,16 +2252,35 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Wipe this node from this universe forever."""
         self.active_session._erase(self)
 
-    def append(self, node: "Node"):
+    def append(self, child: "Node"):
         """Append a node as a child of this node."""
-        assert node.parent is None, f"{node!r} already has a parent"
-        child_prop = self.get_child_property(node.metatype)
-        child_list = getattr(self, child_prop.name)
-        child_list.append(node)
+        assert child.parent is None, f"{child!r} already has a parent"
+        child_prop = self.get_child_property(child.metatype)
+        if child_prop is not None:
+            child_list = getattr(self, child_prop.name)
+        elif isinstance(child, HasNodeBase):
+            base = child.base
+            assert base is not None, f"no base for {child!r}"
+            child_prop = base.get_child_property(child.metatype)
+            if child_prop is not None:
+                child_list = getattr(base, child_prop.name)
+            else:
+                raise ValueError(f"no child property for {child.metatype.bench_name} in {base!r}")
+        else:
+            raise ValueError(f"no child property for {child.metatype.bench_name} in {self!r}")
+        child_list.append(child)
 
     @classmethod
-    def get_child_property(cls, node_type: NodeType) -> Property:
+    def get_child_property_or_error(cls, node_type: NodeType) -> Property:
         """Gets the child property for the given node type."""
+        prop = cls.get_child_property(node_type)
+        if prop is None:
+            raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
+        return prop
+
+    @classmethod
+    def get_child_property(cls, node_type: NodeType) -> Property | None:
+        """Gets the child property for the given node type, or None if not found."""
         for prop in cls.__node_child_properties__.values():
             if (
                 prop.reference_nodes
@@ -2269,8 +2288,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 and node_type in prop.reference_nodes
             ):
                 return prop
-        else:
-            raise ValueError(f"no child property for {node_type.bench_name} in {cls.__name__}")
+        return None
 
     @classmethod
     def partial(
@@ -2486,6 +2504,8 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
 @node_component()
 class StateNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """A Node in a Bench with a persistent cross-Package identity."""
+
+    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
 
 
 @node_component()
