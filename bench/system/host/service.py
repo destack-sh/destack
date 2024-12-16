@@ -17,14 +17,13 @@ from bench.language.block import Block
 from bench.language.builtin import make_builtins
 from bench.language.connection import GraphEngine, MemoryEngine
 from bench.language.const import (
+    BENCH_NODE_TYPES,
     BENCH_SLUG,
     CLOUD,
-    IN_BENCH_GLOBAL_NODE_TYPES,
-    IN_BENCH_NODE_TYPES,
-    LOADED_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     SOURCE_NODE_TYPES,
+    VIRTUAL_RESOURCE_NODE_TYPES,
     ClientType,
     ConditionalType,
     EditType,
@@ -81,20 +80,16 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-HOST_MEMORY_ENGINE_ENABLED = get_from_env(
-    "HOST_MEMORY_ENGINE_ENABLED",
-    typ=bool,
-    default=True,
-    description="Whether to provide in-memory caches for Bench/Package",
-)
 S3_PRESIGNED_URL_EXPIRY = get_from_env(
     "S3_PRESIGNED_URL_EXPIRY",
     typ=int,
     default=3600,
     description="S3 presigned URL expiry (in seconds)",
 )
-LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
-BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+
+BENCH_QUERY = Bench.include_descendants(
+    NodeType.HANDLE, NodeType.PACKAGE, *VIRTUAL_RESOURCE_NODE_TYPES
+).select_all()
 PACKAGE_QUERY = (
     Package.include_ancestors(Bench)
     .include_descendants(*SOURCE_NODE_TYPES)
@@ -115,7 +110,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         GraphIoServiceBase.__init__(
             self,
             bench_id=bench_id,
-            node_types=IN_BENCH_NODE_TYPES,
+            node_types=BENCH_NODE_TYPES,
             logger=logger,
             tracer=tracer,
             oracle=oracle,
@@ -331,7 +326,9 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             store=self.global_store,
             bench=self._bench,
             scope=self._scope,
-            node_types=IN_BENCH_GLOBAL_NODE_TYPES | bittuple(NodeType.USER),
+            node_types=bittuple(
+                NodeType.BENCH, NodeType.CLIENT, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.USER
+            ),
             context=database_plugin.context,
         )
         self._regional_pg_engine = PostgresEngine(
@@ -348,23 +345,26 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             node_types=LOCAL_NODE_TYPES,
             context=database_plugin.context,
         )
-        self._engines = (self._global_pg_engine, self._regional_pg_engine, self._local_pg_engine)
-        if HOST_MEMORY_ENGINE_ENABLED:
-            inmemory_engines = (
-                MemoryEngine(
-                    scope=self._scope,
-                    node_types=LOADED_BENCH_NODE_TYPES,
-                    graph=self._bench._data_graph,
-                    include_deleted=False,
-                ),
-                MemoryEngine(
-                    scope=self._scope,
-                    node_types=SOURCE_NODE_TYPES,
-                    graph=self._main_package._data_graph,
-                    include_deleted=False,
-                ),
-            )
-            self._engines = (*inmemory_engines, *self._engines)  # in order of priority
+        inmemory_engines = (
+            MemoryEngine(
+                scope=self._scope,
+                node_types=bittuple(*BENCH_QUERY.all_node_types),
+                graph=self._bench._data_graph,
+                include_deleted=False,
+            ),
+            MemoryEngine(
+                scope=self._scope,
+                node_types=SOURCE_NODE_TYPES,
+                graph=self._main_package._data_graph,
+                include_deleted=False,
+            ),
+        )
+        self._engines = (
+            self._global_pg_engine,
+            self._regional_pg_engine,
+            self._local_pg_engine,
+            *inmemory_engines,
+        )
         # we open one Session for the entire lifecycle of the Host
         self._session = Session(
             parent=self._bench,
@@ -414,7 +414,6 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             main_package=self._main_package,
             epoch=self.epoch,
             plugins=self._plugins,
-            memory=HOST_MEMORY_ENGINE_ENABLED,
         )
 
         # synchronize bench builtins
@@ -477,11 +476,14 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             if is_cascaded and edit.type in (EditType.DELETE, EditType.ERASE):
                 continue  # remove cascades are implicit
             node_type = NodeType(edit.node_ptr.node_type)
-            if node_type not in LOADED_HOST_NODE_TYPES:
+            if (
+                node_type not in self._bench._graph.node_types
+                and node_type not in self._main_package._graph.node_types
+            ):
                 continue  # not loaded
-            if node_type in LOADED_BENCH_NODE_TYPES:
+            if node_type in self._bench._graph.node_types:
                 bench_edits.append(edit)
-            if node_type in SOURCE_NODE_TYPES:
+            if node_type in self._main_package._graph.node_types:
                 assert edit.scope.package_id, f"no package id in {edit!r}"
                 package_id = to_uuid(edit.scope.package_id)
                 assert package_id == self._main_package.id, f"bad package id: {package_id!r}"

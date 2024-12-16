@@ -12,7 +12,6 @@ from bench.language.block import Block
 from bench.language.connection import GraphEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
-    IN_PACKAGE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
     BlockType,
@@ -181,7 +180,7 @@ def _make_remote_engines(
         # bench engine
         RemoteEngine(
             scope=GraphScope(bench_id=bench_id)._to_data(),
-            node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
+            node_types=BENCH_NODE_TYPES,
             remote=host_client,
             write_retry=RETRY_GRPC_FOREVER,
             rpc_metadata=rpc_metadata,

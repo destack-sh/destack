@@ -11,7 +11,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import Bench, Package, Store, Subject
-from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES, NodeArea
+from bench.language.const import SOURCE_NODE_TYPES, VIRTUAL_RESOURCE_NODE_TYPES, NodeArea, NodeType
 from bench.proto.services import ServiceBase
 from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
 from bench.proto.wire.common_pb2 import RpcMetadata
@@ -45,20 +45,16 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-HOST_MEMORY_ENGINE_ENABLED = get_from_env(
-    "HOST_MEMORY_ENGINE_ENABLED",
-    typ=bool,
-    default=True,
-    description="Whether to provide in-memory caches for Bench/Package",
-)
 S3_PRESIGNED_URL_EXPIRY = get_from_env(
     "S3_PRESIGNED_URL_EXPIRY",
     typ=int,
     default=3600,
     description="S3 presigned URL expiry (in seconds)",
 )
-LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
-BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+
+BENCH_QUERY = Bench.include_descendants(
+    NodeType.HANDLE, NodeType.PACKAGE, *VIRTUAL_RESOURCE_NODE_TYPES
+).select_all()
 PACKAGE_QUERY = (
     Package.include_ancestors(Bench)
     .include_descendants(*SOURCE_NODE_TYPES)

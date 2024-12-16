@@ -28,7 +28,6 @@ from bench.language.block import Block
 from bench.language.connection import NullEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
-    IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
     OBJECT_TYPES,
     STRUCT_TYPES,
@@ -438,7 +437,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     engines = (
         RemoteEngine(
             scope=GraphScope(bench_id=hosted_bench.id)._to_data(),
-            node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
+            node_types=BENCH_NODE_TYPES,
             remote=host,
             write_retry=RETRY_GRPC_FOREVER,
             rpc_metadata=rpc_metadata,

@@ -38,11 +38,11 @@ from opentelemetry import trace
 
 from bench.language.const import (
     BASED_NODE_TYPES,
+    BENCH_NODE_TYPES,
     EMPTY_DICT,
     FLOAT_EPSILON,
-    IN_BENCH_NODE_TYPES,
-    IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
+    PACKAGE_NODE_TYPES,
     TK_LENGTH_BYTES,
     UNSET,
     BlockType,
@@ -564,8 +564,8 @@ def node_(
 ):
     """Register a class as a concrete node for the given node type."""
 
-    in_package = node_type in IN_PACKAGE_NODE_TYPES
-    in_bench = node_type in IN_BENCH_NODE_TYPES
+    in_package = node_type in PACKAGE_NODE_TYPES
+    in_bench = node_type in BENCH_NODE_TYPES
 
     def decorate(cls: Type["Node"]) -> Type["Node"]:
         cls = node_component(

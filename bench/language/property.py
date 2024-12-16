@@ -16,11 +16,10 @@ from uuid import UUID
 
 from bench.language.const import (
     BASED_NODE_TYPES,
+    BENCH_NODE_TYPES,
     NODE_TYPES,
+    PACKAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    SUB_BENCH_NODE_TYPES,
-    SUB_PACKAGE_NODE_TYPES,
-    TIMED_NODE_TYPES,
     UNSET,
     EnumType,
     NodeType,
@@ -482,10 +481,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             shared_ptr_types: list[NodeType] = []
             if need_fks:
                 for ref_type in reference_nodes:
-                    if ref_type in SUB_PACKAGE_NODE_TYPES:
+                    if ref_type in PACKAGE_NODE_TYPES:
                         shared_ptr_types.append(ref_type)
                         continue  # no FKs for package types
-                    if ref_type.name.lower() in self.name:
+                    elif ref_type.name.lower() in self.name:
                         # reduce clutter if type is unambiguous
                         prop_name = f"{self.name}_id"
                     else:
@@ -531,10 +530,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 )
                 stored_ids.append(id_prop)
                 # also remember 'ck' if any of the shared types has one
-                if any(
-                    t in SUB_PACKAGE_NODE_TYPES and t not in TIMED_NODE_TYPES
-                    for t in shared_ptr_types
-                ):
+                if any(t in PACKAGE_NODE_TYPES for t in shared_ptr_types):
                     ck_prop = Property(
                         id=self.id,
                         name=self.name + "_ck",
@@ -571,7 +567,9 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     )
 
             # we need the 'bench_id' for the reference if it could be in a Bench
-            is_sub_bench = any(t in SUB_BENCH_NODE_TYPES for t in reference_nodes or ())
+            is_sub_bench = any(
+                t != NodeType.BENCH and t in BENCH_NODE_TYPES for t in reference_nodes or ()
+            )
             if (
                 is_sub_bench
                 and self.reference_kind != ReferenceKind.NODE_PARENT

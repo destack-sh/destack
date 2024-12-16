@@ -13,11 +13,10 @@ from opentelemetry import trace
 from bench.language.bench import Bench, Client, Package, Server
 from bench.language.const import (
     BENCH_NODE_TYPES,
-    IN_PACKAGE_NODE_TYPES,
-    LOADED_BENCH_NODE_TYPES,
     NONCE,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
+    VIRTUAL_RESOURCE_NODE_TYPES,
     ClientType,
     NodeType,
 )
@@ -44,7 +43,9 @@ from bench.utils.tenacity import RETRY_GRPC_FOREVER
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-BENCH_QUERY = Bench.include_descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+BENCH_QUERY = Bench.include_descendants(
+    NodeType.HANDLE, NodeType.PACKAGE, *VIRTUAL_RESOURCE_NODE_TYPES
+).select_all()
 PACKAGE_QUERY = (
     Package.include_descendants(*SOURCE_NODE_TYPES)
     .include_ancestors(Bench)
@@ -161,7 +162,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             # bench engine
             RemoteEngine(
                 scope=bench_scope,
-                node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
+                node_types=BENCH_NODE_TYPES,
                 remote=self._host,
                 write_retry=RETRY_GRPC_FOREVER,
                 rpc_metadata=self._rpc_metadata,

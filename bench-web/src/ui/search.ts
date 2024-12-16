@@ -1,7 +1,7 @@
 import { blockToType } from "@/language/block";
 import {
   isEnumType,
-  isInBenchNodeType,
+  isBenchNodeType,
   isNodeType,
   isSourceNodeType,
   isStructType,
@@ -375,7 +375,7 @@ export function makeRemoteSearchParams(options: {
       }
     }
   }
-  const scope = isInBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+  const scope = isBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
   const sort: ExpressionData[] = [
     makeExpression({
       type: ExpressionType.DESCENDING,

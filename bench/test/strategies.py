@@ -13,7 +13,6 @@ from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
 from bench.language import NodeReference
 from bench.language.const import (
-    IN_BENCH_NODE_TYPES,
     NODE_TYPES,
     EnumType,
     FieldType,
@@ -297,7 +296,7 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
         node_ck = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
         node_ck = node_id
-    if node_type in IN_BENCH_NODE_TYPES:
+    if node_cls.__is_in_bench__:
         bench_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
         bench_id = None

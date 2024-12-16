@@ -323,7 +323,7 @@ def _get_node_types(
 
 GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
 REGIONAL_NODE_TYPES = _get_node_types(2000, 3000)
-LOCAL_NODE_TYPES = _get_node_types(3000)
+LOCAL_NODE_TYPES = _get_node_types(3000, None)
 AREA_BY_NODE_TYPE = {
     **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
     **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
@@ -337,45 +337,24 @@ NODE_TYPES_BY_AREA = {
 
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 2200)
-ANONYMOUS_RESOURCE_NODE_TYPES = _get_node_types(2100, 2200)
+VIRTUAL_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
+PHYSICAL_RESOURCE_NODE_TYPES = _get_node_types(2100, 2200)
 SOURCE_NODE_TYPES = _get_node_types(3000, 3100)
 STATE_NODE_TYPES = _get_node_types(3500, 3600)
 RUNTIME_NODE_TYPES = _get_node_types(3600, 3700)
-
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD, NodeType.RUN, NodeType.MESSAGE, NodeType.RECORD
 )
-TIMED_NODE_TYPES = bittuple(NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE)
-IN_PACKAGE_NODE_TYPES = _get_node_types(3001, 3500, NodeType.SKIP)
-SUB_PACKAGE_NODE_TYPES = _get_node_types(3001, 3500)
-IN_BENCH_NODE_TYPES = _get_node_types(
-    2000,
-    10000,
-    NodeType.BENCH,
-    NodeType.CLIENT,
-    NodeType.HANDLE,
-    NodeType.MEMBERSHIP,
-    NodeType.INVITE,
-)
-IN_BENCH_GLOBAL_NODE_TYPES = _get_node_types(
-    2000, 10000, *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
-)
-SUB_BENCH_NODE_TYPES = _get_node_types(
-    2000, 10000, *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH)
-)
+PACKAGE_NODE_TYPES = _get_node_types(3001, 3500, NodeType.SKIP)
 BENCH_NODE_TYPES = _get_node_types(
     2000,
     10000,
     NodeType.BENCH,
     NodeType.PACKAGE,
     NodeType.HANDLE,
+    NodeType.MEMBERSHIP,
+    NodeType.INVITE,
     NodeType.CLIENT,
-)
-LOADED_BENCH_NODE_TYPES = bittuple(
-    *(
-        set(BENCH_NODE_TYPES)
-        - (set(STATE_NODE_TYPES) | set(ANONYMOUS_RESOURCE_NODE_TYPES) | {NodeType.CLIENT})
-    )
 )
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
