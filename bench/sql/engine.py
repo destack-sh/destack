@@ -22,6 +22,7 @@ from psycopg.types.json import Jsonb
 from bench.language import Block
 from bench.language.const import (
     EMPTY_DICT,
+    TRACING,
     BenchError,
     NodeType,
     PrimitiveType,
@@ -65,6 +66,10 @@ class StaticContext(SqlContext):
 
 def _trace_pg_span[F: Callable](func: F) -> F:
     """Instruments a pg function with common parameters as span attributes"""
+
+    if not TRACING:
+        return func
+
     func_name = func.__name__
     if func_name.startswith("_"):
         func_name = func_name[1:]

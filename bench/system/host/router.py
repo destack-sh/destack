@@ -77,9 +77,13 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self._global_store = global_store
-        self._global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+        self._global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
         self._regional_store = regional_store
-        self._regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+        self._regional_pg_engine = pg_engine_from_store(
+            f"pg-regional-{regional_store.region.name.lower()}",
+            regional_store,
+            NodeArea.REGIONAL,
+        )
 
     def __str__(self):
         return "shards=[*]"

@@ -15,7 +15,7 @@ from bench.language import Bench, Drive, NodeReference, Package, Run, Server, St
 from bench.language.access import Badge, Ownable
 from bench.language.block import Block
 from bench.language.builtin import make_builtins
-from bench.language.connection import GraphEngine, MemoryEngine
+from bench.language.connection import Engine, MemoryEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     BENCH_SLUG,
@@ -122,9 +122,15 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
         self._global_store = global_store
-        self._global_pg_engine_unscoped = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+        self._global_pg_engine_unscoped = pg_engine_from_store(
+            "pg-global", global_store, NodeArea.GLOBAL
+        )
         self._regional_store = regional_store
-        self._regional_pg_engine_unscoped = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+        self._regional_pg_engine_unscoped = pg_engine_from_store(
+            f"pg-regional-{regional_store.region.name.lower()}",
+            regional_store,
+            NodeArea.REGIONAL,
+        )
         self._supergraph = NodeSuperGraph(self.bench_ptr)
         self._client_cache = ClientCache(ttl=60)
         self._bench: Bench | None = None
@@ -132,7 +138,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         self._global_pg_engine: PostgresEngine | None = None
         self._regional_pg_engine: PostgresEngine | None = None
         self._local_pg_engine: PostgresEngine | None = None
-        self._engines: tuple[GraphEngine, ...] = ()
+        self._engines: tuple[Engine, ...] = ()
 
         # processing
         self._session: Session | None = None
@@ -172,7 +178,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         return self._bench._graph, self._main_package._graph
 
     @override
-    def get_engines(self) -> tuple[GraphEngine, ...]:
+    def get_engines(self) -> tuple[Engine, ...]:
         return self._engines
 
     @property
@@ -302,7 +308,9 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             tmp_bench = await Bench.include_descendants(Store).select_all().get(self.bench_ptr)
             assert tmp_bench.main_store, f"{tmp_bench!r} has no main store"
             tmp_bench._untrack_rec()
-            session._engines += (local_pg_engine_from_store(tmp_bench.main_store),)
+            session._engines += (
+                local_pg_engine_from_store(name="pg-local", store=tmp_bench.main_store),
+            )
 
             # load full bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
@@ -323,6 +331,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         # (overwrite global pg engine now that we have the full bench as context)
         database_plugin = DatabasePlugin(self, self._bench, self._main_package)
         self._global_pg_engine = PostgresEngine(
+            name="pg-global",
             store=self.global_store,
             bench=self._bench,
             scope=self._scope,
@@ -332,13 +341,15 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             context=database_plugin.context,
         )
         self._regional_pg_engine = PostgresEngine(
-            store=self._bench.main_store,
+            name=f"pg-regional-{self._bench.main_store.region.name.lower()}",
+            store=self._regional_store,
             bench=self._bench,
             scope=self._scope,
             node_types=REGIONAL_NODE_TYPES,
             context=database_plugin.context,
         )
         self._local_pg_engine = PostgresEngine(
+            name="pg-local",
             store=self._bench.main_store,
             bench=self._bench,
             scope=self._scope,
@@ -347,12 +358,14 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         )
         inmemory_engines = (
             MemoryEngine(
+                name="inmemory-bench",
                 scope=self._scope,
                 node_types=bittuple(*BENCH_QUERY.all_node_types),
                 graph=self._bench._data_graph,
                 include_deleted=False,
             ),
             MemoryEngine(
+                name="inmemory-package",
                 scope=self._scope,
                 node_types=SOURCE_NODE_TYPES,
                 graph=self._main_package._data_graph,

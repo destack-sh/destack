@@ -4,7 +4,7 @@ from uuid import UUID
 import cachetools
 
 from bench.language import Bench, NodeReference, NodeType, Store
-from bench.language.connection import GraphEngine
+from bench.language.connection import Engine
 from bench.language.const import (
     NODE_TYPES,
     NODE_TYPES_BY_AREA,
@@ -66,6 +66,7 @@ def regional_store_from_env(region: Region = REGION) -> Store:
 
 
 def pg_engine_from_store(
+    name: str,
     store: Store,
     area: NodeArea | None,
     *,
@@ -75,6 +76,7 @@ def pg_engine_from_store(
     bench = store.parent
     assert bench is not None, f"missing parent for {store!r}"
     return PostgresEngine(
+        name=name,
         store=store,
         bench=bench,
         scope=scope or EMPTY_SCOPE_DATA,
@@ -83,17 +85,20 @@ def pg_engine_from_store(
     )
 
 
-def local_pg_engine_from_store(store: Store):
+def local_pg_engine_from_store(name: str, store: Store):
     """Get the postgres engine for a local store"""
     assert store.bench is not None, f"missing bench for {store!r}"
     return pg_engine_from_store(
-        store, area=NodeArea.LOCAL, scope=GraphScope(bench_id=store.bench.id)._to_data()
+        name=name,
+        store=store,
+        area=NodeArea.LOCAL,
+        scope=GraphScope(bench_id=store.bench.id)._to_data(),
     )
 
 
 def global_session(
     node: Node | None,
-    engines: tuple[GraphEngine, ...],
+    engines: tuple[Engine, ...],
     oracle: Oracle,
     *,
     supergraph: NodeSuperGraph | None = None,

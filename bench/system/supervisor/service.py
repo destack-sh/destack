@@ -84,7 +84,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             scope=EMPTY_SCOPE_DATA,
         )
         self._global_store = global_store
-        self._global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+        self._global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
         self._store_map = store_map
         self._host_map = host_map
 
@@ -351,7 +351,11 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
         # get regional store
         regional_store = self._store_map.get(region=region)
-        regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+        regional_pg_engine = pg_engine_from_store(
+            name=f"pg-regional-{regional_store.region.name.lower()}",
+            store=regional_store,
+            area=NodeArea.REGIONAL,
+        )
 
         # create bench
         owner_ptr = wiring.unpack_builtin_object(
@@ -477,7 +481,7 @@ async def create_default_bench(
     await provision(HostProxy(global_store, session), bench, (store, drive))
 
     # create main branch/package
-    session._engines += (local_pg_engine_from_store(store),)  # sneakily add engine
+    session._engines += (local_pg_engine_from_store(name="pg-local", store=store),)
     main_package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     await session.flush(optimistic=True)
     bench.main_package = main_package

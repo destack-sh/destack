@@ -60,9 +60,11 @@ async def make(
 ):
     start = time.time()
     global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     regional_store = regional_store_from_env()
-    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    regional_pg_engine = pg_engine_from_store(
+        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    )
 
     # check existing migrations for inconsistencies
     file_migrations = read_migrations_from_fs()
@@ -187,9 +189,11 @@ async def apply(
 ):
     start = time.time()
     global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     regional_store = regional_store_from_env(region or REGION)
-    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    regional_pg_engine = pg_engine_from_store(
+        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    )
 
     # resolve stores to migrate
     if area == NodeArea.LOCAL:
@@ -230,9 +234,11 @@ async def introspect(
 
     start = time.perf_counter()
     global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     regional_store = regional_store_from_env(region or REGION)
-    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    regional_pg_engine = pg_engine_from_store(
+        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    )
 
     if area == NodeArea.LOCAL and bench is not None:
         async with global_session(

@@ -9,7 +9,7 @@ from opentelemetry import trace
 from bench.language import NodeReference
 from bench.language.bench import Bench, Client, Package
 from bench.language.block import Block
-from bench.language.connection import GraphEngine
+from bench.language.connection import Engine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     PUBLIC_NODE_TYPES,
@@ -166,11 +166,12 @@ def _make_remote_engines(
     rpc_metadata: RpcMetadata,
     supervisor_client: SupervisorClient,
     host_client: HostClient,
-) -> tuple[GraphEngine, ...]:
+) -> tuple[Engine, ...]:
     """Gets the graph engines to connect with a remote Bench"""
     engines = (
         # global engine
         RemoteEngine(
+            name="remote-global",
             scope=EMPTY_SCOPE_DATA,
             node_types=PUBLIC_NODE_TYPES,
             remote=supervisor_client,
@@ -179,6 +180,7 @@ def _make_remote_engines(
         ),
         # bench engine
         RemoteEngine(
+            name="remote-bench",
             scope=GraphScope(bench_id=bench_id)._to_data(),
             node_types=BENCH_NODE_TYPES,
             remote=host_client,

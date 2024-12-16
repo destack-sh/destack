@@ -24,7 +24,7 @@ async def unwaitlist(user_slug: str):
     )
 
     global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         user = await User.get(slug=user_slug)
         if user.status != UserStatus.WAITLISTED:
