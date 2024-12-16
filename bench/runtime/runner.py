@@ -162,7 +162,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 parent_run = None
             with tracer.start_as_current_span("runtime.create_run"):
                 run = Run(
-                    parent=parent_run or self.session.package,
+                    parent=parent_run or self.runtime.bench,
                     type=self.kind,
                     block=node if isinstance(node, Block) else node.block,
                     step=node if isinstance(node, Step) else None,
@@ -397,7 +397,7 @@ def make_run_from_node(
 
     options = get_run_options(kind, node.run_options)
     run = Run(
-        parent=parent or node.package,
+        parent=parent or node.bench,
         type=kind,
         block=block,
         step=step,

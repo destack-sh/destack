@@ -74,10 +74,10 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import (
+        Bench,
         Block,
         Interrupt,
         NodeReference,
-        Package,
         QueryBuilder,
         Run,
         Step,
@@ -108,12 +108,10 @@ class _CommitEvent:
 class Session(RuntimeNode[SessionData]):
     """
     A managed Session for interacting with and running a Bench in a Client.
-    If a Run spans multiple Clients, each Client will have its own Session.
-    On some Clients a Session may persist across Runs (like in the web client).
     Once closed, a Session (like a Run) is effectively immutable.
     """
 
-    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE, is_system=True)
+    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # status
     status: SessionStatus = p_system(40, default=SessionStatus.PENDING, index_in_pg=True)

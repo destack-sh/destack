@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.15.2"
+VERSION = "2024.12.16.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -236,9 +236,6 @@ class NodeType(IdEnum):
     SECRET = 2112
     # ACCOUNT, DOMAIN, EMAIL, PHONE, APPLICATION, ...
 
-    # synchronization
-    # POOL, LOCK, BARRIER, CONDITION, ...?
-
     #
     # Local (3000-4000)
     #
@@ -258,15 +255,18 @@ class NodeType(IdEnum):
     # TAG?2
     # POLICY?
 
-    # state (versioned)
-    MESSAGE = 3100  # (based, timed)
-    RECORD = 3101  # (based)
+    # synchronization
+    # POOL, LOCK, BARRIER, CONDITION, ...?
+
+    # state
+    MESSAGE = 3500  # (based, timed)
+    RECORD = 3501  # (based)
 
     # runtime
-    SESSION = 3900  # (timed)
-    RUN = 3901  # (based, timed)
-    INTERRUPT = 3902  # (timed)
-    LOG = 3903  # (timed)
+    SESSION = 3600  # (timed)
+    RUN = 3601  # (based, timed)
+    INTERRUPT = 3602  # (timed)
+    LOG = 3603  # (timed)
 
     #
     # Misc
@@ -339,15 +339,15 @@ ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 2200)
 ANONYMOUS_RESOURCE_NODE_TYPES = _get_node_types(2100, 2200)
 SOURCE_NODE_TYPES = _get_node_types(3000, 3100)
-STATE_NODE_TYPES = _get_node_types(3100, 3200)
-RUNTIME_NODE_TYPES = _get_node_types(3900, 4000)
+STATE_NODE_TYPES = _get_node_types(3500, 3600)
+RUNTIME_NODE_TYPES = _get_node_types(3600, 3700)
 
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD, NodeType.RUN, NodeType.MESSAGE, NodeType.RECORD
 )
 TIMED_NODE_TYPES = bittuple(NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE)
-IN_PACKAGE_NODE_TYPES = _get_node_types(3001, 4000, NodeType.SKIP)
-SUB_PACKAGE_NODE_TYPES = _get_node_types(3001)
+IN_PACKAGE_NODE_TYPES = _get_node_types(3001, 3500, NodeType.SKIP)
+SUB_PACKAGE_NODE_TYPES = _get_node_types(3001, 3500)
 IN_BENCH_NODE_TYPES = _get_node_types(
     2000,
     10000,

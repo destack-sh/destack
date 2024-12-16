@@ -158,7 +158,7 @@ async def test_run_code_invalid_inputs(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
-    run = Run(parent=local_runtime.package, options=ATTEMPT_ONCE, type=RunType.CODE, block=Code1)
+    run = Run(parent=local_runtime.bench, options=ATTEMPT_ONCE, type=RunType.CODE, block=Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
@@ -178,7 +178,7 @@ async def test_run_code_invalid_outputs(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
-    run = Run(parent=local_runtime.package, options=ATTEMPT_ONCE, type=RunType.CODE, block=Code1)
+    run = Run(parent=local_runtime.bench, options=ATTEMPT_ONCE, type=RunType.CODE, block=Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE

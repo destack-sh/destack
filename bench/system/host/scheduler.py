@@ -84,7 +84,6 @@ class RunPlugin(HostPlugin[Run]):
         """Push Runs to relevant Machines."""
         op.retry.on_attempt()
         run = op.run
-        assert run.package_id is not None, f"missing package id for run {run!r}"
         assert self.bench.main_server, f"missing main server for {self.bench!r}"
         log = logger.bind(host=self, run=run, server=self.bench.main_server, retry=op.retry)
 

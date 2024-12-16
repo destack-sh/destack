@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.15.2"
+VERSION = "2024.12.16.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1240,11 +1240,6 @@ MESSAGE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1279,7 +1274,6 @@ MESSAGE_TABLE = Table(
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("read_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("is_pinned", PrimitiveType.BOOLEAN, default="false"),
-        Column("mode", PrimitiveType.INT16, default="1"),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1296,9 +1290,6 @@ SESSION_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1346,11 +1337,8 @@ RUN_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1393,7 +1381,6 @@ RUN_TABLE = Table(
         Column("stopped_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupt_id", PrimitiveType.UUID, is_nullable=True),
-        Column("interrupt_ck", PrimitiveType.UUID, is_nullable=True),
         Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("resumed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -1435,8 +1422,6 @@ INTERRUPT_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1501,9 +1486,6 @@ LOG_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),

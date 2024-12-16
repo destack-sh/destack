@@ -468,9 +468,13 @@ class CreateStepRunner(StepRunnerBase):
         if node.parent is None:
             parent_types = node.__parent_property__.reference_nodes or ()
             if parent_types == "any" or NodeType.PACKAGE in parent_types:
-                node.parent = self.session.package
+                bench = self.session.bench
+                assert bench is not None, f"no bench for {self!r}"
+                node.parent = bench.main_package
             elif NodeType.BENCH in parent_types:
-                node.parent = self.session.bench
+                bench = self.session.bench
+                assert bench is not None, f"no bench for {self!r}"
+                node.parent = bench
             elif (
                 isinstance(node, HasNodeBase)
                 and node.base is not None

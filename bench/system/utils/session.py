@@ -6,6 +6,7 @@ from bench.language.connection import GraphEngine
 from bench.language.const import (
     NODE_TYPES,
     NODE_TYPES_BY_AREA,
+    REGION,
     VERSION,
     NodeArea,
     Region,
@@ -57,7 +58,7 @@ def global_store_from_env() -> Store:
     return store
 
 
-def regional_store_from_env() -> Store:
+def regional_store_from_env(region: Region = REGION) -> Store:  # nocheckin
     """Get the default regional store configured in the environment"""
     host = get_from_env("REGIONAL_PG_HOST", description="Regional Postgres host")
     name = get_from_env("REGIONAL_PG_NAME", description="Regional Postgres database name")

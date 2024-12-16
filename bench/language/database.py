@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
+from typing import TYPE_CHECKING, Any, Optional, cast, final
 
 import structlog
 
@@ -17,7 +17,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Block, CustomObject, Icon, Text
+    from bench.language import Bench, Block, CustomObject, Icon, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,7 +36,7 @@ class Record(StateNode[RecordData], HasNodeBase):
     """
 
     # NOTE :Incomplete: support nested Records? (Record.parent->Record)
-    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
+    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
     # type: RecordType?
     title: Optional[str] = p_regular(32, default=None)
     order_key: str | None = p_internal(33, default=INTEGER_ZERO)

@@ -71,10 +71,10 @@ class Runtime:
         static_glbls: Mapping[str, Any] = STATIC_CODE_GLOBALS,
         dynamic_glbls: Mapping[str, Any] = DYNAMIC_CODE_GLOBALS,
     ):
-        assert session.package is not None, f"{session!r} is not attached"
+        assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
+        self.bench = session.bench
         self.cache = cache
-        self.package = session.package
         self.oracle = oracle
         self.static_glbls = static_glbls
         self.thread = thread

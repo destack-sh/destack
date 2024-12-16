@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
@@ -9,7 +9,6 @@ from bench.language.const import (
     NodeType,
     ObjectKind,
     StructType,
-    active_session,
     enum_,
 )
 from bench.language.field import TypeBase, constraint
@@ -32,20 +31,11 @@ from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, CustomObject, NodeReference, Package, Step, Text, View
+    from bench.language import Bench, Block, CustomObject, NodeReference, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-
-MessageParent = Union["Package", "Block", "View", "Step", "Message"]
-MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (
-    NodeType.PACKAGE,
-    NodeType.BLOCK,
-    NodeType.VIEW,
-    NodeType.STEP,
-    NodeType.MESSAGE,
-)
 
 
 @enum_(EnumType.MESSAGE_TYPE)
@@ -76,7 +66,7 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     If the parent is also a Message, then this is part of a thread (which may also be nested).
     """
 
-    parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
+    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
     type: MessageType = p_regular(30, require=True, default=MessageType.INTERNAL)
     status: MessageStatus = p_internal(31, default=MessageStatus.SENT)
     origin: BenchNode | None = p_regular(35, require=False, references="any")
@@ -127,28 +117,3 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     def value_type(self) -> "TypeBase | None":
         block = self.block
         return block.to_type_maybe(of="value") if block is not None else None
-
-    @staticmethod
-    def new(
-        block: "Block | None" = None,
-        title: str | None = None,
-        text: "Text | None" = None,
-        value: "CustomObject | None" = None,
-        *,
-        parent: MessageParent | None = None,
-        origin: BenchNode | None = None,
-        type: MessageType = MessageType.INTERNAL,
-        status: MessageStatus = MessageStatus.SENT,
-        reply_to: "Message | None" = None,
-    ) -> "Message":
-        return Message(
-            parent=parent or active_session().package,
-            block=block,
-            title=title,
-            text=text,
-            value=value,
-            origin=origin,
-            reply_to=reply_to,
-            type=type,
-            status=status,
-        )
