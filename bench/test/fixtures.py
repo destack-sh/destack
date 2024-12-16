@@ -21,7 +21,7 @@ from bench.language.const import NodeType, Region
 from bench.language.graph import NodeSuperGraph
 from bench.language.validation import clean_name
 from bench.sql.client import get_pg_pool, pg_connection
-from bench.sql.core import ALL_EXTENSIONS, Schema, Table
+from bench.sql.core import ALL_EXTENSIONS, Schema
 from bench.sql.graph import (
     BENCH_RECORD_TABLE_PREFIX,
     BENCH_TABLE_PREFIX,
@@ -178,11 +178,10 @@ async def regional_store(request: pytest.FixtureRequest):
 async def omni_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    ALL_TABLES: tuple[Table, ...] = (
-        *BUILTIN_GLOBAL_TABLES,
-        *BUILTIN_REGIONAL_TABLES,
-        *BUILTIN_LOCAL_TABLES,
-    )
+    ALL_TABLES = {}
+    for table in (*BUILTIN_GLOBAL_TABLES, *BUILTIN_REGIONAL_TABLES, *BUILTIN_LOCAL_TABLES):
+        ALL_TABLES[table.name] = table
+    ALL_TABLES = tuple(ALL_TABLES.values())
     OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
 
     store = make_global_store(f"test-{clean_name(request.node.name)}-omni")

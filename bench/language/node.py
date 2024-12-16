@@ -686,13 +686,7 @@ def timed_node_(
         passthrough_get=passthrough_get,
         passthrough_set=passthrough_set,
         local=True,
-        indexes=(
-            *indexes,
-            ("created_at",),
-            ("created_epoch",),
-            ("package_id", "created_at"),
-            ("package_id", "created_epoch"),
-        ),
+        indexes=(*indexes, ("created_at",), ("created_epoch",)),
     )
 
 
@@ -2182,8 +2176,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @property
     def code_name(self) -> Optional[str]:
         """The python identifier-compatible name of this node."""
-        if self.metatype == NodeType.PACKAGE and self.parent is not None:
-            return self.parent.code_name
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
@@ -2204,17 +2196,23 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             return ident
         else:
             # assemble path (like in Path.render)
-            path_parts: list[str] = [self._path_key]
-            parent = self.parent
-            while parent is not None:
-                if parent.metatype == NodeType.PACKAGE:
-                    parent = cast("Bench | Package", parent).bench
-                    continue
-                path_parts.append(parent._path_key)
-                next_parent = parent.parent
-                if next_parent is None and parent.metatype in self.__roots__:
+            path_parts: list[str] = []
+            current = self
+            while current is not None:
+                if current.metatype == NodeType.PACKAGE:
+                    bench = cast("Bench | Package", current).bench
+                    if bench is not None:
+                        if bench.main_package_id == current.id:
+                            path_parts.append(bench._path_key)
+                        else:
+                            path_parts.append(f"{bench._path_key}:{current._path_key}")
+                        break
+
+                path_parts.append(current._path_key)
+                next_parent = current.parent
+                if next_parent is None and current.metatype in self.__roots__:
                     break  # reached the root
-                parent = next_parent
+                current = next_parent
             else:
                 path_parts.append("<detached>")
             return "/".join(reversed(path_parts))

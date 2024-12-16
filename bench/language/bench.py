@@ -188,9 +188,12 @@ class Package(BenchNode[PackageData]):
     def absolute_path(self) -> str:
         bench = self.bench
         if bench is not None:
-            return f"@{bench.slug}"
+            if bench.main_package_id == self.id:
+                return f"@{bench.slug}"
+            else:
+                return f"{bench.slug}:{self.slug}"
         else:
-            return "<detached>"
+            return "<detached>:{self.slug}"
 
     @property
     def package_id(self):

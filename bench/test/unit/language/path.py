@@ -5,7 +5,7 @@ from more_itertools import first
 
 from bench.language.bench import Bench, Package, PackageType
 from bench.language.block import FlowBlock
-from bench.language.const import BlockType, NodeType
+from bench.language.const import BlockType
 from bench.language.field import Field
 from bench.language.file import File, FileKind, FileType
 from bench.language.flow import Step, StepType
@@ -117,6 +117,7 @@ def test_parse_path(input_path: str, expected_tokens: List[Tuple[PathTokenType, 
         "^",
         "$",
         ">",
+        ":",
         "^^node",
         "node1//node2",
         "node1.property1.property2",
@@ -144,10 +145,12 @@ def mock_package(session: Session):
 @pytest.fixture
 def mock_package_populated(session: Session):
     # make bench
-    bench = Bench(name="bench1", slug="bench")
+    bench = Bench(name="bench1", slug="bench1")
     session.parent = bench  # patch in the session parent
     package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     session._graph.update(session, _force_update_parent=True)
+    bench.main_package = package
+    side_package = bench.packages.create(type=PackageType.SIDE, name="Side", slug="side")  # noqa: F841
 
     # page nodes
     page1 = package.blocks.create(name="Page1", type=BlockType.PAGE)
@@ -180,6 +183,8 @@ def mock_package_populated(session: Session):
         ("bench1", ".", "bench1"),
         ("bench1", "..", None),
         ("bench1", "@bench1/Page1", "Page1"),
+        ("bench1", "@bench1:main", "Main"),
+        ("bench1", "@bench1:side", "Side"),
         # from top level page
         ("Page1", "..", "bench1"),
         ("Page1", "Page11/Flow111", "Flow111"),
@@ -236,15 +241,15 @@ def test_get_node(
         ("Page21", "bench1", "@bench1"),
         ("Step2112", "bench1", "@bench1"),
         # from root
-        ("bench1", "Page11", "/Page1/Page11"),
-        ("bench1", "Flow111", "/Page1/Page11/Flow111"),
-        ("bench1", "Field1111", "/Page1/Page11/Flow111.Field1111"),
+        ("bench1", "Page11", "@bench1/Page1/Page11"),
+        ("bench1", "Flow111", "@bench1/Page1/Page11/Flow111"),
+        ("bench1", "Field1111", "@bench1/Page1/Page11/Flow111.Field1111"),
         # inner
         ("Page1", "Page1", "."),
-        ("Page1", "Page2", "/Page2"),
+        ("Page1", "Page2", "@bench1/Page2"),
         ("Page1", "Page11", "Page11"),
         ("Page1", "Step1111", "Page11/Flow111/Step1111"),
-        ("Page21", "Step1111", "/Page1/Page11/Flow111/Step1111"),
+        ("Page21", "Step1111", "@bench1/Page1/Page11/Flow111/Step1111"),
         ("Page11", "Page1", "~Page1"),
         ("Step1111", "Page1", "~Flow111/~Page11/~Page1"),
         ("Flow211", "Option2121", "^Choice212.Option2121"),
@@ -254,16 +259,8 @@ def test_get_path(
     mock_package_populated: Bench, scope_name: str, node_name: str, expected_path: str
 ):
     package = mock_package_populated
-    scope = first(
-        n
-        for n in package._graph.nodes
-        if getattr(n, "name", None) == scope_name and n.metatype != NodeType.BENCH
-    )
-    node = first(
-        n
-        for n in package._graph.nodes
-        if getattr(n, "name", None) == node_name and n.metatype != NodeType.BENCH
-    )
+    scope = first(n for n in package._graph.nodes if getattr(n, "name", None) == scope_name)
+    node = first(n for n in package._graph.nodes if getattr(n, "name", None) == node_name)
 
     # get path
     path = get_path(scope, node)
