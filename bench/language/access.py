@@ -21,12 +21,10 @@ from opentelemetry import trace
 from bench.language.bench import Server
 from bench.language.const import (
     ACCESS_CLASSES,
-    IN_BENCH_NODE_TYPES,
     NODE_TYPES,
     PUBLIC_NODE_TYPES,
     ROOT_NODE_TYPES,
     RUNTIME_NODE_TYPES,
-    SUB_PACKAGE_NODE_TYPES,
     AccessKind,
     AccessMode,
     AccessType,
@@ -587,12 +585,7 @@ def _register_system_policies():
             )
             .subject(is_member=True)
             .allow(AccessKind.READ)
-            .object(
-                node_types=tuple(
-                    nt for nt in IN_BENCH_NODE_TYPES if nt not in SUB_PACKAGE_NODE_TYPES
-                ),
-                properties_is_sensitive=False,
-            )
+            .object(properties_is_sensitive=False)
         ),
         Policy(name="AuthenticatedAccess").append(
             PolicyRule(

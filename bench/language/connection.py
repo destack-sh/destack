@@ -1082,7 +1082,6 @@ class SplitChannel(Channel[NullEngine]):
 
 class SplitConnection(Connection):
     # NOTE :Robustness: we handle splits by assuming the node type split is a 'clean' horizontal
-    #  line in the ancestry tree (like the local/global split).
 
     async def _do_read_remainder(
         self,

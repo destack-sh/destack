@@ -1,4 +1,4 @@
-import { BASED_NODE_TYPES, isInBenchNodeType, isUnloadedNodeType } from "@/language/const";
+import { BASED_NODE_TYPES, isBenchNodeType, isUnloadedNodeType } from "@/language/const";
 import { NodeSuperGraph } from "@/language/graph";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { describeNode, makeScope, toNodeRef } from "@/proto/wiring";
@@ -162,7 +162,7 @@ export class NodeAutoloader {
     }
 
     // load
-    const scope = isInBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+    const scope = isBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
     const params: GetConnectionParams<any> = {
       roots: missingNodes as NodeReferenceData[],
       scope,

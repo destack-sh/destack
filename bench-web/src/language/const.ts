@@ -82,7 +82,7 @@ export function isLocalNodeType(nodeType: NodeType): boolean {
   return nodeType >= 1000;
 }
 
-export function isInBenchNodeType(nodeType: NodeType): boolean {
+export function isBenchNodeType(nodeType: NodeType): boolean {
   return nodeType >= 200 || nodeType == NodeType.BENCH;
 }
 
@@ -107,7 +107,6 @@ export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.LOG, N
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
 export const VIRTUAL_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isVirtualResourceNodeType);
 export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
-export const IN_BENCH_NODE_TYPES = NODE_TYPES.filter(isInBenchNodeType);
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];

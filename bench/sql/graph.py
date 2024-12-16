@@ -33,7 +33,6 @@ from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
     CASCADING_EDIT_TYPES,
     NODE_TYPES,
-    SUB_PACKAGE_NODE_TYPES,
     EditOperationType,
     EditType,
     EnumType,
@@ -151,7 +150,8 @@ class BenchSqlContext(SqlContext):
         node_type = BUILTIN_NODE_BY_TABLE_NAME.get(table.name)
         if node_type is None:
             return None
-        if node_type in SUB_PACKAGE_NODE_TYPES:
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
+        if node_cls.__is_in_package__:
             return self.bench.encryption_key
         else:
             return GLOBAL_PG_CRYPTO_KEY

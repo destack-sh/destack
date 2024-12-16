@@ -8,7 +8,11 @@ from opentelemetry import trace
 
 from bench.language import Bench, ResourceNode
 from bench.language.bench import ResourceStatus
-from bench.language.const import LOADED_BENCH_NODE_TYPES, VERSION, NodeType
+from bench.language.const import (
+    VERSION,
+    VIRTUAL_RESOURCE_NODE_TYPES,
+    NodeType,
+)
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.system.host.core import Commit, DeferredHostPlugin, Host
 from bench.utils.env import ENV, Env
@@ -44,7 +48,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
         await self._do_start()
 
         # check resources / provision declared resources
-        if self.resource_type in LOADED_BENCH_NODE_TYPES:
+        if self.resource_type in VIRTUAL_RESOURCE_NODE_TYPES:
             resources = cast(
                 list[PT],
                 self.bench._graph.get_descendants(self.bench, self.resource_type, recursive=True),

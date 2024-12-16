@@ -11,7 +11,6 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from bench.language.const import (
-    IN_BENCH_NODE_TYPES,
     AggregationType,
     ConditionalType,
     ExpressionKind,
@@ -81,9 +80,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalType, str] = {
 class Selection(Struct):
     """A selection of Nodes."""
 
-    nodes: list[Node] = p_regular(
-        40, require=False, array=True, references=IN_BENCH_NODE_TYPES.tuple
-    )
+    nodes: list[Node] = p_regular(40, require=False, array=True, references="any")
     fields: list["Field"] = p_regular(41, require=False, array=True, references=NodeType.FIELD)
     properties: list[Property] = p_regular(
         42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
