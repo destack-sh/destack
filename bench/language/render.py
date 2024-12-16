@@ -246,7 +246,7 @@ class Renderer:
             if parent is not None:
                 parent_alias = self.render_node_ref(parent)
                 parent_cls = NODE_CLASS_BY_TYPE[parent.metatype]
-                parent_child_prop = parent_cls.get_child_property(node.metatype)
+                parent_child_prop = parent_cls.get_child_property_or_error(node.metatype)
                 alias = f"{parent_alias}.{parent_child_prop.name}.{node.code_name}"
                 return alias
 
@@ -390,7 +390,7 @@ class Renderer:
                 # append to parent
                 parent_alias = self._aliasing.get(node.parent_ptr)
                 parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.node_type]
-                parent_child_prop = parent_cls.get_child_property(node.metatype)
+                parent_child_prop = parent_cls.get_child_property_or_error(node.metatype)
                 rendered_objs.append(
                     f"{parent_alias}.{parent_child_prop.name}.append({node_alias})"
                 )

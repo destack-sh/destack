@@ -1193,15 +1193,19 @@ class SplitConnection(Connection):
 
         # get parent references from roots
         inner_roots = combined_graph.find_roots()
-        inner_roots_parents = tuple(n.parent_ptr for n in inner_roots if n.parent_ptr.id)
-        if not inner_roots_parents:
+        inner_roots_parents_by_id = {
+            n.parent_ptr.id: n.parent_ptr for n in inner_roots if n.parent_ptr.id
+        }
+        inner_roots_types = {NodeType(n.node_type) for n in inner_roots_parents_by_id.values()}
+        next_ancestor_types = inner_roots_types.intersection(remaining_types)
+        if not inner_roots_parents_by_id or not next_ancestor_types:
             return set()
 
         # get best engine for remaining ancestors
         engine, covered_types = self._get_best_match_engine(
             scope,
-            remaining_types,
-            remaining_types,
+            next_ancestor_types,
+            next_ancestor_types,
             is_readonly=True,
             include_deleted=query.include_deleted,
         )
@@ -1209,7 +1213,7 @@ class SplitConnection(Connection):
 
         # get parents by type
         inner_roots_parents_by_type = group_by(
-            inner_roots_parents, lambda n: NodeType(n.node_type)
+            inner_roots_parents_by_id.values(), lambda n: NodeType(n.node_type)
         ).items()
         for parent_type, parents in inner_roots_parents_by_type:
             if parent_type not in covered_types:
@@ -1247,12 +1251,12 @@ class SplitConnection(Connection):
         remaining_ancestors = set(query._ancestor_types or ()) - set(initial_types)
         remaining_descendants = set(query._descendant_types or ()) - set(initial_types)
 
-        # read until there is no more to read
+        # read until there is nothing more to read
         while remaining_ancestors or remaining_descendants:
             if not combined_graph.find_roots():
                 break
 
-            # Handle descendants first to build up the graph from the bottom
+            # get descendants
             if remaining_descendants:
                 bench = first((n for n in combined_graph.nodes if isinstance(n, BenchData)), None)
                 descendants_scope = GraphScopeData(bench_id=bench.id) if bench else self.scope
@@ -1261,13 +1265,13 @@ class SplitConnection(Connection):
                 )
                 remaining_descendants -= covered
 
-            # Then handle ancestors
+            # get ancestors
             if remaining_ancestors:
                 covered = await self._read_ancestors(
                     self.scope, combined_graph, remaining_ancestors, query
                 )
                 if not covered:
-                    break  # No more parents to traverse
+                    break  # no more parents to traverse
                 remaining_ancestors -= covered
 
         return combined_graph
@@ -1292,7 +1296,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
             SearchOptions(live=False, mode="packed", count=self.options.count),
         )
         result = connection.result_data
-        if query._select is None:
+        if not query._ancestor_types and not query._descendant_types:
             return result  # nothing more to read
 
         # combine (keeping the 'roots' from the initial result)

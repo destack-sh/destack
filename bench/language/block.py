@@ -53,7 +53,6 @@ if TYPE_CHECKING:
         RunOptions,
         Step,
         Text,
-        Trigger,
         TypeInfo,
         View,
     )
@@ -121,7 +120,6 @@ class Block(SourceNode[BlockData]):
     steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
     pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)
-    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     records: RemoteNodeList["Record", RecordData] = p_node_children(
         NodeType.RECORD, list=RemoteNodeList
     )
