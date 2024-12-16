@@ -11,7 +11,7 @@ from rich.console import Console
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
-from bench.language.const import VERSION, NodeArea, NodeType
+from bench.language.const import VERSION, NodeArea, NodeType, Region
 from bench.sql.client import pg_connection
 from bench.sql.core import Schema
 from bench.sql.engine import SqlUndefinedObjectError
@@ -176,6 +176,9 @@ async def apply(
     area: NodeArea = typer.Option(help="the area to migrate"),  # noqa: B008
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"
+    ),
+    region: Optional[Region] = typer.Option(  # noqa: B008
+        default=None, help="the region to migrate [default=current]"
     ),
     bench: Optional[str] = typer.Option(
         default=None, help="the local bench to migrate, global otherwise"

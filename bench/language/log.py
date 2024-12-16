@@ -32,12 +32,12 @@ from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import (
+        Bench,
         ChangeCategory,
         ChangeVignette,
         Edit,
         EditOperation,
         NodeReference,
-        Package,
         Text,
     )
 
@@ -92,9 +92,8 @@ class Log(RuntimeNode[LogData]):
     A Log of something happening in a Bench.
     """
 
-    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
-
     # meta
+    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
     kind: LogKind = p_system(30)
     level: LogLevel = p_system(31, default=LogLevel.INFO)
     change: Optional["Log"] = p_system(

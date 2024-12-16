@@ -132,7 +132,7 @@ def make_package(session: Session):
     bench.main_store = bench.stores.create(name="Store")
     bench.main_drive = bench.drives.create(name="Drive")
     package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
-    session.parent = package
+    session.parent = bench
     session._graph.update(session, _force_update_parent=True)
     return package
 
@@ -286,7 +286,7 @@ async def local_runtime_async(global_store: Store, regional_store: Store):
         bench._untrack_rec()
 
     session = Session(
-        parent=bench.main_package,
+        parent=bench,
         user=user,
         client=client,
         _is_readonly=False,
@@ -444,7 +444,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         ),
     )
     session = Session(
-        parent=hosted_bench.main_package,
+        parent=hosted_bench,
         server=server,
         machine=machine,
         client=client,

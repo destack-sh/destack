@@ -183,7 +183,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
     @property
     @override
     def request_session_parent(self):
-        return self._main_package
+        return self._bench
 
     @property
     @override
@@ -312,8 +312,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             # load full bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
             assert self._bench.main_store, f"{self._bench!r} has no main store"
-            assert self._bench.main_package, f"{self._bench!r} has no main package"
-            session.parent = self._bench.main_package  # patch in bench for pg context
+            session.parent = self._bench  # patch in bench for pg context
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
 
             # load packages
@@ -368,7 +367,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             self._engines = (*inmemory_engines, *self._engines)  # in order of priority
         # we open one Session for the entire lifecycle of the Host
         self._session = Session(
-            parent=self._bench.main_package,
+            parent=self._bench,
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,

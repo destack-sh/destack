@@ -49,7 +49,7 @@ def test_get_set_non_existing_property(session: "Session"):
 
 def test_node_passthrough(session: "Session"):
     bench = Bench(slug="test", name="Test")
-    package = bench.packages.create(name="main")
+    package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
 
     WeatherCondition = package.blocks.create(
         type=BlockType.CHOICE,
@@ -112,7 +112,7 @@ def test_node_pointers_consistency(session: "Session"):
     bench_a.main_drive = bench_a.drives.create(name="Drive")
 
     # sub bench, above package pointers
-    package_a = bench_a.packages.create(name="main a")
+    package_a = bench_a.packages.create(type=PackageType.ROOT, name="Main", slug="main")
     assert package_a.bench_id == bench_a.id
     assert package_a.to_ref().equals(
         NodeReference(
@@ -141,7 +141,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert client_a.parent_ptr.bench_id == bench_a.id
 
     # sub package nested pointers
-    package_a = bench_a.packages.create(type=PackageType.ROOT, name="main a")
+    package_a = bench_a.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
     assert package_a.bench_id == bench_a.id
     block_a_1 = package_a.blocks.create(type=BlockType.VIEW)
     assert block_a_1.bench_id == bench_a.id
@@ -154,7 +154,7 @@ def test_node_pointers_consistency(session: "Session"):
     block_a_1.roles = [block_a_2]
 
     # based pointers
-    message_a = Message(parent=package_a, origin=block_a_1, block=block_a_1)
+    message_a = Message(parent=bench_a, origin=block_a_1, block=block_a_1)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -172,12 +172,12 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b.main_server = bench_b.servers.create(name="Server")
     bench_b.main_store = bench_b.stores.create(name="Store")
     bench_b.main_drive = bench_b.drives.create(name="Drive")
-    package_b = bench_b.packages.create(type=PackageType.ROOT, name="main b")
+    package_b = bench_b.packages.create(type=PackageType.ROOT, name="Main B", slug="main-b")
     block_b = package_b.blocks.create(type=BlockType.ACTION, roles=[block_a_1])
     assert block_b.bench_id == bench_b.id
     assert block_b.roles
     assert block_b.roles[0].bench_id == bench_a.id
-    message_b = Message(parent=package_b, origin=block_a_1, block=block_a_1)
+    message_b = Message(parent=bench_b, origin=block_a_1, block=block_a_1)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(

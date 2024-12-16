@@ -238,7 +238,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                         run = await Run.include_descendants(NodeType.RUN, NodeType.INTERRUPT).get(
                             run_ptr, live=True
                         )
-                    assert run.package_id == self._main_package.id, f"{run!r} is not in {self!r}"
+                    assert run.bench_id == self._bench_id, f"{run!r} is not in {self!r}"
                     assert run.root_ptr is None, f"{run!r} is not a root Run"
                     assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
                     handle = RunHandle(run, run._connection, lock, self)

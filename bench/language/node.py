@@ -2486,7 +2486,7 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
 
 
 @node_component()
-class StateNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
+class StateNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """A Node in a Package with a persistent identity."""
 
 
@@ -2561,7 +2561,7 @@ class HasRuntimeContext(BuiltinObject):
 
 @node_component()
 class RuntimeNode[NodeDataT: AnyNodeData](
-    HasTimeIdentity, PackageNode[NodeDataT], HasRuntimeContext, abc.ABC
+    HasTimeIdentity, BenchNode[NodeDataT], HasRuntimeContext, HasTracingContext, abc.ABC
 ):
     """A Node that exists only (conceptually) at/in a Runtime."""
 

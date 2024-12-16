@@ -20,7 +20,7 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
-from bench.language.bench import Package
+from bench.language.bench import Bench
 from bench.language.block import Block
 from bench.language.connection import ChannelUnavailableError, GetOptions, GraphEngine
 from bench.language.const import (
@@ -198,7 +198,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         ...
 
     @property
-    def request_session_parent(self) -> Package | None:
+    def request_session_parent(self) -> Bench | None:
         return None
 
     @property

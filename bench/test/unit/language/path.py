@@ -135,8 +135,8 @@ def test_parse_path_invalid(invalid_path: str):
 @pytest.fixture
 def mock_package(session: Session):
     bench = Bench(name="bench1", slug="bench")
+    session.parent = bench  # patch in the session parent
     package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
-    session.parent = package  # patch in the session parent
     session._graph.update(session, _force_update_parent=True)
     return package
 
@@ -145,8 +145,8 @@ def mock_package(session: Session):
 def mock_package_populated(session: Session):
     # make bench
     bench = Bench(name="bench1", slug="bench")
+    session.parent = bench  # patch in the session parent
     package = bench.packages.create(type=PackageType.ROOT, name="Main", slug="main")
-    session.parent = package  # patch in the session parent
     session._graph.update(session, _force_update_parent=True)
 
     # page nodes

@@ -137,12 +137,12 @@ enum NodeType {
   NODE_TYPE_STEP = 3030;
   NODE_TYPE_PIPE = 3031;
   NODE_TYPE_BADGE = 3040;
-  NODE_TYPE_MESSAGE = 3100;
-  NODE_TYPE_RECORD = 3101;
-  NODE_TYPE_SESSION = 3900;
-  NODE_TYPE_RUN = 3901;
-  NODE_TYPE_INTERRUPT = 3902;
-  NODE_TYPE_LOG = 3903;
+  NODE_TYPE_MESSAGE = 3500;
+  NODE_TYPE_RECORD = 3501;
+  NODE_TYPE_SESSION = 3600;
+  NODE_TYPE_RUN = 3601;
+  NODE_TYPE_INTERRUPT = 3602;
+  NODE_TYPE_LOG = 3603;
   NODE_TYPE_SKIP = 9000;
 }
 
@@ -247,12 +247,12 @@ enum ObjectType {
   OBJECT_TYPE_STEP = 3030;
   OBJECT_TYPE_PIPE = 3031;
   OBJECT_TYPE_BADGE = 3040;
-  OBJECT_TYPE_MESSAGE = 3100;
-  OBJECT_TYPE_RECORD = 3101;
-  OBJECT_TYPE_SESSION = 3900;
-  OBJECT_TYPE_RUN = 3901;
-  OBJECT_TYPE_INTERRUPT = 3902;
-  OBJECT_TYPE_LOG = 3903;
+  OBJECT_TYPE_MESSAGE = 3500;
+  OBJECT_TYPE_RECORD = 3501;
+  OBJECT_TYPE_SESSION = 3600;
+  OBJECT_TYPE_RUN = 3601;
+  OBJECT_TYPE_INTERRUPT = 3602;
+  OBJECT_TYPE_LOG = 3603;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_RUNTIME_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
@@ -439,12 +439,12 @@ enum BenchType {
   BENCH_TYPE_STEP = 3030;
   BENCH_TYPE_PIPE = 3031;
   BENCH_TYPE_BADGE = 3040;
-  BENCH_TYPE_MESSAGE = 3100;
-  BENCH_TYPE_RECORD = 3101;
-  BENCH_TYPE_SESSION = 3900;
-  BENCH_TYPE_RUN = 3901;
-  BENCH_TYPE_INTERRUPT = 3902;
-  BENCH_TYPE_LOG = 3903;
+  BENCH_TYPE_MESSAGE = 3500;
+  BENCH_TYPE_RECORD = 3501;
+  BENCH_TYPE_SESSION = 3600;
+  BENCH_TYPE_RUN = 3601;
+  BENCH_TYPE_INTERRUPT = 3602;
+  BENCH_TYPE_LOG = 3603;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_RUNTIME_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
@@ -2802,7 +2802,6 @@ message RecordData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -2818,7 +2817,6 @@ message RecordData {
   optional TextData text = 35;
   NodeReferenceData block_ptr = 36;
   optional google.protobuf.Value value_packed = 40;
-  NodeMode mode = 90;
 }
 
 message FileData {
@@ -2871,7 +2869,6 @@ message RunData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -3085,7 +3082,6 @@ message InterruptData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -3123,7 +3119,6 @@ message LogData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -3197,7 +3192,6 @@ message MessageData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
@@ -3218,7 +3212,6 @@ message MessageData {
   optional google.protobuf.Timestamp expires_at = 44;
   optional google.protobuf.Timestamp read_at = 45;
   bool is_pinned = 50;
-  NodeMode mode = 90;
 }
 
 message ViewData {
@@ -3379,7 +3372,6 @@ message SessionData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;

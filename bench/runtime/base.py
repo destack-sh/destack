@@ -184,6 +184,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         async with self.session(readonly=True):
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
+            self._session.parent = self._bench
             main_server = self._bench.main_server
             assert main_server, f"{self._bench!r} has no main server"
             self._client = await Client.get(id=self._client_id)
@@ -195,7 +196,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
 
             # get package
             self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, live=True)
-            self._session.parent = self._main_package
 
         # update session context
         self._session.client = self._client

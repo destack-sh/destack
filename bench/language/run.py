@@ -47,6 +47,7 @@ from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
+        Bench,
         Block,
         Breakpoint,
         Code,
@@ -55,7 +56,6 @@ if TYPE_CHECKING:
         LogInfo,
         LogLevel,
         NodeReference,
-        Package,
         Pipe,
         Step,
         TypeBase,
@@ -394,7 +394,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     """
 
     # meta
-    parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
+    parent: Union["Bench", "Run", None] = p_node_parent(4, NodeType.BENCH, NodeType.RUN)
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
