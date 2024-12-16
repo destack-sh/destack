@@ -6,7 +6,6 @@ from typing import (
     TYPE_CHECKING,
     Awaitable,
     Callable,
-    Collection,
     Iterable,
     Optional,
     Sequence,
@@ -22,8 +21,7 @@ from bench.language.connection import (
     Channel,
     ChannelUnavailableError,
     Connection,
-    GraphEngine,
-    MemoryEngine,
+    Engine,
     NullEngine,
     SplitChannel,
     scope_includes,
@@ -129,7 +127,7 @@ class Session(RuntimeNode[SessionData]):
     # connections
     _split_read: bool = p_runtime(default=False)
     _split_read_channel: Channel | None = p_runtime(default=None)
-    _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
+    _engines: tuple["Engine", ...] = p_runtime(default_factory=tuple)
     _channels: list[Channel] = p_runtime(default_factory=list)
     _connections: list[Connection] = p_runtime(default_factory=list)
 
@@ -290,16 +288,15 @@ class Session(RuntimeNode[SessionData]):
         else:
             return self._default_scope
 
-    def _get_engine_for(
+    def _get_engine(
         self,
         scope: GraphScopeData,
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool,
         include_deleted: bool,
-        best_match: Collection[NodeType] | None = None,
-    ) -> GraphEngine:
-        """Gets the appropriate engine"""
+    ) -> Engine:
+        """Gets the appropriate Engine to read/write Nodes."""
         node_types = (node_types,) if isinstance(node_types, NodeType) else tuple(node_types)
         candidate_engines = [
             engine
@@ -316,18 +313,9 @@ class Session(RuntimeNode[SessionData]):
                 f"no engine for [scope={repr_scope(scope)}, node_types={'|'.join(t.bench_name for t in node_types)}] in {self!r}"
                 f" (engines: {self._engines!r})"
             )
-        if best_match is None or len(candidate_engines) < 2:
-            return candidate_engines[0]
-        else:
-            # try to find best match (most type overlap, best first)
-            candidate_engines.sort(key=lambda e: -len([t for t in best_match if t in e.node_types]))
-            # prefer in-memory engines
-            for e in candidate_engines:
-                if isinstance(e, MemoryEngine):
-                    return e
-            return candidate_engines[0]
+        return candidate_engines[0]
 
-    async def _get_channel(self, engine: GraphEngine) -> Channel:
+    async def _get_channel(self, engine: Engine) -> Channel:
         """Gets or creates a channel"""
         for channel in self._channels:
             if channel.engine.id == engine.id:
@@ -338,7 +326,7 @@ class Session(RuntimeNode[SessionData]):
             return channel
 
     def _touch_channel(self, channel: Channel):
-        """Touch a channel to mark it as used in the current transaction."""
+        """Touch a Channel to mark it as used in the current transaction."""
         self.tx._touched_engine_ids.add(channel.engine.id)
 
     async def _get_channel_for[ChannelT: Channel](
@@ -348,23 +336,21 @@ class Session(RuntimeNode[SessionData]):
         *,
         is_readonly: bool = False,
         include_deleted: bool = False,
-        best_match: Collection[NodeType] | None = None,
         expect: type[ChannelT] = Channel,
     ) -> ChannelT:
-        """Gets or creates a store channel for a scope and node types."""
+        """Gets or creates a store Channel to read/write Nodes."""
         if is_readonly and self._split_read:
             if self._split_read_channel is None:
                 self._split_read_channel = SplitChannel(
-                    NullEngine(self._default_scope, NODE_TYPES), self
+                    NullEngine("split", self._default_scope, NODE_TYPES), self
                 )
             channel = self._split_read_channel
         else:
-            engine = self._get_engine_for(
+            engine = self._get_engine(
                 scope=scope,
                 node_types=node_types,
                 is_readonly=is_readonly,
                 include_deleted=include_deleted,
-                best_match=best_match,
             )
             channel = await self._get_channel(engine)
         if not isinstance(channel, expect):

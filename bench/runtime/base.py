@@ -153,6 +153,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._engines = (
             # global engine
             RemoteEngine(
+                name="global",
                 scope=EMPTY_SCOPE_DATA,
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
@@ -161,6 +162,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             ),
             # bench engine
             RemoteEngine(
+                name="bench",
                 scope=bench_scope,
                 node_types=BENCH_NODE_TYPES,
                 remote=self._host,

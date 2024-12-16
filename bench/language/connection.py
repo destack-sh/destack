@@ -34,7 +34,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C
 from bench.language.graph import NodeDataGraph, NodeGraph
-from bench.language.node import Node, patch_graph
+from bench.language.node import Node, patch_graph, repr_scope
 from bench.language.registry import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AggregationResultData,
@@ -75,7 +75,7 @@ class ChannelError(BenchError):
 
     def __init__(
         self,
-        medium: Union["GraphEngine", "Channel", Any],
+        medium: Union["Engine", "Channel", Any],
         query: Optional["QueryBuilder"] | Collection[EditData] = None,
         expression: Union["Expression", list["Expression"], None] = None,
         reason: str | None = None,
@@ -254,19 +254,21 @@ def origin_matches(origin: ClientOriginData, other: ClientOriginData) -> bool:
 # NOTE :Architecture :Cleanup: the whole Engine/Channel/Connection system seems convoluted
 
 
-class GraphEngine[C: "Channel"](abc.ABC):
+class Engine[C: "Channel"](abc.ABC):
     """A Graph IO service to perform IO on some subgraph."""
 
     def __init__(
         self,
+        name: str,
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
     ):
+        self.name = name
         self.scope = scope
         self.node_types = node_types
 
     def __str__(self) -> str:
-        return ""
+        return f"{self.name} [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}]"
 
     def __repr__(self):
         self_str = str(self)
@@ -297,7 +299,7 @@ class GraphEngine[C: "Channel"](abc.ABC):
         ...
 
 
-class NullEngine(GraphEngine):
+class NullEngine(Engine):
     """A null engine that does nothing."""
 
     async def channel(self, session: "Session"):
@@ -312,7 +314,7 @@ class NullEngine(GraphEngine):
         return True
 
 
-class Channel[E: GraphEngine](abc.ABC):
+class Channel[E: Engine](abc.ABC):
     """A channel to a specific Store to read from in a Session."""
 
     def __init__(self, engine: E, session: "Session"):
@@ -400,7 +402,7 @@ class CommitResultData:
     cascaded_edits: list[EditData]
 
 
-class WritableChannel[E: GraphEngine](Channel[E]):
+class WritableChannel[E: Engine](Channel[E]):
     """A channel you can write to."""
 
     #
@@ -923,24 +925,28 @@ class AggregateConnection[ChannelT: Channel](
             )
 
 
-class MemoryEngine(GraphEngine["MemoryChannel"]):
+#
+# Memory
+#
+
+
+class MemoryEngine(Engine["MemoryChannel"]):
     """A read-only engine that reads from an in-memory graph."""
 
     def __init__(
         self,
+        name: str,
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
         graph: "NodeDataGraph",
         include_deleted: bool,
     ):
-        super().__init__(scope, node_types)
+        super().__init__(name, scope, node_types)
         self.graph = graph
         self._include_deleted = include_deleted
 
     def __str__(self):
-        return (
-            f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, graph={self.graph!r}"
-        )
+        return f"'{self.name}' [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, graph={self.graph!r}]"
 
     @property
     def is_readonly(self) -> bool:
@@ -1080,8 +1086,150 @@ class SplitChannel(Channel[NullEngine]):
             raise RuntimeError(f"unsupported split read {query!r}")
 
 
+#
+# Splits
+#
+
+
 class SplitConnection(Connection):
-    # NOTE :Robustness: we handle splits by assuming the node type split is a 'clean' horizontal
+    def _get_best_match_engine(
+        self,
+        scope: GraphScopeData,
+        required_types: set[NodeType],
+        candidate_types: set[NodeType],
+        *,
+        is_readonly: bool,
+        include_deleted: bool,
+    ) -> tuple[Engine, set[NodeType]]:
+        """Get the engine with best coverage of required node types from candidates."""
+        candidate_engines = [
+            engine
+            for engine in self.session._engines
+            if (
+                (is_readonly or not engine.is_readonly)
+                and (not include_deleted or engine.include_deleted)
+                and scope_includes(engine.scope, scope)
+                and any(t in engine.node_types for t in required_types)
+            )
+        ]
+
+        if not candidate_engines:
+            types_str = "|".join(t.bench_name for t in required_types)
+            raise BenchError(
+                f"no engine for [scope={repr_scope(scope)}, node_types={types_str}] in {self!r}"
+            )
+
+        # Find engine with most overlap between required types and candidate types
+        best_engine = max(
+            candidate_engines,
+            key=lambda e: len(set(e.node_types) & required_types & candidate_types),
+        )
+        covered_types = set(best_engine.node_types) & required_types
+        return best_engine, covered_types
+
+    async def _read_descendants(
+        self,
+        scope: GraphScopeData,
+        combined_graph: NodeDataGraph,
+        remaining_types: set[NodeType],
+        query: "QueryBuilder",
+    ) -> set[NodeType]:
+        """Read descendants for nodes in the graph, returns covered types."""
+        from bench.language import QueryBuilder
+
+        engine, covered_types = self._get_best_match_engine(
+            scope,
+            remaining_types,
+            remaining_types,
+            is_readonly=True,
+            include_deleted=query.include_deleted,
+        )
+        channel = await self.session._get_channel(engine)
+
+        # descend into potential parents (for potential children)
+        nodes_by_type = group_by(combined_graph.nodes, lambda n: NodeType(n.metatype)).items()
+        for parent_type, parents in nodes_by_type:
+            # get valid child types for this parent from covered types
+            child_types = set(CHILD_NODE_TYPES[parent_type]) & covered_types
+            for child_type in child_types:
+                # get parents
+                parent_ids = [n.id for n in parents if n.id]
+                if not parent_ids:
+                    continue
+
+                # get children
+                child_cls = NODE_CLASS_BY_TYPE[child_type]
+                descendant_query = QueryBuilder(
+                    type=QueryType.SEARCH,
+                    node_type=child_type,
+                    filter=C(
+                        ConditionalType.IN,
+                        property=child_cls.get_property("parent_id"),
+                        value=parent_ids,
+                    ),
+                    descendant_types=list(set(DESCENDANT_NODE_TYPES[child_type]) & covered_types),
+                    include_deleted=query.include_deleted,
+                    select=query._select,
+                )
+                descendant_connection = await channel.search(
+                    descendant_query,
+                    SearchOptions(live=False, mode="packed", count=False),
+                )
+                combined_graph.extend(descendant_connection.result_data.graph.nodes)
+
+        return covered_types
+
+    async def _read_ancestors(
+        self,
+        scope: GraphScopeData,
+        combined_graph: NodeDataGraph,
+        remaining_types: set[NodeType],
+        query: "QueryBuilder",
+    ) -> set[NodeType]:
+        """Read ancestors for roots in the graph, returns covered types."""
+
+        from bench.language import NodeReference, QueryBuilder
+        from bench.proto import wiring
+
+        # get parent references from roots
+        inner_roots = combined_graph.find_roots()
+        inner_roots_parents = tuple(n.parent_ptr for n in inner_roots if n.parent_ptr.id)
+        if not inner_roots_parents:
+            return set()
+
+        # get best engine for remaining ancestors
+        engine, covered_types = self._get_best_match_engine(
+            scope,
+            remaining_types,
+            remaining_types,
+            is_readonly=True,
+            include_deleted=query.include_deleted,
+        )
+        channel = await self.session._get_channel(engine)
+
+        # get parents by type
+        inner_roots_parents_by_type = group_by(
+            inner_roots_parents, lambda n: NodeType(n.node_type)
+        ).items()
+        for parent_type, parents in inner_roots_parents_by_type:
+            if parent_type not in covered_types:
+                continue
+
+            ancestor_query = QueryBuilder(
+                type=QueryType.GET,
+                node_type=parent_type,
+                roots=[
+                    wiring.unpack_builtin_object(p, supergraph=None, expect=NodeReference)
+                    for p in parents
+                ],
+                ancestor_types=list(covered_types),
+                include_deleted=query.include_deleted,
+                select=query._select,
+            )
+            ancestor_connection = await channel.get(ancestor_query, self.options)
+            combined_graph.extend(ancestor_connection.result_data.graph.nodes)
+
+        return covered_types
 
     async def _do_read_remainder(
         self,
@@ -1089,91 +1237,38 @@ class SplitConnection(Connection):
         initial_result: GetResultData | SearchResultData,
         initial_types: Collection[NodeType],
     ) -> NodeDataGraph:
-        """Fetch the surrounding ancestor/descendant nodes for a split query."""
-        from bench.language import NodeReference, QueryBuilder
-        from bench.proto import wiring
-
-        remaining_ancestors_types = [t for t in query._ancestor_types if t not in initial_types]
-        remaining_descendants_types = [t for t in query._descendant_types if t not in initial_types]
-        if not remaining_ancestors_types and not remaining_descendants_types:
-            return initial_result.graph  # nothing more to read (full result)
+        """Fetch the surrounding ancestor/descendant nodes for a split Query."""
 
         combined_graph = NodeDataGraph(
             scope=self.scope,
             node_types=tuple(query.all_node_types),
             nodes=initial_result.graph.nodes,
         )
-        inner_roots = combined_graph.find_roots()
-        if not inner_roots:
-            return initial_result.graph  # nothing more to read (empty graph)
+        remaining_ancestors = set(query._ancestor_types or ()) - set(initial_types)
+        remaining_descendants = set(query._descendant_types or ()) - set(initial_types)
 
-        # select down for each potential parent in all nodes
-        if remaining_descendants_types:
-            remaining_descendants_types = bittuple(*remaining_descendants_types)
-            bench = first((n for n in combined_graph.nodes if isinstance(n, BenchData)), None)
-            descendants_scope = GraphScopeData(bench_id=bench.id) if bench else self.scope
-            inner_nodes_by_type = group_by(combined_graph.nodes, lambda n: NodeType(n.metatype))
-            descendants_engine = self.session._get_engine_for(
-                descendants_scope,
-                remaining_descendants_types,
-                include_deleted=query.include_deleted,
-                is_readonly=True,
-            )
-            descendants_channel = await self.session._get_channel(descendants_engine)
-            for parent_type, parents in inner_nodes_by_type.items():
-                child_types = remaining_descendants_types & CHILD_NODE_TYPES[parent_type]
-                for child_type in child_types:
-                    child_cls = NODE_CLASS_BY_TYPE[child_type]
-                    descendant_types = (
-                        remaining_descendants_types & DESCENDANT_NODE_TYPES[child_type]
-                    )
-                    parent_ids = [n.id for n in parents if n.id]
-                    descendant_query = QueryBuilder(
-                        type=QueryType.SEARCH,
-                        node_type=child_type,
-                        filter=C(
-                            ConditionalType.IN,
-                            property=child_cls.get_property("parent_id"),
-                            value=parent_ids,
-                        ),
-                        descendant_types=list(descendant_types),
-                        include_deleted=query.include_deleted,
-                        select=query._select,
-                    )
-                    descendant_connection = await descendants_channel.search(
-                        descendant_query, SearchOptions(live=False, mode="packed", count=False)
-                    )
-                    combined_graph.extend(descendant_connection.result_data.graph.nodes)
+        # read until there is no more to read
+        while remaining_ancestors or remaining_descendants:
+            if not combined_graph.find_roots():
+                break
 
-        # select up for each parent in current roots
-        if remaining_ancestors_types:
-            inner_roots_parents = tuple(n.parent_ptr for n in inner_roots if n.parent_ptr.id)
-            inner_roots_parents_by_type = group_by(
-                inner_roots_parents, lambda n: NodeType(n.node_type)
-            )
-            ancestor_engine = self.session._get_engine_for(
-                self.scope,
-                remaining_ancestors_types,
-                include_deleted=query.include_deleted,
-                is_readonly=True,
-            )
-            ancestor_channel = await self.session._get_channel(ancestor_engine)
-            for parent_type, parents in inner_roots_parents_by_type.items():
-                if parent_type not in remaining_ancestors_types:
-                    continue
-                ancestor_query = QueryBuilder(
-                    type=QueryType.GET,
-                    node_type=parent_type,
-                    roots=[
-                        wiring.unpack_builtin_object(p, supergraph=None, expect=NodeReference)
-                        for p in parents
-                    ],
-                    ancestor_types=remaining_ancestors_types,
-                    include_deleted=query.include_deleted,
-                    select=query._select,
+            # Handle descendants first to build up the graph from the bottom
+            if remaining_descendants:
+                bench = first((n for n in combined_graph.nodes if isinstance(n, BenchData)), None)
+                descendants_scope = GraphScopeData(bench_id=bench.id) if bench else self.scope
+                covered = await self._read_descendants(
+                    descendants_scope, combined_graph, remaining_descendants, query
                 )
-                ancestor_connection = await ancestor_channel.get(ancestor_query, self.options)
-                combined_graph.extend(ancestor_connection.result_data.graph.nodes)
+                remaining_descendants -= covered
+
+            # Then handle ancestors
+            if remaining_ancestors:
+                covered = await self._read_ancestors(
+                    self.scope, combined_graph, remaining_ancestors, query
+                )
+                if not covered:
+                    break  # No more parents to traverse
+                remaining_ancestors -= covered
 
         return combined_graph
 
@@ -1183,17 +1278,17 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
 
     @override
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
-        # first trim query to nucleus around core node type (use best match)
-        engine = self.session._get_engine_for(
+        # search engine for initial query
+        engine, covered_types = self._get_best_match_engine(
             self.scope,
-            query._node_type,
-            best_match=self.node_types,
-            include_deleted=query.include_deleted,
+            {query._node_type},
+            set(query.all_node_types),
             is_readonly=True,
+            include_deleted=query.include_deleted,
         )
         channel = await self.session._get_channel(engine)
         connection = await channel.search(
-            query.trim_to(engine.node_types),
+            query.trim_to(covered_types),
             SearchOptions(live=False, mode="packed", count=self.options.count),
         )
         result = connection.result_data
@@ -1201,7 +1296,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
             return result  # nothing more to read
 
         # combine (keeping the 'roots' from the initial result)
-        combined_graph = await self._do_read_remainder(query, result, engine.node_types)
+        combined_graph = await self._do_read_remainder(query, result, covered_types)
         combined_result = SearchResultData(
             graph=combined_graph,
             roots=result.roots,
@@ -1218,24 +1313,24 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
 
     @override
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
-        # first trim query to nucleus around core node type (use best match)
-        engine = self.session._get_engine_for(
+        # get engine for initial query
+        engine, covered_types = self._get_best_match_engine(
             self.scope,
-            query._node_type,
-            best_match=self.node_types,
-            include_deleted=query.include_deleted,
+            {query._node_type},
+            set(query.all_node_types),
             is_readonly=True,
+            include_deleted=query.include_deleted,
         )
         channel = await self.session._get_channel(engine)
         connection = await channel.get(
-            query.trim_to(engine.node_types), GetOptions(live=False, mode="packed")
+            query.trim_to(covered_types), GetOptions(live=False, mode="packed")
         )
         result = connection.result_data
         if not query._ancestor_types and not query._descendant_types:
             return result  # nothing more to read
 
         # combine (keeping the 'roots' from the initial result)
-        combined_graph = await self._do_read_remainder(query, result, engine.node_types)
+        combined_graph = await self._do_read_remainder(query, result, covered_types)
         combined_result = GetResultData(
             graph=combined_graph,
             roots_ptr=result.roots_ptr,

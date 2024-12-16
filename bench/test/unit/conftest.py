@@ -65,11 +65,11 @@ def event_loop_policy():
 def create_omni_session(omni_store: Store, oracle: Oracle):
     """Gets direct access to a per test global engine"""
 
-    global_pg_engine = pg_engine_from_store(omni_store, area=None)
+    omni_pg_engine = pg_engine_from_store(name="pg-omni", store=omni_store, area=None)
     session = Session(
         parent=None,
         _default_scope=EMPTY_SCOPE_DATA,
-        _engines=(global_pg_engine,),
+        _engines=(omni_pg_engine,),
         _local_epoch=0,
         _oracle=oracle,
         _supergraph=NodeSuperGraph(root_ptr=None),
@@ -94,7 +94,7 @@ def make_session(name: str):
     supergraph = NodeSuperGraph(root_ptr=None)
     graph = NodeGraph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
     session = Session(
-        _engines=(NullEngine(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
+        _engines=(NullEngine(name="fake", scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES),),
         _supergraph=supergraph,
         _graph=graph,
         _oracle=REAL_ORACLE,
@@ -191,8 +191,14 @@ NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES]
 def create_global_session(global_store: Store, regional_store: Store, oracle: Oracle):
     """Gets direct access to a per test global engine"""
 
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
-    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    global_pg_engine = pg_engine_from_store(
+        name="pg-global", store=global_store, area=NodeArea.GLOBAL
+    )
+    regional_pg_engine = pg_engine_from_store(
+        name=f"pg-regional-{regional_store.region.name.lower()}",
+        store=regional_store,
+        area=NodeArea.REGIONAL,
+    )
     session = Session(
         parent=None,
         _default_scope=EMPTY_SCOPE_DATA,
@@ -436,6 +442,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     )
     engines = (
         RemoteEngine(
+            name="remote-bench",
             scope=GraphScope(bench_id=hosted_bench.id)._to_data(),
             node_types=BENCH_NODE_TYPES,
             remote=host,

@@ -28,9 +28,11 @@ async def shell(area: NodeArea, bench: Optional[str] = None):  # type: ignore
     )
 
     global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     regional_store = regional_store_from_env()
-    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    regional_pg_engine = pg_engine_from_store(
+        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    )
 
     if area == NodeArea.GLOBAL:
         store = global_store

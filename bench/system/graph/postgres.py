@@ -14,10 +14,10 @@ from bench.language.connection import (
     CommitResultData,
     Connection,
     ConnectionOptions,
+    Engine,
     FlushResultData,
     GetConnection,
     GetResultData,
-    GraphEngine,
     SearchConnection,
     SearchResultData,
     WritableChannel,
@@ -49,25 +49,25 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class PostgresEngine(GraphEngine):
+class PostgresEngine(Engine):
     """An engine that talks directly to a Postgres store."""
 
     def __init__(
         self,
+        name: str,
         store: "Store",
         bench: "Bench",
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
         context: SqlContext,
     ):
-        super().__init__(scope, node_types)
+        super().__init__(name, scope, node_types)
         self.store = store
         self.bench = bench
         self.context = context
 
     def __str__(self):
-        scope_str = repr_scope(self.scope)
-        return f"scope={scope_str}, node_types={repr_enums(self.node_types)}, store={self.store!r}"
+        return f"{self.name!r}, [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, store={self.store!r}]"
 
     @override
     async def channel(self, session: "Session") -> "PostgresChannel":

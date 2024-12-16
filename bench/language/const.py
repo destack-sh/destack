@@ -1289,6 +1289,7 @@ CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")
 REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
 REGION_ZONE = REGION.zone
 REGION_AREA = REGION.area
+TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
 
 
 class BenchError(Exception):

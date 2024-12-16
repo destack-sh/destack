@@ -42,9 +42,11 @@ async def bootstrap(region: Region = Region.ZURICH):
     )
 
     global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     regional_store = regional_store_from_env(region=region)
-    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    regional_pg_engine = pg_engine_from_store(
+        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    )
     async with global_session(
         global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:
@@ -93,9 +95,11 @@ async def make_machine_client(bench_slug: str, title: str = "Localhost"):
     )
 
     global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store, NodeArea.GLOBAL)
+    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
     regional_store = regional_store_from_env()
-    regional_pg_engine = pg_engine_from_store(regional_store, NodeArea.REGIONAL)
+    regional_pg_engine = pg_engine_from_store(
+        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+    )
     async with global_session(
         global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:

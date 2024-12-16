@@ -22,7 +22,7 @@ from bench.language.access import (
 )
 from bench.language.bench import Bench
 from bench.language.block import Block
-from bench.language.connection import ChannelUnavailableError, GetOptions, GraphEngine
+from bench.language.connection import ChannelUnavailableError, Engine, GetOptions
 from bench.language.const import (
     BASED_NODE_TYPES,
     NODE_TYPES,
@@ -167,7 +167,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self._graph_lock = GraphLock()
 
     @abc.abstractmethod
-    def get_engines(self) -> tuple[GraphEngine, ...]:
+    def get_engines(self) -> tuple[Engine, ...]:
         """Gets the graph engines available to this subgraph."""
         ...
 
@@ -210,7 +210,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self,
         supergraph: NodeSuperGraph,
         *,
-        engines: tuple[GraphEngine, ...] | None = None,
+        engines: tuple[Engine, ...] | None = None,
         readonly: bool = True,
         raw_commit: bool = False,
     ):

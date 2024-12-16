@@ -13,10 +13,10 @@ from bench.language.connection import (
     CommitResultData,
     Connection,
     ConnectionOptions,
+    Engine,
     FlushResultData,
     GetConnection,
     GetResultData,
-    GraphEngine,
     SearchConnection,
     SearchResultData,
     WatchGetUpdateData,
@@ -25,7 +25,7 @@ from bench.language.connection import (
 )
 from bench.language.const import NodeType, QueryType
 from bench.language.graph import NodeDataGraph
-from bench.language.node import Node
+from bench.language.node import Node, repr_scope
 from bench.language.query import QueryBuilder
 from bench.language.session import Session
 from bench.proto.services import unary_stream_rpc
@@ -47,18 +47,19 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class RemoteEngine(GraphEngine["RemoteChannel"]):
+class RemoteEngine(Engine["RemoteChannel"]):
     """An engine that proxies to a remote graph store."""
 
     def __init__(
         self,
+        name: str,
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
         remote: GraphIOClient | HostClient | SupervisorClient,
         rpc_metadata: RpcMetadata,
         write_retry: RetryOptions = RETRY_GRPC,
     ):
-        super().__init__(scope, node_types)
+        super().__init__(name, scope, node_types)
         from bench.proto.wiring import pack_rpc_headers
 
         self.remote = remote
@@ -67,7 +68,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
         self.write_retry = write_retry
 
     def __str__(self):
-        return f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, remote={self.remote.__class__.__name__}"
+        return f"{self.name} [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, remote={self.remote.__class__.__name__}]"
 
     @override
     async def channel(self, session: "Session") -> "RemoteChannel":
