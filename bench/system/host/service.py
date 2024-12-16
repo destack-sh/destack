@@ -196,7 +196,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
 
     def global_session(self, readonly: bool = False):
         return global_session(
-            node=self.bench,
+            node=None,
             engines=(self._global_pg_engine_unscoped, self._regional_pg_engine_unscoped),
             supergraph=self._supergraph,
             oracle=self.oracle,

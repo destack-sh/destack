@@ -8,7 +8,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Client, Server, User
+from bench.language import Client, User
 from bench.language.bench import Bench
 from bench.language.query import NodeNotFoundError
 from bench.utils.env import IS_DEV
@@ -119,7 +119,7 @@ async def _do_get_client(client_id: UUID) -> Client:
     try:
         client: Client = (
             await Client.include(User.get_property("email"), Client.get_property("access_token"))
-            .include_ancestors(User, Server, Bench)
+            .include_ancestors(User, Bench)
             .get(id=client_id)
         )
         client._untrack_rec()

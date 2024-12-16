@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from grpclib import Status as GRPCStatus
 
-from bench.language import NodeReference, SelectOptions, User
+from bench.language import NodeReference, SelectOptions, Store, User
 from bench.language.node import EMPTY_SCOPE_DATA
 from bench.language.property import Property
 from bench.proto import wire
@@ -20,7 +20,7 @@ from bench.proto.wire import (
 )
 from bench.proto.wiring import pack_rpc_headers
 from bench.system.supervisor.service import SupervisorService
-from bench.system.utils.sharding import HostMap
+from bench.system.utils.sharding import HostMap, StoreMap
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.transport import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
@@ -31,8 +31,10 @@ from bench.utils.oracle import REAL_ORACLE
 
 
 @pytest.fixture
-async def supervisor_service(global_store):
-    supervisor_service = SupervisorService(global_store, REAL_ORACLE, HostMap({}))
+async def supervisor_service(global_store: Store, regional_store: Store):
+    supervisor_service = SupervisorService(
+        global_store=global_store, oracle=REAL_ORACLE, host_map=HostMap({}), store_map=StoreMap({})
+    )
     await supervisor_service.start()
     yield supervisor_service
     supervisor_service.close()

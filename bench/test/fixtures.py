@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 
 # ruff: noqa: E402
+from urllib.parse import urlparse
 from uuid import UUID
 
 import grpclib
@@ -19,7 +20,7 @@ from bench.language.bench import Bench
 from bench.language.const import NodeType, Region
 from bench.language.graph import NodeSuperGraph
 from bench.language.validation import clean_name
-from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, get_pg_pool, pg_connection
+from bench.sql.client import get_pg_pool, pg_connection
 from bench.sql.core import ALL_EXTENSIONS, Schema, Table
 from bench.sql.graph import (
     BENCH_RECORD_TABLE_PREFIX,
@@ -46,9 +47,10 @@ tracer = trace.get_tracer(__name__)
 def make_global_store(name: str):
     """Creates a global store for testing.."""
 
-    host = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
-    username = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
-    password = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
+    pg = get_from_env("GLOBAL_PG", description="Global Postgres connection string")
+    pg_url, pg_crypto_key = pg.split("|", maxsplit=1)
+    pg_url_parsed = urlparse(pg_url)
+    pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
@@ -57,7 +59,7 @@ def make_global_store(name: str):
         name="System",
         slug="system",
         region=Region.ZURICH,
-        encryption_key=GLOBAL_PG_CRYPTO_KEY,
+        encryption_key=pg_crypto_key,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
@@ -67,7 +69,7 @@ def make_global_store(name: str):
         name=name,
         version=VERSION,
         external_name=name,
-        connection_uri=f"postgresql://{username}:{password}@{host}/{name}",
+        connection_uri=pg_url,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
@@ -78,9 +80,10 @@ def make_global_store(name: str):
 def make_regional_store(name: str):
     """Creates a regional store for testing."""
 
-    host = get_from_env("REGIONAL_PG_HOST", description="Regional Postgres host")
-    username = get_from_env("REGIONAL_PG_USERNAME", description="Regional Postgres username")
-    password = get_from_env("REGIONAL_PG_PASSWORD", description="Regional Postgres password")
+    pg = get_from_env("GLOBAL_PG", description="Regional Postgres connection string")
+    pg_url, pg_crypto_key = pg.split("|", maxsplit=1)
+    pg_url_parsed = urlparse(pg_url)
+    pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
@@ -89,7 +92,7 @@ def make_regional_store(name: str):
         name="System",
         slug="system",
         region=Region.ZURICH,
-        encryption_key=GLOBAL_PG_CRYPTO_KEY,
+        encryption_key=pg_crypto_key,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
@@ -99,7 +102,7 @@ def make_regional_store(name: str):
         name=name,
         version=VERSION,
         external_name=name,
-        connection_uri=f"postgresql://{username}:{password}@{host}/{name}",
+        connection_uri=pg_url,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
