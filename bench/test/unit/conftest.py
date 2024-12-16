@@ -376,11 +376,13 @@ async def hosted_bench(global_store: Store, regional_store: Store):
             title="Server",
             type=ClientType.BENCH_MACHINE,
             access_token="server",
+            server=server,
             _is_new=True,  # force create
         )
-        session._create(server_client)
         machine = Machine(parent=server, title="Machine1", cpu=0.5, ram=0.5, client=server_client)
         session._create(machine)
+        server_client.machine = machine
+        session._create(server_client)
         await session.flush(optimistic=True)
         user.main_bench = bench
         await session.commit()
@@ -429,7 +431,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     assert isinstance(machine, Machine), f"unexpected machine: {machine!r}"
 
     # get server client
-    client = next(iter(server._graph.get_descendants(server, NodeType.CLIENT)))
+    client = next(iter(server._graph.get_descendants(hosted_bench, NodeType.CLIENT)))
     assert isinstance(client, Client), f"unexpected client: {client!r}"
     client_data = client._to_data()
     assert client_data.access_token, f"no access token for {client!r}"

@@ -250,8 +250,8 @@ class HostService(GraphIoServiceBase, Host, HostBase):
                     owned = [client.parent]
                 is_staff = client.parent.is_staff
                 user = client.parent
-            elif isinstance(client.parent, Server):
-                server = client.parent
+            elif isinstance(client.parent, Bench):
+                server = client.server
                 owned = [self._bench]  # NOTE :Robustness: Machines own their Benches for now
             else:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client parent")
@@ -309,7 +309,9 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             assert tmp_bench.main_store, f"{tmp_bench!r} has no main store"
             tmp_bench._untrack_rec()
             session._engines += (
-                local_pg_engine_from_store(name="pg-local", store=tmp_bench.main_store),
+                local_pg_engine_from_store(
+                    name=f"pg-local-{tmp_bench.slug}", store=tmp_bench.main_store
+                ),
             )
 
             # load full bench
@@ -349,7 +351,7 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             context=database_plugin.context,
         )
         self._local_pg_engine = PostgresEngine(
-            name="pg-local",
+            name=f"pg-local-{self._bench.slug}",
             store=self._bench.main_store,
             bench=self._bench,
             scope=self._scope,
@@ -561,9 +563,10 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             epoch=self.epoch,
         )
         for plugin in self._plugins:
-            plugin_new_edits = await plugin.on_commit_prepare(session, commit)
-            if plugin_new_edits:
-                new_edits.extend(plugin_new_edits)
+            if plugin.watch_types is None or commit.edited_types & plugin.watch_types:
+                plugin_new_edits = await plugin.on_commit_prepare(session, commit)
+                if plugin_new_edits:
+                    new_edits.extend(plugin_new_edits)
 
         return new_edits
 

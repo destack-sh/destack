@@ -296,11 +296,11 @@ class NodeType(IdEnum):
 
     @property
     def is_state(self) -> bool:
-        return self.id >= 3100 and self.id < 3200
+        return self.id >= 3500 and self.id < 3600
 
     @property
     def is_runtime(self) -> bool:
-        return self.id >= 3900 and self.id < 4000
+        return self.id >= 3600 and self.id < 3700
 
 
 # :NodeTypes
