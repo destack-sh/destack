@@ -204,31 +204,32 @@ def test_builtin_object_clone(obj: BuiltinObject, shared_session: Session):
     assert obj_clone.equals(obj)
 
 
-async def test_add_detached_subtree(local_runtime: RuntimeHandle):
+async def test_add_detached_subtree(hosted_runtime: RuntimeHandle):
     choice = Block.new(BlockType.CHOICE, "Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
         choice.fields.append(Field.option(letter))
-    local_runtime.page().blocks.append(choice)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(choice)
+    await hosted_runtime.commit()
 
 
-async def test_clone_subtree(local_runtime: RuntimeHandle):
+async def test_clone_subtree(hosted_runtime: RuntimeHandle):
+    """Clone a Node subtree."""
     choice = Block.new(BlockType.CHOICE, "Letter")
     for i in range(0, 26):
         letter = chr(65 + i)
         choice.fields.append(Field.option(letter))
-    local_runtime.page().blocks.append(choice)
-    await local_runtime.commit()
+    hosted_runtime.page().blocks.append(choice)
+    await hosted_runtime.commit()
 
     choice_clone = choice.clone()
     assert choice_clone.equals(choice)
     for field, field_clone in zip(choice.fields, choice_clone.fields):
         assert field_clone.equals(field)
-    await local_runtime.commit()
+    await hosted_runtime.commit()
 
 
-async def test_clone_consistency(local_runtime: RuntimeHandle):
+async def test_clone_consistency(hosted_runtime: RuntimeHandle):
     """Clone consistency test with references."""
     choice = Block.new(BlockType.CHOICE, "Letter", fields=[Field.option("A"), Field.option("B")])
     action = Block.new(
@@ -236,18 +237,62 @@ async def test_clone_consistency(local_runtime: RuntimeHandle):
         "Action",
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
-    local_runtime.page().append(choice)
-    local_runtime.page().append(action)
-    await local_runtime.commit()
+    hosted_runtime.page().append(choice)
+    hosted_runtime.page().append(action)
+    await hosted_runtime.commit()
 
     # references should be consistent within new subtree
-    page_clone = local_runtime.page().clone()
+    page_clone = hosted_runtime.page().clone()
     choice_clone = page_clone.blocks.get("Letter")
     assert choice_clone is not None
     action_clone = page_clone.blocks.get("Action")
     assert action_clone is not None
     assert action_clone.fields.Choice.base_type == choice_clone
-    await local_runtime.commit()
+    await hosted_runtime.commit()
+
+
+async def test_move_subtree(hosted_runtime: RuntimeHandle):
+    """Move Nodes between parents (within a Package)."""
+    Page1 = hosted_runtime.page("Page1")
+    Page2 = hosted_runtime.page("Page2")
+    Block1 = Page1.blocks.append(
+        Block.new(BlockType.CHOICE, "Block1", fields=[Field.option("A"), Field.option("B")])
+    )
+    Block2 = Page1.blocks.append(
+        Block.new(
+            BlockType.ACTION,
+            "Block2",
+            fields=[Field.input("Text", Text), Field.output("Choice", Block1)],
+        )
+    )
+    Block3 = Page1.blocks.append(
+        Block.new(BlockType.DATABASE, "Block3", fields=[Field.member("Text", Text)])
+    )
+    await hosted_runtime.commit()
+
+    # can't just append directly
+    with pytest.raises(ValueError):
+        Page2.append(Block3)
+
+    # move Block1 to Page2
+    Block1.move(to=Page2)
+    await hosted_runtime.commit()
+    assert Page1.blocks == [Block2, Block3]
+    assert Page2.blocks == [Block1]
+
+    # move Block1 back to Page1
+    Block1.move(to=Page1)
+    await hosted_runtime.commit()
+    assert Page1.blocks == [Block2, Block3, Block1]
+    assert Page2.blocks == []
+
+    # move all blocks to Page2
+    Block1.move(to=Page2)
+    Block2.move(to=Page2)
+    Block3.move(to=Page2)
+    await hosted_runtime.commit()
+    assert Page1.blocks == []
+    assert Page2.blocks == [Block1, Block2, Block3]
 
 
 @pytest.mark.skip("NOTE :Robustness: check circular node ancestry")

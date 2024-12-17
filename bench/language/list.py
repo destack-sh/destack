@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         Field,
         Node,
         NodeReference,
+        PackageNode,
         Property,
         QueryBuilder,
         Struct,
@@ -82,46 +83,69 @@ class NodeList[V: Node](abc.ABC):
         self.append(node)
         return node
 
-    def append(self, node: V) -> V:
-        """Attaches a child node to a parent through a list."""
+    def append(self, node: V, move: bool = False) -> V:
+        """Attaches a child node to a parent through a list. If move, may be re-attached."""
         parent = self._parent
-        if node.parent is not None:
-            if node.parent is not parent:
+        old_parent = node.parent
+
+        # check node
+        if old_parent is not None and old_parent != parent:
+            # move
+            if not move:
                 raise ValueError(f"cannot attach {node!r} to {self!r}: attached to {node.parent!r}")
-        else:
+            if node.__is_in_package__:  # must be in same package
+                # NOTE :Incomplete: support cross-package moves
+                #  (would have to move descendants and update their .package_ptr?)
+                pkg = cast("PackageNode", node).package
+                assert (
+                    cast("PackageNode", parent).package == pkg
+                ), f"cannot move {node!r} to {parent!r}"
+            if node.__is_in_bench__:  # must be in same bench
+                bench = cast("BenchNode", node).bench
+                assert (
+                    cast("BenchNode", parent).bench == bench
+                ), f"cannot move {node!r} to {parent!r}"
             node.parent = parent
+        else:
+            # create
+            move = False  # not actually a move
+            node.parent = parent
+            if self._node._session is not None:  # validate
+                node._validate_self((), invalid=on_invalid_raise)
 
-        # validate
-        if self._node._session is not None:
-            node._validate_self((), invalid=on_invalid_raise)
-
-        # add node (and descendants) to this parent's graph
+        # move node (and descendants) to this parent's graph
         new_graph = parent._graph
         if node._graph is not new_graph:
             old_graph = node._graph
             assert new_graph.supergraph.has(
                 node._graph.supergraph
             ), f"{node!r} not in same supergraph as {self!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
-            added = node._graph.get_descendants(node, recursive=True)
-            added = (node, *added)
-            for n in added:
+            moved = node._graph.get_descendants(node, recursive=True)
+            moved = (node, *moved)
+            for n in moved:
                 new_graph.add(n)
                 n._graph = new_graph
             new_graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
         else:
-            added = (node,)  # already in the graph
+            moved = (node,)  # already in the graph
+            new_graph.update(node)
 
-        # 'create' node in session if it's attached
-        if parent._session and parent.is_attached:
-            parent._session._create(*added)
-            parent._session.track_many(*added)
+        # actually move/create in session
+        if parent._session is not None:
+            if move:
+                assert old_parent is not None
+                parent._session._move(node, old_parent=old_parent, new_parent=parent)
+            elif parent.is_attached:
+                # 'create' node in session if it's attached
+                parent._session._create(*moved)
+                parent._session.track_many(*moved)
 
         return node
 
-    def extend(self, *nodes: V):
+    def extend(self, *nodes: V, move: bool = False):
         """Attaches a list of child nodes to a parent. See append."""
         for node in nodes:
-            self.append(node)
+            self.append(node, move=move)
 
     def remove(self, node: V):
         """Removes a child node from a parent. See append for reverse."""
@@ -157,8 +181,10 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
         return super().create(**kwargs)
 
     @override
-    def append(self, node: V, after: V | None = None, before: V | None = None) -> V:
-        super().append(node)
+    def append(
+        self, node: V, move: bool = False, after: V | None = None, before: V | None = None
+    ) -> V:
+        super().append(node, move=move)
         # assign order key to ordered nodes
         if hasattr(node, "order_key"):
             ok = get_order_key(*get_key_bounds(self.nodes, after, before))
@@ -296,8 +322,8 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         return super().create(**kwargs)
 
     @override
-    def append(self, node: V) -> V:
-        node = super().append(node)
+    def append(self, node: V, move: bool = False) -> V:
+        node = super().append(node, move=move)
         # automatically associate the node with the block
         if (
             "block" in self._child_node_cls.__properties__
@@ -409,11 +435,15 @@ class ValueList(list, Generic[ValueParentT]):
             isinstance(parent_key, Property) and parent_key.is_property_reference
         )
 
-    def append(self, item: ValueT, after: ValueT | None = None, before: ValueT | None = None):  # type: ignore
+    def append(
+        self,
+        item: ValueT,
+        after: ValueT | None = None,
+        before: ValueT | None = None,
+    ) -> None:
         if not self.is_property_reference:
             item = item._move_to(self.parent, self.parent_key)  # type: ignore
         super().append(item)
-        return item
 
     def extend(self, items: Collection[ValueT]):  # type: ignore
         super().extend(items)

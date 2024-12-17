@@ -296,10 +296,13 @@ class Transaction:
         # peephole optimization for successive updates to same node:
         #  if the last edit was also an update to the same node, merge immediately
         if (
-            type == EditType.UPDATE
+            (type == EditType.UPDATE or type == EditType.MOVE)
             and len(self._pending_edit_events) > 0
             and self._pending_edit_events[-1].node.id == node.id
-            and self._pending_edit_events[-1].type == EditType.UPDATE
+            and (
+                self._pending_edit_events[-1].type == EditType.UPDATE
+                or self._pending_edit_events[-1].type == EditType.MOVE
+            )
         ):
             prev_edit = self._pending_edit_events[-1]
             assert prev_edit.operations is not None, f"missing operations for {prev_edit!r}"

@@ -63,6 +63,7 @@ from bench.proto.wire import (
     RuntimeContextData,
     SessionData,
     SupervisorClient,
+    lang_pb2,
 )
 from bench.proto.wire.lang_pb2 import EditOperationData
 from bench.utils.func import async_shield, uuid_to_str
@@ -480,7 +481,7 @@ class Session(RuntimeNode[SessionData]):
         return self._context_data
 
     def _create(self, *nodes: Node):
-        """Creates a new node. Errors if the node already exists."""
+        """Creates a new node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -491,7 +492,7 @@ class Session(RuntimeNode[SessionData]):
                 self._tx.record_edit_event(EditType.CREATE, node)
 
     def _upsert(self, *nodes: Node):
-        """Creates or updates a node. Any non-id properties will be overwritten."""
+        """Creates or updates a node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -507,15 +508,40 @@ class Session(RuntimeNode[SessionData]):
         node: Node,
         operation: EditOperationData | None = None,
     ):
-        """Updates an existing node. Cannot move. The given properties are overwritten."""
+        """Updates an existing node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node.is_attached:  # ignore detached updates
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
 
+    def _move(self, node: Node, old_parent: Node, new_parent: Node):
+        """Moves a node to a new parent. The operation *is not* applied directly."""
+        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
+        if node.is_attached:
+            from bench.language.value import pack_value
+            from bench.proto.wiring import pack_proto_json
+
+            parent_property = node.__parent_property__
+            assert parent_property is not None, f"{node!r} has no parent property"
+            parent_typ = parent_property._type_info
+            assert parent_typ is not None, f"{parent_property!r} has no type info"
+
+            self._pending_nodes_by_id[node.id] = node
+            old_value_packed = pack_value(old_parent.to_ref(), parent_typ, wrap_scalar=False)
+            new_value_packed = pack_value(new_parent.to_ref(), parent_typ, wrap_scalar=False)
+            operation = EditOperationData(
+                metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
+                type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
+                path=[parent_property.key],
+                new_value_packed=pack_proto_json(new_value_packed),
+                old_value_packed=pack_proto_json(old_value_packed),
+            )
+            self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
+
     def _delete(self, *nodes: Node):
-        """Deletes a node with the option to recover it for a limited time."""
+        """Deletes a node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -533,7 +559,7 @@ class Session(RuntimeNode[SessionData]):
             node._graph.remove(node)
 
     def _restore(self, *nodes: Node):
-        """Restore a deleted node."""
+        """Restores a deleted node. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
@@ -548,7 +574,7 @@ class Session(RuntimeNode[SessionData]):
             node._graph.add(node)
 
     def _erase(self, *nodes: Node):
-        """Irreversibly wipe a node and its descendants from the graph."""
+        """Erases a node and its descendants from the graph. The operation *is* applied directly."""
         assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
         assert (
             not self._is_readonly and not self._is_suspended
