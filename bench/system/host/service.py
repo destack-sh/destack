@@ -536,12 +536,20 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> Sequence[EditData]:
-        new_edits: list[EditData] = []
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # optimistically apply commit (to in-memory unpacked only)
         self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="unpacked")
+        # replace copied source nodes in the temporary 'graph' with our loaded originals
+        #  (this ensure that we have all the descendants for source nodes loaded)
+        for copied_node in graph.nodes:
+            original_node = self._main_package._graph.get(copied_node.id)
+            if original_node is not None:
+                graph.update(original_node)
 
         # run plugins
+        new_edits: list[EditData] = []
         commit = unpack_commit(
             session=session,
             graph=graph,
