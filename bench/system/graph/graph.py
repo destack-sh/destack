@@ -375,7 +375,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             flat_edits = edit_data_graph(
                 graph=data_graph, edits=edits, include_deleted=True, is_prepass=True
             )
-            assert flat_edits and len(flat_edits) == len(edits), f"{flat_edits} != {edits}"
+            assert flat_edits and len(flat_edits) == len(edits), f"{flat_edits!r} != {edits!r}"
             unpacked_graph = wiring.unpack_node_graph(
                 data_graph, supergraph=subject._supergraph, parent=None, session=session
             )

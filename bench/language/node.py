@@ -2697,7 +2697,10 @@ class NodeReference(Struct[NodeReferenceData]):
         if self.base_ck is not None:
             content_parts.append(f"base_ck={self.base_ck}")
         if self.base_bench_id is not None:
-            content_parts.append(f"base_bench_id={self.base_bench_id}")
+            if self.base_bench_id == self.bench_id:
+                content_parts.append("base_bench_id=bench_id")
+            else:
+                content_parts.append(f"base_bench_id={self.base_bench_id}")
         selector_str = ", ".join(content_parts)
         return f"{self.node_type.bench_name}:[{selector_str}]"
 

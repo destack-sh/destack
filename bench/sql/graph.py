@@ -323,8 +323,8 @@ def map_database_block_to_table(block: Block, old_table: Table | None) -> Table:
         )
         columns.append(column)
 
+    # keep old columns
     if old_table is not None:
-        # keep old columns
         columns_by_name: dict[str, Column] = {c.name: c for c in columns}
         for old_column in old_table.columns:
             if old_column.name not in columns_by_name:

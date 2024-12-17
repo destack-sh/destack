@@ -1004,7 +1004,7 @@ export class FlowContext {
 
         if (this.canPortsConnect(sourcePort, targetPort)) {
           // connect it up
-          log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
+          log.debug("flow.drag.connect", { from: sourcePort, to: targetPort });
           const pipe = this.createPipe({
             parent: this.flow.value,
             pipe: { type: PipeType.PASS },

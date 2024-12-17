@@ -510,12 +510,17 @@ async def pg_insert(
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace("postgres.insert", table=table, cur=cur, query=query_str, span="current")
 
-    if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple(
-            {**row, "PG_CRYPTO_KEY": ctx.get_crypto_key(table)} for row in rows
-        )
-    else:
-        templated_values = rows
+    is_encrypted = any(c.is_encrypted for c in table.columns)
+    columns = table.columns
+    templated_values = []
+    for row in rows:
+        row = {**row}
+        if is_encrypted:
+            row["PG_CRYPTO_KEY"] = ctx.get_crypto_key(table)
+        for column in columns:
+            if column.name not in row:
+                row[column.name] = None  # ensure all columns are set
+        templated_values.append(row)
     try:
         await _pg_executemany(cur, statement, templated_values)
     except psycopg.errors.Error as e:

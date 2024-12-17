@@ -7,6 +7,7 @@ from grpclib import GRPCError, Status
 from bench.language.block import Block
 from bench.language.const import BlockType
 from bench.language.field import Field
+from bench.language.file import FileType
 from bench.language.text import Text, md
 from bench.language.value import sample_value
 from bench.test.unit.conftest import RuntimeHandle
@@ -154,8 +155,14 @@ async def test_move_database(hosted_runtime: RuntimeHandle):
     # create database in Page1
     Page1 = hosted_runtime.page("Page1")
     Page2 = hosted_runtime.page("Page2")
-    Database1 = Page1.blocks.append(Block.new(BlockType.DATABASE, "Database1"))
-    Record1 = Database1.records.create(title="Record1")
+    Database1 = Page1.blocks.append(
+        Block.new(
+            BlockType.DATABASE,
+            "Database1",
+            fields=[Field.member("Alias", str), Field.member("Image", FileType.IMAGE)],
+        )
+    )
+    Record1 = Database1.records.create(title="Record1", Alias="1")
     await hosted_runtime.session.commit()
 
     # query database in Page1
@@ -164,12 +171,18 @@ async def test_move_database(hosted_runtime: RuntimeHandle):
 
     # move database to Page2
     Database1.move(to=Page2)
-    Record2 = Database1.records.create(title="Record2")
+    Record2 = Database1.records.create(title="Record2", Alias="2")
     await hosted_runtime.session.commit()
 
     # query database in Page2
     records = await Database1.records.search()
     assert records == [Record1, Record2]
+
+    # delete Record1
+    Record1.delete()
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == [Record2]
 
 
 async def test_delete_restore_database(hosted_runtime: RuntimeHandle):
@@ -256,9 +269,10 @@ async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
     """
     # initial str is_list=False
     Field1 = Field.member("Field1", str, is_list=False)
-    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1])
+    Field2 = Field.member("Field2", bool, is_list=False)
+    Database1 = Block.new(BlockType.DATABASE, "Database1", fields=[Field1, Field2])
     hosted_runtime.page().blocks.append(Database1)
-    Record1 = Database1.records.create(Field1="Record1")
+    Record1 = Database1.records.create(Field1="Record1", Field2=True)
     await hosted_runtime.session.commit()
 
     # morph str is_list=False -> str is_list=True
@@ -282,6 +296,12 @@ async def test_morph_database_field_type(hosted_runtime: RuntimeHandle):
     await hosted_runtime.session.commit()
     Record1 = await Database1.records.get(Record1.to_ref())
     assert Record1.Field1 == "Record1"  # type: ignore
+    assert Record1.Field2 is True  # type: ignore
+    # delete record
+    Record1.delete()
+    await hosted_runtime.session.commit()
+    records = await Database1.records.search()
+    assert records == []
 
 
 async def test_record_recursive_reference(hosted_runtime: RuntimeHandle):

@@ -663,7 +663,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Selection -->
           <div
             class="flex flex-row items-center rounded border transition-colors duration-150"
-            :class="numSelectedRows > 0 ? 'opacity-100' : 'opacity-0'"
+            :class="numSelectedRows > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'"
             data-suppress-drag="both"
           >
             <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
@@ -672,6 +672,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <button
               v-tooltip="{ title: 'Duplicate', small: true }"
               class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
+              :disabled="numSelectedRows == 0"
               @click.stop="fireActionById('space.edit.duplicate', { nodes: selectedRecords })"
             >
               <i class="fas fa-clone" />
@@ -679,6 +680,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             <button
               v-tooltip="{ title: 'Delete', small: true }"
               class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
+              :disabled="numSelectedRows == 0"
               @click.stop="fireActionById('space.edit.delete', { nodes: selectedRecords })"
             >
               <i class="fas fa-trash" />

@@ -210,7 +210,7 @@ class TableObject(Object):
         raise NotImplementedError
 
     def clone(self) -> "Self":
-        """Deep copy this table object without the table reference."""
+        """Deep copy this table object without any external references."""
         return dataclasses.replace(self, _table=None)
 
 
@@ -277,7 +277,7 @@ class Column(TableObject):
             self.type = PrimitiveType.BYTES
 
     def clone(self) -> "Self":
-        """Deep copy this table object without the table reference."""
+        """Deep copy this Column without the Table / Field reference."""
         return dataclasses.replace(self, _table=None, _field=None)
 
     @property
@@ -547,7 +547,6 @@ class Table(TableObject):
         else:
             column = self._columns_by_field.get(key)
             if column is None:
-                # nocheckin: track down error when.. moving Databases? something causes this...
                 context_fields = [*self._columns_by_field.keys()]
                 source_fields = key.parent.fields.tolist() if key.parent else []
                 raise KeyError(
