@@ -2252,9 +2252,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Wipe this node from this universe forever."""
         self.active_session._erase(self)
 
-    def append(self, child: "Node"):
+    def move(self, to: "Node"):
+        """Move this node to a new parent."""
+        to.append(self, move=True)
+
+    def append(self, child: "Node", move: bool = False):
         """Append a node as a child of this node."""
-        assert child.parent is None, f"{child!r} already has a parent"
         child_prop = self.get_child_property(child.metatype)
         if child_prop is not None:
             child_list = getattr(self, child_prop.name)
@@ -2268,7 +2271,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 raise ValueError(f"no child property for {child.metatype.bench_name} in {base!r}")
         else:
             raise ValueError(f"no child property for {child.metatype.bench_name} in {self!r}")
-        child_list.append(child)
+        child_list.append(child, move=move)
 
     @classmethod
     def get_child_property_or_error(cls, node_type: NodeType) -> Property:

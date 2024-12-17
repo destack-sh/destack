@@ -827,8 +827,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
                 for op in reversed(edit.operations):
-                    prop_id = int(op.path[0])
-                    if prop_id == 4:
+                    if op.path[0] == "4":
                         parent_ptr = unpack_value_scalar_data(
                             unpack_proto_json(op.new_value_packed),
                             Node.get_property("parent_ptr").type_info,

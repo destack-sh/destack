@@ -75,18 +75,18 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   NOT_FOUND: "Not found",
   ALREADY_EXISTS: "Already exists",
   UNAUTHENTICATED: "Not authenticated",
-  FAILED_PRECONDITION: "Cannot do this right now",
+  FAILED_PRECONDITION: "Cannot do this now",
   PERMISSION_DENIED: "Not allowed",
-  RESOURCE_EXHAUSTED: "Server overloaded",
-  UNAVAILABLE: "System unavailable",
+  RESOURCE_EXHAUSTED: "Bench overloaded",
+  UNAVAILABLE: "Bench unavailable",
   NOT_IMPLEMENTED: "Not yet supported",
-  INTERNAL: "Internal server error",
+  INTERNAL: "Internal Bench error",
   CANCELLED: "Request cancelled",
   DEADLINE_EXCEEDED: "Request timed out",
 };
 export const HUMANIZED_OPERATION_MESSAGE: { [key: string]: string } = {
-  UNAUTHENTICATED: "Please log in and try again",
-  UNAVAILABLE: "Our systems could not be reached",
+  UNAUTHENTICATED: "Log in and try again",
+  UNAVAILABLE: "Bench could not be reached",
 };
 
 export function humanizeError(error: OperationError): { title: string; text: string } {
