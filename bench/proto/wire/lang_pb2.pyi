@@ -1336,11 +1336,12 @@ class PipeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class NodeMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NODE_MODE_UNSPECIFIED: _ClassVar[NodeMode]
+    NODE_MODE_BUILTIN: _ClassVar[NodeMode]
     NODE_MODE_PRODUCTION: _ClassVar[NodeMode]
     NODE_MODE_DEVELOPMENT: _ClassVar[NodeMode]
     NODE_MODE_TEST: _ClassVar[NodeMode]
     NODE_MODE_PREVIEW: _ClassVar[NodeMode]
-    NODE_MODE_BUILTIN: _ClassVar[NodeMode]
+    NODE_MODE_ARCHIVE: _ClassVar[NodeMode]
 
 class SpaceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2725,11 +2726,12 @@ PIPE_TYPE_SELECT: PipeType
 PIPE_TYPE_OPTION: PipeType
 PIPE_TYPE_STREAM: PipeType
 NODE_MODE_UNSPECIFIED: NodeMode
+NODE_MODE_BUILTIN: NodeMode
 NODE_MODE_PRODUCTION: NodeMode
 NODE_MODE_DEVELOPMENT: NodeMode
 NODE_MODE_TEST: NodeMode
 NODE_MODE_PREVIEW: NodeMode
-NODE_MODE_BUILTIN: NodeMode
+NODE_MODE_ARCHIVE: NodeMode
 SPACE_TYPE_UNSPECIFIED: SpaceType
 SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_BROWSER: SpaceType
@@ -3168,7 +3170,7 @@ class PolicyRuleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., subject_is_delegated: bool = ..., subject_is_authenticated: bool = ..., subject_is_staff: bool = ..., subject_is_member: bool = ..., subject_is_owner: bool = ..., effect: _Optional[_Union[PolicyEffect, str]] = ..., verbs: _Optional[_Iterable[_Union[AccessType, str]]] = ..., verb_kinds: _Optional[_Iterable[_Union[AccessKind, str]]] = ..., object_node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., object_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., object_properties_is_system: bool = ..., object_properties_is_sensitive: bool = ..., object_properties_is_kernel: bool = ...) -> None: ...
 
 class SubjectData(_message.Message):
-    __slots__ = ("metatype", "id", "is_authenticated", "is_staff", "is_system", "client_ptr", "user_ptr", "server_ptr", "identity_ptr", "owned_ptr", "memberships_ptr", "roles_ptr")
+    __slots__ = ("metatype", "id", "is_authenticated", "is_staff", "is_system", "client_ptr", "user_ptr", "server_ptr", "machine_ptr", "identity_ptr", "owned_ptr", "memberships_ptr", "roles_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     IS_AUTHENTICATED_FIELD_NUMBER: _ClassVar[int]
@@ -3177,6 +3179,7 @@ class SubjectData(_message.Message):
     CLIENT_PTR_FIELD_NUMBER: _ClassVar[int]
     USER_PTR_FIELD_NUMBER: _ClassVar[int]
     SERVER_PTR_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_PTR_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_PTR_FIELD_NUMBER: _ClassVar[int]
     OWNED_PTR_FIELD_NUMBER: _ClassVar[int]
     MEMBERSHIPS_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3189,11 +3192,12 @@ class SubjectData(_message.Message):
     client_ptr: NodeReferenceData
     user_ptr: NodeReferenceData
     server_ptr: NodeReferenceData
+    machine_ptr: NodeReferenceData
     identity_ptr: NodeReferenceData
     owned_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     memberships_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     roles_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., is_authenticated: bool = ..., is_staff: bool = ..., is_system: bool = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., server_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., memberships_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., is_authenticated: bool = ..., is_staff: bool = ..., is_system: bool = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., server_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., memberships_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class AccessZoneData(_message.Message):
     __slots__ = ("metatype", "id", "parent_id", "scope_id", "identity_id", "rules")

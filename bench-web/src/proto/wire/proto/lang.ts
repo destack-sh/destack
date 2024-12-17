@@ -414,6 +414,10 @@ export interface SubjectData {
      */
     serverPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData machine_ptr = 43;
+     */
+    machinePtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 50;
      */
     identityPtr?: NodeReferenceData;
@@ -11088,25 +11092,29 @@ export enum NodeMode {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NODE_MODE_PRODUCTION = 1;
+     * @generated from protobuf enum value: NODE_MODE_BUILTIN = 1;
      */
-    PRODUCTION = 1,
+    BUILTIN = 1,
     /**
-     * @generated from protobuf enum value: NODE_MODE_DEVELOPMENT = 2;
+     * @generated from protobuf enum value: NODE_MODE_PRODUCTION = 2;
      */
-    DEVELOPMENT = 2,
+    PRODUCTION = 2,
     /**
-     * @generated from protobuf enum value: NODE_MODE_TEST = 3;
+     * @generated from protobuf enum value: NODE_MODE_DEVELOPMENT = 4;
      */
-    TEST = 3,
+    DEVELOPMENT = 4,
     /**
-     * @generated from protobuf enum value: NODE_MODE_PREVIEW = 5;
+     * @generated from protobuf enum value: NODE_MODE_TEST = 6;
      */
-    PREVIEW = 5,
+    TEST = 6,
     /**
-     * @generated from protobuf enum value: NODE_MODE_BUILTIN = 10;
+     * @generated from protobuf enum value: NODE_MODE_PREVIEW = 8;
      */
-    BUILTIN = 10
+    PREVIEW = 8,
+    /**
+     * @generated from protobuf enum value: NODE_MODE_ARCHIVE = 10;
+     */
+    ARCHIVE = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.SpaceType
@@ -13285,6 +13293,7 @@ class SubjectData$Type extends MessageType$<SubjectData> {
             { no: 40, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "server_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 43, name: "machine_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 52, name: "owned_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 53, name: "memberships_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -13330,6 +13339,9 @@ class SubjectData$Type extends MessageType$<SubjectData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData server_ptr */ 42:
                     message.serverPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.serverPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData machine_ptr */ 43:
+                    message.machinePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.machinePtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 50:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
@@ -13379,6 +13391,9 @@ class SubjectData$Type extends MessageType$<SubjectData> {
         /* optional symbolx.bench.NodeReferenceData server_ptr = 42; */
         if (message.serverPtr)
             NodeReferenceData.internalBinaryWrite(message.serverPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData machine_ptr = 43; */
+        if (message.machinePtr)
+            NodeReferenceData.internalBinaryWrite(message.machinePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData identity_ptr = 50; */
         if (message.identityPtr)
             NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -29530,6 +29545,7 @@ export enum SubjectProperty {
   clientPtr = 40,
   userPtr = 41,
   serverPtr = 42,
+  machinePtr = 43,
   identityPtr = 50,
   ownedPtr = 52,
   membershipsPtr = 53,
@@ -30454,8 +30470,8 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 50, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 60, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 61, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minRam]: { id: 62, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30485,8 +30501,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -30593,8 +30609,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.12.17.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -31483,6 +31499,7 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.serverPtr]: { id: 42, name: 'server_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.machinePtr]: { id: 43, name: 'machine_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { nodeTypes: [], nodeSubtypes: [51] }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },

@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.17.0"
+VERSION = "2024.12.17.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1051,11 +1051,12 @@ class Month(IdEnum):
 
 @enum_(EnumType.NODE_MODE)
 class NodeMode(IdEnum):
-    PRODUCTION = 1
-    DEVELOPMENT = 2
-    TEST = 3
-    PREVIEW = 5
-    BUILTIN = 10
+    BUILTIN = 1
+    PRODUCTION = 2
+    DEVELOPMENT = 4
+    TEST = 6
+    PREVIEW = 8
+    ARCHIVE = 10
 
 
 @enum_(EnumType.RUN_TYPE)
