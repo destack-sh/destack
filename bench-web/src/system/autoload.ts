@@ -68,17 +68,26 @@ export class NodeAutoloader {
 
   /** Register 'missing' nodes and (if eligible) add to pending */
   addMissing(...keys: NodeReferenceData[]) {
+    const newPending: NodeReferenceData[] = [];
     for (const key of keys) {
       if (this.missingNodeById[key.id!] == null) {
         this.missingNodeById[key.id!] = key;
         if (isUnloadedNodeType(key.nodeType) && !this.failedNodesById[key.id!] && !this.loadedNodesById[key.id!]) {
-          if (BASED_NODE_TYPES.includes(key.nodeType) && key.baseCk == null) {
-            throw new Error(`missing base in ${describeNode(key)}`);
-          }
-          this.pendingNodesById.value[key.id!] = key;
-          this.nextNodesToLoad.push(key);
+          newPending.push(key);
         }
       }
+    }
+    this.addPending(...newPending);
+  }
+
+  /** Add pending nodes to the list of nodes to load */
+  addPending(...keys: NodeReferenceData[]) {
+    for (const key of keys) {
+      if (BASED_NODE_TYPES.includes(key.nodeType) && key.baseCk == null) {
+        throw new Error(`missing base in ${describeNode(key)}`);
+      }
+      this.pendingNodesById.value[key.id!] = key;
+      this.nextNodesToLoad.push(key);
     }
     triggerRef(this.pendingNodesById);
   }
@@ -121,20 +130,6 @@ export class NodeAutoloader {
     return this.pendingNodesById.value[key.id!] != null;
   }
 
-  /** Purge all loaded batches without any subscribers */
-  gc() {
-    const inactiveBatches = this.loadedBatches.filter((batch) =>
-      Object.keys(batch.nodesById).every((id) => this.nodeSubsById[id] == null),
-    );
-    if (inactiveBatches.length > 0) {
-      log.trace("autoload.gcBatches", { inactiveBatches });
-      for (const batch of inactiveBatches) {
-        releaseConnection(batch.connection);
-      }
-      this.loadedBatches = this.loadedBatches.filter((b) => !inactiveBatches.includes(b));
-    }
-  }
-
   /** Load any missing nodes with new connections (as feasible) */
   async loadAll() {
     if (this.nextNodesToLoad.length > 0) {
@@ -154,11 +149,26 @@ export class NodeAutoloader {
     const baseCk = missingNodes[0].baseCk;
     const block = baseCk != null ? this.supergraph.get({ nodeType: NodeType.BLOCK, ck: baseCk }) : null;
     const blockPtr = block != null ? toNodeRef(block) : block;
+
+    // retry later if base is missing
     if (baseCk != null && blockPtr == null) {
       this.onFailed(...missingNodes);
-      // nocheckin: retry once base is found
       log.trace("autoload.load.fail", { batchId, missingNodes });
-      return; // can't load this right now (but retry later?)
+      const basePtr = { nodeType: NodeType.BLOCK, ck: baseCk };
+      // NOTE :Cleanup: technically we're leaking this wait-to-auto-reload subscription, but it shouldn't matter for now
+      //  (it should stop if none of the missing nodes are subscribed to anymore)
+      this.supergraph.subscribeUntilFound(basePtr, () => {
+        // remove from failed
+        missingNodes.forEach((ptr) => delete this.failedNodesById[ptr.id!]);
+        // add to pending again (if still missing)
+        missingNodes = missingNodes.filter((ptr) => this.missingNodeById[ptr.id!] != null);
+        if (missingNodes.length > 0) {
+          this.addPending(...missingNodes);
+        }
+        log.trace("autoload.load.retry", { batchId, basePtr, missingNodes });
+      });
+
+      return; // can't load this right now
     }
 
     // load
@@ -170,15 +180,11 @@ export class NodeAutoloader {
       isOptional: true,
     };
     try {
-      const connection = (await acquireConnection(
-        "get",
-        { name: `autoload.${batchId}`, live: true },
-        params,
-      )) as RemoteGetConnection<any>;
+      const connection = await acquireConnection("get", { name: `autoload.${batchId}`, live: true }, params);
       const batch: AutoloadedBatch = {
         id: batchId,
         nodesById: groupByScalar(missingNodes, (ptr) => ptr.id!),
-        connection,
+        connection: connection as RemoteGetConnection<any>,
       };
       this.loadedBatches.push(batch);
       log.trace("autoload.load.complete", { batchId, missingNodes });
@@ -186,6 +192,20 @@ export class NodeAutoloader {
     } catch (e) {
       log.trace("autoload.load.fail", { e, batchId, missingNodes });
       this.onFailed(...missingNodes);
+    }
+  }
+
+  /** Purge all loaded batches without any subscribers */
+  gc() {
+    const inactiveBatches = this.loadedBatches.filter((batch) =>
+      Object.keys(batch.nodesById).every((id) => this.nodeSubsById[id] == null),
+    );
+    if (inactiveBatches.length > 0) {
+      log.trace("autoload.gcBatches", { inactiveBatches });
+      for (const batch of inactiveBatches) {
+        releaseConnection(batch.connection);
+      }
+      this.loadedBatches = this.loadedBatches.filter((b) => !inactiveBatches.includes(b));
     }
   }
 }
