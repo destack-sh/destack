@@ -543,10 +543,13 @@ declareActionMap<"space">({
     shortcuts: ["mod+d"],
     action: (action, ctx) => {
       const { connection, graph, nodes } = getNodesFromContext(ctx);
-      if (connection == null || graph == null || nodes.length == 0) return; // no action, but suppress anyway to avoid trigger browser shortcuts
+      if (connection == null || graph == null || nodes.length == 0) {
+        return; // no action, but suppress anyway to avoid triggering browser shortcuts
+      }
       const clonedNodes = cloneNodes(connection.tx, graph, nodes);
       canvas.select(clonedNodes);
       if (clonedNodes.length > 0) {
+        canvas.goToNode(clonedNodes[0]);
         canvas.inspect({ node: clonedNodes[0], view: canvas.focusedViewPtr.value });
       }
       return true;
@@ -559,7 +562,9 @@ declareActionMap<"space">({
     shortcuts: ["del", "backspace"],
     action: (action, ctx) => {
       const { connection, graph, nodes } = getNodesFromContext(ctx);
-      if (connection == null || graph == null || nodes.length == 0) return false;
+      if (connection == null || graph == null || nodes.length == 0) {
+        return false; // bubble up
+      }
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
       for (const node of nodes) {
         tx.delete(node);
