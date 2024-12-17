@@ -16,7 +16,7 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.const import NodeType, QueryType, active_session
+from bench.language.const import NodeType, QueryType, SortType, active_session
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import get_key_bounds, get_order_key
@@ -337,13 +337,16 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     #
 
     def _query(self) -> "QueryBuilder[V, VD]":
-        from bench.language import Block, QueryBuilder, SelectOptions
+        from bench.language import Block, Expression, QueryBuilder, SelectOptions
 
         assert isinstance(self._node, Block), f"can only query from a block: {self._node!r}"
+        created_at = self._child_node_cls.get_property("created_at")
         query = QueryBuilder(
             type=QueryType.SEARCH,
             node_type=self._child_node_type,
             base_block=self._node,
+            # sort by created_at by default
+            sort=[Expression(type=SortType.ASCENDING, property=created_at)],
             # select all fields by default
             select=SelectOptions(select_fields=list(self._node.fields)),
         )
