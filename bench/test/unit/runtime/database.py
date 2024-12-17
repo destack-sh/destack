@@ -149,9 +149,6 @@ async def test_create_record_with_ptrs(hosted_runtime: RuntimeHandle):
     assert records == [Record1]
 
 
-# nocheckin: default sort for databases remote list?
-
-
 async def test_move_database(hosted_runtime: RuntimeHandle):
     """Move a database between parents while creating a Record."""
     # create database in Page1
@@ -216,7 +213,7 @@ async def test_delete_restore_record(hosted_runtime: RuntimeHandle):
     Record3 = Database1.records.create(Name="Record3")
     await hosted_runtime.session.commit()
     records = await Database1.records.search()
-    assert records == [Record3, Record2]
+    assert records == [Record2, Record3]
 
     # delete
     Record2.delete()
@@ -363,6 +360,6 @@ async def test_database_isolation(hosted_runtime: RuntimeHandle):
     await hosted_runtime.session.commit()
 
     records1 = await Database1.records.search()
-    assert records1 == [Record3, Record1]
+    assert records1 == [Record1, Record3]
     records2 = await Database2.records.search()
-    assert records2 == [Record4, Record2]
+    assert records2 == [Record2, Record4]
