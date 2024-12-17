@@ -3,7 +3,8 @@ import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES } from "@/language/const";
 import { NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
-import { assignSpaceInPackage, bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
+import { supergraph } from "@/system/globals";
+import { assignSpaceInPackage, bench, canvas, inspectionPtr, space, spaceConnection, spaceGraph } from "@/system/space";
 import { user } from "@/system/user";
 import { IS_IN_ALT_MODE, fireActionById } from "@/ui/action";
 import { makeIcon } from "@/ui/icon";
@@ -35,22 +36,15 @@ const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => true);
 onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title
-const viewAncestors = canvas.graph.getAncestorsRef(canvas.focusedViewPtr, {
-  metatypes: [NodeType.VIEW],
-  includeSelf: true,
-});
-const viewBase = computed(() =>
-  viewAncestors.value.find((v) => NODE_VIEW_TYPES.has(v.type) || HELPER_VIEW_TYPES.has(v.type)),
-);
-const viewBaseNodePtr: Ref<NodeReferenceData | undefined> = computed(() => viewBase.value?.nodePtr);
-const viewBaseNode = canvas.graph.getRef(viewBaseNodePtr);
+const inspectedNode = supergraph.getRef(inspectionPtr);
 const browserTitle = useTitle();
 watch(
-  [bench, viewBase, viewBaseNode],
+  [bench, inspectedNode],
   () => {
     const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
-    const viewTitle = (viewBaseNode.value as any)?.name ?? (viewBaseNode.value as any)?.title ?? viewBase.value?.title;
-    browserTitle.value = viewTitle ? `${viewTitle} | @${benchPostfix}` : `@${benchPostfix}`;
+    const nodeTitle =
+      (inspectedNode.value as any)?.slug ?? (inspectedNode.value as any)?.name ?? (inspectedNode.value as any)?.title;
+    browserTitle.value = nodeTitle ? `${nodeTitle} | @${benchPostfix}` : `@${benchPostfix}`;
   },
   { immediate: true },
 );

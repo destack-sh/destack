@@ -943,7 +943,7 @@ async function gcInactiveConnections() {
 setInterval(autoloader.loadAll.bind(autoloader), CONNECTION_AUTOLOAD_INTERVAL);
 // periodically clean up inactive connections
 setInterval(() => {
-  autoloader.gcBatches();
+  autoloader.gc();
   gcInactiveConnections();
 }, CONNECTION_INACTIVE_TIMEOUT / 10);
 
@@ -964,9 +964,13 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
 ): ConnectionBase<K, T> | null {
   const matchingConnections =
     _connections.value.filter((c) => c.kind == kind && c.includes(params) && match?.predicate?.(c) !== false) ?? null;
-  if (matchingConnections.length == 0) return null;
+  if (matchingConnections.length == 0) {
+    return null;
+  }
   if (matchingConnections.length > 1) {
-    // TODO :Broken: find the best connection match somehow :ConnectionMatching
+    // NOTE: find the best connection match somehow :ConnectionMatching?
+    // pick newest connection
+    matchingConnections.sort((a, b) => b.createdAt.diff(a.createdAt).milliseconds);
   }
   return matchingConnections[0];
 }

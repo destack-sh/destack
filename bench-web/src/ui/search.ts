@@ -53,7 +53,18 @@ import {
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount, useDebounce } from "@vueuse/core";
-import { computed, markRaw, onBeforeUnmount, ref, shallowRef, toValue, watch, type MaybeRef, type Ref } from "vue";
+import {
+  computed,
+  markRaw,
+  onBeforeUnmount,
+  ref,
+  shallowRef,
+  toValue,
+  triggerRef,
+  watch,
+  type MaybeRef,
+  type Ref,
+} from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
@@ -396,7 +407,7 @@ export function makeRemoteSearchParams(options: {
   return params;
 }
 
-const VALUE_SEARCH_FIRST = 30;
+const VALUE_SEARCH_FIRST = 20;
 const VALUE_SEARCH_DEBOUNCE = 100;
 
 /**
@@ -413,6 +424,7 @@ export function useValueSearch(options: {
   const queryDebounced = useDebounce(query, debounce);
   const remoteConnection: Ref<RemoteSearchConnection<any> | null> = shallowRef(null);
   const remoteGraphIndex: Ref<SearchIndex<any> | null> = shallowRef(null);
+  const remoteUpdateTrigger = shallowRef(0);
   const isLoading = ref(false);
 
   // maintain remote connection (if needed)
@@ -420,18 +432,18 @@ export function useValueSearch(options: {
   let lastRemoteValueType: TypeIdentity | null = null;
   let lastRemoteTotal: number = 0;
   watch(
-    [queryDebounced, valueType, isEnabled],
+    [queryDebounced, valueType, isEnabled, remoteUpdateTrigger],
     async () => {
       // release old remote connection
       if (remoteConnection.value != null) {
         releaseConnection(remoteConnection.value);
         remoteConnection.value = null;
       }
-      const query = queryDebounced.value.trim();
 
       // acquire new remote connection if needed
       if (isEnabled.value && isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType)) {
         // acquire/update remote connection
+        const query = queryDebounced.value.trim();
         if (
           lastRemoteValueType != null &&
           typeIdentityEquals(lastRemoteValueType, valueType.value) &&
@@ -463,7 +475,10 @@ export function useValueSearch(options: {
     },
     { immediate: true },
   );
-  // nocheckin: refresh search on first open?
+  function update() {
+    // nocheckin: refresh search on first open? (somehow re-fetch connection?)
+    triggerRef(remoteUpdateTrigger);
+  }
   tryOnBeforeUnmount(() => {
     if (remoteConnection.value != null) {
       releaseConnection(remoteConnection.value);
@@ -537,7 +552,7 @@ export function useValueSearch(options: {
     return null;
   }
 
-  return { candidates, results, resultsTotal, isLoading, getItemFromValue, getValueFromItem };
+  return { candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem };
 }
 
 //
@@ -571,6 +586,18 @@ function nodeItemFromNode(
   for (let i = ancestors.length - 1 - (options.skipDepth ?? 0); i >= 0; i--) {
     const ancestor = ancestors[i];
     if (ancestor.title != null && ancestor.title.length > 0) {
+      // handle bench:package special case
+      if (i > 0 && isNode(ancestor.node, NodeType.BENCH) && isNode(ancestors[i - 1].node, NodeType.PACKAGE)) {
+        const pkg = ancestors[i - 1].node;
+        const bench = ancestor.node;
+        if (bench.mainPackagePtr?.id == pkg.id) {
+          pathParts.push(ancestor.title);
+        } else {
+          pathParts.push(`${ancestor.title}:${ancestors[i - 1].title}`);
+        }
+        i--; // skip the package node since we've included it
+        continue;
+      }
       pathParts.push(ancestor.title);
     }
   }

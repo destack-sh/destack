@@ -122,7 +122,7 @@ export class NodeAutoloader {
   }
 
   /** Purge all loaded batches without any subscribers */
-  gcBatches() {
+  gc() {
     const inactiveBatches = this.loadedBatches.filter((batch) =>
       Object.keys(batch.nodesById).every((id) => this.nodeSubsById[id] == null),
     );
