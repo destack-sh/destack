@@ -2364,8 +2364,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return cls._query().select_all()
 
     @classmethod
-    def exclude(cls, *properties: Property) -> "QueryBuilder[Self, NodeDataT]":
-        return cls._query().exclude(*properties)
+    def deselect(cls, *properties: FieldOrProperty) -> "QueryBuilder[Self, NodeDataT]":
+        return cls._query().deselect(*properties)
 
     @classmethod
     def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":

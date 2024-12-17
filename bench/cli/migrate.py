@@ -175,7 +175,7 @@ async def make(
 @app.command(help="apply SQL migrations")
 @async_to_sync_blocking
 async def apply(
-    area: NodeArea = typer.Option(help="the area to migrate"),  # noqa: B008
+    area: NodeArea = typer.Option(default=NodeArea.GLOBAL, help="the area to migrate"),  # noqa: B008
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"
     ),

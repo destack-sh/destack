@@ -926,141 +926,8 @@ class AggregateConnection[ChannelT: Channel](
 
 
 #
-# Memory
+# Splits
 #
-
-
-class MemoryEngine(Engine["MemoryChannel"]):
-    """A read-only engine that reads from an in-memory graph."""
-
-    def __init__(
-        self,
-        name: str,
-        scope: GraphScopeData,
-        node_types: bittuple[NodeType],
-        graph: "NodeDataGraph",
-        include_deleted: bool,
-    ):
-        super().__init__(name, scope, node_types)
-        self.graph = graph
-        self._include_deleted = include_deleted
-
-    def __str__(self):
-        return f"'{self.name}' [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, graph={self.graph!r}]"
-
-    @property
-    def is_readonly(self) -> bool:
-        return True
-
-    @property
-    def include_deleted(self) -> bool:
-        return self._include_deleted
-
-    async def channel(self, session: "Session"):
-        return MemoryChannel(self, session)
-
-
-class MemoryChannel(Channel[MemoryEngine]):
-    """A read-only channel to an in-memory graph."""
-
-    def __init__(self, engine: "MemoryEngine", session: "Session"):
-        super().__init__(engine, session)
-
-    def __str__(self):
-        return f"engine={self.engine!r}, session={self.session}"
-
-    @override
-    async def reset(self):
-        pass  # nothing to do
-
-    @override
-    async def close(self):
-        pass  # nothing to do
-
-    @override
-    def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
-    ) -> type[Connection]:
-        if query._type == QueryType.GET:
-            return MemoryGetConnection
-        else:
-            raise RuntimeError(f"unsupported memory read {query!r}")
-
-
-class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
-    """Search an in-memory channel."""
-
-    @override
-    async def _do_read(self, query: "QueryBuilder") -> GetResultData:
-        from bench.language import NodeDataGraph, NodeReference
-        from bench.proto import wire
-
-        loaded_graph = self.channel.engine.graph
-        visited_graph = NodeDataGraph(
-            scope=self.channel.engine.scope, node_types=self.channel.engine.node_types
-        )
-
-        # get roots
-        assert query._roots is not None, f"{query!r} has no roots"
-        roots: list[AnyNodeData] = []
-        for root_ptr in query._roots:
-            root_id = str(root_ptr.id)
-            if root_id in visited_graph:
-                continue  # dedupe
-            root = loaded_graph.get(root_id)
-            if root is not None:
-                roots.append(root)
-                visited_graph.add(root)
-
-        # select ancestors
-        ancestor_types = query._ancestor_types or ()
-        if len(ancestor_types) > 0:
-            with tracer.start_as_current_span("memory.fetch.get_ancestors"):
-                current_parents = roots
-                while current_parents:
-                    next_parents = []
-                    for node in current_parents:
-                        if (
-                            node.parent_ptr is not None
-                            and node.parent_ptr.id is not None
-                            and node.parent_ptr.id not in visited_graph
-                            and node.parent_ptr.node_type in ancestor_types
-                        ):
-                            parent = loaded_graph.get(node.parent_ptr.id)
-                            assert parent is not None, f"missing parent {node.parent_ptr!r}"
-                            visited_graph.add(parent)
-                            next_parents.append(parent)
-                    current_parents = next_parents
-
-        # select descendants
-        descendant_types = query._descendant_types or ()
-        if len(descendant_types) > 0:
-            with tracer.start_as_current_span("memory.fetch.get_descendants"):
-                child_types_by_parent: dict[wire.NodeType, tuple[NodeType, ...]] = {
-                    cast(wire.NodeType, node_type): tuple(
-                        t for t in CHILD_NODE_TYPES[node_type] if t in descendant_types
-                    )
-                    for node_type in query.all_node_types
-                }
-                current_parents = roots
-                while current_parents:
-                    next_parents: list[AnyNodeData] = []
-                    for node in current_parents:
-                        child_types = child_types_by_parent[cast(wire.NodeType, node.metatype)]
-                        for child_type in child_types:
-                            children = loaded_graph.get_descendants(node, child_type)
-                            visited_graph.extend(children)
-                            for child in children:
-                                if loaded_graph.has_descendants(child):
-                                    next_parents.append(child)
-                    current_parents = next_parents
-
-        return GetResultData(
-            graph=visited_graph,
-            roots_ptr=[NodeReference._ref_data_from_node_data(r) for r in roots],
-            epoch=None,
-            connection_token=None,
-        )
 
 
 class SplitChannel(Channel[NullEngine]):
@@ -1086,17 +953,12 @@ class SplitChannel(Channel[NullEngine]):
             raise RuntimeError(f"unsupported split read {query!r}")
 
 
-#
-# Splits
-#
-
-
 class SplitConnection(Connection):
     def _get_best_match_engine(
         self,
         scope: GraphScopeData,
         required_types: set[NodeType],
-        candidate_types: set[NodeType],
+        match_types: set[NodeType],
         *,
         is_readonly: bool,
         include_deleted: bool,
@@ -1122,9 +984,9 @@ class SplitConnection(Connection):
         # Find engine with most overlap between required types and candidate types
         best_engine = max(
             candidate_engines,
-            key=lambda e: len(set(e.node_types) & required_types & candidate_types),
+            key=lambda e: len(set(e.node_types) & match_types),
         )
-        covered_types = set(best_engine.node_types) & required_types
+        covered_types = set(best_engine.node_types) & match_types
         return best_engine, covered_types
 
     async def _read_descendants(

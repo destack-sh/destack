@@ -248,7 +248,7 @@ async def get_package(bench_id: UUID, session: Session, *, live: bool):
         Package.include_descendants(*SOURCE_NODE_TYPES)
         .include_ancestors(Bench)
         .select_all()
-        .exclude(Bench.encryption_key)
+        .deselect(Bench.encryption_key)
         .get(pkg_stub.to_ref(), live=live)
     )
     return pkg

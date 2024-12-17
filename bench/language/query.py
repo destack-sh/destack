@@ -459,7 +459,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             clone._select.select_fields = []
         return clone
 
-    def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
+    def deselect(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Excludes given default-included properties from the results."""
         clone = self.clone()
         clone._select = self._clone_select()

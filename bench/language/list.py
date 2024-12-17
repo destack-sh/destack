@@ -340,8 +340,8 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     def select_all(self) -> "QueryBuilder[V, VD]":
         return self._query().select_all()
 
-    def exclude(self, *properties: "Property") -> "QueryBuilder[V, VD]":
-        return self._query().exclude(*properties)
+    def deselect(self, *properties: "Property") -> "QueryBuilder[V, VD]":
+        return self._query().deselect(*properties)
 
     def include_ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[V, VD]":
         return self._query().include_ancestors(*node_types)

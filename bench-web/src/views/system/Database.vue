@@ -38,7 +38,6 @@ import {
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
-import { autoloader } from "@/system/globals";
 import { canvas } from "@/system/space";
 import { ActionMapImplementation, fireActionById } from "@/ui/action";
 import {
@@ -222,15 +221,14 @@ function getCellId(record: RecordData, column: ColumnView) {
   return `${record.id}.${column.id}`;
 }
 
-// NOTE :UX: add records optimistically in Database?
+// NOTE :UX :Architecture: add records optimistically in Database?
 //  (right now, they only show up once committed in the backend and the search connection is updated from there)
 function createRecord() {
-  if (nodePtr.value == null || block.value == null) throw new Error("no block to add record to");
+  if (block.value == null) throw new Error("no block to add record to");
   const record = recordConnection.tx.create({
     metatype: NodeType.RECORD,
-    blockPtr: nodePtr.value,
-    packagePtr: block.value.packagePtr,
-    parentPtr: nodePtr.value,
+    blockPtr: toNodeRef(block.value),
+    parentPtr: block.value.benchPtr,
     valuePacked: {},
   });
   canvas.inspect({ node: record, view: containerRef.value });
