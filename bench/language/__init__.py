@@ -1,7 +1,6 @@
 from .access import (
     Access,
     AccessError,
-    Badge,
     Policy,
     PolicyRule,
     Subject,
@@ -187,7 +186,6 @@ __all__ = [
     "Alignment",
     "Anchor",
     "AudioOptions",
-    "Badge",
     "Bench",
     "BenchError",
     "BenchNode",

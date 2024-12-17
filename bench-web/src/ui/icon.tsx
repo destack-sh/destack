@@ -189,7 +189,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.VIEW]: "fas fa-window-frame",
   [NodeType.STEP]: "fas fa-step-forward",
   [NodeType.PIPE]: "fas fa-pipe-section",
-  [NodeType.BADGE]: "fas fa-id-badge",
 
   // state
   [NodeType.MESSAGE]: "fas fa-message",

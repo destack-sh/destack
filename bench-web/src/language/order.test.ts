@@ -24,7 +24,7 @@ describe("order keys", () => {
     expect(tx.edits.length).toBe(3);
 
     // apply edits to graph and check the order is as given
-    const graph = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: [NodeType.VIEW] });
+    const graph = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: new Set([NodeType.VIEW]) });
     graph.extend(...badNodes);
     editGraph(graph, tx.edits);
     const fixedNodes = graph.nodes as ViewData[];

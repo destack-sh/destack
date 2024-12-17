@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.12.16.2"
+VERSION = "2024.12.17.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1179,59 +1179,6 @@ PIPE_TABLE = Table(
         Column("color", PrimitiveType.JSON, is_nullable=True),
         Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
         Column("is_name_shown", PrimitiveType.BOOLEAN, default="false"),
-    ),
-)
-
-BADGE_TABLE = Table(
-    "bench_badge",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("package_ck", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("delegated_policies", PrimitiveType.JSON, is_array=True),
-        Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("key", PrimitiveType.STRING, is_unique=True, is_nullable=True, is_encrypted=True),
-        Column(
-            "key_hash", PrimitiveType.STRING, is_unique=True, is_nullable=True, is_encrypted=True
-        ),
-        Column("password", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("password_hash", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("mode", PrimitiveType.INT16, default="1"),
-    ),
-    indexes=(
-        Index("bench_idx_key", IndexType.BTREE, ("key",), is_unique=True),
-        Index("bench_idx_key_hash", IndexType.BTREE, ("key_hash",), is_unique=True),
-    ),
-    constraints=(
-        Constraint("bench_idx_key", ConstraintType.UNIQUE, columns=("key",), index="bench_idx_key"),
-        Constraint(
-            "bench_idx_key_hash",
-            ConstraintType.UNIQUE,
-            columns=("key_hash",),
-            index="bench_idx_key_hash",
-        ),
     ),
 )
 

@@ -25,7 +25,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2024.12.16.2"
+VERSION = "2024.12.17.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -251,9 +251,8 @@ class NodeType(IdEnum):
     VIEW = 3020
     STEP = 3030
     PIPE = 3031
-    BADGE = 3040
-    # TAG?2
-    # POLICY?
+    # BADGE? POLICY?
+    # TAG?
 
     # synchronization
     # POOL, LOCK, BARRIER, CONDITION, ...?
