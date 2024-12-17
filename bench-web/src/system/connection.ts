@@ -980,11 +980,6 @@ setInterval(() => {
   gcInactiveConnections();
 }, CONNECTION_INACTIVE_TIMEOUT / 10);
 
-/** RC-=1. Connections without references are GCed after some time. */
-export function releaseConnection(connection: ConnectionBase<any, any>): void {
-  connection.decRefCount();
-}
-
 type ConnectionMatchOptions<K extends GraphConnectionKind, T extends NodeType> = {
   predicate?: (c: ConnectionBase<K, T>) => boolean;
 };
@@ -994,9 +989,12 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
   kind: K,
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
+  exclude?: ConnectionBase<K, T>,
 ): ConnectionBase<K, T> | null {
   const matchingConnections =
-    _connections.value.filter((c) => c.kind == kind && c.includes(params) && match?.predicate?.(c) !== false) ?? null;
+    _connections.value.filter(
+      (c) => c !== exclude && c.kind == kind && c.includes(params) && match?.predicate?.(c) !== false,
+    ) ?? null;
   if (matchingConnections.length == 0) {
     return null;
   }
@@ -1006,19 +1004,6 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
     matchingConnections.sort((a, b) => b.createdAt.diff(a.createdAt).milliseconds);
   }
   return matchingConnections[0];
-}
-
-export function findExistingConnectionOrError<K extends GraphConnectionKind, T extends NodeType>(
-  kind: K,
-  params: ConnectionParamsMapping<T>[K],
-  match?: ConnectionMatchOptions<K, T>,
-): ConnectionBase<K, T> {
-  const connection = findExistingConnection(kind, params, match);
-  if (connection == null)
-    throw new Error(
-      `no connection found for ${kind}:${JSON.stringify(params)} (available: ${_connections.value.map((c) => c.name).join(", ")})`,
-    );
-  return connection;
 }
 
 /** Finds an existing connection and acquires it (RC+=1) */
@@ -1075,14 +1060,26 @@ export async function acquireConnection<K extends GraphConnectionKind, T extends
   kind: K,
   metaIn: ConnectionMetadataIn,
   params: ConnectionParamsMapping<T>[K],
+  match?: ConnectionMatchOptions<K, T>,
+  exclude?: ConnectionBase<K, T>,
 ): Promise<ConnectionBase<K, T>> {
-  const connection = findExistingConnection(kind, params);
+  const connection = findExistingConnection(kind, params, match, exclude);
   if (connection != null) {
     connection.incRefCount();
     return connection;
   } else {
     return await acquireNewConnection(kind, metaIn, params);
   }
+}
+
+/** RC-=1. Connections without references are GCed after some time. */
+export function releaseConnection(connection: ConnectionBase<any, any>): void {
+  connection.decRefCount();
+}
+
+/** Drop a Connection immediately (ignoring reference counts). */
+export function dropConnection(connection: ConnectionBase<any, any>): void {
+  _removeConnection(connection);
 }
 
 /** Container for providing the results of a Get connection to an inner component */

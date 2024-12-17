@@ -188,7 +188,7 @@ function userWizardView(view: { title: string; stage: UserWizardViewStage }): Vi
 }
 
 contributeActionMap<"user">({
-  "user.auth.signup": {
+  "user.security.signup": {
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",
     text: "Create a new account.",
@@ -199,7 +199,7 @@ contributeActionMap<"user">({
       });
     },
   },
-  "user.auth.login": {
+  "user.security.login": {
     icon: "fas fa-right-from-bracket",
     title: "Log In",
     text: "Log in to an existing account.",
@@ -210,21 +210,21 @@ contributeActionMap<"user">({
       });
     },
   },
-  "user.auth.logout": {
+  "user.security.logout": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out",
     text: "Log out of the current client.",
     isEnabled: isAuthenticated,
     action: () => logOut(),
   },
-  "user.auth.logoutAll": {
+  "user.security.logoutAll": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out Everywhere",
     text: "Log out all clients (including current).",
     isEnabled: isAuthenticated,
     action: () => logOut({ all: true }),
   },
-  "user.auth.activate": {
+  "user.navigate.activate": {
     icon: "fas fa-rocket-launch",
     isEnabled: computed(() => isAuthenticated.value && !isActivated.value && !isWaitlisted.value),
     title: "Activate Bench",
@@ -236,7 +236,7 @@ contributeActionMap<"user">({
       );
     },
   },
-  "user.misc.goToHome": {
+  "user.navigate.goToHome": {
     icon: "fas fa-home",
     isEnabled: isActivated,
     title: "Go Home",
@@ -247,7 +247,7 @@ contributeActionMap<"user">({
           icon: "fas fa-home",
           title: "Already home",
           text: "You are already on your Bench.",
-          override: "user.misc.goToHome",
+          override: "user.navigate.goToHome",
         });
       } else {
         await goToBench({ bench: user.value!.mainBenchPtr! as TypedNodeReferenceData<NodeType.BENCH> });

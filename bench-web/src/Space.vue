@@ -123,7 +123,7 @@ watch(
           name="LogIn"
           :icon="makeIcon('fas fa-arrow-right-to-bracket')"
           title="Log In"
-          @click="fireActionById('user.auth.login')"
+          @click="fireActionById('user.security.login')"
         />
       </div>
       <div v-else-if="user && user.status == UserStatus.WAITLISTED" class="flex flex-col gap-y-2 self-center">
@@ -148,7 +148,7 @@ watch(
           name="GoHome"
           :icon="makeIcon('fas fa-home')"
           title="Go Home"
-          @click="fireActionById('user.misc.goToHome')"
+          @click="fireActionById('user.navigate.goToHome')"
         />
         <Button
           v-else
@@ -156,7 +156,7 @@ watch(
           name="Activate"
           :icon="makeIcon('fas fa-plus')"
           title="Create Bench"
-          @click="fireActionById('user.auth.activate')"
+          @click="fireActionById('user.navigate.activate')"
         />
       </div>
       <div v-else class="flex flex-col gap-y-2 self-center">
@@ -167,7 +167,7 @@ watch(
           name="LogIn"
           :icon="makeIcon('fas fa-arrow-right-to-bracket')"
           title="Log In"
-          @click="fireActionById('user.auth.login')"
+          @click="fireActionById('user.security.login')"
         />
       </div>
     </div>

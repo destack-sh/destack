@@ -10,14 +10,15 @@ from bench.utils.func import IdEnum
 
 @enum_(EnumType.BROWSER_TYPE)
 class BrowserType(IdEnum):
-    CHROME = 1
+    BROWSERBASE_CHROME = 1
+    LOCAL = 90
 
 
 @node_(NodeType.BROWSER)
 class Browser(PhysicalResourceNode[BrowserData]):
     """A Browser instance for web browsing."""
 
-    type: BrowserType = p_regular(30, default=BrowserType.CHROME)
+    type: BrowserType = p_regular(30, default=BrowserType.BROWSERBASE_CHROME)
 
     version: str | None = p_regular(50, default=None)
     target_version: Optional[str] = p_regular(51, default=None)
