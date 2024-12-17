@@ -65,7 +65,8 @@ from bench.system.graph.postgres import PostgresEngine
 from bench.system.host.core import Host, HostPlugin, unpack_commit
 from bench.system.host.database import DatabasePlugin
 from bench.system.host.scheduler import MessageTriggerPlugin, RunPlugin, ScheduleTriggerPlugin
-from bench.system.provision.provisioner import Provisioner, get_provisioners_for
+from bench.system.provision.provisioner import Provisioner
+from bench.system.provision.registry import get_provisioners_for
 from bench.system.utils.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.utils.aws import get_s3_client_for_presigning
 from bench.system.utils.session import (

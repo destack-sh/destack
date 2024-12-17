@@ -87,15 +87,15 @@ const BENCH_MENU_ITEMS = computed(() => {
 
 const USER_MENU_ITEMS = computed(() => {
   const items = [
-    menuItemFromAction("user.misc.goToHome", { category: "primary" }),
+    menuItemFromAction("user.navigate.goToHome", { category: "primary" }),
     menuItemFromAction("space.launch.notifications", { category: "primary" }),
   ];
   if (isAuthenticated.value && !hasLocalBench.value) {
-    items.push(menuItemFromAction("user.auth.activate", { category: "primary" }));
+    items.push(menuItemFromAction("user.navigate.activate", { category: "primary" }));
   }
   items.push(
     ...[
-      menuItemFromAction("user.auth.logout", { category: "secondary" }),
+      menuItemFromAction("user.security.logout", { category: "secondary" }),
     ],
   );
   return items;
@@ -292,7 +292,7 @@ defineExpose<ViewExposed>({ self });
           })
         "
         class="mx-2 rounded py-1 pl-2.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
-        @click="user == null && fireActionById('user.auth.login')"
+        @click="user == null && fireActionById('user.security.login')"
       >
         <IconInline class="text-gray-700" v-bind="user?.icon ?? makeIcon('fa fa-user-circle')" />
         <span v-if="user" class="ml-2">{{ user.name }}</span>

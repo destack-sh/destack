@@ -36,6 +36,7 @@ import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring"
 import { BENCH_SCOPE } from "@/system/client";
 import {
   acquireConnection,
+  dropConnection,
   releaseConnection,
   RemoteSearchConnection,
   SearchConnectionParams,
@@ -422,8 +423,8 @@ export function useValueSearch(options: {
 }) {
   const { query, valueType, isEnabled, first = VALUE_SEARCH_FIRST, debounce = VALUE_SEARCH_DEBOUNCE } = options;
   const queryDebounced = useDebounce(query, debounce);
-  const remoteConnection: Ref<RemoteSearchConnection<any> | null> = shallowRef(null);
   const remoteGraphIndex: Ref<SearchIndex<any> | null> = shallowRef(null);
+  let remoteConnection: RemoteSearchConnection<any> | null = null;
   const remoteUpdateTrigger = shallowRef(0);
   const isLoading = ref(false);
 
@@ -435,9 +436,9 @@ export function useValueSearch(options: {
     [queryDebounced, valueType, isEnabled, remoteUpdateTrigger],
     async () => {
       // release old remote connection
-      if (remoteConnection.value != null) {
-        releaseConnection(remoteConnection.value);
-        remoteConnection.value = null;
+      if (remoteConnection != null) {
+        releaseConnection(remoteConnection);
+        remoteConnection = null;
       }
 
       // acquire new remote connection if needed
@@ -463,7 +464,7 @@ export function useValueSearch(options: {
         isLoading.value = true;
         try {
           const connection = await acquireConnection("search", { name: `picker.search` }, params);
-          remoteConnection.value = connection as RemoteSearchConnection<any>;
+          remoteConnection = connection as RemoteSearchConnection<any>;
           const graph = connection.result.value?.graphComposite!;
           const nodeType = valueType.value.benchType as unknown as NodeType;
           remoteGraphIndex.value = graphIndex({ id: "graph", graph, metatypes: [nodeType] });
@@ -482,13 +483,12 @@ export function useValueSearch(options: {
     { immediate: true },
   );
   function update() {
-    // nocheckin: refresh search on first open? (somehow re-fetch connection?)
-    triggerRef(remoteUpdateTrigger);
+    // TODO :UX: refresh search on first open? (somehow re-fetch connection?)
   }
   tryOnBeforeUnmount(() => {
-    if (remoteConnection.value != null) {
-      releaseConnection(remoteConnection.value);
-      remoteConnection.value = null;
+    if (remoteConnection != null) {
+      releaseConnection(remoteConnection);
+      remoteConnection = null;
     }
   });
 

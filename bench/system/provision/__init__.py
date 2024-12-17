@@ -1,3 +1,4 @@
+from bench.system.provision.drive import S3DriveProvisioner
 from bench.system.provision.machine import (
     DockerMachineProvisioner,
     KubernetesMachineProvisioner,
@@ -10,7 +11,6 @@ from bench.system.provision.server import (
 from bench.system.provision.store import (
     LocalhostStoreProvisioner,
     NeonStoreProvisioner,
-    S3DriveProvisioner,
 )
 
 __all__ = [
@@ -20,8 +20,6 @@ __all__ = [
     "LocalhostMachineProvisioner",
     "LocalhostStoreProvisioner",
     "NeonStoreProvisioner",
-    "NeonStoreProvisioner",
     "Provisioner",
-    "S3DriveProvisioner",
     "S3DriveProvisioner",
 ]

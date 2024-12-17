@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.MACHINE_TYPE)
 class MachineType(IdEnum):
-    RUNTIME = 1  # our own Bench runtime
-    # IMAGE = 2  # custom Machine/Docker image
+    HOSTED_RUNTIME = 1  # our own Bench runtime
+    # HOSTED_IMAGE = 2  # custom Machine/Docker image
 
 
 @struct_(StructType.MACHINE_IMAGE)
@@ -38,7 +38,7 @@ class Machine(PhysicalResourceNode[MachineData]):
     """
 
     parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
-    type: MachineType = p_regular(30, default=MachineType.RUNTIME)
+    type: MachineType = p_regular(30)
 
     version: str = p_system(50, default=VERSION, default_sql=None)
     target_version: str = p_internal(51, default=VERSION, default_sql=None)

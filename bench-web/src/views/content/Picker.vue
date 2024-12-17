@@ -149,7 +149,7 @@ const currentItems: Ref<ItemVignette[]> = computed(() => {
 // Search
 //
 
-const { candidates, results, resultsTotal, isLoading, getItemFromValue, getValueFromItem } = useValueSearch({
+const { candidates, results, resultsTotal, isLoading, update, getItemFromValue, getValueFromItem } = useValueSearch({
   query,
   valueType: toValueRef(toRef(props, "valueType")),
   isEnabled: toRef(props, "isInline"),

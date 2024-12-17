@@ -149,12 +149,12 @@ export const ACTION_BUILTIN_IDS = [
   "view.space.resetDefault",
   "view.space.resetAdvanced",
   // user
-  "user.auth.signup",
-  "user.auth.login",
-  "user.auth.logout",
-  "user.auth.logoutAll",
-  "user.auth.activate",
-  "user.misc.goToHome",
+  "user.security.signup",
+  "user.security.login",
+  "user.security.logout",
+  "user.security.logoutAll",
+  "user.navigate.activate",
+  "user.navigate.goToHome",
   // developer
   "developer.test.developerMode",
   "developer.test.retryAllFailed",

@@ -5,7 +5,7 @@ import httpx
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Drive, ResourceStatus, Store
+from bench.language import Bench, ResourceStatus, Store
 from bench.language.bench import Region
 from bench.language.const import NodeArea, NodeType
 from bench.sql.client import pg_connection
@@ -119,25 +119,6 @@ class LocalhostStoreProvisioner(StoreProvisioner):
         # drop database through existing connection
         async with pg_connection(self.host.global_store, autocommit=True) as conn:
             await conn.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))
-
-
-class S3DriveProvisioner(Provisioner[Drive, Drive]):
-    """Provision Drives with an S3-compatible API."""
-
-    watch_types = bittuple(NodeType.DRIVE)
-    resource_type = NodeType.DRIVE
-
-    # NOTE: don't actually need to do anything since we share drives between Benches (per region)
-
-    @override
-    async def _do_provision(self, resource: Drive):
-        async with self.host.session(commit=True):
-            resource.status = ResourceStatus.UP
-
-    @override
-    async def _do_decommission(self, resource: Drive):
-        async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class NeonCreateProjectRep(NamedTuple):
