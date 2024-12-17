@@ -208,7 +208,7 @@ function getNodeTypesFromParams<T extends NodeType>(
 }
 
 /**
- * Derives the overlay graph for a specific connection from the overall transaction buffer.
+ * Create an overlay graph for a specific Connection from a TransactionBuffer.
  */
 function makeConnectionOverlayGraph(
   base: NodeGraph,
@@ -245,6 +245,31 @@ function makeConnectionOverlayGraph(
   });
 
   return { graph: overlay, sub };
+}
+
+/**
+ * Apply edits from a buffer to a specific Connection's base graph (filtering as needed).
+ */
+function applyBufferCommit(
+  connection: Connection<any, any>,
+  graph: NodeGraph,
+  commit: {
+    edits: EditData[];
+    cascadedEdits: EditData[];
+    connectionIdByEditId: Record<string, number>;
+  },
+): void {
+  const edits: EditData[] = [];
+  for (const edit of commit.edits) {
+    if (commit.connectionIdByEditId[edit.id] == connection.meta.id) {
+      edits.push(edit);
+    } else if (graph.has(edit.nodePtr!)) {
+      edits.push(edit);
+    }
+  }
+  if (edits.length > 0) {
+    editGraph(graph, edits);
+  }
 }
 
 //
@@ -650,7 +675,10 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
     } else {
-      // nocheckin: apply edits from other accepted buffers (here and in search?)
+      this.txBuffer.subscribeAccepted(({ edits, cascadedEdits, connectionIdByEditId }) => {
+        // apply edits from any accepted buffers (counterpart to overlay)
+        applyBufferCommit(this, graph, { edits, cascadedEdits, connectionIdByEditId });
+      });
     }
 
     const { graph: overlay, sub } = makeConnectionOverlayGraph(graph, this);
@@ -734,6 +762,11 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
+    } else {
+      this.txBuffer.subscribeAccepted(({ edits, cascadedEdits, connectionIdByEditId }) => {
+        // apply edits from any accepted buffers (counterpart to overlay)
+        applyBufferCommit(this, graph, { edits, cascadedEdits, connectionIdByEditId });
+      });
     }
 
     const { graph: graphOverlay, sub } = makeConnectionOverlayGraph(graph, this);
