@@ -160,7 +160,7 @@ export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   } else if (node.metatype == ObjectType.FIELD) {
     return (node as FieldData).parentPtr ?? null;
   } else if (node.metatype == ObjectType.RUN) {
-    return (node as RunData).stepPtr ?? (node as RunData).blockPtr ?? null;
+    return (node as RunData).pipePtr ?? (node as RunData).stepPtr ?? (node as RunData).blockPtr ?? null;
   } else if (node.metatype == ObjectType.MESSAGE) {
     return (node as MessageData).blockPtr ?? null;
   } else {

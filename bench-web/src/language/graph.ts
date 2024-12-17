@@ -1571,6 +1571,27 @@ export class NodeSuperGraph {
   }
 
   /**
+   * Subscribes to the given key until it is found
+   */
+  subscribeUntilFound<T extends NodeType>(key: TypedNodeKey<T>, callback: NodeGraphCallback): () => void {
+    let unsub: (() => void) | undefined;
+    const onFound = () => {
+      if (this.get(key) != null) {
+        callback();
+        if (unsub) {
+          unsub();
+          unsub = undefined;
+        }
+      }
+    };
+    unsub = this.subscribe(key, onFound);
+    onFound(); // Check immediately in case node already exists
+    return () => {
+      if (unsub) unsub();
+    };
+  }
+
+  /**
    * Gets a reactive reference to the current node with that key
    */
   getRef<T extends NodeType>(key: MaybeRef<TypedNodeKey<T> | null | undefined>): Ref<NodeTypeMapping[T] | null> {

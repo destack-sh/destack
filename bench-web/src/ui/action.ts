@@ -332,7 +332,7 @@ export function fireActionById(id: ActionBuiltinId, context?: ActionContext) {
 export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
   // bail if action is disabled or suppressed
   if (action.isEnabled != null && !toValue(action.isEnabled)) {
-    log.debug("action.disabled", action.id);
+    log.trace("action.disabled", action.id);
     return false;
   }
   const suppressor = getActionSuppressor(action.id, e.target as HTMLElement);
