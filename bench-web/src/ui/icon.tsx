@@ -580,6 +580,7 @@ export const ICON_BY_NODE_MODE: Partial<Record<NodeMode, IconData>> = _makeIcons
   [NodeMode.TEST]: "fas fa-flask",
   [NodeMode.PREVIEW]: "fas fa-eye",
   [NodeMode.BUILTIN]: "fas fa-cog",
+  [NodeMode.ARCHIVE]: "fas fa-box-archive",
 });
 
 export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({

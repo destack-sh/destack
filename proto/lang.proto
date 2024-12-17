@@ -1348,11 +1348,12 @@ enum PipeType {
 
 enum NodeMode {
   NODE_MODE_UNSPECIFIED = 0;
-  NODE_MODE_PRODUCTION = 1;
-  NODE_MODE_DEVELOPMENT = 2;
-  NODE_MODE_TEST = 3;
-  NODE_MODE_PREVIEW = 5;
-  NODE_MODE_BUILTIN = 10;
+  NODE_MODE_BUILTIN = 1;
+  NODE_MODE_PRODUCTION = 2;
+  NODE_MODE_DEVELOPMENT = 4;
+  NODE_MODE_TEST = 6;
+  NODE_MODE_PREVIEW = 8;
+  NODE_MODE_ARCHIVE = 10;
 }
 
 enum SpaceType {
@@ -1764,6 +1765,7 @@ message SubjectData {
   optional NodeReferenceData client_ptr = 40;
   optional NodeReferenceData user_ptr = 41;
   optional NodeReferenceData server_ptr = 42;
+  optional NodeReferenceData machine_ptr = 43;
   optional NodeReferenceData identity_ptr = 50;
   repeated NodeReferenceData owned_ptr = 52;
   repeated NodeReferenceData memberships_ptr = 53;
