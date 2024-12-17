@@ -59,7 +59,7 @@ PACKAGE_QUERY = (
     Package.include_ancestors(Bench)
     .include_descendants(*SOURCE_NODE_TYPES)
     .select_all()
-    .exclude(Bench.encryption_key)
+    .deselect(Bench.encryption_key)
 )
 
 

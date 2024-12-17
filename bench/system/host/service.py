@@ -15,7 +15,7 @@ from bench.language import Bench, Drive, NodeReference, Package, Run, Server, St
 from bench.language.access import Badge, Ownable
 from bench.language.block import Block
 from bench.language.builtin import make_builtins
-from bench.language.connection import Engine, MemoryEngine
+from bench.language.connection import Engine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     BENCH_SLUG,
@@ -60,6 +60,7 @@ from bench.system.graph.graph import (
     extract_commit_area,
     validate_edit,
 )
+from bench.system.graph.memory import MemoryEngine
 from bench.system.graph.postgres import PostgresEngine
 from bench.system.host.core import Host, HostPlugin, unpack_commit
 from bench.system.host.database import DatabasePlugin
@@ -94,7 +95,7 @@ PACKAGE_QUERY = (
     Package.include_ancestors(Bench)
     .include_descendants(*SOURCE_NODE_TYPES)
     .select_all()
-    .exclude(Bench.encryption_key)
+    .deselect(Bench.encryption_key)
 )
 
 
@@ -375,10 +376,10 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             ),
         )
         self._engines = (
+            *inmemory_engines,  # prefer in memory engines
             self._global_pg_engine,
             self._regional_pg_engine,
             self._local_pg_engine,
-            *inmemory_engines,
         )
         # we open one Session for the entire lifecycle of the Host
         self._session = Session(

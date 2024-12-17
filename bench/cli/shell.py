@@ -7,7 +7,7 @@ import typer
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
-from bench.language.const import NodeArea
+from bench.language.const import REGION, NodeArea, Region
 from bench.system.utils.session import regional_store_from_env
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
@@ -19,7 +19,9 @@ logger = structlog.get_logger(__name__)
 @app.callback(invoke_without_command=True)
 @app.command()
 @async_to_sync_blocking
-async def shell(area: NodeArea, bench: Optional[str] = None):  # type: ignore
+async def shell(
+    area: NodeArea = NodeArea.GLOBAL, region: Region = REGION, bench: Optional[str] = None
+):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     from bench.system.utils.session import (
         global_session,
@@ -29,9 +31,9 @@ async def shell(area: NodeArea, bench: Optional[str] = None):  # type: ignore
 
     global_store = global_store_from_env()
     global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env()
+    regional_store = regional_store_from_env(region)
     regional_pg_engine = pg_engine_from_store(
-        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
+        f"pg-regional-{region.name.lower()}", regional_store, NodeArea.REGIONAL
     )
 
     if area == NodeArea.GLOBAL:

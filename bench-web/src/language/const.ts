@@ -59,31 +59,43 @@ export function isEnumType(object: any): object is EnumType {
 }
 
 export function isSourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 1000 && nodeType < 1100;
+  return nodeType >= 3000 && nodeType < 3100;
 }
 
 export function isStateNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 1100 && nodeType < 1200;
+  return nodeType >= 3500 && nodeType < 3600;
 }
 
 export function isRuntimeNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 1200 && nodeType < 1300;
+  return nodeType >= 3600 && nodeType < 3700;
 }
 
 export function isResourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 200 && nodeType < 300;
+  return nodeType >= 2000 && nodeType < 2200;
 }
 
 export function isVirtualResourceNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 200 && nodeType < 250;
+  return nodeType >= 2000 && nodeType < 2100;
+}
+
+export function isPhysicalResourceNodeType(nodeType: NodeType): boolean {
+  return nodeType >= 2100 && nodeType < 2200;
 }
 
 export function isLocalNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 1000;
+  return nodeType >= 3000;
 }
 
 export function isBenchNodeType(nodeType: NodeType): boolean {
-  return nodeType >= 200 || nodeType == NodeType.BENCH;
+  return (
+    (nodeType >= 2000 && nodeType < 10000) ||
+    nodeType == NodeType.BENCH ||
+    nodeType == NodeType.PACKAGE ||
+    nodeType == NodeType.HANDLE ||
+    nodeType == NodeType.MEMBERSHIP ||
+    nodeType == NodeType.INVITE ||
+    nodeType == NodeType.CLIENT
+  );
 }
 
 /** Whether the node type isn't loaded by default */
@@ -101,9 +113,9 @@ export const BASED_NODE_TYPES = [
   NodeType.RUN,
 ];
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
-export const STATE_NODE_TYPES = SOURCE_NODE_TYPES.filter(isStateNodeType);
+export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
-export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.LOG, NodeType.MESSAGE];
+export const TIMED_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPT, NodeType.LOG, NodeType.MESSAGE];
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
 export const VIRTUAL_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isVirtualResourceNodeType);
 export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
@@ -144,7 +156,7 @@ export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;
  */
 export function getBaseFromNode(node: AnyNodeData): NodeReferenceData | null {
   if (node.metatype == ObjectType.RECORD) {
-    return (node as RecordData).parentPtr ?? null;
+    return (node as RecordData).blockPtr ?? null;
   } else if (node.metatype == ObjectType.FIELD) {
     return (node as FieldData).parentPtr ?? null;
   } else if (node.metatype == ObjectType.RUN) {
