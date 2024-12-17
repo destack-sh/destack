@@ -42,7 +42,6 @@ from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import (
-        Badge,
         Field,
         Icon,
         NodeReference,
@@ -115,7 +114,6 @@ class Block(SourceNode[BlockData]):
     # is_builtin, is_owned, is_test? (for testing)
 
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
-    badges: LocalNodeList["Badge"] = p_node_children(NodeType.BADGE)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     steps: LocalNodeList["Step"] = p_node_children(NodeType.STEP)
     pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)

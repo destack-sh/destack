@@ -12,7 +12,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import Bench, Drive, NodeReference, Package, Run, Server, Store, Subject
-from bench.language.access import Badge, Ownable
+from bench.language.access import Ownable
 from bench.language.block import Block
 from bench.language.builtin import make_builtins
 from bench.language.connection import Engine
@@ -259,18 +259,6 @@ class HostService(GraphIoServiceBase, Host, HostBase):
         else:
             client = None
 
-        # get badges
-        badges: list[Badge] = []
-        for presented_badge in metadata.badges:
-            badge = self._bench._graph.get(UUID(presented_badge.id))
-            if not isinstance(badge, Badge):
-                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge id")
-            if badge.key and badge.key != presented_badge.key:
-                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge key")
-            if badge.password and badge.password != presented_badge.password:
-                raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge password")
-            badges.append(badge)
-
         # NOTE :Incomplete: get roles/memberships/identities/... for subject in this bench
 
         # use new supergraph instance for session
@@ -283,7 +271,6 @@ class HostService(GraphIoServiceBase, Host, HostBase):
             client=client,
             user=user,
             server=server,
-            badges=badges,
             owned=owned,
             _supergraph=supergraph,
         )

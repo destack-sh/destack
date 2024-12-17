@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import datetime
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
@@ -43,15 +42,11 @@ from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     NodeReference,
-    SourceNode,
     Struct,
-    node_,
     struct_,
 )
 from bench.language.property import (
     Property,
-    p_internal,
-    p_node_parent,
     p_regular,
     p_runtime,
     p_system,
@@ -73,7 +68,6 @@ if TYPE_CHECKING:
         Block,
         Client,
         Organization,
-        Package,
         QueryBuilder,
     )
 
@@ -102,30 +96,6 @@ Ownable = Union["User", "Organization", "Bench"]
 OWNABLE_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
 )
-
-
-@node_(NodeType.BADGE)
-class Badge(SourceNode):
-    """
-    Attach a badge to a node with an inline definition.
-    A badge's policies are delegated to the 'holder' (any client presenting its secrets).
-    The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
-    """
-
-    parent: Union["Package", "Block", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)  # type: ignore
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-    delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
-    expires_at: Optional[datetime] = p_regular(33, default=None)
-    key: Optional[str] = p_internal(
-        40, unique=True, default=None, encrypt=True, defer=True, sensitive=True
-    )
-    key_hash: Optional[str] = p_internal(
-        41, unique=True, default=None, encrypt=True, defer=True, sensitive=True
-    )
-    password: Optional[str] = p_internal(42, default=None, encrypt=True, defer=True, sensitive=True)
-    password_hash: Optional[str] = p_internal(
-        43, default=None, encrypt=True, defer=True, sensitive=True
-    )
 
 
 @struct_(StructType.POLICY)
@@ -426,7 +396,6 @@ class Subject(Struct):
         references=NodeType.BLOCK,
         constraint=constraint(node_subtypes=[BlockType.IDENTITY]),
     )
-    badges: list["Badge"] = p_system(51, require=False, array=True, references=NodeType.BADGE)
     owned: list[Ownable] = p_system(
         52, array=True, require=False, references=OWNABLE_NODE_TYPES.tuple
     )
@@ -455,8 +424,6 @@ class Subject(Struct):
             content_parts.append(f"user={self.user}")
         elif self.server:
             content_parts.append(f"server={self.server}")
-        if self.badges:
-            content_parts.append(f"badges={len(self.badges)}")
         if self.identity:
             content_parts.append(f"identity={self.identity}")
         return ", ".join(content_parts)
@@ -481,9 +448,6 @@ class Subject(Struct):
             subjects.append(Subject(user=self.user, _supergraph=self._supergraph))
         if self.identity:
             subjects.append(Subject(identity=self.identity, _supergraph=self._supergraph))
-        if self.badges:
-            for badge in self.badges:
-                subjects.append(Subject(badges=[badge], _supergraph=self._supergraph))
         for owner in self.owned or ():
             if str(owner.id) in graph:
                 subjects.append(Subject(owned=[owner], _supergraph=self._supergraph))

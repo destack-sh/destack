@@ -197,7 +197,7 @@ const _spaceLocal = {
 } as SpaceData;
 const _spaceGraphLocal = new NodeGraph({
   scope: makeScope({ benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID }),
-  nodeTypes: SOURCE_NODE_TYPES,
+  nodeTypes: new Set(SOURCE_NODE_TYPES),
 });
 _spaceGraphLocal.add(_spaceLocal);
 export const spaceGraphLocal = _spaceGraphLocal as ReadNodeGraph;

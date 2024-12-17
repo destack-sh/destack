@@ -136,7 +136,6 @@ enum NodeType {
   NODE_TYPE_VIEW = 3020;
   NODE_TYPE_STEP = 3030;
   NODE_TYPE_PIPE = 3031;
-  NODE_TYPE_BADGE = 3040;
   NODE_TYPE_MESSAGE = 3500;
   NODE_TYPE_RECORD = 3501;
   NODE_TYPE_SESSION = 3600;
@@ -246,7 +245,6 @@ enum ObjectType {
   OBJECT_TYPE_VIEW = 3020;
   OBJECT_TYPE_STEP = 3030;
   OBJECT_TYPE_PIPE = 3031;
-  OBJECT_TYPE_BADGE = 3040;
   OBJECT_TYPE_MESSAGE = 3500;
   OBJECT_TYPE_RECORD = 3501;
   OBJECT_TYPE_SESSION = 3600;
@@ -438,7 +436,6 @@ enum BenchType {
   BENCH_TYPE_VIEW = 3020;
   BENCH_TYPE_STEP = 3030;
   BENCH_TYPE_PIPE = 3031;
-  BENCH_TYPE_BADGE = 3040;
   BENCH_TYPE_MESSAGE = 3500;
   BENCH_TYPE_RECORD = 3501;
   BENCH_TYPE_SESSION = 3600;
@@ -1145,7 +1142,8 @@ enum PathTokenType {
   PATH_TOKEN_TYPE_CURRENT = 2;
   PATH_TOKEN_TYPE_PARENT = 3;
   PATH_TOKEN_TYPE_BENCH = 4;
-  PATH_TOKEN_TYPE_CHILD = 5;
+  PATH_TOKEN_TYPE_PACKAGE = 5;
+  PATH_TOKEN_TYPE_CHILD = 6;
   PATH_TOKEN_TYPE_CONTAINER = 7;
   PATH_TOKEN_TYPE_UNIQUE = 8;
   PATH_TOKEN_TYPE_FIELD = 10;
@@ -1767,7 +1765,6 @@ message SubjectData {
   optional NodeReferenceData user_ptr = 41;
   optional NodeReferenceData server_ptr = 42;
   optional NodeReferenceData identity_ptr = 50;
-  repeated NodeReferenceData badges_ptr = 51;
   repeated NodeReferenceData owned_ptr = 52;
   repeated NodeReferenceData memberships_ptr = 53;
   repeated NodeReferenceData roles_ptr = 54;
@@ -2599,33 +2596,6 @@ message InviteData {
   optional string user_email = 31;
   bool is_owner = 32;
   repeated NodeReferenceData roles_ptr = 33;
-}
-
-message BadgeData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
-  optional NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  optional NodeReferenceData updated_by_ptr = 14;
-  int64 updated_epoch = 15;
-  optional google.protobuf.Timestamp deleted_at = 16;
-  optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
-  repeated PolicyData delegated_policies = 32;
-  optional google.protobuf.Timestamp expires_at = 33;
-  optional string key = 40;
-  optional string key_hash = 41;
-  optional string password = 42;
-  optional string password_hash = 43;
-  NodeMode mode = 90;
 }
 
 message FieldData {
@@ -3471,14 +3441,13 @@ message SomeNodeData {
     ViewData view = 25;
     StepData step = 26;
     PipeData pipe = 27;
-    BadgeData badge = 28;
-    MessageData message = 29;
-    RecordData record = 30;
-    SessionData session = 31;
-    RunData run = 32;
-    InterruptData interrupt = 33;
-    LogData log = 34;
-    SkipData skip = 35;
+    MessageData message = 28;
+    RecordData record = 29;
+    SessionData session = 30;
+    RunData run = 31;
+    InterruptData interrupt = 32;
+    LogData log = 33;
+    SkipData skip = 34;
   };
 }
 

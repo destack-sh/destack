@@ -147,7 +147,6 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_VIEW: _ClassVar[NodeType]
     NODE_TYPE_STEP: _ClassVar[NodeType]
     NODE_TYPE_PIPE: _ClassVar[NodeType]
-    NODE_TYPE_BADGE: _ClassVar[NodeType]
     NODE_TYPE_MESSAGE: _ClassVar[NodeType]
     NODE_TYPE_RECORD: _ClassVar[NodeType]
     NODE_TYPE_SESSION: _ClassVar[NodeType]
@@ -257,7 +256,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_VIEW: _ClassVar[ObjectType]
     OBJECT_TYPE_STEP: _ClassVar[ObjectType]
     OBJECT_TYPE_PIPE: _ClassVar[ObjectType]
-    OBJECT_TYPE_BADGE: _ClassVar[ObjectType]
     OBJECT_TYPE_MESSAGE: _ClassVar[ObjectType]
     OBJECT_TYPE_RECORD: _ClassVar[ObjectType]
     OBJECT_TYPE_SESSION: _ClassVar[ObjectType]
@@ -444,7 +442,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_VIEW: _ClassVar[BenchType]
     BENCH_TYPE_STEP: _ClassVar[BenchType]
     BENCH_TYPE_PIPE: _ClassVar[BenchType]
-    BENCH_TYPE_BADGE: _ClassVar[BenchType]
     BENCH_TYPE_MESSAGE: _ClassVar[BenchType]
     BENCH_TYPE_RECORD: _ClassVar[BenchType]
     BENCH_TYPE_SESSION: _ClassVar[BenchType]
@@ -1137,6 +1134,7 @@ class PathTokenType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PATH_TOKEN_TYPE_CURRENT: _ClassVar[PathTokenType]
     PATH_TOKEN_TYPE_PARENT: _ClassVar[PathTokenType]
     PATH_TOKEN_TYPE_BENCH: _ClassVar[PathTokenType]
+    PATH_TOKEN_TYPE_PACKAGE: _ClassVar[PathTokenType]
     PATH_TOKEN_TYPE_CHILD: _ClassVar[PathTokenType]
     PATH_TOKEN_TYPE_CONTAINER: _ClassVar[PathTokenType]
     PATH_TOKEN_TYPE_UNIQUE: _ClassVar[PathTokenType]
@@ -1760,7 +1758,6 @@ NODE_TYPE_QUERY: NodeType
 NODE_TYPE_VIEW: NodeType
 NODE_TYPE_STEP: NodeType
 NODE_TYPE_PIPE: NodeType
-NODE_TYPE_BADGE: NodeType
 NODE_TYPE_MESSAGE: NodeType
 NODE_TYPE_RECORD: NodeType
 NODE_TYPE_SESSION: NodeType
@@ -1864,7 +1861,6 @@ OBJECT_TYPE_QUERY: ObjectType
 OBJECT_TYPE_VIEW: ObjectType
 OBJECT_TYPE_STEP: ObjectType
 OBJECT_TYPE_PIPE: ObjectType
-OBJECT_TYPE_BADGE: ObjectType
 OBJECT_TYPE_MESSAGE: ObjectType
 OBJECT_TYPE_RECORD: ObjectType
 OBJECT_TYPE_SESSION: ObjectType
@@ -2021,7 +2017,6 @@ BENCH_TYPE_QUERY: BenchType
 BENCH_TYPE_VIEW: BenchType
 BENCH_TYPE_STEP: BenchType
 BENCH_TYPE_PIPE: BenchType
-BENCH_TYPE_BADGE: BenchType
 BENCH_TYPE_MESSAGE: BenchType
 BENCH_TYPE_RECORD: BenchType
 BENCH_TYPE_SESSION: BenchType
@@ -2597,6 +2592,7 @@ PATH_TOKEN_TYPE_ROOT: PathTokenType
 PATH_TOKEN_TYPE_CURRENT: PathTokenType
 PATH_TOKEN_TYPE_PARENT: PathTokenType
 PATH_TOKEN_TYPE_BENCH: PathTokenType
+PATH_TOKEN_TYPE_PACKAGE: PathTokenType
 PATH_TOKEN_TYPE_CHILD: PathTokenType
 PATH_TOKEN_TYPE_CONTAINER: PathTokenType
 PATH_TOKEN_TYPE_UNIQUE: PathTokenType
@@ -3172,7 +3168,7 @@ class PolicyRuleData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., subject_is_delegated: bool = ..., subject_is_authenticated: bool = ..., subject_is_staff: bool = ..., subject_is_member: bool = ..., subject_is_owner: bool = ..., effect: _Optional[_Union[PolicyEffect, str]] = ..., verbs: _Optional[_Iterable[_Union[AccessType, str]]] = ..., verb_kinds: _Optional[_Iterable[_Union[AccessKind, str]]] = ..., object_node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., object_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., object_properties_is_system: bool = ..., object_properties_is_sensitive: bool = ..., object_properties_is_kernel: bool = ...) -> None: ...
 
 class SubjectData(_message.Message):
-    __slots__ = ("metatype", "id", "is_authenticated", "is_staff", "is_system", "client_ptr", "user_ptr", "server_ptr", "identity_ptr", "badges_ptr", "owned_ptr", "memberships_ptr", "roles_ptr")
+    __slots__ = ("metatype", "id", "is_authenticated", "is_staff", "is_system", "client_ptr", "user_ptr", "server_ptr", "identity_ptr", "owned_ptr", "memberships_ptr", "roles_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     IS_AUTHENTICATED_FIELD_NUMBER: _ClassVar[int]
@@ -3182,7 +3178,6 @@ class SubjectData(_message.Message):
     USER_PTR_FIELD_NUMBER: _ClassVar[int]
     SERVER_PTR_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_PTR_FIELD_NUMBER: _ClassVar[int]
-    BADGES_PTR_FIELD_NUMBER: _ClassVar[int]
     OWNED_PTR_FIELD_NUMBER: _ClassVar[int]
     MEMBERSHIPS_PTR_FIELD_NUMBER: _ClassVar[int]
     ROLES_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3195,11 +3190,10 @@ class SubjectData(_message.Message):
     user_ptr: NodeReferenceData
     server_ptr: NodeReferenceData
     identity_ptr: NodeReferenceData
-    badges_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     owned_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     memberships_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     roles_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., is_authenticated: bool = ..., is_staff: bool = ..., is_system: bool = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., server_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., badges_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., owned_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., memberships_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[int] = ..., is_authenticated: bool = ..., is_staff: bool = ..., is_system: bool = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., server_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., memberships_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class AccessZoneData(_message.Message):
     __slots__ = ("metatype", "id", "parent_id", "scope_id", "identity_id", "rules")
@@ -4721,58 +4715,6 @@ class InviteData(_message.Message):
     roles_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_email: _Optional[str] = ..., is_owner: bool = ..., roles_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
-class BadgeData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "name", "delegated_policies", "expires_at", "key", "key_hash", "password", "password_hash", "mode")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    CK_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    DELEGATED_POLICIES_FIELD_NUMBER: _ClassVar[int]
-    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
-    KEY_FIELD_NUMBER: _ClassVar[int]
-    KEY_HASH_FIELD_NUMBER: _ClassVar[int]
-    PASSWORD_FIELD_NUMBER: _ClassVar[int]
-    PASSWORD_HASH_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
-    ck: str
-    parent_ptr: NodeReferenceData
-    package_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    template_ptr: NodeReferenceData
-    templated_epoch: int
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    created_epoch: int
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    updated_epoch: int
-    deleted_at: _timestamp_pb2.Timestamp
-    subnode_packed: _struct_pb2.Value
-    name: str
-    delegated_policies: _containers.RepeatedCompositeFieldContainer[PolicyData]
-    expires_at: _timestamp_pb2.Timestamp
-    key: str
-    key_hash: str
-    password: str
-    password_hash: str
-    mode: NodeMode
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., templated_epoch: _Optional[int] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., delegated_policies: _Optional[_Iterable[_Union[PolicyData, _Mapping]]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., key: _Optional[str] = ..., key_hash: _Optional[str] = ..., password: _Optional[str] = ..., password_hash: _Optional[str] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
-
 class FieldData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "package_ptr", "bench_ptr", "template_ptr", "templated_epoch", "created_at", "created_by_ptr", "created_epoch", "updated_at", "updated_by_ptr", "updated_epoch", "deleted_at", "subnode_packed", "type", "name", "order_key", "text", "icon", "kind", "primitive_type", "bench_type", "base_type_ptr", "base_field_type", "oneof_ptr", "partial_scope", "default_packed", "format", "condition", "constraint", "is_required", "is_list", "is_secret", "mode")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -6226,7 +6168,7 @@ class StreamData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_epoch: _Optional[int] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., occupancy: _Optional[_Union[ResourceOccupancy, str]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ...) -> None: ...
 
 class SomeNodeData(_message.Message):
-    __slots__ = ("bench", "user", "handle", "client", "organization", "membership", "invite", "server", "store", "drive", "vault", "cache", "machine", "browser", "file", "stream", "secret", "package", "dependency", "space", "block", "trigger", "field", "query", "view", "step", "pipe", "badge", "message", "record", "session", "run", "interrupt", "log", "skip")
+    __slots__ = ("bench", "user", "handle", "client", "organization", "membership", "invite", "server", "store", "drive", "vault", "cache", "machine", "browser", "file", "stream", "secret", "package", "dependency", "space", "block", "trigger", "field", "query", "view", "step", "pipe", "message", "record", "session", "run", "interrupt", "log", "skip")
     BENCH_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
     HANDLE_FIELD_NUMBER: _ClassVar[int]
@@ -6254,7 +6196,6 @@ class SomeNodeData(_message.Message):
     VIEW_FIELD_NUMBER: _ClassVar[int]
     STEP_FIELD_NUMBER: _ClassVar[int]
     PIPE_FIELD_NUMBER: _ClassVar[int]
-    BADGE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     RECORD_FIELD_NUMBER: _ClassVar[int]
     SESSION_FIELD_NUMBER: _ClassVar[int]
@@ -6289,7 +6230,6 @@ class SomeNodeData(_message.Message):
     view: ViewData
     step: StepData
     pipe: PipeData
-    badge: BadgeData
     message: MessageData
     record: RecordData
     session: SessionData
@@ -6297,4 +6237,4 @@ class SomeNodeData(_message.Message):
     interrupt: InterruptData
     log: LogData
     skip: SkipData
-    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., server: _Optional[_Union[ServerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., drive: _Optional[_Union[DriveData, _Mapping]] = ..., vault: _Optional[_Union[VaultData, _Mapping]] = ..., cache: _Optional[_Union[CacheData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., stream: _Optional[_Union[StreamData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., query: _Optional[_Union[QueryData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., step: _Optional[_Union[StepData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., badge: _Optional[_Union[BadgeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interrupt: _Optional[_Union[InterruptData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...
+    def __init__(self, bench: _Optional[_Union[BenchData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., server: _Optional[_Union[ServerData, _Mapping]] = ..., store: _Optional[_Union[StoreData, _Mapping]] = ..., drive: _Optional[_Union[DriveData, _Mapping]] = ..., vault: _Optional[_Union[VaultData, _Mapping]] = ..., cache: _Optional[_Union[CacheData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., browser: _Optional[_Union[BrowserData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., stream: _Optional[_Union[StreamData, _Mapping]] = ..., secret: _Optional[_Union[SecretData, _Mapping]] = ..., package: _Optional[_Union[PackageData, _Mapping]] = ..., dependency: _Optional[_Union[DependencyData, _Mapping]] = ..., space: _Optional[_Union[SpaceData, _Mapping]] = ..., block: _Optional[_Union[BlockData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., query: _Optional[_Union[QueryData, _Mapping]] = ..., view: _Optional[_Union[ViewData, _Mapping]] = ..., step: _Optional[_Union[StepData, _Mapping]] = ..., pipe: _Optional[_Union[PipeData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., record: _Optional[_Union[RecordData, _Mapping]] = ..., session: _Optional[_Union[SessionData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., interrupt: _Optional[_Union[InterruptData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., skip: _Optional[_Union[SkipData, _Mapping]] = ...) -> None: ...

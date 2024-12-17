@@ -236,7 +236,7 @@ export class Runtime {
       focus?: boolean;
       options?: RunOptionsData;
       inputsPacked?: Record<string, any>;
-      packagePtr?: NodeReferenceData;
+      benchPtr?: NodeReferenceData;
     },
   ): RunData {
     const run = makeRun(this.graph, runnable, options);
@@ -299,36 +299,35 @@ export function makeRun(
   runnable: RunnableObject,
   options?: {
     inputsPacked?: Record<string, any>;
-    packagePtr?: NodeReferenceData;
+    benchPtr?: NodeReferenceData;
     options?: RunOptionsData;
     mode?: NodeMode;
   },
 ): RunData {
-  let packagePtr: NodeReferenceData | undefined = undefined;
+  let benchPtr: NodeReferenceData | undefined = undefined;
   let block: BlockData | undefined = undefined;
   let step: StepData | undefined = undefined;
   let pipe: PipeData | undefined = undefined;
   if (isNode(runnable, NodeType.BLOCK)) {
     block = runnable;
-    packagePtr = options?.packagePtr ?? runnable.packagePtr;
+    benchPtr = options?.benchPtr ?? runnable.benchPtr;
   } else if (isNode(runnable, NodeType.STEP)) {
     step = runnable;
     block = graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
-    packagePtr = options?.packagePtr ?? step.packagePtr;
+    benchPtr = options?.benchPtr ?? step.benchPtr;
   } else if (isNode(runnable, NodeType.PIPE)) {
     pipe = runnable;
     block = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.BLOCK));
-    packagePtr = options?.packagePtr ?? pipe.packagePtr;
+    benchPtr = options?.benchPtr ?? pipe.benchPtr;
   } else if (isStruct(runnable, StructType.TEXT) || isStruct(runnable, StructType.CODE)) {
-    if (options?.packagePtr == null) throw new Error(`missing package ptr for runnable lambda: ${runnable}`);
-    packagePtr = options.packagePtr;
+    if (options?.benchPtr == null) throw new Error(`missing bench ptr for runnable lambda: ${runnable}`);
+    benchPtr = options.benchPtr;
   } else {
     assertNever(runnable);
   }
   const run = makeNode({
     metatype: NodeType.RUN,
-    parentPtr: packagePtr,
-    packagePtr: packagePtr,
+    parentPtr: benchPtr,
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,
@@ -381,7 +380,7 @@ export function getRunActions(run: RunData): RuntimeAction[] {
         if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
         const node = supergraph.get(basePtr);
         if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
-        runtime.start(node, { focus: true, packagePtr: run.packagePtr, options: run.options });
+        runtime.start(node, { focus: true, benchPtr: run.benchPtr, options: run.options });
       },
     });
   }
