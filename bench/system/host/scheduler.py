@@ -57,7 +57,7 @@ class RunPlugin(HostPlugin[Run]):
         self.tasks.start_queue(self._run_queue, self._process_queue, skip_errors=True)
 
     def _queue_run(self, run: Run) -> PendingRunOperation:
-        """Queues a Run operation.."""
+        """Queues a Run operation."""
         # queue new operation
         pending_op = PendingRunOperation(run=run, retry=self._retry.new(self.host.oracle))
         self._run_queue.put_nowait(pending_op)
@@ -68,7 +68,7 @@ class RunPlugin(HostPlugin[Run]):
     async def on_commit(self, session: Session, commit: Commit[Run]) -> None:
         for run in commit.added:
             # start new scheduled runs
-            if run.status == RunStatus.SCHEDULED and run.parent_type == NodeType.PACKAGE:
+            if run.status == RunStatus.SCHEDULED and run.parent_type == NodeType.BENCH:
                 self._queue_run(run)
         for run in commit.updated:
             # resume active runs (at root)

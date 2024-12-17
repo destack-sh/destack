@@ -67,6 +67,7 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Client,
+        Machine,
         Organization,
         QueryBuilder,
     )
@@ -378,6 +379,9 @@ class Subject(Struct):
     )
     server: Optional["Server"] = p_system(
         42, default=None, require=False, array=False, references=NodeType.SERVER
+    )
+    machine: Optional["Machine"] = p_system(
+        43, default=None, require=False, array=False, references=NodeType.MACHINE
     )
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None

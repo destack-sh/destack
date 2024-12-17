@@ -7,7 +7,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Client, NodeReference, Server, Store, User
+from bench.language import Bench, Client, NodeReference, Store, User
 from bench.language.access import Subject
 from bench.language.bench import PackageType
 from bench.language.block import Block
@@ -123,11 +123,15 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                     user=client.parent,
                     owned=[client.parent],
                 )
-            elif isinstance(client.parent, Server):
-                bench = client.bench
+            elif isinstance(client.parent, Bench):
+                bench = client.parent
                 assert bench is not None, f"{client!r} has no bench"
                 return Subject(
-                    is_authenticated=True, client=client, server=client.parent, owned=[bench]
+                    is_authenticated=True,
+                    client=client,
+                    server=client.server,
+                    machine=client.machine,
+                    owned=[bench],
                 )
             else:
                 raise RuntimeError(f"unexpected client: {client!r}")
