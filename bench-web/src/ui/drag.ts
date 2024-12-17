@@ -250,7 +250,7 @@ useEventListener("drop", (event) => {
   if (dragged == null) return;
   const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone) {
-    log.info("drag.drop", dragged, zone);
+    log.debug("drag.drop", dragged, zone);
     zone.onDrop?.(dragged, event);
   }
   stopDragging();
