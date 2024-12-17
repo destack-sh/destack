@@ -694,7 +694,11 @@ type BufferCallback = (
         oldEdits: EditData[];
       },
 ) => void;
-type AcceptedCallback = (event: { edits: EditData[]; cascadedEdits: EditData[] }) => void;
+type AcceptedCallback = (event: {
+  edits: EditData[];
+  cascadedEdits: EditData[];
+  connectionIdByEditId: Record<string, number>;
+}) => void;
 
 /**
  * A transaction buffer provides Transactions and applies them to the graph.
@@ -967,6 +971,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   onAccepted(edits: EditData[], cascadedEdits: EditData[]): void {
     // update buffer subscribers
+    const connectionIdByEditId = { ...this.bufferedConnectionByEditId };
     const oldEdits = Object.values(this.bufferedEditsById);
     let bufferChanged = false;
     for (const edit of edits) {
@@ -988,7 +993,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
         });
       });
     }
-    this.acceptedSubs.forEach((sub) => sub({ edits, cascadedEdits }));
+    this.acceptedSubs.forEach((sub) => sub({ edits, cascadedEdits, connectionIdByEditId }));
   }
 
   togglePaused() {

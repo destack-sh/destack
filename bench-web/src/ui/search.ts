@@ -443,6 +443,12 @@ export function useValueSearch(options: {
       // acquire new remote connection if needed
       if (isEnabled.value && isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType)) {
         // acquire/update remote connection
+        if (valueType.value.baseTypePtr != null) {
+          const baseType = supergraph.get(valueType.value.baseTypePtr);
+          if (baseType == null) {
+            return; // missing base type, so no search possible
+          }
+        }
         const query = queryDebounced.value.trim();
         if (
           lastRemoteValueType != null &&

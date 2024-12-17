@@ -91,11 +91,32 @@ const facetName = computed(() => {
   }
 });
 
-// NOTE: technically currentItems/Icon aren't fully reactive (requires modelValue to change)
+// register node references in supergraph (for autoloading / reactivity)
+// NOTE :Architecture: needing to subscribe to supergraph for nodes (e.g., in Picker) seems unwieldy
+//  (but we need to signal to autoloader somehow that we need these nodes loaded...)
+const nodePtrs: Ref<NodeReferenceData[]> = computedValue(() => {
+  if (
+    props.modelValue == null ||
+    props.valueType == null ||
+    (props.valueType.kind != TypeKind.NODE && !isNodeType(props.valueType.benchType))
+  ) {
+    return []; // no nodes
+  } else if (!props.valueType?.isList) {
+    return [props.modelValue as NodeReferenceData];
+  } else {
+    return props.modelValue as NodeReferenceData[];
+  }
+});
+const nodes = supergraph.getManyRef(nodePtrs);
+
 const hasValue = computed(() => {
-  if (props.modelValue == null) return false;
-  if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
-  else return true;
+  if (props.modelValue == null) {
+    return false;
+  } else if (props.valueType?.isList) {
+    return (props.modelValue as any[]).length > 0;
+  } else {
+    return true;
+  }
 });
 type ItemVignette = { title: string | undefined; icon: IconData | undefined; status: "found" | "pending" | "missing" };
 function getItemVignette(value: any): ItemVignette {
@@ -113,29 +134,16 @@ function getItemVignette(value: any): ItemVignette {
   }
 }
 const currentItems: Ref<ItemVignette[]> = computed(() => {
-  if (!hasValue.value) return [];
-  if (!props.valueType?.isList) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  nodes.value; // 'borrow' reactivity from nodes (not great but search index isn't reactive, see above)
+  if (!hasValue.value) {
+    return [];
+  } else if (!props.valueType?.isList) {
     return [getItemVignette(props.modelValue)];
   } else {
     return (props.modelValue as any[]).map((v) => getItemVignette(v));
   }
 });
-const nodePtrs: Ref<NodeReferenceData[]> = computedValue(() => {
-  if (
-    props.modelValue == null ||
-    props.valueType == null ||
-    (props.valueType.kind != TypeKind.NODE && !isNodeType(props.valueType.benchType))
-  ) {
-    return []; // no nodes
-  } else if (!props.valueType?.isList) {
-    return [props.modelValue as NodeReferenceData];
-  } else {
-    return props.modelValue as NodeReferenceData[];
-  }
-});
-// NOTE :Architecture: needing to subscribe to supergraph for nodes (e.g., in Picker) seems unwieldy
-//  (but we need to signal to autoloader somehow that we need these nodes loaded...)
-const nodes = supergraph.getManyRef(nodePtrs);
 
 //
 // Search
