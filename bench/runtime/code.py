@@ -49,6 +49,7 @@ class CodeRunnerBase(Runner):
         context: Context,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
+        variables: CustomObject | None = None,
         output_type: TypeBase | None = None,
         run: Run | None = None,
     ) -> None:
@@ -60,6 +61,7 @@ class CodeRunnerBase(Runner):
             context=context,
             parent=parent,
             inputs=inputs,
+            variables=variables,
             output_type=output_type,
             run=run,
         )

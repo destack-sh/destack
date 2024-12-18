@@ -190,6 +190,10 @@ class Pipe(SourceNode[PipeData]):
         return None
 
     @property
+    def variable_type(self) -> "TypeBase | None":
+        return None  # Pipes don't have variables (?)
+
+    @property
     def input_type(self) -> "TypeBase | None":
         source = self.source
         return source.output_type if source is not None else None
@@ -432,6 +436,10 @@ class Step(SourceNode[StepData]):
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
+
+    @property
+    def variable_type(self) -> "TypeBase | None":
+        return self.to_type_maybe(of="value", field_type=FieldType.VARIABLE)
 
     @property
     def input_type(self) -> "TypeBase | None":

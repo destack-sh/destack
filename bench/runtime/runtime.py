@@ -15,7 +15,9 @@ from bench.language.const import (
     ObjectKind,
     RunErrorKind,
     RunStatus,
+    is_node_type,
 )
+from bench.language.field import Field
 from bench.language.graph import NodeGraph
 from bench.language.interrupt import RUN_STATUS_BY_INTERRUPT_TYPE, BreakpointSite, Interrupt
 from bench.language.run import Run, RunAttempt, RunError, RunnableNode
@@ -186,6 +188,42 @@ class Runtime:
     async def _do_run(self, runner: Runner):
         """Runs a a Runner, retrying automatically and updating the Runner along the way."""
         # NOTE :Performance: track attempt as efficiently as possible :RuntimeHotPath
+
+        # check variables
+        if runner.variable_type is not None:
+            with tracer.start_as_current_span("runtime.check_variables"):
+                variables = runner.variables
+                assert variables is not None, f"missing variables in {runner!r}"
+
+                try:
+                    missing_resources: list[Field] = []
+                    for field in runner.variable_type._fields:
+                        variable_value = variables._do_get(field)
+                        if (
+                            variable_value is None
+                            and is_node_type(field.bench_type) is not None
+                            and NodeType(field.bench_type).is_resource
+                        ):
+                            missing_resources.append(field)
+                            continue
+                        else:
+                            check_value(
+                                variable_value,
+                                field,
+                                options=DEFAULT_CHECK_OPTIONS,
+                                invalid=on_invalid_raise,
+                            )
+                except ValidationError as e:
+                    runner.status = RunStatus.FAILED
+                    runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                    return
+
+            # acquire missing resource variables
+            # TODO :Incomplete: reuse resources?
+            if missing_resources:
+                with tracer.start_as_current_span("runtime.acquire_resources"):
+                    runner.status = RunStatus.PREPARING
+                    raise NotImplementedError("nocheckin: acquire resources")
 
         # check inputs
         if runner.input_type is not None:

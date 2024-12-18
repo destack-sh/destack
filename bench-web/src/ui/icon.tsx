@@ -541,6 +541,7 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [RunStatus.SCHEDULED]: makeIcon({ faName: "fas fa-clock" }),
   [RunStatus.QUEUED]: makeIcon({ faName: "fas fa-hourglass" }),
+  [RunStatus.PREPARING]: makeIcon({ faName: "fas fa-circle-notch" }),
   [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-circle-notch" }),
   [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-pause" }),
   [RunStatus.YIELDED]: makeIcon({ faName: "fas fa-hand" }),

@@ -17,6 +17,7 @@ import {
 import { ReadNodeGraph } from "@/language/graph";
 import { unpackSubnode } from "@/language/node";
 import { makeEditFromSubnode, Transaction, TransactionOptions } from "@/language/transaction";
+import { packValue, unpackValue } from "@/language/value";
 import {
   ActionBlockData,
   ActionBlockProperty,
@@ -50,7 +51,7 @@ import {
   StepType,
   TypeConstraintProperty,
   TypeKind,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { canvas } from "@/system/globals";
@@ -405,73 +406,95 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
           // no lists for database fields yet :ManyToManyRecords
           commonRows.push(rowProperty(FieldProperty.isList, { title: "List" }));
         }
+      }
 
-        const constraintRows: DetailRow[] = [];
-        // list
-        if (node.isList || node.primitiveType == PrimitiveType.STRING) {
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength], { title: "Minimum Length" }),
-          );
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength], { title: "Maximum Length" }),
-          );
-        }
-        // stringy
-        if (node.primitiveType == PrimitiveType.STRING) {
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith], { title: "Prefix" }),
-          );
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith], { title: "Suffix" }),
-          );
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex], { title: "Regex" }),
-          );
-        }
-        // number
-        if (typeIsNumeric(node)) {
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue], { title: "Minimum" }),
-          );
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue], { title: "Maximum" }),
-          );
-          constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue], { title: "Step" }),
-          );
-        }
-        // node
-        if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
-          const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
-          const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
-          const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
-          if (subtypeProperty?.enumType != null) {
-            constraintRows.push(
-              rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
-                title: `${toCamelName(BenchType, node.benchType)} Type`,
-                props: {
-                  valueType: makeTypeInfo({
-                    kind: TypeKind.ENUM,
-                    benchType: subtypeProperty.enumType as unknown as BenchType,
-                    isList: true,
-                  }),
-                },
-              }),
+      // default
+      const defaultView = getView(node, { forcePickerDropdown: true });
+      if (defaultView?.type != null) {
+        commonRows.push({
+          type: "view",
+          title: "Default",
+          isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(defaultView.type!),
+          viewType: defaultView.type,
+          viewProps: { ...defaultView, isInput: true },
+          read() {
+            if (node.defaultPacked == null) return null;
+            const defaultUnpacked = unpackValue(node.defaultPacked, node, { graph, wrapScalar: true });
+            return defaultUnpacked;
+          },
+          write: (newValue) => {
+            txFactory().update(
+              node,
+              { defaultPacked: packValue(newValue, node, { graph, wrapScalar: true }) },
+              { debounce: "short" },
             );
-          }
+          },
+        });
+      }
+
+      const constraintRows: DetailRow[] = [];
+      // list
+      if (node.isList || node.primitiveType == PrimitiveType.STRING) {
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.minLength], { title: "Minimum Length" }),
+        );
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxLength], { title: "Maximum Length" }),
+        );
+      }
+      // stringy
+      if (node.primitiveType == PrimitiveType.STRING) {
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.startsWith], { title: "Prefix" }),
+        );
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.endsWith], { title: "Suffix" }),
+        );
+        constraintRows.push(rowProperty([FieldProperty.constraint, TypeConstraintProperty.regex], { title: "Regex" }));
+      }
+      // number
+      if (typeIsNumeric(node)) {
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.minValue], { title: "Minimum" }),
+        );
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.maxValue], { title: "Maximum" }),
+        );
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.stepValue], { title: "Step" }),
+        );
+      }
+      // node
+      if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
+        const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
+        const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
+        const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];
+        if (subtypeProperty?.enumType != null) {
           constraintRows.push(
-            rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
-              title: "Scope",
+            rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeSubtypes], {
+              title: `${toCamelName(BenchType, node.benchType)} Type`,
               props: {
-                valueType: makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
+                valueType: makeTypeInfo({
+                  kind: TypeKind.ENUM,
+                  benchType: subtypeProperty.enumType as unknown as BenchType,
+                  isList: true,
+                }),
               },
             }),
           );
         }
+        constraintRows.push(
+          rowProperty([FieldProperty.constraint, TypeConstraintProperty.nodeScopePtr], {
+            title: "Scope",
+            props: {
+              valueType: makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.BLOCK, isList: true }),
+            },
+          }),
+        );
+      }
 
-        if (constraintRows.length > 0) {
-          section("Constraint", constraintRows, { isDefaultCollapsed: true });
-        }
+      if (constraintRows.length > 0) {
+        section("Constraint", constraintRows, { isDefaultCollapsed: true });
       }
     }
   }
@@ -604,6 +627,9 @@ export function onAddFieldAction(
       offset: "referenceWidth",
       props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
       onApply: (typeInfo: TypeIdentity) => {
+        if (fieldType == FieldType.VARIABLE) {
+          typeInfo = { ...typeInfo, isRequired: true }; // variables are required by default
+        }
         const field = createField(txFactory(), graph, {
           anchor: "inside",
           target: parent,
