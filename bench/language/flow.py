@@ -224,41 +224,43 @@ class StepType(IdEnum):
     # AGGREGATE?
 
     # write
-    CREATE = 50
-    CLONE = 51
-    UPDATE = 52
-    DELETE = 53
+    CREATE = 60
+    CLONE = 61
+    UPDATE = 62
+    DELETE = 63
 
     # run
-    ACTION = 60
-    YIELD = 62  # to something
+    ACTION = 100
+    YIELD = 102  # to something
+
+    # application
+    CLICK = 200
+    TYPE = 201
+    SCROLL = 202
+
+    # web(-specific)
+    ...
 
     # session
-    PAUSE = 70
-    RESUME = 71
-    STOP = 72
+    # PAUSE, RESUME, STOP, ...
 
     # state
     # ...
 
     # containers
     # GROUP = 500  # subflow region
-    LOOP = 501  # repeat
+    LOOP = 5001  # repeat
 
     # misc
-    TEXT = 900  # no-op, just for documentation
+    TEXT = 9000  # no-op, just for documentation
 
     @property
     def is_boundary(self) -> bool:
         return self < 50
 
     @property
-    def is_run(self) -> bool:
-        return self >= 50 and self < 100
-
-    @property
     def is_container(self) -> bool:
-        return self >= 500 and self < 600
+        return self >= 5000 and self < 6000
 
 
 @node_(NodeType.STEP, passthrough_get=("value", "fields"))

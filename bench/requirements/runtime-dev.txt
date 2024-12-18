@@ -363,8 +363,10 @@ platformdirs==4.3.6
     # via
     #   black
     #   virtualenv
-playwright==1.48.0
-    # via -r bench/requirements/runtime.in
+playwright==1.49.1
+    # via
+    #   -r bench/requirements/dev.in
+    #   -r bench/requirements/runtime.in
 pluggy==1.5.0
     # via pytest
 ply==3.11

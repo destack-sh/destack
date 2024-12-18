@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.MACHINE_TYPE)
 class MachineType(IdEnum):
-    HOSTED_RUNTIME = 1  # our own Bench runtime
-    # HOSTED_IMAGE = 2  # custom Machine/Docker image
+    RUNTIME = 1  # our own Bench runtime
+    # IMAGE = 2  # custom Machine/Docker image
 
 
 @struct_(StructType.MACHINE_IMAGE)

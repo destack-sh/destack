@@ -451,6 +451,9 @@ class StructType(IdEnum):
     LINE = 13208
     RECTANGLE_CONSTRAINT = 13209
 
+    # browser/application (13700-13999)
+    DOM_NODE = 13700
+
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
 STRUCT_TYPES_SET: frozenset[StructType] = frozenset(STRUCT_TYPES)
