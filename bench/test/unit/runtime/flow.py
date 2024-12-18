@@ -321,7 +321,7 @@ async def test_run_flow_clone_step(hosted_runtime: RuntimeHandle):
     Database1 = Block.new(BlockType.DATABASE, "Database1", fields=(Field.member("Rating", int),))
     Record1 = Database1.records.create(Rating=1)
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Clone = Step.new(StepType.CLONE, "Clone")
+    Clone = Step.new(StepType.DUPLICATE, "Clone")
     Flow1.steps.append(Clone)
     hosted_runtime.page().blocks.extend(Database1, Flow1)
     await hosted_runtime.commit()

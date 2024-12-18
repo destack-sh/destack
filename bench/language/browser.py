@@ -9,6 +9,7 @@ from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     from bench.language import Client
+    from bench.language.view import Rectangle
 
 
 @struct_(StructType.DOM_NODE)
@@ -29,7 +30,7 @@ class DomNode(Struct):
     is_top: bool | None = p_regular(42, default=None)
     is_shadow_root: bool | None = p_regular(43, default=None)
     # children
-    children: list["DomNode"] = p_regular(50, default_factory=list)
+    children: list["DomNode"] = p_regular(50, array=True, struct=StructType.DOM_NODE)
 
 
 @enum_(EnumType.BROWSER_TYPE)
@@ -51,13 +52,19 @@ class Browser(PhysicalResourceNode[BrowserData]):
     connection_uri: Optional[str] = p_kernel(
         54, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
-    client: Optional["Client"] = p_system(
-        55, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
-    )
-
     debugger_uri: Optional[str] = p_kernel(
-        60, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        55, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
     view_uri: Optional[str] = p_kernel(
-        61, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        56, require=False, default=None, encrypt=True, defer=True, sensitive=True
+    )
+    client: Optional["Client"] = p_system(
+        57, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
+    )
+
+    size: Optional["Rectangle"] = p_regular(
+        60, default=None, require=False, array=False, struct=StructType.RECTANGLE
+    )
+    target_size: Optional["Rectangle"] = p_regular(
+        61, default=None, require=False, array=False, struct=StructType.RECTANGLE
     )

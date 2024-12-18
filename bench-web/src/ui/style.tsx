@@ -149,14 +149,30 @@ export const COLOR_BY_STEP_TYPE: Partial<Record<StepType, ColorType>> = {
   // read
   [StepType.GET]: ColorType.EMERALD,
   [StepType.SEARCH]: ColorType.EMERALD,
+  [StepType.COPY]: ColorType.EMERALD,
   // write
   [StepType.CREATE]: ColorType.SKY,
-  [StepType.CLONE]: ColorType.SKY,
+  [StepType.DUPLICATE]: ColorType.SKY,
   [StepType.UPDATE]: ColorType.SKY,
   [StepType.DELETE]: ColorType.SKY,
+  [StepType.PASTE]: ColorType.SKY,
   // run
   [StepType.ACTION]: ColorType.ORANGE,
   [StepType.YIELD]: ColorType.PINK,
+  // application
+  [StepType.OBSERVE]: ColorType.EMERALD,
+  [StepType.CLICK]: ColorType.ORANGE,
+  [StepType.PRESS]: ColorType.ORANGE,
+  [StepType.TYPE]: ColorType.ORANGE,
+  [StepType.SCROLL]: ColorType.ORANGE,
+  [StepType.SELECT]: ColorType.ORANGE,
+  [StepType.GO_BACKWARD]: ColorType.ORANGE,
+  [StepType.GO_FORWARD]: ColorType.ORANGE,
+  // web
+  [StepType.GO_TO_URL]: ColorType.ORANGE,
+  [StepType.GO_TO_TAB]: ColorType.ORANGE,
+  [StepType.OPEN_TAB]: ColorType.ORANGE,
+  [StepType.CLOSE_TAB]: ColorType.ORANGE,
   // containers
   [StepType.TEXT]: ColorType.GRAY,
   [StepType.LOOP]: ColorType.YELLOW,

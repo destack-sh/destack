@@ -10,9 +10,9 @@ from bench.language.block import FlowBlock
 from bench.language.const import NodeType, ObjectKind, RunErrorKind, RunStatus
 from bench.language.field import TypeBase
 from bench.language.flow import (
-    CloneStep,
     CreateStep,
     DeleteStep,
+    DuplicateStep,
     FailStep,
     Pipe,
     PipeType,
@@ -489,11 +489,11 @@ class CreateStepRunner(StepRunnerBase):
         self.outputs = CustomObject.new(ObjectKind.OUTPUT, {"node": node}, self.output_type)
 
 
-class CloneStepRunner(StepRunnerBase):
+class DuplicateStepRunner(StepRunnerBase):
     @override
     async def run(self) -> None:
-        step = cast(CloneStep, self.node)
-        inputs = cast(CloneStep, self.inputs)
+        step = cast(DuplicateStep, self.node)
+        inputs = cast(DuplicateStep, self.inputs)
         node = inputs.node or step.node
         node_partial = inputs.node_partial
         assert node is not None, "no node to clone"
@@ -572,7 +572,7 @@ STEP_RUNNER_BY_STEP_TYPE: dict[StepType, type[StepRunnerBase]] = {
     StepType.SEARCH: SearchStepRunner,
     # write
     StepType.CREATE: CreateStepRunner,
-    StepType.CLONE: CloneStepRunner,
+    StepType.DUPLICATE: DuplicateStepRunner,
     StepType.UPDATE: UpdateStepRunner,
     StepType.DELETE: DeleteStepRunner,
     # run

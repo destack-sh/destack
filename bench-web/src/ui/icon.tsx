@@ -274,22 +274,32 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.TRIGGER]: "fas fa-bolt-lightning",
   // read
-  [StepType.GET]: "fas fa-file-arrow-down",
+  [StepType.GET]: "fas fa-magnifying-glass",
   [StepType.SEARCH]: "fas fa-magnifying-glass",
+  [StepType.COPY]: "fas fa-copy",
   // write
   [StepType.CREATE]: "fas fa-plus",
-  [StepType.CLONE]: "fas fa-clone",
+  [StepType.DUPLICATE]: "fas fa-clone",
   [StepType.UPDATE]: "fas fa-pencil",
   [StepType.DELETE]: "fas fa-trash",
+  [StepType.PASTE]: "fas fa-paste",
   // run
   [StepType.ACTION]: "fas fa-code",
   [StepType.YIELD]: "fas fa-hand",
-  // session
-  [StepType.PAUSE]: "fas fa-pause",
-  [StepType.RESUME]: "fas fa-play",
-  [StepType.STOP]: "fas fa-stop",
-  // control
-  // ...
+  // application
+  [StepType.OBSERVE]: "fas fa-eye",
+  [StepType.CLICK]: "fas fa-computer-mouse",
+  [StepType.PRESS]: "fas fa-keyboard",
+  [StepType.TYPE]: "fas fa-keyboard",
+  [StepType.SCROLL]: "fas fa-arrows-alt-v",
+  [StepType.SELECT]: "fas fa-lasso",
+  [StepType.GO_BACKWARD]: "fas fa-arrow-turn-right",
+  [StepType.GO_FORWARD]: "fas fa-arrow-turn-left",
+  // web
+  [StepType.GO_TO_URL]: "fas fa-link",
+  [StepType.GO_TO_TAB]: "fas fa-sidebar",
+  [StepType.OPEN_TAB]: "fas fa-plus",
+  [StepType.CLOSE_TAB]: "fas fa-minus",
   // containers
   [StepType.LOOP]: "fas fa-repeat",
   // misc

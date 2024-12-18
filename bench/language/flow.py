@@ -20,12 +20,14 @@ from bench.language.const import (
 from bench.language.field import TypeBase, TypeConstraint, TypeInfo
 from bench.language.list import LocalNodeList
 from bench.language.node import (
+    BuiltinObject,
     Node,
     NodeSubtypeStub,
     SourceNode,
     Struct,
     node_,
     node_subtype_,
+    object_,
     struct_,
 )
 from bench.language.property import (
@@ -211,41 +213,52 @@ class SelectPipe(Pipe):
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    # boundary (may be only incoming or outgoing)
+    # start
     START = 1  # source with inputs
-    COMPLETE = 2  # terminate with outputs
-    FAIL = 3  # terminate with error
-    TRIGGER = 4  # source or intermediary :RichBuiltin
+    TRIGGER = 2  # source or intermediary :RichBuiltin
+    # end
+    COMPLETE = 10  # terminate with outputs
+    FAIL = 11  # terminate with error
     # ABORT?
 
     # read
     GET = 40
     SEARCH = 41
     # AGGREGATE?
+    COPY = 50
 
     # write
     CREATE = 60
-    CLONE = 61
+    DUPLICATE = 61
     UPDATE = 62
     DELETE = 63
+    PASTE = 70
 
     # run
     ACTION = 100
     YIELD = 102  # to something
-
-    # application
-    CLICK = 200
-    TYPE = 201
-    SCROLL = 202
-
-    # web(-specific)
-    ...
 
     # session
     # PAUSE, RESUME, STOP, ...
 
     # state
     # ...
+
+    # application
+    OBSERVE = 1000
+    CLICK = 1050
+    PRESS = 1051
+    TYPE = 1052
+    SCROLL = 1053
+    SELECT = 1054
+    GO_BACKWARD = 1060
+    GO_FORWARD = 1061
+
+    # web
+    GO_TO_URL = 1100
+    GO_TO_TAB = 1101
+    OPEN_TAB = 1102
+    CLOSE_TAB = 1103
 
     # containers
     # GROUP = 500  # subflow region
@@ -256,7 +269,7 @@ class StepType(IdEnum):
 
     @property
     def is_boundary(self) -> bool:
-        return self < 50
+        return self < 40
 
     @property
     def is_container(self) -> bool:
@@ -441,25 +454,6 @@ class Step(SourceNode[StepData]):
 
 
 #
-# Action
-#
-
-
-@node_subtype_(StepType.ACTION)
-class ActionStep(Step, ActionBase):
-    # ...ActionBase[100-129]
-    pass
-
-
-@node_subtype_(StepType.FAIL)
-class FailStep(Step):
-    error_title: str | None = p_regular(100, default=None, require=False)
-    error_text: Optional["Text"] = p_regular(
-        101, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-
-
-#
 # Read
 #
 
@@ -507,12 +501,12 @@ class CreateStep(Step):
         return TypeInfo(kind=TypeKind.PARTIAL_OBJECT)
 
 
-@node_subtype_(StepType.CLONE)
-class CloneStep(Step):
+@node_subtype_(StepType.DUPLICATE)
+class DuplicateStep(Step):
     node: Node | None = p_regular(100, require=False, references="any")
     node_partial_packed = p_value_packed(101)
     node_partial = p_value_runtime(
-        101, kind=ObjectKind.BUILTIN, typ=lambda self: CloneStep._node_partial_type()
+        101, kind=ObjectKind.BUILTIN, typ=lambda self: DuplicateStep._node_partial_type()
     )
     recursive: bool = p_regular(110, default=True)
 
@@ -542,6 +536,97 @@ class DeleteStep(Step):
 
 
 #
+# Run
+#
+
+
+@node_subtype_(StepType.ACTION)
+class ActionStep(Step, ActionBase):
+    # ...ActionBase[100-129]
+    pass
+
+
+@node_subtype_(StepType.FAIL)
+class FailStep(Step):
+    error_title: str | None = p_regular(100, default=None, require=False)
+    error_text: Optional["Text"] = p_regular(
+        101, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+
+
+#
+# Application
+#
+
+
+@object_()
+class HasApplicationLocation(BuiltinObject):
+    position: Optional["Vector2"] = p_regular(
+        100, default=None, require=False, array=False, struct=StructType.VECTOR2
+    )
+    xpath: str | None = p_regular(101, default=None)
+
+
+@node_subtype_(StepType.OBSERVE)
+class ObserveStep(Step):
+    pass
+
+
+@node_subtype_(StepType.CLICK)
+class ClickStep(Step, HasApplicationLocation):
+    pass
+
+
+@node_subtype_(StepType.PRESS)
+class PressStep(Step, HasApplicationLocation):
+    keys: str | None = p_regular(110, default=None)
+    delay: float | None = p_regular(111, default=None)
+
+
+@node_subtype_(StepType.TYPE)
+class TypeStep(Step, HasApplicationLocation):
+    string: str | None = p_regular(110, default=None)
+    delay: float | None = p_regular(111, default=None)
+
+
+@node_subtype_(StepType.SCROLL)
+class ScrollStep(Step, HasApplicationLocation):
+    amount: Optional["Vector2"] = p_regular(
+        110, default=None, require=False, array=False, struct=StructType.VECTOR2
+    )
+
+
+@node_subtype_(StepType.SELECT)
+class SelectStep(Step, HasApplicationLocation):
+    pass
+
+
+@node_subtype_(StepType.GO_BACKWARD)
+class GoBackwardStep(Step, HasApplicationLocation):
+    pass
+
+
+@node_subtype_(StepType.GO_FORWARD)
+class GoForwardStep(Step, HasApplicationLocation):
+    pass
+
+
+#
+# Web
+#
+
+
+@node_subtype_(StepType.GO_TO_URL)
+class GoToUrlStep(Step):
+    pass
+
+
+@node_subtype_(StepType.GO_TO_TAB)
+class GoToTabStep(Step):
+    tab_index: int | None = p_regular(100, default=None)
+
+
+#
 # Container
 #
 
@@ -554,8 +639,3 @@ class LoopStep(Step):
         array=False,
         references=NodeType.FIELD,
     )
-
-
-@node_subtype_(StepType.TEXT)
-class TextStep(Step):
-    pass
