@@ -68,6 +68,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                 attempt=attempt,
                 code=action.code or Code.empty(),
                 tools=action.tools,
+                variables=self.variables,
                 inputs=self.inputs,
             )
         elif action.agency == Agency.DELEGATE:
@@ -77,6 +78,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                 raise RunImpossibleError(f"no delegate for {self!r}")
             delegate_runner = self._get_resumable_subrunner(
                 node=delegate,
+                variables=self.variables,
                 inputs=self.inputs,
                 output_type=self.output_type,
             )
@@ -96,7 +98,11 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                     )
                     if update_code != CODE_PASS:
                         await self._run_code(
-                            code=update_code, node=action, inputs=None, output_type=None
+                            code=update_code,
+                            node=action,
+                            variables=self.variables,
+                            inputs=None,
+                            output_type=None,
                         )
                     attempt._do_set("code", action.code, validate=False)
                 else:
@@ -113,13 +119,18 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                 attempt=attempt,
                 code=attempt.code or Code.empty(),
                 tools=action.tools,
+                variables=self.variables,
                 inputs=self.inputs,
             )
         else:
             assert_never(action.agency)
 
     def _get_resumable_subrunner(
-        self, node: RunnableNode, inputs: CustomObject | None, output_type: TypeBase | None = None
+        self,
+        node: RunnableNode,
+        variables: CustomObject | None,
+        inputs: CustomObject | None,
+        output_type: TypeBase | None = None,
     ):
         """
         Gets the Runner for the given Node within this Runner.
@@ -138,6 +149,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
                 node=node,
                 track=True,
                 context=self.context,
+                variables=variables,
                 inputs=inputs,
                 output_type=output_type,
             )
@@ -201,6 +213,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         attempt: RunAttempt,
         code: Code,
         tools: Sequence[Block | Field],
+        variables: CustomObject | None,
         inputs: CustomObject | None,
     ) -> CustomObject | None:
         """Runs the implementation of the given Action and returns the output."""
@@ -208,7 +221,11 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         assert output_type is not None, f"missing output type for {self!r}"
         if attempt.intermediates_packed is None:
             intermediates = await self._run_code(
-                code=code, node=self.node, inputs=inputs, output_type=output_type
+                code=code,
+                node=self.node,
+                variables=variables,
+                inputs=inputs,
+                output_type=output_type,
             )
         else:
             intermediates = unpack_custom_object(
@@ -222,13 +239,19 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
             # NOTE :Robustness: should the Action delegate be restricted to tools (optionally)?
             call = cast(OutputObject, intermediates).call
             assert call is not None
-            delegate_runner = self._get_resumable_subrunner(node=call.node, inputs=call.inputs)
+            delegate_runner = self._get_resumable_subrunner(
+                node=call.node,
+                variables=None,
+                inputs=call.inputs,
+                output_type=output_type,
+            )
             await self.runtime.run_runner(delegate_runner)
             if call.mapping_code is not None:
                 # run mapping code
                 delegate_outputs = await self._run_code(
                     code=call.mapping_code,
                     node=self.node,
+                    variables=self.variables,
                     inputs=delegate_runner.outputs,
                     output_type=output_type,
                 )
@@ -244,6 +267,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
         self,
         code: Code,
         node: Step | Block | Pipe,
+        variables: CustomObject | None,
         inputs: CustomObject | None = None,
         output_type: TypeBase | None = None,
     ) -> CustomObject | None:
@@ -252,6 +276,7 @@ class ActionRunnerBase[N: RunnableNode = RunnableNode](Runner[N]):
             runtime=self.runtime,
             node=node,
             code=code,
+            variables=variables,
             inputs=inputs,
             output_type=output_type,
             track=False,

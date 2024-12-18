@@ -433,6 +433,7 @@ class Runtime:
         self,
         run: Run | RunnableNode,
         *,
+        variables: Any | None = None,
         inputs: Any | None = None,
         mode: NodeMode | None = None,
         return_error: bool = False,
@@ -440,7 +441,9 @@ class Runtime:
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime until termination/interruption."""
         if not isinstance(run, Run):
-            run = make_run_from_node(run, inputs=inputs, mode=mode, parent=self.active_run)
+            run = make_run_from_node(
+                run, variables=variables, inputs=inputs, mode=mode, parent=self.active_run
+            )
             self.session._create(run)
         runner = None
         async with self.session.active():
