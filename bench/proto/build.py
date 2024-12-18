@@ -455,6 +455,7 @@ export type PropertyInfo = {
     id: number;
     name: string;
     component: ObjectType;
+    componentSubtype?: number;
     kind: PropertyKind;
     primitiveType?: PrimitiveType;
     enumType?: EnumType;
@@ -505,6 +506,8 @@ export type PropertyInfo = {
                 "name": repr(prop.name),
                 "component": f"ObjectType.{bench_cls.metatype.name}",
             }
+            if issubclass(bench_cls, Node) and bench_cls.__subtype__:
+                prop_info_parts["componentSubtype"] = f"{bench_cls.__subtype__.value}"
             if prop.reference_kind:
                 kind = "reference"
             elif prop.enum_type:

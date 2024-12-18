@@ -2,16 +2,7 @@
 import { SINK_STEP_TYPES, toCamelName } from "@/language/const";
 import { NAME_TYPE } from "@/language/field";
 import { isRunActive } from "@/language/session";
-import {
-  ColorShade,
-  FailStepData,
-  FieldType,
-  NodeType,
-  Orientation,
-  PortSide,
-  StepType,
-  ViewData,
-} from "@/proto/wire";
+import { ColorShade, FailStepData, FieldType, NodeType, Orientation, PortSide, StepType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { DEFAULT_TEXT_BY_STEP_TYPE, FLOW_PORT_SIZE, getStepSides, STEP_SIZE, useFlowContext } from "@/system/flow";
 import { runtime } from "@/system/runtime";
@@ -137,7 +128,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           })
         "
         v-tooltip="{ small: true, text: `Change icon` }"
-        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer"
+        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer hover:saturate-200"
         :style="{
           backgroundColor: getNodeColorHex(step, ColorShade.S300),
         }"

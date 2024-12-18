@@ -50,7 +50,7 @@ import {
   StepType,
   TypeConstraintProperty,
   TypeKind,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { canvas } from "@/system/globals";
@@ -298,6 +298,20 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
     );
   }
 
+  function sectionSchemaInput(options?: { subtitle?: string; delegatePtr?: NodeReferenceData }) {
+    section("Input", [{ type: "fields", fieldType: FieldType.INPUT, delegatePtr: options?.delegatePtr }], {
+      actions: [actionAddField(FieldType.INPUT, ICON_BY_FIELD_TYPE[FieldType.INPUT], options)],
+      subtitle: options?.subtitle,
+    });
+  }
+
+  function sectionSchemaOutput(options?: { subtitle?: string; delegatePtr?: NodeReferenceData }) {
+    section("Output", [{ type: "fields", fieldType: FieldType.OUTPUT, delegatePtr: options?.delegatePtr }], {
+      actions: [actionAddField(FieldType.OUTPUT, ICON_BY_FIELD_TYPE[FieldType.OUTPUT], options)],
+      subtitle: options?.subtitle,
+    });
+  }
+
   function actionRows(): DetailRow[] {
     const action = subnode as ActionStepData | ActionBlockData | undefined;
     const agency: Agency = action?.agency ?? Agency.GENERATE;
@@ -490,7 +504,14 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
         rowProperty(FailStepProperty.errorText, { title: "Text" }),
       ]);
     } else {
-      sectionSchema();
+      // add all from subproperty enum
+      if (subpropertyEnum != null) {
+        Object.values(subpropertyEnum)
+          .filter((v) => typeof v == "number")
+          .forEach((subproperty) => {
+            commonRows.push(rowProperty(subproperty as any));
+          });
+      }
     }
 
     if (!BOUNDARY_STEP_TYPES.includes(node.type)) {

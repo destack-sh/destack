@@ -29,9 +29,11 @@ const state = canvas.registerView(self, id);
 
 const nodePtr = computedValue(() => props.nodePtr);
 const { node, graph, connection } = supergraph.getLinkRef(nodePtr);
-const layout = computed(() =>
-  node.value != null ? makeInspectLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx) : null,
-);
+const layout = computed(() => {
+  if (node.value == null) return null;
+  const layout = makeInspectLayout(node.value, graph.value!, () => (connection.value ?? pkgConnection).tx);
+  return layout;
+});
 
 const expandedSections = useSubnodeProperty(
   NodeType.VIEW,

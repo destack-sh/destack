@@ -84,7 +84,7 @@ export const DEFAULT_TEXT_BY_STEP_TYPE: Partial<Record<StepType, string>> = {
   [StepType.GO_BACKWARD]: "Go back in history.",
   [StepType.GO_FORWARD]: "Go forward in history.",
   // web
-  [StepType.GO_TO_URL]: "Go to a URL.",
+  [StepType.GO_TO_URL]: "Navigate to a URL.",
   [StepType.GO_TO_TAB]: "Switch to a tab.",
   [StepType.OPEN_TAB]: "Open a new tab.",
   [StepType.CLOSE_TAB]: "Close a tab.",
@@ -1234,7 +1234,7 @@ export class FlowContext {
       orderKey,
       ...options.step,
       position: position ?? undefined,
-      type: options.step.type,
+      type: options.step.type as any,
       parentPtr,
       packagePtr,
     });
