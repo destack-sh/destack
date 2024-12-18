@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/code";
-import { CodeData, NodeType, Variant, ViewData, ViewType } from "@/proto/wire";
+import { CodeData, NodeType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
@@ -20,7 +20,7 @@ import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: CodeData } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "variant" | "orientation" | "nodePtr" | "isInput">
+    Pick<ViewData, "name" | "title" | "icon" | "orientation" | "nodePtr" | "isInput" | "isMinimal">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -47,7 +47,7 @@ function makeEditorState(code?: CodeData, options?: { restoreSelection?: boolean
   ];
   const dynamicExtensions = computed(() => {
     const extensions = [];
-    if (props.variant != Variant.STEALTH) {
+    if (!props.isMinimal) {
       extensions.push(lineNumbers());
     }
     if (!props.isInput) {
@@ -185,7 +185,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <ViewContentWrapper :type="ViewType.CODE" :title="title" :variant="variant" :orientation="orientation">
+  <ViewContentWrapper :type="ViewType.CODE" :title="title" :is-minimal="isMinimal" :orientation="orientation">
     <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
     <div
       ref="codeRef"
@@ -194,7 +194,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       data-suppress-drag="both"
       class="code rounded hover:cursor-text"
       :class="[
-        variant != Variant.STEALTH
+        !isMinimal
           ? 'border border-gray-200 px-1 py-[4px] focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',

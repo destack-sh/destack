@@ -9,7 +9,6 @@ import {
   NodeType,
   ObjectType,
   TextData,
-  Variant,
   ViewData,
   ViewType,
   type AnyNodeData,
@@ -19,15 +18,7 @@ import { bench, canvas, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
-import {
-  menuActionsLike,
-  popPopover,
-  pushPopover,
-  trackHoverElementOnce,
-  type PopoverContext,
-  type PopoverInfo,
-  type PopoverInstance,
-} from "@/ui/popover";
+import { popPopover, pushPopover, trackHoverElementOnce, type PopoverInstance } from "@/ui/popover";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { getElement } from "@/utils/element";
@@ -59,7 +50,7 @@ const props = defineProps<
     modelValue?: TextData;
     placeholder?: string;
     suppressEnter?: boolean;
-  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "variant" | "nodePtr" | "isInput">>
+  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInput" | "isMinimal">>
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -403,7 +394,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       ref="textRef"
       class="text relative rounded hover:cursor-text"
       :class="[
-        variant != Variant.STEALTH
+        !isMinimal
           ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
           : 'stealth',
         isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
@@ -415,7 +406,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
       <div
         v-if="placeholder && isTextEmpty(modelValue)"
         class="pointer-events-none absolute"
-        :class="variant != Variant.STEALTH ? 'left-2 top-1' : 'left-0.5 top-0.5'"
+        :class="!isMinimal ? 'left-2 top-1' : 'left-0.5 top-0.5'"
       >
         <div class="text-sm text-gray-400">{{ placeholder }}</div>
       </div>

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, Variant, ViewType } from "@/proto/wire";
+import { ViewData, NodeType, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
@@ -7,7 +7,7 @@ import { ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; modelValue?: boolean } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "variant" | "orientation" | "isInput" | "isDisabled">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "orientation" | "isInput" | "isDisabled" | "isMinimal">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -29,7 +29,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value, interact: () 
 <template>
   <ViewContentWrapper :type="ViewType.TOGGLE" v-bind="props">
     <button
-      v-if="variant == null || variant == Variant.PRIMARY"
+      v-if="!isMinimal"
       role="switch"
       :disabled="isDisabled || !isInput"
       class="relative inline-flex h-5 w-12 flex-shrink-0 cursor-pointer rounded border border-gray-200 transition-colors duration-75 ease-in-out focus:outline-none"
@@ -44,11 +44,14 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value, interact: () 
     <!-- Checkbox -->
     <button
       v-else
-      class="h-5 w-5 p-[1px] rounded border border-gray-200 bg-white transition-colors duration-75"
+      class="h-5 w-5 rounded border border-gray-200 bg-white p-[1px] transition-colors duration-75"
       :disabled="isDisabled || !isInput"
       @click.stop="toggle"
     >
-      <span class="inline-block rounded w-full h-full transition-colors duration-75" :class="modelValue ? 'bg-gray-700' : ''" />
+      <span
+        class="inline-block h-full w-full rounded transition-colors duration-75"
+        :class="modelValue ? 'bg-gray-700' : ''"
+      />
     </button>
   </ViewContentWrapper>
 </template>

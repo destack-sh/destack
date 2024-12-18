@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { RunErrorKind, RunErrorType, Variant, type RunData, type RunErrorData } from "@/proto/wire";
+import { RunErrorKind, RunErrorType, type RunData, type RunErrorData } from "@/proto/wire";
 import Text from "@/views/content/Text.vue";
 
 const props = defineProps<{ run?: RunData; error: RunErrorData }>();
@@ -21,7 +21,7 @@ const props = defineProps<{ run?: RunData; error: RunErrorData }>();
     </div>
     <!-- Text -->
     <div v-if="error.text" class="mt-1">
-      <Text id="text" :model-value="error.text" :variant="Variant.STEALTH" />
+      <Text id="text" :model-value="error.text" is-minimal />
     </div>
     <div v-else class="mt-1">
       <span class="text-gray-400">No Error Message</span>

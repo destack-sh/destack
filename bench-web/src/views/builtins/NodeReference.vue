@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/const";
 import { NAME_TYPE, TITLE_TYPE } from "@/language/field";
 import { Transaction } from "@/language/transaction";
-import { AnyNodeData, NodeType, PROPERTY_ENUM_BY_TYPE, Variant } from "@/proto/wire";
+import { AnyNodeData, NodeType, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
@@ -97,7 +97,7 @@ defineExpose({
       :placeholder="nodeTypeName"
       is-input
       :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
-      :variant="Variant.STEALTH"
+      is-minimal
       :model-value="identifier"
       @update:model-value="
         (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })

@@ -1,28 +1,16 @@
 <script lang="ts" setup>
-import {
-  BlockType,
-  RectangleData,
-  FieldType,
-  IconData,
-  NodeType,
-  ObjectType,
-  TypeKind,
-  Variant,
-  ViewData,
-  ViewType,
-  FieldData,
-} from "@/proto/wire";
+import { getTitleField } from "@/language/field";
+import { packValue, unpackValue } from "@/language/value";
+import { FieldData, IconData, NodeType, ObjectType, RectangleData, TypeKind, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
-import { getFieldViews } from "@/ui/view";
+import { IconInline } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
+import { getFieldViews } from "@/ui/view";
 import { ViewContentWrapper, viewEmits, type ViewComponent, type ViewExposed, type ViewProps } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
-import { getTitleField } from "@/language/field";
-import { packValue, unpackValue } from "@/language/value";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
@@ -36,7 +24,7 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     preparedConnection?: PreparedGetConnection;
   } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
+    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled" | "isMinimal">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -45,9 +33,7 @@ const id = toRef(props, "id");
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const componentRefs: Ref<Record<string, ViewComponent | null>> = ref({});
-const width = computed(() =>
-  props.variant == Variant.STEALTH ? null : Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH),
-);
+const width = computed(() => (props.isMinimal ? null : Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH)));
 
 const facetIcon = computed(() => base.value?.icon);
 const facetName = computed(() => base.value?.name);
@@ -178,7 +164,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
     <div v-else class="w-full">
       <!-- Header -->
       <div
-        v-if="variant != Variant.STEALTH"
+        v-if="!isMinimal"
         class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b px-2.5 py-1"
       >
         <!-- Current value -->
@@ -233,7 +219,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
       <!-- Fields (for current value) -->
       <ul
         class="flex flex-col gap-y-1.5"
-        :class="variant != Variant.STEALTH ? 'py-3' : ''"
+        :class="isMinimal ? 'py-3' : ''"
         :style="{ width: width != null ? width + 'px' : '100%' }"
       >
         <!-- NOTE :Incomplete: builtin custom object properties :CustomObjectProperties -->
@@ -243,7 +229,7 @@ defineExpose<ViewExposed & { fields: Ref<FieldData[]> }>({ self, id, focus, fiel
           class="mx-auto w-full"
           :class="[
             fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[5%]',
-            variant != Variant.STEALTH ? 'px-4' : '',
+            isMinimal ? 'px-4' : '',
           ]"
           :style="{ minWidth: MIN_WIDTH + 'px', minHeight: ROW_HEIGHT_MIN + 'px' }"
         >

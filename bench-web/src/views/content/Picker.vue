@@ -1,15 +1,16 @@
 <script lang="ts" setup>
 import { isNodeType, toCamelName } from "@/language/const";
 import { getConstrainedTypeName } from "@/language/field";
+import { useSubnodeProperty } from "@/language/node";
 import {
   IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
+  PickerVariant,
   RectangleData,
   TypeKind,
-  Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -47,9 +48,14 @@ const props = defineProps<
     placeholder?: string;
     isPopover?: boolean;
   } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
+    Pick<
+      ViewData,
+      "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled" | "isMinimal" | "subnodePacked"
+    >
   >
 >();
+const subnodePacked = toRef(props, "subnodePacked");
+const variant = useSubnodeProperty(NodeType.VIEW, ViewType.PICKER, subnodePacked, "variant");
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = toRef(props, "id");
@@ -245,7 +251,7 @@ defineExpose<ViewExposed>({
     <!-- Dropdown -->
     <!-- NOTE: dropdown button style should match inline combobox header style since we overlay them -->
     <div
-      v-if="!isInline && variant != Variant.COMPACT"
+      v-if="!props.isInline && (variant == null || variant == PickerVariant.DROPDOWN)"
       ref="buttonRef"
       v-menu="
         (): PopoverInfoIn => ({
@@ -253,19 +259,18 @@ defineExpose<ViewExposed>({
           component: ViewType.PICKER,
           placement: 'inside-top-left',
           isEnabled: !isDisabled && isInput,
-          // stealth picker has no padding, but popover picker does, so add offset to ensure it's aligned
-          offset: variant == Variant.STEALTH ? { x: -10, y: -5 } : undefined,
+          // minimal picker has no padding, but popover picker does, so add offset to ensure it's aligned
+          offset: isMinimal ? { x: -10, y: -5 } : undefined,
           referenceMargin: 0,
-          dontAnimate: variant == Variant.STEALTH,
+          dontAnimate: isMinimal,
           props: {
             ...(props as ViewProps),
-            variant: Variant.PRIMARY, // full dropdown
             title: undefined, // clear title
             size: {
               metatype: ObjectType.RECTANGLE,
               width: Math.max(
                 MIN_WIDTH,
-                buttonRef?.getBoundingClientRect().width! + (variant == Variant.STEALTH ? 10 : 0), // see above
+                buttonRef?.getBoundingClientRect().width! + (isMinimal ? 10 : 0), // see above
               ),
             },
             isPopover: false, // want clean inline style so it matches this variant
@@ -277,7 +282,7 @@ defineExpose<ViewExposed>({
       role="button"
       :disabled="props.isDisabled || !props.isInput"
       class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
-      :class="[variant != Variant.STEALTH ? 'border px-2.5 py-1' : '']"
+      :class="[!isMinimal ? 'border px-2.5 py-1' : '']"
     >
       <!-- Current value -->
       <template v-if="hasValue">
@@ -295,7 +300,7 @@ defineExpose<ViewExposed>({
       <div
         v-else
         class="mr-2 transition-colors duration-150"
-        :class="variant == Variant.STEALTH ? 'opacity-0 group-hover:opacity-100' : ''"
+        :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
       >
         <IconInline v-if="facetIcon" v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
         <span class="truncate text-gray-400">{{ facetName ?? "Select" }}</span>
@@ -311,7 +316,7 @@ defineExpose<ViewExposed>({
       <div
         v-if="!isDisabled && isInput"
         class="ml-auto flex-shrink-0 pl-1.5 transition-colors duration-150"
-        :class="variant == Variant.STEALTH ? 'opacity-0 group-hover:opacity-100' : ''"
+        :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
       >
         <!-- Clear -->
         <button
@@ -327,7 +332,7 @@ defineExpose<ViewExposed>({
 
     <!-- Inline Multi-Toggle -->
     <div
-      v-else-if="variant == Variant.COMPACT || variant == Variant.STEALTH"
+      v-else-if="variant == PickerVariant.MULTI_TOGGLE"
       class="flex h-7 w-full flex-row items-center justify-between gap-x-1 truncate rounded bg-gray-100 px-0.5"
     >
       <!-- Inline choice -->
@@ -345,7 +350,7 @@ defineExpose<ViewExposed>({
         class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
         @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
       >
-        <IconInline v-if="variant == Variant.STEALTH && (item as any).icon" v-bind="(item as any).icon" class="w-5" />
+        <IconInline v-if="isMinimal && (item as any).icon" v-bind="(item as any).icon" class="w-5" />
         <span v-else class="truncate">{{ item.title }}</span>
       </button>
       <div v-if="results.length == 0" class="mx-auto">

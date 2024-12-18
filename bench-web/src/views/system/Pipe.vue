@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/field";
 import { isRunActive } from "@/language/session";
-import { ColorShade, ColorType, NodeType, PipeType, Variant, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeType,  ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/system/flow";
 import { runtime } from "@/system/runtime";
@@ -16,7 +16,7 @@ import { computed, Ref, ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform" | "variant">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform" | "isMinimal">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -187,9 +187,9 @@ defineExpose<ViewExposed>({ self, id, actions });
       <NativeInput
         id="name"
         ref="nameRef"
-        :variant="Variant.STEALTH"
         class="w-full text-xs"
         is-input
+        is-minimal
         placeholder="Name..."
         :placeholder-color="pathColorHex"
         :value-type="NAME_TYPE"

@@ -16,7 +16,7 @@ const props = defineProps<
     preparedConnection?: PreparedGetConnection;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
   } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "variant" | "isInput" | "isInline" | "isDisabled">
+    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -37,7 +37,7 @@ defineExpose<ViewExposed>({ self, id });
       :is="getViewComponent(valueView.type)"
       v-if="valueType != null && valueView?.type != null && hasViewComponent(valueView.type)"
       class="ml-auto flex-shrink-0"
-      v-bind="{ isInput: true, variant: props.variant, size: props.size, valueType, ...valueView }"
+      v-bind="{ isInput: true, size: props.size, valueType, ...valueView }"
       :model-value="modelValue"
       :prepared-connection="props.preparedConnection"
       @update:model-value="$emit('update:modelValue', $event)"

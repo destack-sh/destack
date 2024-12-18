@@ -16,7 +16,7 @@ const props = defineProps<
     size: Pick<RectangleData, "width" | "height">;
     sizeIsDynamic?: boolean;
     stickToEnd?: boolean;
-  } & Pick<ViewData, "orientation" | "variant">
+  } & Pick<ViewData, "orientation">
 >();
 const emit = defineEmits({ ...viewEmits(), scroll: null });
 const self = toRef(props, "self");

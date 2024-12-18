@@ -23,7 +23,6 @@ import {
   StructType,
   TypeInfoData,
   TypeKind,
-  Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -48,7 +47,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-  } & Pick<ViewData, "nodePtr" | "focus" | "size" | "variant" | "subnodePacked">
+  } & Pick<ViewData, "nodePtr" | "focus" | "size" | "subnodePacked">
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
@@ -185,7 +184,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           :value-type="getRunObjectType(fieldType)"
           is-inline
           is-input
-          :variant="Variant.STEALTH"
+          is-minimal
           :model-value="inputsPacked"
           @update:model-value="
             (value) => {
@@ -219,7 +218,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
           class="w-full"
           :value-type="getRunObjectType(fieldType)"
           is-inline
-          :variant="Variant.STEALTH"
+          is-minimal
           :model-value="getRunObjectValue(fieldType)"
         />
       </div>
@@ -292,7 +291,7 @@ defineExpose<ViewExposed & { start: () => void; run: Ref<RunData | null> }>({ se
                 :value-type="interrupt.outputType"
                 is-inline
                 is-input
-                :variant="Variant.STEALTH"
+                is-minimal
                 :model-value="interrupt.interrupt.outputsPacked"
                 @update:model-value="
                   (value) => {

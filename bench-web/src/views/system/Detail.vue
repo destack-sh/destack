@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { useSubnodeProperty } from "@/language/node";
-import { NodeType, Orientation, Variant, ViewData, ViewType } from "@/proto/wire";
+import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self, id });
               :orientation="Orientation.VERTICAL"
               :node-ptr="row.delegatePtr ?? nodePtr"
               :field-type="row.fieldType"
-              :variant="Variant.STEALTH"
+              is-minimal
             />
           </div>
           <!-- View -->

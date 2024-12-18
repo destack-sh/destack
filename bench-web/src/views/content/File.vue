@@ -15,7 +15,6 @@ import {
   NodeType,
   ObjectType,
   RectangleData,
-  Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -46,7 +45,7 @@ const props = defineProps<
   } & Partial<
     Pick<
       ViewData,
-      "type" | "name" | "title" | "icon" | "valueType" | "nodePtr" | "variant" | "isInput" | "isInline" | "isDisabled"
+      "type" | "name" | "title" | "icon" | "valueType" | "nodePtr" | "isInput" | "isInline" | "isDisabled" | "isMinimal"
     >
   >
 >();
@@ -184,10 +183,10 @@ defineExpose<ViewExposed>({
       v-hovermenu="HOVER_MENU"
       class="group flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-200"
       :class="[
-        variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
-        variant == Variant.STEALTH && isInDropZone ? 'bg-gray-100' : '',
+        !isMinimal ? 'border px-2.5 py-1' : '',
+        isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-400 outline outline-1 outline-gray-400' : 'border-gray-200 hover:border-gray-200',
-        variant == Variant.STEALTH && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
+        isMinimal && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
       ]"
       @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
     >
@@ -242,8 +241,8 @@ defineExpose<ViewExposed>({
       ref="containerRef"
       class="group flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
       :class="[
-        variant != Variant.STEALTH ? 'border px-2.5 py-1' : '',
-        variant == Variant.STEALTH && isInDropZone ? 'bg-gray-100' : '',
+        !isMinimal ? 'border px-2.5 py-1' : '',
+        isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone
           ? 'border-gray-400 text-gray-700 outline outline-2 outline-gray-400'
           : 'border-gray-200 text-gray-400 hover:border-gray-200',
@@ -252,7 +251,7 @@ defineExpose<ViewExposed>({
     >
       <span
         class="select-none transition-colors duration-75"
-        :class="variant == Variant.STEALTH && !isInDropZone ? 'opacity-0 group-hover:opacity-100' : ''"
+        :class="isMinimal && !isInDropZone ? 'opacity-0 group-hover:opacity-100' : ''"
       >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
         <span>Upload {{ facetName }}</span>
@@ -265,8 +264,8 @@ defineExpose<ViewExposed>({
       ref="containerRef"
       class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
-        variant != Variant.STEALTH ? 'border py-1' : '',
-        variant == Variant.STEALTH && isInDropZone ? 'bg-gray-100' : '',
+        !isMinimal ? 'border py-1' : '',
+        isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
       ]"
     >
@@ -292,7 +291,7 @@ defineExpose<ViewExposed>({
         :class="[
           loadFailed ? 'text-danger-600' : '',
           (upload != null && upload.isActive.value) ||
-          (download != null && download.isActive.value && variant != Variant.STEALTH)
+          (download != null && download.isActive.value && !isMinimal)
             ? 'animate-pulse'
             : '',
         ]"

@@ -5657,14 +5657,6 @@ export interface ViewData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Variant variant = 50;
-     */
-    variant?: Variant;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.FontData font = 51;
-     */
-    font?: FontData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.OffsetData position = 60;
      */
     position?: OffsetData;
@@ -5721,6 +5713,10 @@ export interface ViewData {
      */
     isInline: boolean;
     /**
+     * @generated from protobuf field: bool is_minimal = 84;
+     */
+    isMinimal: boolean;
+    /**
      * @generated from protobuf field: bool is_loading = 85;
      */
     isLoading: boolean;
@@ -5728,6 +5724,65 @@ export interface ViewData {
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 90;
      */
     mode: NodeMode;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.UserWizardViewData
+ */
+export interface UserWizardViewData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 100;
+     */
+    stage?: UserWizardViewStage;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.HelpViewData
+ */
+export interface HelpViewData {
+    /**
+     * @generated from protobuf field: symbolx.bench.HelpAspect aspect = 100;
+     */
+    aspect: HelpAspect;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.DetailViewData
+ */
+export interface DetailViewData {
+    /**
+     * @generated from protobuf field: repeated string expanded_sections = 100;
+     */
+    expandedSections: string[];
+    /**
+     * @generated from protobuf field: repeated string collapsed_sections = 101;
+     */
+    collapsedSections: string[];
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.RunViewData
+ */
+export interface RunViewData {
+    /**
+     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 100;
+     */
+    inputsPacked?: JsonValue;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.HubViewData
+ */
+export interface HubViewData {
+    /**
+     * @generated from protobuf field: symbolx.bench.HubAspect aspect = 100;
+     */
+    aspect: HubAspect;
 }
 /**
  * A view of a user interface in a Bench.
@@ -5763,17 +5818,6 @@ export interface TreeViewData {
 /**
  * A view of a user interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.RunViewData
- */
-export interface RunViewData {
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 100;
-     */
-    inputsPacked?: JsonValue;
-}
-/**
- * A view of a user interface in a Bench.
- *
  * @generated from protobuf message symbolx.bench.FeedViewData
  */
 export interface FeedViewData {
@@ -5793,57 +5837,13 @@ export interface FeedViewData {
 /**
  * A view of a user interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.HubViewData
+ * @generated from protobuf message symbolx.bench.ButtonViewData
  */
-export interface HubViewData {
+export interface ButtonViewData {
     /**
-     * @generated from protobuf field: symbolx.bench.HubAspect aspect = 100;
+     * @generated from protobuf field: optional symbolx.bench.ButtonVariant variant = 100;
      */
-    aspect: HubAspect;
-}
-/**
- * A view of a user interface in a Bench.
- *
- * @generated from protobuf message symbolx.bench.HelpViewData
- */
-export interface HelpViewData {
-    /**
-     * @generated from protobuf field: symbolx.bench.HelpAspect aspect = 100;
-     */
-    aspect: HelpAspect;
-}
-/**
- * A view of a user interface in a Bench.
- *
- * @generated from protobuf message symbolx.bench.DetailViewData
- */
-export interface DetailViewData {
-    /**
-     * @generated from protobuf field: repeated string expanded_sections = 100;
-     */
-    expandedSections: string[];
-    /**
-     * @generated from protobuf field: repeated string collapsed_sections = 101;
-     */
-    collapsedSections: string[];
-}
-/**
- * A view of a user interface in a Bench.
- *
- * @generated from protobuf message symbolx.bench.UserWizardViewData
- */
-export interface UserWizardViewData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 100;
-     */
-    stage?: UserWizardViewStage;
-}
-/**
- * A view of a user interface in a Bench.
- *
- * @generated from protobuf message symbolx.bench.PickerViewData
- */
-export interface PickerViewData {
+    variant?: ButtonVariant;
 }
 /**
  * A view of a user interface in a Bench.
@@ -5855,6 +5855,17 @@ export interface IconViewData {
      * @generated from protobuf field: bool include_color = 100;
      */
     includeColor: boolean;
+}
+/**
+ * A view of a user interface in a Bench.
+ *
+ * @generated from protobuf message symbolx.bench.PickerViewData
+ */
+export interface PickerViewData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PickerVariant variant = 100;
+     */
+    variant?: PickerVariant;
 }
 /**
  * @generated from protobuf message symbolx.bench.SpaceData
@@ -6832,10 +6843,6 @@ export enum EnumType {
      */
     VIEW_TYPE = 23502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 23503;
-     */
-    VARIANT = 23503,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 23504;
      */
     COLOR_TYPE = 23504,
@@ -6887,6 +6894,14 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_HELP_ASPECT = 23516;
      */
     HELP_ASPECT = 23516,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BUTTON_VARIANT = 23517;
+     */
+    BUTTON_VARIANT = 23517,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PICKER_VARIANT = 23518;
+     */
+    PICKER_VARIANT = 23518,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 24001;
      */
@@ -8739,10 +8754,6 @@ export enum BenchType {
      */
     VIEW_TYPE = 23502,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 23503;
-     */
-    VARIANT = 23503,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 23504;
      */
     COLOR_TYPE = 23504,
@@ -8794,6 +8805,14 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_HELP_ASPECT = 23516;
      */
     HELP_ASPECT = 23516,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BUTTON_VARIANT = 23517;
+     */
+    BUTTON_VARIANT = 23517,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PICKER_VARIANT = 23518;
+     */
+    PICKER_VARIANT = 23518,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 24001;
      */
@@ -11686,33 +11705,6 @@ export enum ViewType {
     AGGREGATION = 1363
 }
 /**
- * The style variant of a view.
- *
- * @generated from protobuf enum symbolx.bench.Variant
- */
-export enum Variant {
-    /**
-     * @generated from protobuf enum value: VARIANT_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: VARIANT_PRIMARY = 1;
-     */
-    PRIMARY = 1,
-    /**
-     * @generated from protobuf enum value: VARIANT_SECONDARY = 2;
-     */
-    SECONDARY = 2,
-    /**
-     * @generated from protobuf enum value: VARIANT_COMPACT = 3;
-     */
-    COMPACT = 3,
-    /**
-     * @generated from protobuf enum value: VARIANT_STEALTH = 4;
-     */
-    STEALTH = 4
-}
-/**
  * Built-in color types a la SwiftUI or Tailwind.
  *
  * @generated from protobuf enum symbolx.bench.ColorType
@@ -12330,6 +12322,48 @@ export enum HelpAspect {
      * @generated from protobuf enum value: HELP_ASPECT_VERSION = 4;
      */
     VERSION = 4
+}
+/**
+ * @generated from protobuf enum symbolx.bench.ButtonVariant
+ */
+export enum ButtonVariant {
+    /**
+     * @generated from protobuf enum value: BUTTON_VARIANT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: BUTTON_VARIANT_PRIMARY = 1;
+     */
+    PRIMARY = 1,
+    /**
+     * @generated from protobuf enum value: BUTTON_VARIANT_SECONDARY = 2;
+     */
+    SECONDARY = 2,
+    /**
+     * @generated from protobuf enum value: BUTTON_VARIANT_LINK = 3;
+     */
+    LINK = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PickerVariant
+ */
+export enum PickerVariant {
+    /**
+     * @generated from protobuf enum value: PICKER_VARIANT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PICKER_VARIANT_DROPDOWN = 1;
+     */
+    DROPDOWN = 1,
+    /**
+     * @generated from protobuf enum value: PICKER_VARIANT_MULTI_TOGGLE = 2;
+     */
+    MULTI_TOGGLE = 2,
+    /**
+     * @generated from protobuf enum value: PICKER_VARIANT_COMBOBOX = 3;
+     */
+    COMBOBOX = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.UserStatus
@@ -26234,8 +26268,6 @@ class ViewData$Type extends MessageType$<ViewData> {
             { no: 39, name: "subviews_packed", kind: "message", T: () => Value },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 42, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.Variant", Variant, "VARIANT_"] },
-            { no: 51, name: "font", kind: "message", T: () => FontData },
             { no: 60, name: "position", kind: "message", T: () => OffsetData },
             { no: 61, name: "size", kind: "message", T: () => RectangleData },
             { no: 62, name: "margin", kind: "message", T: () => OffsetData },
@@ -26250,6 +26282,7 @@ class ViewData$Type extends MessageType$<ViewData> {
             { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 83, name: "is_inline", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 84, name: "is_minimal", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 85, name: "is_loading", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 90, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] }
         ]);
@@ -26268,6 +26301,7 @@ class ViewData$Type extends MessageType$<ViewData> {
         message.isDisabled = false;
         message.isInput = false;
         message.isInline = false;
+        message.isMinimal = false;
         message.isLoading = false;
         message.mode = 0;
         if (value !== undefined)
@@ -26351,12 +26385,6 @@ class ViewData$Type extends MessageType$<ViewData> {
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 42:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* optional symbolx.bench.Variant variant */ 50:
-                    message.variant = reader.int32();
-                    break;
-                case /* optional symbolx.bench.FontData font */ 51:
-                    message.font = FontData.internalBinaryRead(reader, reader.uint32(), options, message.font);
-                    break;
                 case /* optional symbolx.bench.OffsetData position */ 60:
                     message.position = OffsetData.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
@@ -26398,6 +26426,9 @@ class ViewData$Type extends MessageType$<ViewData> {
                     break;
                 case /* bool is_inline */ 83:
                     message.isInline = reader.bool();
+                    break;
+                case /* bool is_minimal */ 84:
+                    message.isMinimal = reader.bool();
                     break;
                 case /* bool is_loading */ 85:
                     message.isLoading = reader.bool();
@@ -26489,12 +26520,6 @@ class ViewData$Type extends MessageType$<ViewData> {
         /* optional symbolx.bench.NodeReferenceData node_ptr = 42; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.Variant variant = 50; */
-        if (message.variant !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.variant);
-        /* optional symbolx.bench.FontData font = 51; */
-        if (message.font)
-            FontData.internalBinaryWrite(message.font, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.OffsetData position = 60; */
         if (message.position)
             OffsetData.internalBinaryWrite(message.position, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -26537,6 +26562,9 @@ class ViewData$Type extends MessageType$<ViewData> {
         /* bool is_inline = 83; */
         if (message.isInline !== false)
             writer.tag(83, WireType.Varint).bool(message.isInline);
+        /* bool is_minimal = 84; */
+        if (message.isMinimal !== false)
+            writer.tag(84, WireType.Varint).bool(message.isMinimal);
         /* bool is_loading = 85; */
         if (message.isLoading !== false)
             writer.tag(85, WireType.Varint).bool(message.isLoading);
@@ -26554,52 +26582,25 @@ class ViewData$Type extends MessageType$<ViewData> {
  */
 export const ViewData = new ViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TreeViewData$Type extends MessageType$<TreeViewData> {
+class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
     constructor() {
-        super("symbolx.bench.TreeViewData", [
-            { no: 100, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "filter_is_page", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 102, name: "is_default_expanded", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 103, name: "expanded_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 104, name: "collapsed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 110, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] }
+        super("symbolx.bench.UserWizardViewData", [
+            { no: 100, name: "stage", kind: "enum", opt: true, T: () => ["symbolx.bench.UserWizardViewStage", UserWizardViewStage, "USER_WIZARD_VIEW_STAGE_"] }
         ]);
     }
-    create(value?: PartialMessage<TreeViewData>): TreeViewData {
+    create(value?: PartialMessage<UserWizardViewData>): UserWizardViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.nodeTypes = [];
-        message.expandedNodesPtr = [];
-        message.collapsedNodesPtr = [];
         if (value !== undefined)
-            reflectionMergePartial<TreeViewData>(this, message, value);
+            reflectionMergePartial<UserWizardViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TreeViewData): TreeViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UserWizardViewData): UserWizardViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.NodeType node_types */ 100:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.nodeTypes.push(reader.int32());
-                    else
-                        message.nodeTypes.push(reader.int32());
-                    break;
-                case /* optional bool filter_is_page */ 101:
-                    message.filterIsPage = reader.bool();
-                    break;
-                case /* optional bool is_default_expanded */ 102:
-                    message.isDefaultExpanded = reader.bool();
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr */ 103:
-                    message.expandedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr */ 104:
-                    message.collapsedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.TreeViewPreset preset */ 110:
-                    message.preset = reader.int32();
+                case /* optional symbolx.bench.UserWizardViewStage stage */ 100:
+                    message.stage = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -26612,29 +26613,10 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: TreeViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodeType node_types = 100; */
-        if (message.nodeTypes.length) {
-            writer.tag(100, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.nodeTypes.length; i++)
-                writer.int32(message.nodeTypes[i]);
-            writer.join();
-        }
-        /* optional bool filter_is_page = 101; */
-        if (message.filterIsPage !== undefined)
-            writer.tag(101, WireType.Varint).bool(message.filterIsPage);
-        /* optional bool is_default_expanded = 102; */
-        if (message.isDefaultExpanded !== undefined)
-            writer.tag(102, WireType.Varint).bool(message.isDefaultExpanded);
-        /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 103; */
-        for (let i = 0; i < message.expandedNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.expandedNodesPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 104; */
-        for (let i = 0; i < message.collapsedNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.collapsedNodesPtr[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TreeViewPreset preset = 110; */
-        if (message.preset !== undefined)
-            writer.tag(110, WireType.Varint).int32(message.preset);
+    internalBinaryWrite(message: UserWizardViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.UserWizardViewStage stage = 100; */
+        if (message.stage !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.stage);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26642,163 +26624,9 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.TreeViewData
+ * @generated MessageType for protobuf message symbolx.bench.UserWizardViewData
  */
-export const TreeViewData = new TreeViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RunViewData$Type extends MessageType$<RunViewData> {
-    constructor() {
-        super("symbolx.bench.RunViewData", [
-            { no: 100, name: "inputs_packed", kind: "message", T: () => Value }
-        ]);
-    }
-    create(value?: PartialMessage<RunViewData>): RunViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RunViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunViewData): RunViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional google.protobuf.Value inputs_packed */ 100:
-                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RunViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Value inputs_packed = 100; */
-        if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RunViewData
- */
-export const RunViewData = new RunViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class FeedViewData$Type extends MessageType$<FeedViewData> {
-    constructor() {
-        super("symbolx.bench.FeedViewData", [
-            { no: 100, name: "query_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 102, name: "filter_pills", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<FeedViewData>): FeedViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.filterPills = [];
-        if (value !== undefined)
-            reflectionMergePartial<FeedViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FeedViewData): FeedViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeType query_node_type */ 100:
-                    message.queryNodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 101:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated string filter_pills */ 102:
-                    message.filterPills.push(reader.string());
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FeedViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeType query_node_type = 100; */
-        if (message.queryNodeType !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.queryNodeType);
-        /* optional symbolx.bench.ExpressionData filter = 101; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* repeated string filter_pills = 102; */
-        for (let i = 0; i < message.filterPills.length; i++)
-            writer.tag(102, WireType.LengthDelimited).string(message.filterPills[i]);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FeedViewData
- */
-export const FeedViewData = new FeedViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class HubViewData$Type extends MessageType$<HubViewData> {
-    constructor() {
-        super("symbolx.bench.HubViewData", [
-            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HubAspect", HubAspect, "HUB_ASPECT_"] }
-        ]);
-    }
-    create(value?: PartialMessage<HubViewData>): HubViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.aspect = 0;
-        if (value !== undefined)
-            reflectionMergePartial<HubViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HubViewData): HubViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.HubAspect aspect */ 100:
-                    message.aspect = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: HubViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.HubAspect aspect = 100; */
-        if (message.aspect !== 0)
-            writer.tag(100, WireType.Varint).int32(message.aspect);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.HubViewData
- */
-export const HubViewData = new HubViewData$Type();
+export const UserWizardViewData = new UserWizardViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class HelpViewData$Type extends MessageType$<HelpViewData> {
     constructor() {
@@ -26902,25 +26730,25 @@ class DetailViewData$Type extends MessageType$<DetailViewData> {
  */
 export const DetailViewData = new DetailViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
+class RunViewData$Type extends MessageType$<RunViewData> {
     constructor() {
-        super("symbolx.bench.UserWizardViewData", [
-            { no: 100, name: "stage", kind: "enum", opt: true, T: () => ["symbolx.bench.UserWizardViewStage", UserWizardViewStage, "USER_WIZARD_VIEW_STAGE_"] }
+        super("symbolx.bench.RunViewData", [
+            { no: 100, name: "inputs_packed", kind: "message", T: () => Value }
         ]);
     }
-    create(value?: PartialMessage<UserWizardViewData>): UserWizardViewData {
+    create(value?: PartialMessage<RunViewData>): RunViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<UserWizardViewData>(this, message, value);
+            reflectionMergePartial<RunViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UserWizardViewData): UserWizardViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunViewData): RunViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.UserWizardViewStage stage */ 100:
-                    message.stage = reader.int32();
+                case /* optional google.protobuf.Value inputs_packed */ 100:
+                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -26933,10 +26761,10 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: UserWizardViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.UserWizardViewStage stage = 100; */
-        if (message.stage !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.stage);
+    internalBinaryWrite(message: RunViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional google.protobuf.Value inputs_packed = 100; */
+        if (message.inputsPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26944,24 +26772,46 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.UserWizardViewData
+ * @generated MessageType for protobuf message symbolx.bench.RunViewData
  */
-export const UserWizardViewData = new UserWizardViewData$Type();
+export const RunViewData = new RunViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PickerViewData$Type extends MessageType$<PickerViewData> {
+class HubViewData$Type extends MessageType$<HubViewData> {
     constructor() {
-        super("symbolx.bench.PickerViewData", []);
+        super("symbolx.bench.HubViewData", [
+            { no: 100, name: "aspect", kind: "enum", T: () => ["symbolx.bench.HubAspect", HubAspect, "HUB_ASPECT_"] }
+        ]);
     }
-    create(value?: PartialMessage<PickerViewData>): PickerViewData {
+    create(value?: PartialMessage<HubViewData>): HubViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.aspect = 0;
         if (value !== undefined)
-            reflectionMergePartial<PickerViewData>(this, message, value);
+            reflectionMergePartial<HubViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PickerViewData): PickerViewData {
-        return target ?? this.create();
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HubViewData): HubViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.HubAspect aspect */ 100:
+                    message.aspect = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
-    internalBinaryWrite(message: PickerViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: HubViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.HubAspect aspect = 100; */
+        if (message.aspect !== 0)
+            writer.tag(100, WireType.Varint).int32(message.aspect);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26969,9 +26819,208 @@ class PickerViewData$Type extends MessageType$<PickerViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PickerViewData
+ * @generated MessageType for protobuf message symbolx.bench.HubViewData
  */
-export const PickerViewData = new PickerViewData$Type();
+export const HubViewData = new HubViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TreeViewData$Type extends MessageType$<TreeViewData> {
+    constructor() {
+        super("symbolx.bench.TreeViewData", [
+            { no: 100, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 101, name: "filter_is_page", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 102, name: "is_default_expanded", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 103, name: "expanded_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 104, name: "collapsed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 110, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] }
+        ]);
+    }
+    create(value?: PartialMessage<TreeViewData>): TreeViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodeTypes = [];
+        message.expandedNodesPtr = [];
+        message.collapsedNodesPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<TreeViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TreeViewData): TreeViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated symbolx.bench.NodeType node_types */ 100:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.nodeTypes.push(reader.int32());
+                    else
+                        message.nodeTypes.push(reader.int32());
+                    break;
+                case /* optional bool filter_is_page */ 101:
+                    message.filterIsPage = reader.bool();
+                    break;
+                case /* optional bool is_default_expanded */ 102:
+                    message.isDefaultExpanded = reader.bool();
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr */ 103:
+                    message.expandedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr */ 104:
+                    message.collapsedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.TreeViewPreset preset */ 110:
+                    message.preset = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TreeViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.NodeType node_types = 100; */
+        if (message.nodeTypes.length) {
+            writer.tag(100, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.nodeTypes.length; i++)
+                writer.int32(message.nodeTypes[i]);
+            writer.join();
+        }
+        /* optional bool filter_is_page = 101; */
+        if (message.filterIsPage !== undefined)
+            writer.tag(101, WireType.Varint).bool(message.filterIsPage);
+        /* optional bool is_default_expanded = 102; */
+        if (message.isDefaultExpanded !== undefined)
+            writer.tag(102, WireType.Varint).bool(message.isDefaultExpanded);
+        /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 103; */
+        for (let i = 0; i < message.expandedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.expandedNodesPtr[i], writer.tag(103, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 104; */
+        for (let i = 0; i < message.collapsedNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.collapsedNodesPtr[i], writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TreeViewPreset preset = 110; */
+        if (message.preset !== undefined)
+            writer.tag(110, WireType.Varint).int32(message.preset);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TreeViewData
+ */
+export const TreeViewData = new TreeViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class FeedViewData$Type extends MessageType$<FeedViewData> {
+    constructor() {
+        super("symbolx.bench.FeedViewData", [
+            { no: 100, name: "query_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 101, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 102, name: "filter_pills", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<FeedViewData>): FeedViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.filterPills = [];
+        if (value !== undefined)
+            reflectionMergePartial<FeedViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FeedViewData): FeedViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.NodeType query_node_type */ 100:
+                    message.queryNodeType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ExpressionData filter */ 101:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated string filter_pills */ 102:
+                    message.filterPills.push(reader.string());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FeedViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.NodeType query_node_type = 100; */
+        if (message.queryNodeType !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.queryNodeType);
+        /* optional symbolx.bench.ExpressionData filter = 101; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* repeated string filter_pills = 102; */
+        for (let i = 0; i < message.filterPills.length; i++)
+            writer.tag(102, WireType.LengthDelimited).string(message.filterPills[i]);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.FeedViewData
+ */
+export const FeedViewData = new FeedViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ButtonViewData$Type extends MessageType$<ButtonViewData> {
+    constructor() {
+        super("symbolx.bench.ButtonViewData", [
+            { no: 100, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.ButtonVariant", ButtonVariant, "BUTTON_VARIANT_"] }
+        ]);
+    }
+    create(value?: PartialMessage<ButtonViewData>): ButtonViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<ButtonViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ButtonViewData): ButtonViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.ButtonVariant variant */ 100:
+                    message.variant = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ButtonViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.ButtonVariant variant = 100; */
+        if (message.variant !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.variant);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ButtonViewData
+ */
+export const ButtonViewData = new ButtonViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class IconViewData$Type extends MessageType$<IconViewData> {
     constructor() {
@@ -27019,6 +27068,52 @@ class IconViewData$Type extends MessageType$<IconViewData> {
  * @generated MessageType for protobuf message symbolx.bench.IconViewData
  */
 export const IconViewData = new IconViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PickerViewData$Type extends MessageType$<PickerViewData> {
+    constructor() {
+        super("symbolx.bench.PickerViewData", [
+            { no: 100, name: "variant", kind: "enum", opt: true, T: () => ["symbolx.bench.PickerVariant", PickerVariant, "PICKER_VARIANT_"] }
+        ]);
+    }
+    create(value?: PartialMessage<PickerViewData>): PickerViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<PickerViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PickerViewData): PickerViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.PickerVariant variant */ 100:
+                    message.variant = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PickerViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.PickerVariant variant = 100; */
+        if (message.variant !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.variant);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PickerViewData
+ */
+export const PickerViewData = new PickerViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SpaceData$Type extends MessageType$<SpaceData> {
     constructor() {
@@ -28786,7 +28881,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.NODE_MODE]: NodeMode,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
-  [EnumType.VARIANT]: Variant,
   [EnumType.COLOR_TYPE]: ColorType,
   [EnumType.COLOR_SHADE]: ColorShade,
   [EnumType.FONT_TYPE]: FontType,
@@ -28800,6 +28894,8 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
   [EnumType.HUB_ASPECT]: HubAspect,
   [EnumType.HELP_ASPECT]: HelpAspect,
+  [EnumType.BUTTON_VARIANT]: ButtonVariant,
+  [EnumType.PICKER_VARIANT]: PickerVariant,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
 }
@@ -28924,17 +29020,18 @@ export interface BlockSubtypeMapping extends Record<BlockType, BlockSubtype> {
   [BlockType.QUERY]: QueryBlockData,
 }
 
-export type ViewSubtype = TreeViewData | RunViewData | FeedViewData | HubViewData | HelpViewData | DetailViewData | UserWizardViewData | PickerViewData | IconViewData;
+export type ViewSubtype = UserWizardViewData | HelpViewData | DetailViewData | RunViewData | HubViewData | TreeViewData | FeedViewData | ButtonViewData | IconViewData | PickerViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
-  [ViewType.TREE]: TreeViewData,
-  [ViewType.RUN]: RunViewData,
-  [ViewType.FEED]: FeedViewData,
-  [ViewType.HUB]: HubViewData,
+  [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.HELP]: HelpViewData,
   [ViewType.DETAIL]: DetailViewData,
-  [ViewType.USER_WIZARD]: UserWizardViewData,
-  [ViewType.PICKER]: PickerViewData,
+  [ViewType.RUN]: RunViewData,
+  [ViewType.HUB]: HubViewData,
+  [ViewType.TREE]: TreeViewData,
+  [ViewType.FEED]: FeedViewData,
+  [ViewType.BUTTON]: ButtonViewData,
   [ViewType.ICON]: IconViewData,
+  [ViewType.PICKER]: PickerViewData,
 }
 
 export type StepSubtype = GetStepData | SearchStepData | CreateStepData | DuplicateStepData | UpdateStepData | DeleteStepData | ActionStepData | FailStepData | ObserveStepData | ClickStepData | PressStepData | TypeStepData | ScrollStepData | SelectStepData | GoBackwardStepData | GoForwardStepData | GoToUrlStepData | GoToTabStepData | LoopStepData;
@@ -29157,7 +29254,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.NODE_MODE]: NodeMode,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
-  [EnumType.VARIANT]: Variant,
   [EnumType.COLOR_TYPE]: ColorType,
   [EnumType.COLOR_SHADE]: ColorShade,
   [EnumType.FONT_TYPE]: FontType,
@@ -29171,6 +29267,8 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
   [EnumType.HUB_ASPECT]: HubAspect,
   [EnumType.HELP_ASPECT]: HelpAspect,
+  [EnumType.BUTTON_VARIANT]: ButtonVariant,
+  [EnumType.PICKER_VARIANT]: PickerVariant,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
 }
@@ -29888,8 +29986,6 @@ export enum ViewProperty {
   subviewsPacked = 39,
   valueType = 40,
   nodePtr = 42,
-  variant = 50,
-  font = 51,
   position = 60,
   size = 61,
   margin = 62,
@@ -29904,6 +30000,7 @@ export enum ViewProperty {
   isDisabled = 81,
   isInput = 82,
   isInline = 83,
+  isMinimal = 84,
   isLoading = 85,
   mode = 90,
 }
@@ -30216,27 +30313,8 @@ export enum QueryBlockProperty {
   queryPtr = 100,
 }
 
-export enum TreeViewProperty {
-  nodeTypes = 100,
-  filterIsPage = 101,
-  isDefaultExpanded = 102,
-  expandedNodesPtr = 103,
-  collapsedNodesPtr = 104,
-  preset = 110,
-}
-
-export enum RunViewProperty {
-  inputsPacked = 100,
-}
-
-export enum FeedViewProperty {
-  queryNodeType = 100,
-  filter = 101,
-  filterPills = 102,
-}
-
-export enum HubViewProperty {
-  aspect = 100,
+export enum UserWizardViewProperty {
+  stage = 100,
 }
 
 export enum HelpViewProperty {
@@ -30248,16 +30326,39 @@ export enum DetailViewProperty {
   collapsedSections = 101,
 }
 
-export enum UserWizardViewProperty {
-  stage = 100,
+export enum RunViewProperty {
+  inputsPacked = 100,
 }
 
-export enum PickerViewProperty {
+export enum HubViewProperty {
+  aspect = 100,
+}
 
+export enum TreeViewProperty {
+  nodeTypes = 100,
+  filterIsPage = 101,
+  isDefaultExpanded = 102,
+  expandedNodesPtr = 103,
+  collapsedNodesPtr = 104,
+  preset = 110,
+}
+
+export enum FeedViewProperty {
+  queryNodeType = 100,
+  filter = 101,
+  filterPills = 102,
+}
+
+export enum ButtonViewProperty {
+  variant = 100,
 }
 
 export enum IconViewProperty {
   includeColor = 100,
+}
+
+export enum PickerViewProperty {
+  variant = 100,
 }
 
 export enum GetStepProperty {
@@ -31194,15 +31295,16 @@ export const BLOCK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<BlockType, any>> = {
 }
 
 export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
-  [ViewType.TREE]: TreeViewProperty,
-  [ViewType.RUN]: RunViewProperty,
-  [ViewType.FEED]: FeedViewProperty,
-  [ViewType.HUB]: HubViewProperty,
+  [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.HELP]: HelpViewProperty,
   [ViewType.DETAIL]: DetailViewProperty,
-  [ViewType.USER_WIZARD]: UserWizardViewProperty,
-  [ViewType.PICKER]: PickerViewProperty,
+  [ViewType.RUN]: RunViewProperty,
+  [ViewType.HUB]: HubViewProperty,
+  [ViewType.TREE]: TreeViewProperty,
+  [ViewType.FEED]: FeedViewProperty,
+  [ViewType.BUTTON]: ButtonViewProperty,
   [ViewType.ICON]: IconViewProperty,
+  [ViewType.PICKER]: PickerViewProperty,
 }
 
 export const STEP_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<StepType, any>> = {
@@ -31969,8 +32071,6 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.subviewsPacked]: { id: 39, name: 'subviews_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.variant]: { id: 50, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.font]: { id: 51, name: 'font', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },
   [ViewProperty.position]: { id: 60, name: 'position', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
   [ViewProperty.size]: { id: 61, name: 'size', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE },
   [ViewProperty.margin]: { id: 62, name: 'margin', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
@@ -31985,6 +32085,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isInput]: { id: 82, name: 'is_input', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isInline]: { id: 83, name: 'is_inline', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isMinimal]: { id: 84, name: 'is_minimal', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isLoading]: { id: 85, name: 'is_loading', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.mode]: { id: 90, name: 'mode', component: ObjectType.VIEW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -32281,24 +32382,8 @@ export const DatabaseBlockDataInfo: Record<DatabaseBlockProperty, PropertyInfo> 
 export const QueryBlockDataInfo: Record<QueryBlockProperty, PropertyInfo> = {
   [QueryBlockProperty.queryPtr]: { id: 100, name: 'query_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.QUERY], referenceStruct: StructType.NODE_REFERENCE },
 }
-export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
-  [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-}
-export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
-  [RunViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-}
-export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
-  [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [FeedViewProperty.filterPills]: { id: 102, name: 'filter_pills', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
-  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
+  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
   [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -32307,14 +32392,33 @@ export const DetailViewDataInfo: Record<DetailViewProperty, PropertyInfo> = {
   [DetailViewProperty.expandedSections]: { id: 100, name: 'expanded_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DetailViewProperty.collapsedSections]: { id: 101, name: 'collapsed_sections', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
-export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
-  [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
+  [RunViewProperty.inputsPacked]: { id: 100, name: 'inputs_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
-export const PickerViewDataInfo: Record<PickerViewProperty, PropertyInfo> = {
-
+export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
+  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
+  [TreeViewProperty.nodeTypes]: { id: 100, name: 'node_types', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.filterIsPage]: { id: 101, name: 'filter_is_page', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.isDefaultExpanded]: { id: 102, name: 'is_default_expanded', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewProperty.expandedNodesPtr]: { id: 103, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.collapsedNodesPtr]: { id: 104, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TreeViewProperty.preset]: { id: 110, name: 'preset', component: ObjectType.VIEW, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+}
+export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
+  [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FeedViewProperty.filterPills]: { id: 102, name: 'filter_pills', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
+  [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
   [IconViewProperty.includeColor]: { id: 100, name: 'include_color', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const PickerViewDataInfo: Record<PickerViewProperty, PropertyInfo> = {
+  [PickerViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.PICKER_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const GetStepDataInfo: Record<GetStepProperty, PropertyInfo> = {
   [GetStepProperty.nodeType]: { id: 100, name: 'node_type', component: ObjectType.STEP, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -33048,15 +33152,16 @@ export const BlockSubtypePropertyInfo: Partial<Record<BlockType, Record<any, Pro
   [BlockType.QUERY]: QueryBlockDataInfo,
 }
 export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, PropertyInfo>>> = {
-  [ViewType.TREE]: TreeViewDataInfo,
-  [ViewType.RUN]: RunViewDataInfo,
-  [ViewType.FEED]: FeedViewDataInfo,
-  [ViewType.HUB]: HubViewDataInfo,
+  [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.HELP]: HelpViewDataInfo,
   [ViewType.DETAIL]: DetailViewDataInfo,
-  [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
-  [ViewType.PICKER]: PickerViewDataInfo,
+  [ViewType.RUN]: RunViewDataInfo,
+  [ViewType.HUB]: HubViewDataInfo,
+  [ViewType.TREE]: TreeViewDataInfo,
+  [ViewType.FEED]: FeedViewDataInfo,
+  [ViewType.BUTTON]: ButtonViewDataInfo,
   [ViewType.ICON]: IconViewDataInfo,
+  [ViewType.PICKER]: PickerViewDataInfo,
 }
 export const StepSubtypePropertyInfo: Partial<Record<StepType, Record<any, PropertyInfo>>> = {
   [StepType.GET]: GetStepDataInfo,

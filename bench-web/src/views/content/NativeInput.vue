@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { STRING_TYPE, typeIsNumeric } from "@/language/field";
 import { checkValueScalar, checkValueScalarConstraint } from "@/language/value";
-import { Alignment, ColorShade, NodeType, Variant, ViewType, type ViewData } from "@/proto/wire";
+import { Alignment, ColorShade, NodeType, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -12,9 +12,11 @@ import { computed, Ref, ref, toRef, watch } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; placeholder?: string } & Partial<
-    Pick<
-      ViewData,
-      "type" | "name" | "title" | "icon" | "variant" | "valueType" | "alignment" | "isInput" | "isDisabled"
+    Partial<
+      Pick<
+        ViewData,
+        "type" | "name" | "title" | "icon" | "valueType" | "alignment" | "isInput" | "isDisabled" | "isMinimal"
+      >
     >
   >
 >();
@@ -124,14 +126,8 @@ defineExpose<ViewExposed & { select: () => void }>({
       v-if="isInput"
       class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-200"
       :class="[
-        isDisabled
-          ? 'bg-gray-100 text-gray-700'
-          : variant != Variant.STEALTH
-            ? 'bg-white text-gray-900'
-            : 'text-gray-900',
-        variant != Variant.STEALTH
-          ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline'
-          : '',
+        isDisabled ? 'bg-gray-100 text-gray-700' : !isMinimal ? 'bg-white text-gray-900' : 'text-gray-900',
+        !isMinimal ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline' : '',
         validationError != null ? 'outline-danger-600' : 'outline-gray-400',
       ]"
     >
@@ -164,7 +160,7 @@ defineExpose<ViewExposed & { select: () => void }>({
         </span>
         <!-- Clear -->
         <button
-          v-if="variant != Variant.STEALTH && !isDisabled && !valueType?.isRequired && hasValue"
+          v-if="!isMinimal && !isDisabled && !valueType?.isRequired && hasValue"
           class="ml-auto pl-1 text-gray-400 opacity-0 outline-none transition-colors duration-75 hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
           tabindex="-1"
           @click.stop="clear"
@@ -194,7 +190,7 @@ defineExpose<ViewExposed & { select: () => void }>({
           :type="inputType"
           class="rounded border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-gray-700 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
-          :size="variant == Variant.STEALTH ? size : undefined"
+          :size="isMinimal ? size : undefined"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
           @input="currentValue = ($event.target as HTMLInputElement).value"
@@ -213,7 +209,7 @@ defineExpose<ViewExposed & { select: () => void }>({
     <div
       v-else
       class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-gray-400 focus-within:outline hover:border-gray-200"
-      :class="[variant != Variant.STEALTH ? 'select-text border border-gray-200 px-2 py-1' : '']"
+      :class="[!isMinimal ? 'select-text border border-gray-200 px-2 py-1' : '']"
     >
       <template v-if="!valueType?.isList">
         <!-- Scalar -->

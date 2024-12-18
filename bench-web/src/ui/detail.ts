@@ -50,7 +50,6 @@ import {
   StepType,
   TypeConstraintProperty,
   TypeKind,
-  Variant,
   ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
@@ -521,7 +520,6 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
         type: "view",
         viewType: ViewType.OBJECT,
         viewProps: {
-          variant: Variant.STEALTH,
           valueType: makeTypeInfo({
             kind: TypeKind.CUSTOM_OBJECT,
             baseFieldType: FieldType.MEMBER,
@@ -529,6 +527,7 @@ export function makeInspectLayout(node: AnyNodeData, graph: ReadNodeGraph, txFac
           }),
           isInput: true,
           isInline: true,
+          isMinimal: true,
         },
         isFullWidth: true,
         read: () => node.valuePacked,
